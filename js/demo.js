@@ -1,48 +1,93 @@
-// ExecOS Demo Application Logic
+﻿// ExecOS Demo Logic
 
 const SCREEN_META = {
-  command:    { title: 'Command Center',          subtitle: 'AI-powered executive overview of your business health' },
-  operations: { title: 'Operations Intelligence', subtitle: 'Real-time task board with AI bottleneck detection' },
-  team:       { title: 'Team Intelligence',       subtitle: 'Workload analysis, performance scores & burnout detection' },
-  convo:      { title: 'Conversation Intelligence', subtitle: 'Paste any meeting or thread — AI generates decisions & plans' },
-  decision:   { title: 'AI Decision Engine',      subtitle: 'Claude AI generates Safe, Balanced & Aggressive options' },
-  settings:   { title: 'Settings',                subtitle: 'Configure your ExecOS workspace and AI integration' },
+  command:      { title: 'Command Center',            sub: 'Acme Corp Â· CEO View' },
+  operations:   { title: 'Operations',                sub: 'Acme Corp Â· Execution Intelligence' },
+  team:         { title: 'Team Intelligence',          sub: 'Acme Corp Â· Workforce Analysis' },
+  conversation: { title: 'Conversation Intelligence', sub: 'Acme Corp Â· Meeting & Thread Analysis' },
+  decisions:    { title: 'AI Decision Engine',        sub: 'Acme Corp Â· Structured Decision Making' },
+  settings:     { title: 'Settings',                  sub: 'System Configuration' },
 };
 
-let currentOpsFilter = 'All';
-let selectedDecisionOpt = null;
-
-// ── Screen switching ──────────────────────────────────────────────────────────
-function switchScreen(id) {
+// â”€â”€ Screen switching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function switchScreen(id, btn) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const target = document.getElementById('screen-' + id);
-  if (target) target.classList.add('active');
+  document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
 
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  const navBtn = document.querySelector('.nav-btn[data-screen="' + id + '"]');
-  if (navBtn) navBtn.classList.add('active');
+  const screen = document.getElementById('screen-' + id);
+  if (screen) screen.classList.add('active');
+  if (btn) btn.classList.add('active');
 
-  const meta = SCREEN_META[id] || { title: id, subtitle: '' };
-  const titleEl = document.getElementById('topbar-title');
-  const subEl   = document.getElementById('topbar-sub');
-  if (titleEl) titleEl.textContent = meta.title;
-  if (subEl)   subEl.textContent   = meta.subtitle;
+  const meta = SCREEN_META[id];
+  if (meta) {
+    document.getElementById('tb-title').textContent = meta.title;
+    document.getElementById('tb-sub').textContent = meta.sub;
+  }
 }
 
-// ── Operations table ──────────────────────────────────────────────────────────
+// â”€â”€ SVG helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function warnIcon(color) {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+}
+function infoIcon(color) {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+}
+
+// â”€â”€ Render helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function pill(text, cls) {
+  return `<span class="pill ${cls}">${text}</span>`;
+}
+
+// â”€â”€ Command Center â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function renderCriticalTasks() {
+  const el = document.getElementById('critical-tasks');
+  if (!el) return;
+  const critical = TASKS.filter(t => t.status === 'Blocked' || t.priority === 'Critical').slice(0, 3);
+  el.innerHTML = critical.map(t => `
+    <div style="display:flex;align-items:start;justify-content:space-between;gap:10px;padding:9px 11px;border-radius:8px;background:var(--bg);border:1px solid var(--b1);margin-bottom:7px">
+      <div>
+        <div class="task-title">${t.title}</div>
+        ${t.blocker ? `<div class="task-blocker">&#x26A0; ${t.blocker}</div>` : `<div style="font-size:10px;color:var(--t3)">${t.assignee} &middot; Due ${t.due}</div>`}
+      </div>
+      ${pill(t.status, STATUS_PILL[t.status] || 'pill-gray')}
+    </div>
+  `).join('');
+}
+
+function renderAlerts() {
+  const el = document.getElementById('alerts-list');
+  if (!el) return;
+  const iconMap = { red: ['#f06e6e', 'warn'], yellow: ['#f5c842', 'warn'], blue: ['#60a5fa', 'info'] };
+  el.innerHTML = ALERTS.map(a => {
+    const [color, type] = iconMap[a.type] || ['#8b97c8', 'info'];
+    const icon = type === 'warn' ? warnIcon(color) : infoIcon(color);
+    return `<div class="alert-row alert-${a.type}" style="margin-bottom:7px">
+      ${icon}
+      <div><div class="al-title">${a.title}</div><div class="al-desc">${a.desc}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderDecisionMemory() {
+  const el = document.getElementById('decision-memory');
+  if (!el) return;
+  el.innerHTML = DECISIONS.map(d => `
+    <div class="dm-item">
+      <div><div class="dm-title">${d.title}</div><div class="dm-date">${d.date}</div></div>
+      ${pill(d.status, d.pill)}
+    </div>
+  `).join('');
+}
+
+// â”€â”€ Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let currentFilter = 'All';
+
 function renderOpsTable(filter) {
-  const tbody = document.getElementById('ops-tbody');
-  if (!tbody) return;
-
-  const rows = (filter === 'All')
-    ? TASKS
-    : TASKS.filter(t => t.status === filter);
-
-  tbody.innerHTML = rows.map(t => {
-    const priorityClass = { Critical:'badge-red', High:'badge-orange', Medium:'badge-yellow', Low:'badge-gray' }[t.priority] || 'badge-gray';
-    const statusClass   = { Blocked:'badge-red', 'In Progress':'badge-blue', 'To Do':'badge-gray', 'Needs Review':'badge-yellow' }[t.status] || 'badge-gray';
-    const scoreColor    = t.score >= 85 ? '#f87171' : t.score >= 70 ? '#fbbf24' : '#34d399';
-
+  const el = document.getElementById('ops-table');
+  if (!el) return;
+  const rows = filter === 'All' ? TASKS : TASKS.filter(t => t.status === filter);
+  el.innerHTML = rows.map(t => {
+    const scoreColor = t.score >= 90 ? '#f06e6e' : t.score >= 70 ? '#f5c842' : '#00d4ff';
     return `<tr>
       <td>
         <div class="task-title">${t.title}</div>
@@ -50,223 +95,184 @@ function renderOpsTable(filter) {
       </td>
       <td>
         <div class="assignee-cell">
-          <div class="avatar-sm">${t.initials}</div>
-          <span>${t.assignee}</span>
+          <div class="assignee-av">${t.initials}</div>
+          <span style="font-size:12px;color:var(--t2)">${t.assignee.split(' ')[0]}</span>
         </div>
       </td>
-      <td><span class="badge ${priorityClass}">${t.priority}</span></td>
       <td>
-        <div class="score-wrap">
-          <div class="score-bar-track"><div class="score-bar-fill" style="width:${t.score}%;background:${scoreColor}"></div></div>
-          <span class="score-num">${t.score}</span>
+        <div class="pri-cell">
+          <span class="pri-dot" style="background:${PRI_COLOR[t.priority]}"></span>
+          <span style="color:var(--t2)">${t.priority}</span>
         </div>
       </td>
-      <td><span class="badge ${statusClass}">${t.status}</span></td>
-      <td class="muted">${t.due}</td>
+      <td>
+        <div class="score-cell">
+          <div class="score-bar"><div class="score-fill" style="width:${t.score}%;background:${scoreColor}"></div></div>
+          <span style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace">${t.score}</span>
+        </div>
+      </td>
+      <td>${pill(t.status, STATUS_PILL[t.status] || 'pill-gray')}</td>
+      <td><span style="font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace">${t.due}</span></td>
     </tr>`;
   }).join('');
 }
 
 function filterOps(filter, btn) {
-  currentOpsFilter = filter;
-  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = filter;
   renderOpsTable(filter);
 }
 
-// ── Team grid ─────────────────────────────────────────────────────────────────
+// â”€â”€ Team Intelligence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderTeam() {
-  const grid = document.getElementById('team-grid');
-  if (!grid) return;
-
-  grid.innerHTML = TEAM.map(m => {
-    const wlClass = { Overloaded:'badge-red', High:'badge-orange', Balanced:'badge-green', Underutilized:'badge-gray' }[m.workload] || 'badge-gray';
-    const wlPct   = { Overloaded:95, High:75, Balanced:55, Underutilized:20 }[m.workload] || 40;
-    const wlColor = { Overloaded:'#f87171', High:'#fb923c', Balanced:'#34d399', Underutilized:'#8895c4' }[m.workload] || '#8895c4';
-
-    return `<div class="team-card">
-      <div class="team-card-header">
-        <div class="avatar-lg">${m.avatar}</div>
-        <div class="team-info">
-          <div class="team-name">${m.name}</div>
-          <div class="team-role muted">${m.role} &middot; ${m.dept}</div>
-        </div>
-        <span class="badge ${wlClass}">${m.workload}</span>
-      </div>
-      <div class="task-counters">
-        <div class="counter-item"><div class="counter-val">${m.active}</div><div class="counter-lbl muted">Active</div></div>
-        <div class="counter-item"><div class="counter-val">${m.done}</div><div class="counter-lbl muted">Done</div></div>
-        <div class="counter-item"><div class="counter-val" style="color:${m.overdue > 0 ? '#f87171' : 'inherit'}">${m.overdue}</div><div class="counter-lbl muted">Overdue</div></div>
-        <div class="counter-item"><div class="counter-val" style="color:${m.blocked > 0 ? '#f87171' : 'inherit'}">${m.blocked}</div><div class="counter-lbl muted">Blocked</div></div>
-      </div>
-      <div class="workload-section">
-        <div class="workload-label"><span class="muted">Workload</span><span style="color:${wlColor}">${wlPct}%</span></div>
-        <div class="progress-track"><div class="progress-fill" style="width:${wlPct}%;background:${wlColor}"></div></div>
-      </div>
-      <div class="score-row">
-        <div class="score-item"><span class="muted">Performance</span><span class="score-val">${m.perf}</span></div>
-        <div class="score-item"><span class="muted">Consistency</span><span class="score-val">${m.consist}</span></div>
-      </div>
-      <div class="last-active muted">Last active: ${m.activity}</div>
-    </div>`;
-  }).join('');
-}
-
-// ── Conversation analysis ─────────────────────────────────────────────────────
-function analyzeConvo() {
-  const btn    = document.getElementById('analyze-btn');
-  const output = document.getElementById('convo-output');
-  const spinner= document.getElementById('convo-spinner');
-
-  if (!btn) return;
-  btn.disabled = true;
-  btn.textContent = 'Analyzing...';
-  if (spinner) spinner.style.display = 'flex';
-  if (output)  output.style.display  = 'none';
-
-  setTimeout(() => {
-    if (spinner) spinner.style.display = 'none';
-    if (output) {
-      output.style.display = 'block';
-      output.innerHTML = `
-        <div class="analysis-card">
-          <div class="analysis-label">Summary</div>
-          <p>The executive team discussed a critical pricing strategy decision. The current freemium model shows high conversion friction. Two competing approaches were debated: a usage-based model vs. a seat-based enterprise tier. The team aligned on pursuing a phased hybrid approach.</p>
-        </div>
-        <div class="analysis-card decision-card">
-          <div class="analysis-label">Decision</div>
-          <div class="decision-text">Transition to a hybrid pricing model: maintain freemium entry tier, introduce usage-based growth tier at $0.05/action, and launch an enterprise seat-based tier at $299/seat/mo by Q3 2025.</div>
-        </div>
-        <div class="analysis-card">
-          <div class="analysis-label">Action Plan</div>
-          <div class="action-list">
-            <div class="action-item">
-              <div class="action-num">1</div>
-              <div class="action-body">
-                <div class="action-title">Draft new pricing page & messaging</div>
-                <div class="action-meta"><span class="badge badge-brand">Sarah Kim</span><span class="muted">Due May 20</span><span class="badge badge-red">High</span></div>
-              </div>
-            </div>
-            <div class="action-item">
-              <div class="action-num">2</div>
-              <div class="action-body">
-                <div class="action-title">Build usage metering infrastructure</div>
-                <div class="action-meta"><span class="badge badge-brand">Marcus Chen</span><span class="muted">Due Jun 1</span><span class="badge badge-red">Critical</span></div>
-              </div>
-            </div>
-            <div class="action-item">
-              <div class="action-num">3</div>
-              <div class="action-body">
-                <div class="action-title">Set up enterprise billing & contracts</div>
-                <div class="action-meta"><span class="badge badge-brand">James Okafor</span><span class="muted">Due Jun 15</span><span class="badge badge-orange">Medium</span></div>
-              </div>
-            </div>
-            <div class="action-item">
-              <div class="action-num">4</div>
-              <div class="action-body">
-                <div class="action-title">A/B test new pricing with pilot customers</div>
-                <div class="action-meta"><span class="badge badge-brand">Sarah Kim</span><span class="muted">Due Jul 1</span><span class="badge badge-yellow">Low</span></div>
-              </div>
-            </div>
+  const el = document.getElementById('team-grid');
+  if (!el) return;
+  el.innerHTML = TEAM.map(m => `
+    <div class="team-card">
+      <div class="tc-header">
+        <div class="tc-left">
+          <div class="tc-avatar">${m.avatar}</div>
+          <div>
+            <div class="tc-name">${m.name}</div>
+            <div class="tc-role">${m.role}</div>
           </div>
         </div>
-        <div class="analysis-card exec-note">
-          <div class="analysis-label">Executive Note</div>
-          <p>This pricing shift is the highest-leverage growth lever available. Execution speed matters — every week of delay costs estimated $18K in MRR. Prioritize the metering infrastructure above all other engineering work this sprint.</p>
-        </div>`;
-    }
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Analyze Conversation';
-    }
-  }, 1800);
+        ${pill(m.workload, WL_PILL[m.workload] || 'pill-gray')}
+      </div>
+      <div class="tc-stats">
+        <div><div class="tc-stat-val" style="color:#60a5fa">${m.active}</div><div class="tc-stat-lbl">Active</div></div>
+        <div><div class="tc-stat-val" style="color:#10e0a0">${m.done}</div><div class="tc-stat-lbl">Done</div></div>
+        <div><div class="tc-stat-val" style="color:#f06e6e">${m.overdue}</div><div class="tc-stat-lbl">Overdue</div></div>
+        <div><div class="tc-stat-val" style="color:#f5833c">${m.blocked}</div><div class="tc-stat-lbl">Blocked</div></div>
+      </div>
+      <div class="tc-wl-row">
+        <span class="tc-wl-lbl">Workload</span>
+        <span style="font-size:10px;font-weight:600;color:${WL_COLOR[m.workload]}">${m.workload}</span>
+      </div>
+      <div class="tc-wl-bar"><div class="tc-wl-fill" style="width:${m.wl_pct}%;background:${WL_COLOR[m.workload]}"></div></div>
+      <div class="tc-footer">
+        <div class="tc-scores">
+          <div class="tc-score-item"><div class="tc-score-val">${m.perf}</div><div class="tc-score-lbl">Perf.</div></div>
+          <div class="tc-score-item"><div class="tc-score-val">${m.consist}</div><div class="tc-score-lbl">Consist.</div></div>
+        </div>
+        <div class="tc-activity">${m.activity}</div>
+      </div>
+    </div>
+  `).join('');
 }
 
-// ── Decision engine ───────────────────────────────────────────────────────────
-function generateDecision() {
-  const btn    = document.getElementById('generate-btn');
-  const output = document.getElementById('decision-output');
-  const spinner= document.getElementById('decision-spinner');
-
-  if (!btn) return;
+// â”€â”€ Conversation Intelligence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function analyzeConvo() {
+  const btn = document.getElementById('convo-btn');
   btn.disabled = true;
-  btn.textContent = 'Generating...';
-  if (spinner) spinner.style.display = 'flex';
-  if (output)  output.style.display  = 'none';
-  selectedDecisionOpt = null;
+  btn.innerHTML = `<svg style="animation:spin .8s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Analyzing conversation...`;
 
   setTimeout(() => {
-    if (spinner) spinner.style.display = 'none';
-    if (output)  output.style.display  = 'block';
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Regenerate Options';
+    document.getElementById('convo-output').innerHTML = `
+      <div class="card" style="animation:fadeIn .3s ease">
+        <div class="clabel">Summary</div>
+        <p class="ctext">The team aligned on a phased pricing model transition &mdash; tiered + usage-based for net-new customers in Q2, with existing client migration deferred to Q3 to protect renewal contracts and reduce commercial risk.</p>
+      </div>
+      <div class="card card-cyan" style="animation:fadeIn .3s .1s ease both">
+        <div class="ai-head"><span class="ai-dot"></span><span class="ai-lbl">Decision</span></div>
+        <p style="font-size:13px;font-weight:600;color:var(--t1);line-height:1.5">Adopt tiered pricing + usage for all net-new customers starting Q2. Existing clients remain on current pricing with a grandfathering policy through Q3.</p>
+      </div>
+      <div class="card" style="animation:fadeIn .3s .2s ease both">
+        <div class="row-between" style="margin-bottom:10px">
+          <span class="ai-lbl" style="color:var(--t1)">Action Plan &mdash; Auto-Generated</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;padding:9px 11px;border-radius:8px;background:var(--bg);border:1px solid var(--b1)">
+            <div style="display:flex;align-items:start;gap:7px"><span class="pnum">1</span><div><div class="task-title">Define final pricing tiers &amp; amounts</div><div style="font-size:10px;color:var(--t3)">Sarah Kim &middot; Friday</div></div></div>
+            ${pill('High', 'pill-orange')}
+          </div>
+          <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;padding:9px 11px;border-radius:8px;background:var(--bg);border:1px solid var(--b1)">
+            <div style="display:flex;align-items:start;gap:7px"><span class="pnum">2</span><div><div class="task-title">Begin backend metering infrastructure</div><div style="font-size:10px;color:var(--t3)">Marcus Chen &middot; This week</div></div></div>
+            ${pill('High', 'pill-orange')}
+          </div>
+          <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;padding:9px 11px;border-radius:8px;background:var(--bg);border:1px solid var(--b1)">
+            <div style="display:flex;align-items:start;gap:7px"><span class="pnum">3</span><div><div class="task-title">Draft customer communication plan</div><div style="font-size:10px;color:var(--t3)">James Okafor &middot; Next week</div></div></div>
+            ${pill('Medium', 'pill-yellow')}
+          </div>
+          <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;padding:9px 11px;border-radius:8px;background:var(--bg);border:1px solid var(--b1)">
+            <div style="display:flex;align-items:start;gap:7px"><span class="pnum">4</span><div><div class="task-title">Create enterprise grandfathering policy</div><div style="font-size:10px;color:var(--t3)">Sarah Kim &middot; Before May renewals</div></div></div>
+            ${pill('High', 'pill-orange')}
+          </div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(16,224,160,.2);background:rgba(16,224,160,.04);animation:fadeIn .3s .3s ease both">
+        <div class="clabel" style="color:#10e0a0">Executive Note</div>
+        <p class="ctext">Solid, well-structured decision. Phasing net-new vs. existing reduces commercial risk while capturing Q2 revenue upside. Ensure legal reviews grandfathering terms before any client communication goes out.</p>
+      </div>`;
+
+    btn.innerHTML = '&#x2713; Analysis Complete';
+    btn.style.background = 'rgba(16,224,160,.15)';
+    btn.style.color = '#10e0a0';
+    btn.style.boxShadow = 'none';
+  }, 1900);
+}
+
+// â”€â”€ Decision Engine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let selectedOpt = null;
+
+function generateDecision() {
+  const btn = document.getElementById('decision-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<svg style="animation:spin .8s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Generating options...`;
+
+  setTimeout(() => {
+    const output = document.getElementById('decision-output');
+    output.classList.remove('hidden');
+    output.style.animation = 'fadeIn .4s ease';
+
+    // also render decision memory
+    const dm = document.getElementById('d-memory');
+    if (dm) {
+      dm.innerHTML = DECISIONS.map(d => `
+        <div class="dm-item">
+          <div><div class="dm-title">${d.title}</div><div class="dm-date">${d.date}</div></div>
+          ${pill(d.status, d.pill)}
+        </div>
+      `).join('');
     }
-  }, 1800);
+
+    btn.innerHTML = '&#x2713; Options Generated';
+    btn.style.background = 'rgba(16,224,160,.15)';
+    btn.style.color = '#10e0a0';
+    btn.style.boxShadow = 'none';
+  }, 1900);
 }
 
 function selectOpt(key) {
-  selectedDecisionOpt = key;
-  document.querySelectorAll('.opt-card').forEach(c => c.classList.remove('selected'));
-  const card = document.querySelector('.opt-card[data-opt="' + key + '"]');
-  if (card) card.classList.add('selected');
+  ['safe','balanced','aggressive'].forEach(k => {
+    document.getElementById('opt-' + k).classList.remove('selected');
+  });
 
-  document.querySelectorAll('.approve-btn').forEach(b => b.style.display = 'none');
-  const approveBtn = document.getElementById('approve-' + key);
-  if (approveBtn) approveBtn.style.display = 'inline-flex';
-
-  const recCard = document.getElementById('ai-recommendation');
-  if (recCard) recCard.style.display = 'block';
-
-  const recText = document.getElementById('rec-text');
-  if (recText) {
-    const labels = { safe: 'Safe — Temporary Fix', balanced: 'Balanced — Phased Solution', aggressive: 'Aggressive — Full Overhaul' };
-    recText.textContent = 'You selected: ' + (labels[key] || key) + '. Claude recommends the Balanced approach as it addresses the root cause while managing execution risk. The Safe option delays inevitable rework; the Aggressive option carries high disruption risk given current team load.';
+  if (selectedOpt === key) {
+    selectedOpt = null;
+    const ar = document.getElementById('approve-row');
+    if (ar) ar.style.display = 'none';
+  } else {
+    selectedOpt = key;
+    document.getElementById('opt-' + key).classList.add('selected');
+    const ar = document.getElementById('approve-row');
+    if (ar) { ar.classList.remove('hidden'); ar.style.display = 'flex'; }
   }
 }
 
-function approveDecision(key) {
-  const btn = document.getElementById('approve-' + key);
-  if (btn) {
-    btn.textContent = 'Decision Approved ✓';
-    btn.style.background = '#34d399';
-    btn.style.color = '#0c0d16';
-    btn.disabled = true;
-  }
-}
+// â”€â”€ Spin keyframe injection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+(function() {
+  const style = document.createElement('style');
+  style.textContent = '@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}';
+  document.head.appendChild(style);
+})();
 
-// ── Settings ──────────────────────────────────────────────────────────────────
-function saveSettings() {
-  const btn = document.getElementById('save-settings-btn');
-  if (!btn) return;
-  btn.textContent = 'Saved ✓';
-  btn.style.background = '#34d399';
-  btn.style.color = '#0c0d16';
-  setTimeout(() => {
-    btn.textContent = 'Save Settings';
-    btn.style.background = '';
-    btn.style.color = '';
-  }, 2000);
-}
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-function init() {
-  // Wire sidebar nav buttons
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => switchScreen(btn.dataset.screen));
-  });
-
-  // Wire filter tabs
-  document.querySelectorAll('.filter-tab').forEach(btn => {
-    btn.addEventListener('click', () => filterOps(btn.dataset.filter, btn));
-  });
-
-  // Render initial data
+// â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+document.addEventListener('DOMContentLoaded', () => {
+  renderCriticalTasks();
+  renderAlerts();
+  renderDecisionMemory();
   renderOpsTable('All');
   renderTeam();
-
-  // Start on command screen
-  switchScreen('command');
-}
-
-document.addEventListener('DOMContentLoaded', init);
+});
