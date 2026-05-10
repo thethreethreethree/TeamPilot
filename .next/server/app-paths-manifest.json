@@ -1,0 +1,17 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/ai/analyze/route": "app/api/ai/analyze/route.js",
+  "/api/ai/briefing/route": "app/api/ai/briefing/route.js",
+  "/api/ai/conversation/route": "app/api/ai/conversation/route.js",
+  "/api/ai/decision/route": "app/api/ai/decision/route.js",
+  "/dashboard/conversations/page": "app/dashboard/conversations/page.js",
+  "/dashboard/decisions/page": "app/dashboard/decisions/page.js",
+  "/dashboard/operations/page": "app/dashboard/operations/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/settings/page": "app/dashboard/settings/page.js",
+  "/dashboard/team/page": "app/dashboard/team/page.js",
+  "/login/page": "app/login/page.js",
+  "/onboarding/page": "app/onboarding/page.js",
+  "/page": "app/page.js"
+}

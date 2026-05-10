@@ -1,0 +1,17 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/ai/analyze/route": "/api/ai/analyze",
+  "/api/ai/briefing/route": "/api/ai/briefing",
+  "/api/ai/conversation/route": "/api/ai/conversation",
+  "/api/ai/decision/route": "/api/ai/decision",
+  "/dashboard/conversations/page": "/dashboard/conversations",
+  "/dashboard/decisions/page": "/dashboard/decisions",
+  "/dashboard/operations/page": "/dashboard/operations",
+  "/dashboard/page": "/dashboard",
+  "/dashboard/settings/page": "/dashboard/settings",
+  "/dashboard/team/page": "/dashboard/team",
+  "/login/page": "/login",
+  "/onboarding/page": "/onboarding",
+  "/page": "/"
+}
