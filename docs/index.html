@@ -1,904 +1,513 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>ExecOS — AI Executive Operating System</title>
-<meta name="description" content="AI-powered executive intelligence for modern businesses."/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0c0d16;--bg2:#12141f;--bg3:#1a1d2e;--bg4:#1f2336;
-  --border:#252840;--border2:#3a3f5c;
-  --text:#e8eaf6;--muted:#8895c4;--faint:#5a6399;
-  --brand:#5470ff;--brand2:#7a96ff;
-  --green:#34d399;--yellow:#fbbf24;--red:#f87171;--blue:#60a5fa;--orange:#fb923c;
-}
-html{scroll-behavior:smooth}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;overflow-x:hidden}
-
-/* ── SCROLLBAR ── */
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:var(--bg2)}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
-
-/* ── UTILS ── */
-.hidden{display:none!important}
-.fade-in{animation:fadeIn .35s ease forwards}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.pulse{animation:pulse 2s ease-in-out infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spin{animation:spin .8s linear infinite}
-.gradient-text{background:linear-gradient(135deg,#7a96ff,#5470ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-
-/* ── LANDING ── */
-#landing{min-height:100vh;display:flex;flex-direction:column}
-
-/* Nav */
-.nav{position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);background:rgba(12,13,22,.88);backdrop-filter:blur(12px)}
-.nav-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:64px}
-.logo{display:flex;align-items:center;gap:10px;text-decoration:none;cursor:pointer}
-.logo-icon{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#5470ff,#7a96ff);display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(84,112,255,.35)}
-.logo-text{font-size:17px;font-weight:700;color:#fff}
-.nav-links{display:flex;align-items:center;gap:8px}
-.btn-ghost{padding:8px 14px;border-radius:8px;font-size:14px;font-weight:500;color:var(--muted);background:none;border:none;cursor:pointer;transition:color .15s;text-decoration:none}
-.btn-ghost:hover{color:var(--text)}
-.btn-primary{padding:9px 20px;border-radius:10px;font-size:14px;font-weight:600;background:var(--brand);color:#fff;border:none;cursor:pointer;transition:background .15s,box-shadow .15s;box-shadow:0 0 20px rgba(84,112,255,.3);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-.btn-primary:hover{background:#3a4ff7;box-shadow:none}
-
-/* Hero */
-.hero{position:relative;text-align:center;padding:96px 24px 64px;overflow:hidden}
-.hero-glow{position:absolute;top:-80px;left:50%;transform:translateX(-50%);width:900px;height:500px;background:radial-gradient(ellipse,rgba(84,112,255,.1) 0%,transparent 70%);pointer-events:none}
-.badge{display:inline-flex;align-items:center;gap:8px;background:rgba(84,112,255,.1);border:1px solid rgba(84,112,255,.25);color:var(--brand2);font-size:12px;font-weight:600;padding:6px 16px;border-radius:99px;margin-bottom:28px;letter-spacing:.02em}
-.badge-dot{width:6px;height:6px;border-radius:50%;background:var(--brand)}
-h1{font-size:clamp(36px,5.5vw,64px);font-weight:900;line-height:1.08;color:#fff;letter-spacing:-.02em;margin-bottom:22px}
-.hero-sub{font-size:clamp(16px,1.8vw,19px);color:var(--muted);max-width:600px;margin:0 auto 44px;line-height:1.7}
-.hero-cta{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
-.btn-lg{display:inline-flex;align-items:center;gap:8px;padding:14px 30px;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
-.btn-lg.primary{background:var(--brand);color:#fff;box-shadow:0 0 30px rgba(84,112,255,.35)}
-.btn-lg.primary:hover{background:#3a4ff7;box-shadow:none}
-.btn-lg.outline{border:1px solid var(--border2);color:var(--muted);background:transparent}
-.btn-lg.outline:hover{border-color:rgba(84,112,255,.4);color:var(--text)}
-
-/* Features section */
-.section{padding:88px 24px;border-top:1px solid var(--border)}
-.max-w{max-width:1100px;margin:0 auto}
-.section-head{text-align:center;margin-bottom:56px}
-.section-label{font-size:11px;font-weight:700;color:var(--brand);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
-h2{font-size:clamp(26px,3.5vw,42px);font-weight:800;color:#fff;letter-spacing:-.02em;margin-bottom:14px}
-.section-sub{font-size:16px;color:var(--muted);max-width:540px;margin:0 auto;line-height:1.7}
-.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
-.feature-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:26px;transition:border-color .2s,box-shadow .2s}
-.feature-card:hover{border-color:var(--border2);box-shadow:0 8px 32px rgba(0,0,0,.3)}
-.feat-icon{width:44px;height:44px;border-radius:12px;background:rgba(84,112,255,.1);border:1px solid rgba(84,112,255,.2);display:flex;align-items:center;justify-content:center;margin-bottom:16px;transition:background .2s}
-.feature-card:hover .feat-icon{background:rgba(84,112,255,.18)}
-.feat-icon svg{width:22px;height:22px;stroke:var(--brand);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.feature-card h3{font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px}
-.feature-card p{font-size:13px;color:var(--faint);line-height:1.7}
-
-/* CTA */
-.cta-box{max-width:680px;margin:0 auto;background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:60px 40px;text-align:center;position:relative;overflow:hidden}
-.cta-glow{position:absolute;top:-80px;left:50%;transform:translateX(-50%);width:400px;height:300px;background:radial-gradient(ellipse,rgba(84,112,255,.13) 0%,transparent 70%);pointer-events:none}
-
-footer{border-top:1px solid var(--border);padding:28px 24px}
-.footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
-.footer-copy{font-size:13px;color:var(--faint)}
-
-/* ── DEMO APP ── */
-#app{display:none;height:100vh;flex-direction:column}
-
-/* Demo banner */
-.demo-banner{background:rgba(84,112,255,.1);border-bottom:1px solid rgba(84,112,255,.2);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.demo-banner-left{display:flex;align-items:center;gap:8px}
-.demo-banner-dot{width:7px;height:7px;border-radius:50%;background:var(--brand)}
-.demo-banner-text{font-size:12px;font-weight:500;color:var(--brand2)}
-.demo-banner-right{display:flex;align-items:center;gap:10px}
-.demo-back{font-size:12px;color:var(--faint);background:none;border:none;cursor:pointer;transition:color .15s}
-.demo-back:hover{color:var(--muted)}
-.demo-gh{font-size:12px;font-weight:600;background:var(--brand);color:#fff;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background .15s}
-.demo-gh:hover{background:#3a4ff7}
-
-/* App layout */
-.app-body{display:flex;flex:1;overflow:hidden}
-
-/* Sidebar */
-.sidebar{width:232px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
-.sidebar-logo{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.sidebar-logo-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#5470ff,#7a96ff);display:flex;align-items:center;justify-content:center;box-shadow:0 0 14px rgba(84,112,255,.3)}
-.sidebar-logo-text{font-size:14px;font-weight:700;color:#fff}
-.sidebar-logo-sub{display:flex;align-items:center;gap:5px;margin-top:2px}
-.sidebar-logo-dot{width:5px;height:5px;border-radius:50%;background:var(--green)}
-.sidebar-logo-label{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em}
-.sidebar-company{padding:10px 14px;border-bottom:1px solid var(--border)}
-.sidebar-company-inner{padding:8px 12px;border-radius:8px;background:var(--bg3);border:1px solid var(--border)}
-.sidebar-company-label{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px}
-.sidebar-company-name{font-size:13px;font-weight:600;color:var(--text)}
-.sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto}
-.sidebar-section-label{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em;padding:0 10px;margin-bottom:6px}
-.nav-btn{width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font-size:13px;font-weight:500;background:none;border:none;cursor:pointer;transition:all .15s;color:var(--muted);text-align:left}
-.nav-btn:hover{color:var(--text);background:var(--bg3)}
-.nav-btn.active{background:rgba(84,112,255,.12);color:var(--brand2);border:1px solid rgba(84,112,255,.25)}
-.nav-btn svg{width:15px;height:15px;flex-shrink:0;stroke:var(--faint);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:stroke .15s}
-.nav-btn.active svg{stroke:var(--brand)}
-.nav-btn:hover svg{stroke:var(--muted)}
-.nav-dot{width:5px;height:5px;border-radius:50%;background:var(--brand);margin-left:auto}
-.sidebar-user{padding:14px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.sidebar-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#5470ff,#7a96ff);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
-.sidebar-user-name{font-size:13px;font-weight:600;color:var(--text)}
-.sidebar-user-role{font-size:11px;color:var(--faint)}
-
-/* Main */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.topbar{height:52px;border-bottom:1px solid var(--border);background:rgba(12,13,22,.85);display:flex;align-items:center;justify-content:space-between;padding:0 22px;flex-shrink:0}
-.topbar-title{font-size:14px;font-weight:600;color:var(--text)}
-.topbar-sub{font-size:11px;color:var(--faint);margin-top:1px}
-.topbar-right{display:flex;align-items:center;gap:8px}
-.topbar-chip{font-size:11px;color:var(--faint);background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:4px 10px}
-.screen-area{flex:1;overflow-y:auto;padding:20px}
-.screen-inner{max-width:1100px;margin:0 auto}
-
-/* Bottom bar */
-.bottom-bar{border-top:1px solid var(--border);background:var(--bg2);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.bottom-bar-left{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--faint)}
-.bottom-bar-right{display:flex;align-items:center;gap:8px}
-.bb-btn{font-size:12px;font-weight:500;padding:7px 14px;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:all .15s}
-.bb-btn.outline{border:1px solid var(--border2);color:var(--muted);background:none}
-.bb-btn.outline:hover{border-color:rgba(84,112,255,.5);color:var(--text)}
-.bb-btn.filled{background:var(--brand);color:#fff;box-shadow:0 0 14px rgba(84,112,255,.3)}
-.bb-btn.filled:hover{background:#3a4ff7;box-shadow:none}
-
-/* ── SCREEN SHARED ── */
-.card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;transition:border-color .2s}
-.card:hover{border-color:var(--border2)}
-.card-accent{border-color:rgba(84,112,255,.22)}
-.card-red{background:rgba(248,113,113,.04);border-color:rgba(248,113,113,.2)}
-.card-yellow{background:rgba(251,191,36,.04);border-color:rgba(251,191,36,.2)}
-.card-green{background:rgba(52,211,153,.04);border-color:rgba(52,211,153,.2)}
-.card-blue{background:rgba(96,165,250,.04);border-color:rgba(96,165,250,.2)}
-.card-brand{background:rgba(84,112,255,.05);border-color:rgba(84,112,255,.22)}
-
-.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.grid-5{display:grid;grid-template-columns:3fr 2fr;gap:14px}
-.gap-4{gap:16px}
-.space-y>*+*{margin-top:14px}
-.space-y-sm>*+*{margin-top:10px}
-
-.label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);margin-bottom:6px}
-.label-brand{color:var(--brand)}
-.label-green{color:var(--green)}
-.label-red{color:var(--red)}
-
-.row{display:flex;align-items:center;gap:8px}
-.row-between{display:flex;align-items:center;justify-content:space-between;gap:8px}
-
-/* badges */
-.badge-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid}
-.badge-red{background:rgba(248,113,113,.1);color:var(--red);border-color:rgba(248,113,113,.25)}
-.badge-yellow{background:rgba(251,191,36,.1);color:var(--yellow);border-color:rgba(251,191,36,.25)}
-.badge-blue{background:rgba(96,165,250,.1);color:var(--blue);border-color:rgba(96,165,250,.25)}
-.badge-green{background:rgba(52,211,153,.1);color:var(--green);border-color:rgba(52,211,153,.25)}
-.badge-gray{background:var(--border);color:var(--muted);border-color:var(--border2)}
-.badge-brand{background:rgba(84,112,255,.1);color:var(--brand2);border-color:rgba(84,112,255,.25)}
-.badge-orange{background:rgba(251,146,60,.1);color:var(--orange);border-color:rgba(251,146,60,.25)}
-
-/* score ring */
-.ring-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center}
-.ring-label{position:absolute;font-weight:800;font-size:15px}
-
-/* bars */
-.bar-track{height:5px;background:var(--border);border-radius:99px;overflow:hidden}
-.bar-fill{height:100%;border-radius:99px;transition:width .8s ease}
-
-/* stat card */
-.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px}
-.stat-val{font-size:30px;font-weight:800;line-height:1}
-.stat-label{font-size:10px;color:var(--faint);margin-top:6px;text-transform:uppercase;letter-spacing:.08em}
-
-/* table */
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse}
-th{text-align:left;font-size:10px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;padding-bottom:10px;padding-right:14px;border-bottom:1px solid var(--border)}
-td{padding:9px 14px 9px 0;font-size:13px;border-bottom:1px solid var(--bg3)}
-tr:hover td{background:rgba(255,255,255,.02)}
-tr:last-child td{border-bottom:none}
-
-/* filter tabs */
-.filter-tabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-.filter-tab{padding:5px 11px;border-radius:7px;font-size:11px;font-weight:500;background:none;border:1px solid transparent;cursor:pointer;color:var(--faint);transition:all .15s}
-.filter-tab:hover{color:var(--muted);border-color:var(--border)}
-.filter-tab.active{background:rgba(84,112,255,.12);color:var(--brand2);border-color:rgba(84,112,255,.3)}
-
-/* team card */
-.team-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;transition:border-color .2s}
-.team-card:hover{border-color:var(--border2)}
-.team-avatar{width:36px;height:36px;border-radius:10px;background:rgba(84,112,255,.2);border:1px solid rgba(84,112,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--brand2);flex-shrink:0}
-
-/* conversation */
-.convo-text{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);line-height:1.7;height:220px;overflow-y:auto;white-space:pre-wrap;resize:none;width:100%}
-.action-item{display:flex;align-items:start;justify-content:space-between;gap:8px;padding:9px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border)}
-.action-num{width:18px;height:18px;border-radius:50%;background:rgba(84,112,255,.15);color:var(--brand2);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-
-/* decision */
-.decision-opt{border-radius:12px;padding:14px;border:1.5px solid var(--border);cursor:pointer;transition:all .2s;background:var(--bg3);text-align:left}
-.decision-opt:hover{border-color:var(--border2)}
-.decision-opt.selected-blue{border-color:#3b82f6;background:rgba(59,130,246,.07)}
-.decision-opt.selected-green{border-color:#10b981;background:rgba(16,185,129,.07)}
-.decision-opt.selected-orange{border-color:#f97316;background:rgba(249,115,22,.07)}
-
-/* alerts */
-.alert{display:flex;align-items:start;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid}
-.alert svg{width:15px;height:15px;flex-shrink:0;margin-top:1px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.alert-title{font-size:12px;font-weight:600;color:var(--text)}
-.alert-desc{font-size:11px;color:var(--faint);margin-top:2px;line-height:1.5}
-
-/* AI card */
-.ai-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.ai-icon-wrap{width:16px;height:16px}
-.ai-icon-wrap svg{width:16px;height:16px;stroke:var(--brand);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.ai-title{font-size:13px;font-weight:600;color:var(--text)}
-.ai-chip{font-size:9px;font-weight:700;color:var(--brand);background:rgba(84,112,255,.1);border:1px solid rgba(84,112,255,.2);padding:2px 8px;border-radius:99px}
-
-/* textarea fallback */
-textarea{outline:none;font-family:inherit}
-input{outline:none;font-family:inherit}
-
-/* btn small */
-.btn-sm{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
-.btn-sm.primary{background:var(--brand);color:#fff;box-shadow:0 0 12px rgba(84,112,255,.3)}
-.btn-sm.primary:hover{background:#3a4ff7;box-shadow:none}
-.btn-sm.primary:disabled{opacity:.5;cursor:not-allowed}
-.btn-sm.outline{border:1px solid var(--border2);color:var(--muted);background:none}
-.btn-sm.outline:hover{border-color:rgba(84,112,255,.4);color:var(--text)}
-
-/* pbar */
-.ai-score-bar{display:flex;align-items:center;gap:6px}
-.ai-score-bar .track{width:48px;height:5px;background:var(--border);border-radius:99px;overflow:hidden}
-.ai-score-bar .fill{height:100%;border-radius:99px}
-.mono{font-family:'JetBrains Mono',monospace}
-
-@media(max-width:768px){
-  .sidebar{display:none}
-  .grid-3,.grid-4,.grid-5{grid-template-columns:1fr}
-  .grid-2{grid-template-columns:1fr}
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ExecOS — AI Executive Operating System</title>
+  <meta name="description" content="ExecOS gives executives real-time business health scores, AI-powered decision support, team intelligence, and conversation analysis — all in one command center." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════
-     LANDING PAGE
-════════════════════════════════════════════════════════ -->
-<div id="landing">
-
-<!-- Nav -->
+<!-- ══════════════════════════════════════════════════════════
+     NAV
+═══════════════════════════════════════════════════════════ -->
 <nav class="nav">
-  <div class="nav-inner">
-    <div class="logo" onclick="showLanding()">
-      <div class="logo-icon">
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      </div>
-      <span class="logo-text">ExecOS</span>
-    </div>
-    <div class="nav-links">
-      <button class="btn-ghost" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">Features</button>
-      <button class="btn-ghost" onclick="showDemo()">Live Demo</button>
-      <button class="btn-primary" onclick="showDemo()">
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Launch Demo
-      </button>
-    </div>
+  <div class="container nav-inner">
+    <a href="#" class="nav-logo">
+      <div class="logo-icon">EX</div>
+      ExecOS
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How it Works</a></li>
+      <li><a href="#departments">Departments</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+    </ul>
+    <a href="demo.html" class="nav-cta">Launch Demo &#x2192;</a>
   </div>
 </nav>
 
-<!-- Hero -->
-<div class="hero">
-  <div class="hero-glow"></div>
-  <div class="badge"><span class="badge-dot pulse"></span>AI Executive Operating System</div>
-  <h1>Your business deserves<br><span class="gradient-text">executive intelligence.</span></h1>
-  <p class="hero-sub">ExecOS is the AI command center that helps CEOs, founders, and operators make better decisions faster — across operations, teams, and strategy.</p>
-  <div class="hero-cta">
-    <button class="btn-lg primary" onclick="showDemo()">
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      Launch Interactive Demo
-    </button>
-    <a href="https://github.com/thethreethreethree/TeamPilot" target="_blank" class="btn-lg outline">
-      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-      View Source
-    </a>
-  </div>
-
-  <!-- Dashboard preview -->
-  <div style="max-width:900px;margin:56px auto 0;border-radius:18px;border:1px solid var(--border);background:var(--bg2);overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,.55)">
-    <div style="display:flex;align-items:center;gap:7px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg)">
-      <span style="width:11px;height:11px;border-radius:50%;background:rgba(248,113,113,.65)"></span>
-      <span style="width:11px;height:11px;border-radius:50%;background:rgba(251,191,36,.65)"></span>
-      <span style="width:11px;height:11px;border-radius:50%;background:rgba(52,211,153,.65)"></span>
-      <span style="font-size:12px;color:var(--faint);margin-left:10px;font-family:'JetBrains Mono',monospace">execos.app/dashboard — CEO Command Center</span>
+<!-- ══════════════════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-dot"></div>
+      Powered by Claude AI &middot; Built for Operators
     </div>
-    <div style="padding:20px">
-      <div class="grid-3" style="margin-bottom:16px">
-        <div class="stat-card"><div class="label">Business Health</div><div class="stat-val" style="color:var(--yellow)">74</div><div class="bar-track" style="margin-top:8px"><div class="bar-fill" style="width:74%;background:var(--yellow)"></div></div></div>
-        <div class="stat-card"><div class="label">Operations</div><div class="stat-val" style="color:var(--red)">68</div><div class="bar-track" style="margin-top:8px"><div class="bar-fill" style="width:68%;background:var(--red)"></div></div></div>
-        <div class="stat-card"><div class="label">Team Intelligence</div><div class="stat-val" style="color:var(--green)">81</div><div class="bar-track" style="margin-top:8px"><div class="bar-fill" style="width:81%;background:var(--green)"></div></div></div>
+    <h1>Your business deserves<br /><span>executive intelligence.</span></h1>
+    <p class="hero-sub">ExecOS gives you real-time health scores, AI-powered decisions, team analysis, and conversation intelligence — all in one command center.</p>
+    <div class="hero-actions">
+      <a href="demo.html" class="btn-primary">&#x26A1; Launch Demo</a>
+      <a href="https://github.com/thethreethreethree/TeamPilot" target="_blank" rel="noopener" class="btn-secondary">&#x2B55; View Source on GitHub</a>
+    </div>
+
+    <!-- Dashboard mockup -->
+    <div class="hero-mockup">
+      <div class="mockup-bar">
+        <div class="mockup-dot"></div>
+        <div class="mockup-dot"></div>
+        <div class="mockup-dot"></div>
+        <span class="mockup-title">ExecOS &mdash; Command Center &mdash; Acme Corp</span>
       </div>
-      <div class="card card-brand">
-        <div class="ai-header">
-          <div class="ai-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div>
-          <span class="ai-title">AI Executive Briefing</span>
-          <span class="ai-chip">Claude AI</span>
+      <div class="mockup-body">
+        <div class="mockup-col">
+          <div class="health-card">
+            <div class="health-label">Business Health</div>
+            <div class="health-score" style="color:#fbbf24">74</div>
+            <div class="health-bar"><div class="health-fill" style="width:74%;background:#fbbf24"></div></div>
+          </div>
+          <div class="health-card">
+            <div class="health-label">Operations</div>
+            <div class="health-score" style="color:#f87171">68</div>
+            <div class="health-bar"><div class="health-fill" style="width:68%;background:#f87171"></div></div>
+          </div>
+          <div class="health-card">
+            <div class="health-label">Team</div>
+            <div class="health-score" style="color:#34d399">81</div>
+            <div class="health-bar"><div class="health-fill" style="width:81%;background:#34d399"></div></div>
+          </div>
         </div>
-        <p style="font-size:13px;color:var(--muted);line-height:1.7"><strong style="color:var(--text)">Operations efficiency dropped 9% today</strong> due to 2 critical blocked tasks in the payment and deployment pipeline. Revenue exposure is high. <strong style="color:var(--text)">Team risk:</strong> Marcus Chen is overloaded — immediate redistribution to Lena Torres recommended.</p>
+        <div class="mockup-col" style="flex:2">
+          <div class="briefing-card">
+            <div class="briefing-tag">&#x1F916; AI Executive Briefing</div>
+            <div class="briefing-text">Operations efficiency dropped 9% this week. Two critical tasks are blocked — payment gateway and v2.4 deploy — both stalled for 26+ hours. Marcus Chen is overloaded with 4 active tasks and 2 overdue items. Recommend immediate task redistribution and unblocking payment API credentials from finance today.</div>
+          </div>
+          <div class="health-card" style="background:var(--bg3)">
+            <div class="health-label">Today&apos;s Priorities</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:.82rem"><span style="background:#5470ff;color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;flex-shrink:0">1</span>Unblock payment gateway API credentials</div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:.82rem"><span style="background:#5470ff;color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;flex-shrink:0">2</span>Reassign 2 tasks from Marcus to Lena Torres</div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:.82rem;color:#8895c4"><span style="background:#252840;color:#8895c4;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;flex-shrink:0">3</span>Review Q2 investor report by 5pm</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-</div>
+</section>
 
-<!-- Features -->
-<div class="section" id="features">
-  <div class="max-w">
-    <div class="section-head">
-      <div class="section-label">Core Capabilities</div>
-      <h2>Not a tool. An executive system.</h2>
-      <p class="section-sub">ExecOS transforms raw business data into actionable intelligence — so you always know what matters and what to do next.</p>
+<!-- ══════════════════════════════════════════════════════════
+     STATS BAR
+═══════════════════════════════════════════════════════════ -->
+<section class="stats-bar">
+  <div class="container">
+    <div class="stats-label">Trusted by operators who move fast</div>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-num" data-count="6" data-suffix="">6</div>
+        <div class="stat-desc">Departments</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" data-count="4" data-suffix="">4</div>
+        <div class="stat-desc">AI Modules</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">Real-time</div>
+        <div class="stat-desc">Insights</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">Claude</div>
+        <div class="stat-desc">Claude-Powered</div>
+      </div>
     </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FEATURES
+═══════════════════════════════════════════════════════════ -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-label fade-up">Features</div>
+    <h2 class="section-title fade-up">Everything your executive team needs</h2>
+    <p class="section-sub fade-up">Six integrated AI modules that turn raw business data into decisive action — without the noise.</p>
     <div class="features-grid">
-      <div class="feature-card"><div class="feat-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><h3>CEO Command Center</h3><p>Business health scores, AI executive briefings, daily priorities, and real-time alerts — one command dashboard for decision-makers.</p></div>
-      <div class="feature-card"><div class="feat-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><h3>Operations Intelligence</h3><p>Detect bottlenecks, blocked tasks, and execution failures the moment they happen. AI identifies root causes and recommends action.</p></div>
-      <div class="feature-card"><div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div><h3>Team Intelligence</h3><p>Workload balance, performance tracking, burnout detection, accountability flags. Know who's overloaded and who's underutilized.</p></div>
-      <div class="feature-card"><div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><h3>Conversation Intelligence</h3><p>Paste any meeting transcript or team thread. ExecOS extracts decisions, generates action plans, and assigns tasks automatically.</p></div>
-      <div class="feature-card"><div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div><h3>AI Decision Engine</h3><p>Describe any situation. Get Safe, Balanced, and Aggressive options with expected outcomes and tradeoffs — powered by Claude.</p></div>
-      <div class="feature-card"><div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h3>Decision Memory</h3><p>Every decision stored, tracked, referenced. The AI surfaces past decisions to flag unexecuted choices and improve over time.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- CTA -->
-<div class="section">
-  <div class="max-w">
-    <div class="cta-box">
-      <div class="cta-glow"></div>
-      <div class="badge" style="margin-bottom:20px"><span class="badge-dot pulse"></span>Interactive Demo Available</div>
-      <h2 style="margin-bottom:14px">See ExecOS in action.</h2>
-      <p style="color:var(--muted);font-size:16px;margin-bottom:32px;line-height:1.7">Click through all 6 dashboards — Command Center, Operations, Team Intelligence, Conversation Intelligence, Decision Engine, and Settings.</p>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        <button class="btn-lg primary" onclick="showDemo()">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          Launch Demo
-        </button>
-        <a href="https://github.com/thethreethreethree/TeamPilot" target="_blank" class="btn-lg outline">View Source on GitHub</a>
+      <div class="feature-card fade-up">
+        <div class="feature-icon">&#x1F3E2;</div>
+        <h3>CEO Command Center</h3>
+        <p>Real-time health scores across Business, Operations, and Team. AI briefing, today&apos;s top priorities, and live alerts — all in one view.</p>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon">&#x2699;&#xFE0F;</div>
+        <h3>Operations Intelligence</h3>
+        <p>Full task board with AI priority scoring and bottleneck detection. Know exactly what&apos;s blocked, who&apos;s responsible, and why revenue is at risk.</p>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon">&#x1F465;</div>
+        <h3>Team Intelligence</h3>
+        <p>Workload analysis, burnout detection, and performance scores for every team member. Catch overloads before they cause damage.</p>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon">&#x1F4AC;</div>
+        <h3>Conversation Intelligence</h3>
+        <p>Paste any meeting transcript or Slack thread. AI extracts the decision, generates a complete action plan with owners and deadlines.</p>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon">&#x1F9E0;</div>
+        <h3>AI Decision Engine</h3>
+        <p>Claude AI generates Safe, Balanced, and Aggressive options for every major decision — with risk analysis, timelines, and one-click approval.</p>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon">&#x1F4DA;</div>
+        <h3>Decision Memory</h3>
+        <p>Every approved decision is stored with context, outcome, and status. Build an institutional knowledge base that outlasts any individual.</p>
       </div>
     </div>
   </div>
-</div>
+</section>
 
-<footer>
-  <div class="footer-inner">
-    <div class="logo" onclick="showLanding()" style="cursor:pointer">
-      <div class="logo-icon" style="width:26px;height:26px"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-      <span class="logo-text" style="font-size:14px">ExecOS</span>
+<!-- ══════════════════════════════════════════════════════════
+     HOW IT WORKS
+═══════════════════════════════════════════════════════════ -->
+<section class="section hiw-section" id="how-it-works">
+  <div class="container">
+    <div class="section-label fade-up" style="text-align:center">Process</div>
+    <h2 class="section-title fade-up" style="text-align:center;margin-bottom:16px">From signal to decision in seconds</h2>
+    <p class="section-sub fade-up" style="text-align:center;margin:0 auto 56px">ExecOS processes your business data and delivers decisions — not dashboards.</p>
+    <div class="hiw-grid">
+      <div class="hiw-step fade-up">
+        <div class="hiw-num">1</div>
+        <h3>Collect</h3>
+        <p>Tasks, team data, and conversations flow into ExecOS automatically. Paste or connect your existing tools.</p>
+      </div>
+      <div class="hiw-step fade-up">
+        <div class="hiw-num">2</div>
+        <h3>Analyze</h3>
+        <p>Claude AI processes every signal — bottlenecks, workload imbalance, conversation context — in real time.</p>
+      </div>
+      <div class="hiw-step fade-up">
+        <div class="hiw-num">3</div>
+        <h3>Decide</h3>
+        <p>Get Safe, Balanced, and Aggressive options with full context. Approve with one click. Decision stored automatically.</p>
+      </div>
+      <div class="hiw-step fade-up">
+        <div class="hiw-num">4</div>
+        <h3>Execute</h3>
+        <p>Action plans with owners and deadlines are generated instantly. Your team knows exactly what to do next.</p>
+      </div>
     </div>
-    <span class="footer-copy">© 2025 ExecOS · AI Executive Operating System · MIT License</span>
-    <a href="https://github.com/thethreethreethree/TeamPilot" target="_blank" style="color:var(--faint);font-size:13px;text-decoration:none">GitHub →</a>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     PRODUCT SHOWCASE
+═══════════════════════════════════════════════════════════ -->
+<section class="section" id="showcase">
+  <div class="container">
+    <div class="section-label fade-up" style="text-align:center">Product</div>
+    <h2 class="section-title fade-up" style="text-align:center;margin-bottom:16px">See ExecOS in action</h2>
+    <p class="section-sub fade-up" style="text-align:center;margin:0 auto 40px">Three core modules that transform how executives operate.</p>
+
+    <div class="showcase-tabs fade-up">
+      <button class="showcase-tab" data-tab="command">Command Center</button>
+      <button class="showcase-tab" data-tab="convo">Conversation Intelligence</button>
+      <button class="showcase-tab" data-tab="decision">Decision Engine</button>
+    </div>
+
+    <div class="showcase-panels fade-up">
+      <!-- Panel 1: Command Center -->
+      <div class="showcase-panel" id="panel-command">
+        <div class="panel-bar">
+          <div class="panel-dot" style="background:#f87171"></div>
+          <div class="panel-dot" style="background:#fbbf24"></div>
+          <div class="panel-dot" style="background:#34d399"></div>
+          <span class="panel-bar-title">ExecOS &mdash; Command Center &mdash; Acme Corp</span>
+        </div>
+        <div class="panel-body">
+          <div class="mock-row">
+            <div class="mock-card">
+              <div class="mock-card-label">Business Health</div>
+              <div class="mock-card-val" style="color:#fbbf24">74</div>
+              <div class="mock-bar-track"><div class="mock-bar-fill" style="width:74%;background:#fbbf24"></div></div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-card-label">Operations</div>
+              <div class="mock-card-val" style="color:#f87171">68</div>
+              <div class="mock-bar-track"><div class="mock-bar-fill" style="width:68%;background:#f87171"></div></div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-card-label">Team</div>
+              <div class="mock-card-val" style="color:#34d399">81</div>
+              <div class="mock-bar-track"><div class="mock-bar-fill" style="width:81%;background:#34d399"></div></div>
+            </div>
+          </div>
+          <div class="mock-alert">
+            <div class="mock-alert-dot"></div>
+            <div><strong style="color:#f87171">Critical:</strong> 2 tasks blocked 26h — payment gateway + v2.4 deploy. Revenue at risk.</div>
+          </div>
+          <div class="mock-alert" style="background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.2)">
+            <div class="mock-alert-dot" style="background:#fbbf24"></div>
+            <div><strong style="color:#fbbf24">Warning:</strong> Marcus Chen overloaded — 4 active tasks, 2 overdue. Burnout risk detected.</div>
+          </div>
+          <div style="background:rgba(84,112,255,.08);border:1px solid rgba(84,112,255,.25);border-left:3px solid #5470ff;border-radius:10px;padding:14px 16px;font-size:.82rem;color:#8895c4;line-height:1.5">
+            <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#7a96ff;margin-bottom:8px">&#x1F916; AI Executive Briefing</div>
+            Operations efficiency dropped 9% this week. Recommend immediate unblocking of payment gateway credentials and task redistribution from Marcus to Lena Torres.
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Conversation Intelligence -->
+      <div class="showcase-panel" id="panel-convo">
+        <div class="panel-bar">
+          <div class="panel-dot" style="background:#f87171"></div>
+          <div class="panel-dot" style="background:#fbbf24"></div>
+          <div class="panel-dot" style="background:#34d399"></div>
+          <span class="panel-bar-title">ExecOS &mdash; Conversation Intelligence</span>
+        </div>
+        <div class="panel-body">
+          <div class="mock-row" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="mock-card-label" style="font-size:.7rem;color:#8895c4;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Paste Conversation</div>
+              <div class="mock-textarea-fake">CEO: We need to make a call on pricing before end of quarter. The freemium model isn&apos;t converting.<br /><br />Sarah: Usage-based might be the answer. Charge per action.<br /><br />James: Enterprise customers want seats. We need both.<br /><br />CEO: Let&apos;s do a hybrid — keep free, add usage tier, add enterprise seats.</div>
+              <div style="background:#5470ff;color:#fff;padding:9px;border-radius:8px;font-size:.82rem;font-weight:700;text-align:center;margin-top:10px">Analyze Conversation</div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+              <div class="mock-analysis">
+                <div class="mock-analysis-title">Decision</div>
+                Transition to hybrid pricing: freemium + usage-based at $0.05/action + enterprise seats at $299/seat/mo.
+              </div>
+              <div class="mock-analysis" style="border-left-color:#fbbf24">
+                <div class="mock-analysis-title" style="color:#fbbf24">Action Plan</div>
+                1. Draft new pricing page — Sarah Kim, May 20<br />
+                2. Build usage metering — Marcus Chen, Jun 1<br />
+                3. Set up enterprise billing — James Okafor, Jun 15
+              </div>
+              <div class="mock-analysis" style="border-left-color:#5470ff">
+                <div class="mock-analysis-title" style="color:#7a96ff">Executive Note</div>
+                Every week of delay costs ~$18K in MRR. Prioritize metering infrastructure above all else.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Decision Engine -->
+      <div class="showcase-panel" id="panel-decision">
+        <div class="panel-bar">
+          <div class="panel-dot" style="background:#f87171"></div>
+          <div class="panel-dot" style="background:#fbbf24"></div>
+          <div class="panel-dot" style="background:#34d399"></div>
+          <span class="panel-bar-title">ExecOS &mdash; AI Decision Engine</span>
+        </div>
+        <div class="panel-body">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;font-size:.85rem;margin-bottom:14px;color:var(--muted)">
+            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Situation</div>
+            Operations efficiency dropped 9% due to 2 blocked critical tasks. Marcus is overloaded. v2.4 deploy and payment gateway are stalled.
+          </div>
+          <div class="opt-row">
+            <div class="mock-opt safe">
+              <div>&#x1F6E1; Temporary Fix</div>
+              <div class="opt-label">Assign temp support. Low risk, low impact.</div>
+            </div>
+            <div class="mock-opt balanced" style="border-width:2px">
+              <div>&#x2696; Phased Solution</div>
+              <div class="opt-label">Redistribute + escalate. Recommended.</div>
+            </div>
+            <div class="mock-opt aggressive">
+              <div>&#x26A1; Full Overhaul</div>
+              <div class="opt-label">Restructure team now. High risk, high reward.</div>
+            </div>
+          </div>
+          <div style="background:rgba(84,112,255,.08);border:1px solid rgba(84,112,255,.3);border-radius:var(--radius);padding:14px 16px;font-size:.82rem;color:#8895c4">
+            <span style="color:#7a96ff;font-weight:700">Claude recommends:</span> Balanced — Phased Solution. Addresses root cause while managing execution risk given current team load.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     DEPARTMENTS
+═══════════════════════════════════════════════════════════ -->
+<section class="section" id="departments" style="background:var(--bg2)">
+  <div class="container">
+    <div class="section-label fade-up">Coverage</div>
+    <h2 class="section-title fade-up">Built for every department</h2>
+    <p class="section-sub fade-up">Start with Operations and expand as your team grows. More departments shipping quarterly.</p>
+    <div class="dept-grid">
+      <div class="dept-card fade-up">
+        <div class="dept-top" style="background:linear-gradient(90deg,#5470ff,#7a96ff)"></div>
+        <div class="dept-icon">&#x2699;&#xFE0F;</div>
+        <h3>Operations</h3>
+        <p>Task board, bottleneck AI, execution snapshot, and health scoring.</p>
+        <span class="dept-badge badge-live">Live</span>
+      </div>
+      <div class="dept-card fade-up">
+        <div class="dept-top" style="background:linear-gradient(90deg,#34d399,#10b981)"></div>
+        <div class="dept-icon">&#x1F465;</div>
+        <h3>Team Intelligence</h3>
+        <p>Workload analysis, burnout detection, performance tracking.</p>
+        <span class="dept-badge badge-live">Live</span>
+      </div>
+      <div class="dept-card fade-up">
+        <div class="dept-top" style="background:linear-gradient(90deg,#60a5fa,#3b82f6)"></div>
+        <div class="dept-icon">&#x1F4AC;</div>
+        <h3>Conversation Intelligence</h3>
+        <p>Paste any meeting or thread. AI extracts decisions and action plans.</p>
+        <span class="dept-badge badge-live">Live</span>
+      </div>
+      <div class="dept-card fade-up">
+        <div class="dept-top" style="background:linear-gradient(90deg,#a78bfa,#7c3aed)"></div>
+        <div class="dept-icon">&#x1F9E0;</div>
+        <h3>Decision Engine</h3>
+        <p>Claude AI generates Safe, Balanced, and Aggressive options for any decision.</p>
+        <span class="dept-badge badge-live">Live</span>
+      </div>
+      <div class="dept-card fade-up">
+        <div class="dept-top" style="background:linear-gradient(90deg,#fbbf24,#d97706)"></div>
+        <div class="dept-icon">&#x1F4B0;</div>
+        <h3>Finance</h3>
+        <p>Budget tracking, burn rate analysis, and cash flow forecasting.</p>
+        <span class="dept-badge badge-soon">Q3 2025</span>
+      </div>
+      <div class="dept-card fade-up">
+        <div class="dept-top" style="background:linear-gradient(90deg,#fb923c,#ea580c)"></div>
+        <div class="dept-icon">&#x1F4E2;</div>
+        <h3>Marketing</h3>
+        <p>Campaign performance, pipeline attribution, and channel ROI.</p>
+        <span class="dept-badge badge-soon">Q3 2025</span>
+      </div>
+      <div class="dept-card fade-up">
+        <div class="dept-top" style="background:linear-gradient(90deg,#f87171,#dc2626)"></div>
+        <div class="dept-icon">&#x2B50;</div>
+        <h3>Customer Experience</h3>
+        <p>NPS tracking, churn signals, and support health scoring.</p>
+        <span class="dept-badge badge-future">Q4 2025</span>
+      </div>
+      <div class="dept-card fade-up">
+        <div class="dept-top" style="background:linear-gradient(90deg,#8895c4,#5a6399)"></div>
+        <div class="dept-icon">&#x1F3AF;</div>
+        <h3>Strategic Planning</h3>
+        <p>OKR tracking, quarterly reviews, and AI strategic recommendations.</p>
+        <span class="dept-badge badge-future">2026</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     PRICING
+═══════════════════════════════════════════════════════════ -->
+<section class="section pricing-section" id="pricing">
+  <div class="container">
+    <div class="section-label fade-up" style="text-align:center">Pricing</div>
+    <h2 class="section-title fade-up" style="text-align:center;margin-bottom:16px">Simple, transparent pricing</h2>
+    <p class="section-sub fade-up" style="text-align:center;margin:0 auto 56px">Start free. Scale as your team grows. No hidden fees, no lock-in.</p>
+    <div class="pricing-grid">
+      <!-- Starter -->
+      <div class="pricing-card fade-up">
+        <div class="pricing-tier">Starter</div>
+        <div class="pricing-price"><sup>$</sup>0</div>
+        <div class="pricing-sub">Free forever &middot; No credit card</div>
+        <div class="pricing-divider"></div>
+        <ul class="pricing-features">
+          <li>Command Center</li>
+          <li>Operations Board (up to 10 tasks)</li>
+          <li>Team Intelligence (3 members)</li>
+          <li>5 AI Decision analyses/mo</li>
+          <li>Conversation Intelligence (3/mo)</li>
+          <li>Community support</li>
+        </ul>
+        <a href="demo.html" class="pricing-btn outline">Launch Free Demo</a>
+      </div>
+      <!-- Growth -->
+      <div class="pricing-card featured fade-up">
+        <div class="featured-badge">Most Popular</div>
+        <div class="pricing-tier">Growth</div>
+        <div class="pricing-price"><sup>$</sup>49<span>/mo</span></div>
+        <div class="pricing-sub">Per workspace &middot; Billed monthly</div>
+        <div class="pricing-divider"></div>
+        <ul class="pricing-features">
+          <li>Everything in Starter</li>
+          <li>Unlimited tasks</li>
+          <li>Team Intelligence (up to 25 members)</li>
+          <li>Unlimited AI Decision analyses</li>
+          <li>Unlimited Conversation Intelligence</li>
+          <li>Decision Memory &amp; history</li>
+          <li>Priority email support</li>
+        </ul>
+        <a href="demo.html" class="pricing-btn filled">Start Free Trial</a>
+      </div>
+      <!-- Scale -->
+      <div class="pricing-card fade-up">
+        <div class="pricing-tier">Scale</div>
+        <div class="pricing-price"><sup>$</sup>149<span>/mo</span></div>
+        <div class="pricing-sub">Per workspace &middot; Billed monthly</div>
+        <div class="pricing-divider"></div>
+        <ul class="pricing-features">
+          <li>Everything in Growth</li>
+          <li>Unlimited team members</li>
+          <li>All department modules (as released)</li>
+          <li>Custom AI workflows</li>
+          <li>Advanced analytics &amp; exports</li>
+          <li>SSO &amp; SAML</li>
+          <li>Dedicated Slack support</li>
+        </ul>
+        <a href="demo.html" class="pricing-btn outline">Start Free Trial</a>
+      </div>
+      <!-- Enterprise -->
+      <div class="pricing-card fade-up">
+        <div class="pricing-tier">Enterprise</div>
+        <div class="pricing-price" style="font-size:1.8rem">Custom</div>
+        <div class="pricing-sub">Contact us &middot; Volume pricing</div>
+        <div class="pricing-divider"></div>
+        <ul class="pricing-features">
+          <li>Everything in Scale</li>
+          <li>Custom AI model configuration</li>
+          <li>On-premise deployment option</li>
+          <li>Custom integrations &amp; API</li>
+          <li>SLA guarantee</li>
+          <li>Dedicated success manager</li>
+          <li>Executive onboarding</li>
+        </ul>
+        <a href="mailto:hello@execos.ai" class="pricing-btn outline">Contact Sales</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     CTA
+═══════════════════════════════════════════════════════════ -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-box fade-up">
+      <div class="section-label" style="text-align:center;margin-bottom:16px">Get Started</div>
+      <h2>See ExecOS in action</h2>
+      <p>The full interactive demo is live — explore all six modules, try the AI decision engine, and see what your business looks like when it runs on executive intelligence.</p>
+      <a href="demo.html" class="btn-primary" style="display:inline-flex">&#x26A1; Launch Interactive Demo</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FOOTER
+═══════════════════════════════════════════════════════════ -->
+<footer class="footer">
+  <div class="container footer-inner">
+    <a href="#" class="nav-logo" style="font-size:.95rem">
+      <div class="logo-icon" style="width:28px;height:28px;font-size:.65rem">EX</div>
+      ExecOS
+    </a>
+    <ul class="footer-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How it Works</a></li>
+      <li><a href="#departments">Departments</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="demo.html">Demo</a></li>
+      <li><a href="https://github.com/thethreethreethree/TeamPilot" target="_blank" rel="noopener">GitHub</a></li>
+    </ul>
+    <span class="footer-copy">&copy; 2025 ExecOS. All rights reserved.</span>
   </div>
 </footer>
-</div><!-- /landing -->
 
-
-<!-- ══════════════════════════════════════════════════════
-     DEMO APP
-════════════════════════════════════════════════════════ -->
-<div id="app" style="display:none;height:100vh;flex-direction:column">
-
-  <!-- Banner -->
-  <div class="demo-banner">
-    <div class="demo-banner-left">
-      <span class="demo-banner-dot pulse"></span>
-      <span class="demo-banner-text">ExecOS Interactive Demo — click any tab to explore all 6 dashboards</span>
-    </div>
-    <div class="demo-banner-right">
-      <button class="demo-back" onclick="showLanding()">← Back to site</button>
-      <a href="https://github.com/thethreethreethree/TeamPilot" target="_blank" class="demo-gh">Get the Code →</a>
-    </div>
-  </div>
-
-  <div class="app-body">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-logo">
-        <div class="sidebar-logo-icon">
-          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-        <div>
-          <div class="sidebar-logo-text">ExecOS</div>
-          <div class="sidebar-logo-sub">
-            <span class="sidebar-logo-dot pulse"></span>
-            <span class="sidebar-logo-label">Demo Mode</span>
-          </div>
-        </div>
-      </div>
-      <div class="sidebar-company">
-        <div class="sidebar-company-inner">
-          <div class="sidebar-company-label">Company</div>
-          <div class="sidebar-company-name">Acme Corp</div>
-        </div>
-      </div>
-      <nav class="sidebar-nav">
-        <div class="sidebar-section-label" style="margin-bottom:8px">Intelligence</div>
-        <button class="nav-btn active" data-screen="command" onclick="switchScreen('command',this)">
-          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          Command Center<span class="nav-dot" id="dot-command"></span>
-        </button>
-        <button class="nav-btn" data-screen="operations" onclick="switchScreen('operations',this)">
-          <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          Operations
-        </button>
-        <button class="nav-btn" data-screen="team" onclick="switchScreen('team',this)">
-          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-          Team Intelligence
-        </button>
-        <button class="nav-btn" data-screen="conversation" onclick="switchScreen('conversation',this)">
-          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-          Conversations
-        </button>
-        <button class="nav-btn" data-screen="decisions" onclick="switchScreen('decisions',this)">
-          <svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-          Decision Engine
-        </button>
-        <button class="nav-btn" data-screen="settings" onclick="switchScreen('settings',this)" style="margin-top:16px">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          Settings
-        </button>
-      </nav>
-      <div class="sidebar-user">
-        <div class="sidebar-avatar">CE</div>
-        <div>
-          <div class="sidebar-user-name">CEO</div>
-          <div class="sidebar-user-role">Executive Access</div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main -->
-    <main class="main">
-      <div class="topbar">
-        <div>
-          <div class="topbar-title" id="topbar-title">Command Center</div>
-          <div class="topbar-sub" id="topbar-sub">Acme Corp · CEO View</div>
-        </div>
-        <div class="topbar-right">
-          <div class="topbar-chip">Demo Data · Live AI in full app</div>
-        </div>
-      </div>
-
-      <div class="screen-area">
-        <div class="screen-inner">
-
-          <!-- ── COMMAND CENTER ── -->
-          <div id="screen-command" class="fade-in">
-            <div class="grid-3 space-y" style="gap:12px;margin-bottom:14px">
-              <div class="stat-card"><div class="label">Business Health</div><div class="row-between"><div class="stat-val" style="color:var(--yellow)">74</div><div style="text-align:right"><div style="font-size:11px;color:var(--faint)">/100</div></div></div><div class="bar-track" style="margin-top:10px"><div class="bar-fill" style="width:74%;background:var(--yellow)"></div></div></div>
-              <div class="stat-card"><div class="label">Operations</div><div class="stat-val" style="color:var(--red)">68</div><div class="bar-track" style="margin-top:10px"><div class="bar-fill" style="width:68%;background:var(--red)"></div></div></div>
-              <div class="stat-card"><div class="label">Team Intelligence</div><div class="stat-val" style="color:var(--green)">81</div><div class="bar-track" style="margin-top:10px"><div class="bar-fill" style="width:81%;background:var(--green)"></div></div></div>
-            </div>
-            <div style="display:grid;grid-template-columns:3fr 2fr;gap:14px">
-              <div class="space-y">
-                <div class="card card-brand">
-                  <div class="ai-header"><div class="ai-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div><span class="ai-title">AI Executive Briefing</span><span class="ai-chip">Claude AI</span></div>
-                  <p style="font-size:13px;color:var(--muted);line-height:1.7"><strong style="color:var(--text)">Operations efficiency dropped 9% today</strong> due to 2 critical blocked tasks in the payment and deployment pipeline. Revenue exposure increasing. <strong style="color:var(--text)">Team risk detected:</strong> Marcus Chen is overloaded with 4 active tasks — immediate redistribution to Lena Torres recommended. Q2 investor report on track; review with Sarah Kim before EOD.</p>
-                </div>
-                <div class="card">
-                  <div class="row" style="margin-bottom:12px">
-                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                    <span style="font-size:13px;font-weight:600;color:var(--text)">Today's Priorities</span>
-                  </div>
-                  <ol style="list-style:none;display:flex;flex-direction:column;gap:10px">
-                    <li class="row" style="align-items:start;gap:10px"><span style="width:20px;height:20px;border-radius:50%;background:rgba(84,112,255,.15);border:1px solid rgba(84,112,255,.3);color:var(--brand2);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">1</span><span style="font-size:13px;color:var(--muted)">Unblock payment gateway — assign temporary API credentials from finance</span></li>
-                    <li class="row" style="align-items:start;gap:10px"><span style="width:20px;height:20px;border-radius:50%;background:rgba(84,112,255,.15);border:1px solid rgba(84,112,255,.3);color:var(--brand2);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">2</span><span style="font-size:13px;color:var(--muted)">Redistribute 1–2 tasks from Marcus Chen to Lena Torres</span></li>
-                    <li class="row" style="align-items:start;gap:10px"><span style="width:20px;height:20px;border-radius:50%;background:rgba(84,112,255,.15);border:1px solid rgba(84,112,255,.3);color:var(--brand2);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">3</span><span style="font-size:13px;color:var(--muted)">Review Q2 investor report draft with Sarah Kim</span></li>
-                    <li class="row" style="align-items:start;gap:10px"><span style="width:20px;height:20px;border-radius:50%;background:rgba(84,112,255,.15);border:1px solid rgba(84,112,255,.3);color:var(--brand2);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">4</span><span style="font-size:13px;color:var(--muted)">Approve security audit scope before Lena begins</span></li>
-                  </ol>
-                </div>
-                <div class="card">
-                  <div class="row-between" style="margin-bottom:12px">
-                    <div class="row"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--red)" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span style="font-size:13px;font-weight:600;color:var(--text)">Critical &amp; Blocked</span><span class="badge-pill badge-red">3</span></div>
-                    <button class="btn-sm outline" onclick="switchScreen('operations',document.querySelector('[data-screen=operations]'))">View all →</button>
-                  </div>
-                  <div style="display:flex;flex-direction:column;gap:8px">
-                    <div style="display:flex;align-items:start;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border)"><div><div style="font-size:13px;font-weight:500;color:var(--text)">Fix checkout payment gateway timeout</div><div style="font-size:11px;color:var(--faint);margin-top:2px">Blocker: Awaiting API credentials from finance</div></div><span class="badge-pill badge-red">Blocked</span></div>
-                    <div style="display:flex;align-items:start;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border)"><div><div style="font-size:13px;font-weight:500;color:var(--text)">Deploy v2.4 to production</div><div style="font-size:11px;color:var(--faint);margin-top:2px">Blocker: Blocked by payment gateway fix</div></div><span class="badge-pill badge-red">Blocked</span></div>
-                    <div style="display:flex;align-items:start;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border)"><div><div style="font-size:13px;font-weight:500;color:var(--text)">Security audit — API endpoints</div><div style="font-size:11px;color:var(--faint);margin-top:2px">Assignee: Lena Torres · Due 2025-05-18</div></div><span class="badge-pill badge-orange">High</span></div>
-                  </div>
-                </div>
-              </div>
-              <div class="space-y">
-                <div class="card">
-                  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">AI Alerts</div>
-                  <div style="display:flex;flex-direction:column;gap:8px">
-                    <div class="alert card-red"><svg viewBox="0 0 24 24" stroke="var(--red)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><div class="alert-title">2 critical tasks blocked</div><div class="alert-desc">Payment gateway + v2.4 deploy blocked 26h. Revenue at risk.</div></div></div>
-                    <div class="alert card-yellow"><svg viewBox="0 0 24 24" stroke="var(--yellow)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><div class="alert-title">Marcus Chen is overloaded</div><div class="alert-desc">4 active tasks, 2 overdue. Burnout risk detected.</div></div></div>
-                    <div class="alert card-yellow"><svg viewBox="0 0 24 24" stroke="var(--yellow)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><div class="alert-title">Ops efficiency dropped 9%</div><div class="alert-desc">Blocked approvals and workload imbalance.</div></div></div>
-                    <div class="alert card-blue"><svg viewBox="0 0 24 24" stroke="var(--blue)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div><div class="alert-title">Lena Torres underutilized</div><div class="alert-desc">Only 1 active task. Redistribute from Marcus.</div></div></div>
-                  </div>
-                </div>
-                <div class="card">
-                  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">Execution Snapshot</div>
-                  <div class="grid-2" style="gap:8px">
-                    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--text)">6</div><div style="font-size:10px;color:var(--faint);margin-top:2px">Total</div></div>
-                    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--red)">2</div><div style="font-size:10px;color:var(--faint);margin-top:2px">Blocked</div></div>
-                    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--blue)">2</div><div style="font-size:10px;color:var(--faint);margin-top:2px">Active</div></div>
-                    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--green)">0</div><div style="font-size:10px;color:var(--faint);margin-top:2px">Completed</div></div>
-                  </div>
-                </div>
-                <div class="card">
-                  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">Decision Memory</div>
-                  <div style="display:flex;flex-direction:column;gap:6px">
-                    <div style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--border)"><div style="font-size:12px;font-weight:500;color:var(--text)">Migrate to new payment provider</div><div style="font-size:10px;color:var(--faint);margin-top:2px">2025-04-28</div><span class="badge-pill badge-blue" style="margin-top:6px;display:inline-flex">In Progress</span></div>
-                    <div style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--border)"><div style="font-size:12px;font-weight:500;color:var(--text)">Hire 3 additional engineers for Q2</div><div style="font-size:10px;color:var(--faint);margin-top:2px">2025-04-15</div><span class="badge-pill badge-blue" style="margin-top:6px;display:inline-flex">In Progress</span></div>
-                    <div style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--border)"><div style="font-size:12px;font-weight:500;color:var(--text)">Delay v2.4 release by 1 week</div><div style="font-size:10px;color:var(--faint);margin-top:2px">2025-05-01</div><span class="badge-pill badge-red" style="margin-top:6px;display:inline-flex">Blocked</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ── OPERATIONS ── -->
-          <div id="screen-operations" class="hidden fade-in">
-            <div class="grid-4" style="margin-bottom:14px">
-              <div class="stat-card"><div class="label">Health Score</div><div class="stat-val" style="color:var(--yellow)">68</div></div>
-              <div class="stat-card"><div class="label">Blocked</div><div class="stat-val" style="color:var(--red)">2</div></div>
-              <div class="stat-card"><div class="label">In Progress</div><div class="stat-val" style="color:var(--blue)">2</div></div>
-              <div class="stat-card"><div class="label">Critical Priority</div><div class="stat-val" style="color:var(--orange)">2</div></div>
-            </div>
-            <div class="card card-brand space-y" style="margin-bottom:14px">
-              <div class="ai-header"><div class="ai-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div><span class="ai-title">AI Operations Diagnosis</span><span class="ai-chip">Live in full app</span></div>
-              <div class="alert card-red"><svg viewBox="0 0 24 24" stroke="var(--red)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><div class="alert-title">Critical bottleneck detected</div><div class="alert-desc">2 blocked tasks creating cascading delays. v2.4 deploy blocked by gateway fix. Revenue exposure increasing hourly.</div></div></div>
-              <div class="alert card-yellow"><svg viewBox="0 0 24 24" stroke="var(--yellow)"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div><div class="alert-title">Recommended immediate action</div><div class="alert-desc">Escalate payment API credential request to finance. Unblocking gateway resolves 2 cascading issues simultaneously.</div></div></div>
-            </div>
-            <div class="card">
-              <div class="row-between" style="margin-bottom:14px">
-                <span style="font-size:13px;font-weight:600;color:var(--text)">Task Board</span>
-                <div class="filter-tabs" id="ops-filters">
-                  <button class="filter-tab active" onclick="filterOps('All',this)">All</button>
-                  <button class="filter-tab" onclick="filterOps('Blocked',this)">Blocked</button>
-                  <button class="filter-tab" onclick="filterOps('In Progress',this)">In Progress</button>
-                  <button class="filter-tab" onclick="filterOps('To Do',this)">To Do</button>
-                  <button class="filter-tab" onclick="filterOps('Needs Review',this)">Needs Review</button>
-                </div>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Task</th><th>Assignee</th><th>Priority</th><th>AI Score</th><th>Status</th><th>Due</th></tr></thead>
-                  <tbody id="ops-table"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- ── TEAM ── -->
-          <div id="screen-team" class="hidden fade-in">
-            <div class="grid-4" style="margin-bottom:14px">
-              <div class="stat-card"><div class="label">Team Health</div><div class="stat-val" style="color:var(--green)">81</div></div>
-              <div class="stat-card"><div class="label">Members</div><div class="stat-val" style="color:var(--text)">5</div></div>
-              <div class="stat-card"><div class="label">Overloaded</div><div class="stat-val" style="color:var(--red)">1</div></div>
-              <div class="stat-card"><div class="label">Underutilized</div><div class="stat-val" style="color:var(--yellow)">1</div></div>
-            </div>
-            <div class="card card-brand space-y" style="margin-bottom:14px">
-              <div class="ai-header"><div class="ai-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div><span class="ai-title">AI Team Analysis</span><span class="ai-chip">Live in full app</span></div>
-              <div class="alert card-red"><svg viewBox="0 0 24 24" stroke="var(--red)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><div class="alert-title">Marcus Chen critically overloaded</div><div class="alert-desc">4 active, 2 overdue, 2 blocked tasks. Burnout risk HIGH. Immediate redistribution required.</div></div></div>
-              <div class="alert card-yellow"><svg viewBox="0 0 24 24" stroke="var(--yellow)"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg><div><div class="alert-title">Lena Torres underutilized</div><div class="alert-desc">Only 1 active task. Recommend assigning 1–2 tasks from Marcus immediately.</div></div></div>
-            </div>
-            <div id="team-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
-          </div>
-
-          <!-- ── CONVERSATION ── -->
-          <div id="screen-conversation" class="hidden fade-in">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-              <div class="space-y">
-                <div class="card">
-                  <div class="row-between" style="margin-bottom:10px">
-                    <div class="row"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--brand)" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span style="font-size:13px;font-weight:600;color:var(--text)">Paste Conversation</span></div>
-                  </div>
-                  <p style="font-size:12px;color:var(--faint);margin-bottom:10px;line-height:1.6">Paste a Slack thread, meeting transcript, or email chain. ExecOS extracts decisions and creates action plans automatically.</p>
-                  <textarea class="convo-text" id="convo-input" readonly>CEO: We need to decide on the new pricing model before the board meeting Thursday.
-
-Sarah: Our enterprise clients generate 4x more revenue per seat but pay the same as SMEs — we're leaving money on the table.
-
-Marcus: Usage-based billing needs ~3 weeks backend work for metering infrastructure.
-
-James: Tiered pricing with usage component could reduce churn — lower tier users get a natural upgrade path.
-
-CEO: What's the risk if we push live before Q2 closes?
-
-Sarah: 12 enterprise contracts up for renewal in May. We need a grandfathering policy.
-
-Marcus: Go live with new pricing for net-new customers only in Q2, migrate existing clients Q3.
-
-CEO: Alright — tiered pricing + usage for net-new in Q2. Sarah owns enterprise contract strategy. Marcus starts backend this week. James prepares customer comms. Align on pricing tiers by Friday.</textarea>
-                  <button id="convo-btn" class="btn-sm primary" style="margin-top:10px;width:100%;justify-content:center" onclick="analyzeConvo()">
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                    Generate Decision &amp; Action Plan
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  </button>
-                </div>
-                <div class="card">
-                  <div style="font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">How it works</div>
-                  <div style="display:flex;flex-direction:column;gap:8px">
-                    <div class="row" style="align-items:start;gap:8px"><span style="width:18px;height:18px;border-radius:50%;background:rgba(84,112,255,.15);border:1px solid rgba(84,112,255,.2);color:var(--brand2);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</span><p style="font-size:12px;color:var(--faint)">Paste any team conversation, meeting transcript, or thread</p></div>
-                    <div class="row" style="align-items:start;gap:8px"><span style="width:18px;height:18px;border-radius:50%;background:rgba(84,112,255,.15);border:1px solid rgba(84,112,255,.2);color:var(--brand2);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</span><p style="font-size:12px;color:var(--faint)">AI identifies agreements, conflicts, and unresolved items</p></div>
-                    <div class="row" style="align-items:start;gap:8px"><span style="width:18px;height:18px;border-radius:50%;background:rgba(84,112,255,.15);border:1px solid rgba(84,112,255,.2);color:var(--brand2);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</span><p style="font-size:12px;color:var(--faint)">Generates structured decision with executive rationale</p></div>
-                    <div class="row" style="align-items:start;gap:8px"><span style="width:18px;height:18px;border-radius:50%;background:rgba(84,112,255,.15);border:1px solid rgba(84,112,255,.2);color:var(--brand2);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</span><p style="font-size:12px;color:var(--faint)">Creates action plan with owners, priorities, and deadlines</p></div>
-                  </div>
-                </div>
-              </div>
-              <div id="convo-output">
-                <div class="card" style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px">
-                  <div style="width:48px;height:48px;border-radius:14px;background:rgba(84,112,255,.1);border:1px solid rgba(84,112,255,.2);display:flex;align-items:center;justify-content:center"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="var(--brand)" stroke-width="2" stroke-linecap="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div>
-                  <p style="font-size:13px;font-weight:600;color:var(--text)">Ready to analyze</p>
-                  <p style="font-size:12px;color:var(--faint);max-width:220px;line-height:1.6">Click Generate to turn the conversation into a structured decision + action plan.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ── DECISIONS ── -->
-          <div id="screen-decisions" class="hidden fade-in">
-            <div class="card card-brand" style="margin-bottom:14px">
-              <div class="ai-header"><div class="ai-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div><span class="ai-title">Describe the Situation</span><span class="ai-chip">Claude AI</span></div>
-              <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:12px">We are experiencing a 9% drop in operations efficiency. Two critical tasks are blocked — payment gateway and v2.4 deploy. Marcus Chen is overloaded with 4 active tasks. Board wants status by Friday. We have 3 days to resolve or escalate.</div>
-              <button id="decision-btn" class="btn-sm primary" onclick="generateDecision()">
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                Generate Decision Options
-              </button>
-            </div>
-            <div id="decision-output" class="hidden space-y fade-in">
-              <div class="grid-2">
-                <div class="card"><div class="label">AI Diagnosis</div><p style="font-size:13px;color:var(--muted);line-height:1.7">Operations efficiency dropped 9% due to 2 blocked critical tasks creating cascading delays. Each hour of delay increases revenue exposure and board visibility risk.</p></div>
-                <div class="card card-red"><div class="label label-red">Biggest Risk</div><p style="font-size:13px;color:var(--muted);line-height:1.7">If the payment gateway blocker isn't resolved within 24h, v2.4 misses its window — delaying a revenue feature and creating a board-level problem by Friday.</p></div>
-              </div>
-              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">Decision Options — click to select</div>
-              <div class="grid-3">
-                <button class="decision-opt" id="opt-safe" onclick="selectOpt('safe')">
-                  <div class="row" style="margin-bottom:10px"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span style="font-size:13px;font-weight:700;color:var(--blue)">Safe Option</span></div>
-                  <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;line-height:1.4">Escalate to CFO with executive priority. Pause v2.4 timeline formally. Reset board expectations.</p>
-                  <div class="label" style="margin-top:10px">Expected Outcome</div><p style="font-size:12px;color:var(--muted)">Resolved in 48–72h. Board expectations reset. Low execution risk.</p>
-                  <div class="label" style="margin-top:8px">Tradeoff</div><p style="font-size:12px;color:var(--muted)">Slower resolution. Revenue feature delayed ~1 week.</p>
-                </button>
-                <button class="decision-opt" id="opt-balanced" onclick="selectOpt('balanced')">
-                  <div class="row" style="margin-bottom:10px"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span style="font-size:13px;font-weight:700;color:var(--green)">Balanced Option</span></div>
-                  <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;line-height:1.4">Escalate to CFO same-day AND reassign Marcus's 2 lowest-priority tasks to Lena immediately.</p>
-                  <div class="label" style="margin-top:10px">Expected Outcome</div><p style="font-size:12px;color:var(--muted)">Resolved in 24–48h. Marcus freed to accelerate gateway fix.</p>
-                  <div class="label" style="margin-top:8px">Tradeoff</div><p style="font-size:12px;color:var(--muted)">Requires real-time workload change. Minor disruption to Lena.</p>
-                </button>
-                <button class="decision-opt" id="opt-aggressive" onclick="selectOpt('aggressive')">
-                  <div class="row" style="margin-bottom:10px"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="var(--orange)" stroke-width="2" stroke-linecap="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z"/></svg><span style="font-size:13px;font-weight:700;color:var(--orange)">Aggressive Option</span></div>
-                  <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;line-height:1.4">Use a temporary sandbox API key to unblock Marcus now. Deploy v2.4 to staging while production credential resolves.</p>
-                  <div class="label" style="margin-top:10px">Expected Outcome</div><p style="font-size:12px;color:var(--muted)">v2.4 in staging within 24h. Full production deploy within 48h.</p>
-                  <div class="label" style="margin-top:8px">Tradeoff</div><p style="font-size:12px;color:var(--muted)">Staging-only creates expectation risk if announced early.</p>
-                </button>
-              </div>
-              <div class="card card-brand">
-                <div class="ai-header"><div class="ai-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div><span class="ai-title">AI Recommendation</span></div>
-                <p style="font-size:13px;color:var(--muted);line-height:1.7">The <strong style="color:var(--green)">Balanced Option</strong> is recommended. It solves the root cause (gateway credential) while simultaneously reducing the team risk driving the efficiency drop. Aggressive is viable only if the board deadline is hard and non-negotiable.</p>
-                <div id="decision-approve" class="hidden" style="margin-top:14px;display:flex;gap:8px">
-                  <button class="btn-sm primary"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Approve &amp; Create Tasks</button>
-                  <button class="btn-sm outline">Save to Decision Memory</button>
-                </div>
-              </div>
-              <div class="card">
-                <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">Decision Memory</div>
-                <div style="display:flex;flex-direction:column;gap:6px">
-                  <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border)"><div><div style="font-size:13px;font-weight:500;color:var(--text)">Migrate to new payment provider</div><div style="font-size:11px;color:var(--faint)">2025-04-28 · Approved</div></div><span class="badge-pill badge-blue">In Progress</span></div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border)"><div><div style="font-size:13px;font-weight:500;color:var(--text)">Hire 3 additional engineers for Q2</div><div style="font-size:11px;color:var(--faint)">2025-04-15 · Approved</div></div><span class="badge-pill badge-blue">In Progress</span></div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border)"><div><div style="font-size:13px;font-weight:500;color:var(--text)">Delay v2.4 release by 1 week</div><div style="font-size:11px;color:var(--faint)">2025-05-01 · Approved</div></div><span class="badge-pill badge-red">Blocked</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ── SETTINGS ── -->
-          <div id="screen-settings" class="hidden fade-in" style="max-width:520px">
-            <div class="card space-y" style="margin-bottom:14px">
-              <div style="font-size:13px;font-weight:600;color:var(--text)">Company Profile</div>
-              <p style="font-size:12px;color:var(--faint)">Update your company details to improve AI context quality.</p>
-              <div><div class="label">Company Name</div><input value="Acme Corp" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);transition:border-color .15s" onfocus="this.style.borderColor='rgba(84,112,255,.5)'" onblur="this.style.borderColor='var(--border)'"/></div>
-              <div><div class="label">Industry</div><input value="Technology" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);transition:border-color .15s" onfocus="this.style.borderColor='rgba(84,112,255,.5)'" onblur="this.style.borderColor='var(--border)'"/></div>
-              <div><div class="label">Stage</div><input value="Growth" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);transition:border-color .15s" onfocus="this.style.borderColor='rgba(84,112,255,.5)'" onblur="this.style.borderColor='var(--border)'"/></div>
-            </div>
-            <div class="card space-y" style="margin-bottom:14px">
-              <div class="row"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="var(--brand)" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg><span style="font-size:13px;font-weight:600;color:var(--text)">AI Configuration</span></div>
-              <p style="font-size:12px;color:var(--faint);line-height:1.6">ExecOS uses Claude (Anthropic) for all AI features. Add your API key to activate live AI briefings, conversation analysis, and decision generation.</p>
-              <div><div class="label">Anthropic API Key</div><input type="password" placeholder="sk-ant-..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);font-family:'JetBrains Mono',monospace;transition:border-color .15s" onfocus="this.style.borderColor='rgba(84,112,255,.5)'" onblur="this.style.borderColor='var(--border)'"/><p style="font-size:11px;color:var(--faint);margin-top:6px">Or set <code style="color:var(--brand2);background:rgba(84,112,255,.1);padding:1px 5px;border-radius:4px">ANTHROPIC_API_KEY</code> in your <code style="color:var(--brand2);background:rgba(84,112,255,.1);padding:1px 5px;border-radius:4px">.env.local</code> file.</p></div>
-            </div>
-            <button class="btn-sm primary" onclick="this.textContent='Saved ✓';setTimeout(()=>this.textContent='Save Settings',2000)"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save Settings</button>
-          </div>
-
-        </div><!-- /screen-inner -->
-      </div><!-- /screen-area -->
-
-      <!-- Bottom bar -->
-      <div class="bottom-bar">
-        <div class="bottom-bar-left">
-          <span>Like what you see?</span>
-          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-          <span style="color:var(--muted)">Deploy your own ExecOS instance in minutes</span>
-        </div>
-        <div class="bottom-bar-right">
-          <a href="https://github.com/thethreethreethree/TeamPilot" target="_blank" class="bb-btn outline">View Source</a>
-          <button class="bb-btn filled" onclick="showLanding()">Get Started Free →</button>
-        </div>
-      </div>
-    </main>
-  </div>
-</div><!-- /app -->
-
-<script>
-// ── DATA ──────────────────────────────────────────────────
-const TASKS=[
-  {id:'t1',title:'Fix checkout payment gateway timeout',dept:'Operations',assignee:'Marcus Chen',initials:'MC',status:'Blocked',priority:'Critical',score:98,blocker:'Awaiting API credentials from finance',due:'2025-05-12'},
-  {id:'t2',title:'Q2 investor report draft',dept:'Operations',assignee:'Sarah Kim',initials:'SK',status:'In Progress',priority:'High',score:87,blocker:null,due:'2025-05-14'},
-  {id:'t3',title:'Onboard 3 new engineering hires',dept:'Team',assignee:'David Park',initials:'DP',status:'In Progress',priority:'Medium',score:72,blocker:null,due:'2025-05-15'},
-  {id:'t4',title:'Security audit — API endpoints',dept:'Operations',assignee:'Lena Torres',initials:'LT',status:'To Do',priority:'High',score:83,blocker:null,due:'2025-05-18'},
-  {id:'t5',title:'Update team performance review process',dept:'Team',assignee:'David Park',initials:'DP',status:'Needs Review',priority:'Low',score:45,blocker:null,due:'2025-05-20'},
-  {id:'t6',title:'Deploy v2.4 to production',dept:'Operations',assignee:'Marcus Chen',initials:'MC',status:'Blocked',priority:'Critical',score:95,blocker:'Blocked by payment gateway fix',due:'2025-05-13'},
-];
-const TEAM=[
-  {name:'Marcus Chen',role:'Lead Engineer',dept:'Engineering',avatar:'MC',active:4,done:12,overdue:2,blocked:2,workload:'Overloaded',perf:82,consist:78,activity:'2 hours ago'},
-  {name:'Sarah Kim',role:'Operations Lead',dept:'Operations',avatar:'SK',active:3,done:18,overdue:0,blocked:0,workload:'Balanced',perf:96,consist:94,activity:'30 min ago'},
-  {name:'David Park',role:'HR Manager',dept:'People',avatar:'DP',active:2,done:9,overdue:0,blocked:0,workload:'Balanced',perf:90,consist:88,activity:'1 hour ago'},
-  {name:'Lena Torres',role:'Security Engineer',dept:'Engineering',avatar:'LT',active:1,done:6,overdue:0,blocked:0,workload:'Underutilized',perf:74,consist:71,activity:'3 hours ago'},
-  {name:'James Okafor',role:'Product Manager',dept:'Product',avatar:'JO',active:5,done:22,overdue:1,blocked:0,workload:'High',perf:88,consist:91,activity:'15 min ago'},
-];
-
-const SCREEN_META={
-  command:     {title:'Command Center',       sub:'Acme Corp · CEO View'},
-  operations:  {title:'Operations',           sub:'Acme Corp · Execution Intelligence'},
-  team:        {title:'Team Intelligence',    sub:'Acme Corp · Workforce Analysis'},
-  conversation:{title:'Conversation Intelligence', sub:'Acme Corp · Meeting & Thread Analysis'},
-  decisions:   {title:'AI Decision Engine',  sub:'Acme Corp · Structured Decision Making'},
-  settings:    {title:'Settings',            sub:'System Configuration'},
-};
-
-// ── NAV ──────────────────────────────────────────────────
-function switchScreen(id, btn) {
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('[id^="screen-"]').forEach(s => s.classList.add('hidden'));
-  document.querySelectorAll('.nav-dot').forEach(d => d.remove());
-  if (btn) {
-    btn.classList.add('active');
-    const dot = document.createElement('span');
-    dot.className = 'nav-dot';
-    btn.appendChild(dot);
-  }
-  const screen = document.getElementById('screen-' + id);
-  if (screen) { screen.classList.remove('hidden'); screen.classList.add('fade-in'); }
-  const meta = SCREEN_META[id];
-  if (meta) { document.getElementById('topbar-title').textContent = meta.title; document.getElementById('topbar-sub').textContent = meta.sub; }
-}
-
-// ── LANDING ↔ DEMO ─────────────────────────────────────
-function showDemo() {
-  document.getElementById('landing').style.display = 'none';
-  const app = document.getElementById('app');
-  app.style.display = 'flex';
-  renderOpsTable('All');
-  renderTeam();
-}
-function showLanding() {
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('landing').style.display = 'flex';
-  window.scrollTo(0,0);
-}
-
-// ── OPS TABLE ────────────────────────────────────────────
-const BADGE_CLASS={Blocked:'badge-red','In Progress':'badge-blue','To Do':'badge-gray','Needs Review':'badge-yellow',Completed:'badge-green',Critical:'badge-red',High:'badge-orange',Medium:'badge-yellow',Low:'badge-gray'};
-const SCORE_COLOR=s=>s>=90?'#f87171':s>=70?'#fbbf24':'#5470ff';
-const PRI_DOT={Critical:'#ef4444',High:'#f97316',Medium:'#eab308',Low:'#3a3f5c'};
-
-function renderOpsTable(filter) {
-  const tbody = document.getElementById('ops-table');
-  const rows = filter==='All'?TASKS:TASKS.filter(t=>t.status===filter);
-  tbody.innerHTML = rows.map(t=>`
-    <tr>
-      <td><div style="font-size:13px;font-weight:500;color:var(--text)">${t.title}</div>${t.blocker?`<div style="font-size:11px;color:var(--red);margin-top:2px">⚠ ${t.blocker}</div>`:''}</td>
-      <td><div style="display:flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:50%;background:rgba(84,112,255,.2);color:var(--brand2);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">${t.initials}</span><span style="font-size:12px;color:var(--muted)">${t.assignee.split(' ')[0]}</span></div></td>
-      <td><div style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${PRI_DOT[t.priority]}"></span><span style="font-size:12px;color:var(--muted)">${t.priority}</span></div></td>
-      <td><div style="display:flex;align-items:center;gap:6px"><div style="width:44px;height:5px;background:var(--border);border-radius:99px;overflow:hidden"><div style="width:${t.score}%;height:100%;background:${SCORE_COLOR(t.score)};border-radius:99px"></div></div><span style="font-size:11px;color:var(--faint);font-family:monospace">${t.score}</span></div></td>
-      <td><span class="badge-pill ${BADGE_CLASS[t.status]||'badge-gray'}">${t.status}</span></td>
-      <td><span style="font-size:12px;color:var(--faint);font-family:monospace">${t.due}</span></td>
-    </tr>`).join('');
-}
-
-function filterOps(filter, btn) {
-  document.querySelectorAll('#ops-filters .filter-tab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderOpsTable(filter);
-}
-
-// ── TEAM GRID ─────────────────────────────────────────────
-const WL_COLOR={Overloaded:'var(--red)',High:'var(--orange)',Balanced:'var(--green)',Underutilized:'var(--yellow)'};
-const WL_W={Overloaded:'95%',High:'75%',Balanced:'55%',Underutilized:'25%'};
-const WL_BADGE={Overloaded:'badge-red',High:'badge-orange',Balanced:'badge-green',Underutilized:'badge-yellow'};
-
-function renderTeam() {
-  document.getElementById('team-grid').innerHTML = TEAM.map(m=>`
-    <div class="team-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="team-avatar">${m.avatar}</div>
-          <div><div style="font-size:13px;font-weight:600;color:var(--text)">${m.name}</div><div style="font-size:11px;color:var(--faint)">${m.role}</div></div>
-        </div>
-        <span class="badge-pill ${WL_BADGE[m.workload]}">${m.workload}</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;text-align:center;margin-bottom:12px">
-        <div><div style="font-size:16px;font-weight:800;color:var(--blue)">${m.active}</div><div style="font-size:9px;color:var(--faint)">Active</div></div>
-        <div><div style="font-size:16px;font-weight:800;color:var(--green)">${m.done}</div><div style="font-size:9px;color:var(--faint)">Done</div></div>
-        <div><div style="font-size:16px;font-weight:800;color:var(--red)">${m.overdue}</div><div style="font-size:9px;color:var(--faint)">Overdue</div></div>
-        <div><div style="font-size:16px;font-weight:800;color:var(--orange)">${m.blocked}</div><div style="font-size:9px;color:var(--faint)">Blocked</div></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:var(--faint)">Workload</span><span style="font-size:10px;font-weight:600;color:${WL_COLOR[m.workload]}">${m.workload}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${WL_W[m.workload]};background:${WL_COLOR[m.workload]}"></div></div>
-      <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-        <div style="text-align:center"><div style="font-size:12px;font-weight:700;color:var(--text)">${m.perf}</div><div style="font-size:9px;color:var(--faint)">Perf.</div></div>
-        <div style="text-align:center"><div style="font-size:12px;font-weight:700;color:var(--text)">${m.consist}</div><div style="font-size:9px;color:var(--faint)">Consist.</div></div>
-        <div style="text-align:right"><div style="font-size:10px;color:var(--faint)">${m.activity}</div></div>
-      </div>
-    </div>`).join('');
-}
-
-// ── CONVERSATION ──────────────────────────────────────────
-function analyzeConvo() {
-  const btn = document.getElementById('convo-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<svg class="spin" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Analyzing...';
-  setTimeout(()=>{
-    document.getElementById('convo-output').innerHTML = `
-      <div class="space-y fade-in">
-        <div class="card"><div class="label">Summary</div><p style="font-size:13px;color:var(--muted);line-height:1.7">The team aligned on a phased pricing model — tiered + usage-based for net-new customers in Q2, with existing client migration deferred to Q3 to protect renewal contracts.</p></div>
-        <div class="card card-brand"><div class="ai-header"><div class="ai-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div><span class="ai-title">Decision</span></div><p style="font-size:13px;font-weight:600;color:var(--text);line-height:1.7">Adopt tiered pricing with usage component for all net-new customers starting Q2. Existing clients remain on current pricing with a grandfathering policy through Q3.</p></div>
-        <div class="card"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">Action Plan</div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <div class="action-item"><div style="display:flex;align-items:start;gap:8px;min-width:0"><span class="action-num">1</span><div><div style="font-size:13px;font-weight:500;color:var(--text)">Define final pricing tiers and amounts</div><div style="font-size:11px;color:var(--faint)">Sarah Kim · Due: Friday</div></div></div><span class="badge-pill badge-orange">High</span></div>
-            <div class="action-item"><div style="display:flex;align-items:start;gap:8px;min-width:0"><span class="action-num">2</span><div><div style="font-size:13px;font-weight:500;color:var(--text)">Begin backend metering infrastructure</div><div style="font-size:11px;color:var(--faint)">Marcus Chen · Due: This week</div></div></div><span class="badge-pill badge-orange">High</span></div>
-            <div class="action-item"><div style="display:flex;align-items:start;gap:8px;min-width:0"><span class="action-num">3</span><div><div style="font-size:13px;font-weight:500;color:var(--text)">Draft customer communication plan</div><div style="font-size:11px;color:var(--faint)">James Okafor · Due: Next week</div></div></div><span class="badge-pill badge-yellow">Medium</span></div>
-            <div class="action-item"><div style="display:flex;align-items:start;gap:8px;min-width:0"><span class="action-num">4</span><div><div style="font-size:13px;font-weight:500;color:var(--text)">Create enterprise grandfathering policy</div><div style="font-size:11px;color:var(--faint)">Sarah Kim · Before May renewals</div></div></div><span class="badge-pill badge-orange">High</span></div>
-          </div>
-        </div>
-        <div class="card card-green"><div class="label label-green">Executive Note</div><p style="font-size:13px;color:var(--muted);line-height:1.7">Well-structured decision. Phasing net-new vs. existing reduces commercial risk while allowing Q2 revenue capture. Ensure legal reviews grandfathering terms before any client communication goes out.</p></div>
-      </div>`;
-    btn.innerHTML = '✓ Analysis Complete';
-    btn.style.background = 'rgba(52,211,153,.15)';
-    btn.style.color = 'var(--green)';
-    btn.style.boxShadow = 'none';
-  }, 1800);
-}
-
-// ── DECISIONS ────────────────────────────────────────────
-let currentOpt = null;
-function generateDecision() {
-  const btn = document.getElementById('decision-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<svg class="spin" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Generating options...';
-  setTimeout(()=>{
-    document.getElementById('decision-output').classList.remove('hidden');
-    btn.innerHTML = '✓ Options Generated';
-    btn.style.background = 'rgba(52,211,153,.15)';
-    btn.style.color = 'var(--green)';
-    btn.style.boxShadow = 'none';
-  }, 1800);
-}
-function selectOpt(key) {
-  const classes = {safe:'selected-blue',balanced:'selected-green',aggressive:'selected-orange'};
-  ['safe','balanced','aggressive'].forEach(k=>{
-    document.getElementById('opt-'+k).className = 'decision-opt' + (k===key && currentOpt!==key ? ' '+classes[k] : '');
-  });
-  if (currentOpt === key) { currentOpt = null; document.getElementById('decision-approve').classList.add('hidden'); }
-  else { currentOpt = key; document.getElementById('decision-approve').classList.remove('hidden'); document.getElementById('decision-approve').style.display='flex'; }
-}
-</script>
+<script src="js/main.js"></script>
 </body>
 </html>
