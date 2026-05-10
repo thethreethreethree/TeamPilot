@@ -50,6 +50,12 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-4">
             <Link
+              href="/demo"
+              className="text-sm text-[#8895c4] hover:text-[#e8eaf6] transition-colors"
+            >
+              Live Demo
+            </Link>
+            <Link
               href="/login"
               className="text-sm text-[#8895c4] hover:text-[#e8eaf6] transition-colors"
             >
@@ -99,7 +105,7 @@ export default function LandingPage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/dashboard"
+              href="/demo"
               className="flex items-center gap-2 border border-[#3a3f5c] hover:border-[#5470ff]/50 text-[#8895c4] hover:text-[#e8eaf6] font-medium px-8 py-3.5 rounded-xl transition-all text-base"
             >
               View Demo
