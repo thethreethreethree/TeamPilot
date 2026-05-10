@@ -11,6 +11,7 @@
   "/dashboard/page": "/dashboard",
   "/dashboard/settings/page": "/dashboard/settings",
   "/dashboard/team/page": "/dashboard/team",
+  "/demo/page": "/demo",
   "/login/page": "/login",
   "/onboarding/page": "/onboarding",
   "/page": "/"
