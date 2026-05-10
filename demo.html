@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ExecOS — Interactive Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/demo.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     BANNER
+═══════════════════════════════════════════════════════════ -->
+<div class="banner">
+  <div class="banner-left">
+    <div class="banner-dot"></div>
+    <span class="banner-text"><strong>ExecOS Interactive Demo</strong> &mdash; click any tab in the sidebar to explore all 6 modules</span>
+  </div>
+  <div class="banner-links">
+    <a href="index.html" class="banner-link">&#x2190; Back to site</a>
+    <a href="https://github.com/thethreethreethree/TeamPilot" target="_blank" rel="noopener" class="banner-link">&#x2B55; GitHub</a>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     APP SHELL
+═══════════════════════════════════════════════════════════ -->
+<div class="app-shell">
+
+  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">EX</div>
+      <span class="logo-text">ExecOS</span>
+      <span class="logo-version">v1.0</span>
+    </div>
+
+    <div class="company-selector">
+      <div class="company-avatar">AC</div>
+      <div class="company-info">
+        <div class="company-name">Acme Corp</div>
+        <div class="company-plan">Growth Plan</div>
+      </div>
+      <span class="company-chevron">&#x25BE;</span>
+    </div>
+
+    <div class="sidebar-section-label">Main</div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn" data-screen="command">
+        <span class="nav-icon">&#x1F3E2;</span>
+        <span>Command Center</span>
+        <span class="nav-badge">2</span>
+      </button>
+      <button class="nav-btn" data-screen="operations">
+        <span class="nav-icon">&#x2699;&#xFE0F;</span>
+        <span>Operations</span>
+        <span class="nav-badge">2</span>
+      </button>
+      <button class="nav-btn" data-screen="team">
+        <span class="nav-icon">&#x1F465;</span>
+        <span>Team Intelligence</span>
+      </button>
+      <button class="nav-btn" data-screen="convo">
+        <span class="nav-icon">&#x1F4AC;</span>
+        <span>Conversation Intel</span>
+        <span class="nav-badge info">AI</span>
+      </button>
+      <button class="nav-btn" data-screen="decision">
+        <span class="nav-icon">&#x1F9E0;</span>
+        <span>Decision Engine</span>
+        <span class="nav-badge info">AI</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-section-label">Account</div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn" data-screen="settings">
+        <span class="nav-icon">&#x2699;</span>
+        <span>Settings</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-avatar">CEO</div>
+      <div>
+        <div class="user-name">Alex Rivera</div>
+        <div class="user-role">Chief Executive Officer</div>
+      </div>
+      <div class="user-dot"></div>
+    </div>
+  </aside>
+
+  <!-- ── Main area ────────────────────────────────────────── -->
+  <div class="main-area">
+
+    <!-- TopBar -->
+    <div class="topbar">
+      <div class="topbar-info">
+        <div class="topbar-title" id="topbar-title">Command Center</div>
+        <div class="topbar-sub"  id="topbar-sub">AI-powered executive overview of your business health</div>
+      </div>
+      <div class="topbar-actions">
+        <span class="topbar-time">May 11, 2025 &middot; 09:42 AM</span>
+        <button class="topbar-btn">&#x21BB; Refresh</button>
+        <button class="topbar-btn">&#x1F4E4; Export</button>
+      </div>
+    </div>
+
+    <!-- Screen area -->
+    <div class="screen-area">
+
+      <!-- ════════════════════════════════════════════════════
+           SCREEN 1: COMMAND CENTER
+      ═══════════════════════════════════════════════════════ -->
+      <div class="screen" id="screen-command">
+
+        <!-- Row 1: Health scores -->
+        <div class="grid-3 mb-16">
+          <div class="health-card">
+            <div class="health-header">
+              <div class="health-label">Business Health</div>
+              <div class="health-trend" style="color:#fbbf24">&#x25BE; -3 pts</div>
+            </div>
+            <div class="health-score" style="color:#fbbf24">74</div>
+            <div class="health-bar"><div class="health-fill" style="width:74%;background:#fbbf24"></div></div>
+            <div class="health-desc">Moderate &mdash; 2 critical issues affecting score</div>
+          </div>
+          <div class="health-card">
+            <div class="health-header">
+              <div class="health-label">Operations</div>
+              <div class="health-trend" style="color:#f87171">&#x25BE; -9%</div>
+            </div>
+            <div class="health-score" style="color:#f87171">68</div>
+            <div class="health-bar"><div class="health-fill" style="width:68%;background:#f87171"></div></div>
+            <div class="health-desc">At risk &mdash; blocked tasks stalling throughput</div>
+          </div>
+          <div class="health-card">
+            <div class="health-header">
+              <div class="health-label">Team</div>
+              <div class="health-trend" style="color:#34d399">&#x25B4; +2 pts</div>
+            </div>
+            <div class="health-score" style="color:#34d399">81</div>
+            <div class="health-bar"><div class="health-fill" style="width:81%;background:#34d399"></div></div>
+            <div class="health-desc">Good &mdash; one overload flag detected</div>
+          </div>
+        </div>
+
+        <!-- Row 2: Briefing + Priorities + Alerts -->
+        <div class="grid-3 mb-16">
+          <!-- AI Briefing -->
+          <div class="briefing-card col-span-2">
+            <div class="briefing-tag">&#x1F916; AI Executive Briefing</div>
+            <div class="briefing-body">
+              Operations efficiency dropped 9% this week driven by two stalled critical tasks: the payment gateway timeout (blocked 26h awaiting finance credentials) and v2.4 production deploy (blocked by the gateway fix). Marcus Chen is overloaded with 4 active tasks and 2 overdue items — burnout risk is elevated. Lena Torres has capacity for 2&ndash;3 additional tasks. Recommend immediate escalation of API credentials and rebalancing Marcus&apos;s load to Lena today to unblock the deploy chain and recover operations health.
+            </div>
+          </div>
+          <!-- Alerts -->
+          <div class="card">
+            <div class="card-title"><span class="card-title-icon">&#x1F6A8;</span>AI Alerts</div>
+            <div class="alert-card critical">
+              <div class="alert-dot"></div>
+              <div><div class="alert-title">2 critical tasks blocked</div><div class="alert-detail">Payment gateway + v2.4 deploy stalled 26h. Revenue at risk.</div></div>
+            </div>
+            <div class="alert-card warning">
+              <div class="alert-dot"></div>
+              <div><div class="alert-title">Marcus Chen overloaded</div><div class="alert-detail">4 active tasks, 2 overdue. Burnout risk detected.</div></div>
+            </div>
+            <div class="alert-card warning">
+              <div class="alert-dot"></div>
+              <div><div class="alert-title">Operations efficiency -9%</div><div class="alert-detail">Blocked approvals and workload imbalance causing slowdown.</div></div>
+            </div>
+            <div class="alert-card info">
+              <div class="alert-dot"></div>
+              <div><div class="alert-title">Lena Torres underutilized</div><div class="alert-detail">Only 1 active task. Consider reassigning from Marcus.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Priorities + Critical Tasks + Snapshot + Decisions -->
+        <div class="grid-3 mb-16">
+          <!-- Priorities -->
+          <div class="card">
+            <div class="card-title"><span class="card-title-icon">&#x1F3AF;</span>Today&apos;s Priorities</div>
+            <div class="priority-list">
+              <div class="priority-item"><div class="priority-num">1</div>Unblock payment gateway API credentials from finance</div>
+              <div class="priority-item"><div class="priority-num">2</div>Reassign 2 tasks from Marcus Chen to Lena Torres</div>
+              <div class="priority-item"><div class="priority-num" style="background:var(--bg3);color:var(--muted);border:1px solid var(--border)">3</div>Review Q2 investor report draft by 5pm</div>
+              <div class="priority-item"><div class="priority-num" style="background:var(--bg3);color:var(--muted);border:1px solid var(--border)">4</div>Approve team performance review process update</div>
+            </div>
+          </div>
+
+          <!-- Critical tasks -->
+          <div class="card">
+            <div class="card-title"><span class="card-title-icon">&#x1F6D1;</span>Critical &amp; Blocked</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:var(--radius);padding:12px">
+                <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">Fix checkout payment gateway timeout</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Marcus Chen &middot; Due May 12</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="badge badge-red">Critical</span><span class="badge badge-red">Blocked</span></div>
+                <div style="font-size:.7rem;color:var(--red);margin-top:6px">&#x26A0; Awaiting API credentials from finance</div>
+              </div>
+              <div style="background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:var(--radius);padding:12px">
+                <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">Deploy v2.4 to production</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Marcus Chen &middot; Due May 13</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="badge badge-red">Critical</span><span class="badge badge-red">Blocked</span></div>
+                <div style="font-size:.7rem;color:var(--red);margin-top:6px">&#x26A0; Blocked by payment gateway fix</div>
+              </div>
+              <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:var(--radius);padding:12px">
+                <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">Q2 investor report draft</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Sarah Kim &middot; Due May 14</div>
+                <div style="display:flex;gap:6px"><span class="badge badge-orange">High</span><span class="badge badge-blue">In Progress</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right column: Snapshot + Decision Memory -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="card">
+              <div class="card-title"><span class="card-title-icon">&#x1F4CA;</span>Execution Snapshot</div>
+              <div class="snapshot-grid">
+                <div class="snapshot-item"><div class="snapshot-val">6</div><div class="snapshot-lbl">Total</div></div>
+                <div class="snapshot-item"><div class="snapshot-val" style="color:var(--red)">2</div><div class="snapshot-lbl">Blocked</div></div>
+                <div class="snapshot-item"><div class="snapshot-val" style="color:var(--blue)">2</div><div class="snapshot-lbl">Active</div></div>
+                <div class="snapshot-item"><div class="snapshot-val" style="color:var(--muted)">0</div><div class="snapshot-lbl">Done Today</div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title"><span class="card-title-icon">&#x1F4DA;</span>Decision Memory</div>
+              <div class="decision-list">
+                <div class="decision-row">
+                  <div class="decision-title">Migrate to new payment provider</div>
+                  <div class="decision-date">Apr 28</div>
+                  <span class="badge badge-blue">In Progress</span>
+                </div>
+                <div class="decision-row">
+                  <div class="decision-title">Hire 3 additional engineers</div>
+                  <div class="decision-date">Apr 15</div>
+                  <span class="badge badge-blue">In Progress</span>
+                </div>
+                <div class="decision-row">
+                  <div class="decision-title">Delay v2.4 release 1 week</div>
+                  <div class="decision-date">May 1</div>
+                  <span class="badge badge-red">Blocked</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════════════
+           SCREEN 2: OPERATIONS
+      ═══════════════════════════════════════════════════════ -->
+      <div class="screen" id="screen-operations">
+        <!-- Stat cards -->
+        <div class="grid-4 mb-16">
+          <div class="stat-card">
+            <div class="stat-card-label">Health Score</div>
+            <div class="stat-card-val" style="color:#f87171">68</div>
+            <div class="stat-card-sub">At risk &mdash; down 9%</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Blocked Tasks</div>
+            <div class="stat-card-val" style="color:#f87171">2</div>
+            <div class="stat-card-sub">Critical priority</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">In Progress</div>
+            <div class="stat-card-val" style="color:#60a5fa">2</div>
+            <div class="stat-card-sub">On track</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Critical Priority</div>
+            <div class="stat-card-val" style="color:#f87171">2</div>
+            <div class="stat-card-sub">Need immediate action</div>
+          </div>
+        </div>
+
+        <!-- AI Diagnosis -->
+        <div class="card mb-16">
+          <div class="card-title"><span class="card-title-icon">&#x1F916;</span>AI Operations Diagnosis</div>
+          <div class="alert-card critical">
+            <div class="alert-dot"></div>
+            <div>
+              <div class="alert-title">Critical Bottleneck Detected</div>
+              <div class="alert-detail">Payment gateway fix is the apex blocker — 2 downstream tasks (v2.4 deploy + Q2 demos) depend on it. Every hour of delay compounds. Escalate API credentials to CFO immediately.</div>
+            </div>
+          </div>
+          <div class="alert-card info">
+            <div class="alert-dot"></div>
+            <div>
+              <div class="alert-title">Recommended Action</div>
+              <div class="alert-detail">Reassign Security audit task from Marcus Chen to Lena Torres to free 6&ndash;8 hours of Marcus&apos;s capacity. This unblocks the payment fix without adding headcount.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task board -->
+        <div class="card">
+          <div class="card-title"><span class="card-title-icon">&#x1F4CB;</span>Task Board</div>
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="All">All Tasks</button>
+            <button class="filter-tab" data-filter="Blocked">Blocked</button>
+            <button class="filter-tab" data-filter="In Progress">In Progress</button>
+            <button class="filter-tab" data-filter="To Do">To Do</button>
+            <button class="filter-tab" data-filter="Needs Review">Needs Review</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Assignee</th>
+                  <th>Priority</th>
+                  <th>AI Score</th>
+                  <th>Status</th>
+                  <th>Due</th>
+                </tr>
+              </thead>
+              <tbody id="ops-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════════════
+           SCREEN 3: TEAM INTELLIGENCE
+      ═══════════════════════════════════════════════════════ -->
+      <div class="screen" id="screen-team">
+        <!-- Stat cards -->
+        <div class="grid-4 mb-16">
+          <div class="stat-card">
+            <div class="stat-card-label">Team Health</div>
+            <div class="stat-card-val" style="color:#34d399">81</div>
+            <div class="stat-card-sub">Good &mdash; up 2 pts</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Team Members</div>
+            <div class="stat-card-val">5</div>
+            <div class="stat-card-sub">Across 4 departments</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Overloaded</div>
+            <div class="stat-card-val" style="color:#f87171">1</div>
+            <div class="stat-card-sub">Marcus Chen</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Underutilized</div>
+            <div class="stat-card-val" style="color:#8895c4">1</div>
+            <div class="stat-card-sub">Lena Torres</div>
+          </div>
+        </div>
+
+        <!-- AI Team Analysis -->
+        <div class="card mb-16">
+          <div class="card-title"><span class="card-title-icon">&#x1F916;</span>AI Team Analysis</div>
+          <div class="alert-card warning">
+            <div class="alert-dot"></div>
+            <div>
+              <div class="alert-title">Marcus Chen &mdash; Overload Alert</div>
+              <div class="alert-detail">4 active tasks, 2 overdue, 2 blocked. Workload at 95% capacity. Burnout probability elevated. Immediate task redistribution recommended before this week&apos;s sprint closes.</div>
+            </div>
+          </div>
+          <div class="alert-card info">
+            <div class="alert-dot"></div>
+            <div>
+              <div class="alert-title">Lena Torres &mdash; Underutilized Capacity</div>
+              <div class="alert-detail">Only 1 active task at 20% workload. Has engineering expertise to absorb 2&ndash;3 of Marcus&apos;s tasks (Security audit is a natural fit). Recommend reassignment today.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Team grid -->
+        <div id="team-grid"></div>
+      </div>
+
+      <!-- ════════════════════════════════════════════════════
+           SCREEN 4: CONVERSATION INTELLIGENCE
+      ═══════════════════════════════════════════════════════ -->
+      <div class="screen" id="screen-convo">
+        <div class="convo-layout">
+          <!-- Left: Input -->
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-title"><span class="card-title-icon">&#x1F4CB;</span>Paste Conversation or Meeting Notes</div>
+              <textarea class="convo-textarea" id="convo-input" rows="12">CEO: We need to make a final call on pricing before end of quarter. The freemium model is creating too much friction — conversion is at 1.8% and it should be 4%+.
+
+Sarah Kim (Ops): I've been looking at usage-based models. Charge per action or per API call. Companies like Notion have done this well.
+
+James Okafor (Product): Enterprise customers hate usage-based because of unpredictable billing. They want seats. We need a seat-based enterprise tier alongside whatever we do on the growth side.
+
+Marcus Chen (Eng): The metering infrastructure is doable but it's a 3-week build minimum. If we're doing this, we need to decide now.
+
+CEO: Let's do a hybrid. We keep the free tier for acquisition, introduce a usage-based growth tier, and add a seat-based enterprise tier for Q3. James, can you define the tiers by next week?
+
+James: Yes. I'll have a proposal by Friday with pricing benchmarks from 5 competitors.
+
+CEO: Perfect. Sarah, coordinate with Marcus on the metering build timeline. This is our top priority for Q2 close.</textarea>
+              <button class="analyze-btn" id="analyze-btn" onclick="analyzeConvo()">
+                &#x1F916; Analyze Conversation
+              </button>
+            </div>
+
+            <!-- How it works -->
+            <div class="card">
+              <div class="card-title"><span class="card-title-icon">&#x2139;</span>How It Works</div>
+              <div class="hiw-steps">
+                <div class="hiw-step-item">
+                  <div class="hiw-step-num">1</div>
+                  <div class="hiw-step-body"><strong>Paste any text</strong>Meeting notes, Slack threads, email chains, or voice transcripts.</div>
+                </div>
+                <div class="hiw-step-item">
+                  <div class="hiw-step-num">2</div>
+                  <div class="hiw-step-body"><strong>Claude AI analyzes context</strong>Identifies participants, topics, decisions, and commitments made.</div>
+                </div>
+                <div class="hiw-step-item">
+                  <div class="hiw-step-num">3</div>
+                  <div class="hiw-step-body"><strong>Decision extracted</strong>The core decision is surfaced clearly — no ambiguity.</div>
+                </div>
+                <div class="hiw-step-item">
+                  <div class="hiw-step-num">4</div>
+                  <div class="hiw-step-body"><strong>Action plan generated</strong>Owners, deadlines, and priorities assigned automatically.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Output -->
+          <div>
+            <div class="card" style="min-height:300px">
+              <div class="card-title"><span class="card-title-icon">&#x1F4A1;</span>AI Analysis Output</div>
+              <div id="convo-spinner" class="spinner">
+                <div class="spinner-ring"></div>
+                <span>Claude AI is analyzing your conversation&hellip;</span>
+              </div>
+              <div id="convo-output" style="display:none"></div>
+              <div id="convo-empty" class="convo-empty">
+                <div class="convo-empty-icon">&#x1F4AC;</div>
+                <div>Paste a conversation and click <strong>Analyze</strong> to generate a decision and action plan.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════════════
+           SCREEN 5: DECISION ENGINE
+      ═══════════════════════════════════════════════════════ -->
+      <div class="screen" id="screen-decision">
+        <!-- Situation -->
+        <div class="situation-card">
+          <div class="situation-label">&#x1F4CB; Current Situation</div>
+          <div class="situation-text">
+            Operations efficiency has dropped 9% this week. Two critical tasks are blocked: the payment gateway fix (stalled 26h awaiting finance API credentials) and the v2.4 production deploy (blocked by the gateway fix). Marcus Chen is overloaded with 4 active tasks and 2 overdue items. Lena Torres has available capacity. Every hour of delay risks customer-facing downtime and delays the Q2 demo pipeline.
+          </div>
+        </div>
+
+        <button class="generate-btn" id="generate-btn" onclick="generateDecision()">
+          &#x1F916; Generate Decision Options with Claude AI
+        </button>
+
+        <div id="decision-spinner" class="spinner">
+          <div class="spinner-ring"></div>
+          <span>Claude AI is generating decision options&hellip;</span>
+        </div>
+
+        <!-- Decision output (hidden until generated) -->
+        <div class="decision-output" id="decision-output">
+          <!-- Diagnosis + Risk -->
+          <div class="diag-grid">
+            <div class="diag-card">
+              <div class="diag-label">&#x1F916; AI Diagnosis</div>
+              <div class="diag-text">The payment gateway block is the apex dependency. Unblocking it cascades to resolve the v2.4 deploy and reduces Marcus&apos;s overload. Root cause: credential approval process lacks urgency escalation path.</div>
+            </div>
+            <div class="diag-card" style="border-left:3px solid var(--red)">
+              <div class="diag-label" style="color:var(--red)">&#x26A0; Biggest Risk</div>
+              <div class="diag-text">If unresolved by EOD, the v2.4 deploy slips past the Q2 demo window, directly impacting 3 scheduled enterprise prospect calls this Friday.</div>
+            </div>
+          </div>
+
+          <!-- 3 option cards -->
+          <div class="opts-grid">
+            <!-- Safe -->
+            <div class="opt-card safe" data-opt="safe" onclick="selectOpt('safe')">
+              <div class="opt-card-header">
+                <span class="opt-type">&#x1F6E1; Safe</span>
+                <span class="opt-risk">Low Risk</span>
+              </div>
+              <div class="opt-title">Temporary Fix</div>
+              <div class="opt-desc">Assign a temporary support engineer to help Marcus while waiting for credentials. Keeps existing process intact, buys 24&ndash;48h breathing room.</div>
+              <div class="opt-meta">
+                <span>&#x23F1; Timeline: 1&ndash;2 days</span>
+                <span>&#x1F4B0; Cost: Low</span>
+                <span>&#x26A1; Impact: Moderate</span>
+              </div>
+              <button class="approve-btn" id="approve-safe" onclick="approveDecision('safe')">&#x2713; Approve &amp; Create Tasks</button>
+            </div>
+            <!-- Balanced -->
+            <div class="opt-card balanced" data-opt="balanced" onclick="selectOpt('balanced')">
+              <div class="opt-card-header">
+                <span class="opt-type">&#x2696; Balanced</span>
+                <span class="opt-risk">Medium Risk</span>
+              </div>
+              <div class="opt-title">Phased Solution</div>
+              <div class="opt-desc">Immediately reassign Security audit to Lena Torres. Escalate credential approval to CFO. Set 4-hour SLA on response. Marcus focuses solely on gateway fix.</div>
+              <div class="opt-meta">
+                <span>&#x23F1; Timeline: Today</span>
+                <span>&#x1F4B0; Cost: None</span>
+                <span>&#x26A1; Impact: High</span>
+              </div>
+              <button class="approve-btn" id="approve-balanced" onclick="approveDecision('balanced')">&#x2713; Approve &amp; Create Tasks</button>
+            </div>
+            <!-- Aggressive -->
+            <div class="opt-card aggressive" data-opt="aggressive" onclick="selectOpt('aggressive')">
+              <div class="opt-card-header">
+                <span class="opt-type">&#x26A1; Aggressive</span>
+                <span class="opt-risk">High Risk</span>
+              </div>
+              <div class="opt-title">Full Overhaul</div>
+              <div class="opt-desc">Restructure the engineering allocation permanently. Hire a DevOps contractor, implement a new credential approval workflow, and redesign task assignment process.</div>
+              <div class="opt-meta">
+                <span>&#x23F1; Timeline: 2&ndash;4 weeks</span>
+                <span>&#x1F4B0; Cost: High</span>
+                <span>&#x26A1; Impact: Very High</span>
+              </div>
+              <button class="approve-btn" id="approve-aggressive" onclick="approveDecision('aggressive')">&#x2713; Approve &amp; Create Tasks</button>
+            </div>
+          </div>
+
+          <!-- AI Recommendation -->
+          <div class="ai-rec-card" id="ai-recommendation">
+            <div class="ai-rec-label">&#x1F916; Claude AI Recommendation</div>
+            <div class="ai-rec-text" id="rec-text"></div>
+          </div>
+
+          <!-- Decision Memory -->
+          <div class="decision-memory">
+            <div class="card-title" style="margin-bottom:12px"><span class="card-title-icon">&#x1F4DA;</span>Decision Memory &mdash; Recent</div>
+            <div class="card" style="padding:0;overflow:hidden">
+              <table class="dm-table">
+                <thead>
+                  <tr>
+                    <th>Decision</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Migrate to new payment provider</td>
+                    <td class="muted">Apr 28, 2025</td>
+                    <td><span class="badge badge-blue">In Progress</span></td>
+                  </tr>
+                  <tr>
+                    <td>Hire 3 additional engineers for Q2</td>
+                    <td class="muted">Apr 15, 2025</td>
+                    <td><span class="badge badge-blue">In Progress</span></td>
+                  </tr>
+                  <tr>
+                    <td>Delay v2.4 release by 1 week</td>
+                    <td class="muted">May 1, 2025</td>
+                    <td><span class="badge badge-red">Blocked</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════════════
+           SCREEN 6: SETTINGS
+      ═══════════════════════════════════════════════════════ -->
+      <div class="screen" id="screen-settings">
+        <div class="grid-2">
+          <!-- Company Profile -->
+          <div class="card settings-section">
+            <div class="card-title"><span class="card-title-icon">&#x1F3E2;</span>Company Profile</div>
+            <div class="form-group">
+              <label class="form-label">Company Name</label>
+              <input type="text" class="form-input" value="Acme Corp" placeholder="Your company name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Industry</label>
+              <input type="text" class="form-input" value="SaaS / Technology" placeholder="e.g. SaaS, Healthcare, Finance" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Company Stage</label>
+              <input type="text" class="form-input" value="Series A" placeholder="e.g. Seed, Series A, Growth" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">CEO / Primary User</label>
+              <input type="text" class="form-input" value="Alex Rivera" placeholder="Full name" />
+            </div>
+          </div>
+
+          <!-- AI Configuration -->
+          <div>
+            <div class="card settings-section mb-16">
+              <div class="card-title"><span class="card-title-icon">&#x1F916;</span>AI Configuration</div>
+              <div class="settings-sub">Connect your Anthropic API key to enable Claude AI features including the Decision Engine, Conversation Intelligence, and smart alerts.</div>
+              <div class="form-group">
+                <label class="form-label">Anthropic API Key</label>
+                <input type="password" class="form-input" placeholder="sk-ant-..." />
+                <div class="form-hint">Get your API key at console.anthropic.com &mdash; your key is stored locally and never sent to our servers.</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">AI Model</label>
+                <input type="text" class="form-input" value="claude-sonnet-4-6" placeholder="Model name" />
+                <div class="form-hint">Recommended: claude-sonnet-4-6 for best balance of speed and intelligence.</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Decision Confidence Threshold</label>
+                <input type="text" class="form-input" value="0.75" placeholder="0.0 – 1.0" />
+                <div class="form-hint">AI will flag decisions below this confidence score for manual review.</div>
+              </div>
+            </div>
+
+            <div class="card settings-section">
+              <div class="card-title"><span class="card-title-icon">&#x1F514;</span>Notifications</div>
+              <div class="form-group">
+                <label class="form-label">Alert Email</label>
+                <input type="email" class="form-input" value="alex@acmecorp.com" placeholder="your@email.com" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Slack Webhook URL</label>
+                <input type="text" class="form-input" placeholder="https://hooks.slack.com/services/..." />
+                <div class="form-hint">Paste your Slack incoming webhook to receive critical alerts in your channel.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:24px;display:flex;align-items:center;gap:16px">
+          <button class="save-btn" id="save-settings-btn" onclick="saveSettings()">Save Settings</button>
+          <span class="muted" style="font-size:.8rem">All settings are saved locally in your browser.</span>
+        </div>
+      </div>
+
+    </div><!-- /screen-area -->
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <div class="bottom-bar-text">
+        ExecOS Interactive Demo &mdash; <strong>powered by Claude AI</strong> &middot; All data is mock/demo only
+      </div>
+      <a href="https://github.com/thethreethreethree/TeamPilot" target="_blank" rel="noopener" class="bottom-btn">
+        &#x2B55; View on GitHub
+      </a>
+    </div>
+
+  </div><!-- /main-area -->
+</div><!-- /app-shell -->
+
+<script src="js/data.js"></script>
+<script src="js/demo.js"></script>
+</body>
+</html>
