@@ -83,6 +83,56 @@ Format your response as JSON:
   return block.type === "text" ? block.text : "{}";
 }
 
+export async function analyzeFinance(financeData: string): Promise<string> {
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 600,
+    system: `You are ExecOS Finance Analyzer. Assess financial health, cash runway, burn, and revenue trajectory from finance data.
+Format as JSON:
+{
+  "healthScore": 0-100,
+  "diagnosis": "...",
+  "topRisks": ["...", "..."],
+  "immediateActions": ["...", "..."],
+  "riskLevel": "Low|Medium|High|Critical"
+}`,
+    messages: [
+      {
+        role: "user",
+        content: `Analyze this company's finances and identify risks:\n\n${financeData}`,
+      },
+    ],
+  });
+
+  const block = message.content[0];
+  return block.type === "text" ? block.text : "{}";
+}
+
+export async function analyzeMarketing(marketingData: string): Promise<string> {
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 600,
+    system: `You are ExecOS Marketing Analyzer. Assess marketing performance — lead generation, CAC, channel ROI, and funnel conversion — from marketing data.
+Format as JSON:
+{
+  "healthScore": 0-100,
+  "diagnosis": "...",
+  "topRisks": ["...", "..."],
+  "immediateActions": ["...", "..."],
+  "riskLevel": "Low|Medium|High|Critical"
+}`,
+    messages: [
+      {
+        role: "user",
+        content: `Analyze this company's marketing performance and identify issues:\n\n${marketingData}`,
+      },
+    ],
+  });
+
+  const block = message.content[0];
+  return block.type === "text" ? block.text : "{}";
+}
+
 export async function analyzeOperations(operationsData: string): Promise<string> {
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",

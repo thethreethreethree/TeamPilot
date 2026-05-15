@@ -1,8 +1,9 @@
 "use client";
 
-import { Activity, ArrowRight, Building2, Users, Target, ChevronRight } from "lucide-react";
+import { Activity, Building2, Users, Target, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 const industries = [
   "Technology", "Finance", "Healthcare", "E-commerce", "SaaS", "Manufacturing",
@@ -26,6 +27,8 @@ const goals = [
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     companyName: "",
     industry: "",
@@ -49,9 +52,45 @@ export default function OnboardingPage() {
     }));
   };
 
+  const finish = async () => {
+    setSubmitting(true);
+    setError("");
+    const supabase = createClient();
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Your session expired. Please sign in again.");
+
+      const { data: company, error: companyErr } = await supabase
+        .from("companies")
+        .insert({
+          name: form.companyName,
+          industry: form.industry,
+          size: form.size,
+          stage: form.stage,
+        })
+        .select("id")
+        .single();
+      if (companyErr) throw companyErr;
+
+      const { error: profileErr } = await supabase.from("profiles").upsert({
+        id: auth.user.id,
+        company_id: company.id,
+        full_name: form.ceoName,
+        role: "CEO",
+      });
+      if (profileErr) throw profileErr;
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not complete setup.");
+      setSubmitting(false);
+    }
+  };
+
   const next = () => {
     if (step < totalSteps) setStep(step + 1);
-    else router.push("/dashboard");
+    else finish();
   };
 
   const canProceed = () => {
@@ -242,14 +281,19 @@ export default function OnboardingPage() {
           )}
 
           {/* Footer */}
+          {error && <p className="text-xs text-red-400 mt-6">{error}</p>}
           <div className="flex items-center justify-between mt-8">
             <span className="text-xs text-[#5a6399]">Step {step} of {totalSteps}</span>
             <button
               onClick={next}
-              disabled={!canProceed()}
+              disabled={!canProceed() || submitting}
               className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
             >
-              {step === totalSteps ? "Launch ExecOS" : "Continue"}
+              {submitting
+                ? "Launching…"
+                : step === totalSteps
+                ? "Launch ExecOS"
+                : "Continue"}
               {step === totalSteps ? <Activity className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>
           </div>

@@ -205,6 +205,73 @@ export const mockDailyPriorities = [
   "Approve security audit scope before Lena begins",
 ];
 
+export const mockFinance = {
+  financeScore: 71,
+  cashOnHand: 2_450_000,
+  monthlyBurn: 312_000,
+  runwayMonths: 7.9,
+  mrr: 188_000,
+  mrrGrowth: 6.2,
+  grossMargin: 68,
+};
+
+export const mockRevenueTrend = [
+  { month: "Dec", mrr: 142_000, expenses: 268_000 },
+  { month: "Jan", mrr: 151_000, expenses: 274_000 },
+  { month: "Feb", mrr: 159_000, expenses: 281_000 },
+  { month: "Mar", mrr: 168_000, expenses: 295_000 },
+  { month: "Apr", mrr: 177_000, expenses: 304_000 },
+  { month: "May", mrr: 188_000, expenses: 312_000 },
+];
+
+export const mockExpenses = [
+  { category: "Payroll", amount: 198_000, share: 63, trend: "up" },
+  { category: "Infrastructure & SaaS", amount: 41_000, share: 13, trend: "up" },
+  { category: "Marketing & Growth", amount: 38_000, share: 12, trend: "flat" },
+  { category: "Office & Operations", amount: 21_000, share: 7, trend: "flat" },
+  { category: "Legal & Professional", amount: 14_000, share: 5, trend: "down" },
+];
+
+export const mockInvoices = [
+  { id: "i1", client: "Northwind Retail", amount: 48_000, status: "Overdue", dueDate: "2025-05-02" },
+  { id: "i2", client: "Vertex Logistics", amount: 32_500, status: "Pending", dueDate: "2025-05-20" },
+  { id: "i3", client: "Brightline Media", amount: 27_000, status: "Paid", dueDate: "2025-05-08" },
+  { id: "i4", client: "Cascade Health", amount: 61_000, status: "Pending", dueDate: "2025-05-25" },
+  { id: "i5", client: "Orbit Software", amount: 19_500, status: "Overdue", dueDate: "2025-04-28" },
+];
+
+export const mockMarketing = {
+  marketingScore: 66,
+  monthlyLeads: 1240,
+  leadGrowth: 11.4,
+  cac: 312,
+  conversionRate: 3.8,
+  pipelineValue: 1_870_000,
+};
+
+export const mockMarketingChannels = [
+  { channel: "Organic Search", leads: 438, cac: 0, roi: "∞", trend: "up" },
+  { channel: "Paid Ads", leads: 372, cac: 480, roi: "2.1x", trend: "down" },
+  { channel: "Content & SEO", leads: 198, cac: 95, roi: "5.4x", trend: "up" },
+  { channel: "Referral", leads: 142, cac: 60, roi: "7.2x", trend: "flat" },
+  { channel: "Social", leads: 90, cac: 210, roi: "1.6x", trend: "down" },
+];
+
+export const mockCampaigns = [
+  { id: "c1", name: "Q2 Product Launch", status: "In Progress", budget: 80_000, spent: 51_000, leads: 312 },
+  { id: "c2", name: "Webinar Series", status: "Completed", budget: 25_000, spent: 24_200, leads: 188 },
+  { id: "c3", name: "Retargeting Push", status: "In Progress", budget: 40_000, spent: 9_500, leads: 64 },
+  { id: "c4", name: "Brand Awareness", status: "Needs Review", budget: 60_000, spent: 58_800, leads: 96 },
+];
+
+export const mockFunnel = [
+  { stage: "Visitors", count: 48_200 },
+  { stage: "Leads", count: 1_240 },
+  { stage: "Qualified", count: 410 },
+  { stage: "Opportunities", count: 132 },
+  { stage: "Customers", count: 47 },
+];
+
 export const mockDecisionHistory = [
   {
     id: "d1",

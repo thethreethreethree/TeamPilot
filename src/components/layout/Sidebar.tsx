@@ -1,18 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Zap,
   Users,
+  DollarSign,
+  Megaphone,
   MessageSquare,
   Brain,
   Settings,
   ChevronRight,
   Activity,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   {
@@ -31,6 +36,16 @@ const navItems = [
     icon: Users,
   },
   {
+    label: "Finance",
+    href: "/dashboard/finance",
+    icon: DollarSign,
+  },
+  {
+    label: "Marketing",
+    href: "/dashboard/marketing",
+    icon: Megaphone,
+  },
+  {
     label: "Conversations",
     href: "/dashboard/conversations",
     icon: MessageSquare,
@@ -44,6 +59,42 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [companyName, setCompanyName] = useState("—");
+  const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, role, companies(name)")
+        .eq("id", auth.user.id)
+        .maybeSingle();
+      if (profile) {
+        setUserName(profile.full_name ?? auth.user.email ?? "");
+        setUserRole(profile.role ?? "");
+        const company = profile.companies as { name?: string } | null;
+        if (company?.name) setCompanyName(company.name);
+      }
+    })();
+  }, []);
+
+  const initials = (userName || "EX")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const signOut = async () => {
+    await createClient().auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-[#12141f] border-r border-[#252840] flex flex-col z-40">
@@ -68,7 +119,7 @@ export default function Sidebar() {
         <button className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#1a1d2e] transition-colors group">
           <div className="text-left">
             <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-0.5">Company</p>
-            <p className="text-sm font-medium text-[#e8eaf6]">Acme Corp</p>
+            <p className="text-sm font-medium text-[#e8eaf6]">{companyName}</p>
           </div>
           <ChevronRight className="w-3.5 h-3.5 text-[#5a6399] group-hover:text-[#8895c4] transition-colors" />
         </button>
@@ -126,12 +177,21 @@ export default function Sidebar() {
       <div className="px-4 py-4 border-t border-[#252840]">
         <div className="flex items-center gap-3 px-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#5470ff] to-[#7a96ff] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-            CE
+            {initials}
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-[#e8eaf6] truncate">CEO</p>
-            <p className="text-xs text-[#5a6399] truncate">Executive Access</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[#e8eaf6] truncate">
+              {userName || "Loading…"}
+            </p>
+            <p className="text-xs text-[#5a6399] truncate">{userRole || "Executive Access"}</p>
           </div>
+          <button
+            onClick={signOut}
+            title="Sign out"
+            className="p-1.5 rounded-lg text-[#5a6399] hover:text-red-400 hover:bg-[#1a1d2e] transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </aside>
