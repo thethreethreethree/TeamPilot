@@ -3,7 +3,7 @@
 import { Activity, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 
 type Mode = "signin" | "signup";
 
@@ -20,6 +20,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setNotice("");
+
+    if (!supabaseEnabled) {
+      router.push("/dashboard");
+      return;
+    }
+
     setLoading(true);
     const supabase = createClient();
 
@@ -80,6 +86,13 @@ export default function LoginPage() {
               ? "Sign in to your executive system"
               : "Set up your AI Executive Operating System"}
           </p>
+
+          {!supabaseEnabled && (
+            <div className="mb-5 p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20 text-xs text-yellow-200">
+              Demo mode — Supabase not configured. Submitting will take you straight into the
+              dashboard with mock data.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

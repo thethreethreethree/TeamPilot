@@ -3,9 +3,11 @@
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ScoreRing from "@/components/ui/ScoreRing";
-import { mockTasks, mockCompany } from "@/lib/mock-data";
-import { AlertTriangle, Brain, Filter, RefreshCw, Zap } from "lucide-react";
-import { useState } from "react";
+import { mockCompany } from "@/lib/mock-data";
+import { fetchTasks, type Task } from "@/lib/data/tasks";
+import { supabaseEnabled } from "@/lib/supabase/client";
+import { AlertTriangle, Brain, Database, Filter, RefreshCw, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
 
 type FilterType = "All" | "Blocked" | "In Progress" | "To Do" | "Needs Review" | "Completed";
 
@@ -22,15 +24,23 @@ export default function OperationsPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
   const [aiDiagnosis, setAiDiagnosis] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isMock, setIsMock] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+
+  useEffect(() => {
+    fetchTasks().then(({ tasks, isMock }) => {
+      setTasks(tasks);
+      setIsMock(isMock);
+    });
+  }, []);
 
   const filtered =
-    activeFilter === "All"
-      ? mockTasks
-      : mockTasks.filter((t) => t.status === activeFilter);
+    activeFilter === "All" ? tasks : tasks.filter((t) => t.status === activeFilter);
 
-  const blockedCount = mockTasks.filter((t) => t.status === "Blocked").length;
-  const inProgressCount = mockTasks.filter((t) => t.status === "In Progress").length;
-  const criticalCount = mockTasks.filter((t) => t.priority === "Critical").length;
+  const blockedCount = tasks.filter((t) => t.status === "Blocked").length;
+  const inProgressCount = tasks.filter((t) => t.status === "In Progress").length;
+  const criticalCount = tasks.filter((t) => t.priority === "Critical").length;
 
   const runDiagnosis = async () => {
     setLoading(true);
@@ -38,7 +48,7 @@ export default function OperationsPage() {
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tasks: mockTasks }),
+        body: JSON.stringify({ tasks }),
       });
       const data = await res.json();
       setAiDiagnosis(data.diagnosis || JSON.stringify(data, null, 2));
@@ -46,6 +56,21 @@ export default function OperationsPage() {
       setAiDiagnosis("Unable to run diagnosis. Check your API key.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const seedDemoData = async () => {
+    setSeeding(true);
+    try {
+      const res = await fetch("/api/seed", { method: "POST" });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const refreshed = await fetchTasks();
+      setTasks(refreshed.tasks);
+      setIsMock(refreshed.isMock);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not seed demo data.");
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -57,6 +82,35 @@ export default function OperationsPage() {
       />
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        {/* Data source banner */}
+        {isMock && supabaseEnabled && (
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20">
+            <div className="flex items-center gap-2.5">
+              <Database className="w-4 h-4 text-[#7a96ff]" />
+              <p className="text-xs text-[#8895c4]">
+                You&apos;re viewing demo data. Seed your company with sample tasks to test live
+                queries.
+              </p>
+            </div>
+            <button
+              onClick={seedDemoData}
+              disabled={seeding}
+              className="text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+            >
+              {seeding ? "Seeding…" : "Load demo data"}
+            </button>
+          </div>
+        )}
+        {isMock && !supabaseEnabled && (
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
+            <Database className="w-4 h-4 text-yellow-300" />
+            <p className="text-xs text-yellow-100">
+              Demo mode — Supabase isn&apos;t configured. Add keys to <code>.env.local</code> to
+              switch to live data.
+            </p>
+          </div>
+        )}
+
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
@@ -176,9 +230,9 @@ export default function OperationsPage() {
                     <td className="py-3 pr-4">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-[#5470ff]/20 border border-[#5470ff]/30 flex items-center justify-center text-[10px] font-bold text-[#7a96ff]">
-                          {task.assignee.split(" ").map((n) => n[0]).join("")}
+                          {(task.assignee ?? "—").split(" ").map((n) => n[0]).join("")}
                         </div>
-                        <span className="text-xs text-[#8895c4]">{task.assignee}</span>
+                        <span className="text-xs text-[#8895c4]">{task.assignee ?? "Unassigned"}</span>
                       </div>
                     </td>
                     <td className="py-3 pr-4">

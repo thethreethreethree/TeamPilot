@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3100",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start --port 3100",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint",
+    "setup:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/check-setup.ps1"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",

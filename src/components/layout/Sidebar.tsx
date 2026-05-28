@@ -17,7 +17,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 
 const navItems = [
   {
@@ -65,6 +65,12 @@ export default function Sidebar() {
   const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
+    if (!supabaseEnabled) {
+      setCompanyName("Demo Co");
+      setUserName("Demo User");
+      setUserRole("Demo Mode");
+      return;
+    }
     const supabase = createClient();
     (async () => {
       const { data: auth } = await supabase.auth.getUser();
@@ -91,7 +97,7 @@ export default function Sidebar() {
     .toUpperCase();
 
   const signOut = async () => {
-    await createClient().auth.signOut();
+    if (supabaseEnabled) await createClient().auth.signOut();
     router.push("/login");
     router.refresh();
   };

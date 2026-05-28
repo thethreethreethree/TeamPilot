@@ -3,7 +3,7 @@
 import { Activity, Building2, Users, Target, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 
 const industries = [
   "Technology", "Finance", "Healthcare", "E-commerce", "SaaS", "Manufacturing",
@@ -55,6 +55,10 @@ export default function OnboardingPage() {
   const finish = async () => {
     setSubmitting(true);
     setError("");
+    if (!supabaseEnabled) {
+      router.push("/dashboard");
+      return;
+    }
     const supabase = createClient();
     try {
       const { data: auth } = await supabase.auth.getUser();
