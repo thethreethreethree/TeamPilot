@@ -51,7 +51,7 @@ const navItems = [
     icon: MessageSquare,
   },
   {
-    label: "AI Decision Engine",
+    label: "Decision Dialogue",
     href: "/dashboard/decisions",
     icon: Brain,
   },

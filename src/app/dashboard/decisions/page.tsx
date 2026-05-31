@@ -2,216 +2,336 @@
 
 import TopBar from "@/components/layout/TopBar";
 import { mockCompany, mockDecisionHistory } from "@/lib/mock-data";
-import { Brain, CheckCircle2, RefreshCw, Shield, Swords, Zap } from "lucide-react";
+import {
+  Brain,
+  CheckCircle2,
+  ChevronRight,
+  CircleHelp,
+  GitCompareArrows,
+  Lightbulb,
+  MessageCircleQuestion,
+  RotateCcw,
+} from "lucide-react";
 import { useState } from "react";
 
-interface DecisionOption {
-  action: string;
-  expectedOutcome: string;
-  tradeoff: string;
+interface DialogueResponse {
+  engagement: string;
+  addedPerspective: string;
+  suggestion: { action: string; why: string };
+  comparison: string;
 }
 
-interface DecisionResult {
-  diagnosis: string;
-  biggestRisk: string;
-  options: {
-    safe: DecisionOption;
-    balanced: DecisionOption;
-    aggressive: DecisionOption;
-  };
-  recommendation: string;
-}
+type Phase = "situation" | "elicit" | "respond" | "decide";
 
-const exampleSituation = `We are experiencing a 9% drop in operations efficiency this week. Two critical tasks are blocked — our payment gateway integration and the v2.4 product deploy. Marcus Chen (Lead Engineer) is overloaded with 4 active tasks and 2 overdue items. The v2.4 deploy is blocked until the gateway is fixed. The board wants to know our status by Friday. We have 3 days to resolve or escalate.`;
+type Decision =
+  | { kind: "user"; note: string }
+  | { kind: "system"; note: string }
+  | { kind: "hybrid"; note: string }
+  | { kind: "defer"; note: string };
+
+const exampleSituation = `Operations efficiency dropped 9% this week. Two critical tasks are blocked — the payment gateway integration and the v2.4 product deploy. Marcus Chen (Lead Engineer) is overloaded with 4 active tasks and 2 overdue items. The v2.4 deploy is blocked until the gateway is fixed. The board wants a status update by Friday — 3 days from now.`;
 
 export default function DecisionsPage() {
+  const [phase, setPhase] = useState<Phase>("situation");
   const [situation, setSituation] = useState(exampleSituation);
-  const [result, setResult] = useState<DecisionResult | null>(null);
+  const [userDiagnosis, setUserDiagnosis] = useState("");
+  const [userProposal, setUserProposal] = useState("");
+  const [response, setResponse] = useState<DialogueResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<"safe" | "balanced" | "aggressive" | null>(null);
+  const [error, setError] = useState("");
+  const [decision, setDecision] = useState<Decision | null>(null);
 
-  const generate = async () => {
+  const reset = () => {
+    setPhase("situation");
+    setUserDiagnosis("");
+    setUserProposal("");
+    setResponse(null);
+    setDecision(null);
+    setError("");
+  };
+
+  const startElicit = () => {
     if (!situation.trim()) return;
+    setError("");
+    setPhase("elicit");
+  };
+
+  const requestSystemResponse = async () => {
+    if (!userDiagnosis.trim() || !userProposal.trim()) return;
     setLoading(true);
-    setSelected(null);
+    setError("");
     try {
-      const res = await fetch("/api/ai/decision", {
+      const res = await fetch("/api/ai/decision-dialogue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ situation }),
+        body: JSON.stringify({ situation, userDiagnosis, userProposal }),
       });
       const data = await res.json();
-      setResult(data);
-    } catch {
-      alert("Unable to generate. Check your API key in .env.local.");
+      if (!res.ok) throw new Error(data.error ?? "Could not generate a response.");
+      setResponse(data);
+      setPhase("respond");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
   };
 
-  const optionConfig = {
-    safe: {
-      label: "Safe Option",
-      icon: Shield,
-      color: "text-blue-400",
-      borderColor: "border-blue-500/30",
-      bgColor: "bg-blue-500/5",
-      activeBg: "bg-blue-500/10",
-      activeBorder: "border-blue-500/50",
-    },
-    balanced: {
-      label: "Balanced Option",
-      icon: Zap,
-      color: "text-emerald-400",
-      borderColor: "border-emerald-500/30",
-      bgColor: "bg-emerald-500/5",
-      activeBg: "bg-emerald-500/10",
-      activeBorder: "border-emerald-500/50",
-    },
-    aggressive: {
-      label: "Aggressive Option",
-      icon: Swords,
-      color: "text-orange-400",
-      borderColor: "border-orange-500/30",
-      bgColor: "bg-orange-500/5",
-      activeBg: "bg-orange-500/10",
-      activeBorder: "border-orange-500/50",
-    },
-  };
-
   return (
     <div className="min-h-screen bg-[#0c0d16]">
-      <TopBar title="AI Decision Engine" subtitle={`${mockCompany.name} · Structured Decision Making`} />
+      <TopBar
+        title="Decision Dialogue"
+        subtitle={`${mockCompany.name} · Guide, don't overtake (CLAUDE.md §3.3)`}
+      />
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
-        {/* Input */}
-        <div className="glass-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Brain className="w-4 h-4 text-[#5470ff]" />
-            <h2 className="text-sm font-semibold text-[#e8eaf6]">Describe the Situation</h2>
-            <span className="text-[10px] text-[#5470ff] bg-[#5470ff]/10 border border-[#5470ff]/20 px-2 py-0.5 rounded-full">Claude AI</span>
-          </div>
-          <p className="text-xs text-[#5a6399] mb-3">
-            Describe a business situation, operational problem, or decision you need to make. ExecOS will generate Safe, Balanced, and Aggressive options with expected outcomes.
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
+        {/* Constitution banner */}
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20">
+          <Brain className="w-4 h-4 text-[#7a96ff] mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-[#8895c4] leading-relaxed">
+            The System will not assert a decision until you state your own diagnosis and
+            proposal. This is the structural interrupt that prevents the System from
+            overtaking you and turns the interaction into a dialogue instead of a directive.
+            See <a href="/docs/GUIDE_DONT_OVERTAKE.md" className="text-[#7a96ff] underline">the rule</a>.
           </p>
+        </div>
+
+        {/* Phase indicator */}
+        <PhaseStepper current={phase} />
+
+        {/* Phase 1 — Situation */}
+        <PhaseCard
+          active={phase === "situation"}
+          number="1"
+          title="Situation"
+          subtitle="Describe what's happening. The System is silent."
+        >
           <textarea
             value={situation}
             onChange={(e) => setSituation(e.target.value)}
-            placeholder="Describe your situation..."
+            disabled={phase !== "situation"}
             rows={5}
-            className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#8895c4] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none leading-relaxed"
+            className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#8895c4] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
           />
-          <button
-            onClick={generate}
-            disabled={loading || !situation.trim()}
-            className="mt-3 flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+          {phase === "situation" && (
+            <div className="mt-3 flex items-center justify-end">
+              <button
+                onClick={startElicit}
+                disabled={!situation.trim()}
+                className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+              >
+                Continue <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </PhaseCard>
+
+        {/* Phase 2 — Elicit */}
+        {phase !== "situation" && (
+          <PhaseCard
+            active={phase === "elicit"}
+            number="2"
+            title="Your read"
+            subtitle="The System will not respond until you've stated both."
           >
-            <Brain className={`w-4 h-4 ${loading ? "animate-pulse" : ""}`} />
-            {loading ? "Generating decision options..." : "Generate Decision Options"}
-          </button>
-        </div>
+            <div className="space-y-4">
+              <ElicitField
+                icon={<CircleHelp className="w-3.5 h-3.5" />}
+                label="What do you think is actually going on?"
+                value={userDiagnosis}
+                onChange={setUserDiagnosis}
+                disabled={phase !== "elicit"}
+                placeholder="Diagnose the situation in your own words. The underlying cause, not just the symptom."
+              />
+              <ElicitField
+                icon={<Lightbulb className="w-3.5 h-3.5" />}
+                label="What would you do, and why?"
+                value={userProposal}
+                onChange={setUserProposal}
+                disabled={phase !== "elicit"}
+                placeholder="State your proposal. The action AND the reasoning — what makes this the right move."
+              />
+            </div>
+            {error && <p className="text-xs text-red-400 mt-3">{error}</p>}
+            {phase === "elicit" && (
+              <div className="mt-4 flex items-center justify-between">
+                <button
+                  onClick={() => setPhase("situation")}
+                  className="text-xs text-[#5a6399] hover:text-[#8895c4] transition-colors"
+                >
+                  ← back to situation
+                </button>
+                <button
+                  onClick={requestSystemResponse}
+                  disabled={
+                    loading || !userDiagnosis.trim() || !userProposal.trim()
+                  }
+                  className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                >
+                  <MessageCircleQuestion className={`w-4 h-4 ${loading ? "animate-pulse" : ""}`} />
+                  {loading ? "Asking the System…" : "Ask the System"}
+                </button>
+              </div>
+            )}
+          </PhaseCard>
+        )}
 
-        {result && (
-          <div className="space-y-5 fade-in">
-            {/* Diagnosis + Risk */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="glass-card p-5">
-                <h3 className="text-xs font-semibold text-[#5a6399] uppercase tracking-widest mb-3">AI Diagnosis</h3>
-                <p className="text-sm text-[#8895c4] leading-relaxed">{result.diagnosis}</p>
+        {/* Phase 3 — Respond */}
+        {response && (
+          <PhaseCard
+            active={phase === "respond"}
+            number="3"
+            title="System response"
+            subtitle="Engagement first, then perspective, then a suggestion with WHY."
+          >
+            <div className="space-y-5">
+              <ResponseBlock
+                label="Engages your diagnosis"
+                color="emerald"
+                body={response.engagement}
+              />
+              {response.addedPerspective?.trim() && (
+                <ResponseBlock
+                  label="Adds perspective"
+                  color="blue"
+                  body={response.addedPerspective}
+                />
+              )}
+              <div className="rounded-xl border border-[#5470ff]/30 bg-[#5470ff]/5 p-5">
+                <p className="text-[10px] text-[#7a96ff] uppercase tracking-widest mb-2">
+                  Suggestion
+                </p>
+                <p className="text-sm font-medium text-[#e8eaf6] mb-3 leading-snug">
+                  {response.suggestion.action}
+                </p>
+                <p className="text-[10px] text-[#5a6399] uppercase tracking-widest mb-1">
+                  Why
+                </p>
+                <p className="text-xs text-[#8895c4] leading-relaxed">
+                  {response.suggestion.why}
+                </p>
               </div>
-              <div className="glass-card p-5 border-red-500/20 bg-red-500/5">
-                <h3 className="text-xs font-semibold text-red-400 uppercase tracking-widest mb-3">Biggest Risk</h3>
-                <p className="text-sm text-[#8895c4] leading-relaxed">{result.biggestRisk}</p>
-              </div>
+              <ResponseBlock
+                label="Compared to your proposal"
+                color="violet"
+                body={response.comparison}
+                icon={<GitCompareArrows className="w-3.5 h-3.5" />}
+              />
             </div>
 
-            {/* Decision Options */}
-            <div>
-              <h2 className="text-sm font-semibold text-[#e8eaf6] mb-4">Decision Options</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {(["safe", "balanced", "aggressive"] as const).map((key) => {
-                  const config = optionConfig[key];
-                  const option = result.options[key];
-                  const Icon = config.icon;
-                  const isSelected = selected === key;
-
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => setSelected(isSelected ? null : key)}
-                      className={`glass-card p-5 text-left transition-all border ${
-                        isSelected
-                          ? `${config.activeBorder} ${config.activeBg}`
-                          : `${config.borderColor} ${config.bgColor} hover:border-opacity-60`
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <Icon className={`w-4 h-4 ${config.color}`} />
-                        <span className={`text-sm font-semibold ${config.color}`}>{config.label}</span>
-                        {isSelected && <CheckCircle2 className={`w-3.5 h-3.5 ml-auto ${config.color}`} />}
-                      </div>
-                      <p className="text-sm font-medium text-[#e8eaf6] mb-2 leading-snug">{option?.action}</p>
-                      <div className="space-y-2 mt-3 pt-3 border-t border-[#252840]">
-                        <div>
-                          <p className="text-[10px] text-[#5a6399] uppercase tracking-wider mb-1">Expected Outcome</p>
-                          <p className="text-xs text-[#8895c4] leading-relaxed">{option?.expectedOutcome}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-[#5a6399] uppercase tracking-wider mb-1">Tradeoff</p>
-                          <p className="text-xs text-[#8895c4] leading-relaxed">{option?.tradeoff}</p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+            {phase === "respond" && (
+              <div className="mt-5 flex items-center justify-between">
+                <button
+                  onClick={() => setPhase("elicit")}
+                  className="text-xs text-[#5a6399] hover:text-[#8895c4] transition-colors"
+                >
+                  ← revise my read
+                </button>
+                <button
+                  onClick={() => setPhase("decide")}
+                  className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                >
+                  Decide <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-            </div>
+            )}
+          </PhaseCard>
+        )}
 
-            {/* Recommendation */}
-            <div className="glass-card p-5 border-[#5470ff]/20 bg-[#5470ff]/5">
-              <div className="flex items-center gap-2 mb-3">
-                <Brain className="w-4 h-4 text-[#5470ff]" />
-                <h3 className="text-sm font-semibold text-[#e8eaf6]">AI Recommendation</h3>
-              </div>
-              <p className="text-sm text-[#8895c4] leading-relaxed">{result.recommendation}</p>
-              {selected && (
-                <div className="mt-4 flex items-center gap-3">
-                  <button className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Approve {optionConfig[selected].label} & Create Tasks
-                  </button>
-                  <button className="flex items-center gap-2 border border-[#3a3f5c] hover:border-[#5470ff]/50 text-[#8895c4] hover:text-white font-medium px-5 py-2.5 rounded-lg transition-all text-sm">
-                    Save to Decision Memory
+        {/* Phase 4 — Decide */}
+        {phase === "decide" && response && (
+          <PhaseCard
+            active={true}
+            number="4"
+            title="Decide and record"
+            subtitle="The dialogue is preserved with the outcome. The WHY survives the moment."
+          >
+            <div className="space-y-3">
+              <DecisionChoice
+                label="Go with my proposal"
+                description="Your original proposal stands. The System's perspective is on record but not adopted."
+                selected={decision?.kind === "user"}
+                onSelect={() => setDecision({ kind: "user", note: userProposal })}
+              />
+              <DecisionChoice
+                label="Go with the System's suggestion"
+                description="Adopt the System's suggestion as-is. The why is preserved."
+                selected={decision?.kind === "system"}
+                onSelect={() =>
+                  setDecision({ kind: "system", note: response.suggestion.action })
+                }
+              />
+              <DecisionChoice
+                label="Hybrid"
+                description="Combine elements of both. Describe what you're actually doing."
+                selected={decision?.kind === "hybrid"}
+                onSelect={() => setDecision({ kind: "hybrid", note: "" })}
+              />
+              <DecisionChoice
+                label="Defer — not enough understanding yet"
+                description="Per Rule 0, an unearned decision is worse than no decision. Capture this state and return later."
+                selected={decision?.kind === "defer"}
+                onSelect={() => setDecision({ kind: "defer", note: "" })}
+              />
+
+              {decision && (
+                <div className="mt-4 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <p className="text-sm font-medium text-emerald-200">
+                      Decision recorded ({decision.kind}).
+                    </p>
+                  </div>
+                  <p className="text-xs text-[#8895c4]">
+                    The full dialogue — situation, your diagnosis, your proposal, the
+                    System&apos;s response, and this choice — will be persisted once the
+                    decisions table is wired to live data. For now this is in-memory only.
+                  </p>
+                  <button
+                    onClick={reset}
+                    className="mt-3 flex items-center gap-2 text-xs text-[#7a96ff] hover:text-white"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Start a new dialogue
                   </button>
                 </div>
               )}
             </div>
-          </div>
+          </PhaseCard>
         )}
 
-        {/* Decision History */}
+        {/* Decision Memory — unchanged for now, still mock */}
         <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-[#e8eaf6]">Decision Memory</h2>
-            <span className="text-xs text-[#5a6399]">{mockDecisionHistory.length} decisions stored</span>
+            <span className="text-xs text-[#5a6399]">
+              {mockDecisionHistory.length} decisions stored (mock — pending DB wire-up)
+            </span>
           </div>
           <div className="space-y-3">
             {mockDecisionHistory.map((d) => (
-              <div key={d.id} className="flex items-center justify-between p-3 rounded-xl bg-[#12141f] border border-[#252840] hover:border-[#3a3f5c] transition-colors">
+              <div
+                key={d.id}
+                className="flex items-center justify-between p-3 rounded-xl bg-[#12141f] border border-[#252840]"
+              >
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-4 h-4 text-[#5470ff] flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-[#e8eaf6]">{d.title}</p>
-                    <p className="text-xs text-[#5a6399] mt-0.5">{d.date} · {d.outcome}</p>
+                    <p className="text-xs text-[#5a6399] mt-0.5">
+                      {d.date} · {d.outcome}
+                    </p>
                   </div>
                 </div>
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
-                  d.executionStatus === "In Progress"
-                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                    : d.executionStatus === "Blocked"
-                    ? "bg-red-500/10 text-red-400 border-red-500/20"
-                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                }`}>
+                <span
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                    d.executionStatus === "In Progress"
+                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      : d.executionStatus === "Blocked"
+                      ? "bg-red-500/10 text-red-400 border-red-500/20"
+                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  }`}
+                >
                   {d.executionStatus}
                 </span>
               </div>
@@ -220,5 +340,162 @@ export default function DecisionsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Subcomponents
+// ─────────────────────────────────────────────────────────────
+
+function PhaseStepper({ current }: { current: Phase }) {
+  const order: Phase[] = ["situation", "elicit", "respond", "decide"];
+  const labels = {
+    situation: "Situation",
+    elicit: "Your read",
+    respond: "System",
+    decide: "Decide",
+  };
+  return (
+    <div className="flex items-center gap-2">
+      {order.map((p, i) => {
+        const reached = order.indexOf(current) >= i;
+        const active = current === p;
+        return (
+          <div key={p} className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                active
+                  ? "bg-[#5470ff]/15 border-[#5470ff]/50 text-[#7a96ff]"
+                  : reached
+                  ? "border-[#252840] text-[#8895c4]"
+                  : "border-[#252840] text-[#3a3f5c]"
+              }`}
+            >
+              <span className="font-mono">{i + 1}</span>
+              {labels[p]}
+            </div>
+            {i < order.length - 1 && (
+              <ChevronRight className="w-3 h-3 text-[#3a3f5c]" />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PhaseCard({
+  active,
+  number,
+  title,
+  subtitle,
+  children,
+}: {
+  active: boolean;
+  number: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`glass-card p-5 transition-opacity ${active ? "" : "opacity-60"}`}
+    >
+      <div className="flex items-baseline gap-2 mb-1">
+        <span className="text-[10px] font-mono text-[#5470ff]">PHASE {number}</span>
+        <h2 className="text-sm font-semibold text-[#e8eaf6]">{title}</h2>
+      </div>
+      <p className="text-xs text-[#5a6399] mb-4">{subtitle}</p>
+      {children}
+    </div>
+  );
+}
+
+function ElicitField({
+  icon,
+  label,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label className="flex items-center gap-1.5 text-xs font-medium text-[#8895c4] mb-1.5">
+        <span className="text-[#7a96ff]">{icon}</span>
+        {label}
+      </label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        rows={3}
+        placeholder={placeholder}
+        className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+      />
+    </div>
+  );
+}
+
+function ResponseBlock({
+  label,
+  body,
+  color,
+  icon,
+}: {
+  label: string;
+  body: string;
+  color: "emerald" | "blue" | "violet";
+  icon?: React.ReactNode;
+}) {
+  const styles = {
+    emerald: "bg-emerald-500/5 border-emerald-500/20 text-emerald-300",
+    blue: "bg-blue-500/5 border-blue-500/20 text-blue-300",
+    violet: "bg-violet-500/5 border-violet-500/20 text-violet-300",
+  }[color];
+  return (
+    <div className={`rounded-xl border p-4 ${styles}`}>
+      <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest mb-2 opacity-80">
+        {icon}
+        {label}
+      </p>
+      <p className="text-sm text-[#e8eaf6] leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function DecisionChoice({
+  label,
+  description,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  description: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      className={`w-full text-left rounded-xl border p-4 transition-all ${
+        selected
+          ? "border-[#5470ff]/60 bg-[#5470ff]/10"
+          : "border-[#252840] bg-[#12141f] hover:border-[#3a3f5c]"
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        {selected && <CheckCircle2 className="w-3.5 h-3.5 text-[#7a96ff]" />}
+        <span className="text-sm font-medium text-[#e8eaf6]">{label}</span>
+      </div>
+      <p className="text-xs text-[#5a6399] leading-relaxed">{description}</p>
+    </button>
   );
 }
