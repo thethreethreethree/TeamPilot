@@ -3,10 +3,11 @@
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ScoreRing from "@/components/ui/ScoreRing";
+import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
 import { mockCompany } from "@/lib/mock-data";
 import { fetchTasks, type Task } from "@/lib/data/tasks";
 import { supabaseEnabled } from "@/lib/supabase/client";
-import { AlertTriangle, Brain, Database, Filter, RefreshCw, Zap } from "lucide-react";
+import { Brain, Database, Filter, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type FilterType = "All" | "Blocked" | "In Progress" | "To Do" | "Needs Review" | "Completed";
@@ -125,7 +126,7 @@ export default function OperationsPage() {
                   <div>
                     <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-1">{stat.label}</p>
                   </div>
-                  <ScoreRing score={stat.value as number} size={60} />
+                  <ScoreRing score={stat.value as number} size={60} isDemo={isMock} />
                 </div>
               ) : (
                 <div>
@@ -158,23 +159,10 @@ export default function OperationsPage() {
           {aiDiagnosis ? (
             <pre className="text-xs text-[#8895c4] leading-relaxed whitespace-pre-wrap font-mono">{aiDiagnosis}</pre>
           ) : (
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/5 border border-red-500/15">
-                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-[#e8eaf6]">Critical bottleneck detected</p>
-                  <p className="text-xs text-[#5a6399] mt-0.5">2 blocked tasks creating cascading delays. v2.4 deploy is blocked by gateway fix. Revenue exposure increasing with each hour.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
-                <Zap className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-[#e8eaf6]">Recommended immediate action</p>
-                  <p className="text-xs text-[#5a6399] mt-0.5">Escalate payment API credential request to finance. Unblock gateway fix first — it resolves 2 cascading issues simultaneously.</p>
-                </div>
-              </div>
-              <p className="text-xs text-[#5a6399] italic">Click "Run Diagnosis" for a live AI analysis of your operations.</p>
-            </div>
+            <AwaitingEvidence
+              domain="operations"
+              hint="Repeated blocker observations on the same task, slipped due dates from multiple assignees, or recurring escalations from one team — once those accumulate, the gate clears."
+            />
           )}
         </div>
 

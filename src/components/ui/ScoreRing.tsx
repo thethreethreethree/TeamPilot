@@ -1,11 +1,14 @@
 "use client";
 
 interface ScoreRingProps {
-  score: number;
+  /** null = no score derivable yet. Rule §3.2/§3.4: don't fake one. */
+  score: number | null;
   size?: number;
   strokeWidth?: number;
   label?: string;
   color?: string;
+  /** When true, an inline "demo" tag is shown so the value isn't mistaken for derived. */
+  isDemo?: boolean;
 }
 
 export default function ScoreRing({
@@ -14,15 +17,20 @@ export default function ScoreRing({
   strokeWidth = 6,
   label,
   color,
+  isDemo = false,
 }: ScoreRingProps) {
   const r = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * r;
-  const offset = circumference - (score / 100) * circumference;
+  const hasScore = score !== null && !Number.isNaN(score);
+  const offset = hasScore
+    ? circumference - ((score as number) / 100) * circumference
+    : circumference;
 
   const getColor = () => {
+    if (!hasScore) return "#3a3f5c";
     if (color) return color;
-    if (score >= 80) return "#34d399";
-    if (score >= 60) return "#fbbf24";
+    if ((score as number) >= 80) return "#34d399";
+    if ((score as number) >= 60) return "#fbbf24";
     return "#f87171";
   };
 
@@ -57,8 +65,13 @@ export default function ScoreRing({
           className="absolute inset-0 flex items-center justify-center text-lg font-bold"
           style={{ color: ringColor }}
         >
-          {score}
+          {hasScore ? score : "—"}
         </span>
+        {isDemo && hasScore && (
+          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-[8px] font-semibold uppercase tracking-widest text-yellow-300">
+            demo
+          </span>
+        )}
       </div>
       {label && (
         <span className="text-xs text-[#8895c4] text-center">{label}</span>

@@ -3,6 +3,7 @@
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ScoreRing from "@/components/ui/ScoreRing";
+import { supabaseEnabled } from "@/lib/supabase/client";
 import { mockTeamMembers, mockCompany } from "@/lib/mock-data";
 import { AlertTriangle, Brain, RefreshCw, Users } from "lucide-react";
 import { useState } from "react";
@@ -56,7 +57,7 @@ export default function TeamPage() {
               {stat.isScore ? (
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-[#5a6399] uppercase tracking-widest">{stat.label}</p>
-                  <ScoreRing score={stat.value as number} size={60} />
+                  <ScoreRing score={stat.value as number} size={60} isDemo={!supabaseEnabled} />
                 </div>
               ) : (
                 <div>
@@ -134,11 +135,11 @@ export default function TeamPage() {
               {/* Scores */}
               <div className="flex items-center justify-around py-3 border-t border-b border-[#252840] mb-4">
                 <div className="text-center">
-                  <ScoreRing score={member.performanceScore} size={52} />
+                  <ScoreRing score={member.performanceScore} size={52} isDemo={!supabaseEnabled} />
                   <p className="text-[10px] text-[#5a6399] mt-1">Performance</p>
                 </div>
                 <div className="text-center">
-                  <ScoreRing score={member.consistencyScore} size={52} />
+                  <ScoreRing score={member.consistencyScore} size={52} isDemo={!supabaseEnabled} />
                   <p className="text-[10px] text-[#5a6399] mt-1">Consistency</p>
                 </div>
               </div>

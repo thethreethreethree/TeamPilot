@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Activity,
   LogOut,
+  GitMerge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
@@ -24,6 +25,11 @@ const navItems = [
     label: "Command Center",
     href: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    label: "Living Diagnosis",
+    href: "/dashboard/diagnose",
+    icon: GitMerge,
   },
   {
     label: "Operations",
@@ -46,7 +52,7 @@ const navItems = [
     icon: Megaphone,
   },
   {
-    label: "Conversations",
+    label: "Conversation Dialogue",
     href: "/dashboard/conversations",
     icon: MessageSquare,
   },

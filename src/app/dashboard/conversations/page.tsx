@@ -3,25 +3,37 @@
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { mockCompany } from "@/lib/mock-data";
-import { Brain, MessageSquare, Plus, Send, Trash2 } from "lucide-react";
+import {
+  Brain,
+  CheckCircle2,
+  ChevronRight,
+  GitCompareArrows,
+  Lightbulb,
+  MessageCircleQuestion,
+  MessageSquare,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 
-interface ActionItem {
+interface RefinedAction {
   task: string;
-  owner: string;
+  owner: string | null;
   priority: string;
-  deadline: string;
+  deadline: string | null;
+  why: string;
 }
 
-interface ConversationResult {
-  summary: string;
-  keyPoints: string[];
-  agreements: string[];
+interface DialogueResponse {
+  engagement: string;
+  addedPerspective: string;
+  refinedDecision: { text: string; why: string };
+  refinedActions: RefinedAction[];
   unresolvedItems: string[];
-  decision: string;
-  actionPlan: ActionItem[];
-  executiveNote: string;
+  comparison: string;
 }
+
+type Phase = "transcript" | "elicit" | "respond";
 
 const exampleConversation = `CEO: We need to decide on the new pricing model before the board meeting next Thursday. The current flat-rate isn't scaling well.
 
@@ -44,24 +56,36 @@ James: Our last NPS survey showed 67% of power users want more flexibility in ho
 CEO: Alright. Let's go with tiered pricing + usage for net-new customers in Q2. Sarah owns the enterprise contract strategy. Marcus starts backend planning this week. James prepares the communication plan for existing customers. We align on final pricing tiers by Friday.`;
 
 export default function ConversationsPage() {
+  const [phase, setPhase] = useState<Phase>("transcript");
   const [conversation, setConversation] = useState(exampleConversation);
-  const [result, setResult] = useState<ConversationResult | null>(null);
+  const [userRead, setUserRead] = useState("");
+  const [response, setResponse] = useState<DialogueResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const analyze = async () => {
-    if (!conversation.trim()) return;
+  const reset = () => {
+    setPhase("transcript");
+    setUserRead("");
+    setResponse(null);
+    setError("");
+  };
+
+  const requestSystem = async () => {
+    if (!conversation.trim() || !userRead.trim()) return;
     setLoading(true);
+    setError("");
     try {
-      const res = await fetch("/api/ai/conversation", {
+      const res = await fetch("/api/ai/conversation-dialogue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation }),
+        body: JSON.stringify({ conversation, userRead }),
       });
       const data = await res.json();
-      setResult(data);
-    } catch {
-      setResult(null);
-      alert("Unable to analyze. Check your API key in .env.local.");
+      if (!res.ok) throw new Error(data.error ?? "Unable to analyze.");
+      setResponse(data);
+      setPhase("respond");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -69,59 +93,115 @@ export default function ConversationsPage() {
 
   return (
     <div className="min-h-screen bg-[#0c0d16]">
-      <TopBar title="Conversation Intelligence" subtitle={`${mockCompany.name} · Meeting & Thread Analysis`} />
+      <TopBar
+        title="Conversation Dialogue"
+        subtitle={`${mockCompany.name} · Guide, don't overtake (CLAUDE.md §3.3)`}
+      />
 
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20">
+          <Brain className="w-4 h-4 text-[#7a96ff] mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-[#8895c4] leading-relaxed">
+            ExecOS will not extract decisions or action items until you state your own read.
+            The people in the conversation are the authority on what it meant — the System
+            sharpens, it does not assert.
+          </p>
+        </div>
+
+        <PhaseStepper current={phase} />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Input Panel */}
+          {/* Left: transcript + elicit */}
           <div className="space-y-4">
-            <div className="glass-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-[#5470ff]" />
-                  <h2 className="text-sm font-semibold text-[#e8eaf6]">Paste Conversation</h2>
-                </div>
+            <PhaseCard
+              active={phase === "transcript"}
+              number="1"
+              title="Transcript"
+              subtitle="Paste the conversation. The System is silent."
+            >
+              <div className="flex justify-end mb-2">
                 <button
                   onClick={() => setConversation("")}
                   className="text-[#5a6399] hover:text-red-400 transition-colors"
+                  title="Clear"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
-
-              <p className="text-xs text-[#5a6399] mb-3">
-                Paste a Slack thread, WhatsApp chat, meeting transcript, or email chain. ExecOS will extract decisions, action items, and generate a structured executive output.
-              </p>
-
               <textarea
                 value={conversation}
                 onChange={(e) => setConversation(e.target.value)}
-                placeholder="Paste your conversation, meeting transcript, or team thread here..."
-                rows={16}
-                className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#8895c4] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none font-mono leading-relaxed"
+                disabled={phase !== "transcript"}
+                rows={14}
+                className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#8895c4] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none font-mono leading-relaxed disabled:opacity-60"
               />
+              {phase === "transcript" && (
+                <div className="mt-3 flex justify-end">
+                  <button
+                    onClick={() => setPhase("elicit")}
+                    disabled={!conversation.trim()}
+                    className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                  >
+                    Continue <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </PhaseCard>
 
-              <button
-                onClick={analyze}
-                disabled={loading || !conversation.trim()}
-                className="mt-3 w-full flex items-center justify-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all shadow-glow hover:shadow-none text-sm"
+            {phase !== "transcript" && (
+              <PhaseCard
+                active={phase === "elicit"}
+                number="2"
+                title="Your read"
+                subtitle="What was decided? What are the action items? Owners + deadlines if you noticed them."
               >
-                <Brain className={`w-4 h-4 ${loading ? "animate-pulse" : ""}`} />
-                {loading ? "Analyzing conversation..." : "Generate Decision & Action Plan"}
-                {!loading && <Send className="w-4 h-4" />}
-              </button>
-            </div>
+                <textarea
+                  value={userRead}
+                  onChange={(e) => setUserRead(e.target.value)}
+                  disabled={phase !== "elicit"}
+                  rows={8}
+                  placeholder="Decision: ...
+Action items:
+  - Sarah owns ...
+  - Marcus starts ...
+Unresolved: ..."
+                  className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+                />
+                {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+                {phase === "elicit" && (
+                  <div className="mt-3 flex items-center justify-between">
+                    <button
+                      onClick={() => setPhase("transcript")}
+                      className="text-xs text-[#5a6399] hover:text-[#8895c4]"
+                    >
+                      ← back
+                    </button>
+                    <button
+                      onClick={requestSystem}
+                      disabled={loading || !userRead.trim()}
+                      className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                    >
+                      <MessageCircleQuestion
+                        className={`w-4 h-4 ${loading ? "animate-pulse" : ""}`}
+                      />
+                      {loading ? "Asking the System…" : "Ask the System"}
+                    </button>
+                  </div>
+                )}
+              </PhaseCard>
+            )}
 
-            {/* How it works */}
             <div className="glass-card p-5">
-              <h3 className="text-xs font-semibold text-[#8895c4] uppercase tracking-widest mb-3">How it works</h3>
+              <h3 className="text-xs font-semibold text-[#8895c4] uppercase tracking-widest mb-3">
+                How it works
+              </h3>
               <div className="space-y-2.5">
                 {[
                   "Paste any team conversation, meeting transcript, or thread",
-                  "AI identifies agreements, conflicts, and unresolved items",
-                  "Generates a structured decision with full executive rationale",
-                  "Creates an action plan with owners, priorities, and deadlines",
-                  "Decision is stored in your Decision Memory for future reference",
+                  "State YOUR read first — decisions, action items, what's unresolved",
+                  "The System engages your read, adds perspective only where it sees something you missed",
+                  "Each suggested refinement comes with an explicit WHY",
+                  "You decide what to keep — the System sharpens, it doesn't override",
                 ].map((step, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <span className="w-5 h-5 rounded-full bg-[#5470ff]/15 border border-[#5470ff]/20 text-[#7a96ff] text-[10px] font-bold flex items-center justify-center flex-shrink-0">
@@ -134,106 +214,190 @@ export default function ConversationsPage() {
             </div>
           </div>
 
-          {/* Output Panel */}
+          {/* Right: response */}
           <div className="space-y-4">
-            {!result ? (
+            {!response ? (
               <div className="glass-card p-8 flex flex-col items-center justify-center text-center min-h-64">
                 <div className="w-14 h-14 rounded-2xl bg-[#5470ff]/10 border border-[#5470ff]/20 flex items-center justify-center mb-4">
-                  <Brain className="w-7 h-7 text-[#5470ff]" />
+                  <Lightbulb className="w-7 h-7 text-[#5470ff]" />
                 </div>
-                <p className="text-sm font-medium text-[#e8eaf6] mb-2">Ready to analyze</p>
+                <p className="text-sm font-medium text-[#e8eaf6] mb-2">
+                  System will respond after your read
+                </p>
                 <p className="text-xs text-[#5a6399] max-w-xs">
-                  Paste a conversation on the left and click Generate. ExecOS will turn it into decisions and tasks in seconds.
+                  Phase 2 captures your read; Phase 3 is where the System engages with it and
+                  offers refinement.
                 </p>
               </div>
             ) : (
               <div className="space-y-4 fade-in">
-                {/* Summary */}
-                <div className="glass-card p-5">
-                  <h3 className="text-xs font-semibold text-[#8895c4] uppercase tracking-widest mb-3">Summary</h3>
-                  <p className="text-sm text-[#8895c4] leading-relaxed">{result.summary}</p>
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                  <p className="text-[10px] uppercase tracking-widest text-emerald-300 mb-2">
+                    Engages your read
+                  </p>
+                  <p className="text-sm text-[#e8eaf6] leading-relaxed">
+                    {response.engagement}
+                  </p>
                 </div>
 
-                {/* Decision */}
+                {response.addedPerspective?.trim() && (
+                  <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
+                    <p className="text-[10px] uppercase tracking-widest text-blue-300 mb-2">
+                      Adds perspective
+                    </p>
+                    <p className="text-sm text-[#e8eaf6] leading-relaxed">
+                      {response.addedPerspective}
+                    </p>
+                  </div>
+                )}
+
                 <div className="glass-card p-5 border-[#5470ff]/20 bg-[#5470ff]/5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Brain className="w-4 h-4 text-[#5470ff]" />
-                    <h3 className="text-sm font-semibold text-[#e8eaf6]">Decision</h3>
-                  </div>
-                  <p className="text-sm text-[#e8eaf6] leading-relaxed font-medium">{result.decision}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-[#7a96ff] mb-2">
+                    Refined decision
+                  </p>
+                  <p className="text-sm font-medium text-[#e8eaf6] mb-3 leading-snug">
+                    {response.refinedDecision?.text}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-widest text-[#5a6399] mb-1">
+                    Why
+                  </p>
+                  <p className="text-xs text-[#8895c4] leading-relaxed">
+                    {response.refinedDecision?.why}
+                  </p>
                 </div>
 
-                {/* Key Points + Agreements */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="glass-card p-4">
-                    <h3 className="text-xs font-semibold text-[#8895c4] uppercase tracking-widest mb-3">Key Points</h3>
-                    <ul className="space-y-2">
-                      {result.keyPoints?.map((p, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-[#8895c4]">
-                          <span className="w-1 h-1 rounded-full bg-[#5470ff] flex-shrink-0 mt-1.5" />
-                          {p}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="glass-card p-4">
-                    <h3 className="text-xs font-semibold text-[#8895c4] uppercase tracking-widest mb-3">Unresolved</h3>
-                    <ul className="space-y-2">
-                      {result.unresolvedItems?.length > 0 ? (
-                        result.unresolvedItems.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs text-yellow-400">
-                            <span className="text-yellow-400">⚠</span>
-                            {item}
-                          </li>
-                        ))
-                      ) : (
-                        <li className="text-xs text-emerald-400">All items resolved ✓</li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Action Plan */}
                 <div className="glass-card p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-[#e8eaf6]">Action Plan</h3>
-                    <button className="flex items-center gap-1.5 text-xs text-[#7a96ff] border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all">
-                      <Plus className="w-3 h-3" />
-                      Add to Tasks
-                    </button>
-                  </div>
+                  <p className="text-xs font-semibold text-[#e8eaf6] mb-3">
+                    Refined action items
+                  </p>
                   <div className="space-y-3">
-                    {result.actionPlan?.map((item, i) => (
-                      <div key={i} className="flex items-start justify-between gap-3 p-3 rounded-xl bg-[#12141f] border border-[#252840]">
-                        <div className="flex items-start gap-3 min-w-0">
-                          <span className="w-5 h-5 rounded-full bg-[#5470ff]/15 border border-[#5470ff]/20 text-[#7a96ff] text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                            {i + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-[#e8eaf6]">{item.task}</p>
-                            <p className="text-xs text-[#5a6399] mt-0.5">
-                              Owner: {item.owner} · Due: {item.deadline}
-                            </p>
+                    {response.refinedActions?.map((item, i) => (
+                      <div
+                        key={i}
+                        className="rounded-xl bg-[#12141f] border border-[#252840] p-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <span className="w-5 h-5 rounded-full bg-[#5470ff]/15 border border-[#5470ff]/20 text-[#7a96ff] text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                              {i + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-[#e8eaf6]">
+                                {item.task}
+                              </p>
+                              <p className="text-xs text-[#5a6399] mt-0.5">
+                                Owner: {item.owner ?? "—"} · Due: {item.deadline ?? "—"}
+                              </p>
+                            </div>
                           </div>
+                          <StatusBadge status={item.priority} />
                         </div>
-                        <StatusBadge status={item.priority} />
+                        <p className="mt-2 pl-8 text-[11px] text-[#5a6399] italic leading-relaxed">
+                          why: {item.why}
+                        </p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Executive Note */}
-                {result.executiveNote && (
-                  <div className="glass-card p-4 border-emerald-500/20 bg-emerald-500/5">
-                    <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-2">Executive Note</p>
-                    <p className="text-sm text-[#8895c4] leading-relaxed">{result.executiveNote}</p>
+                {response.unresolvedItems?.length > 0 && (
+                  <div className="glass-card p-4 border-yellow-500/20 bg-yellow-500/5">
+                    <p className="text-[10px] uppercase tracking-widest text-yellow-300 mb-2">
+                      Unresolved
+                    </p>
+                    <ul className="space-y-1.5">
+                      {response.unresolvedItems.map((u, i) => (
+                        <li key={i} className="text-xs text-[#e8eaf6] flex items-start gap-2">
+                          <span className="text-yellow-400">⚠</span>
+                          {u}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
+
+                <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
+                  <p className="text-[10px] uppercase tracking-widest text-violet-300 mb-2 flex items-center gap-1.5">
+                    <GitCompareArrows className="w-3 h-3" />
+                    Compared to your read
+                  </p>
+                  <p className="text-sm text-[#e8eaf6] leading-relaxed">
+                    {response.comparison}
+                  </p>
+                </div>
+
+                <button
+                  onClick={reset}
+                  className="flex items-center gap-2 text-xs text-[#7a96ff] hover:text-white"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Start a new conversation
+                </button>
               </div>
             )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Subcomponents (intentionally local — same pattern as Decisions page)
+// ─────────────────────────────────────────────────────────────
+
+function PhaseStepper({ current }: { current: Phase }) {
+  const order: Phase[] = ["transcript", "elicit", "respond"];
+  const labels = { transcript: "Transcript", elicit: "Your read", respond: "System" };
+  return (
+    <div className="flex items-center gap-2">
+      {order.map((p, i) => {
+        const reached = order.indexOf(current) >= i;
+        const active = current === p;
+        return (
+          <div key={p} className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                active
+                  ? "bg-[#5470ff]/15 border-[#5470ff]/50 text-[#7a96ff]"
+                  : reached
+                  ? "border-[#252840] text-[#8895c4]"
+                  : "border-[#252840] text-[#3a3f5c]"
+              }`}
+            >
+              <span className="font-mono">{i + 1}</span>
+              {labels[p]}
+            </div>
+            {i < order.length - 1 && <ChevronRight className="w-3 h-3 text-[#3a3f5c]" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PhaseCard({
+  active,
+  number,
+  title,
+  subtitle,
+  children,
+}: {
+  active: boolean;
+  number: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`glass-card p-5 transition-opacity ${active ? "" : "opacity-60"}`}>
+      <div className="flex items-baseline gap-2 mb-1">
+        <span className="text-[10px] font-mono text-[#5470ff]">PHASE {number}</span>
+        <h2 className="text-sm font-semibold text-[#e8eaf6]">{title}</h2>
+      </div>
+      <p className="text-xs text-[#5a6399] mb-4">{subtitle}</p>
+      <MessageSquare className="hidden" />
+      {children}
     </div>
   );
 }

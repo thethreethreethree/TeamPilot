@@ -3,6 +3,8 @@
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ScoreRing from "@/components/ui/ScoreRing";
+import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
+import { supabaseEnabled } from "@/lib/supabase/client";
 import {
   mockCompany,
   mockMarketing,
@@ -10,7 +12,7 @@ import {
   mockCampaigns,
   mockFunnel,
 } from "@/lib/mock-data";
-import { AlertTriangle, Brain, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Brain, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useState } from "react";
 
 const fmtMoney = (n: number) =>
@@ -65,7 +67,7 @@ export default function MarketingPage() {
               <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-1">
                 Marketing Health
               </p>
-              <ScoreRing score={mockMarketing.marketingScore} size={60} />
+              <ScoreRing score={mockMarketing.marketingScore} size={60} isDemo={!supabaseEnabled} />
             </div>
           </div>
           {[
@@ -136,16 +138,10 @@ export default function MarketingPage() {
                 {aiDiagnosis}
               </pre>
             ) : (
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
-                <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-[#e8eaf6]">Paid channels underperforming</p>
-                  <p className="text-xs text-[#5a6399] mt-0.5">
-                    Paid Ads and Social ROI are below 2.5x while CAC rises. Click &quot;Run&quot; for
-                    a live AI analysis of channel mix and funnel leaks.
-                  </p>
-                </div>
-              </div>
+              <AwaitingEvidence
+                domain="marketing"
+                hint="Sustained ROI drop on a single channel across multiple weeks, paired with a corresponding funnel drop-off — channel-level numbers alone, without the stage they break at, are not yet a diagnosis."
+              />
             )}
           </div>
         </div>

@@ -3,10 +3,11 @@
 import TopBar from "@/components/layout/TopBar";
 import ScoreRing from "@/components/ui/ScoreRing";
 import StatusBadge from "@/components/ui/StatusBadge";
+import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
+import { supabaseEnabled } from "@/lib/supabase/client";
 import {
   mockCompany,
   mockAlerts,
-  mockDailyPriorities,
   mockTasks,
   mockDecisionHistory,
 } from "@/lib/mock-data";
@@ -15,28 +16,33 @@ import {
   Brain,
   CheckCircle2,
   ChevronRight,
+  CircleHelp,
   Info,
+  Lightbulb,
   RefreshCw,
-  Zap,
+  Sparkles,
 } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 
+interface DailyQuestions {
+  todaysQuestions: string[];
+  uncertainties: string[];
+  thingsWorthNoticing: string[];
+}
+
 export default function CommandDashboard() {
-  const [briefing, setBriefing] = useState<string>("");
+  const [questions, setQuestions] = useState<DailyQuestions | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
+  const [briefingError, setBriefingError] = useState("");
 
   const criticalTasks = mockTasks.filter(
     (t) => t.status === "Blocked" || t.priority === "Critical"
   );
-  const overdueTasks = mockTasks.filter(
-    (t) =>
-      new Date(t.dueDate) < new Date() &&
-      t.status !== "Completed"
-  );
 
   const generateBriefing = async () => {
     setLoadingBriefing(true);
+    setBriefingError("");
     try {
       const res = await fetch("/api/ai/briefing", {
         method: "POST",
@@ -48,10 +54,11 @@ export default function CommandDashboard() {
         }),
       });
       const data = await res.json();
-      setBriefing(data.briefing);
-    } catch {
-      setBriefing(
-        "Unable to generate briefing. Please check your API key in .env.local."
+      if (data.error) throw new Error(data.error);
+      setQuestions(data as DailyQuestions);
+    } catch (err) {
+      setBriefingError(
+        err instanceof Error ? err.message : "Unable to generate."
       );
     } finally {
       setLoadingBriefing(false);
@@ -101,7 +108,7 @@ export default function CommandDashboard() {
                   </p>
                   <p className="text-sm text-[#8895c4]">{item.detail}</p>
                 </div>
-                <ScoreRing score={item.score} size={72} />
+                <ScoreRing score={item.score} size={72} isDemo={!supabaseEnabled} />
               </div>
               <div className="mt-4 h-1 rounded-full bg-[#252840] overflow-hidden">
                 <div
@@ -124,16 +131,16 @@ export default function CommandDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column — Briefing + Priorities */}
           <div className="lg:col-span-2 space-y-5">
-            {/* AI Executive Briefing */}
+            {/* Today's Open Questions (formerly "AI Executive Briefing") */}
             <div className="glass-card p-5 border-[#5470ff]/20">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-[#5470ff]" />
+                  <CircleHelp className="w-4 h-4 text-[#5470ff]" />
                   <h2 className="text-sm font-semibold text-[#e8eaf6]">
-                    AI Executive Briefing
+                    Today&apos;s Open Questions
                   </h2>
                   <span className="text-[10px] font-medium text-[#5470ff] bg-[#5470ff]/10 border border-[#5470ff]/20 px-2 py-0.5 rounded-full">
-                    Powered by Claude
+                    Guide, don&apos;t overtake
                   </span>
                 </div>
                 <button
@@ -141,60 +148,40 @@ export default function CommandDashboard() {
                   disabled={loadingBriefing}
                   className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
                 >
-                  <RefreshCw
-                    className={`w-3 h-3 ${loadingBriefing ? "animate-spin" : ""}`}
-                  />
-                  {loadingBriefing ? "Generating..." : "Generate"}
+                  <RefreshCw className={`w-3 h-3 ${loadingBriefing ? "animate-spin" : ""}`} />
+                  {loadingBriefing ? "Surfacing…" : "Surface questions"}
                 </button>
               </div>
 
-              {briefing ? (
-                <div className="text-sm text-[#8895c4] leading-relaxed whitespace-pre-wrap">
-                  {briefing}
+              {questions ? (
+                <div className="space-y-4">
+                  <Section
+                    icon={<CircleHelp className="w-3 h-3" />}
+                    label="Questions worth holding open today"
+                    items={questions.todaysQuestions}
+                    tone="violet"
+                  />
+                  <Section
+                    icon={<Sparkles className="w-3 h-3" />}
+                    label="Things worth noticing"
+                    items={questions.thingsWorthNoticing}
+                    tone="blue"
+                  />
+                  <Section
+                    icon={<Lightbulb className="w-3 h-3" />}
+                    label="Uncertainties — would benefit from more signal"
+                    items={questions.uncertainties}
+                    tone="amber"
+                  />
                 </div>
+              ) : briefingError ? (
+                <p className="text-xs text-red-400">{briefingError}</p>
               ) : (
-                <div className="space-y-2">
-                  <p className="text-sm text-[#8895c4] leading-relaxed">
-                    <span className="text-[#e8eaf6] font-medium">
-                      Operations efficiency dropped 9% today
-                    </span>{" "}
-                    due to 2 critical blocked tasks in the payment and deployment
-                    pipeline. Revenue exposure is high until the gateway fix is
-                    unblocked.
-                  </p>
-                  <p className="text-sm text-[#8895c4] leading-relaxed">
-                    <span className="text-[#e8eaf6] font-medium">
-                      Team risk detected:
-                    </span>{" "}
-                    Marcus Chen is overloaded with 4 active tasks and 2 overdue.
-                    Immediate workload redistribution to Lena Torres recommended.
-                  </p>
-                  <p className="text-xs text-[#5a6399] mt-3 italic">
-                    This is demo data. Click &quot;Generate&quot; for a live AI
-                    briefing.
-                  </p>
-                </div>
+                <AwaitingEvidence
+                  domain="executive"
+                  hint="Click 'Surface questions' to ask the System what's worth holding open today. The System will surface questions and uncertainties — it will not tell you what to do."
+                />
               )}
-            </div>
-
-            {/* Daily Priorities */}
-            <div className="glass-card p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Zap className="w-4 h-4 text-[#fbbf24]" />
-                <h2 className="text-sm font-semibold text-[#e8eaf6]">
-                  Today&apos;s Priorities
-                </h2>
-              </div>
-              <ol className="space-y-3">
-                {mockDailyPriorities.map((p, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full bg-[#5470ff]/15 border border-[#5470ff]/30 text-[#7a96ff] text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <span className="text-sm text-[#8895c4]">{p}</span>
-                  </li>
-                ))}
-              </ol>
             </div>
 
             {/* Critical Tasks */}
@@ -346,6 +333,40 @@ export default function CommandDashboard() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Section({
+  icon,
+  label,
+  items,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  items: string[];
+  tone: "violet" | "blue" | "amber";
+}) {
+  if (!items || items.length === 0) return null;
+  const styles = {
+    violet: "text-violet-300 border-violet-500/20 bg-violet-500/5",
+    blue: "text-blue-300 border-blue-500/20 bg-blue-500/5",
+    amber: "text-amber-300 border-amber-500/20 bg-amber-500/5",
+  }[tone];
+  return (
+    <div className={`rounded-xl border p-3 ${styles}`}>
+      <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest mb-2">
+        {icon}
+        {label}
+      </p>
+      <ul className="space-y-1.5">
+        {items.map((it, i) => (
+          <li key={i} className="text-sm text-[#e8eaf6] leading-relaxed">
+            {it}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

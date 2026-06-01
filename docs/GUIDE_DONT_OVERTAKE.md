@@ -77,15 +77,29 @@ proposeDecisionDialogue(args: {
 
 ## Propagation checklist
 
-Once the pilot (the Decision Engine) is validated:
+The pilot (Decision Dialogue) is built but **not yet validated** per Rule 4. Propagation
+of the new pattern to other surfaces is blocked on that validation. In parallel,
+*violations of the OLD pattern* can and should be stripped — that is removal, not
+propagation, and does not require validation.
 
+### Removed (violating panels stripped — 2026-05-16)
+- [x] Operations: pre-filled "Critical bottleneck detected" panel → `AwaitingEvidence`
+- [x] Finance: pre-filled "Runway under 8 months" panel → `AwaitingEvidence`
+- [x] Marketing: pre-filled "Paid channels underperforming" panel → `AwaitingEvidence`
+
+### Propagated (2026-05-16)
+- [x] `analyzeConversation` → `analyzeConversationDialogue` — user's read required
+      before the System extracts; refined items each carry an explicit WHY
+- [x] `generateDailyBriefing` → `generateDailyQuestions` — surfaces questions and
+      uncertainties, never "recommended actions". Command Center retitled "Today's
+      Open Questions"
+
+### Pending propagation (blocked on pilot validation)
 - [ ] `analyzeOperations` / `analyzeFinance` / `analyzeMarketing` rewritten to elicit
       user's read first, then offer System's perspective
-- [ ] `analyzeConversation` rewritten so the System asks "what do you think the decisions
-      were?" before extracting its own
-- [ ] `generateDailyBriefing` reframed from "today's actions" (overtake) to "today's
-      questions" (guide)
-- [ ] All AI buttons in the dashboard pages gated behind a Phase-2 form
+- [ ] All "Run Diagnosis" buttons in the dashboard pages gated behind a Phase-2 form
+- [ ] Validation gate: run both flows (old and new) on the same situation, measure
+      adoption / modification / reopen rate
 
 ## Validation gate (Rule 4)
 

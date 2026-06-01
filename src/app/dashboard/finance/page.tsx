@@ -3,6 +3,8 @@
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ScoreRing from "@/components/ui/ScoreRing";
+import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
+import { supabaseEnabled } from "@/lib/supabase/client";
 import {
   mockCompany,
   mockFinance,
@@ -10,7 +12,7 @@ import {
   mockExpenses,
   mockInvoices,
 } from "@/lib/mock-data";
-import { AlertTriangle, Brain, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Brain, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useState } from "react";
 
 const fmtMoney = (n: number) =>
@@ -68,7 +70,7 @@ export default function FinancePage() {
               <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-1">
                 Finance Health
               </p>
-              <ScoreRing score={mockFinance.financeScore} size={60} />
+              <ScoreRing score={mockFinance.financeScore} size={60} isDemo={!supabaseEnabled} />
             </div>
           </div>
           {[
@@ -147,16 +149,10 @@ export default function FinancePage() {
                 {aiDiagnosis}
               </pre>
             ) : (
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
-                <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-[#e8eaf6]">Runway under 8 months</p>
-                  <p className="text-xs text-[#5a6399] mt-0.5">
-                    Burn is outpacing MRR growth. Click &quot;Run&quot; for a live AI analysis of
-                    cash position and risks.
-                  </p>
-                </div>
-              </div>
+              <AwaitingEvidence
+                domain="finance"
+                hint="Multiple months of widening gap between MRR growth and burn, paired with at least one independent signal (overdue invoices spiking, expense category drift) — patterns from one number alone are anecdote."
+              />
             )}
           </div>
         </div>

@@ -272,6 +272,22 @@ export const mockFunnel = [
   { stage: "Customers", count: 47 },
 ];
 
+/**
+ * Demo signals — used by the Diagnosis surface in demo mode so the Living Diagnosis
+ * loop has something real-shaped to operate on. In live mode these come from the
+ * derive_signals_for_event() SQL function over the events table.
+ */
+export const mockSignals = [
+  { id: "s1", kind: "task_blocked", source: "task:t1", observed_at: "2025-05-10T09:14:00Z" },
+  { id: "s2", kind: "task_blocked", source: "task:t6", observed_at: "2025-05-11T11:40:00Z" },
+  { id: "s3", kind: "task_slipped", source: "task:t1", observed_at: "2025-05-12T17:00:00Z" },
+  { id: "s4", kind: "approval_waiting", source: "team:finance", observed_at: "2025-05-10T14:00:00Z" },
+  { id: "s5", kind: "approval_waiting", source: "team:finance", observed_at: "2025-05-11T15:30:00Z" },
+  { id: "s6", kind: "approval_waiting", source: "team:legal", observed_at: "2025-05-12T10:15:00Z" },
+  { id: "s7", kind: "workload_high", source: "user:u1", observed_at: "2025-05-09T08:00:00Z" },
+  { id: "s8", kind: "workload_high", source: "user:u1", observed_at: "2025-05-12T08:00:00Z" },
+];
+
 export const mockDecisionHistory = [
   {
     id: "d1",
