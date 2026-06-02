@@ -53,3 +53,4 @@ Once an amendment file is written, **its text is not edited**. Status is updated
 |---|---|---|---|
 | [AMD-001](AMD-001-establish-process.md) | Establish the amendment process | ratified | 2026-05-16 |
 | [AMD-002](AMD-002-understanding-gate-defaults.md) | Ratify Understanding Gate default thresholds (3 / 2 / 80) | ratified | 2026-05-16 |
+| [AMD-003](AMD-003-per-company-brain.md) | Per-company brain as the §3.4 implementation (DeepSeek primary) | ratified | 2026-05-16 |

@@ -1,14 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { generateDecisionOptions } from "@/lib/claude";
+import { NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
-  try {
-    const { situation } = await req.json();
-    const raw = await generateDecisionOptions(situation);
-    const parsed = JSON.parse(raw);
-    return NextResponse.json(parsed);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+/**
+ * Deprecated — superseded by /api/ai/decision-dialogue.
+ *
+ * The old route generated canned Safe / Balanced / Aggressive tiers — that
+ * framing presupposes the answer space exists independent of the user, which is
+ * the §3.3 overtake. The replacement requires the user's diagnosis and proposal
+ * first; the System engages, adds perspective, suggests, compares.
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error:
+        "Deprecated. Use POST /api/ai/decision-dialogue with { situation, userDiagnosis, userProposal }. See docs/GUIDE_DONT_OVERTAKE.md.",
+    },
+    { status: 410 }
+  );
 }

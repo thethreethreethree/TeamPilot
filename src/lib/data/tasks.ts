@@ -30,13 +30,22 @@ const fromMock = (): Task[] =>
     dueDate: t.dueDate,
   }));
 
+export type FetchTasksMode = "demo-fixtures" | "live-empty" | "live-data";
+
 /**
- * Returns tasks for the current company.
- * Falls back to bundled mock data when Supabase is disabled OR when the
- * authenticated company has no rows yet (so the UI never looks broken).
+ * Production fetcher. No silent mock fallback.
+ *
+ * - Demo mode (no Supabase keys): returns mock fixtures with mode='demo-fixtures'.
+ *   The caller is responsible for displaying the demo banner.
+ * - Live mode, no rows: returns empty array with mode='live-empty'. The caller
+ *   shows an honest empty state ("create your first task"), NOT mock fixtures.
+ *   This was the silent-fallback bug — demo data dressed as live data.
+ * - Live mode, with rows: returns real data with mode='live-data'.
  */
-export async function fetchTasks(): Promise<{ tasks: Task[]; isMock: boolean }> {
-  if (!supabaseEnabled) return { tasks: fromMock(), isMock: true };
+export async function fetchTasks(): Promise<{ tasks: Task[]; mode: FetchTasksMode }> {
+  if (!supabaseEnabled) {
+    return { tasks: fromMock(), mode: "demo-fixtures" };
+  }
 
   const supabase = createClient();
   const { data, error } = await supabase
@@ -44,10 +53,11 @@ export async function fetchTasks(): Promise<{ tasks: Task[]; isMock: boolean }> 
     .select(
       "id, title, description, department, assignee, status, priority, ai_priority_score, impact_level, blocker_reason, due_date"
     )
+    .is("deleted_at", null)
     .order("ai_priority_score", { ascending: false });
 
-  if (error || !data || data.length === 0) {
-    return { tasks: fromMock(), isMock: true };
+  if (error || !data) {
+    return { tasks: [], mode: "live-empty" };
   }
 
   const tasks: Task[] = data.map((row) => ({
@@ -63,5 +73,9 @@ export async function fetchTasks(): Promise<{ tasks: Task[]; isMock: boolean }> 
     blockerReason: row.blocker_reason,
     dueDate: row.due_date,
   }));
-  return { tasks, isMock: false };
+
+  return {
+    tasks,
+    mode: tasks.length === 0 ? "live-empty" : "live-data",
+  };
 }

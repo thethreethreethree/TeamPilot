@@ -122,10 +122,10 @@ cd TeamPilot
 npm install
 Copy-Item .env.example .env.local
 npm run setup:check              # color-checks env, ports, toolchain
-npm run dev                      # http://localhost:3100
+npm run dev                      # http://localhost:4321
 ```
 
-The dev server uses port **3100** (not 3000) to avoid collisions.
+The dev server uses port **4321** (not 3000) to avoid collisions.
 
 ### Useful scripts
 
@@ -163,7 +163,7 @@ For AI features: also add `ANTHROPIC_API_KEY=sk-ant-...` from
 ## Deploying
 
 Vercel: import the repo, add the same env vars in Project → Settings → Environment
-Variables, deploy. The dev port (`3100`) only applies locally; Vercel routes its own
+Variables, deploy. The dev port (`4321`) only applies locally; Vercel routes its own
 HTTPS port.
 
 ---

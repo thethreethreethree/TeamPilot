@@ -40,8 +40,9 @@ if (Test-Path './.env.local') {
   Write-Ok '.env.local present'
   $envFile = Get-Content ./.env.local -Raw
 
-  if ($envFile -match 'ANTHROPIC_API_KEY=sk-') { Write-Ok 'ANTHROPIC_API_KEY looks set' }
-  else { Write-Warn 'ANTHROPIC_API_KEY missing (AI features will fail; demo UI still works)' }
+  if ($envFile -match 'DEEPSEEK_API_KEY=sk-') { Write-Ok 'DEEPSEEK_API_KEY looks set (primary LLM provider)' }
+  elseif ($envFile -match 'ANTHROPIC_API_KEY=sk-') { Write-Ok 'ANTHROPIC_API_KEY looks set (LLM provider fallback)' }
+  else { Write-Warn 'No LLM provider configured (DEEPSEEK_API_KEY preferred; ANTHROPIC_API_KEY as alternate). AI features will fail; demo UI still works.' }
 
   if ($envFile -match 'NEXT_PUBLIC_SUPABASE_URL=https://') { Write-Ok 'NEXT_PUBLIC_SUPABASE_URL set' }
   else { Write-Warn 'NEXT_PUBLIC_SUPABASE_URL missing (app runs in demo mode, no auth/no DB)' }
@@ -59,11 +60,11 @@ function Test-Port($port) {
   return [bool]$listener
 }
 
-if (Test-Port 3000) { Write-Warn 'Port 3000 is in use (we use 3100 instead)' }
+if (Test-Port 3000) { Write-Warn 'Port 3000 is in use (we use 4321 instead)' }
 else { Write-Ok 'Port 3000 free' }
 
-if (Test-Port 3100) { Write-Warn 'Port 3100 already in use (dev server may already be running)' }
-else { Write-Ok 'Port 3100 free (TeamPilot dev port)' }
+if (Test-Port 4321) { Write-Warn 'Port 4321 already in use (dev server may already be running)' }
+else { Write-Ok 'Port 4321 free (TeamPilot dev port)' }
 
 Write-Host ''
 if ($problems -gt 0) {

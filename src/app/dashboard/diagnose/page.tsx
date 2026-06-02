@@ -1,7 +1,9 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
-import { mockCompany, mockSignals } from "@/lib/mock-data";
+import { mockCompany } from "@/lib/mock-data";
+import { fetchSignals, type SignalsMode } from "@/lib/data/signals";
+import { supabaseEnabled } from "@/lib/supabase/client";
 import {
   DIAGNOSIS_STEPS,
   canAdvance,
@@ -31,7 +33,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const STEP_META: Record<
   DiagnosisStep,
@@ -64,8 +66,22 @@ export default function DiagnosePage() {
   });
   const [step, setStep] = useState<DiagnosisStep>("data");
 
-  // Step 1 — Data
+  // Step 1 — Data (real signals from DB; demo fixtures only when Supabase off)
   const [signals, setSignals] = useState<SignalRef[]>([]);
+  const [signalsMode, setSignalsMode] = useState<SignalsMode>("live-empty");
+  const [loadingSignals, setLoadingSignals] = useState(false);
+
+  const loadSignals = async () => {
+    setLoadingSignals(true);
+    const res = await fetchSignals({ sinceDays: 30 });
+    setSignals(res.signals);
+    setSignalsMode(res.mode);
+    setLoadingSignals(false);
+  };
+
+  useEffect(() => {
+    loadSignals();
+  }, []);
 
   // Step 3 — Outside view input
   const [currentRead, setCurrentRead] = useState("");
@@ -138,8 +154,6 @@ export default function DiagnosePage() {
     ]
   );
 
-  const loadDemoSignals = () => setSignals(mockSignals);
-  const clearSignals = () => setSignals([]);
 
   const requestOutsideView = async () => {
     setLoadingOutside(true);
@@ -218,24 +232,25 @@ export default function DiagnosePage() {
             {step === "data" && (
               <StepCard step="data">
                 <p className="text-sm text-[#8895c4] mb-4">
-                  Assemble the record. Signals are immutable observations — the entry point
-                  of the loop (§1.1).
+                  Assemble the record. Signals are immutable observations derived from events
+                  — the entry point of the loop (§1.1).
                 </p>
                 <div className="flex items-center gap-3 mb-4">
                   <button
-                    onClick={loadDemoSignals}
-                    className="text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all"
+                    onClick={loadSignals}
+                    disabled={loadingSignals}
+                    className="text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    Load demo signals
-                  </button>
-                  <button
-                    onClick={clearSignals}
-                    className="text-xs text-[#5a6399] hover:text-red-400"
-                  >
-                    Clear
+                    <RefreshCw className={`w-3 h-3 ${loadingSignals ? "animate-spin" : ""}`} />
+                    Refresh signals
                   </button>
                   <span className="text-xs text-[#5a6399]">
-                    {signals.length} signal{signals.length === 1 ? "" : "s"} loaded
+                    {signals.length} signal{signals.length === 1 ? "" : "s"} ·{" "}
+                    {signalsMode === "demo-fixtures"
+                      ? "demo fixtures"
+                      : signalsMode === "live-empty"
+                      ? "live (none yet)"
+                      : "live data"}
                   </span>
                 </div>
                 {signals.length > 0 ? (
@@ -251,8 +266,16 @@ export default function DiagnosePage() {
                       </li>
                     ))}
                   </ul>
+                ) : signalsMode === "live-empty" ? (
+                  <EmptyHint
+                    text={
+                      supabaseEnabled
+                        ? "No signals yet. Signals are produced by the events chain — create tasks (which emit events) and the DB derive_signals_for_event() function will populate this stream."
+                        : "Demo mode — configure Supabase keys in .env.local to use real signals."
+                    }
+                  />
                 ) : (
-                  <EmptyHint text="No signals loaded. In live mode these are derived from events by the SQL derive_signals_for_event() function." />
+                  <EmptyHint text="No demo signals available." />
                 )}
               </StepCard>
             )}

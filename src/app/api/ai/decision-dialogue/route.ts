@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { proposeDecisionDialogue } from "@/lib/claude";
+import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 
-/**
- * Guide-don't-overtake decision route. See docs/GUIDE_DONT_OVERTAKE.md.
- *
- * The user's diagnosis and proposal are REQUIRED. Missing either is a 400 — the
- * structural interrupt that prevents the System from speaking before the user does.
- */
 export async function POST(req: NextRequest) {
   try {
     const { situation, userDiagnosis, userProposal } = await req.json();
@@ -33,13 +28,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const raw = await proposeDecisionDialogue({
+    const companyId = (await getCurrentCompanyId()) ?? undefined;
+    const r = await proposeDecisionDialogue({
       situation,
       userDiagnosis,
       userProposal,
+      companyId,
     });
-    const parsed = JSON.parse(raw);
-    return NextResponse.json(parsed);
+    if (r.suppressed) {
+      return NextResponse.json(
+        { suppressed: true, reason: r.reason },
+        { status: 200 }
+      );
+    }
+    const parsed = JSON.parse(r.text);
+    return NextResponse.json({ ...parsed, provider: r.provider, model: r.model });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

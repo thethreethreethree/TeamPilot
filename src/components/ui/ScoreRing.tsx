@@ -67,12 +67,12 @@ export default function ScoreRing({
         >
           {hasScore ? score : "—"}
         </span>
-        {isDemo && hasScore && (
-          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-[8px] font-semibold uppercase tracking-widest text-yellow-300">
-            demo
-          </span>
-        )}
       </div>
+      {isDemo && hasScore && (
+        <span className="px-1.5 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-[8px] font-semibold uppercase tracking-widest text-yellow-300">
+          demo
+        </span>
+      )}
       {label && (
         <span className="text-xs text-[#8895c4] text-center">{label}</span>
       )}

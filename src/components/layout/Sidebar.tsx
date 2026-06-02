@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
-  Zap,
+  ListChecks,
   Users,
   DollarSign,
   Megaphone,
@@ -16,51 +16,28 @@ import {
   Activity,
   LogOut,
   GitMerge,
+  ShieldCheck,
+  Sparkles,
+  Beaker,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 
-const navItems = [
-  {
-    label: "Command Center",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Living Diagnosis",
-    href: "/dashboard/diagnose",
-    icon: GitMerge,
-  },
-  {
-    label: "Operations",
-    href: "/dashboard/operations",
-    icon: Zap,
-  },
-  {
-    label: "Team Intelligence",
-    href: "/dashboard/team",
-    icon: Users,
-  },
-  {
-    label: "Finance",
-    href: "/dashboard/finance",
-    icon: DollarSign,
-  },
-  {
-    label: "Marketing",
-    href: "/dashboard/marketing",
-    icon: Megaphone,
-  },
-  {
-    label: "Conversation Dialogue",
-    href: "/dashboard/conversations",
-    icon: MessageSquare,
-  },
-  {
-    label: "Decision Dialogue",
-    href: "/dashboard/decisions",
-    icon: Brain,
-  },
+const productionNav = [
+  { label: "Command Center", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Tasks", href: "/dashboard/operations", icon: ListChecks },
+  { label: "Living Diagnosis", href: "/dashboard/diagnose", icon: GitMerge },
+  { label: "Problems", href: "/dashboard/problems", icon: ShieldCheck },
+  { label: "Resolutions", href: "/dashboard/resolutions", icon: Sparkles },
+  { label: "Company Brain", href: "/dashboard/brain", icon: Brain },
+  { label: "Decision Dialogue", href: "/dashboard/decisions", icon: Brain },
+  { label: "Conversation Dialogue", href: "/dashboard/conversations", icon: MessageSquare },
+];
+
+const designPreviewNav = [
+  { label: "Team", href: "/dashboard/team", icon: Users },
+  { label: "Finance", href: "/dashboard/finance", icon: DollarSign },
+  { label: "Marketing", href: "/dashboard/marketing", icon: Megaphone },
 ];
 
 export default function Sidebar() {
@@ -119,8 +96,14 @@ export default function Sidebar() {
           <div>
             <span className="text-base font-bold text-white tracking-tight">ExecOS</span>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot" />
-              <span className="text-[10px] text-[#5a6399] uppercase tracking-widest">Live</span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  supabaseEnabled ? "bg-emerald-400 pulse-dot" : "bg-yellow-400"
+                }`}
+              />
+              <span className="text-[10px] text-[#5a6399] uppercase tracking-widest">
+                {supabaseEnabled ? "Live" : "Demo"}
+              </span>
             </div>
           </div>
         </div>
@@ -140,9 +123,9 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <p className="px-3 mb-2 text-[10px] text-[#5a6399] uppercase tracking-widest">
-          Intelligence
+          Production
         </p>
-        {navItems.map((item) => {
+        {productionNav.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
 
@@ -170,6 +153,32 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        <div className="pt-4">
+          <p className="px-3 mb-2 text-[10px] text-[#5a6399] uppercase tracking-widest flex items-center gap-1.5">
+            <Beaker className="w-3 h-3 text-violet-400" />
+            Design preview
+          </p>
+          {designPreviewNav.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                  isActive
+                    ? "bg-violet-500/10 text-violet-300 border border-violet-500/30"
+                    : "text-[#5a6399] hover:text-[#8895c4] hover:bg-[#1a1d2e]"
+                )}
+              >
+                <Icon className="w-4 h-4 text-[#5a6399]" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
 
         <div className="pt-4">
           <p className="px-3 mb-2 text-[10px] text-[#5a6399] uppercase tracking-widest">

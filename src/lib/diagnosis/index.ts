@@ -13,15 +13,20 @@
  * advancement.
  */
 
+// Public client-safe surface. Server-only modules (outsideView, rippleTrace) are
+// NOT re-exported here — importing the diagnosis index from a client component
+// would otherwise pull the Anthropic SDK into the browser bundle (it refuses to
+// run there). Server callers import those directly:
+//   import { generateOutsideViews } from "@/lib/diagnosis/outsideView";
+//   import { traceRipples }        from "@/lib/diagnosis/rippleTrace";
+
 export * from "./types";
 export { deriveRetrospectivePatterns } from "./retrospective";
-export { generateOutsideViews } from "./outsideView";
 export {
   evaluateUnderstandingGate,
   describeGapToGate,
   DEFAULT_THRESHOLD,
 } from "./understandingGate";
-export { traceRipples } from "./rippleTrace";
 export { closeProblemLoop } from "./closeLoop";
 
 import type {

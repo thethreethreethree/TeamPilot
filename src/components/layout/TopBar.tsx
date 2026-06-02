@@ -1,6 +1,5 @@
 "use client";
 
-import { Bell, Search, RefreshCw } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
@@ -9,10 +8,17 @@ interface TopBarProps {
   subtitle?: string;
 }
 
+/**
+ * Page header. Intentionally minimal — the fake search/notifications/refresh
+ * buttons it used to carry were "surface, don't overtake" violations (Rule 2):
+ * affordances that imply capability the product does not have. They will return
+ * only when they back real functionality.
+ */
 export default function TopBar({ title, subtitle }: TopBarProps) {
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    setNow(new Date());
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
@@ -27,30 +33,13 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Date/time */}
         <div className="hidden md:flex items-center gap-2 text-xs text-[#5a6399] bg-[#12141f] border border-[#252840] rounded-lg px-3 py-1.5">
-          <span>{formatDate(now)}</span>
+          <span>{now ? formatDate(now) : "—"}</span>
           <span className="text-[#3a3f5c]">·</span>
-          <span className="text-[#8895c4] font-mono">{formatTime(now)}</span>
+          <span className="text-[#8895c4] font-mono">
+            {now ? formatTime(now) : "—"}
+          </span>
         </div>
-
-        {/* Search */}
-        <button className="flex items-center gap-2 text-xs text-[#5a6399] bg-[#12141f] border border-[#252840] rounded-lg px-3 py-1.5 hover:border-[#3a3f5c] hover:text-[#8895c4] transition-colors">
-          <Search className="w-3.5 h-3.5" />
-          <span>Search</span>
-          <span className="text-[#3a3f5c] font-mono">⌘K</span>
-        </button>
-
-        {/* Refresh */}
-        <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#252840] bg-[#12141f] hover:border-[#3a3f5c] transition-colors text-[#5a6399] hover:text-[#8895c4]">
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Notifications */}
-        <button className="relative w-8 h-8 flex items-center justify-center rounded-lg border border-[#252840] bg-[#12141f] hover:border-[#3a3f5c] transition-colors text-[#5a6399] hover:text-[#8895c4]">
-          <Bell className="w-3.5 h-3.5" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
-        </button>
       </div>
     </header>
   );

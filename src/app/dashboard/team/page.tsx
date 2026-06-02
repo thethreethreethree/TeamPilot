@@ -3,6 +3,7 @@
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ScoreRing from "@/components/ui/ScoreRing";
+import DesignPreviewBanner from "@/components/ui/DesignPreviewBanner";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import { mockTeamMembers, mockCompany } from "@/lib/mock-data";
 import { AlertTriangle, Brain, RefreshCw, Users } from "lucide-react";
@@ -45,6 +46,10 @@ export default function TeamPage() {
       <TopBar title="Team Intelligence" subtitle={`${mockCompany.name} · Workforce Analysis`} />
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        <DesignPreviewBanner
+          domain="Team Intelligence"
+          needs="A team roster and workload data source (HR system, manual entry, or an integration) must exist before this surface can derive real workload signals."
+        />
         {/* Summary stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[

@@ -4,6 +4,7 @@ import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ScoreRing from "@/components/ui/ScoreRing";
 import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
+import DesignPreviewBanner from "@/components/ui/DesignPreviewBanner";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import {
   mockCompany,
@@ -63,6 +64,10 @@ export default function FinancePage() {
       <TopBar title="Finance" subtitle={`${mockCompany.name} · Financial Intelligence`} />
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        <DesignPreviewBanner
+          domain="Finance"
+          needs="A finance data source (accounting integration like Xero/QuickBooks, or a manual entry pipeline) must exist before runway, burn, and expense values become derived."
+        />
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="glass-card p-4">

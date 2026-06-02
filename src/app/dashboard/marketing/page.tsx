@@ -4,6 +4,7 @@ import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ScoreRing from "@/components/ui/ScoreRing";
 import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
+import DesignPreviewBanner from "@/components/ui/DesignPreviewBanner";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import {
   mockCompany,
@@ -60,6 +61,10 @@ export default function MarketingPage() {
       <TopBar title="Marketing" subtitle={`${mockCompany.name} · Growth Intelligence`} />
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        <DesignPreviewBanner
+          domain="Marketing"
+          needs="A marketing data source (HubSpot, GA4, Mixpanel, or manual entry) must exist before lead/CAC/funnel values become derived."
+        />
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="glass-card p-4">

@@ -33,7 +33,7 @@ You can skip filling in any keys for now. The app will start in **demo mode** (m
 npm run dev
 ```
 
-Opens on **http://localhost:3100** (port 3100, not the default 3000, to avoid colliding with other Next.js projects you may have running).
+Opens on **http://localhost:4321** (port 4321, not the default 3000, to avoid colliding with other Next.js projects you may have running).
 
 The dev server uses Next.js + Turbopack — saves hot-reload in under a second.
 
@@ -77,9 +77,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 ## 5. Useful scripts
 
 ```powershell
-npm run dev            # dev server on :3100 (hot reload)
+npm run dev            # dev server on :4321 (hot reload)
 npm run build          # production build
-npm run start          # serve the production build on :3100
+npm run start          # serve the production build on :4321
 npm run lint           # ESLint
 npm run typecheck      # tsc --noEmit
 npm run check          # typecheck + lint
@@ -133,7 +133,7 @@ Claude has access to **Bash, PowerShell, Read, Edit, Write, Grep, Glob** in this
 
 | Symptom | Fix |
 |---|---|
-| `EADDRINUSE :3100` | Another dev server is on that port — `Get-Process node | Stop-Process -Force` or change the port in `package.json` |
+| `EADDRINUSE :4321` | Another dev server is on that port — `Get-Process node | Stop-Process -Force` or change the port in `package.json` |
 | Sidebar shows "Loading..." forever | Supabase keys are set but the user has no profile yet — sign out and complete onboarding |
 | `/login` 500s | Supabase URL is set but the project is paused/deleted — clear the keys to return to demo mode |
 | Hot reload stops working | Stop the dev server, delete `.next/`, run `npm run dev` again |
