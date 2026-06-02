@@ -93,16 +93,16 @@ export default function BrainPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar
         title="Company Brain"
         subtitle="What the System has learned about this team · §3.4, §3.6"
       />
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20">
-          <BrainIcon className="w-4 h-4 text-[#7a96ff] mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-[#8895c4] leading-relaxed">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20">
+          <BrainIcon className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-secondary leading-relaxed">
             The brain accumulates per-company learning from the §3.1 chain. Only
             outcomes that have <strong>held</strong> (§3.5) and problems explicitly{" "}
             <strong>dismissed</strong> count toward validated learning. Acceptance is not
@@ -114,22 +114,22 @@ export default function BrainPage() {
           <div className="glass-card p-6 text-center">
             <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
             <p className="text-sm text-yellow-100 mb-1">Live mode required</p>
-            <p className="text-xs text-[#5a6399] max-w-md mx-auto">
+            <p className="text-xs text-muted max-w-md mx-auto">
               The brain is a per-company DB record. Configure Supabase to use this surface.
             </p>
           </div>
         )}
 
         {supabaseEnabled && loading && (
-          <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399] py-10">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading brain…
           </div>
         )}
 
         {supabaseEnabled && !loading && !state && (
           <div className="glass-card p-6 text-center">
-            <p className="text-sm text-[#e8eaf6] mb-2">No brain available.</p>
-            <p className="text-xs text-[#5a6399]">
+            <p className="text-sm text-primary mb-2">No brain available.</p>
+            <p className="text-xs text-muted">
               Sign in and complete onboarding to initialize this company&apos;s brain.
             </p>
           </div>
@@ -171,10 +171,10 @@ export default function BrainPage() {
             <div className="glass-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-[#e8eaf6]">
+                  <h2 className="text-sm font-semibold text-primary">
                     Learning cycle
                   </h2>
-                  <p className="text-xs text-[#5a6399] mt-1">
+                  <p className="text-xs text-muted mt-1">
                     Distills recent <strong>held</strong> resolutions and dismissed
                     problems into structured brain updates. Conservative by design — empty
                     cycles are correct when the chain has not produced validated evidence.
@@ -183,17 +183,17 @@ export default function BrainPage() {
                 <button
                   onClick={triggerLearning}
                   disabled={learning}
-                  className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs flex-shrink-0"
+                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs flex-shrink-0"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${learning ? "animate-spin" : ""}`} />
                   {learning ? "Running…" : "Run learning cycle"}
                 </button>
               </div>
               {learnMessage && (
-                <p className="text-xs text-[#8895c4] mt-2">{learnMessage}</p>
+                <p className="text-xs text-secondary mt-2">{learnMessage}</p>
               )}
               {state.brain.lastLearningAt && (
-                <p className="text-[10px] text-[#5a6399] mt-2 font-mono">
+                <p className="text-[10px] text-muted mt-2 font-mono">
                   Last run: {state.brain.lastLearningAt.slice(0, 19).replace("T", " ")} ·{" "}
                   {state.brain.lastLearningSummary}
                 </p>
@@ -204,12 +204,12 @@ export default function BrainPage() {
             {state.brain.systemPromptAddendum && (
               <div className="glass-card p-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <Eye className="w-4 h-4 text-[#5470ff]" />
-                  <h2 className="text-sm font-semibold text-[#e8eaf6]">
+                  <Eye className="w-4 h-4 text-brand" />
+                  <h2 className="text-sm font-semibold text-primary">
                     System prompt addendum (injected into every LLM call)
                   </h2>
                 </div>
-                <pre className="text-xs text-[#8895c4] whitespace-pre-wrap leading-relaxed bg-[#12141f] border border-[#252840] rounded-xl p-4 max-h-72 overflow-y-auto">
+                <pre className="text-xs text-secondary whitespace-pre-wrap leading-relaxed bg-surface border border-default rounded-xl p-4 max-h-72 overflow-y-auto">
 {state.brain.systemPromptAddendum}
                 </pre>
               </div>
@@ -248,11 +248,11 @@ export default function BrainPage() {
 
             {/* Evolution audit trail */}
             <div className="glass-card p-5">
-              <h2 className="text-sm font-semibold text-[#e8eaf6] mb-3">
+              <h2 className="text-sm font-semibold text-primary mb-3">
                 Evolution audit ({state.evolution.length} entries)
               </h2>
               {state.evolution.length === 0 ? (
-                <p className="text-xs text-[#5a6399] py-4">
+                <p className="text-xs text-muted py-4">
                   No evolution events yet. Each entry below would represent one
                   brain update, immutable on the record (per §3.1).
                 </p>
@@ -261,10 +261,10 @@ export default function BrainPage() {
                   {state.evolution.map((e) => (
                     <li
                       key={e.id}
-                      className="p-3 bg-[#12141f] border border-[#252840] rounded-xl"
+                      className="p-3 bg-surface border border-default rounded-xl"
                     >
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#252840] text-[#8895c4]">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-raised text-secondary">
                           {e.kind}
                         </span>
                         <span
@@ -273,20 +273,20 @@ export default function BrainPage() {
                               ? "text-emerald-300"
                               : e.confidence === "medium"
                               ? "text-blue-300"
-                              : "text-[#5a6399]"
+                              : "text-muted"
                           }`}
                         >
                           {e.confidence}
                         </span>
-                        <span className="text-[10px] text-[#3a3f5c] font-mono">
+                        <span className="text-[10px] text-muted font-mono">
                           v{e.brainVersionBefore} → v{e.brainVersionAfter}
                         </span>
                       </div>
-                      <p className="text-sm text-[#e8eaf6]">{e.claim}</p>
-                      <p className="text-xs text-[#8895c4] mt-1 leading-relaxed">
+                      <p className="text-sm text-primary">{e.claim}</p>
+                      <p className="text-xs text-secondary mt-1 leading-relaxed">
                         {e.reasoning}
                       </p>
-                      <p className="text-[10px] text-[#3a3f5c] mt-1 font-mono">
+                      <p className="text-[10px] text-muted mt-1 font-mono">
                         {e.createdAt.slice(0, 19).replace("T", " ")}
                       </p>
                     </li>
@@ -327,7 +327,7 @@ function GateCard({
             AI guidance enabled
           </p>
         </div>
-        <p className="text-xs text-[#8895c4]">
+        <p className="text-xs text-secondary">
           {gate.guidanceEnabledAt
             ? `Enabled ${gate.guidanceEnabledAt.slice(0, 10)}.`
             : "Control window has cleared."}
@@ -343,10 +343,10 @@ function GateCard({
           AI guidance suppressed (§3.4 control window)
         </p>
       </div>
-      <p className="text-xs text-[#8895c4] mb-3">{gate.reason}</p>
+      <p className="text-xs text-secondary mb-3">{gate.reason}</p>
       <button
         onClick={onUnlock}
-        className="text-xs text-yellow-200 hover:text-white border border-yellow-500/40 hover:border-yellow-500/70 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
+        className="text-xs text-yellow-200 hover:text-primary border border-yellow-500/40 hover:border-yellow-500/70 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
       >
         <Unlock className="w-3 h-3" /> Unlock early (with reason)
       </button>
@@ -391,7 +391,7 @@ function UnlockModal({
   return (
     <Modal open onClose={onClose} title="Unlock AI guidance early" size="md">
       <div aria-busy={submitting}>
-        <p className="text-xs text-[#8895c4] mb-3 leading-relaxed">
+        <p className="text-xs text-secondary mb-3 leading-relaxed">
           §3.4 reserves Month 1 as a control window — the AI is silent so the
           team&apos;s baseline can be captured honestly. Unlocking early is an
           explicit override. The reason is preserved on the brain&apos;s audit
@@ -408,7 +408,7 @@ function UnlockModal({
         <div className="flex items-center justify-end gap-2 pt-3">
           <button
             onClick={onClose}
-            className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2"
+            className="text-xs text-muted hover:text-secondary px-3 py-2"
           >
             Cancel
           </button>
@@ -436,11 +436,11 @@ function Stat({
 }) {
   return (
     <div className="glass-card p-4">
-      <div className="flex items-center gap-1.5 text-[10px] text-[#5a6399] uppercase tracking-widest mb-1">
-        <span className="text-[#7a96ff]">{icon}</span>
+      <div className="flex items-center gap-1.5 text-[10px] text-muted uppercase tracking-widest mb-1">
+        <span className="text-brand">{icon}</span>
         {label}
       </div>
-      <p className="text-2xl font-bold text-[#e8eaf6]">{value}</p>
+      <p className="text-2xl font-bold text-primary">{value}</p>
     </div>
   );
 }
@@ -460,16 +460,16 @@ function BrainList({
     <div className="glass-card p-4">
       <div className="flex items-center gap-2 mb-3">
         {icon}
-        <h3 className="text-sm font-semibold text-[#e8eaf6]">{title}</h3>
+        <h3 className="text-sm font-semibold text-primary">{title}</h3>
       </div>
       {items.length === 0 ? (
-        <p className="text-xs text-[#5a6399] leading-relaxed">{emptyText}</p>
+        <p className="text-xs text-muted leading-relaxed">{emptyText}</p>
       ) : (
         <ul className="space-y-2 max-h-80 overflow-y-auto pr-2">
           {items.map((item, i) => (
-            <li key={i} className="p-2.5 bg-[#12141f] border border-[#252840] rounded-lg">
-              <p className="text-xs text-[#e8eaf6]">{item.primary}</p>
-              <p className="text-[10px] text-[#5a6399] mt-1 leading-relaxed">
+            <li key={i} className="p-2.5 bg-surface border border-default rounded-lg">
+              <p className="text-xs text-primary">{item.primary}</p>
+              <p className="text-[10px] text-muted mt-1 leading-relaxed">
                 {item.secondary}
               </p>
             </li>

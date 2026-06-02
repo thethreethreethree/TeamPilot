@@ -232,16 +232,16 @@ export default function DiagnosePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar
         title="Living Diagnosis"
         subtitle={`${companyName} · The constitution as runtime (CLAUDE.md §1)`}
       />
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20">
-          <Activity className="w-4 h-4 text-[#7a96ff] mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-[#8895c4] leading-relaxed">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20">
+          <Activity className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-secondary leading-relaxed">
             This is the diagnostic discipline operating on your data. The engine refuses to
             advance steps until the constitution&apos;s gates pass — when a step is held,
             it tells you exactly what&apos;s missing. The System guides; you decide.
@@ -256,7 +256,7 @@ export default function DiagnosePage() {
             </p>
             <button
               onClick={resetRun}
-              className="text-xs text-emerald-200 hover:text-white border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
+              className="text-xs text-emerald-200 hover:text-primary border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
             >
               Reset run
             </button>
@@ -271,7 +271,7 @@ export default function DiagnosePage() {
           <div className="lg:col-span-2 space-y-6">
             {step === "data" && (
               <StepCard step="data">
-                <p className="text-sm text-[#8895c4] mb-4">
+                <p className="text-sm text-secondary mb-4">
                   Assemble the record. Signals are immutable observations derived from events
                   — the entry point of the loop (§1.1).
                 </p>
@@ -279,12 +279,12 @@ export default function DiagnosePage() {
                   <button
                     onClick={loadSignals}
                     disabled={loadingSignals}
-                    className="text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+                    className="text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <RefreshCw className={`w-3 h-3 ${loadingSignals ? "animate-spin" : ""}`} />
                     Refresh signals
                   </button>
-                  <span className="text-xs text-[#5a6399]">
+                  <span className="text-xs text-muted">
                     {signals.length} signal{signals.length === 1 ? "" : "s"} ·{" "}
                     {signalsMode === "demo-fixtures"
                       ? "demo fixtures"
@@ -298,11 +298,11 @@ export default function DiagnosePage() {
                     {signals.map((s) => (
                       <li
                         key={s.id}
-                        className="text-xs text-[#8895c4] font-mono p-2 rounded bg-[#12141f] border border-[#252840]"
+                        className="text-xs text-secondary font-mono p-2 rounded bg-surface border border-default"
                       >
-                        <span className="text-[#7a96ff]">{s.kind}</span>{" "}
-                        <span className="text-[#5a6399]">@ {s.source}</span>{" "}
-                        <span className="text-[#3a3f5c]">· {s.observed_at}</span>
+                        <span className="text-brand">{s.kind}</span>{" "}
+                        <span className="text-muted">@ {s.source}</span>{" "}
+                        <span className="text-muted">· {s.observed_at}</span>
                       </li>
                     ))}
                   </ul>
@@ -322,7 +322,7 @@ export default function DiagnosePage() {
 
             {step === "retrospective" && (
               <StepCard step="retrospective">
-                <p className="text-sm text-[#8895c4] mb-4">
+                <p className="text-sm text-secondary mb-4">
                   Look backward (§1.2). Patterns require ≥3 occurrences across ≥2 distinct
                   sources — single observations stay as anecdotes.
                 </p>
@@ -333,13 +333,13 @@ export default function DiagnosePage() {
                     {patterns.map((p, i) => (
                       <li
                         key={i}
-                        className="p-3 rounded-xl bg-[#12141f] border border-[#252840]"
+                        className="p-3 rounded-xl bg-surface border border-default"
                       >
-                        <p className="text-sm text-[#e8eaf6]">{p.description}</p>
-                        <p className="text-[10px] text-[#5a6399] mt-2 font-mono">
+                        <p className="text-sm text-primary">{p.description}</p>
+                        <p className="text-[10px] text-muted mt-2 font-mono">
                           {p.distinctSources.join(" · ")}
                         </p>
-                        <p className="text-[10px] text-[#3a3f5c] mt-1">
+                        <p className="text-[10px] text-muted mt-1">
                           {p.earliestObserved} → {p.latestObserved}
                         </p>
                       </li>
@@ -351,7 +351,7 @@ export default function DiagnosePage() {
 
             {step === "outsideView" && (
               <StepCard step="outsideView">
-                <p className="text-sm text-[#8895c4] mb-4">
+                <p className="text-sm text-secondary mb-4">
                   Counter tunnel vision (§1.3). State YOUR current read; the System
                   generates alternative framings from a stance with no investment in it.
                 </p>
@@ -360,12 +360,12 @@ export default function DiagnosePage() {
                   onChange={(e) => setCurrentRead(e.target.value)}
                   placeholder="What do you currently think is going on?"
                   rows={4}
-                  className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none leading-relaxed mb-3"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed mb-3"
                 />
                 <button
                   onClick={requestOutsideView}
                   disabled={loadingOutside || !currentRead.trim()}
-                  className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingOutside ? "animate-spin" : ""}`} />
                   {loadingOutside ? "Generating alternatives…" : "Generate outside views"}
@@ -380,15 +380,15 @@ export default function DiagnosePage() {
                         key={i}
                         className="p-3 rounded-xl bg-violet-500/5 border border-violet-500/20"
                       >
-                        <p className="text-sm text-[#e8eaf6] mb-2">{v.framing}</p>
+                        <p className="text-sm text-primary mb-2">{v.framing}</p>
                         <p className="text-[10px] text-violet-300 uppercase tracking-widest">
                           challenges
                         </p>
-                        <p className="text-xs text-[#8895c4] mb-2">{v.whatItChallenges}</p>
+                        <p className="text-xs text-secondary mb-2">{v.whatItChallenges}</p>
                         <p className="text-[10px] text-violet-300 uppercase tracking-widest">
                           if true then
                         </p>
-                        <p className="text-xs text-[#8895c4]">{v.ifTrueThen}</p>
+                        <p className="text-xs text-secondary">{v.ifTrueThen}</p>
                       </div>
                     ))}
                   </div>
@@ -398,7 +398,7 @@ export default function DiagnosePage() {
 
             {step === "gate" && (
               <StepCard step="gate">
-                <p className="text-sm text-[#8895c4] mb-4">
+                <p className="text-sm text-secondary mb-4">
                   State your problem hypothesis. The gate (§3.2) refuses to surface a
                   problem unless evidence + WHY are sufficient.
                 </p>
@@ -407,20 +407,20 @@ export default function DiagnosePage() {
                     value={hypothesisTitle}
                     onChange={(e) => setHypothesisTitle(e.target.value)}
                     placeholder="Problem title — one line"
-                    className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-2.5 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50"
+                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50"
                   />
                   <input
                     value={hypothesisKind}
                     onChange={(e) => setHypothesisKind(e.target.value)}
                     placeholder="Kind — e.g. operational_bottleneck, financial_risk"
-                    className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-2.5 text-sm text-[#8895c4] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 font-mono"
+                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 font-mono"
                   />
                   <textarea
                     value={hypothesisDiagnosis}
                     onChange={(e) => setHypothesisDiagnosis(e.target.value)}
                     placeholder="Diagnosis — state the WHY. Required to be ≥80 characters."
                     rows={5}
-                    className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 resize-none"
+                    className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 resize-none"
                   />
                 </div>
                 {liveRun.gate && <GateBadge gate={liveRun.gate} />}
@@ -429,7 +429,7 @@ export default function DiagnosePage() {
 
             {step === "rippleTrace" && (
               <StepCard step="rippleTrace">
-                <p className="text-sm text-[#8895c4] mb-4">
+                <p className="text-sm text-secondary mb-4">
                   Propose an action. The System traces what else it affects, with WHY
                   for each ripple (§1.5, §2).
                 </p>
@@ -437,18 +437,18 @@ export default function DiagnosePage() {
                   value={candidateAction}
                   onChange={(e) => setCandidateAction(e.target.value)}
                   placeholder="Candidate action — what would you do?"
-                  className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-2.5 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 mb-3"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 mb-3"
                 />
                 <input
                   value={candidateExpected}
                   onChange={(e) => setCandidateExpected(e.target.value)}
                   placeholder="Expected outcome (your prediction — recorded for §3.5 measurement)"
-                  className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-2.5 text-sm text-[#8895c4] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 mb-3"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 mb-3"
                 />
                 <button
                   onClick={requestRipples}
                   disabled={loadingRipples || !candidateAction.trim()}
-                  className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingRipples ? "animate-spin" : ""}`} />
                   {loadingRipples ? "Tracing ripples…" : "Trace ripples"}
@@ -462,18 +462,18 @@ export default function DiagnosePage() {
                       ripples.map((r, i) => (
                         <div
                           key={i}
-                          className="p-3 rounded-xl bg-[#12141f] border border-[#252840]"
+                          className="p-3 rounded-xl bg-surface border border-default"
                         >
-                          <p className="text-sm text-[#e8eaf6] mb-1">
-                            <span className="font-mono text-xs text-[#7a96ff]">
+                          <p className="text-sm text-primary mb-1">
+                            <span className="font-mono text-xs text-brand">
                               {r.affectedSubject}
                             </span>{" "}
                             — {r.effect}
                           </p>
-                          <p className="text-[10px] text-[#5a6399] mt-2 uppercase tracking-widest">
+                          <p className="text-[10px] text-muted mt-2 uppercase tracking-widest">
                             confidence: {r.confidence}
                           </p>
-                          <p className="text-xs text-[#8895c4] mt-1 italic">why: {r.reasoning}</p>
+                          <p className="text-xs text-secondary mt-1 italic">why: {r.reasoning}</p>
                         </div>
                       ))
                     )}
@@ -484,7 +484,7 @@ export default function DiagnosePage() {
 
             {step === "decide" && (
               <StepCard step="decide">
-                <p className="text-sm text-[#8895c4] mb-4">
+                <p className="text-sm text-secondary mb-4">
                   The decision is yours (§3.3). The engine has surfaced the candidate and
                   its ripples; you commit, hybrid, or defer.
                 </p>
@@ -494,19 +494,19 @@ export default function DiagnosePage() {
                   liveRun.candidates.map((c, i) => (
                     <div
                       key={i}
-                      className="p-4 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20 mb-4"
+                      className="p-4 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20 mb-4"
                     >
-                      <p className="text-sm font-medium text-[#e8eaf6]">{c.action}</p>
-                      <p className="text-[10px] text-[#5a6399] mt-2 uppercase tracking-widest">why</p>
-                      <p className="text-xs text-[#8895c4]">{c.reasoning}</p>
-                      <p className="text-[10px] text-[#5a6399] mt-2 uppercase tracking-widest">
+                      <p className="text-sm font-medium text-primary">{c.action}</p>
+                      <p className="text-[10px] text-muted mt-2 uppercase tracking-widest">why</p>
+                      <p className="text-xs text-secondary">{c.reasoning}</p>
+                      <p className="text-[10px] text-muted mt-2 uppercase tracking-widest">
                         expected outcome
                       </p>
-                      <p className="text-xs text-[#8895c4]">{c.expectedOutcome}</p>
-                      <p className="text-[10px] text-[#5a6399] mt-2 uppercase tracking-widest">
+                      <p className="text-xs text-secondary">{c.expectedOutcome}</p>
+                      <p className="text-[10px] text-muted mt-2 uppercase tracking-widest">
                         ripples ({c.predictedRipples.length})
                       </p>
-                      <p className="text-xs text-[#8895c4]">
+                      <p className="text-xs text-secondary">
                         {c.predictedRipples.map((r) => r.affectedSubject).join(", ") || "none"}
                       </p>
                       <button
@@ -523,14 +523,14 @@ export default function DiagnosePage() {
                   onChange={(e) => setChosenNote(e.target.value)}
                   placeholder="Optional note — what made this the right call from your perspective?"
                   rows={3}
-                  className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 resize-none"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 resize-none"
                 />
               </StepCard>
             )}
 
             {step === "close" && (
               <StepCard step="close">
-                <p className="text-sm text-[#8895c4] mb-4">
+                <p className="text-sm text-secondary mb-4">
                   Close the loop (§1.6). The resolution is recorded; a problem.resolved
                   event is emitted; the loop feeds back into the chain.
                 </p>
@@ -541,13 +541,13 @@ export default function DiagnosePage() {
                     <p className="text-sm font-medium text-emerald-200 mb-2">
                       Ready to persist.
                     </p>
-                    <p className="text-xs text-[#8895c4] mb-3">
+                    <p className="text-xs text-secondary mb-3">
                       In live mode, this calls the SQL close_problem() function which
                       atomically inserts the resolution, marks the problem resolved, and
                       emits a problem.resolved event into the loop. In demo mode, this is
                       shown for review only.
                     </p>
-                    <pre className="text-[10px] text-[#5a6399] bg-[#12141f] p-3 rounded-lg overflow-x-auto">
+                    <pre className="text-[10px] text-muted bg-surface p-3 rounded-lg overflow-x-auto">
 {JSON.stringify(liveRun.chosen, null, 2)}
                     </pre>
                   </div>
@@ -558,14 +558,14 @@ export default function DiagnosePage() {
 
           {/* Right column — engine state / advance gate */}
           <div className="space-y-6">
-            <div className="glass-card p-5 border-[#5470ff]/20">
-              <p className="text-[10px] text-[#5470ff] uppercase tracking-widest mb-2">
+            <div className="glass-card p-5 border-[#C8232C]/20">
+              <p className="text-[10px] text-brand uppercase tracking-widest mb-2">
                 Engine state
               </p>
-              <p className="text-sm text-[#e8eaf6] mb-1">
+              <p className="text-sm text-primary mb-1">
                 Step {stepIndex + 1} of {DIAGNOSIS_STEPS.length}: {STEP_META[step].label}
               </p>
-              <p className="text-xs text-[#5a6399]">{STEP_META[step].section}</p>
+              <p className="text-xs text-muted">{STEP_META[step].section}</p>
               <div
                 className={`mt-4 p-3 rounded-xl border ${
                   advance.ok
@@ -580,7 +580,7 @@ export default function DiagnosePage() {
                 >
                   {advance.ok ? "advance allowed" : "engine holds"}
                 </p>
-                <p className="text-xs text-[#e8eaf6] leading-relaxed">{advance.reason}</p>
+                <p className="text-xs text-primary leading-relaxed">{advance.reason}</p>
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <button
@@ -589,7 +589,7 @@ export default function DiagnosePage() {
                     if (target) setStep(target);
                   }}
                   disabled={stepIndex === 0}
-                  className="text-xs text-[#5a6399] hover:text-[#8895c4] disabled:opacity-30"
+                  className="text-xs text-muted hover:text-secondary disabled:opacity-30"
                 >
                   ← back
                 </button>
@@ -601,7 +601,7 @@ export default function DiagnosePage() {
                   disabled={
                     !advance.ok || stepIndex === DIAGNOSIS_STEPS.length - 1
                   }
-                  className="flex items-center gap-1 text-xs text-[#7a96ff] hover:text-white disabled:opacity-30"
+                  className="flex items-center gap-1 text-xs text-brand hover:text-primary disabled:opacity-30"
                 >
                   next <ChevronRight className="w-3 h-3" />
                 </button>
@@ -609,7 +609,7 @@ export default function DiagnosePage() {
             </div>
 
             <div className="glass-card p-5">
-              <p className="text-[10px] text-[#5a6399] uppercase tracking-widest mb-2">
+              <p className="text-[10px] text-muted uppercase tracking-widest mb-2">
                 Loop chain
               </p>
               <ul className="space-y-2 text-xs">
@@ -687,29 +687,29 @@ function StepStepper({
             onClick={() => onJump(s)}
             className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition-colors text-left ${
               active
-                ? "bg-[#5470ff]/15 border-[#5470ff]/50"
+                ? "bg-[#C8232C]/15 border-[#C8232C]/50"
                 : reached
-                ? "border-[#252840] hover:border-[#3a3f5c]"
-                : "border-[#252840] opacity-50"
+                ? "border-default hover:border-strong"
+                : "border-default opacity-50"
             }`}
             title={advance.reason}
           >
             <div className="flex items-center gap-1.5" aria-hidden="true">
               <Icon
                 className={`w-3.5 h-3.5 ${
-                  active ? "text-[#7a96ff]" : "text-[#5a6399]"
+                  active ? "text-brand" : "text-muted"
                 }`}
               />
               {!advance.ok && <Lock className="w-2.5 h-2.5 text-yellow-400" />}
             </div>
             <span
               className={`text-[10px] font-medium ${
-                active ? "text-[#7a96ff]" : "text-[#8895c4]"
+                active ? "text-brand" : "text-secondary"
               }`}
             >
               {meta.label}
             </span>
-            <span aria-hidden="true" className="text-[9px] text-[#3a3f5c] font-mono">{meta.section}</span>
+            <span aria-hidden="true" className="text-[9px] text-muted font-mono">{meta.section}</span>
           </button>
         );
       })}
@@ -729,9 +729,9 @@ function StepCard({
   return (
     <div className="glass-card p-5">
       <div className="flex items-center gap-2 mb-1">
-        <Icon className="w-4 h-4 text-[#5470ff]" />
-        <h2 className="text-sm font-semibold text-[#e8eaf6]">{meta.label}</h2>
-        <span className="text-[10px] text-[#5a6399] font-mono">{meta.section}</span>
+        <Icon className="w-4 h-4 text-brand" />
+        <h2 className="text-sm font-semibold text-primary">{meta.label}</h2>
+        <span className="text-[10px] text-muted font-mono">{meta.section}</span>
       </div>
       <div className="mt-3">{children}</div>
     </div>
@@ -740,9 +740,9 @@ function StepCard({
 
 function EmptyHint({ text }: { text: string }) {
   return (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-[#12141f] border border-[#252840]">
-      <CircleHelp className="w-4 h-4 text-[#5a6399] flex-shrink-0 mt-0.5" />
-      <p className="text-xs text-[#5a6399] leading-relaxed">{text}</p>
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-surface border border-default">
+      <CircleHelp className="w-4 h-4 text-muted flex-shrink-0 mt-0.5" />
+      <p className="text-xs text-muted leading-relaxed">{text}</p>
     </div>
   );
 }
@@ -774,23 +774,23 @@ function GateBadge({ gate }: { gate: GateEvaluation }) {
       </div>
       {/* gate.reason is the natural-language explanation; it's the primary
           content the live region announces. */}
-      <p className="text-xs text-[#e8eaf6] mb-2">{gate.reason}</p>
+      <p className="text-xs text-primary mb-2">{gate.reason}</p>
       {!gate.passes && (
         <p className="text-[10px] text-yellow-200">{describeGapToGate(gate)}</p>
       )}
-      <div className="grid grid-cols-3 gap-2 mt-3 text-[10px] text-[#5a6399]">
+      <div className="grid grid-cols-3 gap-2 mt-3 text-[10px] text-muted">
         <div>
-          signals: <span className="text-[#8895c4] font-mono">{gate.signalCount}</span> /{" "}
+          signals: <span className="text-secondary font-mono">{gate.signalCount}</span> /{" "}
           <span className="font-mono">{gate.threshold.minSignals}</span>
         </div>
         <div>
           sources:{" "}
-          <span className="text-[#8895c4] font-mono">{gate.distinctSourceCount}</span> /{" "}
+          <span className="text-secondary font-mono">{gate.distinctSourceCount}</span> /{" "}
           <span className="font-mono">{gate.threshold.minDistinctSources}</span>
         </div>
         <div>
           chars:{" "}
-          <span className="text-[#8895c4] font-mono">{gate.diagnosisCharCount}</span> /{" "}
+          <span className="text-secondary font-mono">{gate.diagnosisCharCount}</span> /{" "}
           <span className="font-mono">{gate.threshold.minDiagnosisChars}</span>
         </div>
       </div>
@@ -809,10 +809,10 @@ function ChainRow({
 }) {
   return (
     <li className="flex items-center justify-between">
-      <span className={`font-mono ${muted ? "text-[#3a3f5c]" : "text-[#8895c4]"}`}>
+      <span className={`font-mono ${muted ? "text-muted" : "text-secondary"}`}>
         {label}
       </span>
-      <span className={`text-xs ${muted ? "text-[#3a3f5c]" : "text-[#e8eaf6]"}`}>
+      <span className={`text-xs ${muted ? "text-muted" : "text-primary"}`}>
         {value}
       </span>
     </li>

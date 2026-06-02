@@ -88,7 +88,7 @@ export default function ScoreRing({
         </span>
       )}
       {label && (
-        <span className="text-xs text-[#8895c4] text-center">{label}</span>
+        <span className="text-xs text-secondary text-center">{label}</span>
       )}
     </div>
   );

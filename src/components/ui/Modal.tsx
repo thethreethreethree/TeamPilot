@@ -114,14 +114,14 @@ export default function Modal({
         <div className="flex items-center justify-between mb-4">
           <h2
             id="modal-title"
-            className="text-sm font-semibold text-[#e8eaf6]"
+            className="text-sm font-semibold text-primary"
           >
             {title}
           </h2>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-[#5a6399] hover:text-white"
+            className="text-muted hover:text-primary"
           >
             <X className="w-4 h-4" />
           </button>

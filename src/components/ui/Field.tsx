@@ -30,7 +30,7 @@ export function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="flex items-center gap-1 text-xs font-medium text-[#8895c4]">
+      <label className="flex items-center gap-1 text-xs font-medium text-secondary">
         {label}
         {required && (
           <span className="text-red-400" aria-label="required">
@@ -39,15 +39,18 @@ export function Field({
         )}
       </label>
       {children}
-      {hint && !error && <p className="text-[10px] text-[#5a6399]">{hint}</p>}
+      {hint && !error && <p className="text-[10px] text-muted">{hint}</p>}
       {error && <p className="text-[10px] text-red-400">{error}</p>}
     </div>
   );
 }
 
+// Theme-aware: bg-surface flips per mode; the muted placeholder uses the
+// same `text-muted` CSS variable as the rest of the page; focus ring is
+// the crimson brand (mode-agnostic).
 const inputBase =
-  "w-full bg-[#12141f] border border-[#252840] rounded-lg px-3.5 py-2.5 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] " +
-  "focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors " +
+  "w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted " +
+  "focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors " +
   "disabled:opacity-60 disabled:cursor-not-allowed";
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(

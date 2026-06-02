@@ -141,28 +141,28 @@ export default function PitchPage() {
   };
 
   return (
-    <div className="bg-[#0c0d16] text-[#e8eaf6]">
+    <div className="bg-base text-primary">
       {/* Cover */}
       <Slide ref={slideRef("cover")} id="cover">
         <div className="text-center max-w-3xl">
           <div className="flex items-center justify-center gap-3 mb-12">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5470ff] to-[#7a96ff] flex items-center justify-center shadow-glow">
-              <Activity className="w-5 h-5 text-white" aria-hidden="true" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+              <Activity className="w-5 h-5 text-primary" aria-hidden="true" />
             </div>
             <span className="text-lg font-bold tracking-tight">ExecOS</span>
           </div>
-          <p className="text-xs uppercase tracking-widest text-[#7a96ff] mb-6">
+          <p className="text-xs uppercase tracking-widest text-brand mb-6">
             A product presentation
           </p>
-          <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight tracking-tight mb-8">
+          <h1 className="text-5xl md:text-6xl font-bold text-primary leading-tight tracking-tight mb-8">
             Better decisions for any team that wants to remember how they got
             here.
           </h1>
-          <p className="text-base text-[#8895c4] leading-relaxed mb-12 max-w-xl mx-auto">
+          <p className="text-base text-secondary leading-relaxed mb-12 max-w-xl mx-auto">
             From a 50-staff restaurant to a Fortune 500 division — the problem
             is the same. The scale is different. The product is the same too.
           </p>
-          <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399]">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted">
             <ChevronDown className="w-4 h-4 animate-bounce" aria-hidden="true" />
             <span>Use arrow keys or scroll</span>
           </div>
@@ -172,17 +172,17 @@ export default function PitchPage() {
       {/* Universal problem */}
       <Slide ref={slideRef("universal-problem")} id="universal-problem">
         <div className="text-center max-w-4xl">
-          <p className="text-xs uppercase tracking-widest text-[#5a6399] mb-4">
+          <p className="text-xs uppercase tracking-widest text-muted mb-4">
             The universal problem
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight mb-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-primary leading-tight mb-8">
             Every team makes decisions.
             <br />
-            <span className="text-[#7a96ff]">
+            <span className="text-brand">
               Almost none of them remember why.
             </span>
           </h2>
-          <p className="text-lg text-[#8895c4] leading-relaxed max-w-2xl mx-auto">
+          <p className="text-lg text-secondary leading-relaxed max-w-2xl mx-auto">
             It doesn&apos;t matter if the team is 50 people or 50,000. The same
             structural gap shows up at every scale: decisions get made, the
             reasoning evaporates, and the team has to relearn it the next time
@@ -194,10 +194,10 @@ export default function PitchPage() {
       {/* Same problem at different scales */}
       <Slide ref={slideRef("scale-quick")} id="scale-quick">
         <div className="max-w-5xl w-full">
-          <p className="text-xs uppercase tracking-widest text-[#5a6399] mb-3 text-center">
+          <p className="text-xs uppercase tracking-widest text-muted mb-3 text-center">
             Same problem, different stakes
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-12 leading-tight">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary text-center mb-12 leading-tight">
             What this sounds like at four different sizes.
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -222,7 +222,7 @@ export default function PitchPage() {
               quote="Why did we approve this M&A direction six quarters ago? The board wants the reasoning, and the team that made the call has rotated out."
             />
           </div>
-          <p className="text-sm text-[#5a6399] italic text-center mt-10 max-w-2xl mx-auto">
+          <p className="text-sm text-muted italic text-center mt-10 max-w-2xl mx-auto">
             Different scale. Same gap. Same cost.
           </p>
         </div>
@@ -231,10 +231,10 @@ export default function PitchPage() {
       {/* The cost */}
       <Slide ref={slideRef("cost")} id="cost">
         <div className="max-w-5xl w-full">
-          <p className="text-xs uppercase tracking-widest text-[#5a6399] mb-3 text-center">
+          <p className="text-xs uppercase tracking-widest text-muted mb-3 text-center">
             What it costs you
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-12 leading-tight">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary text-center mb-12 leading-tight">
             Four costs every team is paying — most without noticing.
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -265,17 +265,17 @@ export default function PitchPage() {
       {/* What ExecOS is */}
       <Slide ref={slideRef("what-it-is")} id="what-it-is">
         <div className="text-center max-w-3xl">
-          <p className="text-xs uppercase tracking-widest text-[#5a6399] mb-4">
+          <p className="text-xs uppercase tracking-widest text-muted mb-4">
             What ExecOS is
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight mb-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-primary leading-tight mb-8">
             A second brain for how your team makes calls.
           </h2>
-          <p className="text-lg text-[#8895c4] leading-relaxed mb-6">
+          <p className="text-lg text-secondary leading-relaxed mb-6">
             ExecOS is software that captures the reasoning behind every
             decision your team makes — and learns what actually worked.
           </p>
-          <p className="text-base text-[#8895c4] leading-relaxed">
+          <p className="text-base text-secondary leading-relaxed">
             It uses AI, but the AI is built to help your team think, not
             replace their thinking. It lives next to the tools you already
             use. It captures what those tools throw away.
@@ -286,10 +286,10 @@ export default function PitchPage() {
       {/* How it works */}
       <Slide ref={slideRef("how-it-works")} id="how-it-works">
         <div className="max-w-4xl w-full">
-          <p className="text-xs uppercase tracking-widest text-[#5a6399] mb-3 text-center">
+          <p className="text-xs uppercase tracking-widest text-muted mb-3 text-center">
             How it works
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-12 leading-tight">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary text-center mb-12 leading-tight">
             Five simple steps, then it just keeps running.
           </h2>
           <div className="space-y-3">
@@ -303,13 +303,13 @@ export default function PitchPage() {
               <div key={title} className="glass-card p-4 flex gap-4">
                 <div
                   aria-hidden="true"
-                  className="w-9 h-9 rounded-lg bg-[#5470ff]/15 border border-[#5470ff]/30 text-[#7a96ff] text-sm font-bold flex items-center justify-center flex-shrink-0"
+                  className="w-9 h-9 rounded-lg bg-[#C8232C]/15 border border-[#C8232C]/30 text-brand text-sm font-bold flex items-center justify-center flex-shrink-0"
                 >
                   {i + 1}
                 </div>
                 <div>
-                  <p className="text-base font-semibold text-white">{title}</p>
-                  <p className="text-sm text-[#8895c4] mt-1 leading-relaxed">
+                  <p className="text-base font-semibold text-primary">{title}</p>
+                  <p className="text-sm text-secondary mt-1 leading-relaxed">
                     {body}
                   </p>
                 </div>
@@ -376,13 +376,13 @@ export default function PitchPage() {
       {/* F500 board summary */}
       <Slide ref={slideRef("f500")} id="f500">
         <div className="text-center max-w-3xl">
-          <p className="text-xs uppercase tracking-widest text-[#7a96ff] mb-4">
+          <p className="text-xs uppercase tracking-widest text-brand mb-4">
             Same product, every scale
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-8">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary leading-tight mb-8">
             Notice what didn&apos;t change across those three examples.
           </h2>
-          <div className="space-y-4 text-left text-base text-[#8895c4] leading-relaxed">
+          <div className="space-y-4 text-left text-base text-secondary leading-relaxed">
             <p>
               The restaurant owner, the agency COO, and the F500 division
               president were using the <em>same product</em>, going through
@@ -394,7 +394,7 @@ export default function PitchPage() {
               food-safety repeat. The agency avoided a four-month detour. The
               F500 produced a board-grade record of a strategic call.
             </p>
-            <p className="text-white">
+            <p className="text-primary">
               The product is a memory system for how your team makes calls.
               At every scale, it earns its place by making the next call
               sharper than the last one.
@@ -406,10 +406,10 @@ export default function PitchPage() {
       {/* What's actually different */}
       <Slide ref={slideRef("different")} id="different">
         <div className="max-w-5xl w-full">
-          <p className="text-xs uppercase tracking-widest text-[#5a6399] mb-3 text-center">
+          <p className="text-xs uppercase tracking-widest text-muted mb-3 text-center">
             What&apos;s actually different about this
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-12 leading-tight">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary text-center mb-12 leading-tight">
             ExecOS does four things no general-purpose AI does.
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -440,10 +440,10 @@ export default function PitchPage() {
       {/* Business impact */}
       <Slide ref={slideRef("business-impact")} id="business-impact">
         <div className="max-w-4xl w-full">
-          <p className="text-xs uppercase tracking-widest text-[#5a6399] mb-3 text-center">
+          <p className="text-xs uppercase tracking-widest text-muted mb-3 text-center">
             What this means for your business
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-12 leading-tight">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary text-center mb-12 leading-tight">
             Not flashier dashboards. Just clearer thinking, captured.
           </h2>
           <div className="space-y-3">
@@ -463,8 +463,8 @@ export default function PitchPage() {
                   {i + 1}
                 </div>
                 <div>
-                  <p className="text-base font-semibold text-white">{headline}</p>
-                  <p className="text-sm text-[#8895c4] mt-1 leading-relaxed">
+                  <p className="text-base font-semibold text-primary">{headline}</p>
+                  <p className="text-sm text-secondary mt-1 leading-relaxed">
                     {body}
                   </p>
                 </div>
@@ -477,10 +477,10 @@ export default function PitchPage() {
       {/* Size fit */}
       <Slide ref={slideRef("size-fit")} id="size-fit">
         <div className="max-w-5xl w-full">
-          <p className="text-xs uppercase tracking-widest text-[#5a6399] mb-3 text-center">
+          <p className="text-xs uppercase tracking-widest text-muted mb-3 text-center">
             How it fits at your size
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-12 leading-tight">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary text-center mb-12 leading-tight">
             The same product. Different value at every scale.
           </h2>
           <div className="space-y-3">
@@ -511,13 +511,13 @@ export default function PitchPage() {
       {/* How to start */}
       <Slide ref={slideRef("start")} id="start">
         <div className="text-center max-w-3xl">
-          <p className="text-xs uppercase tracking-widest text-[#5a6399] mb-4">
+          <p className="text-xs uppercase tracking-widest text-muted mb-4">
             How to start
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight mb-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-primary leading-tight mb-8">
             One decision this week.
           </h2>
-          <p className="text-lg text-[#8895c4] leading-relaxed mb-10 max-w-2xl mx-auto">
+          <p className="text-lg text-secondary leading-relaxed mb-10 max-w-2xl mx-auto">
             You don&apos;t have to roll this out across the company. Take one
             real decision your team is wrestling with right now — a vendor
             switch, a structure change, an approval — and walk it through
@@ -546,7 +546,7 @@ export default function PitchPage() {
           </div>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] text-white font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
+            className="inline-flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
             Start your first decision <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
@@ -557,15 +557,15 @@ export default function PitchPage() {
       <Slide ref={slideRef("close")} id="close">
         <div className="text-center max-w-3xl">
           <div className="flex items-center justify-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5470ff] to-[#7a96ff] flex items-center justify-center shadow-glow">
-              <Activity className="w-5 h-5 text-white" aria-hidden="true" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+              <Activity className="w-5 h-5 text-primary" aria-hidden="true" />
             </div>
             <span className="text-lg font-bold tracking-tight">ExecOS</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-primary leading-tight mb-6">
             Better decisions, remembered.
           </h2>
-          <p className="text-base text-[#8895c4] leading-relaxed mb-10 max-w-xl mx-auto">
+          <p className="text-base text-secondary leading-relaxed mb-10 max-w-xl mx-auto">
             Whether your team is 50 or 50,000, the gap is the same: decisions
             without reasoning, repeated mistakes, knowledge that walks out the
             door. ExecOS closes the gap one decision at a time.
@@ -573,14 +573,14 @@ export default function PitchPage() {
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
               href="/login"
-              className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] text-white font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
+              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
             >
               Get started — free preview
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
             <Link
               href="/"
-              className="text-xs text-[#7a96ff] hover:text-white px-5 py-3"
+              className="text-xs text-brand hover:text-primary px-5 py-3"
             >
               Back to the main page
             </Link>
@@ -590,17 +590,17 @@ export default function PitchPage() {
 
       {/* Floating nav controls */}
       <div className="fixed bottom-6 inset-x-0 flex items-center justify-center pointer-events-none z-40">
-        <div className="pointer-events-auto flex items-center gap-2 bg-[#12141f]/80 backdrop-blur-sm border border-[#252840] rounded-full px-3 py-2 shadow-lg">
+        <div className="pointer-events-auto flex items-center gap-2 bg-surface/80 backdrop-blur-sm border border-default rounded-full px-3 py-2 shadow-lg">
           <button
             onClick={() => scrollTo(activeIndex - 1)}
             disabled={activeIndex === 0}
             aria-label="Previous slide"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#8895c4] hover:text-white hover:bg-[#1a1d2e] disabled:opacity-30 transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-secondary hover:text-primary hover:bg-surface-raised disabled:opacity-30 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           </button>
           {showCounter && (
-            <span className="text-[10px] text-[#5a6399] font-mono px-2 tabular-nums">
+            <span className="text-[10px] text-muted font-mono px-2 tabular-nums">
               {activeIndex + 1} / {SLIDES.length}
             </span>
           )}
@@ -608,7 +608,7 @@ export default function PitchPage() {
             onClick={() => scrollTo(activeIndex + 1)}
             disabled={activeIndex === SLIDES.length - 1}
             aria-label="Next slide"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#8895c4] hover:text-white hover:bg-[#1a1d2e] disabled:opacity-30 transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-secondary hover:text-primary hover:bg-surface-raised disabled:opacity-30 transition-colors"
           >
             <ChevronRight className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -617,8 +617,8 @@ export default function PitchPage() {
 
       {/* Subtle hint at top right */}
       <div className="fixed top-4 right-4 z-40 pointer-events-none">
-        <p className="text-[10px] text-[#3a3f5c] font-mono">
-          press <kbd className="bg-[#12141f] border border-[#252840] rounded px-1">S</kbd> to toggle counter
+        <p className="text-[10px] text-muted font-mono">
+          press <kbd className="bg-surface border border-default rounded px-1">S</kbd> to toggle counter
         </p>
       </div>
     </div>
@@ -657,12 +657,12 @@ function ScaleQuote({
   return (
     <div className="glass-card p-5">
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-[#7a96ff]" aria-hidden="true" />
-        <p className="text-[10px] uppercase tracking-widest text-[#5a6399]">
+        <Icon className="w-4 h-4 text-brand" aria-hidden="true" />
+        <p className="text-[10px] uppercase tracking-widest text-muted">
           {size}
         </p>
       </div>
-      <p className="text-sm text-[#e8eaf6] leading-relaxed italic">
+      <p className="text-sm text-primary leading-relaxed italic">
         &ldquo;{quote}&rdquo;
       </p>
     </div>
@@ -681,10 +681,10 @@ function CostCard({
   return (
     <div className="glass-card p-5">
       <div className="flex items-center gap-2 mb-2">
-        <Icon className="w-4 h-4 text-[#7a96ff]" aria-hidden="true" />
+        <Icon className="w-4 h-4 text-brand" aria-hidden="true" />
         <h3 className="text-base font-semibold">{title}</h3>
       </div>
-      <p className="text-sm text-[#8895c4] leading-relaxed">{body}</p>
+      <p className="text-sm text-secondary leading-relaxed">{body}</p>
     </div>
   );
 }
@@ -707,34 +707,34 @@ function ExampleSlide({
   return (
     <div className="max-w-4xl w-full">
       <div className="flex items-center gap-2 mb-3 justify-center">
-        <Icon className="w-4 h-4 text-[#7a96ff]" aria-hidden="true" />
-        <p className="text-xs uppercase tracking-widest text-[#7a96ff]">
+        <Icon className="w-4 h-4 text-brand" aria-hidden="true" />
+        <p className="text-xs uppercase tracking-widest text-brand">
           {tagline}
         </p>
       </div>
-      <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-10 leading-tight">
+      <h2 className="text-3xl md:text-4xl font-bold text-primary text-center mb-10 leading-tight">
         {title}
       </h2>
       <div className="space-y-5">
         <div className="glass-card p-5">
-          <p className="text-[10px] uppercase tracking-widest text-[#5a6399] mb-2">
+          <p className="text-[10px] uppercase tracking-widest text-muted mb-2">
             The situation
           </p>
-          <p className="text-sm text-[#e8eaf6] leading-relaxed">{situation}</p>
+          <p className="text-sm text-primary leading-relaxed">{situation}</p>
         </div>
         <div className="glass-card p-5">
-          <p className="text-[10px] uppercase tracking-widest text-[#5a6399] mb-3">
+          <p className="text-[10px] uppercase tracking-widest text-muted mb-3">
             What happens with ExecOS
           </p>
           <ol className="space-y-2">
             {journey.map((step, i) => (
               <li
                 key={i}
-                className="flex gap-3 text-sm text-[#8895c4] leading-relaxed"
+                className="flex gap-3 text-sm text-secondary leading-relaxed"
               >
                 <span
                   aria-hidden="true"
-                  className="text-[#7a96ff] font-bold flex-shrink-0"
+                  className="text-brand font-bold flex-shrink-0"
                 >
                   {i + 1}.
                 </span>
@@ -747,7 +747,7 @@ function ExampleSlide({
           <p className="text-[10px] uppercase tracking-widest text-emerald-300 mb-2">
             The outcome
           </p>
-          <p className="text-sm text-[#e8eaf6] leading-relaxed">{outcome}</p>
+          <p className="text-sm text-primary leading-relaxed">{outcome}</p>
         </div>
       </div>
     </div>
@@ -766,10 +766,10 @@ function DifferentiatorCard({
   return (
     <div className="glass-card p-5">
       <div className="flex items-center gap-2 mb-2">
-        <Icon className="w-4 h-4 text-[#7a96ff]" aria-hidden="true" />
+        <Icon className="w-4 h-4 text-brand" aria-hidden="true" />
         <h3 className="text-base font-semibold">{title}</h3>
       </div>
-      <p className="text-sm text-[#8895c4] leading-relaxed">{body}</p>
+      <p className="text-sm text-secondary leading-relaxed">{body}</p>
     </div>
   );
 }
@@ -787,13 +787,13 @@ function SizeFit({
     <div className="glass-card p-4 flex items-start gap-4">
       <div
         aria-hidden="true"
-        className="w-10 h-10 rounded-lg bg-[#5470ff]/15 border border-[#5470ff]/30 text-[#7a96ff] flex items-center justify-center flex-shrink-0"
+        className="w-10 h-10 rounded-lg bg-[#C8232C]/15 border border-[#C8232C]/30 text-brand flex items-center justify-center flex-shrink-0"
       >
         <Icon className="w-5 h-5" aria-hidden="true" />
       </div>
       <div>
-        <p className="text-sm font-semibold text-white mb-1">{label}</p>
-        <p className="text-sm text-[#8895c4] leading-relaxed">{value}</p>
+        <p className="text-sm font-semibold text-primary mb-1">{label}</p>
+        <p className="text-sm text-secondary leading-relaxed">{value}</p>
       </div>
     </div>
   );
@@ -815,14 +815,14 @@ function StartStep({
       <div className="flex items-center gap-2 mb-2">
         <div
           aria-hidden="true"
-          className="w-6 h-6 rounded-full bg-[#5470ff]/15 border border-[#5470ff]/30 text-[#7a96ff] text-xs font-bold flex items-center justify-center"
+          className="w-6 h-6 rounded-full bg-[#C8232C]/15 border border-[#C8232C]/30 text-brand text-xs font-bold flex items-center justify-center"
         >
           {n}
         </div>
-        <Icon className="w-3.5 h-3.5 text-[#7a96ff]" aria-hidden="true" />
-        <p className="text-xs font-semibold text-white">{title}</p>
+        <Icon className="w-3.5 h-3.5 text-brand" aria-hidden="true" />
+        <p className="text-xs font-semibold text-primary">{title}</p>
       </div>
-      <p className="text-xs text-[#8895c4] leading-relaxed">{body}</p>
+      <p className="text-xs text-secondary leading-relaxed">{body}</p>
     </div>
   );
 }

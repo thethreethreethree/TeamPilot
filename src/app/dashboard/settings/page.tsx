@@ -121,7 +121,7 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar title="Settings" subtitle="Company + AI configuration" />
 
       <div className="p-6 max-w-3xl mx-auto space-y-6">
@@ -129,7 +129,7 @@ export default function SettingsPage() {
           <div className="glass-card p-6 text-center">
             <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
             <p className="text-sm text-yellow-100 mb-1">Live mode required</p>
-            <p className="text-xs text-[#5a6399] max-w-md mx-auto">
+            <p className="text-xs text-muted max-w-md mx-auto">
               Settings live on the company row in the database. Configure Supabase to use
               this surface.
             </p>
@@ -137,7 +137,7 @@ export default function SettingsPage() {
         )}
 
         {supabaseEnabled && loading && (
-          <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399] py-10">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
           </div>
         )}
@@ -153,10 +153,10 @@ export default function SettingsPage() {
             {/* Company profile */}
             <div className="glass-card p-6">
               <div className="flex items-center gap-2 mb-1">
-                <Globe className="w-4 h-4 text-[#5470ff]" />
-                <h2 className="text-sm font-semibold text-[#e8eaf6]">Company profile</h2>
+                <Globe className="w-4 h-4 text-brand" />
+                <h2 className="text-sm font-semibold text-primary">Company profile</h2>
               </div>
-              <p className="text-xs text-[#5a6399] mb-5">
+              <p className="text-xs text-muted mb-5">
                 Used by the brain (AMD-003) as background context for every LLM call. Honest
                 values make the per-company memory more accurate over time.
               </p>
@@ -208,10 +208,10 @@ export default function SettingsPage() {
             {/* AI provider configuration */}
             <div className="glass-card p-6">
               <div className="flex items-center gap-2 mb-1">
-                <Cpu className="w-4 h-4 text-[#5470ff]" />
-                <h2 className="text-sm font-semibold text-[#e8eaf6]">LLM provider</h2>
+                <Cpu className="w-4 h-4 text-brand" />
+                <h2 className="text-sm font-semibold text-primary">LLM provider</h2>
               </div>
-              <p className="text-xs text-[#5a6399] mb-5">
+              <p className="text-xs text-muted mb-5">
                 Per AMD-003: DeepSeek is the default. Anthropic is kept as a configurable
                 alternate. You can pin a preference here; if the preferred provider has
                 no API key configured, the system falls back to whichever has a key set.
@@ -233,9 +233,9 @@ export default function SettingsPage() {
                 >
                   active provider
                 </p>
-                <p className="text-sm text-[#e8eaf6]">
+                <p className="text-sm text-primary">
                   {settings.llm.activeProvider ?? "none"} —{" "}
-                  <span className="text-[#8895c4]">{settings.llm.activeReason}</span>
+                  <span className="text-secondary">{settings.llm.activeReason}</span>
                 </p>
               </div>
 
@@ -257,27 +257,27 @@ export default function SettingsPage() {
                   <option value="anthropic">Anthropic (alternate)</option>
                 </Select>
               </Field>
-              <p className="text-[10px] text-[#5a6399] mt-2 leading-relaxed">
-                API keys live in <code className="text-[#7a96ff]">.env.local</code> or in
+              <p className="text-[10px] text-muted mt-2 leading-relaxed">
+                API keys live in <code className="text-brand">.env.local</code> or in
                 your deployment&apos;s environment — they are never stored in the database.
-                Set <code className="text-[#7a96ff]">DEEPSEEK_API_KEY</code> (primary) or{" "}
-                <code className="text-[#7a96ff]">ANTHROPIC_API_KEY</code> (alternate).
+                Set <code className="text-brand">DEEPSEEK_API_KEY</code> (primary) or{" "}
+                <code className="text-brand">ANTHROPIC_API_KEY</code> (alternate).
               </p>
             </div>
 
             {/* AI guidance control window */}
             <div className="glass-card p-6">
               <div className="flex items-center gap-2 mb-1">
-                <ShieldAlert className="w-4 h-4 text-[#5470ff]" />
-                <h2 className="text-sm font-semibold text-[#e8eaf6]">
+                <ShieldAlert className="w-4 h-4 text-brand" />
+                <h2 className="text-sm font-semibold text-primary">
                   §3.4 control window
                 </h2>
               </div>
-              <p className="text-xs text-[#5a6399] mb-4">
+              <p className="text-xs text-muted mb-4">
                 AI guidance is suppressed for the first 30 days so the team&apos;s
-                baseline can be captured honestly. Manage from <a className="text-[#7a96ff] underline" href="/dashboard/brain">Company Brain</a>.
+                baseline can be captured honestly. Manage from <a className="text-brand underline" href="/dashboard/brain">Company Brain</a>.
               </p>
-              <p className="text-xs text-[#e8eaf6]">
+              <p className="text-xs text-primary">
                 Status:{" "}
                 <span
                   className={
@@ -302,7 +302,7 @@ export default function SettingsPage() {
 
             {/* Save */}
             <div className="flex items-center justify-between">
-              <p className="text-[10px] text-[#5a6399] font-mono">
+              <p className="text-[10px] text-muted font-mono">
                 Last saved:{" "}
                 {settings.company.updated_at
                   ? settings.company.updated_at.slice(0, 19).replace("T", " ")
@@ -311,7 +311,7 @@ export default function SettingsPage() {
               <button
                 onClick={save}
                 disabled={saving}
-                className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all text-xs"
+                className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all text-xs"
               >
                 {saving ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />

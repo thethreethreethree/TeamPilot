@@ -68,7 +68,7 @@ export default function ExportMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         title={disabled ? disabledReason ?? "Export disabled" : "Export"}
-        className="flex items-center gap-1.5 text-xs text-[#8895c4] hover:text-white border border-[#252840] hover:border-[#3a3f5c] px-3 py-1.5 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-3 py-1.5 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <Download className="w-3 h-3" aria-hidden="true" />
         Export
@@ -76,19 +76,19 @@ export default function ExportMenu({
       {open && !disabled && (
         <div
           role="menu"
-          className="absolute right-0 mt-1 z-30 w-32 bg-[#12141f] border border-[#252840] rounded-lg shadow-lg overflow-hidden"
+          className="absolute right-0 mt-1 z-30 w-32 bg-surface border border-default rounded-lg shadow-lg overflow-hidden"
         >
           <button
             role="menuitem"
             onClick={() => download("csv")}
-            className="w-full text-left text-xs text-[#e8eaf6] hover:bg-[#1a1d2e] px-3 py-2"
+            className="w-full text-left text-xs text-primary hover:bg-surface-raised px-3 py-2"
           >
             CSV
           </button>
           <button
             role="menuitem"
             onClick={() => download("json")}
-            className="w-full text-left text-xs text-[#e8eaf6] hover:bg-[#1a1d2e] px-3 py-2"
+            className="w-full text-left text-xs text-primary hover:bg-surface-raised px-3 py-2"
           >
             JSON
           </button>

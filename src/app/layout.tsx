@@ -1,5 +1,42 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+
+/**
+ * No-flash theme bootstrap.
+ *
+ * Why this runs inline before paint: if React mounts and *then* sets
+ * `data-theme`, the page renders one frame in dark mode (the CSS default)
+ * before swapping to light — a visible white-then-dark flash that looks
+ * like a bug. We have to resolve the user's preference and set the
+ * attribute BEFORE the first paint.
+ *
+ * Reads `execos.theme.v1` from localStorage. Falls back to the OS
+ * `prefers-color-scheme` media query. Defaults to dark.
+ *
+ * The wrapping IIFE + try/catch is required: localStorage can throw in
+ * private browsing / disabled-storage contexts, and we never want a
+ * theme failure to crash the page.
+ */
+const NO_FLASH_THEME_SCRIPT = `
+(function() {
+  try {
+    var stored = localStorage.getItem('execos.theme.v1');
+    var pref = stored || 'system';
+    var resolved;
+    if (pref === 'light' || pref === 'dark') {
+      resolved = pref;
+    } else {
+      resolved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    document.documentElement.setAttribute('data-theme', resolved);
+    document.documentElement.style.colorScheme = resolved;
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+})();
+`.trim();
 
 const TITLE = "ExecOS — An honest AI executive operating system";
 const DESCRIPTION =
@@ -49,11 +86,15 @@ export const metadata: Metadata = {
   },
 };
 
+// Viewport themeColor reacts per-mode so the mobile chrome (Android URL bar,
+// PWA shell) matches the active surface.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0c0d16",
-  colorScheme: "dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F4F6FA" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A1429" },
+  ],
 };
 
 export default function RootLayout({
@@ -62,9 +103,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-[#0c0d16] text-[#e8eaf6] antialiased">
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Resolves theme before paint — see NO_FLASH_THEME_SCRIPT comment. */}
+        <Script
+          id="execos-no-flash-theme"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME_SCRIPT }}
+        />
+      </head>
+      <body className="min-h-screen bg-base text-primary antialiased">
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

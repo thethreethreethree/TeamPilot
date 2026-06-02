@@ -50,6 +50,7 @@ type Action = {
 
 const NAV_ACTIONS: Omit<Action, "run">[] = [
   { id: "nav-dashboard", label: "Command Center", icon: LayoutDashboard, href: "/dashboard", group: "Navigate", keywords: ["home", "dashboard"] },
+  { id: "nav-chats", label: "Team Chat", icon: MessageSquare, href: "/dashboard/chats", group: "Navigate", keywords: ["chat", "topic", "conversation", "slack"] },
   { id: "nav-tasks", label: "Tasks", icon: ListChecks, href: "/dashboard/operations", group: "Navigate", keywords: ["work", "todo", "operations"] },
   { id: "nav-team", label: "Team", icon: Users, href: "/dashboard/team", group: "Navigate", keywords: ["members", "people", "invite"] },
   { id: "nav-diagnose", label: "Living Diagnosis", icon: GitMerge, href: "/dashboard/diagnose", group: "Navigate", keywords: ["loop", "engine", "constitution"] },
@@ -75,6 +76,15 @@ export default function CommandPalette() {
   // The destination page reads `?new=1` and opens its own create modal.
   const createActions: Action[] = useMemo(
     () => [
+      {
+        id: "create-chat",
+        label: "New team chat topic",
+        hint: "Start a topic-based conversation that captures structured outcomes.",
+        icon: MessageSquare,
+        href: "/dashboard/chats?new=1",
+        group: "Create",
+        keywords: ["chat", "topic", "conversation"],
+      },
       {
         id: "create-task",
         label: "New task",
@@ -245,10 +255,10 @@ export default function CommandPalette() {
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        className="w-full max-w-xl bg-[#12141f] border border-[#252840] rounded-xl shadow-2xl overflow-hidden"
+        className="w-full max-w-xl bg-surface border border-default rounded-xl shadow-2xl overflow-hidden"
       >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#252840]">
-          <Search className="w-4 h-4 text-[#5a6399]" aria-hidden="true" />
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-default">
+          <Search className="w-4 h-4 text-muted" aria-hidden="true" />
           <input
             ref={inputRef}
             value={query}
@@ -259,9 +269,9 @@ export default function CommandPalette() {
             aria-activedescendant={
               filtered[active] ? `cmd-row-${filtered[active].id}` : undefined
             }
-            className="flex-1 bg-transparent text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-primary placeholder-[#3a3f5c] focus:outline-none"
           />
-          <kbd className="text-[10px] text-[#5a6399] bg-[#0c0d16] border border-[#252840] rounded px-1.5 py-0.5 font-mono">
+          <kbd className="text-[10px] text-muted bg-base border border-default rounded px-1.5 py-0.5 font-mono">
             ESC
           </kbd>
         </div>
@@ -273,13 +283,13 @@ export default function CommandPalette() {
           className="max-h-[50vh] overflow-y-auto py-2"
         >
           {grouped.length === 0 && (
-            <p className="text-center text-xs text-[#5a6399] py-6">
+            <p className="text-center text-xs text-muted py-6">
               No matches.
             </p>
           )}
           {grouped.map(({ group, items }) => (
             <div key={group} className="mb-2 last:mb-0">
-              <p className="px-4 py-1 text-[10px] uppercase tracking-widest text-[#5a6399]">
+              <p className="px-4 py-1 text-[10px] uppercase tracking-widest text-muted">
                 {group}
               </p>
               {items.map((a) => {
@@ -296,32 +306,32 @@ export default function CommandPalette() {
                     onMouseEnter={() => setActive(idx)}
                     onClick={() => runAction(a)}
                     className={`flex items-center gap-3 px-4 py-2 cursor-pointer ${
-                      isActive ? "bg-[#5470ff]/15" : "hover:bg-[#1a1d2e]"
+                      isActive ? "bg-[#C8232C]/15" : "hover:bg-surface-raised"
                     }`}
                   >
                     <Icon
                       className={`w-4 h-4 flex-shrink-0 ${
-                        isActive ? "text-[#7a96ff]" : "text-[#5a6399]"
+                        isActive ? "text-brand" : "text-muted"
                       }`}
                       aria-hidden="true"
                     />
                     <div className="min-w-0 flex-1">
                       <p
                         className={`text-sm ${
-                          isActive ? "text-white" : "text-[#e8eaf6]"
+                          isActive ? "text-white" : "text-primary"
                         }`}
                       >
                         {a.label}
                       </p>
                       {a.hint && (
-                        <p className="text-[10px] text-[#5a6399] truncate">
+                        <p className="text-[10px] text-muted truncate">
                           {a.hint}
                         </p>
                       )}
                     </div>
                     {isActive && (
                       <CornerDownLeft
-                        className="w-3.5 h-3.5 text-[#7a96ff]"
+                        className="w-3.5 h-3.5 text-brand"
                         aria-hidden="true"
                       />
                     )}
@@ -332,23 +342,23 @@ export default function CommandPalette() {
           ))}
         </div>
 
-        <div className="flex items-center justify-between px-4 py-2 border-t border-[#252840] text-[10px] text-[#5a6399]">
+        <div className="flex items-center justify-between px-4 py-2 border-t border-default text-[10px] text-muted">
           <div className="flex items-center gap-3">
             <span>
-              <kbd className="bg-[#0c0d16] border border-[#252840] rounded px-1 py-0.5 font-mono">
+              <kbd className="bg-base border border-default rounded px-1 py-0.5 font-mono">
                 ↑↓
               </kbd>{" "}
               navigate
             </span>
             <span>
-              <kbd className="bg-[#0c0d16] border border-[#252840] rounded px-1 py-0.5 font-mono">
+              <kbd className="bg-base border border-default rounded px-1 py-0.5 font-mono">
                 ↵
               </kbd>{" "}
               run
             </span>
           </div>
           <span>
-            <kbd className="bg-[#0c0d16] border border-[#252840] rounded px-1 py-0.5 font-mono">
+            <kbd className="bg-base border border-default rounded px-1 py-0.5 font-mono">
               ⌘K
             </kbd>{" "}
             toggle

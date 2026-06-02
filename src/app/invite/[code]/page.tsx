@@ -92,25 +92,25 @@ export default function InviteAcceptPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0d16] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5470ff] to-[#7a96ff] flex items-center justify-center shadow-glow">
-            <Activity className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+            <Activity className="w-5 h-5 text-primary" />
           </div>
-          <span className="text-xl font-bold text-white">ExecOS</span>
+          <span className="text-xl font-bold text-primary">ExecOS</span>
         </div>
 
         <div className="glass-card p-8">
           {phase === "loading" && (
-            <div className="flex items-center gap-2 text-sm text-[#8895c4] justify-center">
+            <div className="flex items-center gap-2 text-sm text-secondary justify-center">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading…
             </div>
           )}
 
           {phase === "error" && (
             <>
-              <h1 className="text-lg font-semibold text-[#e8eaf6] mb-2">
+              <h1 className="text-lg font-semibold text-primary mb-2">
                 Can&apos;t accept this invitation
               </h1>
               <p className="text-sm text-red-300">{error}</p>
@@ -119,10 +119,10 @@ export default function InviteAcceptPage() {
 
           {phase === "needs-auth" && (
             <>
-              <h1 className="text-lg font-semibold text-[#e8eaf6] mb-1">
+              <h1 className="text-lg font-semibold text-primary mb-1">
                 You&apos;ve been invited to ExecOS
               </h1>
-              <p className="text-sm text-[#8895c4] mb-6">
+              <p className="text-sm text-secondary mb-6">
                 {mode === "signup"
                   ? "Create your account to join."
                   : "Sign in to join."}
@@ -134,7 +134,7 @@ export default function InviteAcceptPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
-                  className="w-full bg-[#12141f] border border-[#252840] rounded-lg px-3.5 py-2.5 text-sm text-[#e8eaf6] focus:outline-none focus:border-[#5470ff]/50"
+                  className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-[#C8232C]/50"
                 />
                 <input
                   type="password"
@@ -143,7 +143,7 @@ export default function InviteAcceptPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full bg-[#12141f] border border-[#252840] rounded-lg px-3.5 py-2.5 text-sm text-[#e8eaf6] focus:outline-none focus:border-[#5470ff]/50"
+                  className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-[#C8232C]/50"
                 />
                 {mode === "signup" && (
                   <input
@@ -151,14 +151,14 @@ export default function InviteAcceptPage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Your name (optional)"
-                    className="w-full bg-[#12141f] border border-[#252840] rounded-lg px-3.5 py-2.5 text-sm text-[#e8eaf6] focus:outline-none focus:border-[#5470ff]/50"
+                    className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-[#C8232C]/50"
                   />
                 )}
                 {error && <p className="text-xs text-red-400">{error}</p>}
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full flex items-center justify-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg transition-all text-sm"
+                  className="w-full flex items-center justify-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg transition-all text-sm"
                 >
                   {busy
                     ? "Please wait…"
@@ -168,14 +168,14 @@ export default function InviteAcceptPage() {
                   {!busy && <ArrowRight className="w-4 h-4" />}
                 </button>
               </form>
-              <p className="text-center text-xs text-[#5a6399] mt-4">
+              <p className="text-center text-xs text-muted mt-4">
                 {mode === "signup" ? "Already have an account? " : "Need an account? "}
                 <button
                   onClick={() => {
                     setMode(mode === "signup" ? "signin" : "signup");
                     setError("");
                   }}
-                  className="text-[#7a96ff] hover:text-white"
+                  className="text-brand hover:text-primary"
                 >
                   {mode === "signup" ? "Sign in instead" : "Sign up instead"}
                 </button>
@@ -185,10 +185,10 @@ export default function InviteAcceptPage() {
 
           {phase === "ready" && (
             <>
-              <h1 className="text-lg font-semibold text-[#e8eaf6] mb-1">
+              <h1 className="text-lg font-semibold text-primary mb-1">
                 Accept invitation
               </h1>
-              <p className="text-sm text-[#8895c4] mb-5">
+              <p className="text-sm text-secondary mb-5">
                 You&apos;re signed in. Confirm to attach this account to the inviting
                 company.
               </p>
@@ -197,13 +197,13 @@ export default function InviteAcceptPage() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Your name (optional, used in team views)"
-                className="w-full bg-[#12141f] border border-[#252840] rounded-lg px-3.5 py-2.5 text-sm text-[#e8eaf6] focus:outline-none focus:border-[#5470ff]/50 mb-3"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-[#C8232C]/50 mb-3"
               />
               {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
               <button
                 onClick={acceptInvitation}
                 disabled={busy}
-                className="w-full flex items-center justify-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg transition-all text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg transition-all text-sm"
               >
                 {busy ? "Accepting…" : "Accept invitation"}
                 {!busy && <ArrowRight className="w-4 h-4" />}
@@ -215,7 +215,7 @@ export default function InviteAcceptPage() {
             <div className="text-center">
               <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
               <p className="text-sm text-emerald-200 mb-1">Welcome to the team.</p>
-              <p className="text-xs text-[#5a6399]">Redirecting to your dashboard…</p>
+              <p className="text-xs text-muted">Redirecting to your dashboard…</p>
             </div>
           )}
         </div>

@@ -23,9 +23,11 @@ import {
 import { cn } from "@/lib/utils";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { CONSTITUTION } from "@/lib/constitution";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const productionNav = [
   { label: "Command Center", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Team Chat", href: "/dashboard/chats", icon: MessageSquare },
   { label: "Tasks", href: "/dashboard/operations", icon: ListChecks },
   { label: "Team", href: "/dashboard/team", icon: Users },
   { label: "Living Diagnosis", href: "/dashboard/diagnose", icon: GitMerge },
@@ -87,22 +89,22 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-[#12141f] border-r border-[#252840] flex flex-col z-40">
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-surface border-r border-default flex flex-col z-40">
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-[#252840]">
+      <div className="px-6 py-6 border-b border-default">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#5470ff] to-[#7a96ff] flex items-center justify-center shadow-glow">
-            <Activity className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+            <Activity className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <span className="text-base font-bold text-white tracking-tight">ExecOS</span>
+            <span className="text-base font-bold text-primary tracking-tight">ExecOS</span>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
                   supabaseEnabled ? "bg-emerald-400 pulse-dot" : "bg-yellow-400"
                 }`}
               />
-              <span className="text-[10px] text-[#5a6399] uppercase tracking-widest">
+              <span className="text-[10px] text-muted uppercase tracking-widest">
                 {supabaseEnabled ? "Live" : "Demo"}
               </span>
             </div>
@@ -111,19 +113,19 @@ export default function Sidebar() {
       </div>
 
       {/* Company selector */}
-      <div className="px-4 py-3 border-b border-[#252840]">
-        <button className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#1a1d2e] transition-colors group">
+      <div className="px-4 py-3 border-b border-default">
+        <button className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-surface-raised transition-colors group">
           <div className="text-left">
-            <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-0.5">Company</p>
-            <p className="text-sm font-medium text-[#e8eaf6]">{companyName}</p>
+            <p className="text-xs text-muted uppercase tracking-widest mb-0.5">Company</p>
+            <p className="text-sm font-medium text-primary">{companyName}</p>
           </div>
-          <ChevronRight className="w-3.5 h-3.5 text-[#5a6399] group-hover:text-[#8895c4] transition-colors" />
+          <ChevronRight className="w-3.5 h-3.5 text-muted group-hover:text-secondary transition-colors" />
         </button>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p className="px-3 mb-2 text-[10px] text-[#5a6399] uppercase tracking-widest">
+        <p className="px-3 mb-2 text-[10px] text-muted uppercase tracking-widest">
           Production
         </p>
         {productionNav.map((item) => {
@@ -137,26 +139,26 @@ export default function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                 isActive
-                  ? "bg-[#5470ff]/15 text-[#7a96ff] border border-[#5470ff]/30"
-                  : "text-[#8895c4] hover:text-[#e8eaf6] hover:bg-[#1a1d2e]"
+                  ? "bg-[#C8232C]/15 text-brand border border-[#C8232C]/30"
+                  : "text-secondary hover:text-primary hover:bg-surface-raised"
               )}
             >
               <Icon
                 className={cn(
                   "w-4 h-4 flex-shrink-0",
-                  isActive ? "text-[#5470ff]" : "text-[#5a6399]"
+                  isActive ? "text-brand" : "text-muted"
                 )}
               />
               {item.label}
               {isActive && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#5470ff]" />
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#C8232C]" />
               )}
             </Link>
           );
         })}
 
         <div className="pt-4">
-          <p className="px-3 mb-2 text-[10px] text-[#5a6399] uppercase tracking-widest flex items-center gap-1.5">
+          <p className="px-3 mb-2 text-[10px] text-muted uppercase tracking-widest flex items-center gap-1.5">
             <Beaker className="w-3 h-3 text-violet-400" />
             Design preview
           </p>
@@ -171,10 +173,10 @@ export default function Sidebar() {
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                   isActive
                     ? "bg-violet-500/10 text-violet-300 border border-violet-500/30"
-                    : "text-[#5a6399] hover:text-[#8895c4] hover:bg-[#1a1d2e]"
+                    : "text-muted hover:text-secondary hover:bg-surface-raised"
                 )}
               >
-                <Icon className="w-4 h-4 text-[#5a6399]" />
+                <Icon className="w-4 h-4 text-muted" />
                 {item.label}
               </Link>
             );
@@ -182,24 +184,34 @@ export default function Sidebar() {
         </div>
 
         <div className="pt-4">
-          <p className="px-3 mb-2 text-[10px] text-[#5a6399] uppercase tracking-widest">
+          <p className="px-3 mb-2 text-[10px] text-muted uppercase tracking-widest">
             System
           </p>
           <Link
             href="/dashboard/settings"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#8895c4] hover:text-[#e8eaf6] hover:bg-[#1a1d2e] transition-all duration-150"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-secondary hover:text-primary hover:bg-surface-raised transition-all duration-150"
           >
-            <Settings className="w-4 h-4 text-[#5a6399]" />
+            <Settings className="w-4 h-4 text-muted" />
             Settings
           </Link>
         </div>
       </nav>
 
+      {/* Theme switcher — placed above the constitution badge so it's
+          always reachable without scrolling. Compact variant keeps the
+          sidebar density consistent. */}
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+        <span className="text-[10px] text-muted uppercase tracking-widest">
+          Theme
+        </span>
+        <ThemeToggle />
+      </div>
+
       {/* Constitution version badge */}
-      <div className="px-4 pt-2 pb-1">
+      <div className="px-4 pt-1 pb-1 border-t border-default">
         <Link
           href="/dashboard/settings"
-          className="block text-[10px] text-[#3a3f5c] hover:text-[#5a6399] transition-colors font-mono"
+          className="block pt-2 text-[10px] text-muted hover:text-muted transition-colors font-mono"
           title={`Last amendment: ${CONSTITUTION.lastAmendmentId} (${CONSTITUTION.lastAmendmentDate})`}
         >
           CLAUDE.md v{CONSTITUTION.version} · {CONSTITUTION.amendmentCount} amendments
@@ -207,22 +219,22 @@ export default function Sidebar() {
       </div>
 
       {/* User footer */}
-      <div className="px-4 py-4 border-t border-[#252840]">
+      <div className="px-4 py-4 border-t border-default">
         <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#5470ff] to-[#7a96ff] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-[#e8eaf6] truncate">
+            <p className="text-sm font-medium text-primary truncate">
               {userName || "Loading…"}
             </p>
-            <p className="text-xs text-[#5a6399] truncate">{userRole || "Executive Access"}</p>
+            <p className="text-xs text-muted truncate">{userRole || "Executive Access"}</p>
           </div>
           <button
             onClick={signOut}
             title="Sign out"
             aria-label="Sign out"
-            className="p-1.5 rounded-lg text-[#5a6399] hover:text-red-400 hover:bg-[#1a1d2e] transition-colors"
+            className="p-1.5 rounded-lg text-muted hover:text-red-400 hover:bg-surface-raised transition-colors"
           >
             <LogOut aria-hidden="true" className="w-4 h-4" />
           </button>

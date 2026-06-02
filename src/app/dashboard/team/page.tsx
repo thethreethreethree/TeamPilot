@@ -55,7 +55,7 @@ export default function TeamPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar title="Team" subtitle={`${companyName} · Members + invitations`} />
 
       <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -63,7 +63,7 @@ export default function TeamPage() {
           <div className="glass-card p-6 text-center">
             <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
             <p className="text-sm text-yellow-100 mb-1">Live mode required</p>
-            <p className="text-xs text-[#5a6399] max-w-md mx-auto">
+            <p className="text-xs text-muted max-w-md mx-auto">
               Team management requires the database. Configure Supabase to invite members.
             </p>
           </div>
@@ -73,7 +73,7 @@ export default function TeamPage() {
           <>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-[#5a6399]">
+                <p className="text-xs text-muted">
                   {members.length} member{members.length === 1 ? "" : "s"} ·{" "}
                   {pendingInvites.length} pending invite
                   {pendingInvites.length === 1 ? "" : "s"}
@@ -81,7 +81,7 @@ export default function TeamPage() {
               </div>
               <button
                 onClick={() => setInviting(true)}
-                className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 Invite member
@@ -89,7 +89,7 @@ export default function TeamPage() {
             </div>
 
             {loading && (
-              <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399] py-10">
+              <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
               </div>
             )}
@@ -102,7 +102,7 @@ export default function TeamPage() {
               <>
                 <Section title={`Members (${members.length})`}>
                   {members.length === 0 ? (
-                    <p className="text-xs text-[#5a6399] py-6 text-center">
+                    <p className="text-xs text-muted py-6 text-center">
                       No active members. This usually means onboarding hasn&apos;t
                       completed.
                     </p>
@@ -117,7 +117,7 @@ export default function TeamPage() {
 
                 <Section title={`Pending invitations (${pendingInvites.length})`}>
                   {pendingInvites.length === 0 ? (
-                    <p className="text-xs text-[#5a6399] py-6 text-center">
+                    <p className="text-xs text-muted py-6 text-center">
                       No pending invitations.
                     </p>
                   ) : (
@@ -169,7 +169,7 @@ function Section({
 }) {
   return (
     <div className="glass-card p-5">
-      <h2 className="text-sm font-semibold text-[#e8eaf6] mb-4">{title}</h2>
+      <h2 className="text-sm font-semibold text-primary mb-4">{title}</h2>
       {children}
     </div>
   );
@@ -201,12 +201,12 @@ function MemberRow({
   return (
     <div className="flex items-center justify-between py-3">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#5470ff] to-[#7a96ff] flex items-center justify-center text-xs font-bold text-white">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center text-xs font-bold text-white">
           {initials}
         </div>
         <div>
-          <p className="text-sm text-[#e8eaf6]">{member.fullName ?? "—"}</p>
-          <p className="text-[10px] text-[#5a6399] font-mono">
+          <p className="text-sm text-primary">{member.fullName ?? "—"}</p>
+          <p className="text-[10px] text-muted font-mono">
             {member.role} · joined {member.createdAt.slice(0, 10)}
           </p>
         </div>
@@ -214,7 +214,7 @@ function MemberRow({
       <button
         onClick={remove}
         disabled={busy}
-        className="flex items-center gap-1.5 text-xs text-[#5a6399] hover:text-red-400 disabled:opacity-40"
+        className="flex items-center gap-1.5 text-xs text-muted hover:text-red-400 disabled:opacity-40"
         aria-label={`Remove member ${member.fullName ?? ""}`.trim()}
         title="Remove member"
       >
@@ -261,14 +261,14 @@ function InviteRow({
     <div className="py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm text-[#e8eaf6] flex items-center gap-2 flex-wrap">
-            <Mail className="w-3.5 h-3.5 text-[#5a6399]" />
+          <p className="text-sm text-primary flex items-center gap-2 flex-wrap">
+            <Mail className="w-3.5 h-3.5 text-muted" />
             {invitation.email}
             <span className="text-[10px] uppercase tracking-widest text-violet-300 bg-violet-500/10 border border-violet-500/30 px-1.5 py-0.5 rounded-full">
               {invitation.role}
             </span>
           </p>
-          <p className="text-[10px] text-[#5a6399] mt-1 font-mono">
+          <p className="text-[10px] text-muted mt-1 font-mono">
             invited {invitation.invitedAt.slice(0, 10)} · expires{" "}
             {invitation.expiresAt.slice(0, 10)}
           </p>
@@ -276,7 +276,7 @@ function InviteRow({
         <div className="flex items-center gap-2">
           <button
             onClick={copy}
-            className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-2.5 py-1.5 rounded-lg transition-all"
+            className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-2.5 py-1.5 rounded-lg transition-all"
             aria-label={`Copy invite link for ${invitation.email}`}
             title="Copy invite link"
           >
@@ -286,7 +286,7 @@ function InviteRow({
           <button
             onClick={revoke}
             disabled={busy}
-            className="text-xs text-[#5a6399] hover:text-red-400 disabled:opacity-40 p-1.5"
+            className="text-xs text-muted hover:text-red-400 disabled:opacity-40 p-1.5"
             aria-label={`Revoke invitation for ${invitation.email}`}
             title="Revoke"
           >
@@ -301,12 +301,12 @@ function InviteRow({
 function HistoryRow({ invitation }: { invitation: TeamInvitation }) {
   const status = invitation.acceptedAt
     ? { label: "accepted", color: "text-emerald-300" }
-    : { label: "revoked", color: "text-[#5a6399]" };
+    : { label: "revoked", color: "text-muted" };
   return (
     <div className="py-2 flex items-center justify-between">
-      <p className="text-xs text-[#8895c4]">
+      <p className="text-xs text-secondary">
         {invitation.email} ·{" "}
-        <span className="text-[#5a6399] font-mono">{invitation.role}</span>
+        <span className="text-muted font-mono">{invitation.role}</span>
       </p>
       <p className={`text-[10px] uppercase tracking-widest ${status.color}`}>
         {status.label}
@@ -387,14 +387,14 @@ function InviteModal({
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
               onClick={onClose}
-              className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2"
+              className="text-xs text-muted hover:text-secondary px-3 py-2"
             >
               Cancel
             </button>
             <button
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Creating…" : "Create invitation"}
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -412,11 +412,11 @@ function InviteModal({
               <input
                 value={inviteUrl}
                 readOnly
-                className="flex-1 bg-[#12141f] border border-[#252840] rounded-lg px-3 py-2 text-xs text-[#8895c4] font-mono"
+                className="flex-1 bg-surface border border-default rounded-lg px-3 py-2 text-xs text-secondary font-mono"
               />
               <button
                 onClick={copy}
-                className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-2.5 py-2 rounded-lg transition-all"
+                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-2.5 py-2 rounded-lg transition-all"
               >
                 <Copy className="w-3 h-3" />
                 {copied ? "Copied" : "Copy"}
@@ -426,7 +426,7 @@ function InviteModal({
           <div className="flex items-center justify-end pt-2">
             <button
               onClick={onInvited}
-              className="text-xs text-[#7a96ff] hover:text-white px-3 py-2"
+              className="text-xs text-brand hover:text-primary px-3 py-2"
             >
               Done
             </button>

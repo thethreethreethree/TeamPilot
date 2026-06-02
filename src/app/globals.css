@@ -1,26 +1,142 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * ExecOS base styles.
+ *
+ * Brand identity: Iron Man (2008) visual grammar — crimson, gold, arc-reactor
+ * cyan, deep navy. The full identity map lives at docs/BRAND.md. The
+ * programmatic tokens live at src/lib/design/tokens.ts. The Tailwind utility
+ * exposure lives at tailwind.config.ts. This file holds the CSS-variable
+ * mirror plus the animation primitives.
+ */
+
 :root {
-  --bg-primary: #0c0d16;
-  --bg-secondary: #12141f;
-  --bg-card: #1a1d2e;
-  --bg-card-hover: #1f2336;
-  --border: #252840;
-  --border-hover: #3a3f5c;
-  --text-primary: #e8eaf6;
-  --text-secondary: #8895c4;
-  --text-muted: #5a6399;
-  --brand: #5470ff;
-  --brand-light: #7a96ff;
-  --brand-glow: rgba(84, 112, 255, 0.25);
-  --success: #34d399;
-  --warning: #fbbf24;
-  --danger: #f87171;
-  --info: #60a5fa;
+  /* ─── Brand triad — Iron Man (mode-agnostic) ──────────────────────
+     Crimson, gold, and arc cyan stay identical in both modes per
+     docs/BRAND.md §9.5. Only the surface scale swaps. */
+  --crimson-400: #F75663;
+  --crimson-500: #C8232C; /* brand primary (the suit) */
+  --crimson-600: #A91D24; /* primary hover / light-mode text */
+  --crimson-700: #8A1820;
+
+  --gold-300: #F2C94C;
+  --gold-400: #E8B53A; /* held / validated (the helmet gold) */
+  --gold-500: #D4A024;
+  --gold-600: #A6801C; /* light-mode text */
+
+  --arc-200: #A8E6F0;
+  --arc-300: #7DDCE8;
+  --arc-400: #5EC8E0; /* AI active (the arc reactor) */
+  --arc-500: #3FB1CC;
+  --arc-700: #1F6B7E; /* light-mode text */
+
+  /* Neutrals — the navy field */
+  --navy-100: #C7D1E3;
+  --navy-200: #94A3BF;
+  --navy-300: #5F7290;
+  --navy-400: #3C4D6A;
+  --navy-500: #2D446C;
+  --navy-600: #1F3050;
+  --navy-700: #152339;
+  --navy-800: #0D1B2D;
+  --navy-900: #0A1429;
+
+  /* Semantic — also mode-agnostic */
+  --success: #E8B53A;
+  --warning: #FF9F1C;
+  --error:   #E63946;
+  --info:    #5EC8E0;
+}
+
+/**
+ * ─── Theme tokens (mode-switching) ───────────────────────────────
+ *
+ * Tailwind utilities like `bg-base`, `bg-surface`, `border-default`,
+ * `text-primary`, `text-brand` are wired in tailwind.config.ts to read
+ * the variables below. Switching `data-theme` on <html> flips every
+ * such utility everywhere in one paint.
+ *
+ * Variables are stored as raw R G B triplets (no `rgb()` wrapper) so
+ * Tailwind's `<alpha-value>` substitution works (e.g. `bg-surface/60`).
+ */
+
+/* Default — dark (night) mode. Applied when no data-theme is set. */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-base:           10 20 41;     /* navy.900 #0A1429 */
+  --bg-surface:        13 27 45;     /* navy.800 #0D1B2D */
+  --bg-surface-raised: 21 35 57;     /* navy.700 #152339 */
+
+  --border-default: 31 48 80;        /* navy.600 #1F3050 */
+  --border-strong:  45 68 108;       /* navy.500 #2D446C */
+
+  --text-primary:   241 245 250;     /* #F1F5FA */
+  --text-secondary: 148 163 191;     /* navy.200 #94A3BF */
+  --text-muted:     95 114 144;      /* navy.300 #5F7290 */
+
+  /* Contrast-aware brand text — bright on dark surfaces */
+  --brand-text:  247 86 99;          /* crimson.400 #F75663 */
+  --accent-text: 242 201 76;         /* gold.300 #F2C94C */
+  --active-text: 125 220 232;        /* arc.300 #7DDCE8 */
+
+  /* Legacy alias names — kept so existing component literals still
+     render correctly during incremental migration. */
+  --bg-primary: var(--navy-900);
+  --bg-secondary: var(--navy-800);
+  --bg-card: var(--navy-700);
+  --bg-card-hover: var(--navy-500);
+  --border: var(--navy-600);
+  --border-hover: var(--navy-500);
+  --text-primary-legacy: #F1F5FA;
+  --text-secondary-legacy: var(--navy-200);
+  --text-muted-legacy: var(--navy-300);
+  --brand: var(--crimson-500);
+  --brand-light: var(--crimson-400);
+  --brand-glow: rgba(200, 35, 44, 0.35);
+  --danger: var(--error);
+}
+
+/* Light (day) mode. */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-base:           244 246 250;  /* cool slate #F4F6FA */
+  --bg-surface:        255 255 255;  /* #FFFFFF */
+  --bg-surface-raised: 248 250 253;  /* #F8FAFD */
+
+  --border-default: 229 232 238;     /* #E5E8EE */
+  --border-strong:  203 210 221;     /* #CBD2DD */
+
+  --text-primary:   10 20 41;        /* navy.900 #0A1429 */
+  --text-secondary: 60 77 106;       /* navy.400 #3C4D6A */
+  --text-muted:     95 114 144;      /* navy.300 #5F7290 */
+
+  /* Contrast-aware brand text — darker variants for legibility on white */
+  --brand-text:  169 29 36;          /* crimson.600 #A91D24 */
+  --accent-text: 166 128 28;         /* gold.600 #A6801C */
+  --active-text: 31 107 126;         /* arc.700 #1F6B7E */
+
+  /* Legacy aliases mapped onto light surfaces so non-migrated components
+     still look intentional in light mode (not jarring navy-on-white). */
+  --bg-primary: #F4F6FA;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #F8FAFD;
+  --bg-card-hover: #EDF1F7;
+  --border: #E5E8EE;
+  --border-hover: #CBD2DD;
+  --text-primary-legacy: #0A1429;
+  --text-secondary-legacy: #3C4D6A;
+  --text-muted-legacy: #5F7290;
+  --brand: var(--crimson-600);
+  --brand-light: var(--crimson-500);
+  --brand-glow: rgba(169, 29, 36, 0.25);
+  --danger: var(--error);
 }
 
 * {
@@ -33,37 +149,101 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  /* Follows the active theme via CSS variables (set by [data-theme="*"]). */
+  background: rgb(var(--bg-base));
+  color: rgb(var(--text-primary));
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Smooth mode transition without flashing during scroll. */
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar — theme-aware, with crimson hover (subtle brand presence) */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: rgb(var(--bg-surface));
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-hover);
+  background: rgb(var(--border-default));
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--crimson-700);
 }
 
-/* Glass card */
+/* Glass card — follows the active surface scale */
 .glass-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: rgb(var(--bg-surface));
+  border: 1px solid rgb(var(--border-default));
   border-radius: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 .glass-card:hover {
-  border-color: var(--border-hover);
+  border-color: rgb(var(--border-strong));
+}
+
+/* Iron Man shadow utilities (also available as Tailwind shadow-glow-*) */
+.shadow-glow {
+  box-shadow: 0 0 24px rgba(200, 35, 44, 0.35);
+}
+.shadow-glow-gold {
+  box-shadow: 0 0 20px rgba(232, 181, 58, 0.30);
+}
+.shadow-glow-arc {
+  box-shadow: 0 0 28px rgba(94, 200, 224, 0.40);
+}
+
+/* Reactor ring — the arc-reactor logo treatment.
+   Used on landing hero, pitch cover, error pages. */
+.reactor-ring {
+  background: radial-gradient(
+    circle at center,
+    #FFFFFF 0%,
+    var(--arc-200) 18%,
+    var(--arc-400) 38%,
+    transparent 70%
+  );
+  box-shadow: 0 0 60px rgba(94, 200, 224, 0.4);
+}
+
+/* Metallic gold gradient — reserved for hero titles, premium badges */
+.text-gold-metallic {
+  background: linear-gradient(135deg, #F2C94C 0%, #E8B53A 45%, #A6801C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Metallic crimson — reserved for hero CTAs */
+.bg-crimson-metallic {
+  background: linear-gradient(135deg, #F75663 0%, #C8232C 60%, #8A1820 100%);
+}
+
+/**
+ * Brand-fill child contrast guard.
+ *
+ * Why: during theme migration, many lucide icons that used to say
+ * `text-white` were rewritten to `text-primary` (which resolves to
+ * white-on-dark, near-black-on-light). When those icons sit INSIDE a
+ * crimson button or a brand gradient (where the parent is a brand fill
+ * that stays the same in both modes), text-primary going dark in light
+ * mode reads as a regression. This rule keeps any child text/icon
+ * rendered against a crimson/gradient surface visually white, in either
+ * mode — matching what `text-white` did before.
+ *
+ * The selectors target Tailwind's compiled brand-fill class names. They
+ * are intentionally narrow: only the brand crimson family and gradient
+ * containers — not general dark backgrounds, which the theme should own.
+ */
+.bg-crimson-metallic .text-primary,
+[class*="bg-[#C8232C]"] .text-primary,
+[class*="bg-[#A91D24]"] .text-primary,
+[class*="bg-[#8A1820]"] .text-primary,
+[class*="bg-gradient-to"] .text-primary {
+  color: #ffffff;
 }
 
 /* Score ring animation */
@@ -71,15 +251,14 @@ body {
   from { stroke-dashoffset: 283; }
   to { stroke-dashoffset: var(--score-offset); }
 }
-
 .score-ring circle {
   animation: score-fill 1s ease forwards;
 }
 
-/* Pulse dot */
+/* Pulse dot — arc reactor heartbeat for AI-active indicators */
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(94, 200, 224, 0.7); }
+  50%      { opacity: 0.5; box-shadow: 0 0 4px rgba(94, 200, 224, 0.3); }
 }
 .pulse-dot {
   animation: pulse-dot 2s ease-in-out infinite;
@@ -94,9 +273,9 @@ body {
   animation: fadeIn 0.4s ease forwards;
 }
 
-/* Gradient text */
+/* Gradient text (legacy class) — now uses brand crimson→gold for warmth */
 .gradient-text {
-  background: linear-gradient(135deg, #7a96ff 0%, #5470ff 100%);
+  background: linear-gradient(135deg, #F75663 0%, #E8B53A 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -110,15 +289,12 @@ body {
 .cursor-blink::after {
   content: '|';
   animation: blink 1s step-end infinite;
-  color: var(--brand);
+  color: var(--arc-400);
 }
 
 /**
- * Respect the user's reduced-motion preference (audit Tier 3 accessibility).
- *
- * Disables non-essential motion: score-ring fill, pulse-dot heartbeat, fade-ins,
- * cursor blink. Decorative transitions on glass-card and the per-element
- * Tailwind transitions become instant.
+ * Respect the user's reduced-motion preference (a11y).
+ * Pins ScoreRing/pulse-dot/fade-in/cursor-blink to their final visible state.
  */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -128,7 +304,7 @@ body {
     scroll-behavior: auto !important;
   }
   .score-ring circle { stroke-dashoffset: var(--score-offset) !important; }
-  .pulse-dot { opacity: 1 !important; }
+  .pulse-dot { opacity: 1 !important; box-shadow: 0 0 8px rgba(94, 200, 224, 0.7) !important; }
   .fade-in { opacity: 1 !important; transform: none !important; }
   .cursor-blink::after { opacity: 1 !important; }
 }

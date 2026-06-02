@@ -22,7 +22,7 @@ export default function DesignPreviewBanner({
         <p className="text-violet-200 font-medium mb-1">
           Design preview — {domain} is not production yet
         </p>
-        <p className="text-[#8895c4]">
+        <p className="text-secondary">
           The numbers below are fixtures used to evaluate the surface design. {needs}{" "}
           Until that exists, the values you see here are illustrative, not derived.
         </p>

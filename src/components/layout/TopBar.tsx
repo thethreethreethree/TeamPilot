@@ -24,19 +24,19 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
   }, []);
 
   return (
-    <header className="h-16 border-b border-[#252840] bg-[#0c0d16]/80 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-30">
+    <header className="h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-30">
       <div>
-        <h1 className="text-lg font-semibold text-[#e8eaf6]">{title}</h1>
+        <h1 className="text-lg font-semibold text-primary">{title}</h1>
         {subtitle && (
-          <p className="text-xs text-[#5a6399]">{subtitle}</p>
+          <p className="text-xs text-muted">{subtitle}</p>
         )}
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="hidden md:flex items-center gap-2 text-xs text-[#5a6399] bg-[#12141f] border border-[#252840] rounded-lg px-3 py-1.5">
+        <div className="hidden md:flex items-center gap-2 text-xs text-muted bg-surface border border-default rounded-lg px-3 py-1.5">
           <span>{now ? formatDate(now) : "—"}</span>
-          <span className="text-[#3a3f5c]">·</span>
-          <span className="text-[#8895c4] font-mono">
+          <span className="text-muted">·</span>
+          <span className="text-secondary font-mono">
             {now ? formatTime(now) : "—"}
           </span>
         </div>

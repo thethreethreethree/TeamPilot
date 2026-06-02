@@ -11,13 +11,13 @@ interface StatusBadgeProps {
 const statusStyles: Record<string, string> = {
   Blocked: "bg-red-500/15 text-red-400 border border-red-500/30",
   "In Progress": "bg-blue-500/15 text-blue-400 border border-blue-500/30",
-  "To Do": "bg-[#252840] text-[#8895c4] border border-[#3a3f5c]",
+  "To Do": "bg-surface-raised text-secondary border border-strong",
   "Needs Review": "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30",
   Completed: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
   Critical: "bg-red-500/15 text-red-400 border border-red-500/30",
   High: "bg-orange-500/15 text-orange-400 border border-orange-500/30",
   Medium: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30",
-  Low: "bg-[#252840] text-[#8895c4] border border-[#3a3f5c]",
+  Low: "bg-surface-raised text-secondary border border-strong",
   Overloaded: "bg-red-500/15 text-red-400 border border-red-500/30",
   Balanced: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
   Underutilized: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30",
@@ -34,7 +34,7 @@ export default function StatusBadge({ status, className }: StatusBadgeProps) {
     <span
       className={cn(
         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-        statusStyles[status] ?? "bg-[#252840] text-[#8895c4] border border-[#3a3f5c]",
+        statusStyles[status] ?? "bg-surface-raised text-secondary border border-strong",
         className
       )}
     >

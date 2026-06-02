@@ -180,7 +180,7 @@ export default function DecisionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar
         title="Decision Dialogue"
         subtitle={`${companyName} · Guide, don't overtake (CLAUDE.md §3.3)`}
@@ -188,13 +188,13 @@ export default function DecisionsPage() {
 
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         {/* Constitution banner */}
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20">
-          <Brain className="w-4 h-4 text-[#7a96ff] mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-[#8895c4] leading-relaxed">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20">
+          <Brain className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-secondary leading-relaxed">
             The System will not assert a decision until you state your own diagnosis and
             proposal. This is the structural interrupt that prevents the System from
             overtaking you and turns the interaction into a dialogue instead of a directive.
-            See <a href="/docs/GUIDE_DONT_OVERTAKE.md" className="text-[#7a96ff] underline">the rule</a>.
+            See <a href="/docs/GUIDE_DONT_OVERTAKE.md" className="text-brand underline">the rule</a>.
           </p>
         </div>
 
@@ -206,7 +206,7 @@ export default function DecisionsPage() {
             </p>
             <button
               onClick={reset}
-              className="text-xs text-emerald-200 hover:text-white border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
+              className="text-xs text-emerald-200 hover:text-primary border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
             >
               Reset dialogue
             </button>
@@ -228,14 +228,14 @@ export default function DecisionsPage() {
             onChange={(e) => setSituation(e.target.value)}
             disabled={phase !== "situation"}
             rows={5}
-            className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#8895c4] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+            className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-secondary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
           />
           {phase === "situation" && (
             <div className="mt-3 flex items-center justify-end">
               <button
                 onClick={startElicit}
                 disabled={!situation.trim()}
-                className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
               >
                 Continue <ChevronRight className="w-4 h-4" />
               </button>
@@ -274,7 +274,7 @@ export default function DecisionsPage() {
               <div className="mt-4 flex items-center justify-between">
                 <button
                   onClick={() => setPhase("situation")}
-                  className="text-xs text-[#5a6399] hover:text-[#8895c4] transition-colors"
+                  className="text-xs text-muted hover:text-secondary transition-colors"
                 >
                   ← back to situation
                 </button>
@@ -283,7 +283,7 @@ export default function DecisionsPage() {
                   disabled={
                     loading || !userDiagnosis.trim() || !userProposal.trim()
                   }
-                  className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
                 >
                   <MessageCircleQuestion className={`w-4 h-4 ${loading ? "animate-pulse" : ""}`} />
                   {loading ? "Asking the System…" : "Ask the System"}
@@ -314,17 +314,17 @@ export default function DecisionsPage() {
                   body={response.addedPerspective}
                 />
               )}
-              <div className="rounded-xl border border-[#5470ff]/30 bg-[#5470ff]/5 p-5">
-                <p className="text-[10px] text-[#7a96ff] uppercase tracking-widest mb-2">
+              <div className="rounded-xl border border-[#C8232C]/30 bg-[#C8232C]/5 p-5">
+                <p className="text-[10px] text-brand uppercase tracking-widest mb-2">
                   Suggestion
                 </p>
-                <p className="text-sm font-medium text-[#e8eaf6] mb-3 leading-snug">
+                <p className="text-sm font-medium text-primary mb-3 leading-snug">
                   {response.suggestion.action}
                 </p>
-                <p className="text-[10px] text-[#5a6399] uppercase tracking-widest mb-1">
+                <p className="text-[10px] text-muted uppercase tracking-widest mb-1">
                   Why
                 </p>
-                <p className="text-xs text-[#8895c4] leading-relaxed">
+                <p className="text-xs text-secondary leading-relaxed">
                   {response.suggestion.why}
                 </p>
               </div>
@@ -340,13 +340,13 @@ export default function DecisionsPage() {
               <div className="mt-5 flex items-center justify-between">
                 <button
                   onClick={() => setPhase("elicit")}
-                  className="text-xs text-[#5a6399] hover:text-[#8895c4] transition-colors"
+                  className="text-xs text-muted hover:text-secondary transition-colors"
                 >
                   ← revise my read
                 </button>
                 <button
                   onClick={() => setPhase("decide")}
-                  className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
                 >
                   Decide <ChevronRight className="w-4 h-4" />
                 </button>
@@ -399,7 +399,7 @@ export default function DecisionsPage() {
                       Choice noted ({decision.kind}).
                     </p>
                   </div>
-                  <p className="text-xs text-[#8895c4]">
+                  <p className="text-xs text-secondary">
                     The full dialogue — situation, your diagnosis, your proposal, the
                     System&apos;s response, and this choice — can be persisted now so the
                     WHY survives past the moment.
@@ -419,14 +419,14 @@ export default function DecisionsPage() {
                     </button>
                     <button
                       onClick={reset}
-                      className="flex items-center gap-2 text-xs text-[#7a96ff] hover:text-white"
+                      className="flex items-center gap-2 text-xs text-brand hover:text-primary"
                     >
                       <RotateCcw className="w-3 h-3" />
                       Start a new dialogue
                     </button>
                   </div>
                   {persistMsg && (
-                    <p className="mt-2 text-xs text-[#8895c4]">{persistMsg}</p>
+                    <p className="mt-2 text-xs text-secondary">{persistMsg}</p>
                   )}
                 </div>
               )}
@@ -437,8 +437,8 @@ export default function DecisionsPage() {
         {/* Decision Memory */}
         <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-[#e8eaf6]">Decision Memory</h2>
-            <span className="text-xs text-[#5a6399]">
+            <h2 className="text-sm font-semibold text-primary">Decision Memory</h2>
+            <span className="text-xs text-muted">
               {decisions.length} decisions stored
               {decisionsAreMock ? " (demo — no live data yet)" : ""}
             </span>
@@ -447,13 +447,13 @@ export default function DecisionsPage() {
             {decisions.map((d) => (
               <div
                 key={d.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-[#12141f] border border-[#252840]"
+                className="flex items-center justify-between p-3 rounded-xl bg-surface border border-default"
               >
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-[#5470ff] flex-shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-4 h-4 text-brand flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-[#e8eaf6]">{d.title}</p>
-                    <p className="text-xs text-[#5a6399] mt-0.5">
+                    <p className="text-sm font-medium text-primary">{d.title}</p>
+                    <p className="text-xs text-muted mt-0.5">
                       {d.date} · {d.outcome}
                       {d.hasDialogue && (
                         <span className="ml-2 text-emerald-400">· dialogue preserved</span>
@@ -505,17 +505,17 @@ function PhaseStepper({ current }: { current: Phase }) {
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                 active
-                  ? "bg-[#5470ff]/15 border-[#5470ff]/50 text-[#7a96ff]"
+                  ? "bg-[#C8232C]/15 border-[#C8232C]/50 text-brand"
                   : reached
-                  ? "border-[#252840] text-[#8895c4]"
-                  : "border-[#252840] text-[#3a3f5c]"
+                  ? "border-default text-secondary"
+                  : "border-default text-muted"
               }`}
             >
               <span className="font-mono">{i + 1}</span>
               {labels[p]}
             </div>
             {i < order.length - 1 && (
-              <ChevronRight className="w-3 h-3 text-[#3a3f5c]" />
+              <ChevronRight className="w-3 h-3 text-muted" />
             )}
           </div>
         );
@@ -542,10 +542,10 @@ function PhaseCard({
       className={`glass-card p-5 transition-opacity ${active ? "" : "opacity-60"}`}
     >
       <div className="flex items-baseline gap-2 mb-1">
-        <span className="text-[10px] font-mono text-[#5470ff]">PHASE {number}</span>
-        <h2 className="text-sm font-semibold text-[#e8eaf6]">{title}</h2>
+        <span className="text-[10px] font-mono text-brand">PHASE {number}</span>
+        <h2 className="text-sm font-semibold text-primary">{title}</h2>
       </div>
-      <p className="text-xs text-[#5a6399] mb-4">{subtitle}</p>
+      <p className="text-xs text-muted mb-4">{subtitle}</p>
       {children}
     </div>
   );
@@ -568,8 +568,8 @@ function ElicitField({
 }) {
   return (
     <div>
-      <label className="flex items-center gap-1.5 text-xs font-medium text-[#8895c4] mb-1.5">
-        <span className="text-[#7a96ff]">{icon}</span>
+      <label className="flex items-center gap-1.5 text-xs font-medium text-secondary mb-1.5">
+        <span className="text-brand">{icon}</span>
         {label}
       </label>
       <textarea
@@ -578,7 +578,7 @@ function ElicitField({
         disabled={disabled}
         rows={3}
         placeholder={placeholder}
-        className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+        className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
       />
     </div>
   );
@@ -606,7 +606,7 @@ function ResponseBlock({
         {icon}
         {label}
       </p>
-      <p className="text-sm text-[#e8eaf6] leading-relaxed">{body}</p>
+      <p className="text-sm text-primary leading-relaxed">{body}</p>
     </div>
   );
 }
@@ -627,15 +627,15 @@ function DecisionChoice({
       onClick={onSelect}
       className={`w-full text-left rounded-xl border p-4 transition-all ${
         selected
-          ? "border-[#5470ff]/60 bg-[#5470ff]/10"
-          : "border-[#252840] bg-[#12141f] hover:border-[#3a3f5c]"
+          ? "border-[#C8232C]/60 bg-[#C8232C]/10"
+          : "border-default bg-surface hover:border-strong"
       }`}
     >
       <div className="flex items-center gap-2 mb-1">
-        {selected && <CheckCircle2 className="w-3.5 h-3.5 text-[#7a96ff]" />}
-        <span className="text-sm font-medium text-[#e8eaf6]">{label}</span>
+        {selected && <CheckCircle2 className="w-3.5 h-3.5 text-brand" />}
+        <span className="text-sm font-medium text-primary">{label}</span>
       </div>
-      <p className="text-xs text-[#5a6399] leading-relaxed">{description}</p>
+      <p className="text-xs text-muted leading-relaxed">{description}</p>
     </button>
   );
 }

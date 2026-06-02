@@ -133,16 +133,16 @@ export default function ConversationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar
         title="Conversation Dialogue"
         subtitle={`${companyName} · Guide, don't overtake (CLAUDE.md §3.3)`}
       />
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20">
-          <Brain className="w-4 h-4 text-[#7a96ff] mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-[#8895c4] leading-relaxed">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20">
+          <Brain className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-secondary leading-relaxed">
             ExecOS will not extract decisions or action items until you state your own read.
             The people in the conversation are the authority on what it meant — the System
             sharpens, it does not assert.
@@ -157,7 +157,7 @@ export default function ConversationsPage() {
             </p>
             <button
               onClick={reset}
-              className="text-xs text-emerald-200 hover:text-white border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
+              className="text-xs text-emerald-200 hover:text-primary border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
             >
               Reset dialogue
             </button>
@@ -178,7 +178,7 @@ export default function ConversationsPage() {
               <div className="flex justify-end mb-2">
                 <button
                   onClick={() => setConversation("")}
-                  className="text-[#5a6399] hover:text-red-400 transition-colors"
+                  className="text-muted hover:text-red-400 transition-colors"
                   title="Clear"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -189,14 +189,14 @@ export default function ConversationsPage() {
                 onChange={(e) => setConversation(e.target.value)}
                 disabled={phase !== "transcript"}
                 rows={14}
-                className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#8895c4] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none font-mono leading-relaxed disabled:opacity-60"
+                className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-secondary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none font-mono leading-relaxed disabled:opacity-60"
               />
               {phase === "transcript" && (
                 <div className="mt-3 flex justify-end">
                   <button
                     onClick={() => setPhase("elicit")}
                     disabled={!conversation.trim()}
-                    className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                    className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
                   >
                     Continue <ChevronRight className="w-4 h-4" />
                   </button>
@@ -221,21 +221,21 @@ Action items:
   - Sarah owns ...
   - Marcus starts ...
 Unresolved: ..."
-                  className="w-full bg-[#12141f] border border-[#252840] rounded-xl px-4 py-3 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
                 />
                 {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
                 {phase === "elicit" && (
                   <div className="mt-3 flex items-center justify-between">
                     <button
                       onClick={() => setPhase("transcript")}
-                      className="text-xs text-[#5a6399] hover:text-[#8895c4]"
+                      className="text-xs text-muted hover:text-secondary"
                     >
                       ← back
                     </button>
                     <button
                       onClick={requestSystem}
                       disabled={loading || !userRead.trim()}
-                      className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                      className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
                     >
                       <MessageCircleQuestion
                         className={`w-4 h-4 ${loading ? "animate-pulse" : ""}`}
@@ -248,7 +248,7 @@ Unresolved: ..."
             )}
 
             <div className="glass-card p-5">
-              <h3 className="text-xs font-semibold text-[#8895c4] uppercase tracking-widest mb-3">
+              <h3 className="text-xs font-semibold text-secondary uppercase tracking-widest mb-3">
                 How it works
               </h3>
               <div className="space-y-2.5">
@@ -260,10 +260,10 @@ Unresolved: ..."
                   "You decide what to keep — the System sharpens, it doesn't override",
                 ].map((step, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full bg-[#5470ff]/15 border border-[#5470ff]/20 text-[#7a96ff] text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-[#C8232C]/15 border border-[#C8232C]/20 text-brand text-[10px] font-bold flex items-center justify-center flex-shrink-0">
                       {i + 1}
                     </span>
-                    <p className="text-xs text-[#5a6399]">{step}</p>
+                    <p className="text-xs text-muted">{step}</p>
                   </div>
                 ))}
               </div>
@@ -274,13 +274,13 @@ Unresolved: ..."
           <div className="space-y-4">
             {!response ? (
               <div className="glass-card p-8 flex flex-col items-center justify-center text-center min-h-64">
-                <div className="w-14 h-14 rounded-2xl bg-[#5470ff]/10 border border-[#5470ff]/20 flex items-center justify-center mb-4">
-                  <Lightbulb className="w-7 h-7 text-[#5470ff]" />
+                <div className="w-14 h-14 rounded-2xl bg-[#C8232C]/10 border border-[#C8232C]/20 flex items-center justify-center mb-4">
+                  <Lightbulb className="w-7 h-7 text-brand" />
                 </div>
-                <p className="text-sm font-medium text-[#e8eaf6] mb-2">
+                <p className="text-sm font-medium text-primary mb-2">
                   System will respond after your read
                 </p>
-                <p className="text-xs text-[#5a6399] max-w-xs">
+                <p className="text-xs text-muted max-w-xs">
                   Phase 2 captures your read; Phase 3 is where the System engages with it and
                   offers refinement.
                 </p>
@@ -291,7 +291,7 @@ Unresolved: ..."
                   <p className="text-[10px] uppercase tracking-widest text-emerald-300 mb-2">
                     Engages your read
                   </p>
-                  <p className="text-sm text-[#e8eaf6] leading-relaxed">
+                  <p className="text-sm text-primary leading-relaxed">
                     {response.engagement}
                   </p>
                 </div>
@@ -301,54 +301,54 @@ Unresolved: ..."
                     <p className="text-[10px] uppercase tracking-widest text-blue-300 mb-2">
                       Adds perspective
                     </p>
-                    <p className="text-sm text-[#e8eaf6] leading-relaxed">
+                    <p className="text-sm text-primary leading-relaxed">
                       {response.addedPerspective}
                     </p>
                   </div>
                 )}
 
-                <div className="glass-card p-5 border-[#5470ff]/20 bg-[#5470ff]/5">
-                  <p className="text-[10px] uppercase tracking-widest text-[#7a96ff] mb-2">
+                <div className="glass-card p-5 border-[#C8232C]/20 bg-[#C8232C]/5">
+                  <p className="text-[10px] uppercase tracking-widest text-brand mb-2">
                     Refined decision
                   </p>
-                  <p className="text-sm font-medium text-[#e8eaf6] mb-3 leading-snug">
+                  <p className="text-sm font-medium text-primary mb-3 leading-snug">
                     {response.refinedDecision?.text}
                   </p>
-                  <p className="text-[10px] uppercase tracking-widest text-[#5a6399] mb-1">
+                  <p className="text-[10px] uppercase tracking-widest text-muted mb-1">
                     Why
                   </p>
-                  <p className="text-xs text-[#8895c4] leading-relaxed">
+                  <p className="text-xs text-secondary leading-relaxed">
                     {response.refinedDecision?.why}
                   </p>
                 </div>
 
                 <div className="glass-card p-5">
-                  <p className="text-xs font-semibold text-[#e8eaf6] mb-3">
+                  <p className="text-xs font-semibold text-primary mb-3">
                     Refined action items
                   </p>
                   <div className="space-y-3">
                     {response.refinedActions?.map((item, i) => (
                       <div
                         key={i}
-                        className="rounded-xl bg-[#12141f] border border-[#252840] p-3"
+                        className="rounded-xl bg-surface border border-default p-3"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-3 min-w-0">
-                            <span className="w-5 h-5 rounded-full bg-[#5470ff]/15 border border-[#5470ff]/20 text-[#7a96ff] text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="w-5 h-5 rounded-full bg-[#C8232C]/15 border border-[#C8232C]/20 text-brand text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                               {i + 1}
                             </span>
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-[#e8eaf6]">
+                              <p className="text-sm font-medium text-primary">
                                 {item.task}
                               </p>
-                              <p className="text-xs text-[#5a6399] mt-0.5">
+                              <p className="text-xs text-muted mt-0.5">
                                 Owner: {item.owner ?? "—"} · Due: {item.deadline ?? "—"}
                               </p>
                             </div>
                           </div>
                           <StatusBadge status={item.priority} />
                         </div>
-                        <p className="mt-2 pl-8 text-[11px] text-[#5a6399] italic leading-relaxed">
+                        <p className="mt-2 pl-8 text-[11px] text-muted italic leading-relaxed">
                           why: {item.why}
                         </p>
                       </div>
@@ -363,7 +363,7 @@ Unresolved: ..."
                     </p>
                     <ul className="space-y-1.5">
                       {response.unresolvedItems.map((u, i) => (
-                        <li key={i} className="text-xs text-[#e8eaf6] flex items-start gap-2">
+                        <li key={i} className="text-xs text-primary flex items-start gap-2">
                           <span className="text-yellow-400">⚠</span>
                           {u}
                         </li>
@@ -377,14 +377,14 @@ Unresolved: ..."
                     <GitCompareArrows className="w-3 h-3" />
                     Compared to your read
                   </p>
-                  <p className="text-sm text-[#e8eaf6] leading-relaxed">
+                  <p className="text-sm text-primary leading-relaxed">
                     {response.comparison}
                   </p>
                 </div>
 
                 <button
                   onClick={reset}
-                  className="flex items-center gap-2 text-xs text-[#7a96ff] hover:text-white"
+                  className="flex items-center gap-2 text-xs text-brand hover:text-primary"
                 >
                   <RotateCcw className="w-3 h-3" />
                   Start a new conversation
@@ -415,16 +415,16 @@ function PhaseStepper({ current }: { current: Phase }) {
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                 active
-                  ? "bg-[#5470ff]/15 border-[#5470ff]/50 text-[#7a96ff]"
+                  ? "bg-[#C8232C]/15 border-[#C8232C]/50 text-brand"
                   : reached
-                  ? "border-[#252840] text-[#8895c4]"
-                  : "border-[#252840] text-[#3a3f5c]"
+                  ? "border-default text-secondary"
+                  : "border-default text-muted"
               }`}
             >
               <span className="font-mono">{i + 1}</span>
               {labels[p]}
             </div>
-            {i < order.length - 1 && <ChevronRight className="w-3 h-3 text-[#3a3f5c]" />}
+            {i < order.length - 1 && <ChevronRight className="w-3 h-3 text-muted" />}
           </div>
         );
       })}
@@ -448,10 +448,10 @@ function PhaseCard({
   return (
     <div className={`glass-card p-5 transition-opacity ${active ? "" : "opacity-60"}`}>
       <div className="flex items-baseline gap-2 mb-1">
-        <span className="text-[10px] font-mono text-[#5470ff]">PHASE {number}</span>
-        <h2 className="text-sm font-semibold text-[#e8eaf6]">{title}</h2>
+        <span className="text-[10px] font-mono text-brand">PHASE {number}</span>
+        <h2 className="text-sm font-semibold text-primary">{title}</h2>
       </div>
-      <p className="text-xs text-[#5a6399] mb-4">{subtitle}</p>
+      <p className="text-xs text-muted mb-4">{subtitle}</p>
       <MessageSquare className="hidden" />
       {children}
     </div>

@@ -64,24 +64,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0d16] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#5470ff]/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#C8232C]/5 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-sm relative">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5470ff] to-[#7a96ff] flex items-center justify-center shadow-glow">
-            <Activity className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+            <Activity className="w-5 h-5 text-primary" />
           </div>
-          <span className="text-xl font-bold text-white">ExecOS</span>
+          <span className="text-xl font-bold text-primary">ExecOS</span>
         </div>
 
         <div className="glass-card p-8">
-          <h1 className="text-xl font-bold text-white mb-1">
+          <h1 className="text-xl font-bold text-primary mb-1">
             {mode === "signin" ? "Welcome back" : "Create your account"}
           </h1>
-          <p className="text-sm text-[#5a6399] mb-6">
+          <p className="text-sm text-muted mb-6">
             {mode === "signin"
               ? "Sign in to your executive system"
               : "Set up your AI Executive Operating System"}
@@ -96,18 +96,18 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-[#8895c4] mb-1.5">Email</label>
+              <label className="block text-xs font-medium text-secondary mb-1.5">Email</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ceo@company.com"
-                className="w-full bg-[#12141f] border border-[#252840] rounded-lg px-3.5 py-2.5 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#8895c4] mb-1.5">Password</label>
+              <label className="block text-xs font-medium text-secondary mb-1.5">Password</label>
               <input
                 type="password"
                 required
@@ -115,7 +115,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-[#12141f] border border-[#252840] rounded-lg px-3.5 py-2.5 text-sm text-[#e8eaf6] placeholder-[#3a3f5c] focus:outline-none focus:border-[#5470ff]/50 focus:ring-1 focus:ring-[#5470ff]/30 transition-colors"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors"
               />
             </div>
 
@@ -125,7 +125,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors shadow-glow hover:shadow-none"
+              className="w-full flex items-center justify-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors shadow-glow hover:shadow-none"
             >
               {loading
                 ? "Please wait…"
@@ -136,7 +136,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-xs text-[#5a6399] mt-6">
+          <p className="text-center text-xs text-muted mt-6">
             {mode === "signin" ? "No account? " : "Already have an account? "}
             <button
               onClick={() => {
@@ -144,7 +144,7 @@ export default function LoginPage() {
                 setError("");
                 setNotice("");
               }}
-              className="text-[#7a96ff] hover:text-white transition-colors"
+              className="text-brand hover:text-primary transition-colors"
             >
               {mode === "signin" ? "Set up ExecOS" : "Sign in"}
             </button>

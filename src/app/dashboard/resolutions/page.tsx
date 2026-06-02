@@ -47,9 +47,9 @@ const DURABILITY_META: Record<
   },
   unknown: {
     label: "Unknown",
-    color: "text-[#8895c4]",
-    bg: "bg-[#252840]",
-    border: "border-[#3a3f5c]",
+    color: "text-secondary",
+    bg: "bg-surface-raised",
+    border: "border-strong",
     icon: Eye,
   },
 };
@@ -79,16 +79,16 @@ export default function ResolutionsPage() {
       : reviewed.filter((r) => r.durability === "held").length / reviewed.length;
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar
         title="Resolutions"
         subtitle="Past decisions + their actual outcomes · §3.5 consequence measurement"
       />
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20">
-          <Sparkles className="w-4 h-4 text-[#7a96ff] mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-[#8895c4] leading-relaxed">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20">
+          <Sparkles className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-secondary leading-relaxed">
             Every closed problem produced a resolution. The action and reasoning are
             immutable; the observed outcome and durability are filled later, after enough
             time has passed to see whether the resolution held. This is what §3.5 calls
@@ -110,12 +110,12 @@ export default function ResolutionsPage() {
         {/* Summary + export */}
         <div className="flex items-start justify-between gap-4">
           <div className="grid grid-cols-3 gap-4 flex-1">
-            <Stat label="Total resolutions" value={resolutions.length} color="text-[#e8eaf6]" />
+            <Stat label="Total resolutions" value={resolutions.length} color="text-primary" />
             <Stat label="Reviewed" value={reviewed.length} color="text-blue-400" />
             <Stat
               label="Held rate"
               value={heldRate === null ? "—" : `${Math.round(heldRate * 100)}%`}
-              color={heldRate === null ? "text-[#5a6399]" : "text-emerald-400"}
+              color={heldRate === null ? "text-muted" : "text-emerald-400"}
             />
           </div>
           <ExportMenu
@@ -126,15 +126,15 @@ export default function ResolutionsPage() {
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399] py-10">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
           </div>
         )}
 
         {!loading && mode === "live-empty" && (
           <div className="glass-card p-8 text-center">
-            <p className="text-sm text-[#e8eaf6] mb-2">No resolutions yet.</p>
-            <p className="text-xs text-[#5a6399] max-w-md mx-auto leading-relaxed">
+            <p className="text-sm text-primary mb-2">No resolutions yet.</p>
+            <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
               Resolutions are recorded by closing a problem in the Living Diagnosis
               flow. Once one exists, you can come back here to fill in what actually
               happened.
@@ -184,20 +184,20 @@ function ResolutionRow({
     <div className="glass-card p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-[#e8eaf6]">
+          <p className="text-sm font-medium text-primary">
             {resolution.problemTitle ?? "—"}
           </p>
-          <p className="text-xs text-[#8895c4] mt-1 leading-relaxed">
-            <span className="text-[#5a6399] uppercase tracking-widest text-[10px]">action</span>{" "}
+          <p className="text-xs text-secondary mt-1 leading-relaxed">
+            <span className="text-muted uppercase tracking-widest text-[10px]">action</span>{" "}
             {resolution.actionTaken}
           </p>
-          <p className="text-xs text-[#8895c4] mt-1 leading-relaxed">
-            <span className="text-[#5a6399] uppercase tracking-widest text-[10px]">why</span>{" "}
+          <p className="text-xs text-secondary mt-1 leading-relaxed">
+            <span className="text-muted uppercase tracking-widest text-[10px]">why</span>{" "}
             {resolution.reasoning}
           </p>
           {resolution.expectedOutcome && (
-            <p className="text-xs text-[#8895c4] mt-1 leading-relaxed">
-              <span className="text-[#5a6399] uppercase tracking-widest text-[10px]">expected</span>{" "}
+            <p className="text-xs text-secondary mt-1 leading-relaxed">
+              <span className="text-muted uppercase tracking-widest text-[10px]">expected</span>{" "}
               {resolution.expectedOutcome}
             </p>
           )}
@@ -207,7 +207,7 @@ function ResolutionRow({
               {resolution.observedOutcome}
             </p>
           )}
-          <p className="text-[10px] text-[#3a3f5c] mt-2 font-mono">
+          <p className="text-[10px] text-muted mt-2 font-mono">
             decided {resolution.decidedAt.slice(0, 10)}
             {resolution.reviewedAt &&
               ` · reviewed ${resolution.reviewedAt.slice(0, 10)}`}
@@ -223,7 +223,7 @@ function ResolutionRow({
           ) : (
             <button
               onClick={onReview}
-              className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all"
+              className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-3 py-1.5 rounded-lg transition-all"
             >
               Review outcome
             </button>
@@ -273,9 +273,9 @@ function ReviewModal({
 
   return (
     <Modal open onClose={onClose} title="Review outcome" size="lg">
-      <div className="mb-3 p-3 bg-[#12141f] border border-[#252840] rounded-xl">
-        <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-1">action</p>
-        <p className="text-sm text-[#e8eaf6]">{resolution.actionTaken}</p>
+      <div className="mb-3 p-3 bg-surface border border-default rounded-xl">
+        <p className="text-xs text-muted uppercase tracking-widest mb-1">action</p>
+        <p className="text-sm text-primary">{resolution.actionTaken}</p>
       </div>
       <div className="space-y-3" aria-busy={submitting}>
         <Field label="What actually happened? (≥20 chars)">
@@ -299,7 +299,7 @@ function ReviewModal({
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-all ${
                     durability === d
                       ? `${meta.bg} ${meta.border} ${meta.color}`
-                      : "border-[#252840] text-[#5a6399] hover:border-[#3a3f5c]"
+                      : "border-default text-muted hover:border-strong"
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -313,14 +313,14 @@ function ReviewModal({
         <div className="flex items-center justify-end gap-2 pt-2">
           <button
             onClick={onClose}
-            className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2"
+            className="text-xs text-muted hover:text-secondary px-3 py-2"
           >
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={submitting}
-            className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
           >
             {submitting ? "Saving…" : "Save outcome"}
           </button>
@@ -341,7 +341,7 @@ function Stat({
 }) {
   return (
     <div className="glass-card p-4">
-      <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-2">{label}</p>
+      <p className="text-xs text-muted uppercase tracking-widest mb-2">{label}</p>
       <p className={`text-3xl font-bold ${color}`}>{value}</p>
     </div>
   );

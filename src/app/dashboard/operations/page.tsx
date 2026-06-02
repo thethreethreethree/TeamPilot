@@ -35,7 +35,7 @@ const PRIORITY_DOTS: Record<string, string> = {
   Critical: "bg-red-500",
   High: "bg-orange-500",
   Medium: "bg-yellow-500",
-  Low: "bg-[#3a3f5c]",
+  Low: "bg-surface-raised",
 };
 
 const STATUS_OPTIONS = ["To Do", "In Progress", "Blocked", "Needs Review", "Completed"];
@@ -181,7 +181,7 @@ export default function OperationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar
         title="Tasks"
         subtitle="Production task management · every mutation emits an event into the §3.1 chain"
@@ -192,7 +192,7 @@ export default function OperationsPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Stat label="Open tasks" value={tasks.length} color="text-[#e8eaf6]" />
+          <Stat label="Open tasks" value={tasks.length} color="text-primary" />
           <Stat label="Blocked" value={blockedCount} color="text-red-400" />
           <Stat label="In Progress" value={inProgressCount} color="text-blue-400" />
           <Stat label="Critical" value={criticalCount} color="text-orange-400" />
@@ -201,15 +201,15 @@ export default function OperationsPage() {
         {/* Filter + Create */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-[#5a6399]" />
+            <Filter className="w-3.5 h-3.5 text-muted" />
             {FILTERS.map((f) => (
               <button
                 key={f}
                 onClick={() => setActiveFilter(f)}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                   activeFilter === f
-                    ? "bg-[#5470ff]/15 text-[#7a96ff] border border-[#5470ff]/30"
-                    : "text-[#5a6399] hover:text-[#8895c4] border border-transparent hover:border-[#252840]"
+                    ? "bg-[#C8232C]/15 text-brand border border-[#C8232C]/30"
+                    : "text-muted hover:text-secondary border border-transparent hover:border-default"
                 }`}
               >
                 {f}
@@ -225,7 +225,7 @@ export default function OperationsPage() {
             <button
               onClick={openCreate}
               disabled={!supabaseEnabled}
-              className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
               title={
                 supabaseEnabled
                   ? "Create a new task"
@@ -241,7 +241,7 @@ export default function OperationsPage() {
         {/* List */}
         <div className="glass-card p-5">
           {loading ? (
-            <div className="flex items-center gap-2 text-xs text-[#5a6399] py-10 justify-center">
+            <div className="flex items-center gap-2 text-xs text-muted py-10 justify-center">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading tasks…
             </div>
           ) : filtered.length === 0 ? (
@@ -249,11 +249,11 @@ export default function OperationsPage() {
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#252840]">
+                <tr className="border-b border-default">
                   {["Task", "Department", "Assignee", "Priority", "Status", "Due", ""].map((h) => (
                     <th
                       key={h}
-                      className="text-left text-xs font-medium text-[#5a6399] pb-3 pr-4 uppercase tracking-wider"
+                      className="text-left text-xs font-medium text-muted pb-3 pr-4 uppercase tracking-wider"
                     >
                       {h}
                     </th>
@@ -262,10 +262,10 @@ export default function OperationsPage() {
               </thead>
               <tbody className="divide-y divide-[#1a1d2e]">
                 {filtered.map((t) => (
-                  <tr key={t.id} className="hover:bg-[#12141f] transition-colors group">
+                  <tr key={t.id} className="hover:bg-surface transition-colors group">
                     <td className="py-3 pr-4">
                       <div>
-                        <p className="text-sm font-medium text-[#e8eaf6] group-hover:text-white transition-colors">
+                        <p className="text-sm font-medium text-primary group-hover:text-white transition-colors">
                           {t.title}
                         </p>
                         {t.blockerReason && (
@@ -274,30 +274,30 @@ export default function OperationsPage() {
                       </div>
                     </td>
                     <td className="py-3 pr-4">
-                      <span className="text-xs text-[#5a6399]">{t.department ?? "—"}</span>
+                      <span className="text-xs text-muted">{t.department ?? "—"}</span>
                     </td>
                     <td className="py-3 pr-4">
-                      <span className="text-xs text-[#8895c4]">{t.assignee ?? "Unassigned"}</span>
+                      <span className="text-xs text-secondary">{t.assignee ?? "Unassigned"}</span>
                     </td>
                     <td className="py-3 pr-4">
                       <div className="flex items-center gap-1.5">
                         <span
                           className={`w-2 h-2 rounded-full ${PRIORITY_DOTS[t.priority] ?? PRIORITY_DOTS.Low}`}
                         />
-                        <span className="text-xs text-[#8895c4]">{t.priority}</span>
+                        <span className="text-xs text-secondary">{t.priority}</span>
                       </div>
                     </td>
                     <td className="py-3 pr-4">
                       <StatusBadge status={t.status} />
                     </td>
                     <td className="py-3 pr-4">
-                      <span className="text-xs text-[#5a6399] font-mono">{t.dueDate ?? "—"}</span>
+                      <span className="text-xs text-muted font-mono">{t.dueDate ?? "—"}</span>
                     </td>
                     <td className="py-3 text-right">
                       <button
                         onClick={() => openEdit(t)}
                         disabled={!supabaseEnabled || mode === "demo-fixtures"}
-                        className="text-[#5a6399] hover:text-[#7a96ff] disabled:opacity-30 mr-3"
+                        className="text-muted hover:text-brand disabled:opacity-30 mr-3"
                         aria-label={`Edit task: ${t.title}`}
                         title={
                           mode === "demo-fixtures"
@@ -310,7 +310,7 @@ export default function OperationsPage() {
                       <button
                         onClick={() => deleteTask(t)}
                         disabled={!supabaseEnabled || mode === "demo-fixtures"}
-                        className="text-[#5a6399] hover:text-red-400 disabled:opacity-30"
+                        className="text-muted hover:text-red-400 disabled:opacity-30"
                         aria-label={`Delete task: ${t.title}`}
                         title={
                           mode === "demo-fixtures"
@@ -437,14 +437,14 @@ export default function OperationsPage() {
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
               onClick={closeForm}
-              className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2"
+              className="text-xs text-muted hover:text-secondary px-3 py-2"
             >
               Cancel
             </button>
             <button
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Saving…" : editing ? "Save changes" : "Create task"}
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -484,7 +484,7 @@ function ModeBanner({ mode }: { mode: FetchTasksMode }) {
 function EmptyState({ mode, hasFilter }: { mode: FetchTasksMode; hasFilter: boolean }) {
   if (hasFilter) {
     return (
-      <p className="text-center text-xs text-[#5a6399] py-10">
+      <p className="text-center text-xs text-muted py-10">
         No tasks match this filter.
       </p>
     );
@@ -492,8 +492,8 @@ function EmptyState({ mode, hasFilter }: { mode: FetchTasksMode; hasFilter: bool
   if (mode === "live-empty") {
     return (
       <div className="text-center py-12 px-6">
-        <p className="text-sm text-[#e8eaf6] mb-2">No tasks yet.</p>
-        <p className="text-xs text-[#5a6399] max-w-md mx-auto leading-relaxed">
+        <p className="text-sm text-primary mb-2">No tasks yet.</p>
+        <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
           Create your first task above. Every task mutation emits an immutable event into
           the §3.1 chain — events become signals, signals accumulate into patterns,
           patterns earn the right to surface as problems. The diagnostic engine has
@@ -503,7 +503,7 @@ function EmptyState({ mode, hasFilter }: { mode: FetchTasksMode; hasFilter: bool
     );
   }
   return (
-    <p className="text-center text-xs text-[#5a6399] py-10">No tasks.</p>
+    <p className="text-center text-xs text-muted py-10">No tasks.</p>
   );
 }
 
@@ -518,10 +518,10 @@ function Stat({
 }) {
   return (
     <div className="glass-card p-4">
-      <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-2">{label}</p>
+      <p className="text-xs text-muted uppercase tracking-widest mb-2">{label}</p>
       <p className={`text-3xl font-bold ${color}`}>
         {value}
-        <span className="text-sm font-normal text-[#5a6399]"> tasks</span>
+        <span className="text-sm font-normal text-muted"> tasks</span>
       </p>
     </div>
   );

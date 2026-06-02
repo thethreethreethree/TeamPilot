@@ -23,11 +23,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const STATUS_BADGE: Record<string, string> = {
-  draft: "bg-[#252840] text-[#8895c4] border border-[#3a3f5c]",
+  draft: "bg-surface-raised text-secondary border border-strong",
   surfaceable: "bg-blue-500/15 text-blue-400 border border-blue-500/30",
   surfaced: "bg-violet-500/15 text-violet-300 border border-violet-500/30",
   resolved: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
-  dismissed: "bg-[#252840] text-[#5a6399] border border-[#3a3f5c]",
+  dismissed: "bg-surface-raised text-muted border border-strong",
 };
 
 export default function ProblemsPage() {
@@ -56,16 +56,16 @@ export default function ProblemsPage() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar
         title="Problems"
         subtitle="Hypotheses waiting on the Understanding Gate · §3.2"
       />
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#5470ff]/5 border border-[#5470ff]/20">
-          <ShieldCheck className="w-4 h-4 text-[#7a96ff] mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-[#8895c4] leading-relaxed">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20">
+          <ShieldCheck className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-secondary leading-relaxed">
             A problem may not be surfaced until it links to ≥3 signals from ≥2 distinct
             sources AND a diagnosis of ≥80 chars is stated. The gate is enforced at the
             database layer — application code cannot bypass it.
@@ -73,13 +73,13 @@ export default function ProblemsPage() {
         </div>
 
         <div className="flex items-center justify-between">
-          <p className="text-xs text-[#5a6399]">
+          <p className="text-xs text-muted">
             {problems.length} hypothesis{problems.length === 1 ? "" : "es"} on file
           </p>
           <button
             onClick={() => setCreating(true)}
             disabled={!supabaseEnabled}
-            className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             New problem hypothesis
@@ -98,15 +98,15 @@ export default function ProblemsPage() {
         )}
 
         {loading && (
-          <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399] py-10">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
           </div>
         )}
 
         {!loading && mode === "live-empty" && (
           <div className="glass-card p-8 text-center">
-            <p className="text-sm text-[#e8eaf6] mb-2">No hypotheses yet.</p>
-            <p className="text-xs text-[#5a6399] max-w-md mx-auto leading-relaxed">
+            <p className="text-sm text-primary mb-2">No hypotheses yet.</p>
+            <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
               Start one above. A hypothesis begins as a draft — you link supporting
               signals and write the WHY. The gate evaluates the change when you try to
               transition to <code>surfaceable</code> or <code>surfaced</code>.
@@ -199,7 +199,7 @@ function ProblemRow({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium text-[#e8eaf6]">{problem.title}</p>
+            <p className="text-sm font-medium text-primary">{problem.title}</p>
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-medium ${
                 STATUS_BADGE[problem.status] ?? STATUS_BADGE.draft
@@ -207,14 +207,14 @@ function ProblemRow({
             >
               {problem.status}
             </span>
-            <span className="text-[10px] text-[#5a6399] font-mono">{problem.kind}</span>
+            <span className="text-[10px] text-muted font-mono">{problem.kind}</span>
           </div>
-          <p className="text-xs text-[#5a6399] mt-1">
+          <p className="text-xs text-muted mt-1">
             {problem.signalCount} signal{problem.signalCount === 1 ? "" : "s"} linked ·{" "}
             diagnosis: {problem.diagnosis ? problem.diagnosis.length : 0} chars
           </p>
           {problem.diagnosis && (
-            <p className="text-xs text-[#8895c4] mt-2 leading-relaxed line-clamp-2">
+            <p className="text-xs text-secondary mt-2 leading-relaxed line-clamp-2">
               {problem.diagnosis}
             </p>
           )}
@@ -226,14 +226,14 @@ function ProblemRow({
               <button
                 onClick={surface}
                 disabled={busy}
-                className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
+                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
               >
                 <ShieldCheck className="w-3 h-3" /> Try to surface
               </button>
               <button
                 onClick={dismiss}
                 disabled={busy}
-                className="text-xs text-[#5a6399] hover:text-red-400 disabled:opacity-40"
+                className="text-xs text-muted hover:text-red-400 disabled:opacity-40"
               >
                 Dismiss
               </button>
@@ -343,9 +343,9 @@ function CreateProblemModal({
         <Field
           label={`Link supporting signals (${allSignals.length} available)`}
         >
-          <div className="max-h-48 overflow-y-auto space-y-1 p-2 bg-[#12141f] border border-[#252840] rounded-lg">
+          <div className="max-h-48 overflow-y-auto space-y-1 p-2 bg-surface border border-default rounded-lg">
             {allSignals.length === 0 ? (
-              <p className="text-xs text-[#5a6399] p-2">
+              <p className="text-xs text-muted p-2">
                 No signals available yet. Create tasks to generate events that
                 derive into signals.
               </p>
@@ -353,17 +353,17 @@ function CreateProblemModal({
               allSignals.map((s) => (
                 <label
                   key={s.id}
-                  className="flex items-center gap-2 text-xs text-[#8895c4] cursor-pointer hover:bg-[#1a1d2e] p-1.5 rounded"
+                  className="flex items-center gap-2 text-xs text-secondary cursor-pointer hover:bg-surface-raised p-1.5 rounded"
                 >
                   <input
                     type="checkbox"
                     checked={selectedSignalIds.has(s.id)}
                     onChange={() => toggleSignal(s.id)}
-                    className="accent-[#5470ff]"
+                    className="accent-[#C8232C]"
                   />
                   <span className="font-mono">
-                    <span className="text-[#7a96ff]">{s.kind}</span>{" "}
-                    <span className="text-[#5a6399]">@ {s.source}</span>
+                    <span className="text-brand">{s.kind}</span>{" "}
+                    <span className="text-muted">@ {s.source}</span>
                   </span>
                 </label>
               ))
@@ -406,22 +406,22 @@ function CreateProblemModal({
             {!gate.passes && (
               <p className="text-[11px] text-yellow-200">{describeGapToGate(gate)}</p>
             )}
-            <div className="grid grid-cols-3 gap-2 mt-2 text-[10px] text-[#5a6399]">
+            <div className="grid grid-cols-3 gap-2 mt-2 text-[10px] text-muted">
               <div>
                 signals:{" "}
-                <span className="text-[#8895c4] font-mono">{gate.signalCount}</span> /{" "}
+                <span className="text-secondary font-mono">{gate.signalCount}</span> /{" "}
                 <span className="font-mono">{gate.threshold.minSignals}</span>
               </div>
               <div>
                 sources:{" "}
-                <span className="text-[#8895c4] font-mono">
+                <span className="text-secondary font-mono">
                   {gate.distinctSourceCount}
                 </span>{" "}
                 / <span className="font-mono">{gate.threshold.minDistinctSources}</span>
               </div>
               <div>
                 chars:{" "}
-                <span className="text-[#8895c4] font-mono">
+                <span className="text-secondary font-mono">
                   {gate.diagnosisCharCount}
                 </span>{" "}
                 / <span className="font-mono">{gate.threshold.minDiagnosisChars}</span>
@@ -432,13 +432,13 @@ function CreateProblemModal({
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button onClick={onClose} className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2">
+            <button onClick={onClose} className="text-xs text-muted hover:text-secondary px-3 py-2">
               Cancel
             </button>
             <button
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Creating…" : "Create draft"}
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}

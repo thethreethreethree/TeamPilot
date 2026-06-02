@@ -164,7 +164,7 @@ export default function CommandDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-[#0c0d16]">
+    <div className="min-h-screen bg-base">
       <TopBar title="Command Center" subtitle={companyName} />
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -216,23 +216,23 @@ export default function CommandDashboard() {
             href="/dashboard/resolutions"
             loading={loading}
             mode="live"
-            color={heldRate === null ? "text-[#5a6399]" : "text-emerald-400"}
+            color={heldRate === null ? "text-muted" : "text-emerald-400"}
           />
         </div>
 
         {/* Quickstart — real, state-derived suggestion */}
         {quickstart && (
-          <div className="glass-card p-5 border-[#5470ff]/30">
-            <p className="text-[10px] text-[#7a96ff] uppercase tracking-widest mb-2">
+          <div className="glass-card p-5 border-[#C8232C]/30">
+            <p className="text-[10px] text-brand uppercase tracking-widest mb-2">
               Where to focus next
             </p>
-            <p className="text-sm text-[#e8eaf6] mb-2">{quickstart.title}</p>
-            <p className="text-xs text-[#8895c4] leading-relaxed mb-3">
+            <p className="text-sm text-primary mb-2">{quickstart.title}</p>
+            <p className="text-xs text-secondary leading-relaxed mb-3">
               {quickstart.body}
             </p>
             <Link
               href={quickstart.href}
-              className="inline-flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white"
+              className="inline-flex items-center gap-1.5 text-xs text-brand hover:text-primary"
             >
               {quickstart.cta} <ChevronRight className="w-3 h-3" />
             </Link>
@@ -242,21 +242,21 @@ export default function CommandDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Today's Open Questions */}
           <div className="lg:col-span-2 space-y-5">
-            <div className="glass-card p-5 border-[#5470ff]/20">
+            <div className="glass-card p-5 border-[#C8232C]/20">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <CircleHelp className="w-4 h-4 text-[#5470ff]" />
-                  <h2 className="text-sm font-semibold text-[#e8eaf6]">
+                  <CircleHelp className="w-4 h-4 text-brand" />
+                  <h2 className="text-sm font-semibold text-primary">
                     Today&apos;s Open Questions
                   </h2>
-                  <span className="text-[10px] font-medium text-[#5470ff] bg-[#5470ff]/10 border border-[#5470ff]/20 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-medium text-brand bg-[#C8232C]/10 border border-[#C8232C]/20 px-2 py-0.5 rounded-full">
                     Guide, don&apos;t overtake
                   </span>
                 </div>
                 <button
                   onClick={surfaceQuestions}
                   disabled={loadingBriefing}
-                  className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
                   aria-live="polite"
                 >
                   <RefreshCw
@@ -307,7 +307,7 @@ export default function CommandDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Layers className="w-4 h-4 text-orange-400" />
-                  <h2 className="text-sm font-semibold text-[#e8eaf6]">
+                  <h2 className="text-sm font-semibold text-primary">
                     Critical & blocked tasks
                   </h2>
                   <span className="text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full">
@@ -316,17 +316,17 @@ export default function CommandDashboard() {
                 </div>
                 <Link
                   href="/dashboard/operations"
-                  className="text-xs text-[#5a6399] hover:text-[#7a96ff] flex items-center gap-1 transition-colors"
+                  className="text-xs text-muted hover:text-brand flex items-center gap-1 transition-colors"
                 >
                   All tasks <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
               {loading ? (
-                <div className="flex items-center gap-2 text-xs text-[#5a6399] py-6 justify-center">
+                <div className="flex items-center gap-2 text-xs text-muted py-6 justify-center">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
                 </div>
               ) : blockedTasks.length + criticalTasks.length === 0 ? (
-                <p className="text-xs text-[#5a6399] py-6 text-center">
+                <p className="text-xs text-muted py-6 text-center">
                   No blocked or critical tasks right now.
                 </p>
               ) : (
@@ -339,10 +339,10 @@ export default function CommandDashboard() {
                     .map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start justify-between gap-3 p-3 rounded-xl bg-[#12141f] border border-[#252840] hover:border-[#3a3f5c] transition-colors"
+                        className="flex items-start justify-between gap-3 p-3 rounded-xl bg-surface border border-default hover:border-strong transition-colors"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-[#e8eaf6] truncate">
+                          <p className="text-sm font-medium text-primary truncate">
                             {task.title}
                           </p>
                           {task.blockerReason && (
@@ -351,7 +351,7 @@ export default function CommandDashboard() {
                             </p>
                           )}
                           {task.assignee && (
-                            <p className="text-xs text-[#5a6399] mt-0.5">
+                            <p className="text-xs text-muted mt-0.5">
                               {task.assignee}
                               {task.dueDate ? ` · Due ${task.dueDate}` : ""}
                             </p>
@@ -372,14 +372,14 @@ export default function CommandDashboard() {
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-4">
                 <ShieldCheck className="w-4 h-4 text-violet-300" />
-                <h2 className="text-sm font-semibold text-[#e8eaf6]">
+                <h2 className="text-sm font-semibold text-primary">
                   Surfaced problems
                 </h2>
               </div>
               {loading ? (
-                <p className="text-xs text-[#5a6399] py-3">Loading…</p>
+                <p className="text-xs text-muted py-3">Loading…</p>
               ) : surfacedProblems.length === 0 ? (
-                <p className="text-xs text-[#5a6399] leading-relaxed">
+                <p className="text-xs text-muted leading-relaxed">
                   None today. A problem only surfaces here once it links to ≥3 signals
                   from ≥2 distinct sources AND a stated diagnosis — silence here means
                   the gate is doing its job, not that nothing is happening.
@@ -392,7 +392,7 @@ export default function CommandDashboard() {
                       href="/dashboard/problems"
                       className="block p-3 rounded-xl bg-violet-500/5 border border-violet-500/20 hover:border-violet-500/40 transition-colors"
                     >
-                      <p className="text-sm text-[#e8eaf6]">{p.title}</p>
+                      <p className="text-sm text-primary">{p.title}</p>
                       <p className="text-[10px] text-violet-300/70 mt-1 font-mono">
                         {p.kind} · {p.signalCount} signal
                         {p.signalCount === 1 ? "" : "s"}
@@ -407,21 +407,21 @@ export default function CommandDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-emerald-400" />
-                  <h2 className="text-sm font-semibold text-[#e8eaf6]">
+                  <h2 className="text-sm font-semibold text-primary">
                     Recent resolutions
                   </h2>
                 </div>
                 <Link
                   href="/dashboard/resolutions"
-                  className="text-xs text-[#5a6399] hover:text-[#7a96ff] flex items-center gap-1"
+                  className="text-xs text-muted hover:text-brand flex items-center gap-1"
                 >
                   All <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
               {loading ? (
-                <p className="text-xs text-[#5a6399] py-3">Loading…</p>
+                <p className="text-xs text-muted py-3">Loading…</p>
               ) : resolutions.length === 0 ? (
-                <p className="text-xs text-[#5a6399] leading-relaxed">
+                <p className="text-xs text-muted leading-relaxed">
                   No resolutions yet. They appear here when a problem is closed via the
                   Living Diagnosis flow.
                 </p>
@@ -430,12 +430,12 @@ export default function CommandDashboard() {
                   {resolutions.slice(0, 3).map((r) => (
                     <div
                       key={r.id}
-                      className="p-3 rounded-xl bg-[#12141f] border border-[#252840]"
+                      className="p-3 rounded-xl bg-surface border border-default"
                     >
-                      <p className="text-xs text-[#e8eaf6] line-clamp-2">
+                      <p className="text-xs text-primary line-clamp-2">
                         {r.actionTaken}
                       </p>
-                      <p className="text-[10px] text-[#5a6399] mt-1 font-mono">
+                      <p className="text-[10px] text-muted mt-1 font-mono">
                         {r.decidedAt.slice(0, 10)}
                         {r.durability
                           ? ` · ${r.durability}`
@@ -479,10 +479,10 @@ function ChainStat({
   return (
     <Link
       href={href}
-      className="glass-card p-3 flex flex-col gap-1 hover:border-[#3a3f5c] transition-colors"
+      className="glass-card p-3 flex flex-col gap-1 hover:border-strong transition-colors"
     >
-      <div className="flex items-center gap-1.5 text-[10px] text-[#5a6399] uppercase tracking-widest">
-        <span className="text-[#7a96ff]">{icon}</span>
+      <div className="flex items-center gap-1.5 text-[10px] text-muted uppercase tracking-widest">
+        <span className="text-brand">{icon}</span>
         {label}
         {mode === "demo" && (
           <span className="ml-auto px-1.5 py-0.5 rounded bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 text-[8px] font-semibold tracking-widest">
@@ -490,10 +490,10 @@ function ChainStat({
           </span>
         )}
       </div>
-      <p className={`text-2xl font-bold ${color ?? "text-[#e8eaf6]"}`}>
+      <p className={`text-2xl font-bold ${color ?? "text-primary"}`}>
         {loading ? "—" : value}
       </p>
-      {sub && <p className="text-[10px] text-[#5a6399]">{sub}</p>}
+      {sub && <p className="text-[10px] text-muted">{sub}</p>}
     </Link>
   );
 }
@@ -523,7 +523,7 @@ function Section({
       </p>
       <ul className="space-y-1.5">
         {items.map((it, i) => (
-          <li key={i} className="text-sm text-[#e8eaf6] leading-relaxed">
+          <li key={i} className="text-sm text-primary leading-relaxed">
             {it}
           </li>
         ))}
