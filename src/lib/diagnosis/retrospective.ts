@@ -49,14 +49,17 @@ export function deriveRetrospectivePatterns(
       (a, b) =>
         new Date(a.observed_at).getTime() - new Date(b.observed_at).getTime()
     );
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    if (!first || !last) continue;
     patterns.push({
       description: `Repeated "${kind}" — ${sigs.length} occurrences across ${sources.size} distinct source${
         sources.size === 1 ? "" : "s"
       }.`,
       recurringSubjects: [...sources],
       signalIds: sigs.map((s) => s.id),
-      earliestObserved: sorted[0].observed_at,
-      latestObserved: sorted[sorted.length - 1].observed_at,
+      earliestObserved: first.observed_at,
+      latestObserved: last.observed_at,
       occurrences: sigs.length,
       distinctSources: [...sources],
     });
@@ -77,12 +80,15 @@ export function deriveRetrospectivePatterns(
       (a, b) =>
         new Date(a.observed_at).getTime() - new Date(b.observed_at).getTime()
     );
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    if (!first || !last) continue;
     patterns.push({
       description: `Subject ${subject} has accumulated ${sigs.length} signals across ${kinds.size} distinct kinds — sustained friction, not one bad event.`,
       recurringSubjects: [subject],
       signalIds: sigs.map((s) => s.id),
-      earliestObserved: sorted[0].observed_at,
-      latestObserved: sorted[sorted.length - 1].observed_at,
+      earliestObserved: first.observed_at,
+      latestObserved: last.observed_at,
       occurrences: sigs.length,
       distinctSources: [subject],
     });

@@ -1,4 +1,5 @@
 import "server-only";
+import "@/lib/env"; // side-effect: validates env at first LLM call (fails fast)
 import { deepseekProvider } from "./deepseek";
 import { anthropicProvider } from "./anthropic";
 import type { LlmCallArgs, LlmResult, Provider } from "./types";
@@ -42,4 +43,19 @@ export function activeProviderName(): string | null {
 export async function llmCall(args: LlmCallArgs): Promise<LlmResult> {
   const provider = chooseProvider();
   return provider.call(args);
+}
+
+/**
+ * Streaming variant. Yields text deltas as they arrive. Falls back to the
+ * non-streaming `call` and yields once at the end if the provider doesn't
+ * support streaming.
+ */
+export async function* llmStream(args: LlmCallArgs): AsyncIterable<string> {
+  const provider = chooseProvider();
+  if (provider.stream) {
+    yield* provider.stream(args);
+    return;
+  }
+  const r = await provider.call(args);
+  yield r.text;
 }

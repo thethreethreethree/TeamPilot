@@ -1,9 +1,10 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
-import { mockCompany } from "@/lib/mock-data";
+import { useCompanyName } from "@/lib/hooks/useCompany";
 import { fetchSignals, type SignalsMode } from "@/lib/data/signals";
 import { supabaseEnabled } from "@/lib/supabase/client";
+import { loadRun, saveRun, clearRun } from "@/lib/diagnosis/persistence";
 import {
   DIAGNOSIS_STEPS,
   canAdvance,
@@ -60,11 +61,13 @@ const emptyRun: DiagnosisRun = {
 };
 
 export default function DiagnosePage() {
+  const companyName = useCompanyName();
   const [run, setRun] = useState<DiagnosisRun>({
     ...emptyRun,
     startedAt: "demo-start",
   });
   const [step, setStep] = useState<DiagnosisStep>("data");
+  const [restoredFrom, setRestoredFrom] = useState<string | null>(null);
 
   // Step 1 — Data (real signals from DB; demo fixtures only when Supabase off)
   const [signals, setSignals] = useState<SignalRef[]>([]);
@@ -79,9 +82,31 @@ export default function DiagnosePage() {
     setLoadingSignals(false);
   };
 
+  // Restore from localStorage on mount.
   useEffect(() => {
+    const persisted = loadRun();
+    if (persisted) {
+      setRun(persisted.run);
+      setRestoredFrom(persisted.savedAt);
+    }
     loadSignals();
   }, []);
+
+  // Auto-save on any change to the run.
+  useEffect(() => {
+    if (run.startedAt === "demo-start" && run.candidates.length === 0 && !run.problemHypothesis) {
+      // Empty run — don't churn the storage.
+      return;
+    }
+    saveRun(run);
+  }, [run]);
+
+  const resetRun = () => {
+    setRun({ ...emptyRun, startedAt: "demo-start" });
+    setStep("data");
+    setRestoredFrom(null);
+    clearRun();
+  };
 
   // Step 3 — Outside view input
   const [currentRead, setCurrentRead] = useState("");
@@ -210,7 +235,7 @@ export default function DiagnosePage() {
     <div className="min-h-screen bg-[#0c0d16]">
       <TopBar
         title="Living Diagnosis"
-        subtitle={`${mockCompany.name} · The constitution as runtime (CLAUDE.md §1)`}
+        subtitle={`${companyName} · The constitution as runtime (CLAUDE.md §1)`}
       />
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -222,6 +247,21 @@ export default function DiagnosePage() {
             it tells you exactly what&apos;s missing. The System guides; you decide.
           </p>
         </div>
+
+        {restoredFrom && (
+          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+            <p className="text-xs text-emerald-200">
+              Restored from local save ({restoredFrom.slice(0, 19).replace("T", " ")}).
+              Continue or reset to start fresh.
+            </p>
+            <button
+              onClick={resetRun}
+              className="text-xs text-emerald-200 hover:text-white border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
+            >
+              Reset run
+            </button>
+          </div>
+        )}
 
         {/* Step stepper */}
         <StepStepper current={step} liveRun={liveRun} onJump={setStep} />
@@ -544,18 +584,20 @@ export default function DiagnosePage() {
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <button
-                  onClick={() => setStep(DIAGNOSIS_STEPS[Math.max(0, stepIndex - 1)])}
+                  onClick={() => {
+                    const target = DIAGNOSIS_STEPS[Math.max(0, stepIndex - 1)];
+                    if (target) setStep(target);
+                  }}
                   disabled={stepIndex === 0}
                   className="text-xs text-[#5a6399] hover:text-[#8895c4] disabled:opacity-30"
                 >
                   ← back
                 </button>
                 <button
-                  onClick={() =>
-                    setStep(
-                      DIAGNOSIS_STEPS[Math.min(DIAGNOSIS_STEPS.length - 1, stepIndex + 1)]
-                    )
-                  }
+                  onClick={() => {
+                    const target = DIAGNOSIS_STEPS[Math.min(DIAGNOSIS_STEPS.length - 1, stepIndex + 1)];
+                    if (target) setStep(target);
+                  }}
                   disabled={
                     !advance.ok || stepIndex === DIAGNOSIS_STEPS.length - 1
                   }
@@ -652,7 +694,7 @@ function StepStepper({
             }`}
             title={advance.reason}
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5" aria-hidden="true">
               <Icon
                 className={`w-3.5 h-3.5 ${
                   active ? "text-[#7a96ff]" : "text-[#5a6399]"
@@ -667,7 +709,7 @@ function StepStepper({
             >
               {meta.label}
             </span>
-            <span className="text-[9px] text-[#3a3f5c] font-mono">{meta.section}</span>
+            <span aria-hidden="true" className="text-[9px] text-[#3a3f5c] font-mono">{meta.section}</span>
           </button>
         );
       })}
@@ -708,6 +750,9 @@ function EmptyHint({ text }: { text: string }) {
 function GateBadge({ gate }: { gate: GateEvaluation }) {
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
       className={`mt-4 p-3 rounded-xl border ${
         gate.passes
           ? "bg-emerald-500/5 border-emerald-500/20"
@@ -716,6 +761,7 @@ function GateBadge({ gate }: { gate: GateEvaluation }) {
     >
       <div className="flex items-center gap-2 mb-2">
         <ShieldCheck
+          aria-hidden="true"
           className={`w-4 h-4 ${gate.passes ? "text-emerald-400" : "text-yellow-400"}`}
         />
         <p
@@ -726,6 +772,8 @@ function GateBadge({ gate }: { gate: GateEvaluation }) {
           {gate.passes ? "gate passes" : "gate holds"}
         </p>
       </div>
+      {/* gate.reason is the natural-language explanation; it's the primary
+          content the live region announces. */}
       <p className="text-xs text-[#e8eaf6] mb-2">{gate.reason}</p>
       {!gate.passes && (
         <p className="text-[10px] text-yellow-200">{describeGapToGate(gate)}</p>

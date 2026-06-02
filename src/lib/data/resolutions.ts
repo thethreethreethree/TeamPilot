@@ -13,14 +13,47 @@ export type ResolutionRecord = {
   decidedAt: string;
 };
 
-export type ResolutionsMode = "live-data" | "live-empty" | "demo-unavailable";
+export type ResolutionsMode = "live-data" | "live-empty" | "demo-fixtures";
+
+const demoFixtures: ResolutionRecord[] = [
+  {
+    id: "demo-r1",
+    problemId: "demo-p-old",
+    problemTitle: "Approvals stalling deployment cadence",
+    actionTaken:
+      "Assigned a single owner for cross-team approvals and added a 24-hour SLA with explicit escalation path.",
+    reasoning:
+      "Five signals across three weeks pointed at unowned approvals as the bottleneck. Putting a single owner with a clock on it removes the diffusion of responsibility that was producing the delay.",
+    expectedOutcome:
+      "Approval cycle drops from ~3 days to <1; deploy cadence returns to weekly.",
+    observedOutcome:
+      "Cycle dropped to 18 hours over the following 4 weeks; one deploy slipped due to an unrelated holiday.",
+    durability: "held",
+    reviewedAt: "2025-05-01T10:00:00Z",
+    decidedAt: "2025-04-01T10:00:00Z",
+  },
+  {
+    id: "demo-r2",
+    problemId: "demo-p-old2",
+    problemTitle: "Standup overrunning by 20+ minutes",
+    actionTaken:
+      "Time-box each update to 90 seconds; off-flow items moved to a dedicated 'parking lot' doc reviewed once per week.",
+    reasoning:
+      "Standups were absorbing tactical discussions that belonged elsewhere. The time-box plus parking lot puts those discussions where they have time to be useful without consuming everyone's attention.",
+    expectedOutcome: "Standup back to 15 minutes; weekly meeting time recovered.",
+    observedOutcome: null,
+    durability: null,
+    reviewedAt: null,
+    decidedAt: "2025-05-05T10:00:00Z",
+  },
+];
 
 export async function fetchResolutions(): Promise<{
   resolutions: ResolutionRecord[];
   mode: ResolutionsMode;
 }> {
   if (!supabaseEnabled) {
-    return { resolutions: [], mode: "demo-unavailable" };
+    return { resolutions: demoFixtures, mode: "demo-fixtures" };
   }
   const supabase = createClient();
   const { data, error } = await supabase

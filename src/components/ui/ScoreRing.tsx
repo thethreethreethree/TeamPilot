@@ -36,10 +36,23 @@ export default function ScoreRing({
 
   const ringColor = getColor();
 
+  // a11y: the ring is a visual encoding of a number. Build a natural-language
+  // version once and apply it to the SVG so screen readers announce the score
+  // (and the demo qualifier) instead of just reading the digit on its own.
+  const ariaLabel = hasScore
+    ? `${label ?? "Score"}: ${score} out of 100${isDemo ? " (demo)" : ""}`
+    : `${label ?? "Score"}: label not yet derived`;
+
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
+        <svg
+          width={size}
+          height={size}
+          className="-rotate-90"
+          role="img"
+          aria-label={ariaLabel}
+        >
           <circle
             cx={size / 2}
             cy={size / 2}
@@ -62,6 +75,7 @@ export default function ScoreRing({
           />
         </svg>
         <span
+          aria-hidden="true"
           className="absolute inset-0 flex items-center justify-center text-lg font-bold"
           style={{ color: ringColor }}
         >

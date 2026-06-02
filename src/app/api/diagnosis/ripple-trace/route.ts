@@ -1,43 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { traceRipples } from "@/lib/diagnosis/rippleTrace";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { readBody, RippleTraceSchema } from "@/lib/api/validate";
+import { rateLimit } from "@/lib/api/rateLimit";
+import { LlmError } from "@/lib/llm/errors";
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, {
+    id: "ripple-trace",
+    windowMs: 60_000,
+    max: 10,
+  });
+  if (limited) return limited;
+
+  const body = await readBody(req, RippleTraceSchema);
+  if (body instanceof NextResponse) return body;
+
   try {
-    const { problemTitle, diagnosis, candidateAction, contextSummary } =
-      await req.json();
-
-    if (typeof problemTitle !== "string" || !problemTitle.trim()) {
-      return NextResponse.json({ error: "Problem title is required." }, { status: 400 });
-    }
-    if (typeof diagnosis !== "string" || diagnosis.trim().length < 40) {
-      return NextResponse.json(
-        {
-          error:
-            "A stated diagnosis of at least 40 chars is required. Ripple-tracing an empty WHY produces guesses, not predictions.",
-        },
-        { status: 400 }
-      );
-    }
-    if (typeof candidateAction !== "string" || !candidateAction.trim()) {
-      return NextResponse.json(
-        { error: "A candidate action is required to ripple-trace." },
-        { status: 400 }
-      );
-    }
-
     const companyId = (await getCurrentCompanyId()) ?? undefined;
     const ripples = await traceRipples({
-      problemTitle,
-      diagnosis,
-      candidateAction,
-      contextSummary: typeof contextSummary === "string" ? contextSummary : "",
+      problemTitle: body.problemTitle,
+      diagnosis: body.diagnosis,
+      candidateAction: body.candidateAction,
+      contextSummary: body.contextSummary ?? "",
       companyId,
     });
-
     return NextResponse.json({ ripples });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (err instanceof LlmError) {
+      return NextResponse.json(
+        { error: err.message, kind: err.kind, provider: err.provider },
+        { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
+      );
+    }
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }

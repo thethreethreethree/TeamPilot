@@ -37,4 +37,10 @@ export interface Provider {
   /** Default model id for this provider. */
   defaultModel(): string;
   call(args: LlmCallArgs): Promise<LlmResult>;
+  /**
+   * Optional streaming variant. Returns an async iterable of text deltas.
+   * Providers that don't implement it fall back to call() and yield once
+   * at the end (the consumer code becomes provider-agnostic).
+   */
+  stream?(args: LlmCallArgs): AsyncIterable<string>;
 }

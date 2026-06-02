@@ -119,7 +119,7 @@ Return strict JSON:
 
 If the inputs are sparse or unvalidated, return mostly empty arrays. Empty is correct.`;
 
-export async function runLearningCycle(companyId: string): Promise<{
+export async function runLearningCycle(_companyId: string): Promise<{
   ok: boolean;
   summary: string;
   evidence: LearningEvidence;

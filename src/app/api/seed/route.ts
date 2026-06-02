@@ -8,10 +8,36 @@ import {
 } from "@/lib/mock-data";
 
 /**
- * Seeds the current user's company with the bundled mock data.
- * Safe to call repeatedly — clears the company's existing rows first.
+ * Dev-only seed route — populates the current company with mock fixtures so the
+ * UI can be evaluated against realistic-looking state.
+ *
+ * Per §3.4 ("no fixed day-one behavior") and the 2026-06-02 audit (Tier 1 #4),
+ * this route is GATED to non-production environments. In production it returns
+ * 403, refusing to insert mock data into a real customer's chain — a customer
+ * accidentally calling this would have their brain learn from synthetic events,
+ * which is the exact §3.5 ("measurement of consequence") failure mode.
+ *
+ * To explicitly allow seeding in production (e.g. for a sandbox account), set
+ * EXECOS_ALLOW_SEED=true. The setting is logged on use.
  */
 export async function POST() {
+  const isDev = process.env.NODE_ENV !== "production";
+  const explicitlyAllowed = process.env.EXECOS_ALLOW_SEED === "true";
+  if (!isDev && !explicitlyAllowed) {
+    return NextResponse.json(
+      {
+        error:
+          "Seed route is dev-only. Set EXECOS_ALLOW_SEED=true to override (e.g. for a sandbox tenant). Populating a real company with fixtures violates §3.4.",
+      },
+      { status: 403 }
+    );
+  }
+  if (explicitlyAllowed) {
+    // Make the override visible — operator should see it in logs.
+    // eslint-disable-next-line no-console
+    console.warn("[/api/seed] EXECOS_ALLOW_SEED=true is set; allowing seed in production");
+  }
+
   if (!supabaseEnabled) {
     return NextResponse.json(
       { error: "Supabase is not configured." },

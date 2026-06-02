@@ -1,14 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { analyzeOperations } from "@/lib/claude";
+import { NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const raw = await analyzeOperations(JSON.stringify(body, null, 2));
-    const parsed = JSON.parse(raw);
-    return NextResponse.json(parsed);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message, diagnosis: message }, { status: 500 });
-  }
+/**
+ * Deprecated — superseded by the Living Diagnosis runtime (/dashboard/diagnose) and
+ * the Problems surface (/dashboard/problems). The old `analyzeOperations` shape
+ * returned `healthScore: 0-100` and `diagnosis: "..."` immediately — a §3.2 + §3.3
+ * violation (asserts a problem without signals, asserts without asking user first).
+ *
+ * Closed as part of the 2026-06-02 ground-up audit (Tier 1 #1). See AMD-004.
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error:
+        "Deprecated. Operations analysis runs through /dashboard/diagnose (Living Diagnosis) or /dashboard/problems (Understanding Gate). See docs/GUIDE_DONT_OVERTAKE.md.",
+    },
+    { status: 410 }
+  );
 }

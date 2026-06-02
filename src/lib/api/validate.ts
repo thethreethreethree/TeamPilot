@@ -1,0 +1,154 @@
+import "server-only";
+import { NextRequest, NextResponse } from "next/server";
+import { ZodSchema, z } from "zod";
+
+/**
+ * Shared request-body validator (audit Tier 2 #11).
+ *
+ * Usage in a route:
+ *   const body = await readBody(req, MySchema);
+ *   if (body instanceof NextResponse) return body; // 400 with errors
+ *   // ...body is now typed.
+ */
+export async function readBody<T>(
+  req: NextRequest,
+  schema: ZodSchema<T>
+): Promise<T | NextResponse> {
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Request body must be valid JSON." },
+      { status: 400 }
+    );
+  }
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Validation failed.",
+        issues: parsed.error.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
+      },
+      { status: 400 }
+    );
+  }
+  return parsed.data;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reusable schemas — pulled into routes that share field shapes
+// ─────────────────────────────────────────────────────────────
+
+export const TitleSchema = z.string().min(1).max(200);
+export const NonEmptyText = z.string().min(1).max(20_000);
+export const OptionalText = z.string().max(20_000).optional().or(z.literal(""));
+export const EmailSchema = z.string().email().max(320);
+export const RoleSchema = z.enum(["CEO", "COO", "Lead", "Member"]);
+
+export const TaskCreateSchema = z.object({
+  title: TitleSchema,
+  description: OptionalText,
+  department: z.string().max(120).optional().or(z.literal("")),
+  assignee: z.string().max(200).optional().or(z.literal("")),
+  status: z
+    .enum(["To Do", "In Progress", "Blocked", "Needs Review", "Completed"])
+    .optional(),
+  priority: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
+  aiPriorityScore: z.number().int().min(0).max(100).optional(),
+  impactLevel: z.string().max(40).optional(),
+  blockerReason: z.string().max(1000).optional().or(z.literal("")),
+  dueDate: z.string().date().optional().or(z.literal("")),
+});
+
+export const TaskPatchSchema = TaskCreateSchema.partial().extend({
+  id: z.string().uuid(),
+});
+
+export const DialogueDecisionSchema = z.object({
+  situation: z.string().min(20).max(20_000),
+  userDiagnosis: z.string().min(20).max(20_000),
+  userProposal: z.string().min(20).max(20_000),
+});
+
+export const DialogueConversationSchema = z.object({
+  conversation: z.string().min(20).max(60_000),
+  userRead: z.string().min(20).max(20_000),
+});
+
+export const RippleTraceSchema = z.object({
+  problemTitle: z.string().min(1).max(200),
+  diagnosis: z.string().min(40).max(20_000),
+  candidateAction: z.string().min(1).max(20_000),
+  contextSummary: z.string().max(20_000).optional().or(z.literal("")),
+});
+
+export const OutsideViewSchema = z.object({
+  currentRead: z.string().min(20).max(20_000),
+  evidenceSummary: z.string().max(20_000),
+  count: z.number().int().min(1).max(5).optional(),
+});
+
+export const InviteSchema = z.object({
+  email: EmailSchema,
+  role: RoleSchema.optional(),
+});
+
+export const AcceptInviteSchema = z.object({
+  code: z.string().min(8).max(64),
+  fullName: z.string().max(200).optional().or(z.literal("")).nullable(),
+});
+
+export const ProblemCreateSchema = z.object({
+  kind: z.string().min(1).max(120),
+  title: TitleSchema,
+  diagnosis: z.string().max(20_000).optional().or(z.literal("")).nullable(),
+  signalIds: z.array(z.string().uuid()).max(200).optional(),
+});
+
+export const ProblemPatchSchema = z.object({
+  id: z.string().uuid(),
+  title: TitleSchema.optional(),
+  diagnosis: z.string().max(20_000).optional().or(z.literal("")),
+  status: z
+    .enum(["draft", "surfaceable", "surfaced", "resolved", "dismissed"])
+    .optional(),
+  dismissalReason: z.string().max(2000).optional().or(z.literal("")),
+});
+
+export const ResolutionPatchSchema = z.object({
+  id: z.string().uuid(),
+  observedOutcome: z.string().min(20).max(20_000),
+  durability: z.enum(["held", "reopened", "partial", "unknown"]),
+});
+
+export const DecisionPersistSchema = z.object({
+  situation: z.string().min(20).max(20_000),
+  userDiagnosis: z.string().min(20).max(20_000),
+  userProposal: z.string().min(20).max(20_000),
+  systemResponse: z.record(z.string(), z.unknown()).optional().nullable(),
+  chosenPath: z.enum(["user", "system", "hybrid", "defer"]),
+  chosenNote: z.string().max(20_000).optional().or(z.literal("")),
+  title: z.string().max(200),
+  outcome: z.string().max(20_000).optional().or(z.literal("")),
+});
+
+export const BrainUnlockSchema = z.object({
+  reason: z.string().min(20).max(2000),
+});
+
+export const SettingsPatchSchema = z.object({
+  name: z.string().max(200).optional().nullable(),
+  industry: z.string().max(120).optional().nullable(),
+  size: z.string().max(40).optional().nullable(),
+  stage: z.string().max(80).optional().nullable(),
+  goals: z.array(z.string()).max(40).optional().nullable(),
+  timezone: z.string().max(120).optional(),
+  llm_provider_preference: z
+    .enum(["deepseek", "anthropic"])
+    .optional()
+    .nullable(),
+});

@@ -1,19 +1,7 @@
 import { cn } from "@/lib/utils";
 
-type StatusType =
-  | "Blocked"
-  | "In Progress"
-  | "To Do"
-  | "Needs Review"
-  | "Completed"
-  | "Critical"
-  | "High"
-  | "Medium"
-  | "Low"
-  | "Overloaded"
-  | "Balanced"
-  | "High"
-  | "Underutilized";
+// StatusType deliberately untyped — callers may pass any string; statusStyles
+// below has a fallback for unknown values.
 
 interface StatusBadgeProps {
   status: string;

@@ -321,7 +321,7 @@ children.push(
     "ExecOS is different. Each company that uses ExecOS gets its own AI memory that learns from that company's actual outcomes. Over months of use, the system learns the company's vocabulary, the patterns that show up there, the diagnostic methods that have actually produced lasting decisions, and the kinds of suggestions that have been rejected (and why)."
   ),
   p(
-    "This means the longer a company uses ExecOS, the more valuable it becomes — and the harder it is to replace. A competitor product is starting from zero. ExecOS, after a year of use, has a complete, traceable record of how this specific team makes decisions."
+    "Most AI products plateau the moment they ship. ExecOS sharpens every month it runs against your work — until it isn't giving you generic exec advice anymore, but advice from a system that has watched how your team actually makes decisions. That accumulating clarity is the product, and it belongs to you. Your data, your account, exportable on demand."
   ),
   h2("The honesty protocol (Month 1 = silent)"),
   p(
@@ -486,9 +486,25 @@ const doc = new Document({
 
 const outDir = path.join(__dirname, "..", "docs");
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-const outPath = path.join(outDir, "ExecOS-Business-Overview.docx");
+const primaryPath = path.join(outDir, "ExecOS-Business-Overview.docx");
 
 Packer.toBuffer(doc).then((buf) => {
-  fs.writeFileSync(outPath, buf);
+  // If the primary file is locked (Word has it open), write a versioned copy
+  // alongside it so the user gets the update without having to close Word.
+  let outPath = primaryPath;
+  try {
+    fs.writeFileSync(primaryPath, buf);
+  } catch (err) {
+    if (err && err.code === "EBUSY") {
+      const stamp = String(Math.floor(Date.now() / 1000));
+      outPath = path.join(outDir, `ExecOS-Business-Overview.${stamp}.docx`);
+      fs.writeFileSync(outPath, buf);
+      console.log(
+        "Primary path was locked (Word open?). Wrote to versioned copy instead."
+      );
+    } else {
+      throw err;
+    }
+  }
   console.log("Wrote " + outPath + " (" + buf.length + " bytes)");
 });

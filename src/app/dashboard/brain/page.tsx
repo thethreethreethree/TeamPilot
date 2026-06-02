@@ -2,6 +2,8 @@
 
 import TopBar from "@/components/layout/TopBar";
 import { supabaseEnabled } from "@/lib/supabase/client";
+import Modal from "@/components/ui/Modal";
+import { Textarea } from "@/components/ui/Field";
 import {
   AlertTriangle,
   Brain as BrainIcon,
@@ -387,32 +389,27 @@ function UnlockModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-[#e8eaf6]">
-            Unlock AI guidance early
-          </h2>
-          <button onClick={onClose} className="text-[#5a6399] hover:text-white text-lg">
-            ×
-          </button>
-        </div>
+    <Modal open onClose={onClose} title="Unlock AI guidance early" size="md">
+      <div aria-busy={submitting}>
         <p className="text-xs text-[#8895c4] mb-3 leading-relaxed">
-          §3.4 reserves Month 1 as a control window — the AI is silent so the team&apos;s
-          baseline can be captured honestly. Unlocking early is an explicit override. The
-          reason is preserved on the brain&apos;s audit trail for §7.5 review of whether
-          early-unlock cohorts produced worse outcomes than control-respecting ones.
+          §3.4 reserves Month 1 as a control window — the AI is silent so the
+          team&apos;s baseline can be captured honestly. Unlocking early is an
+          explicit override. The reason is preserved on the brain&apos;s audit
+          trail for §7.5 review of whether early-unlock cohorts produced worse
+          outcomes than control-respecting ones.
         </p>
-        <textarea
+        <Textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={4}
           placeholder="Why does this team need the control window overridden? Be specific — this is on the record."
-          className="w-full bg-[#12141f] border border-[#252840] rounded-lg px-3 py-2.5 text-sm text-[#e8eaf6] focus:outline-none focus:border-[#5470ff]/50 resize-none"
         />
         {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
         <div className="flex items-center justify-end gap-2 pt-3">
-          <button onClick={onClose} className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2">
+          <button
+            onClick={onClose}
+            className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2"
+          >
             Cancel
           </button>
           <button
@@ -424,7 +421,7 @@ function UnlockModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

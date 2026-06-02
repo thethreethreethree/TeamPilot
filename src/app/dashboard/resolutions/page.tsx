@@ -6,6 +6,9 @@ import {
   type ResolutionRecord,
   type ResolutionsMode,
 } from "@/lib/data/resolutions";
+import Modal from "@/components/ui/Modal";
+import { Field, Textarea } from "@/components/ui/Field";
+import ExportMenu from "@/components/ui/ExportMenu";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import {
   AlertTriangle,
@@ -93,59 +96,62 @@ export default function ResolutionsPage() {
           </p>
         </div>
 
-        {!supabaseEnabled && (
-          <div className="glass-card p-6 text-center">
-            <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
-            <p className="text-sm text-yellow-100 mb-1">Live mode required</p>
-            <p className="text-xs text-[#5a6399] max-w-md mx-auto">
-              Resolutions are produced by closing problems in the Living Diagnosis flow.
-              Configure Supabase keys to use this surface.
+        {mode === "demo-fixtures" && (
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
+            <AlertTriangle className="w-4 h-4 text-yellow-300 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-yellow-100">
+              <span className="font-medium">Demo fixtures.</span> Two resolutions are
+              shown — one held, one awaiting review. Recording new outcomes requires
+              live mode.
             </p>
           </div>
         )}
 
-        {supabaseEnabled && (
-          <>
-            {/* Summary */}
-            <div className="grid grid-cols-3 gap-4">
-              <Stat label="Total resolutions" value={resolutions.length} color="text-[#e8eaf6]" />
-              <Stat label="Reviewed" value={reviewed.length} color="text-blue-400" />
-              <Stat
-                label="Held rate"
-                value={heldRate === null ? "—" : `${Math.round(heldRate * 100)}%`}
-                color={heldRate === null ? "text-[#5a6399]" : "text-emerald-400"}
+        {/* Summary + export */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="grid grid-cols-3 gap-4 flex-1">
+            <Stat label="Total resolutions" value={resolutions.length} color="text-[#e8eaf6]" />
+            <Stat label="Reviewed" value={reviewed.length} color="text-blue-400" />
+            <Stat
+              label="Held rate"
+              value={heldRate === null ? "—" : `${Math.round(heldRate * 100)}%`}
+              color={heldRate === null ? "text-[#5a6399]" : "text-emerald-400"}
+            />
+          </div>
+          <ExportMenu
+            entity="resolutions"
+            disabled={!supabaseEnabled || mode === "demo-fixtures"}
+            disabledReason="Export requires live mode (your data, not demo fixtures)."
+          />
+        </div>
+
+        {loading && (
+          <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399] py-10">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+          </div>
+        )}
+
+        {!loading && mode === "live-empty" && (
+          <div className="glass-card p-8 text-center">
+            <p className="text-sm text-[#e8eaf6] mb-2">No resolutions yet.</p>
+            <p className="text-xs text-[#5a6399] max-w-md mx-auto leading-relaxed">
+              Resolutions are recorded by closing a problem in the Living Diagnosis
+              flow. Once one exists, you can come back here to fill in what actually
+              happened.
+            </p>
+          </div>
+        )}
+
+        {!loading && resolutions.length > 0 && (
+          <div className="space-y-3">
+            {resolutions.map((r) => (
+              <ResolutionRow
+                key={r.id}
+                resolution={r}
+                onReview={() => mode !== "demo-fixtures" && setReviewing(r)}
               />
-            </div>
-
-            {loading && (
-              <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399] py-10">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
-              </div>
-            )}
-
-            {!loading && mode === "live-empty" && (
-              <div className="glass-card p-8 text-center">
-                <p className="text-sm text-[#e8eaf6] mb-2">No resolutions yet.</p>
-                <p className="text-xs text-[#5a6399] max-w-md mx-auto leading-relaxed">
-                  Resolutions are recorded by closing a problem in the Living Diagnosis
-                  flow. Once one exists, you can come back here to fill in what actually
-                  happened.
-                </p>
-              </div>
-            )}
-
-            {!loading && resolutions.length > 0 && (
-              <div className="space-y-3">
-                {resolutions.map((r) => (
-                  <ResolutionRow
-                    key={r.id}
-                    resolution={r}
-                    onReview={() => setReviewing(r)}
-                  />
-                ))}
-              </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
       </div>
 
@@ -266,69 +272,61 @@ function ReviewModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card max-w-lg w-full p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-[#e8eaf6]">Review outcome</h2>
-          <button onClick={onClose} className="text-[#5a6399] hover:text-white text-lg">
-            ×
+    <Modal open onClose={onClose} title="Review outcome" size="lg">
+      <div className="mb-3 p-3 bg-[#12141f] border border-[#252840] rounded-xl">
+        <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-1">action</p>
+        <p className="text-sm text-[#e8eaf6]">{resolution.actionTaken}</p>
+      </div>
+      <div className="space-y-3" aria-busy={submitting}>
+        <Field label="What actually happened? (≥20 chars)">
+          <Textarea
+            value={observedOutcome}
+            onChange={(e) => setObservedOutcome(e.target.value)}
+            rows={4}
+            placeholder="Concrete observation — not 'it worked', but what specifically changed in the world."
+          />
+        </Field>
+        <Field label="Durability">
+          <div className="grid grid-cols-2 gap-2">
+            {(["held", "partial", "reopened", "unknown"] as const).map((d) => {
+              const meta = DURABILITY_META[d];
+              if (!meta) return null;
+              const Icon = meta.icon;
+              return (
+                <button
+                  key={d}
+                  onClick={() => setDurability(d)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-all ${
+                    durability === d
+                      ? `${meta.bg} ${meta.border} ${meta.color}`
+                      : "border-[#252840] text-[#5a6399] hover:border-[#3a3f5c]"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+        {error && <p className="text-xs text-red-400">{error}</p>}
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <button
+            onClick={onClose}
+            className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={submitting}
+            className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+          >
+            {submitting ? "Saving…" : "Save outcome"}
           </button>
         </div>
-        <div className="mb-3 p-3 bg-[#12141f] border border-[#252840] rounded-xl">
-          <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-1">action</p>
-          <p className="text-sm text-[#e8eaf6]">{resolution.actionTaken}</p>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-[#8895c4] mb-1.5 block">
-              What actually happened? (≥20 chars)
-            </label>
-            <textarea
-              value={observedOutcome}
-              onChange={(e) => setObservedOutcome(e.target.value)}
-              rows={4}
-              placeholder="Concrete observation — not 'it worked', but what specifically changed in the world."
-              className="w-full bg-[#12141f] border border-[#252840] rounded-lg px-3 py-2.5 text-sm text-[#e8eaf6] focus:outline-none focus:border-[#5470ff]/50 resize-none"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[#8895c4] mb-1.5 block">Durability</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["held", "partial", "reopened", "unknown"] as const).map((d) => {
-                const meta = DURABILITY_META[d];
-                return (
-                  <button
-                    key={d}
-                    onClick={() => setDurability(d)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-all ${
-                      durability === d
-                        ? `${meta.bg} ${meta.border} ${meta.color}`
-                        : "border-[#252840] text-[#5a6399] hover:border-[#3a3f5c]"
-                    }`}
-                  >
-                    <meta.icon className="w-3.5 h-3.5" />
-                    {meta.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button onClick={onClose} className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2">
-              Cancel
-            </button>
-            <button
-              onClick={submit}
-              disabled={submitting}
-              className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
-            >
-              {submitting ? "Saving…" : "Save outcome"}
-            </button>
-          </div>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

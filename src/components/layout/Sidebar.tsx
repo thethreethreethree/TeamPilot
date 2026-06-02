@@ -22,10 +22,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { CONSTITUTION } from "@/lib/constitution";
 
 const productionNav = [
   { label: "Command Center", href: "/dashboard", icon: LayoutDashboard },
   { label: "Tasks", href: "/dashboard/operations", icon: ListChecks },
+  { label: "Team", href: "/dashboard/team", icon: Users },
   { label: "Living Diagnosis", href: "/dashboard/diagnose", icon: GitMerge },
   { label: "Problems", href: "/dashboard/problems", icon: ShieldCheck },
   { label: "Resolutions", href: "/dashboard/resolutions", icon: Sparkles },
@@ -35,7 +37,6 @@ const productionNav = [
 ];
 
 const designPreviewNav = [
-  { label: "Team", href: "/dashboard/team", icon: Users },
   { label: "Finance", href: "/dashboard/finance", icon: DollarSign },
   { label: "Marketing", href: "/dashboard/marketing", icon: Megaphone },
 ];
@@ -194,6 +195,17 @@ export default function Sidebar() {
         </div>
       </nav>
 
+      {/* Constitution version badge */}
+      <div className="px-4 pt-2 pb-1">
+        <Link
+          href="/dashboard/settings"
+          className="block text-[10px] text-[#3a3f5c] hover:text-[#5a6399] transition-colors font-mono"
+          title={`Last amendment: ${CONSTITUTION.lastAmendmentId} (${CONSTITUTION.lastAmendmentDate})`}
+        >
+          CLAUDE.md v{CONSTITUTION.version} · {CONSTITUTION.amendmentCount} amendments
+        </Link>
+      </div>
+
       {/* User footer */}
       <div className="px-4 py-4 border-t border-[#252840]">
         <div className="flex items-center gap-3 px-2">
@@ -209,9 +221,10 @@ export default function Sidebar() {
           <button
             onClick={signOut}
             title="Sign out"
+            aria-label="Sign out"
             className="p-1.5 rounded-lg text-[#5a6399] hover:text-red-400 hover:bg-[#1a1d2e] transition-colors"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut aria-hidden="true" className="w-4 h-4" />
           </button>
         </div>
       </div>

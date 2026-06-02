@@ -1,14 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { analyzeMarketing } from "@/lib/claude";
+import { NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const raw = await analyzeMarketing(JSON.stringify(body, null, 2));
-    const parsed = JSON.parse(raw);
-    return NextResponse.json(parsed);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message, diagnosis: message }, { status: 500 });
-  }
+/**
+ * Deprecated. Same reasoning as /api/ai/finance — marketing analysis as a single
+ * LLM call asserting a healthScore violates §3.2 / §3.4. Diagnosis runs through
+ * the constitutional surfaces once a real data source exists.
+ *
+ * Closed as part of the 2026-06-02 ground-up audit (Tier 1 #1).
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error:
+        "Deprecated. Marketing domain has no production data source yet. Once events exist, diagnosis runs through /dashboard/diagnose.",
+    },
+    { status: 410 }
+  );
 }

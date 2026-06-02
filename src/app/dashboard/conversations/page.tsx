@@ -2,10 +2,14 @@
 
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { mockCompany } from "@/lib/mock-data";
+import { useCompanyName } from "@/lib/hooks/useCompany";
+import {
+  loadDialogue,
+  saveDialogue,
+  clearDialogue,
+} from "@/lib/dialogues/persistence";
 import {
   Brain,
-  CheckCircle2,
   ChevronRight,
   GitCompareArrows,
   Lightbulb,
@@ -14,7 +18,7 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface RefinedAction {
   task: string;
@@ -34,6 +38,13 @@ interface DialogueResponse {
 }
 
 type Phase = "transcript" | "elicit" | "respond";
+
+interface ConversationDialogueState {
+  phase: Phase;
+  conversation: string;
+  userRead: string;
+  response: DialogueResponse | null;
+}
 
 const exampleConversation = `CEO: We need to decide on the new pricing model before the board meeting next Thursday. The current flat-rate isn't scaling well.
 
@@ -56,18 +67,48 @@ James: Our last NPS survey showed 67% of power users want more flexibility in ho
 CEO: Alright. Let's go with tiered pricing + usage for net-new customers in Q2. Sarah owns the enterprise contract strategy. Marcus starts backend planning this week. James prepares the communication plan for existing customers. We align on final pricing tiers by Friday.`;
 
 export default function ConversationsPage() {
+  const companyName = useCompanyName();
   const [phase, setPhase] = useState<Phase>("transcript");
   const [conversation, setConversation] = useState(exampleConversation);
   const [userRead, setUserRead] = useState("");
   const [response, setResponse] = useState<DialogueResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [restoredFrom, setRestoredFrom] = useState<string | null>(null);
+
+  useEffect(() => {
+    const persisted = loadDialogue<ConversationDialogueState>("conversation");
+    if (persisted) {
+      setPhase(persisted.state.phase);
+      setConversation(persisted.state.conversation);
+      setUserRead(persisted.state.userRead);
+      setResponse(persisted.state.response);
+      setRestoredFrom(persisted.savedAt);
+    }
+  }, []);
+
+  useEffect(() => {
+    const isPristine =
+      conversation === exampleConversation &&
+      !userRead.trim() &&
+      !response;
+    if (isPristine) return;
+    saveDialogue<ConversationDialogueState>("conversation", {
+      phase,
+      conversation,
+      userRead,
+      response,
+    });
+  }, [phase, conversation, userRead, response]);
 
   const reset = () => {
     setPhase("transcript");
+    setConversation(exampleConversation);
     setUserRead("");
     setResponse(null);
     setError("");
+    setRestoredFrom(null);
+    clearDialogue("conversation");
   };
 
   const requestSystem = async () => {
@@ -95,7 +136,7 @@ export default function ConversationsPage() {
     <div className="min-h-screen bg-[#0c0d16]">
       <TopBar
         title="Conversation Dialogue"
-        subtitle={`${mockCompany.name} · Guide, don't overtake (CLAUDE.md §3.3)`}
+        subtitle={`${companyName} · Guide, don't overtake (CLAUDE.md §3.3)`}
       />
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -107,6 +148,21 @@ export default function ConversationsPage() {
             sharpens, it does not assert.
           </p>
         </div>
+
+        {restoredFrom && (
+          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+            <p className="text-xs text-emerald-200">
+              Restored from local save ({restoredFrom.slice(0, 19).replace("T", " ")}).
+              Continue or reset to start fresh.
+            </p>
+            <button
+              onClick={reset}
+              className="text-xs text-emerald-200 hover:text-white border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
+            >
+              Reset dialogue
+            </button>
+          </div>
+        )}
 
         <PhaseStepper current={phase} />
 

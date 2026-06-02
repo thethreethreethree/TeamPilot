@@ -1,9 +1,14 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
-import { mockCompany } from "@/lib/mock-data";
+import { useCompanyName } from "@/lib/hooks/useCompany";
 import { fetchDecisions, type DecisionRecord } from "@/lib/data/decisions";
 import { supabaseEnabled } from "@/lib/supabase/client";
+import {
+  loadDialogue,
+  saveDialogue,
+  clearDialogue,
+} from "@/lib/dialogues/persistence";
 import {
   Brain,
   CheckCircle2,
@@ -31,9 +36,20 @@ type Decision =
   | { kind: "hybrid"; note: string }
   | { kind: "defer"; note: string };
 
+/** Snapshot persisted to localStorage so refresh / nav doesn't lose work. */
+interface DecisionDialogueState {
+  phase: Phase;
+  situation: string;
+  userDiagnosis: string;
+  userProposal: string;
+  response: DialogueResponse | null;
+  decision: Decision | null;
+}
+
 const exampleSituation = `Operations efficiency dropped 9% this week. Two critical tasks are blocked — the payment gateway integration and the v2.4 product deploy. Marcus Chen (Lead Engineer) is overloaded with 4 active tasks and 2 overdue items. The v2.4 deploy is blocked until the gateway is fixed. The board wants a status update by Friday — 3 days from now.`;
 
 export default function DecisionsPage() {
+  const companyName = useCompanyName();
   const [phase, setPhase] = useState<Phase>("situation");
   const [situation, setSituation] = useState(exampleSituation);
   const [userDiagnosis, setUserDiagnosis] = useState("");
@@ -46,22 +62,56 @@ export default function DecisionsPage() {
   const [persistMsg, setPersistMsg] = useState("");
   const [decisions, setDecisions] = useState<DecisionRecord[]>([]);
   const [decisionsAreMock, setDecisionsAreMock] = useState(true);
+  const [restoredFrom, setRestoredFrom] = useState<string | null>(null);
 
+  // Restore in-progress dialogue from localStorage on mount.
   useEffect(() => {
+    const persisted = loadDialogue<DecisionDialogueState>("decision");
+    if (persisted) {
+      setPhase(persisted.state.phase);
+      setSituation(persisted.state.situation);
+      setUserDiagnosis(persisted.state.userDiagnosis);
+      setUserProposal(persisted.state.userProposal);
+      setResponse(persisted.state.response);
+      setDecision(persisted.state.decision);
+      setRestoredFrom(persisted.savedAt);
+    }
     fetchDecisions().then(({ decisions, isMock }) => {
       setDecisions(decisions);
       setDecisionsAreMock(isMock);
     });
   }, []);
 
+  // Auto-save once the user has typed anything beyond the example situation.
+  useEffect(() => {
+    const isPristine =
+      situation === exampleSituation &&
+      !userDiagnosis.trim() &&
+      !userProposal.trim() &&
+      !response &&
+      !decision;
+    if (isPristine) return;
+    saveDialogue<DecisionDialogueState>("decision", {
+      phase,
+      situation,
+      userDiagnosis,
+      userProposal,
+      response,
+      decision,
+    });
+  }, [phase, situation, userDiagnosis, userProposal, response, decision]);
+
   const reset = () => {
     setPhase("situation");
+    setSituation(exampleSituation);
     setUserDiagnosis("");
     setUserProposal("");
     setResponse(null);
     setDecision(null);
     setError("");
     setPersistMsg("");
+    setRestoredFrom(null);
+    clearDialogue("decision");
   };
 
   const persistDecision = async () => {
@@ -133,7 +183,7 @@ export default function DecisionsPage() {
     <div className="min-h-screen bg-[#0c0d16]">
       <TopBar
         title="Decision Dialogue"
-        subtitle={`${mockCompany.name} · Guide, don't overtake (CLAUDE.md §3.3)`}
+        subtitle={`${companyName} · Guide, don't overtake (CLAUDE.md §3.3)`}
       />
 
       <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -147,6 +197,21 @@ export default function DecisionsPage() {
             See <a href="/docs/GUIDE_DONT_OVERTAKE.md" className="text-[#7a96ff] underline">the rule</a>.
           </p>
         </div>
+
+        {restoredFrom && (
+          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+            <p className="text-xs text-emerald-200">
+              Restored from local save ({restoredFrom.slice(0, 19).replace("T", " ")}).
+              Continue or reset to start fresh.
+            </p>
+            <button
+              onClick={reset}
+              className="text-xs text-emerald-200 hover:text-white border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
+            >
+              Reset dialogue
+            </button>
+          </div>
+        )}
 
         {/* Phase indicator */}
         <PhaseStepper current={phase} />

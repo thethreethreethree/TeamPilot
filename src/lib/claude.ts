@@ -199,65 +199,15 @@ ${args.userRead}`,
 }
 
 // ─────────────────────────────────────────────────────────────
-// Legacy: kept for backwards compat with the old /api/ai/analyze, /api/ai/finance,
-// /api/ai/marketing routes. These still violate §3.3 if used. The propagation
-// checklist tracks them. Each forwards through the brain if a companyId is given.
+// Removed (audit Tier 1 #1, 2026-06-02):
+//   analyzeOperations, analyzeFinance, analyzeMarketing — these emitted a
+//   "healthScore: 0-100" shape which violates §3.2 and §3.4. Their routes are
+//   now 410 Gone. Domain diagnosis runs through /dashboard/diagnose.
+//
+//   generateDecisionOptions, analyzeConversation — removed in earlier passes,
+//   replaced by proposeDecisionDialogue + analyzeConversationDialogue.
+//
+// Compat alias kept for the briefing route name.
 // ─────────────────────────────────────────────────────────────
 
-export async function analyzeOperations(
-  operationsData: string,
-  opts?: { companyId?: string }
-): Promise<string> {
-  const r = await call({
-    companyId: opts?.companyId,
-    expectJson: true,
-    maxTokens: 600,
-    systemPrompt: `You are ExecOS Operations Analyzer. Identify bottlenecks, risks, and execution failures.
-Format as JSON: { "healthScore": 0-100, "diagnosis": "...", "topBottlenecks": [...], "immediateActions": [...], "riskLevel": "Low|Medium|High|Critical" }`,
-    userContent: `Analyze these operations:\n\n${operationsData}`,
-  });
-  return r.text;
-}
-
-export async function analyzeFinance(
-  financeData: string,
-  opts?: { companyId?: string }
-): Promise<string> {
-  const r = await call({
-    companyId: opts?.companyId,
-    expectJson: true,
-    maxTokens: 600,
-    systemPrompt: `You are ExecOS Finance Analyzer. Assess financial health, runway, burn, and trajectory.
-Format as JSON: { "healthScore": 0-100, "diagnosis": "...", "topRisks": [...], "immediateActions": [...], "riskLevel": "Low|Medium|High|Critical" }`,
-    userContent: `Analyze this company's finances:\n\n${financeData}`,
-  });
-  return r.text;
-}
-
-export async function analyzeMarketing(
-  marketingData: string,
-  opts?: { companyId?: string }
-): Promise<string> {
-  const r = await call({
-    companyId: opts?.companyId,
-    expectJson: true,
-    maxTokens: 600,
-    systemPrompt: `You are ExecOS Marketing Analyzer. Assess marketing performance — lead generation, CAC, channel ROI, and funnel conversion.
-Format as JSON: { "healthScore": 0-100, "diagnosis": "...", "topRisks": [...], "immediateActions": [...], "riskLevel": "Low|Medium|High|Critical" }`,
-    userContent: `Analyze this company's marketing:\n\n${marketingData}`,
-  });
-  return r.text;
-}
-
-// Compat aliases — old call sites still importable until the propagation completes.
 export const generateDailyBriefing = generateDailyQuestions;
-export async function generateDecisionOptions(): Promise<string> {
-  throw new Error(
-    "generateDecisionOptions is removed. Use proposeDecisionDialogue (guide-don't-overtake, AMD-003)."
-  );
-}
-export async function analyzeConversation(): Promise<string> {
-  throw new Error(
-    "analyzeConversation is removed. Use analyzeConversationDialogue (guide-don't-overtake)."
-  );
-}

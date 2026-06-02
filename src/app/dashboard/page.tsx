@@ -67,11 +67,16 @@ export default function CommandDashboard() {
     refresh();
   }, []);
 
+  const [streamProgress, setStreamProgress] = useState(0);
+
   const surfaceQuestions = async () => {
     setLoadingBriefing(true);
     setBriefingError("");
+    setQuestions(null);
+    setStreamProgress(0);
+
     try {
-      const res = await fetch("/api/ai/briefing", {
+      const res = await fetch("/api/ai/briefing/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -82,9 +87,54 @@ export default function CommandDashboard() {
           companyName,
         }),
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setQuestions(data as DailyQuestions);
+      if (!res.ok || !res.body) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuf = "";
+      let parseBuf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuf += decoder.decode(value, { stream: true });
+        let sep;
+        while ((sep = textBuf.indexOf("\n\n")) !== -1) {
+          const rawEvent = textBuf.slice(0, sep);
+          textBuf = textBuf.slice(sep + 2);
+          let evt = "message";
+          let data = "";
+          for (const line of rawEvent.split("\n")) {
+            if (line.startsWith("event: ")) evt = line.slice(7).trim();
+            else if (line.startsWith("data: ")) data = line.slice(6);
+          }
+          if (!data) continue;
+          let payload: { text?: string; suppressed?: boolean; reason?: string; parsed?: unknown; error?: string };
+          try { payload = JSON.parse(data); } catch { continue; }
+
+          if (evt === "delta" && payload.text) {
+            parseBuf += payload.text;
+            setStreamProgress((p) => p + payload.text!.length);
+            // Try partial parse as it streams; if successful, render incrementally.
+            try {
+              const partial = JSON.parse(parseBuf);
+              if (partial && typeof partial === "object") {
+                setQuestions(partial as DailyQuestions);
+              }
+            } catch { /* not yet valid; wait for more */ }
+          } else if (evt === "gate" && payload.suppressed) {
+            setBriefingError(payload.reason ?? "AI guidance suppressed.");
+          } else if (evt === "done") {
+            if (payload.parsed && typeof payload.parsed === "object") {
+              setQuestions(payload.parsed as DailyQuestions);
+            }
+          } else if (evt === "error") {
+            throw new Error(payload.error ?? "stream error");
+          }
+        }
+      }
     } catch (err) {
       setBriefingError(err instanceof Error ? err.message : "Unable to generate.");
     } finally {
@@ -207,11 +257,17 @@ export default function CommandDashboard() {
                   onClick={surfaceQuestions}
                   disabled={loadingBriefing}
                   className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                  aria-live="polite"
                 >
                   <RefreshCw
                     className={`w-3 h-3 ${loadingBriefing ? "animate-spin" : ""}`}
+                    aria-hidden="true"
                   />
-                  {loadingBriefing ? "Surfacing…" : "Surface questions"}
+                  {loadingBriefing
+                    ? streamProgress > 0
+                      ? `Streaming… ${streamProgress} chars`
+                      : "Connecting…"
+                    : "Surface questions"}
                 </button>
               </div>
 

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { llmCall, type LlmCallArgs, type LlmResult } from "@/lib/llm";
+import { llmCall, llmStream, type LlmCallArgs, type LlmResult } from "@/lib/llm";
 import type {
   BrainRecord,
   BrainPattern,
@@ -130,52 +130,72 @@ export async function unlockControlGate(args: {
 /**
  * Compose the per-company addendum into a system prompt.
  *
- * Structure:
- *   <base system prompt the caller provided>
+ * Audit Tier 2 #14: every section is now capped so a long-running company can't
+ * blow past LLM token budgets. The cap order respects priority:
  *
- *   --- Per-company context (you have learned about this team) ---
- *   <addendum>
+ *   1. Discipline reminder (always — never truncated)
+ *   2. Validated methods (last 20)         — has held outcomes, highest signal
+ *   3. Disabled suggestions (last 20)      — has dismissal reasons, high signal
+ *   4. Known patterns (last 20)
+ *   5. Free-form addendum (last 4000 chars) — lowest signal-per-token
  *
- *   --- Disabled suggestions (do not propose these) ---
- *   <list>
+ * When the brain has more than 20 entries in a category, the MOST RECENT entries
+ * are kept (those are the ones the learning cycle most recently distilled).
  *
- *   --- Validated methods (have produced held outcomes here) ---
- *   <list>
+ * Constants chosen by token math: 20 short bullets ≈ 1000 tokens, 4000 chars
+ * of addendum ≈ 1000 tokens, plus discipline reminder + base prompt ≈ 8K total
+ * worst case. That fits in every modern provider's context window with budget
+ * to spare for the actual user message + response.
  */
+
+const MAX_VALIDATED_METHODS = 20;
+const MAX_DISABLED_SUGGESTIONS = 20;
+const MAX_KNOWN_PATTERNS = 20;
+const MAX_ADDENDUM_CHARS = 4000;
+
 export function composeSystemPrompt(
   basePrompt: string,
   brain: BrainRecord
 ): string {
   const parts: string[] = [basePrompt.trim()];
 
-  if (brain.systemPromptAddendum.trim().length > 0) {
+  // Most recent first across all categories (assumed pre-sorted by learning
+  // cycle insert order; slicing from the end gives latest entries).
+  const recentValidated = brain.validatedMethods.slice(-MAX_VALIDATED_METHODS);
+  const recentDisabled = brain.disabledSuggestions.slice(-MAX_DISABLED_SUGGESTIONS);
+  const recentPatterns = brain.knownPatterns.slice(-MAX_KNOWN_PATTERNS);
+  const truncatedAddendum = truncateAddendum(
+    brain.systemPromptAddendum.trim(),
+    MAX_ADDENDUM_CHARS
+  );
+
+  if (truncatedAddendum.length > 0) {
     parts.push(
       "--- Per-company context (you have learned about this team) ---",
-      brain.systemPromptAddendum.trim()
+      truncatedAddendum
     );
   }
 
-  if (brain.disabledSuggestions.length > 0) {
+  if (recentDisabled.length > 0) {
     parts.push(
-      "--- Disabled suggestions (do not propose these for this team) ---",
-      brain.disabledSuggestions
+      `--- Disabled suggestions (do not propose these for this team; showing ${recentDisabled.length} of ${brain.disabledSuggestions.length}) ---`,
+      recentDisabled
         .map((d) => `- ${d.suggestion} — because: ${d.reason}`)
         .join("\n")
     );
   }
 
-  if (brain.validatedMethods.length > 0) {
+  if (recentValidated.length > 0) {
     parts.push(
-      "--- Validated methods (have produced held outcomes here) ---",
-      brain.validatedMethods.map((m) => `- ${m.method} — why: ${m.why}`).join("\n")
+      `--- Validated methods (have produced held outcomes here; showing ${recentValidated.length} of ${brain.validatedMethods.length}) ---`,
+      recentValidated.map((m) => `- ${m.method} — why: ${m.why}`).join("\n")
     );
   }
 
-  if (brain.knownPatterns.length > 0) {
+  if (recentPatterns.length > 0) {
     parts.push(
-      "--- Known patterns observed on this team ---",
-      brain.knownPatterns
-        .slice(0, 20) // keep prompt size sane
+      `--- Known patterns observed on this team (showing ${recentPatterns.length} of ${brain.knownPatterns.length}) ---`,
+      recentPatterns
         .map(
           (p) =>
             `- (${p.confidence}, from ${p.derived_from}) ${p.claim}`
@@ -186,12 +206,25 @@ export function composeSystemPrompt(
 
   // §1.3 reminder — the brain biases style, not which assumptions to challenge.
   // This line prevents the brain from becoming an echo chamber over time.
+  // Never truncated.
   parts.push(
     "--- Discipline reminder ---",
     "The above is style and accumulated context. Outside-view generation, ripple-tracing, and refusal to assert before the user states their read are NOT overridden by this context. The discipline (CLAUDE.md §3.2, §3.3) applies to every response."
   );
 
   return parts.join("\n\n");
+}
+
+/** Truncate addendum at the last paragraph break before the cap, so we never
+ *  cut mid-sentence. If no paragraph break exists below the cap, fall back to
+ *  a hard slice with an explicit `[truncated]` marker. */
+function truncateAddendum(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  const cutAt = text.lastIndexOf("\n\n", maxChars);
+  if (cutAt > maxChars * 0.5) {
+    return text.slice(0, cutAt) + "\n\n[earlier context truncated]";
+  }
+  return text.slice(0, maxChars) + " [truncated]";
 }
 
 /**
@@ -235,4 +268,40 @@ export async function runBrainCall(args: {
   });
 
   return { ...result, gate, brainVersion: brain.version };
+}
+
+/**
+ * Streaming variant of runBrainCall. Same gate semantics: if guidance is
+ * suppressed, yields a single empty string and returns. Otherwise yields the
+ * provider's text deltas as they arrive.
+ *
+ * Returns a sentinel object on completion so callers know the final state of
+ * the gate (suppressed/enabled) for honest UI rendering.
+ */
+export async function* runBrainStream(args: {
+  companyId: string;
+  basePrompt: string;
+  messages: LlmCallArgs["messages"];
+  maxTokens?: number;
+  expectJson?: boolean;
+}): AsyncGenerator<string, { gate: ControlGate; brainVersion: number }, void> {
+  const [brain, gate] = await Promise.all([
+    loadBrain(args.companyId),
+    loadControlGate(args.companyId),
+  ]);
+
+  if (!gate.guidanceEnabled) {
+    return { gate, brainVersion: brain.version };
+  }
+
+  const composedPrompt = composeSystemPrompt(args.basePrompt, brain);
+  for await (const delta of llmStream({
+    systemPrompt: composedPrompt,
+    messages: args.messages,
+    maxTokens: args.maxTokens,
+    expectJson: args.expectJson,
+  })) {
+    yield delta;
+  }
+  return { gate, brainVersion: brain.version };
 }

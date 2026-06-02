@@ -6,8 +6,8 @@ import ScoreRing from "@/components/ui/ScoreRing";
 import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
 import DesignPreviewBanner from "@/components/ui/DesignPreviewBanner";
 import { supabaseEnabled } from "@/lib/supabase/client";
+import { useCompanyName } from "@/lib/hooks/useCompany";
 import {
-  mockCompany,
   mockFinance,
   mockRevenueTrend,
   mockExpenses,
@@ -28,6 +28,7 @@ const trendIcon = {
 };
 
 export default function FinancePage() {
+  const companyName = useCompanyName();
   const [aiDiagnosis, setAiDiagnosis] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -61,7 +62,7 @@ export default function FinancePage() {
 
   return (
     <div className="min-h-screen bg-[#0c0d16]">
-      <TopBar title="Finance" subtitle={`${mockCompany.name} · Financial Intelligence`} />
+      <TopBar title="Finance" subtitle={`${companyName} · Financial Intelligence`} />
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         <DesignPreviewBanner

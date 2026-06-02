@@ -10,15 +10,17 @@ import {
   describeGapToGate,
   type GateEvaluation,
 } from "@/lib/diagnosis";
+import Modal from "@/components/ui/Modal";
+import { Field, Input, Textarea } from "@/components/ui/Field";
 import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
   Plus,
   ShieldCheck,
-  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 const STATUS_BADGE: Record<string, string> = {
   draft: "bg-[#252840] text-[#8895c4] border border-[#3a3f5c]",
@@ -45,6 +47,13 @@ export default function ProblemsPage() {
   useEffect(() => {
     refresh();
   }, []);
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1" && supabaseEnabled) {
+      setCreating(true);
+    }
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-[#0c0d16]">
@@ -77,24 +86,24 @@ export default function ProblemsPage() {
           </button>
         </div>
 
-        {!supabaseEnabled && (
-          <div className="glass-card p-6 text-center">
-            <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
-            <p className="text-sm text-yellow-100 mb-1">Live mode required</p>
-            <p className="text-xs text-[#5a6399] max-w-md mx-auto">
-              Problems are stateful records gated by the DB Understanding Gate trigger.
-              Configure Supabase keys in <code>.env.local</code> to use this surface.
+        {mode === "demo-fixtures" && (
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
+            <AlertTriangle className="w-4 h-4 text-yellow-300 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-yellow-100">
+              <span className="font-medium">Demo fixtures.</span> The two problems below
+              illustrate the production surface. Creating, surfacing, and dismissing
+              require live mode (Supabase + DB Understanding Gate trigger).
             </p>
           </div>
         )}
 
-        {supabaseEnabled && loading && (
+        {loading && (
           <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399] py-10">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
           </div>
         )}
 
-        {supabaseEnabled && !loading && mode === "live-empty" && (
+        {!loading && mode === "live-empty" && (
           <div className="glass-card p-8 text-center">
             <p className="text-sm text-[#e8eaf6] mb-2">No hypotheses yet.</p>
             <p className="text-xs text-[#5a6399] max-w-md mx-auto leading-relaxed">
@@ -105,7 +114,7 @@ export default function ProblemsPage() {
           </div>
         )}
 
-        {supabaseEnabled && problems.length > 0 && (
+        {problems.length > 0 && (
           <div className="space-y-3">
             {problems.map((p) => (
               <ProblemRow key={p.id} problem={p} onChanged={refresh} />
@@ -308,86 +317,80 @@ function CreateProblemModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-[#e8eaf6]">New problem hypothesis</h2>
-          <button onClick={onClose} className="text-[#5a6399] hover:text-white">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-[#8895c4] mb-1.5 block">Kind</label>
-            <input
-              value={kind}
-              onChange={(e) => setKind(e.target.value)}
-              className="form-input font-mono"
-            />
+    <Modal open onClose={onClose} title="New problem hypothesis" size="xl">
+      <div className="space-y-3" aria-busy={submitting}>
+        <Field label="Kind">
+          <Input
+            value={kind}
+            onChange={(e) => setKind(e.target.value)}
+            className="font-mono"
+          />
+        </Field>
+        <Field label="Title" required>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="One-line hypothesis title"
+          />
+        </Field>
+        <Field label="Diagnosis (the WHY — ≥80 chars to pass the gate)">
+          <Textarea
+            value={diagnosis}
+            onChange={(e) => setDiagnosis(e.target.value)}
+            rows={4}
+          />
+        </Field>
+        <Field
+          label={`Link supporting signals (${allSignals.length} available)`}
+        >
+          <div className="max-h-48 overflow-y-auto space-y-1 p-2 bg-[#12141f] border border-[#252840] rounded-lg">
+            {allSignals.length === 0 ? (
+              <p className="text-xs text-[#5a6399] p-2">
+                No signals available yet. Create tasks to generate events that
+                derive into signals.
+              </p>
+            ) : (
+              allSignals.map((s) => (
+                <label
+                  key={s.id}
+                  className="flex items-center gap-2 text-xs text-[#8895c4] cursor-pointer hover:bg-[#1a1d2e] p-1.5 rounded"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedSignalIds.has(s.id)}
+                    onChange={() => toggleSignal(s.id)}
+                    className="accent-[#5470ff]"
+                  />
+                  <span className="font-mono">
+                    <span className="text-[#7a96ff]">{s.kind}</span>{" "}
+                    <span className="text-[#5a6399]">@ {s.source}</span>
+                  </span>
+                </label>
+              ))
+            )}
           </div>
-          <div>
-            <label className="text-xs text-[#8895c4] mb-1.5 block">Title</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="One-line hypothesis title"
-              className="form-input"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[#8895c4] mb-1.5 block">
-              Diagnosis (the WHY — ≥80 chars to pass the gate)
-            </label>
-            <textarea
-              value={diagnosis}
-              onChange={(e) => setDiagnosis(e.target.value)}
-              rows={4}
-              className="form-input resize-none"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[#8895c4] mb-1.5 block">
-              Link supporting signals ({allSignals.length} available)
-            </label>
-            <div className="max-h-48 overflow-y-auto space-y-1 p-2 bg-[#12141f] border border-[#252840] rounded-lg">
-              {allSignals.length === 0 ? (
-                <p className="text-xs text-[#5a6399] p-2">
-                  No signals available yet. Create tasks to generate events that derive into
-                  signals.
-                </p>
-              ) : (
-                allSignals.map((s) => (
-                  <label
-                    key={s.id}
-                    className="flex items-center gap-2 text-xs text-[#8895c4] cursor-pointer hover:bg-[#1a1d2e] p-1.5 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedSignalIds.has(s.id)}
-                      onChange={() => toggleSignal(s.id)}
-                      className="accent-[#5470ff]"
-                    />
-                    <span className="font-mono">
-                      <span className="text-[#7a96ff]">{s.kind}</span>{" "}
-                      <span className="text-[#5a6399]">@ {s.source}</span>
-                    </span>
-                  </label>
-                ))
-              )}
-            </div>
-          </div>
+        </Field>
 
           {/* Live gate preview */}
           <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
             className={`p-3 rounded-xl border ${
               gate.passes
                 ? "bg-emerald-500/5 border-emerald-500/20"
                 : "bg-yellow-500/5 border-yellow-500/20"
             }`}
           >
+            {/* Full natural-language verdict for screen readers — visible UI
+                breaks the same content into chips/badges. */}
+            <span className="sr-only">
+              {gate.passes ? "Understanding gate would pass. " : "Understanding gate would hold. "}
+              {gate.reason}
+            </span>
             <div className="flex items-center gap-2 mb-2">
               <ShieldCheck
+                aria-hidden="true"
                 className={`w-4 h-4 ${
                   gate.passes ? "text-emerald-400" : "text-yellow-400"
                 }`}
@@ -441,25 +444,8 @@ function CreateProblemModal({
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}
             </button>
           </div>
-        </div>
-
-        <style jsx global>{`
-          .form-input {
-            width: 100%;
-            background: #12141f;
-            border: 1px solid #252840;
-            border-radius: 0.5rem;
-            padding: 0.625rem 0.875rem;
-            font-size: 0.8125rem;
-            color: #e8eaf6;
-            outline: none;
-            transition: border-color 0.15s;
-          }
-          .form-input::placeholder { color: #3a3f5c; }
-          .form-input:focus { border-color: rgba(84, 112, 255, 0.5); }
-        `}</style>
       </div>
-    </div>
+    </Modal>
   );
 }
 

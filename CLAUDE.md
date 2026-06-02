@@ -53,6 +53,38 @@ All problem-solving — in the codebase and in the System being built — follow
 6. **Close the Loop.** Every resolution — and its measured outcome — becomes a new asset
    that feeds step 1. The System gets smarter about *this specific team/codebase* over time.
 
+### 1.7 Ground-up auditing
+
+> Added by [AMD-004](docs/amendments/AMD-004-ground-up-audit.md), ratified 2026-06-02.
+
+Periodically — and before any major structural change — the system or organization must
+be audited from its simplest foundation up through its most critical layer. The audit is
+a complement to §1.2 (Retrospective Identification): §1.2 looks backward at incidents and
+decisions; §1.7 walks the foundation itself.
+
+The audit must:
+
+1. **Proceed ground-up.** Start at the most foundational layer (environment, toolchain,
+   types, schema, RLS, data, API, discipline, presentation — in increasing order of
+   complexity and consequence). A problem at layer N propagates upward to every layer
+   above it, so flags at the bottom are leveraged more than flags at the top.
+2. **Be performed in the outside-view stance (§1.3).** The auditor reads the system as
+   if it were someone else's — no investment in defending existing choices.
+3. **Produce honest flags.** Each layer must surface what is solid, what is flagged, and
+   what is missing — and rate severity. An empty flag list at a layer is itself a
+   suspicious finding worth questioning.
+4. **Be on the record.** The audit and its flags are recorded — ideally as `audit:layer-N`
+   events per §3.1 — so the audit history is immutable and later audits can be compared
+   against earlier ones.
+5. **Produce flags, not blockers.** Audit findings inform but do not, by themselves, halt
+   work. Existing rules (§3.2 Understanding Gate, §7 Default Deny) remain the actual
+   blockers. This prevents §1.7 from being abused as a delay mechanism (§5).
+
+The discipline this codifies generalizes: most organizations developing strategy for the
+first time produce a top layer that *looks* like established practice but rests on
+unexamined foundations. Ground-up auditing is the structural defense against that
+failure — both in code, and in strategy work itself.
+
 ---
 
 ## 2. How the Agent Must Behave (Building the App)
@@ -196,6 +228,8 @@ apply fixed ones. This is the meta-loop: resolutions feed back not only as data 
 7. (For the System) Am I guiding, or overtaking? Am I measuring consequence, or agreement?
 8. (For method evolution) Is this "learning" validated against an alternative, or just
    persuasive?
+9. When was the last ground-up audit (§1.7) of this system or strategy, and what flags
+   from it remain open?
 
 ---
 

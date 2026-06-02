@@ -112,3 +112,23 @@ body {
   animation: blink 1s step-end infinite;
   color: var(--brand);
 }
+
+/**
+ * Respect the user's reduced-motion preference (audit Tier 3 accessibility).
+ *
+ * Disables non-essential motion: score-ring fill, pulse-dot heartbeat, fade-ins,
+ * cursor blink. Decorative transitions on glass-card and the per-element
+ * Tailwind transitions become instant.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .score-ring circle { stroke-dashoffset: var(--score-offset) !important; }
+  .pulse-dot { opacity: 1 !important; }
+  .fade-in { opacity: 1 !important; transform: none !important; }
+  .cursor-blink::after { opacity: 1 !important; }
+}

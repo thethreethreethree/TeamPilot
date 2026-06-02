@@ -1,199 +1,438 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
-import StatusBadge from "@/components/ui/StatusBadge";
-import ScoreRing from "@/components/ui/ScoreRing";
-import DesignPreviewBanner from "@/components/ui/DesignPreviewBanner";
+import { useCompanyName } from "@/lib/hooks/useCompany";
 import { supabaseEnabled } from "@/lib/supabase/client";
-import { mockTeamMembers, mockCompany } from "@/lib/mock-data";
-import { AlertTriangle, Brain, RefreshCw, Users } from "lucide-react";
-import { useState } from "react";
+import { fetchTeam, type TeamMember, type TeamInvitation } from "@/lib/data/team";
+import Modal from "@/components/ui/Modal";
+import { Field, Input, Select } from "@/components/ui/Field";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Copy,
+  Loader2,
+  Mail,
+  ShieldOff,
+  UserMinus,
+  UserPlus,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+const ROLES = ["CEO", "COO", "Lead", "Member"] as const;
 
 export default function TeamPage() {
-  const [aiInsight, setAiInsight] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  const companyName = useCompanyName();
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [inviting, setInviting] = useState(false);
 
-  const overloaded = mockTeamMembers.filter((m) => m.workloadLevel === "Overloaded");
-  const underutilized = mockTeamMembers.filter((m) => m.workloadLevel === "Underutilized");
-
-  const runTeamAnalysis = async () => {
+  const refresh = async () => {
     setLoading(true);
-    try {
-      const res = await fetch("/api/ai/briefing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ team: mockTeamMembers, company: mockCompany }),
-      });
-      const data = await res.json();
-      setAiInsight(data.briefing);
-    } catch {
-      setAiInsight("Unable to analyze. Check your API key.");
-    } finally {
-      setLoading(false);
-    }
+    setError("");
+    const snap = await fetchTeam();
+    setMembers(snap.members);
+    setInvitations(snap.invitations);
+    setLoading(false);
   };
 
-  const workloadColor = (level: string) => {
-    if (level === "Overloaded") return "text-red-400";
-    if (level === "High") return "text-orange-400";
-    if (level === "Balanced") return "text-emerald-400";
-    return "text-yellow-400";
-  };
+  useEffect(() => {
+    if (supabaseEnabled) refresh();
+    else setLoading(false);
+  }, []);
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1" && supabaseEnabled) {
+      setInviting(true);
+    }
+  }, [searchParams]);
+
+  const pendingInvites = invitations.filter(
+    (i) => !i.acceptedAt && !i.revokedAt && new Date(i.expiresAt) > new Date()
+  );
 
   return (
     <div className="min-h-screen bg-[#0c0d16]">
-      <TopBar title="Team Intelligence" subtitle={`${mockCompany.name} · Workforce Analysis`} />
+      <TopBar title="Team" subtitle={`${companyName} · Members + invitations`} />
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        <DesignPreviewBanner
-          domain="Team Intelligence"
-          needs="A team roster and workload data source (HR system, manual entry, or an integration) must exist before this surface can derive real workload signals."
-        />
-        {/* Summary stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "Team Health", value: mockCompany.teamScore, isScore: true },
-            { label: "Total Members", value: mockTeamMembers.length, color: "text-[#e8eaf6]" },
-            { label: "Overloaded", value: overloaded.length, color: "text-red-400" },
-            { label: "Underutilized", value: underutilized.length, color: "text-yellow-400" },
-          ].map((stat) => (
-            <div key={stat.label} className="glass-card p-4">
-              {stat.isScore ? (
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-[#5a6399] uppercase tracking-widest">{stat.label}</p>
-                  <ScoreRing score={stat.value as number} size={60} isDemo={!supabaseEnabled} />
-                </div>
-              ) : (
-                <div>
-                  <p className="text-xs text-[#5a6399] uppercase tracking-widest mb-2">{stat.label}</p>
-                  <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* AI Team Analysis */}
-        <div className="glass-card p-5 border-[#5470ff]/20">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Brain className="w-4 h-4 text-[#5470ff]" />
-              <h2 className="text-sm font-semibold text-[#e8eaf6]">AI Team Analysis</h2>
-              <span className="text-[10px] text-[#5470ff] bg-[#5470ff]/10 border border-[#5470ff]/20 px-2 py-0.5 rounded-full">Claude</span>
-            </div>
-            <button
-              onClick={runTeamAnalysis}
-              disabled={loading}
-              className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "Analyzing..." : "Analyze Team"}
-            </button>
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
+        {!supabaseEnabled && (
+          <div className="glass-card p-6 text-center">
+            <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
+            <p className="text-sm text-yellow-100 mb-1">Live mode required</p>
+            <p className="text-xs text-[#5a6399] max-w-md mx-auto">
+              Team management requires the database. Configure Supabase to invite members.
+            </p>
           </div>
+        )}
 
-          {aiInsight ? (
-            <div className="text-sm text-[#8895c4] leading-relaxed whitespace-pre-wrap">{aiInsight}</div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/5 border border-red-500/15">
-                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-[#8895c4]">
-                  <span className="text-[#e8eaf6] font-medium">Marcus Chen is critically overloaded.</span>{" "}
-                  4 active tasks, 2 overdue, and 2 blocked. Burnout risk is high. Immediate redistribution required.
+        {supabaseEnabled && (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[#5a6399]">
+                  {members.length} member{members.length === 1 ? "" : "s"} ·{" "}
+                  {pendingInvites.length} pending invite
+                  {pendingInvites.length === 1 ? "" : "s"}
                 </p>
               </div>
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
-                <Users className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-[#8895c4]">
-                  <span className="text-[#e8eaf6] font-medium">Lena Torres is underutilized</span> with only 1 active task.
-                  Recommend reassigning 1-2 tasks from Marcus to Lena immediately.
-                </p>
-              </div>
-              <p className="text-xs text-[#5a6399] italic">Click "Analyze Team" for a live AI assessment.</p>
+              <button
+                onClick={() => setInviting(true)}
+                className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Invite member
+              </button>
             </div>
-          )}
+
+            {loading && (
+              <div className="flex items-center justify-center gap-2 text-xs text-[#5a6399] py-10">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+              </div>
+            )}
+
+            {!loading && error && (
+              <p className="text-xs text-red-400">{error}</p>
+            )}
+
+            {!loading && (
+              <>
+                <Section title={`Members (${members.length})`}>
+                  {members.length === 0 ? (
+                    <p className="text-xs text-[#5a6399] py-6 text-center">
+                      No active members. This usually means onboarding hasn&apos;t
+                      completed.
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-[#1a1d2e]">
+                      {members.map((m) => (
+                        <MemberRow key={m.id} member={m} onRemoved={refresh} />
+                      ))}
+                    </div>
+                  )}
+                </Section>
+
+                <Section title={`Pending invitations (${pendingInvites.length})`}>
+                  {pendingInvites.length === 0 ? (
+                    <p className="text-xs text-[#5a6399] py-6 text-center">
+                      No pending invitations.
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-[#1a1d2e]">
+                      {pendingInvites.map((i) => (
+                        <InviteRow key={i.id} invitation={i} onRevoked={refresh} />
+                      ))}
+                    </div>
+                  )}
+                </Section>
+
+                {invitations.filter((i) => i.acceptedAt || i.revokedAt).length > 0 && (
+                  <Section title="History">
+                    <div className="divide-y divide-[#1a1d2e]">
+                      {invitations
+                        .filter((i) => i.acceptedAt || i.revokedAt)
+                        .slice(0, 20)
+                        .map((i) => (
+                          <HistoryRow key={i.id} invitation={i} />
+                        ))}
+                    </div>
+                  </Section>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      {inviting && (
+        <InviteModal
+          onClose={() => setInviting(false)}
+          onInvited={() => {
+            setInviting(false);
+            refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="glass-card p-5">
+      <h2 className="text-sm font-semibold text-[#e8eaf6] mb-4">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function MemberRow({
+  member,
+  onRemoved,
+}: {
+  member: TeamMember;
+  onRemoved: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    if (!confirm(`Remove ${member.fullName ?? "this member"}?`)) return;
+    setBusy(true);
+    const res = await fetch(`/api/team?memberId=${encodeURIComponent(member.id)}`, {
+      method: "DELETE",
+    });
+    setBusy(false);
+    if (res.ok) onRemoved();
+  };
+  const initials = (member.fullName ?? "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  return (
+    <div className="flex items-center justify-between py-3">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#5470ff] to-[#7a96ff] flex items-center justify-center text-xs font-bold text-white">
+          {initials}
         </div>
+        <div>
+          <p className="text-sm text-[#e8eaf6]">{member.fullName ?? "—"}</p>
+          <p className="text-[10px] text-[#5a6399] font-mono">
+            {member.role} · joined {member.createdAt.slice(0, 10)}
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={remove}
+        disabled={busy}
+        className="flex items-center gap-1.5 text-xs text-[#5a6399] hover:text-red-400 disabled:opacity-40"
+        aria-label={`Remove member ${member.fullName ?? ""}`.trim()}
+        title="Remove member"
+      >
+        <UserMinus aria-hidden="true" className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
 
-        {/* Team Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {mockTeamMembers.map((member) => (
-            <div
-              key={member.id}
-              onClick={() => setSelected(selected === member.id ? null : member.id)}
-              className="glass-card p-5 cursor-pointer hover:border-[#3a3f5c] transition-all"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5470ff]/30 to-[#7a96ff]/20 border border-[#5470ff]/20 flex items-center justify-center text-sm font-bold text-[#7a96ff]">
-                    {member.avatar}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[#e8eaf6]">{member.name}</p>
-                    <p className="text-xs text-[#5a6399]">{member.role} · {member.department}</p>
-                  </div>
-                </div>
-                <StatusBadge status={member.workloadLevel} />
-              </div>
+function InviteRow({
+  invitation,
+  onRevoked,
+}: {
+  invitation: TeamInvitation;
+  onRevoked: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-              {/* Scores */}
-              <div className="flex items-center justify-around py-3 border-t border-b border-[#252840] mb-4">
-                <div className="text-center">
-                  <ScoreRing score={member.performanceScore} size={52} isDemo={!supabaseEnabled} />
-                  <p className="text-[10px] text-[#5a6399] mt-1">Performance</p>
-                </div>
-                <div className="text-center">
-                  <ScoreRing score={member.consistencyScore} size={52} isDemo={!supabaseEnabled} />
-                  <p className="text-[10px] text-[#5a6399] mt-1">Consistency</p>
-                </div>
-              </div>
+  const inviteUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/invite/${invitation.code}`
+      : `/invite/${invitation.code}`;
 
-              {/* Task stats */}
-              <div className="grid grid-cols-4 gap-2 text-center">
-                {[
-                  { label: "Active", value: member.activeTasks, color: "text-blue-400" },
-                  { label: "Done", value: member.completedTasks, color: "text-emerald-400" },
-                  { label: "Overdue", value: member.overdueTasks, color: "text-red-400" },
-                  { label: "Blocked", value: member.blockedTasks, color: "text-orange-400" },
-                ].map((s) => (
-                  <div key={s.label}>
-                    <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-                    <p className="text-[10px] text-[#5a6399]">{s.label}</p>
-                  </div>
-                ))}
-              </div>
+  const copy = async () => {
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
-              {/* Workload bar */}
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-[#5a6399]">Workload</span>
-                  <span className={`text-[10px] font-medium ${workloadColor(member.workloadLevel)}`}>
-                    {member.workloadLevel}
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-[#252840] overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: member.workloadLevel === "Overloaded" ? "95%" :
-                             member.workloadLevel === "High" ? "75%" :
-                             member.workloadLevel === "Balanced" ? "55%" : "25%",
-                      background: member.workloadLevel === "Overloaded" ? "#f87171" :
-                                  member.workloadLevel === "High" ? "#fb923c" :
-                                  member.workloadLevel === "Balanced" ? "#34d399" : "#fbbf24",
-                    }}
-                  />
-                </div>
-              </div>
+  const revoke = async () => {
+    const reason = prompt("Reason for revoking this invitation?", "Revoked by admin");
+    if (!reason) return;
+    setBusy(true);
+    const res = await fetch(
+      `/api/team?invitationId=${encodeURIComponent(invitation.id)}&reason=${encodeURIComponent(reason)}`,
+      { method: "DELETE" }
+    );
+    setBusy(false);
+    if (res.ok) onRevoked();
+  };
 
-              <p className="text-[10px] text-[#5a6399] mt-3">
-                Last active: {member.recentActivity}
-              </p>
-            </div>
-          ))}
+  return (
+    <div className="py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm text-[#e8eaf6] flex items-center gap-2 flex-wrap">
+            <Mail className="w-3.5 h-3.5 text-[#5a6399]" />
+            {invitation.email}
+            <span className="text-[10px] uppercase tracking-widest text-violet-300 bg-violet-500/10 border border-violet-500/30 px-1.5 py-0.5 rounded-full">
+              {invitation.role}
+            </span>
+          </p>
+          <p className="text-[10px] text-[#5a6399] mt-1 font-mono">
+            invited {invitation.invitedAt.slice(0, 10)} · expires{" "}
+            {invitation.expiresAt.slice(0, 10)}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={copy}
+            className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-2.5 py-1.5 rounded-lg transition-all"
+            aria-label={`Copy invite link for ${invitation.email}`}
+            title="Copy invite link"
+          >
+            <Copy aria-hidden="true" className="w-3 h-3" />
+            {copied ? "Copied" : "Copy link"}
+          </button>
+          <button
+            onClick={revoke}
+            disabled={busy}
+            className="text-xs text-[#5a6399] hover:text-red-400 disabled:opacity-40 p-1.5"
+            aria-label={`Revoke invitation for ${invitation.email}`}
+            title="Revoke"
+          >
+            <ShieldOff aria-hidden="true" className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function HistoryRow({ invitation }: { invitation: TeamInvitation }) {
+  const status = invitation.acceptedAt
+    ? { label: "accepted", color: "text-emerald-300" }
+    : { label: "revoked", color: "text-[#5a6399]" };
+  return (
+    <div className="py-2 flex items-center justify-between">
+      <p className="text-xs text-[#8895c4]">
+        {invitation.email} ·{" "}
+        <span className="text-[#5a6399] font-mono">{invitation.role}</span>
+      </p>
+      <p className={`text-[10px] uppercase tracking-widest ${status.color}`}>
+        {status.label}
+      </p>
+    </div>
+  );
+}
+
+function InviteModal({
+  onClose,
+  onInvited,
+}: {
+  onClose: () => void;
+  onInvited: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<(typeof ROLES)[number]>("Member");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const submit = async () => {
+    if (!email.includes("@")) {
+      setError("Valid email required.");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Invite failed.");
+      const url = `${window.location.origin}/invite/${data.code}`;
+      setInviteUrl(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invite failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <Modal open onClose={onClose} title="Invite member" size="md">
+      {!inviteUrl ? (
+        <div className="space-y-3" aria-busy={submitting}>
+          <Field label="Email" required>
+            <Input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              placeholder="teammate@company.com"
+            />
+          </Field>
+          <Field label="Role">
+            <Select
+              value={role}
+              onChange={(e) => setRole(e.target.value as (typeof ROLES)[number])}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              onClick={onClose}
+              className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submit}
+              disabled={submitting}
+              className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            >
+              {submitting ? "Creating…" : "Create invitation"}
+              {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+            <p className="text-xs text-emerald-200 mb-2">
+              Invitation created. Share this link with your teammate. (Email
+              sending is not configured — copy-paste the link for now.)
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                value={inviteUrl}
+                readOnly
+                className="flex-1 bg-[#12141f] border border-[#252840] rounded-lg px-3 py-2 text-xs text-[#8895c4] font-mono"
+              />
+              <button
+                onClick={copy}
+                className="flex items-center gap-1.5 text-xs text-[#7a96ff] hover:text-white border border-[#5470ff]/30 hover:border-[#5470ff]/60 px-2.5 py-2 rounded-lg transition-all"
+              >
+                <Copy className="w-3 h-3" />
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center justify-end pt-2">
+            <button
+              onClick={onInvited}
+              className="text-xs text-[#7a96ff] hover:text-white px-3 py-2"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }

@@ -3,7 +3,11 @@
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { fetchTasks, type FetchTasksMode, type Task } from "@/lib/data/tasks";
+import { fetchTeam, type TeamMember } from "@/lib/data/team";
 import { supabaseEnabled } from "@/lib/supabase/client";
+import Modal from "@/components/ui/Modal";
+import { Field, Input, Textarea, Select } from "@/components/ui/Field";
+import ExportMenu from "@/components/ui/ExportMenu";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,9 +16,9 @@ import {
   Pencil,
   Plus,
   Trash2,
-  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type FilterType = "All" | "Blocked" | "In Progress" | "To Do" | "Needs Review" | "Completed";
 
@@ -69,18 +73,29 @@ export default function OperationsPage() {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [members, setMembers] = useState<TeamMember[]>([]);
 
   const refresh = async () => {
     setLoading(true);
-    const res = await fetchTasks();
-    setTasks(res.tasks);
-    setMode(res.mode);
+    const [tasksRes, teamSnap] = await Promise.all([fetchTasks(), fetchTeam()]);
+    setTasks(tasksRes.tasks);
+    setMode(tasksRes.mode);
+    setMembers(teamSnap.members);
     setLoading(false);
   };
 
   useEffect(() => {
     refresh();
   }, []);
+
+  // Open create modal when arriving with ?new=1 (from Command Palette).
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1" && supabaseEnabled) {
+      openCreate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const filtered =
     activeFilter === "All" ? tasks : tasks.filter((t) => t.status === activeFilter);
@@ -201,19 +216,26 @@ export default function OperationsPage() {
               </button>
             ))}
           </div>
-          <button
-            onClick={openCreate}
-            disabled={!supabaseEnabled}
-            className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
-            title={
-              supabaseEnabled
-                ? "Create a new task"
-                : "Live mode required — configure Supabase to create tasks"
-            }
-          >
-            <Plus className="w-3.5 h-3.5" />
-            New task
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              entity="tasks"
+              disabled={!supabaseEnabled || mode === "demo-fixtures"}
+              disabledReason="Export requires live mode (your data, not demo fixtures)."
+            />
+            <button
+              onClick={openCreate}
+              disabled={!supabaseEnabled}
+              className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              title={
+                supabaseEnabled
+                  ? "Create a new task"
+                  : "Live mode required — configure Supabase to create tasks"
+              }
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New task
+            </button>
+          </div>
         </div>
 
         {/* List */}
@@ -276,25 +298,27 @@ export default function OperationsPage() {
                         onClick={() => openEdit(t)}
                         disabled={!supabaseEnabled || mode === "demo-fixtures"}
                         className="text-[#5a6399] hover:text-[#7a96ff] disabled:opacity-30 mr-3"
+                        aria-label={`Edit task: ${t.title}`}
                         title={
                           mode === "demo-fixtures"
                             ? "Demo fixtures are read-only"
                             : "Edit task"
                         }
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil aria-hidden="true" className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => deleteTask(t)}
                         disabled={!supabaseEnabled || mode === "demo-fixtures"}
                         className="text-[#5a6399] hover:text-red-400 disabled:opacity-30"
+                        aria-label={`Delete task: ${t.title}`}
                         title={
                           mode === "demo-fixtures"
                             ? "Demo fixtures are read-only"
                             : "Delete task"
                         }
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 aria-hidden="true" className="w-3.5 h-3.5" />
                       </button>
                     </td>
                   </tr>
@@ -305,132 +329,129 @@ export default function OperationsPage() {
         </div>
       </div>
 
-      {/* Create / Edit modal */}
-      {(creating || editing) && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="glass-card max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-[#e8eaf6]">
-                {editing ? "Edit task" : "New task"}
-              </h2>
-              <button onClick={closeForm} className="text-[#5a6399] hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <Field label="Title" required>
-                <input
-                  value={draft.title}
-                  onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                  className="form-input"
-                />
-              </Field>
-              <Field label="Description">
-                <textarea
-                  value={draft.description}
-                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  rows={3}
-                  className="form-input resize-none"
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Department">
-                  <input
-                    value={draft.department}
-                    onChange={(e) => setDraft({ ...draft, department: e.target.value })}
-                    placeholder="Operations, Engineering, …"
-                    className="form-input"
-                  />
-                </Field>
-                <Field label="Assignee">
-                  <input
-                    value={draft.assignee}
-                    onChange={(e) => setDraft({ ...draft, assignee: e.target.value })}
-                    placeholder="Name"
-                    className="form-input"
-                  />
-                </Field>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Status">
-                  <select
-                    value={draft.status}
-                    onChange={(e) => setDraft({ ...draft, status: e.target.value })}
-                    className="form-input"
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Priority">
-                  <select
-                    value={draft.priority}
-                    onChange={(e) => setDraft({ ...draft, priority: e.target.value })}
-                    className="form-input"
-                  >
-                    {PRIORITY_OPTIONS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-              <Field label="Due date">
-                <input
-                  type="date"
-                  value={draft.dueDate}
-                  onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })}
-                  className="form-input"
-                />
-              </Field>
-              {draft.status === "Blocked" && (
-                <Field label="Blocker reason" required>
-                  <input
-                    value={draft.blockerReason}
-                    onChange={(e) => setDraft({ ...draft, blockerReason: e.target.value })}
-                    placeholder="What's blocking this? Be specific — it becomes a signal."
-                    className="form-input"
-                  />
-                </Field>
-              )}
-              {error && <p className="text-xs text-red-400">{error}</p>}
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button onClick={closeForm} className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2">
-                  Cancel
-                </button>
-                <button
-                  onClick={submit}
-                  disabled={submitting}
-                  className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+      <Modal
+        open={creating || !!editing}
+        onClose={closeForm}
+        title={editing ? "Edit task" : "New task"}
+        size="lg"
+      >
+        <div className="space-y-3" aria-busy={submitting}>
+          <Field label="Title" required>
+            <Input
+              value={draft.title}
+              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+            />
+          </Field>
+          <Field label="Description">
+            <Textarea
+              value={draft.description}
+              onChange={(e) =>
+                setDraft({ ...draft, description: e.target.value })
+              }
+              rows={3}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Department">
+              <Input
+                value={draft.department}
+                onChange={(e) =>
+                  setDraft({ ...draft, department: e.target.value })
+                }
+                placeholder="Operations, Engineering, …"
+              />
+            </Field>
+            <Field label="Assignee">
+              {members.length > 0 ? (
+                <Select
+                  value={draft.assignee}
+                  onChange={(e) =>
+                    setDraft({ ...draft, assignee: e.target.value })
+                  }
                 >
-                  {submitting ? "Saving…" : editing ? "Save changes" : "Create task"}
-                  {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
+                  <option value="">Unassigned</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.fullName ?? ""}>
+                      {m.fullName ?? "—"} ({m.role})
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  value={draft.assignee}
+                  onChange={(e) =>
+                    setDraft({ ...draft, assignee: e.target.value })
+                  }
+                  placeholder="Free-text (invite team members to enable dropdown)"
+                />
+              )}
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Status">
+              <Select
+                value={draft.status}
+                onChange={(e) => setDraft({ ...draft, status: e.target.value })}
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Priority">
+              <Select
+                value={draft.priority}
+                onChange={(e) =>
+                  setDraft({ ...draft, priority: e.target.value })
+                }
+              >
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label="Due date">
+            <Input
+              type="date"
+              value={draft.dueDate}
+              onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })}
+            />
+          </Field>
+          {draft.status === "Blocked" && (
+            <Field label="Blocker reason" required>
+              <Input
+                value={draft.blockerReason}
+                onChange={(e) =>
+                  setDraft({ ...draft, blockerReason: e.target.value })
+                }
+                placeholder="What's blocking this? Be specific — it becomes a signal."
+              />
+            </Field>
+          )}
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              onClick={closeForm}
+              className="text-xs text-[#5a6399] hover:text-[#8895c4] px-3 py-2"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submit}
+              disabled={submitting}
+              className="flex items-center gap-2 bg-[#5470ff] hover:bg-[#3a4ff7] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            >
+              {submitting ? "Saving…" : editing ? "Save changes" : "Create task"}
+              {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </div>
-      )}
-
-      <style jsx global>{`
-        .form-input {
-          width: 100%;
-          background: #12141f;
-          border: 1px solid #252840;
-          border-radius: 0.5rem;
-          padding: 0.625rem 0.875rem;
-          font-size: 0.8125rem;
-          color: #e8eaf6;
-          outline: none;
-          transition: border-color 0.15s;
-        }
-        .form-input::placeholder { color: #3a3f5c; }
-        .form-input:focus { border-color: rgba(84, 112, 255, 0.5); box-shadow: 0 0 0 1px rgba(84, 112, 255, 0.3); }
-      `}</style>
+      </Modal>
     </div>
   );
 }
@@ -506,22 +527,4 @@ function Stat({
   );
 }
 
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-[#8895c4] mb-1.5">
-        {label}
-        {required && <span className="text-red-400 ml-1">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
+// Field migrated to @/components/ui/Field

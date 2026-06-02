@@ -6,8 +6,8 @@ import ScoreRing from "@/components/ui/ScoreRing";
 import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
 import DesignPreviewBanner from "@/components/ui/DesignPreviewBanner";
 import { supabaseEnabled } from "@/lib/supabase/client";
+import { useCompanyName } from "@/lib/hooks/useCompany";
 import {
-  mockCompany,
   mockMarketing,
   mockMarketingChannels,
   mockCampaigns,
@@ -28,11 +28,12 @@ const trendIcon = {
 };
 
 export default function MarketingPage() {
+  const companyName = useCompanyName();
   const [aiDiagnosis, setAiDiagnosis] = useState("");
   const [loading, setLoading] = useState(false);
 
   const maxChannelLeads = Math.max(...mockMarketingChannels.map((c) => c.leads));
-  const topFunnel = mockFunnel[0].count;
+  const topFunnel = mockFunnel[0]?.count ?? 1;
 
   const runDiagnosis = async () => {
     setLoading(true);
@@ -58,7 +59,7 @@ export default function MarketingPage() {
 
   return (
     <div className="min-h-screen bg-[#0c0d16]">
-      <TopBar title="Marketing" subtitle={`${mockCompany.name} · Growth Intelligence`} />
+      <TopBar title="Marketing" subtitle={`${companyName} · Growth Intelligence`} />
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         <DesignPreviewBanner
@@ -99,7 +100,7 @@ export default function MarketingPage() {
             </div>
             <div className="space-y-2">
               {mockFunnel.map((stage, i) => {
-                const prev = i === 0 ? stage.count : mockFunnel[i - 1].count;
+                const prev = i === 0 ? stage.count : (mockFunnel[i - 1]?.count ?? stage.count);
                 const stepRate = ((stage.count / prev) * 100).toFixed(0);
                 return (
                   <div key={stage.stage}>
