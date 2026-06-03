@@ -489,20 +489,26 @@ export function demoPostMessage(args: {
   topicId: string;
   body: string;
   aiAssisted?: boolean;
+  /** Optional message kind. Defaults to "message". Use "summary" for
+   *  AI-generated thread summaries (§3.3 framed as the System's read). */
+  kind?: ChatMessage["kind"];
+  /** Override the author display for non-human posts (e.g. summary). */
+  authorName?: string;
 }): ChatMessage {
   const state = readDemoState();
   const now = new Date().toISOString();
+  const isSummary = args.kind === "summary";
   const msg: ChatMessage = {
     id: `m-${now}-${Math.floor(performance.now())}`,
     topicId: args.topicId,
-    authorId: DEMO_USER_ID,
-    authorName: DEMO_USER_NAME,
-    kind: "message",
+    authorId: isSummary ? null : DEMO_USER_ID,
+    authorName: args.authorName ?? (isSummary ? "System summary" : DEMO_USER_NAME),
+    kind: args.kind ?? "message",
     body: args.body,
     mediaUrl: null,
     mediaType: null,
     replyToId: null,
-    aiAssisted: args.aiAssisted ?? false,
+    aiAssisted: args.aiAssisted ?? isSummary,
     createdAt: now,
     pinned: false,
   };

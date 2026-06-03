@@ -26,8 +26,12 @@ export default function ScoreRing({
     ? circumference - ((score as number) / 100) * circumference
     : circumference;
 
+  // Theme-aware: when there is no score yet, the active ring color matches
+  // the page's border-strong CSS variable so the ring is visible in both
+  // light and dark mode. Score-band colors (green/amber/red) are
+  // semantic-status, mode-agnostic by design.
   const getColor = () => {
-    if (!hasScore) return "#3a3f5c";
+    if (!hasScore) return "rgb(var(--border-strong))";
     if (color) return color;
     if ((score as number) >= 80) return "#34d399";
     if ((score as number) >= 60) return "#fbbf24";
@@ -53,12 +57,14 @@ export default function ScoreRing({
           role="img"
           aria-label={ariaLabel}
         >
+          {/* Track stroke — theme-aware via CSS variable so the ring
+              outline matches surface borders in both light and dark. */}
           <circle
             cx={size / 2}
             cy={size / 2}
             r={r}
             fill="none"
-            stroke="#252840"
+            stroke="rgb(var(--border-default))"
             strokeWidth={strokeWidth}
           />
           <circle

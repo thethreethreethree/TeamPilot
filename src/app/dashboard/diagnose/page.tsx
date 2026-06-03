@@ -360,7 +360,7 @@ export default function DiagnosePage() {
                   onChange={(e) => setCurrentRead(e.target.value)}
                   placeholder="What do you currently think is going on?"
                   rows={4}
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed mb-3"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed mb-3"
                 />
                 <button
                   onClick={requestOutsideView}
@@ -407,20 +407,20 @@ export default function DiagnosePage() {
                     value={hypothesisTitle}
                     onChange={(e) => setHypothesisTitle(e.target.value)}
                     placeholder="Problem title — one line"
-                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50"
+                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50"
                   />
                   <input
                     value={hypothesisKind}
                     onChange={(e) => setHypothesisKind(e.target.value)}
                     placeholder="Kind — e.g. operational_bottleneck, financial_risk"
-                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 font-mono"
+                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 font-mono"
                   />
                   <textarea
                     value={hypothesisDiagnosis}
                     onChange={(e) => setHypothesisDiagnosis(e.target.value)}
                     placeholder="Diagnosis — state the WHY. Required to be ≥80 characters."
                     rows={5}
-                    className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 resize-none"
+                    className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 resize-none"
                   />
                 </div>
                 {liveRun.gate && <GateBadge gate={liveRun.gate} />}
@@ -437,13 +437,13 @@ export default function DiagnosePage() {
                   value={candidateAction}
                   onChange={(e) => setCandidateAction(e.target.value)}
                   placeholder="Candidate action — what would you do?"
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 mb-3"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 mb-3"
                 />
                 <input
                   value={candidateExpected}
                   onChange={(e) => setCandidateExpected(e.target.value)}
                   placeholder="Expected outcome (your prediction — recorded for §3.5 measurement)"
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 mb-3"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 mb-3"
                 />
                 <button
                   onClick={requestRipples}
@@ -523,7 +523,7 @@ export default function DiagnosePage() {
                   onChange={(e) => setChosenNote(e.target.value)}
                   placeholder="Optional note — what made this the right call from your perspective?"
                   rows={3}
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 resize-none"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 resize-none"
                 />
               </StepCard>
             )}

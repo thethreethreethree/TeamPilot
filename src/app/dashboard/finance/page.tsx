@@ -207,7 +207,7 @@ export default function FinancePage() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1a1d2e]">
+              <tbody className="divide-y divide-default">
                 {mockInvoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-surface transition-colors">
                     <td className="py-2.5 pr-4 text-sm text-primary">{inv.client}</td>

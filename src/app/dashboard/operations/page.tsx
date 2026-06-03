@@ -260,7 +260,7 @@ export default function OperationsPage() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1a1d2e]">
+              <tbody className="divide-y divide-default">
                 {filtered.map((t) => (
                   <tr key={t.id} className="hover:bg-surface transition-colors group">
                     <td className="py-3 pr-4">

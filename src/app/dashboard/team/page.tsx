@@ -107,7 +107,7 @@ export default function TeamPage() {
                       completed.
                     </p>
                   ) : (
-                    <div className="divide-y divide-[#1a1d2e]">
+                    <div className="divide-y divide-default">
                       {members.map((m) => (
                         <MemberRow key={m.id} member={m} onRemoved={refresh} />
                       ))}
@@ -121,7 +121,7 @@ export default function TeamPage() {
                       No pending invitations.
                     </p>
                   ) : (
-                    <div className="divide-y divide-[#1a1d2e]">
+                    <div className="divide-y divide-default">
                       {pendingInvites.map((i) => (
                         <InviteRow key={i.id} invitation={i} onRevoked={refresh} />
                       ))}
@@ -131,7 +131,7 @@ export default function TeamPage() {
 
                 {invitations.filter((i) => i.acceptedAt || i.revokedAt).length > 0 && (
                   <Section title="History">
-                    <div className="divide-y divide-[#1a1d2e]">
+                    <div className="divide-y divide-default">
                       {invitations
                         .filter((i) => i.acceptedAt || i.revokedAt)
                         .slice(0, 20)

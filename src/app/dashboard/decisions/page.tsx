@@ -228,7 +228,7 @@ export default function DecisionsPage() {
             onChange={(e) => setSituation(e.target.value)}
             disabled={phase !== "situation"}
             rows={5}
-            className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-secondary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+            className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
           />
           {phase === "situation" && (
             <div className="mt-3 flex items-center justify-end">
@@ -578,7 +578,7 @@ function ElicitField({
         disabled={disabled}
         rows={3}
         placeholder={placeholder}
-        className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+        className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
       />
     </div>
   );

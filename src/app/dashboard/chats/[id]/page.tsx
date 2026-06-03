@@ -38,6 +38,7 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSseStream } from "@/lib/hooks/useSseStream";
 
 const STATUS_BADGE: Record<string, string> = {
   open: "bg-surface-raised text-active-text border border-[#5EC8E0]/30",
@@ -83,6 +84,7 @@ export default function TeamChatTopicPage() {
   const [closingOpen, setClosingOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [formulateOpen, setFormulateOpen] = useState(false);
+  const [summarizeOpen, setSummarizeOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -157,8 +159,8 @@ export default function TeamChatTopicPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-navy-900 flex items-center justify-center">
-        <div className="flex items-center gap-2 text-xs text-navy-300">
+      <div className="min-h-screen bg-base flex items-center justify-center">
+        <div className="flex items-center gap-2 text-xs text-muted">
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
           Loading topic…
         </div>
@@ -168,12 +170,12 @@ export default function TeamChatTopicPage() {
 
   if (!topic) {
     return (
-      <div className="min-h-screen bg-navy-900">
+      <div className="min-h-screen bg-base">
         <TopBar title="Topic not found" subtitle="" />
         <div className="p-6 max-w-3xl mx-auto">
           <Link
             href="/dashboard/chats"
-            className="inline-flex items-center gap-1.5 text-xs text-crimson-400 hover:text-primary mb-4"
+            className="inline-flex items-center gap-1.5 text-xs text-brand hover:text-primary mb-4"
           >
             <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
             Back to all topics
@@ -187,16 +189,16 @@ export default function TeamChatTopicPage() {
   }
 
   return (
-    <div className="min-h-screen bg-navy-900 flex flex-col">
+    <div className="min-h-screen bg-base flex flex-col">
       <TopBar title={topic.title} subtitle={topic.description ?? ""} />
 
       {/* Topic header bar */}
-      <div className="border-b border-navy-700 bg-navy-800/50 px-6 py-3">
+      <div className="border-b border-default bg-surface/50 px-6 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
             <Link
               href="/dashboard/chats"
-              className="text-xs text-navy-300 hover:text-primary flex items-center gap-1"
+              className="text-xs text-muted hover:text-primary flex items-center gap-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
               All topics
@@ -211,7 +213,7 @@ export default function TeamChatTopicPage() {
             {topic.tags.map((tag) => (
               <span
                 key={tag}
-                className="text-[10px] text-navy-300 bg-navy-700 px-1.5 py-0.5 rounded"
+                className="text-[10px] text-muted bg-surface-raised px-1.5 py-0.5 rounded"
               >
                 #{tag}
               </span>
@@ -220,7 +222,7 @@ export default function TeamChatTopicPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowParticipants((v) => !v)}
-              className="flex items-center gap-1.5 text-xs text-navy-200 hover:text-primary border border-navy-600 hover:border-navy-500 px-2.5 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors"
             >
               <Users className="w-3 h-3" aria-hidden="true" />
               {participants.length}
@@ -238,15 +240,15 @@ export default function TeamChatTopicPage() {
           </div>
         </div>
         {showParticipants && (
-          <div className="max-w-5xl mx-auto mt-3 pt-3 border-t border-navy-700">
-            <p className="text-[10px] text-navy-300 uppercase tracking-widest mb-2">
+          <div className="max-w-5xl mx-auto mt-3 pt-3 border-t border-default">
+            <p className="text-[10px] text-muted uppercase tracking-widest mb-2">
               Participants
             </p>
             <div className="flex flex-wrap gap-2">
               {participants.map((p) => (
                 <div
                   key={p.userId}
-                  className="flex items-center gap-2 bg-navy-700 border border-navy-600 rounded-full px-3 py-1"
+                  className="flex items-center gap-2 bg-surface-raised border border-default rounded-full px-3 py-1"
                 >
                   {p.role === "admin" && (
                     <Crown
@@ -255,7 +257,7 @@ export default function TeamChatTopicPage() {
                     />
                   )}
                   <span className="text-xs text-primary">{p.name}</span>
-                  <span className="text-[10px] text-navy-300 font-mono">
+                  <span className="text-[10px] text-muted font-mono">
                     {p.messageCount}
                   </span>
                 </div>
@@ -298,13 +300,13 @@ export default function TeamChatTopicPage() {
         {grouped.length === 0 ? (
           <div className="text-center py-12">
             <MessageSquare
-              className="w-8 h-8 text-navy-400 mx-auto mb-3"
+              className="w-8 h-8 text-secondary mx-auto mb-3"
               aria-hidden="true"
             />
             <p className="text-sm text-primary mb-1">
               The conversation starts with you.
             </p>
-            <p className="text-xs text-navy-300 max-w-md mx-auto">
+            <p className="text-xs text-muted max-w-md mx-auto">
               State the situation, ask the first question, share what you know.
               Everything from here gets captured and structured.
             </p>
@@ -314,11 +316,11 @@ export default function TeamChatTopicPage() {
             {grouped.map((group) => (
               <div key={group.dateKey}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="flex-1 h-px bg-navy-700" />
-                  <span className="text-[10px] uppercase tracking-widest text-navy-300 font-mono">
+                  <div className="flex-1 h-px bg-surface-raised" />
+                  <span className="text-[10px] uppercase tracking-widest text-muted font-mono">
                     {group.label}
                   </span>
-                  <div className="flex-1 h-px bg-navy-700" />
+                  <div className="flex-1 h-px bg-surface-raised" />
                 </div>
                 <div className="space-y-3">
                   {group.messages.map((msg) => (
@@ -337,12 +339,12 @@ export default function TeamChatTopicPage() {
 
       {/* Composer */}
       {!isClosed && (
-        <div className="border-t border-navy-700 bg-navy-800/50 px-6 py-4">
+        <div className="border-t border-default bg-surface/50 px-6 py-4">
           <form
             onSubmit={handleSubmit}
             className="max-w-5xl mx-auto"
           >
-            <div className="bg-navy-800 border border-navy-600 rounded-xl focus-within:border-crimson-500/40 transition-colors">
+            <div className="bg-surface border border-default rounded-xl focus-within:border-crimson-500/40 transition-colors">
               <textarea
                 ref={inputRef}
                 value={draft}
@@ -355,15 +357,15 @@ export default function TeamChatTopicPage() {
                     handleSubmit(e);
                   }
                 }}
-                className="w-full bg-transparent text-sm text-primary placeholder-navy-400 px-4 py-3 focus:outline-none resize-none"
+                className="w-full bg-transparent text-sm text-primary placeholder:text-muted px-4 py-3 focus:outline-none resize-none"
               />
-              <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-navy-700">
+              <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-default">
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setGuideOpen(true)}
                     disabled={!draft.trim()}
-                    className="flex items-center gap-1.5 text-xs text-navy-200 hover:text-primary disabled:opacity-30 border border-navy-600 hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary disabled:opacity-30 border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors"
                     title="Have the System sharpen your draft before you send it"
                   >
                     <Wand2 className="w-3 h-3" aria-hidden="true" />
@@ -372,7 +374,7 @@ export default function TeamChatTopicPage() {
                   <button
                     type="button"
                     onClick={() => setFormulateOpen(true)}
-                    className="flex items-center gap-1.5 text-xs text-navy-200 hover:text-primary border border-navy-600 hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors"
                     title="Get help formulating a fuller response by answering questions first"
                   >
                     <Lightbulb className="w-3 h-3" aria-hidden="true" />
@@ -386,7 +388,7 @@ export default function TeamChatTopicPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-navy-400 font-mono">
+                  <span className="text-[10px] text-secondary font-mono">
                     {draft.length > 0 ? `${draft.length} chars` : ""}
                   </span>
                   <button
@@ -400,7 +402,7 @@ export default function TeamChatTopicPage() {
                 </div>
               </div>
             </div>
-            <p className="text-[10px] text-navy-400 mt-2 px-1">
+            <p className="text-[10px] text-secondary mt-2 px-1">
               Enter to send · Shift+Enter for new line · Pin important messages
               to make them priority data the brain learns from
             </p>
@@ -427,6 +429,8 @@ export default function TeamChatTopicPage() {
       {guideOpen && (
         <GuideMyResponseModal
           draft={draft}
+          topic={topic}
+          recent={messages}
           onClose={() => setGuideOpen(false)}
           onAccept={(revised) => {
             setDraft(revised);
@@ -452,6 +456,27 @@ export default function TeamChatTopicPage() {
             setFormulateOpen(false);
             inputRef.current?.focus();
             toast.info("Draft prepared", "Review and adjust before sending.");
+          }}
+        />
+      )}
+
+      {summarizeOpen && (
+        <SummarizeModal
+          topic={topic}
+          messages={messages}
+          onClose={() => setSummarizeOpen(false)}
+          onPost={(text) => {
+            const msg = demoPostMessage({
+              topicId: topic.id,
+              body: text,
+              kind: "summary",
+            });
+            setMessages((prev) => [...prev, msg]);
+            setSummarizeOpen(false);
+            toast.success(
+              "Summary posted",
+              "It's on the record — confirm or correct in-thread."
+            );
           }}
         />
       )}
@@ -501,9 +526,9 @@ function MessageRow({
   if (isSystem) {
     return (
       <div className="flex items-center gap-2 justify-center py-2">
-        <div className="h-px flex-1 bg-navy-700 max-w-16" />
-        <span className="text-[10px] text-navy-300 italic">{msg.body}</span>
-        <div className="h-px flex-1 bg-navy-700 max-w-16" />
+        <div className="h-px flex-1 bg-surface-raised max-w-16" />
+        <span className="text-[10px] text-muted italic">{msg.body}</span>
+        <div className="h-px flex-1 bg-surface-raised max-w-16" />
       </div>
     );
   }
@@ -519,10 +544,10 @@ function MessageRow({
             <span className="text-xs font-medium text-arc-300">
               System summary
             </span>
-            <span className="text-[10px] text-navy-400 font-mono">
+            <span className="text-[10px] text-secondary font-mono">
               {formatTime(msg.createdAt)}
             </span>
-            <span className="text-[10px] text-navy-400 italic">
+            <span className="text-[10px] text-secondary italic">
               · the System&apos;s read — confirm or correct
             </span>
           </div>
@@ -542,7 +567,7 @@ function MessageRow({
         className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
           isMine
             ? "bg-gradient-to-br from-crimson-400 to-crimson-700 text-white"
-            : "bg-navy-700 border border-navy-600 text-primary"
+            : "bg-surface-raised border border-default text-primary"
         }`}
       >
         {initials}
@@ -552,7 +577,7 @@ function MessageRow({
           <span className="text-xs font-medium text-primary">
             {msg.authorName}
           </span>
-          <span className="text-[10px] text-navy-400 font-mono">
+          <span className="text-[10px] text-secondary font-mono">
             {formatTime(msg.createdAt)}
           </span>
           {msg.aiAssisted && (
@@ -578,7 +603,7 @@ function MessageRow({
           className={`relative rounded-xl px-3 py-2 ${
             msg.pinned
               ? "bg-gold-400/5 border border-gold-400/20"
-              : "bg-navy-800/60 border border-navy-700"
+              : "bg-surface/60 border border-default"
           }`}
         >
           <p className="text-sm text-primary whitespace-pre-wrap leading-relaxed pr-7">
@@ -592,7 +617,7 @@ function MessageRow({
                 ? "Remove from priority data"
                 : "Pin as priority data — the brain learns from pinned messages"
             }
-            className="absolute top-2 right-2 text-navy-300 hover:text-gold-300 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute top-2 right-2 text-muted hover:text-gold-300 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             {msg.pinned ? (
               <PinOff className="w-3.5 h-3.5" aria-hidden="true" />
@@ -658,7 +683,7 @@ function CloseTopicModal({
         <div className="flex items-center justify-end gap-2 pt-2">
           <button
             onClick={onClose}
-            className="text-xs text-navy-300 hover:text-primary px-3 py-2"
+            className="text-xs text-muted hover:text-primary px-3 py-2"
           >
             Cancel
           </button>
@@ -678,30 +703,64 @@ function CloseTopicModal({
 
 function GuideMyResponseModal({
   draft,
+  topic,
+  recent,
   onClose,
   onAccept,
 }: {
   draft: string;
+  topic: ChatTopic;
+  recent: ChatMessage[];
   onClose: () => void;
   onAccept: (revised: string) => void;
 }) {
-  // Phase 1: a local rewrite stub so the flow is visible. The real LLM call
-  // arrives in Phase 2.
-  const sharpened = useMemo(() => sharpenLocally(draft), [draft]);
+  // Streams a sharpened version from POST /api/chat/guide — see the route
+  // for the §3.3 discipline (no overtaking; the model produces a
+  // suggestion in the user's voice that the user accepts or discards).
+  const { status, run, abort } = useSseStream();
+  const recentPayload = useMemo(
+    () =>
+      recent.slice(-6).map((m) => ({
+        author: m.authorName,
+        content: m.body ?? "",
+      })),
+    [recent]
+  );
+
+  // Auto-start on mount — the user opened this expecting an answer; an
+  // extra "Generate" button would be friction with no purpose.
+  useEffect(() => {
+    if (draft.trim().length === 0) return;
+    run("/api/chat/guide", {
+      draft,
+      topic: { title: topic.title, description: topic.description },
+      recent: recentPayload,
+    });
+    return () => abort();
+    // Intentionally only on mount — re-running on draft change would
+    // surprise the user mid-stream.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const suggestion = status.text;
+  const streaming = status.state === "streaming";
+  const suppressed = status.state === "suppressed";
+  const errored = status.state === "error";
+  const ready = status.state === "done" && suggestion.trim().length > 0;
 
   return (
     <Modal open onClose={onClose} title="Sharpen your response" size="lg">
       <div className="space-y-3">
-        <p className="text-xs text-navy-300 leading-relaxed">
-          The System suggests a sharper version of your draft. You can accept,
-          tweak, or close this and send the original. The discipline: the
-          System never decides for you — it offers a refinement and you decide.
+        <p className="text-xs text-muted leading-relaxed">
+          The System offers a sharper version of your draft. Accept, edit, or
+          close and send your original — the discipline (§3.3): the System
+          never decides for you. It surfaces a refinement; you decide.
         </p>
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-navy-300 mb-1.5">
+          <p className="text-[10px] uppercase tracking-widest text-muted mb-1.5">
             Your draft
           </p>
-          <div className="bg-navy-800 border border-navy-600 rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap">
+          <div className="bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap">
             {draft || "(empty)"}
           </div>
         </div>
@@ -709,26 +768,42 @@ function GuideMyResponseModal({
           <p className="text-[10px] uppercase tracking-widest text-arc-300 mb-1.5 flex items-center gap-1.5">
             <Sparkles className="w-3 h-3" aria-hidden="true" />
             System&apos;s suggestion
+            {streaming && (
+              <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+            )}
           </p>
-          <div className="bg-arc-400/5 border border-arc-400/30 rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap">
-            {sharpened}
+          <div className="bg-arc-400/5 border border-arc-400/30 rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap min-h-[3rem]">
+            {suggestion || (streaming ? "…" : "(waiting)")}
+            {streaming && (
+              <span className="cursor-blink ml-0.5" aria-hidden="true" />
+            )}
           </div>
+          {suppressed && (
+            <p className="text-[10px] text-gold-300 mt-1.5">
+              Guidance suppressed (§3.4 control window): {"reason" in status ? status.reason : ""}
+            </p>
+          )}
+          {errored && (
+            <p className="text-[10px] text-red-400 mt-1.5">
+              {"error" in status ? status.error : "Stream failed."}
+            </p>
+          )}
         </div>
         <div className="flex items-center justify-between pt-2">
-          <p className="text-[10px] text-navy-400 italic">
-            Phase 1: heuristic rewrite. Phase 2 wires this to the brain so the
-            sharpening adapts to your company over time.
+          <p className="text-[10px] text-secondary italic">
+            Streamed via DeepSeek through the brain layer.
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="text-xs text-navy-300 hover:text-primary px-3 py-2"
+              className="text-xs text-muted hover:text-primary px-3 py-2"
             >
               Send my original
             </button>
             <button
-              onClick={() => onAccept(sharpened)}
-              className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
+              onClick={() => onAccept(suggestion)}
+              disabled={!ready}
+              className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
             >
               Use the suggestion
             </button>
@@ -756,21 +831,42 @@ function FormulateResponseModal({
     "What concern or risk is not yet being named?",
   ];
   const [answers, setAnswers] = useState<string[]>(["", "", ""]);
+  const { status, run, abort, reset } = useSseStream();
+  const recentPayload = useMemo(
+    () =>
+      recent.slice(-6).map((m) => ({
+        author: m.authorName,
+        content: m.body ?? "",
+      })),
+    [recent]
+  );
 
   const ready = answers.every((a) => a.trim().length >= 10);
+  const streaming = status.state === "streaming";
+  const suppressed = status.state === "suppressed";
+  const errored = status.state === "error";
+  const haveDraft =
+    (status.state === "done" || status.state === "streaming") &&
+    status.text.trim().length > 0;
+  const composedReady = status.state === "done" && status.text.trim().length > 0;
 
-  const compose = () => {
-    const composed = composeFromAnswers(answers, topic, recent);
-    onCompose(composed);
-  };
+  const compose = () =>
+    run("/api/chat/formulate", {
+      answers,
+      topic: { title: topic.title, description: topic.description },
+      recent: recentPayload,
+    });
+
+  // Abort any in-flight stream when the modal unmounts.
+  useEffect(() => () => abort(), [abort]);
 
   return (
     <Modal open onClose={onClose} title="Formulate a fuller response" size="xl">
       <div className="space-y-3">
-        <p className="text-xs text-navy-300 leading-relaxed">
-          Before composing, three short prompts. Your answers stay local — the
-          System uses them to draft a more grounded response, then you edit it
-          before sending.
+        <p className="text-xs text-muted leading-relaxed">
+          Three short prompts. Your answers ground the System&apos;s draft in
+          YOUR read of the conversation. The draft that comes back is a
+          starting point — edit it before sending.
         </p>
         {QUESTIONS.map((q, i) => (
           <Field key={i} label={`${i + 1}. ${q}`} required>
@@ -783,30 +879,89 @@ function FormulateResponseModal({
               }}
               rows={3}
               placeholder="Plain language — what you actually think."
+              disabled={streaming}
             />
           </Field>
         ))}
+
+        {haveDraft && (
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-arc-300 mb-1.5 flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3" aria-hidden="true" />
+              Draft built from your answers
+              {streaming && (
+                <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+              )}
+            </p>
+            <div className="bg-arc-400/5 border border-arc-400/30 rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap min-h-[3rem]">
+              {status.text}
+              {streaming && (
+                <span className="cursor-blink ml-0.5" aria-hidden="true" />
+              )}
+            </div>
+          </div>
+        )}
+        {suppressed && (
+          <p className="text-[10px] text-gold-300">
+            Guidance suppressed (§3.4 control window): {"reason" in status ? status.reason : ""}
+          </p>
+        )}
+        {errored && (
+          <p className="text-[10px] text-red-400">
+            {"error" in status ? status.error : "Stream failed."}
+          </p>
+        )}
+
         <div className="flex items-center justify-between pt-2">
-          <p className="text-[10px] text-navy-400 italic flex items-center gap-1.5">
+          <p className="text-[10px] text-secondary italic flex items-center gap-1.5">
             <HelpCircle className="w-3 h-3" aria-hidden="true" />
-            Phase 1: assembles your answers into a draft. Phase 2 wires the
-            brain to it.
+            Streamed via DeepSeek through the brain layer.
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="text-xs text-navy-300 hover:text-primary px-3 py-2"
+              className="text-xs text-muted hover:text-primary px-3 py-2"
             >
               Cancel
             </button>
-            <button
-              onClick={compose}
-              disabled={!ready}
-              className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 disabled:opacity-40 text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
-            >
-              <Send className="w-3.5 h-3.5" aria-hidden="true" />
-              Compose draft
-            </button>
+            {composedReady ? (
+              <>
+                <button
+                  onClick={reset}
+                  className="text-xs text-muted hover:text-primary px-3 py-2"
+                >
+                  Re-compose
+                </button>
+                <button
+                  onClick={() => onCompose(status.text.trim())}
+                  className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
+                >
+                  <Send className="w-3.5 h-3.5" aria-hidden="true" />
+                  Use this draft
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={compose}
+                disabled={!ready || streaming}
+                className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
+              >
+                {streaming ? (
+                  <>
+                    <Loader2
+                      className="w-3.5 h-3.5 animate-spin"
+                      aria-hidden="true"
+                    />
+                    Composing…
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" aria-hidden="true" />
+                    Compose draft
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -814,47 +969,98 @@ function FormulateResponseModal({
   );
 }
 
-// ─── Local heuristics (Phase 2 replaces with brain-aware AI) ──
+// ─── Summarize the conversation so far ─────────────────────────
+//
+// Per §3.3, the summary is explicitly framed in the prompt as "the
+// System's read — confirm or correct." The user can choose to post
+// it back into the conversation as a kind="summary" message (which
+// the existing renderer styles distinctly), or close without posting.
 
-function sharpenLocally(text: string): string {
-  if (!text.trim()) return "";
-  const filler = [
-    /\b(just|really|very|kind of|sort of|i think|i feel|maybe|perhaps)\b/gi,
-    /\b(actually|basically|literally)\b/gi,
-  ];
-  let t = text.trim();
-  for (const f of filler) t = t.replace(f, "");
-  t = t
-    .split(/\s+/)
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s([.,;:])/g, "$1");
-  if (!/[.!?]$/.test(t)) t += ".";
-  // Cap shape: capitalize first letter of each sentence.
-  t = t.replace(/(^|[.!?]\s+)([a-z])/g, (_, p, c) => p + c.toUpperCase());
-  return t;
-}
+function SummarizeModal({
+  topic,
+  messages,
+  onClose,
+  onPost,
+}: {
+  topic: ChatTopic;
+  messages: ChatMessage[];
+  onClose: () => void;
+  onPost: (text: string) => void;
+}) {
+  const { status, run, abort } = useSseStream();
+  const payload = useMemo(
+    () => ({
+      topic: { title: topic.title, description: topic.description },
+      messages: messages
+        .filter((m) => m.kind === "message" && m.body)
+        .map((m) => ({
+          author: m.authorName,
+          content: m.body ?? "",
+          createdAt: m.createdAt,
+        })),
+    }),
+    [topic, messages]
+  );
 
-function composeFromAnswers(
-  answers: string[],
-  topic: ChatTopic,
-  recent: ChatMessage[]
-): string {
-  const recentBody =
-    recent.length > 0 ? recent[recent.length - 1]?.body ?? "" : "";
-  return [
-    `My read on "${topic.title}": ${answers[0]?.trim() ?? ""}`,
-    "",
-    `What I would consider a success here: ${answers[1]?.trim() ?? ""}`,
-    "",
-    `One thing I do not think is being named yet: ${answers[2]?.trim() ?? ""}`,
-    "",
-    recentBody
-      ? `Building on the latest: "${recentBody.slice(0, 120)}${
-          recentBody.length > 120 ? "…" : ""
-        }"`
-      : "",
-  ]
-    .filter((l) => l !== "")
-    .join("\n");
+  useEffect(() => {
+    run("/api/chat/summarize", payload);
+    return () => abort();
+    // Intentionally only on mount — the user opened this expecting an
+    // immediate read; re-running would surprise mid-stream.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const streaming = status.state === "streaming";
+  const suppressed = status.state === "suppressed";
+  const errored = status.state === "error";
+  const ready = status.state === "done" && status.text.trim().length > 0;
+
+  return (
+    <Modal open onClose={onClose} title="Summarize the conversation" size="xl">
+      <div className="space-y-3">
+        <p className="text-xs text-muted leading-relaxed">
+          What follows is the System&apos;s read — confirm, correct, or
+          replace it. Posting it back to the conversation puts it on the
+          record as the team&apos;s current understanding (§3.3).
+        </p>
+        <div className="bg-arc-400/5 border border-arc-400/30 rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap min-h-[6rem]">
+          {status.text || (streaming ? "…" : "(waiting)")}
+          {streaming && (
+            <span className="cursor-blink ml-0.5" aria-hidden="true" />
+          )}
+        </div>
+        {suppressed && (
+          <p className="text-[10px] text-gold-300">
+            Guidance suppressed (§3.4 control window): {"reason" in status ? status.reason : ""}
+          </p>
+        )}
+        {errored && (
+          <p className="text-[10px] text-red-400">
+            {"error" in status ? status.error : "Stream failed."}
+          </p>
+        )}
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-[10px] text-secondary italic">
+            Streamed via DeepSeek through the brain layer.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="text-xs text-muted hover:text-primary px-3 py-2"
+            >
+              Discard
+            </button>
+            <button
+              onClick={() => onPost(status.text.trim())}
+              disabled={!ready}
+              className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
+            >
+              <Send className="w-3.5 h-3.5" aria-hidden="true" />
+              Post to conversation
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
 }

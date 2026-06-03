@@ -66,6 +66,14 @@ const config: Config = {
         default: "rgb(var(--border-default) / <alpha-value>)",
         strong: "rgb(var(--border-strong) / <alpha-value>)",
       },
+      // `divide-default` for list separators (`divide-y divide-default`).
+      // Tailwind treats divideColor as a distinct namespace from borderColor;
+      // without this, `divide-default` silently falls back to `currentColor`.
+      divideColor: {
+        DEFAULT: "rgb(var(--border-default) / <alpha-value>)",
+        default: "rgb(var(--border-default) / <alpha-value>)",
+        strong: "rgb(var(--border-strong) / <alpha-value>)",
+      },
       textColor: {
         primary: "rgb(var(--text-primary) / <alpha-value>)",
         secondary: "rgb(var(--text-secondary) / <alpha-value>)",

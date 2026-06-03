@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check": "npm run typecheck && npm run lint && npm run test",
+    "theme:audit": "node scripts/theme-audit.mjs",
+    "check": "npm run typecheck && npm run lint && npm run theme:audit && npm run test",
     "setup:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/check-setup.ps1"
   },
   "dependencies": {

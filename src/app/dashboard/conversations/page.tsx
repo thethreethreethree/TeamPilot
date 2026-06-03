@@ -189,7 +189,7 @@ export default function ConversationsPage() {
                 onChange={(e) => setConversation(e.target.value)}
                 disabled={phase !== "transcript"}
                 rows={14}
-                className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-secondary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none font-mono leading-relaxed disabled:opacity-60"
+                className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none font-mono leading-relaxed disabled:opacity-60"
               />
               {phase === "transcript" && (
                 <div className="mt-3 flex justify-end">
@@ -221,7 +221,7 @@ Action items:
   - Sarah owns ...
   - Marcus starts ...
 Unresolved: ..."
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
                 />
                 {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
                 {phase === "elicit" && (

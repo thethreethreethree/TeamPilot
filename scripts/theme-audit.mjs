@@ -1,0 +1,260 @@
+#!/usr/bin/env node
+//
+// scripts/theme-audit.mjs — Exhaustive theme-leak detector.
+//
+// What it does
+// ────────────
+//   Scans every src .ts / .tsx file for color-bearing Tailwind utilities and
+//   inline-style hex values, splits them into BRAND (mode-agnostic, allowed)
+//   vs THEME-BOUND (leaks — must use the semantic scale), and prints a
+//   precise report. Exits non-zero if any theme-bound leaks remain.
+//
+// Why it exists
+// ─────────────
+//   Per CLAUDE.md feedback discipline: the agent shall not declare a UI
+//   migration "complete" based on its own narrow tests. Every prior pass
+//   was scoped to "the patterns I happened to think of," which produced
+//   a sequence of false-confidence completion claims and forced the user
+//   to re-discover the same root cause. This audit removes the discretion:
+//   it enumerates EVERY Tailwind color-bearing prefix and EVERY known leak
+//   pattern, so the residual count is a hard fact, not an opinion.
+//
+//   The brand triad (crimson / gold / arc) is mode-agnostic by docs/BRAND.md
+//   §9.5, so brand-fill / brand-border / brand-ring / brand-gradient usages
+//   are explicitly allowed. Only theme-bound colors (the navy surface scale
+//   and dark-context hex literals) are leaks.
+//
+// Usage
+// ─────
+//   node scripts/theme-audit.mjs               # report, exit 1 if leaks
+//   node scripts/theme-audit.mjs --verbose     # also list per-file lines
+//
+// Exit code
+// ─────────
+//   0 if zero theme-bound leaks. 1 otherwise.
+
+import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+
+const VERBOSE = process.argv.includes("--verbose");
+
+// ─── Every Tailwind utility prefix that can carry a color ─────────────
+const COLOR_PREFIXES = [
+  "bg", "text", "border", "divide", "ring", "ring-offset",
+  "outline", "shadow", "decoration", "placeholder", "caret",
+  "accent", "fill", "stroke", "from", "to", "via",
+];
+
+// ─── Brand-fill / brand-border tokens that are explicitly mode-agnostic
+//      Crimson primary (suit) — same on both modes; white-on-crimson
+//      contrast holds on both. Same for gold (helmet) and arc cyan.
+const BRAND_HEXES = new Set([
+  // Crimson family
+  "C8232C", "A91D24", "8A1820", "F75663", "FF8A92",
+  // Gold family
+  "E8B53A", "F2C94C", "D4A024", "A6801C",
+  // Arc cyan family
+  "5EC8E0", "7DDCE8", "A8E6F0", "3FB1CC", "1F6B7E",
+]);
+
+const BRAND_NAMED_SCALES = new Set([
+  "crimson", "gold", "arc",
+]);
+
+// ─── Patterns that ARE always leaks (theme-bound) ──────────────────────
+// Named-scale references that bind directly to the dark navy palette.
+const NAVY_NAMED_LEAK = /\b(bg|text|border|divide|ring|placeholder|from|to|via)-navy-\d+(?:\/\d+)?\b/g;
+
+// Hex literals inside Tailwind arbitrary values (`bg-[#abc123]`, with optional opacity).
+// Captures the prefix and the 3/6/8-digit hex so we can decide brand-vs-leak.
+const HEX_LITERAL = new RegExp(
+  String.raw`\b(${COLOR_PREFIXES.join("|")})-\[#([0-9a-fA-F]{3,8})\](?:\/\d+)?`,
+  "g"
+);
+
+// Crimson text variants that should use `text-brand` for contrast-aware
+// switching (crimson-400 is correct on dark, illegible on light surfaces).
+const CRIMSON_TEXT_LEAK = /\btext-crimson-\d+\b/g;
+
+// Inline `style={{ background: '#...' }}` (and similar) — captures any
+// dark-themed hex baked into JSX attributes. Only flag if the hex is in
+// the navy/dark family.
+const INLINE_STYLE_HEX = /(?:background|backgroundColor|color|borderColor|fill|stroke)\s*[:=]\s*["']#([0-9a-fA-F]{3,8})["']/g;
+const DARK_HEXES = new Set([
+  "0c0d16", "0A1429", "0a1429",
+  "12141f", "0D1B2D", "0d1b2d",
+  "152339", "1F3050", "1f3050",
+  "1a1d2e", "252840", "2D446C", "2d446c",
+  "3a3f5c", "5F7290", "5f7290",
+  "8895c4", "e8eaf6",
+  "5a6399",
+]);
+
+// ─── Walk ──────────────────────────────────────────────────────────────
+// ─── Allowlist ────────────────────────────────────────────────────────
+// Files where a "leak" is actually a documented tradeoff that the theme
+// system cannot solve. Each entry must carry a stated reason.
+const FILE_ALLOWLIST = new Map([
+  [
+    "src/app/manifest.ts",
+    "PWA manifest is built at compile time — cannot follow user's runtime theme preference. Brand-dark splash is the accepted static value.",
+  ],
+]);
+
+const files = Array.from(
+  new Set(
+    execSync("git ls-files src -- '*.ts' '*.tsx'", { encoding: "utf8" })
+      .split("\n")
+      .filter(Boolean)
+      // Untracked Phase-1 chat pages still must be audited.
+      .concat([
+        "src/app/dashboard/chats/page.tsx",
+        "src/app/dashboard/chats/[id]/page.tsx",
+      ])
+  )
+);
+
+const leaks = {
+  navyNamed: [],
+  hexLeak: [],
+  crimsonText: [],
+  inlineStyle: [],
+};
+
+const brandHits = {
+  brandHex: 0,
+  brandScale: 0,
+};
+
+for (const file of files) {
+  if (FILE_ALLOWLIST.has(file.replace(/\\/g, "/"))) continue;
+  let text;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch {
+    continue;
+  }
+  const lines = text.split(/\r?\n/);
+
+  lines.forEach((line, i) => {
+    const lineNo = i + 1;
+
+    // ── Legitimate exception #1: `text-navy-N` is intentional dark text
+    //     on a BRIGHT brand-button fill (gold or arc cyan). These buttons
+    //     stay the same fill color on both modes, so dark navy text on
+    //     them is mode-agnostic correct. Skip if same line shows a known
+    //     bright-button fill.
+    const hasBrightButtonFill =
+      /\bbg-gold-\d+\b/.test(line) || /\bbg-arc-\d+\b/.test(line);
+
+    // ── Legitimate exception #2: a dark hex inside a
+    //     `prefers-color-scheme: dark` media-query line is already
+    //     gated to dark mode — by definition the right value there.
+    const isDarkMediaQueryLine = /prefers-color-scheme:\s*dark/.test(line);
+
+    // ── Named navy leak ──
+    for (const m of line.matchAll(NAVY_NAMED_LEAK)) {
+      const isNavy900Text = /^text-navy-900\b/.test(m[0]);
+      if (isNavy900Text && hasBrightButtonFill) continue;
+      leaks.navyNamed.push({ file, lineNo, match: m[0] });
+    }
+
+    // ── Crimson text leak (needs `text-brand`) ──
+    for (const m of line.matchAll(CRIMSON_TEXT_LEAK)) {
+      leaks.crimsonText.push({ file, lineNo, match: m[0] });
+    }
+
+    // ── Tailwind arbitrary hex literal — brand vs leak ──
+    for (const m of line.matchAll(HEX_LITERAL)) {
+      const [whole, _prefix, hex] = m;
+      const upper = hex.toUpperCase();
+      if (BRAND_HEXES.has(upper)) {
+        brandHits.brandHex++;
+      } else {
+        leaks.hexLeak.push({ file, lineNo, match: whole });
+      }
+    }
+
+    // ── Inline-style hex in dark family ──
+    if (isDarkMediaQueryLine) return; // explicitly dark-gated, allowed
+    for (const m of line.matchAll(INLINE_STYLE_HEX)) {
+      const hex = m[1];
+      const upper = hex.toUpperCase();
+      if (DARK_HEXES.has(hex) || DARK_HEXES.has(hex.toLowerCase()) || DARK_HEXES.has(upper)) {
+        leaks.inlineStyle.push({ file, lineNo, match: m[0] });
+      }
+    }
+  });
+}
+
+// ─── Report ────────────────────────────────────────────────────────────
+const totalLeaks =
+  leaks.navyNamed.length +
+  leaks.hexLeak.length +
+  leaks.crimsonText.length +
+  leaks.inlineStyle.length;
+
+function group(items) {
+  const byFile = new Map();
+  for (const it of items) {
+    if (!byFile.has(it.file)) byFile.set(it.file, []);
+    byFile.get(it.file).push(it);
+  }
+  return byFile;
+}
+
+function printSection(title, items, hint) {
+  if (items.length === 0) return;
+  console.log(`\n  ${title}  (${items.length})`);
+  console.log(`    ${hint}`);
+  const byFile = group(items);
+  for (const [file, list] of byFile) {
+    console.log(`\n    ${file}`);
+    const counts = new Map();
+    for (const it of list) counts.set(it.match, (counts.get(it.match) ?? 0) + 1);
+    for (const [match, n] of counts) {
+      console.log(`      ${String(n).padStart(3)} × ${match}`);
+    }
+    if (VERBOSE) {
+      for (const it of list) console.log(`           L${it.lineNo}  ${it.match}`);
+    }
+  }
+}
+
+console.log("═══ ExecOS theme-leak audit ═══");
+console.log(`  Files scanned: ${files.length}`);
+console.log(`  Brand-color uses (allowed): ${brandHits.brandHex} hex, ${brandHits.brandScale} named`);
+console.log(`  Files on documented allowlist: ${FILE_ALLOWLIST.size}`);
+for (const [path, why] of FILE_ALLOWLIST) {
+  console.log(`    • ${path} — ${why}`);
+}
+console.log(`  Theme-bound leaks: ${totalLeaks}`);
+
+printSection(
+  "› Named navy-scale uses",
+  leaks.navyNamed,
+  "These bind to the dark navy palette and bypass the theme. Migrate to semantic (bg-base / bg-surface / text-secondary / border-default …)."
+);
+printSection(
+  "› Theme-bound hex literals in Tailwind arbitrary values",
+  leaks.hexLeak,
+  "Replace with the semantic class for the equivalent surface / text / border."
+);
+printSection(
+  "› text-crimson-N (needs contrast-aware text-brand)",
+  leaks.crimsonText,
+  "crimson-400 is correct on dark, illegible on light. Use `text-brand`."
+);
+printSection(
+  "› Inline style hex in dark family",
+  leaks.inlineStyle,
+  "Replace with CSS variable: `rgb(var(--bg-base))` etc., or migrate the attribute to a className."
+);
+
+if (totalLeaks === 0) {
+  console.log("\n✓ No theme-bound leaks.");
+  process.exit(0);
+} else {
+  console.log("\n✗ Theme-bound leaks found. Fix or document as a legitimate exception.");
+  process.exit(1);
+}

@@ -269,7 +269,7 @@ export default function CommandPalette() {
             aria-activedescendant={
               filtered[active] ? `cmd-row-${filtered[active].id}` : undefined
             }
-            className="flex-1 bg-transparent text-sm text-primary placeholder-[#3a3f5c] focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-primary placeholder:text-muted focus:outline-none"
           />
           <kbd className="text-[10px] text-muted bg-base border border-default rounded px-1.5 py-0.5 font-mono">
             ESC

@@ -89,7 +89,7 @@ export default function TeamChatListPage() {
   const closedCount = topics.filter((t) => t.status === "closed").length;
 
   return (
-    <div className="min-h-screen bg-navy-900">
+    <div className="min-h-screen bg-base">
       <TopBar
         title="Team Chat"
         subtitle={`${companyName} · Topic-based conversations with structured outcomes`}
@@ -131,42 +131,42 @@ export default function TeamChatListPage() {
 
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 bg-navy-800 border border-navy-600 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-surface border border-default rounded-lg p-1">
             {(["all", "open", "closed"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1 rounded text-xs font-medium transition-colors capitalize ${
                   filter === f
-                    ? "bg-crimson-500/15 text-crimson-400"
-                    : "text-navy-300 hover:text-primary"
+                    ? "bg-crimson-500/15 text-brand"
+                    : "text-muted hover:text-primary"
                 }`}
               >
                 {f}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 bg-navy-800 border border-navy-600 rounded-lg px-3 py-1.5 flex-1 max-w-md">
-            <Search className="w-3.5 h-3.5 text-navy-300" aria-hidden="true" />
+          <div className="flex items-center gap-2 bg-surface border border-default rounded-lg px-3 py-1.5 flex-1 max-w-md">
+            <Search className="w-3.5 h-3.5 text-muted" aria-hidden="true" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search topics or tags…"
-              className="bg-transparent text-xs text-primary placeholder-navy-400 focus:outline-none flex-1"
+              className="bg-transparent text-xs text-primary placeholder:text-muted focus:outline-none flex-1"
             />
           </div>
         </div>
 
         {/* Topic list */}
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-xs text-navy-300">
+          <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
             Loading topics…
           </div>
         ) : filtered.length === 0 ? (
           <div className="glass-card p-8 text-center">
             <p className="text-sm text-primary mb-2">No topics match.</p>
-            <p className="text-xs text-navy-300 max-w-md mx-auto">
+            <p className="text-xs text-muted max-w-md mx-auto">
               {query
                 ? "Try a different search or clear the filter."
                 : "Create the first topic above. Topics are the conversation containers for any decision your team needs to talk through."}
@@ -214,7 +214,7 @@ function Stat({
       : "text-primary";
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-widest text-navy-300 mb-1">
+      <p className="text-[10px] uppercase tracking-widest text-muted mb-1">
         {label}
       </p>
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
@@ -232,15 +232,15 @@ function TopicCard({ topic }: { topic: ChatTopic }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             <MessageSquare
-              className="w-3.5 h-3.5 text-crimson-400 flex-shrink-0"
+              className="w-3.5 h-3.5 text-brand flex-shrink-0"
               aria-hidden="true"
             />
-            <p className="text-sm font-semibold text-primary truncate group-hover:text-crimson-300 transition-colors">
+            <p className="text-sm font-semibold text-primary truncate group-hover:text-brand transition-colors">
               {topic.title}
             </p>
           </div>
           {topic.description && (
-            <p className="text-xs text-navy-300 leading-relaxed line-clamp-2">
+            <p className="text-xs text-muted leading-relaxed line-clamp-2">
               {topic.description}
             </p>
           )}
@@ -253,7 +253,7 @@ function TopicCard({ topic }: { topic: ChatTopic }) {
           {topic.status}
         </span>
       </div>
-      <div className="flex items-center justify-between text-[10px] text-navy-300 mt-3">
+      <div className="flex items-center justify-between text-[10px] text-muted mt-3">
         <div className="flex items-center gap-3">
           <span>{topic.participantCount} participants</span>
           <span>·</span>
@@ -272,7 +272,7 @@ function TopicCard({ topic }: { topic: ChatTopic }) {
           {topic.tags.map((tag) => (
             <span
               key={tag}
-              className="text-[10px] text-navy-300 bg-navy-700 px-1.5 py-0.5 rounded"
+              className="text-[10px] text-muted bg-surface-raised px-1.5 py-0.5 rounded"
             >
               {tag}
             </span>
@@ -324,7 +324,7 @@ function CreateTopicModal({
   return (
     <Modal open onClose={onClose} title="New team chat topic" size="lg">
       <div className="space-y-3">
-        <p className="text-xs text-navy-300 leading-relaxed">
+        <p className="text-xs text-muted leading-relaxed">
           A topic is a conversation container. Pick one specific decision or
           subject — &quot;Tracking Q3 financial growth,&quot; &quot;Payment gateway root
           cause,&quot; &quot;Hiring the senior engineering role.&quot; Narrower topics produce
@@ -355,14 +355,14 @@ function CreateTopicModal({
         </Field>
         {error && <p className="text-xs text-red-400">{error}</p>}
         <div className="flex items-center justify-between gap-2 pt-2">
-          <div className="flex items-center gap-1.5 text-[10px] text-navy-300">
+          <div className="flex items-center gap-1.5 text-[10px] text-muted">
             <ShieldCheck className="w-3 h-3" aria-hidden="true" />
             You become the topic admin
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="text-xs text-navy-300 hover:text-primary px-3 py-2"
+              className="text-xs text-muted hover:text-primary px-3 py-2"
             >
               Cancel
             </button>

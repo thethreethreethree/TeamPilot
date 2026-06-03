@@ -9,8 +9,13 @@ export default function manifest(): MetadataRoute.Manifest {
       "An honest AI executive operating system. Stays silent until it has earned the right to speak.",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#0c0d16",
-    theme_color: "#0c0d16",
+    // PWA manifest is static — cannot follow the user's light/dark
+    // preference. We pick the brand's dark base (navy.900) so the install
+    // splash matches the dark-mode chrome the OS shows by default. Users
+    // on light mode see a brief navy splash on PWA cold-start; an
+    // accepted tradeoff for static manifest behavior. See docs/BRAND.md.
+    background_color: "#0A1429",
+    theme_color: "#0A1429",
     orientation: "any",
     categories: ["business", "productivity"],
     icons: [],

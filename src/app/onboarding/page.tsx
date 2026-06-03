@@ -148,7 +148,7 @@ export default function OnboardingPage() {
                 onChange={(e) => update("companyName", e.target.value)}
                 placeholder="Acme Corp"
                 autoFocus
-                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors text-base"
+                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors text-base"
               />
             </div>
           )}
@@ -270,7 +270,7 @@ export default function OnboardingPage() {
                 onChange={(e) => update("ceoName", e.target.value)}
                 placeholder="Your name"
                 autoFocus
-                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder-[#3a3f5c] focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors text-base mb-4"
+                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors text-base mb-4"
               />
               {form.ceoName && (
                 <div className="bg-[#C8232C]/10 border border-[#C8232C]/20 rounded-xl p-4 fade-in">
