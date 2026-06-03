@@ -22,12 +22,29 @@ export type LlmCallArgs = {
   expectJson?: boolean;
 };
 
+/**
+ * Token usage reported by the provider. All fields optional — Anthropic
+ * and DeepSeek both surface this, but providers we add later may not.
+ * Capturing this is the foundation for the §3.5 consequence measurement
+ * (what did a guidance cycle actually cost), so we lift it into the
+ * shared type rather than hiding it in provider-internal logs.
+ */
+export type LlmUsage = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+};
+
 export type LlmResult = {
   text: string;
   /** Provider-specific model id used, for the audit trail. */
   model: string;
   /** Provider name, e.g. 'deepseek' | 'anthropic'. */
   provider: string;
+  /** Token usage when the provider reports it. */
+  usage?: LlmUsage;
+  /** Wall-clock latency from request send to last byte, in ms. */
+  latencyMs?: number;
 };
 
 export interface Provider {

@@ -16,6 +16,7 @@ export type LlmErrorKind =
   | "invalid_request"
   | "server"
   | "network"
+  | "quota" // 402 Payment Required / insufficient balance — non-retryable
   | "unknown";
 
 export class LlmError extends Error {
@@ -51,6 +52,10 @@ export class LlmError extends Error {
 /** Classify an HTTP response status into an LlmErrorKind. */
 export function classifyStatus(status: number): LlmErrorKind {
   if (status === 401 || status === 403) return "auth";
+  // 402 from OpenAI-compatible APIs (DeepSeek) means insufficient balance
+  // or account-level payment block. Distinct from auth — the key is fine,
+  // the account just can't pay. Retrying won't help; tell the user clearly.
+  if (status === 402) return "quota";
   if (status === 429) return "rate_limit";
   if (status === 400 || status === 422) return "invalid_request";
   if (status === 408 || status === 504) return "timeout";

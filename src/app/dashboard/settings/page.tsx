@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
+import { LlmConnectionPanel } from "@/components/settings/LlmConnectionPanel";
 
 interface Settings {
   company: {
@@ -125,13 +126,20 @@ export default function SettingsPage() {
       <TopBar title="Settings" subtitle="Company + AI configuration" />
 
       <div className="p-6 max-w-3xl mx-auto space-y-6">
+        {/* LLM connection — renders in demo mode too, since the key
+            doesn't depend on Supabase being configured. Lets the user
+            verify provider connectivity before wiring anything else. */}
+        <LlmConnectionPanel />
+
         {!supabaseEnabled && (
           <div className="glass-card p-6 text-center">
             <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
-            <p className="text-sm text-yellow-100 mb-1">Live mode required</p>
+            <p className="text-sm text-yellow-100 mb-1">
+              Company profile requires live mode
+            </p>
             <p className="text-xs text-muted max-w-md mx-auto">
-              Settings live on the company row in the database. Configure Supabase to use
-              this surface.
+              Company-level settings live on the database row. Configure Supabase to
+              edit them. (The LLM panel above works regardless.)
             </p>
           </div>
         )}

@@ -96,6 +96,7 @@ export const deepseekProvider: Provider = {
     };
 
     return withRetry(async () => {
+      const startedAt = Date.now();
       const res = await fetchWithTimeout(
         ENDPOINT,
         {
@@ -122,9 +123,27 @@ export const deepseekProvider: Provider = {
 
       const json = (await res.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
+        usage?: {
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+        };
       };
       const text = json.choices?.[0]?.message?.content ?? "";
-      return { text, model, provider: "deepseek" };
+      const u = json.usage;
+      return {
+        text,
+        model,
+        provider: "deepseek",
+        latencyMs: Date.now() - startedAt,
+        usage: u
+          ? {
+              promptTokens: u.prompt_tokens,
+              completionTokens: u.completion_tokens,
+              totalTokens: u.total_tokens,
+            }
+          : undefined,
+      };
     });
   },
   async *stream(args: LlmCallArgs): AsyncIterable<string> {
