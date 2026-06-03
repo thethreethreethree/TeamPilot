@@ -8,7 +8,7 @@ import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/toast";
 import {
   fetchTopics,
-  demoCreateTopic,
+  createTopic,
   type ChatTopic,
   type ChatsMode,
 } from "@/lib/data/chats";
@@ -369,7 +369,7 @@ function CreateTopicModal({
     };
   }, [title, description, heldTopics, dismissed]);
 
-  const submit = () => {
+  const submit = async () => {
     if (!title.trim()) {
       setError("Title required.");
       return;
@@ -377,8 +377,9 @@ function CreateTopicModal({
     setSubmitting(true);
     setError("");
     try {
-      // Phase 1: demo-mode write only. Live mode wiring lands with the API.
-      const created = demoCreateTopic({
+      // Unified create: hits Supabase in live mode, localStorage in demo.
+      // RLS validates company_id == auth_company_id() server-side.
+      const created = await createTopic({
         title: title.trim(),
         description: description.trim(),
         tags: tags

@@ -5,10 +5,9 @@ import Modal from "@/components/ui/Modal";
 import { Field, Textarea } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/toast";
 import {
-  demoCloseTopic,
-  demoPostMessage,
-  demoTogglePin,
-  demoUserId,
+  closeTopic,
+  postMessage,
+  togglePin,
   fetchMessages,
   fetchParticipants,
   fetchTopic,
@@ -16,6 +15,7 @@ import {
   type ChatParticipant,
   type ChatTopic,
 } from "@/lib/data/chats";
+import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -115,20 +115,24 @@ export default function TeamChatTopicPage() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length]);
 
+  const currentUserId = useCurrentUserId();
   const me = useMemo(
-    () => participants.find((p) => p.userId === demoUserId()),
-    [participants]
+    () =>
+      currentUserId
+        ? participants.find((p) => p.userId === currentUserId)
+        : undefined,
+    [participants, currentUserId]
   );
   const iAmAdmin = me?.role === "admin";
   const isClosed = topic?.status === "closed";
 
   const grouped = useMemo(() => groupMessages(messages), [messages]);
 
-  const post = (body: string, opts?: { aiAssisted?: boolean }) => {
+  const post = async (body: string, opts?: { aiAssisted?: boolean }) => {
     if (!body.trim()) return;
     setSubmitting(true);
     try {
-      demoPostMessage({
+      await postMessage({
         topicId,
         body: body.trim(),
         aiAssisted: opts?.aiAssisted ?? aiAssisted,
@@ -136,6 +140,11 @@ export default function TeamChatTopicPage() {
       setDraft("");
       setAiAssisted(false);
       void refresh();
+    } catch (err) {
+      toast.error(
+        "Couldn't post",
+        err instanceof Error ? err.message : "Unknown error."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -143,18 +152,26 @@ export default function TeamChatTopicPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    post(draft);
+    void post(draft);
   };
 
-  const togglePin = (msg: ChatMessage) => {
-    const pinned = demoTogglePin({ topicId, messageId: msg.id });
-    toast.success(
-      pinned ? "Pinned" : "Unpinned",
-      pinned
-        ? "Added to priority data assets for the brain to learn from."
-        : "Removed from priority data assets."
-    );
-    void refresh();
+  // Renamed from `togglePin` to avoid shadowing the imported function.
+  const handleTogglePin = async (msg: ChatMessage) => {
+    try {
+      const pinned = await togglePin({ topicId, messageId: msg.id });
+      toast.success(
+        pinned ? "Pinned" : "Unpinned",
+        pinned
+          ? "Added to priority data assets for the brain to learn from."
+          : "Removed from priority data assets."
+      );
+      void refresh();
+    } catch (err) {
+      toast.error(
+        "Pin toggle failed",
+        err instanceof Error ? err.message : "Unknown error."
+      );
+    }
   };
 
   if (loading) {
@@ -340,7 +357,8 @@ export default function TeamChatTopicPage() {
                     <MessageRow
                       key={msg.id}
                       msg={msg}
-                      onTogglePin={() => togglePin(msg)}
+                      currentUserId={currentUserId}
+                      onTogglePin={() => void handleTogglePin(msg)}
                     />
                   ))}
                 </div>
@@ -478,18 +496,25 @@ export default function TeamChatTopicPage() {
           topic={topic}
           messages={messages}
           onClose={() => setSummarizeOpen(false)}
-          onPost={(text) => {
-            const msg = demoPostMessage({
-              topicId: topic.id,
-              body: text,
-              kind: "summary",
-            });
-            setMessages((prev) => [...prev, msg]);
-            setSummarizeOpen(false);
-            toast.success(
-              "Summary posted",
-              "It's on the record — confirm or correct in-thread."
-            );
+          onPost={async (text) => {
+            try {
+              const msg = await postMessage({
+                topicId: topic.id,
+                body: text,
+                kind: "summary",
+              });
+              setMessages((prev) => [...prev, msg]);
+              setSummarizeOpen(false);
+              toast.success(
+                "Summary posted",
+                "It's on the record — confirm or correct in-thread."
+              );
+            } catch (err) {
+              toast.error(
+                "Couldn't post summary",
+                err instanceof Error ? err.message : "Unknown error."
+              );
+            }
           }}
         />
       )}
@@ -521,14 +546,18 @@ function groupMessages(msgs: ChatMessage[]): MessageGroup[] {
 
 function MessageRow({
   msg,
+  currentUserId,
   onTogglePin,
 }: {
   msg: ChatMessage;
+  /** The id that identifies the viewer — for own-message styling. Null
+   *  while the auth session loads; treated as "not mine" until known. */
+  currentUserId: string | null;
   onTogglePin: () => void;
 }) {
   const isSummary = msg.kind === "summary";
   const isSystem = msg.kind === "system";
-  const isMine = msg.authorId === demoUserId();
+  const isMine = currentUserId !== null && msg.authorId === currentUserId;
   const initials = (msg.authorName ?? "?")
     .split(" ")
     .map((n) => n[0])
@@ -658,15 +687,18 @@ function CloseTopicModal({
   const [summary, setSummary] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     if (summary.trim().length < 20) return;
     setSubmitting(true);
-    const ok = demoCloseTopic({
-      topicId: topic.id,
-      summary: summary.trim(),
-    });
-    setSubmitting(false);
-    if (ok) onClosed();
+    try {
+      const ok = await closeTopic({
+        topicId: topic.id,
+        summary: summary.trim(),
+      });
+      if (ok) onClosed();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

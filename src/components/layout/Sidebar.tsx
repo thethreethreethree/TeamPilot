@@ -112,15 +112,23 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Company selector */}
+      {/* Company pill — single-tap to company settings.
+          (Multi-company switching isn't built; until it is, surfacing
+          an affordance that opens a "switcher" the user can't use would
+          be the UI overtaking the truth of what the System can do.) */}
       <div className="px-4 py-3 border-b border-default">
-        <button className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-surface-raised transition-colors group">
+        <Link
+          href="/dashboard/settings"
+          aria-label="Edit company profile"
+          title="Edit company profile"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-surface-raised transition-colors group"
+        >
           <div className="text-left">
             <p className="text-xs text-muted uppercase tracking-widest mb-0.5">Company</p>
             <p className="text-sm font-medium text-primary">{companyName}</p>
           </div>
           <ChevronRight className="w-3.5 h-3.5 text-muted group-hover:text-secondary transition-colors" />
-        </button>
+        </Link>
       </div>
 
       {/* Navigation */}

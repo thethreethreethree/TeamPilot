@@ -64,6 +64,11 @@ export default function OnboardingPage() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("Your session expired. Please sign in again.");
 
+      // Insert the company. The 0007 trigger auto-creates a company_brain
+      // row, which starts the §3.4 30-day control window from this
+      // moment forward. The selected goals are persisted as jsonb so
+      // the brain has them as context from day one (the brain layer
+      // reads company.goals when composing system prompts).
       const { data: company, error: companyErr } = await supabase
         .from("companies")
         .insert({
@@ -71,16 +76,20 @@ export default function OnboardingPage() {
           industry: form.industry,
           size: form.size,
           stage: form.stage,
+          goals: form.selectedGoals,
         })
         .select("id")
         .single();
       if (companyErr) throw companyErr;
 
+      // Upsert (not insert) because handle_new_user trigger may have
+      // already inserted a placeholder profile on signup. Use 'admin' so
+      // the user can perform admin actions (close topic, etc.) immediately.
       const { error: profileErr } = await supabase.from("profiles").upsert({
         id: auth.user.id,
         company_id: company.id,
         full_name: form.ceoName,
-        role: "CEO",
+        role: "admin",
       });
       if (profileErr) throw profileErr;
 

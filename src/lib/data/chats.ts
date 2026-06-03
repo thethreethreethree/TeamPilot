@@ -431,6 +431,35 @@ export async function fetchTopic(id: string): Promise<ChatTopic | null> {
   };
 }
 
+/**
+ * Batch-resolve a set of auth user IDs to display names from `profiles`.
+ *
+ * Why a separate query instead of an embedded select: chat_messages.author_id
+ * references auth.users(id), not profiles(id) — even though they share the
+ * same UUIDs, PostgREST won't auto-detect the relationship. Doing a single
+ * follow-up query on profiles is simpler than declaring a manual relationship
+ * hint and survives schema evolution.
+ *
+ * Falls back to "Unknown" for any id we can't resolve (deleted profile,
+ * system-emitted row, etc.) — never leaks the raw UUID into the UI.
+ */
+async function resolveAuthorNames(
+  supabase: ReturnType<typeof createClient>,
+  authorIds: Array<string | null>
+): Promise<Map<string, string>> {
+  const ids = Array.from(
+    new Set(authorIds.filter((x): x is string => typeof x === "string"))
+  );
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", ids);
+  return new Map(
+    (data ?? []).map((p) => [p.id as string, (p.full_name as string) ?? ""])
+  );
+}
+
 export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
   if (!supabaseEnabled) {
     return readDemoState().messages[topicId] ?? [];
@@ -444,21 +473,31 @@ export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
     .eq("topic_id", topicId)
     .order("created_at", { ascending: true });
   if (!data) return [];
-  // TODO Phase 1.1: resolve author_id → name via profiles join; pins lookup.
-  return data.map((m) => ({
-    id: m.id,
-    topicId: m.topic_id,
-    authorId: m.author_id,
-    authorName: m.author_id ?? "Unknown",
-    kind: m.kind,
-    body: m.body,
-    mediaUrl: m.media_url,
-    mediaType: m.media_type,
-    replyToId: m.reply_to_id,
-    aiAssisted: m.ai_assisted,
-    createdAt: m.created_at,
-    pinned: false,
-  }));
+
+  const nameById = await resolveAuthorNames(
+    supabase,
+    data.map((m) => m.author_id as string | null)
+  );
+
+  return data.map((m) => {
+    const isSummary = m.kind === "summary";
+    return {
+      id: m.id,
+      topicId: m.topic_id,
+      authorId: m.author_id,
+      authorName: isSummary
+        ? "System summary"
+        : (m.author_id && nameById.get(m.author_id)) || "Unknown",
+      kind: m.kind,
+      body: m.body,
+      mediaUrl: m.media_url,
+      mediaType: m.media_type,
+      replyToId: m.reply_to_id,
+      aiAssisted: m.ai_assisted,
+      createdAt: m.created_at,
+      pinned: false,
+    };
+  });
 }
 
 export async function fetchParticipants(
@@ -472,9 +511,16 @@ export async function fetchParticipants(
     .from("chat_participants")
     .select("user_id, role, joined_at, left_at, message_count, last_seen_at")
     .eq("topic_id", topicId);
-  return (data ?? []).map((p) => ({
+  if (!data) return [];
+
+  const nameById = await resolveAuthorNames(
+    supabase,
+    data.map((p) => p.user_id as string)
+  );
+
+  return data.map((p) => ({
     userId: p.user_id,
-    name: p.user_id,
+    name: nameById.get(p.user_id) || "Unknown",
     role: p.role,
     joinedAt: p.joined_at,
     leftAt: p.left_at,
@@ -584,6 +630,241 @@ export function demoTogglePin(args: {
   msg.pinned = !msg.pinned;
   writeDemoState(state);
   return msg.pinned;
+}
+
+// ─── Unified writes (live + demo) ──────────────────────────────
+//
+// These wrappers replace direct calls to the demo* functions in pages.
+// In live mode they hit Supabase respecting RLS; in demo mode they
+// delegate to the localStorage demo* helpers.
+//
+// Why unified, not per-mode at the call site: the moment a page does
+// `if (supabaseEnabled) liveCreate() else demoCreate()` you have to
+// remember to keep both branches in sync. Centralizing the switch
+// here means callers say `createTopic(...)` and never branch.
+
+/** Fetches the current user's company_id from the profile row. */
+async function getMyCompanyId(): Promise<string> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("company_id")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!profile?.company_id) {
+    throw new Error(
+      "Your profile has no company. Join or create one in onboarding before posting."
+    );
+  }
+  return profile.company_id;
+}
+
+export async function createTopic(args: {
+  title: string;
+  description: string;
+  tags: string[];
+}): Promise<ChatTopic> {
+  if (!supabaseEnabled) {
+    return demoCreateTopic(args);
+  }
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+  const companyId = await getMyCompanyId();
+
+  // Insert the topic. RLS validates company_id == auth_company_id().
+  const { data: topicRow, error: topicErr } = await supabase
+    .from("chat_topics")
+    .insert({
+      company_id: companyId,
+      title: args.title,
+      description: args.description || null,
+      tags: args.tags,
+      created_by: user.id,
+    })
+    .select(
+      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags"
+    )
+    .single();
+  if (topicErr || !topicRow) {
+    throw new Error(topicErr?.message ?? "Topic create failed.");
+  }
+
+  // Add creator as admin participant. Without this row, RLS forbids
+  // the creator from posting messages (insert policy requires being a
+  // current participant). We intentionally do this AFTER the topic row
+  // so a permission failure here leaves a topic the user can still
+  // see in the list but not post to — surfaceable, not silent.
+  const { error: pErr } = await supabase.from("chat_participants").insert({
+    topic_id: topicRow.id,
+    user_id: user.id,
+    role: "admin",
+  });
+  if (pErr) {
+    // Topic exists but participation didn't take. Surface honestly.
+    throw new Error(
+      `Topic created but admin participation failed: ${pErr.message}. Re-open the topic from the list once the issue is resolved.`
+    );
+  }
+
+  return {
+    id: topicRow.id,
+    title: topicRow.title,
+    description: topicRow.description,
+    status: topicRow.status,
+    problemId: topicRow.problem_id,
+    createdBy: topicRow.created_by,
+    createdAt: topicRow.created_at,
+    closedAt: topicRow.closed_at,
+    closedBy: topicRow.closed_by,
+    closeSummary: topicRow.close_summary,
+    closeDurability: topicRow.close_durability,
+    tags: topicRow.tags ?? [],
+    participantCount: 1,
+    messageCount: 0,
+    lastMessageAt: null,
+  };
+}
+
+export async function postMessage(args: {
+  topicId: string;
+  body: string;
+  aiAssisted?: boolean;
+  kind?: ChatMessage["kind"];
+  authorName?: string;
+}): Promise<ChatMessage> {
+  if (!supabaseEnabled) {
+    return demoPostMessage(args);
+  }
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+  // company_id lives on chat_topics; the RLS check on chat_messages
+  // verifies it matches the user's auth_company_id() — so we fetch it
+  // from the topic to keep the insert canonical.
+  const { data: topic, error: tErr } = await supabase
+    .from("chat_topics")
+    .select("company_id")
+    .eq("id", args.topicId)
+    .maybeSingle();
+  if (tErr || !topic) throw new Error(tErr?.message ?? "Topic not found.");
+
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .insert({
+      topic_id: args.topicId,
+      company_id: topic.company_id,
+      author_id: user.id,
+      kind: args.kind ?? "message",
+      body: args.body,
+      ai_assisted: args.aiAssisted ?? args.kind === "summary",
+    })
+    .select(
+      "id, topic_id, author_id, kind, body, media_url, media_type, reply_to_id, ai_assisted, created_at"
+    )
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Post failed.");
+
+  // Resolve poster's display name from profiles so the freshly-posted
+  // message renders consistently with reloaded messages (which also go
+  // through resolveAuthorNames). Override beats lookup beats email.
+  let resolvedName: string;
+  if (args.authorName) {
+    resolvedName = args.authorName;
+  } else if (args.kind === "summary") {
+    resolvedName = "System summary";
+  } else {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    resolvedName = profile?.full_name || user.email || "You";
+  }
+
+  return {
+    id: data.id,
+    topicId: data.topic_id,
+    authorId: data.author_id,
+    authorName: resolvedName,
+    kind: data.kind,
+    body: data.body,
+    mediaUrl: data.media_url,
+    mediaType: data.media_type,
+    replyToId: data.reply_to_id,
+    aiAssisted: data.ai_assisted,
+    createdAt: data.created_at,
+    pinned: false,
+  };
+}
+
+export async function togglePin(args: {
+  topicId: string;
+  messageId: string;
+}): Promise<boolean> {
+  if (!supabaseEnabled) {
+    return demoTogglePin(args);
+  }
+  const supabase = createClient();
+  // Probe whether a pin row already exists; toggle accordingly.
+  const { data: existing } = await supabase
+    .from("chat_pins")
+    .select("message_id")
+    .eq("message_id", args.messageId)
+    .maybeSingle();
+  if (existing) {
+    const { error } = await supabase
+      .from("chat_pins")
+      .delete()
+      .eq("message_id", args.messageId);
+    if (error) throw new Error(error.message);
+    return false;
+  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+  const { error } = await supabase.from("chat_pins").insert({
+    topic_id: args.topicId,
+    message_id: args.messageId,
+    pinned_by: user.id,
+  });
+  if (error) throw new Error(error.message);
+  return true;
+}
+
+export async function closeTopic(args: {
+  topicId: string;
+  summary: string;
+}): Promise<boolean> {
+  if (!supabaseEnabled) {
+    return demoCloseTopic(args);
+  }
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+  const { error } = await supabase
+    .from("chat_topics")
+    .update({
+      status: "closed",
+      closed_at: new Date().toISOString(),
+      closed_by: user.id,
+      close_summary: args.summary,
+    })
+    .eq("id", args.topicId);
+  if (error) throw new Error(error.message);
+  return true;
 }
 
 export function demoCloseTopic(args: {
