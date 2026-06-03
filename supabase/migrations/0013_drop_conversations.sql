@@ -1,0 +1,27 @@
+-- 0013 — Drop the `conversations` table
+--
+-- Why this exists
+-- ──────────────
+-- The `conversations` table was created in 0001 with the assumption
+-- that conversation-style dialogue analysis would persist its raw input
+-- + AI output here. The design evolved: 0003 introduced the
+-- `decision_dialogues` table, which now serves as the canonical
+-- persistence for BOTH Decision Dialogue and Conversation Dialogue
+-- (the persistence module at src/lib/dialogues/persistence.ts comments
+-- this explicitly — "Decision + Conversation"). The Conversation
+-- Dialogue API route never writes to `conversations`; it streams the
+-- LLM analysis back to the client and persists nothing server-side.
+--
+-- Result: `conversations` is dead schema. The §1.7 audit caught it.
+-- Per CLAUDE.md §1 (data-as-asset) and the "don't add features beyond
+-- what the task requires" guidance, living dead schema is worse than
+-- no schema — it suggests a feature that doesn't exist and confuses
+-- future readers of the schema map.
+--
+-- Reversibility
+-- ─────────────
+-- A future migration can recreate the table if the design changes back.
+-- The drop is destructive at the SQL level but the table has never held
+-- a row in this codebase's lifetime, so nothing is lost.
+
+drop table if exists public.conversations cascade;
