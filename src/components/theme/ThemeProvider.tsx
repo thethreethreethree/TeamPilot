@@ -64,24 +64,37 @@ function applyToDom(mode: ResolvedTheme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Read initial preference from localStorage. The DOM is already correct
-  // (pre-paint script did that work) so we just mirror the state into React.
-  const [preference, setPreferenceState] = useState<ThemePreference>(() => {
-    if (typeof window === "undefined") return "system";
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored === "light" || stored === "dark" || stored === "system") {
-        return stored;
-      }
-    } catch {
-      // localStorage unavailable — fall through to default.
-    }
-    return "system";
-  });
+  // SSR-safe initial state. We deliberately do NOT read localStorage in
+  // the useState initializer: that would diverge from the server's render
+  // (where localStorage is undefined) and trigger React's hydration
+  // mismatch warning on the very next interactive surface (the toggle
+  // pill highlighting a different option than what the server painted).
+  //
+  // The DOM's data-theme attribute is already correct because the
+  // pre-paint inline script in layout.tsx set it before React mounted —
+  // so the page LOOKS right from frame zero. Only this React state is
+  // out of sync, and we rectify it in the post-mount effect below.
+  const [preference, setPreferenceState] = useState<ThemePreference>("system");
+  const [resolved, setResolved] = useState<ResolvedTheme>("dark");
 
-  const [resolved, setResolved] = useState<ResolvedTheme>(() =>
-    resolve(preference)
-  );
+  // After mount: pull the actual stored preference and resolved mode.
+  // This may flip the toggle's active pill by one frame on first load,
+  // which is an acceptable trade for eliminating the hydration warning.
+  useEffect(() => {
+    let stored: ThemePreference = "system";
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw === "light" || raw === "dark" || raw === "system") stored = raw;
+    } catch {
+      /* storage unavailable — keep default */
+    }
+    const actual = resolve(stored);
+    setPreferenceState(stored);
+    setResolved(actual);
+    // The pre-paint script already set data-theme, but if storage was
+    // changed since that paint (another tab), re-sync the DOM now.
+    applyToDom(actual);
+  }, []);
 
   // Re-resolve when the OS preference changes — only matters if user is
   // on 'system'. Without this, a user who flips their OS to dark mode at

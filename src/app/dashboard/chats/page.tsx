@@ -15,11 +15,13 @@ import {
 import {
   AlertTriangle,
   CheckCircle2,
+  ExternalLink,
   Loader2,
   MessageSquare,
   Plus,
   Search,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -183,6 +185,7 @@ export default function TeamChatListPage() {
 
       {creating && (
         <CreateTopicModal
+          heldTopics={topics.filter((t) => t.closeDurability === "held")}
           onClose={() => setCreating(false)}
           onCreated={(id) => {
             setCreating(false);
@@ -283,10 +286,15 @@ function TopicCard({ topic }: { topic: ChatTopic }) {
   );
 }
 
+type SimilarMatch = { id: string; similarity: number; reason: string };
+
 function CreateTopicModal({
+  heldTopics,
   onClose,
   onCreated,
 }: {
+  /** Closed topics with durability="held" — eligible for similarity matching. */
+  heldTopics: ChatTopic[];
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
@@ -295,6 +303,71 @@ function CreateTopicModal({
   const [tags, setTags] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // ─── Similarity matching (§3.6 make-learning-visible) ───────────
+  //
+  // Debounced 600ms after the user stops typing the title/description.
+  // Sends both fields plus a slim catalog of held topics to /api/chat/similar
+  // and renders any ≥70% matches as a callout above the form. The user
+  // can read, click through to a held topic, or proceed if their new topic
+  // is genuinely different — the System never blocks creation.
+  //
+  // We deliberately tolerate a small race: if the user submits fast, the
+  // last fetch may still be in flight. That's fine — the user already
+  // decided. Better than blocking on every keystroke.
+  const [matches, setMatches] = useState<SimilarMatch[]>([]);
+  const [matching, setMatching] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (dismissed) return;
+    const t = title.trim();
+    if (t.length < 4 || heldTopics.length === 0) {
+      setMatches([]);
+      return;
+    }
+    const controller = new AbortController();
+    const id = setTimeout(async () => {
+      setMatching(true);
+      setMatchError(null);
+      try {
+        const res = await fetch("/api/chat/similar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            newTopic: { title: t, description: description.trim() },
+            candidates: heldTopics.map((h) => ({
+              id: h.id,
+              title: h.title,
+              description: h.description,
+              closeSummary: h.closeSummary,
+            })),
+          }),
+        });
+        const data = (await res.json()) as {
+          matches?: SimilarMatch[];
+          error?: string;
+        };
+        if (data.error && !res.ok) {
+          setMatchError(data.error);
+          setMatches([]);
+        } else {
+          setMatches(data.matches ?? []);
+        }
+      } catch (err) {
+        if ((err as { name?: string })?.name === "AbortError") return;
+        setMatchError(err instanceof Error ? err.message : "Lookup failed");
+      } finally {
+        setMatching(false);
+      }
+    }, 600);
+    return () => {
+      clearTimeout(id);
+      controller.abort();
+    };
+  }, [title, description, heldTopics, dismissed]);
 
   const submit = () => {
     if (!title.trim()) {
@@ -330,6 +403,29 @@ function CreateTopicModal({
           cause,&quot; &quot;Hiring the senior engineering role.&quot; Narrower topics produce
           sharper conversations.
         </p>
+
+        {/* §3.6 make-learning-visible: when the new topic resembles a past
+            held resolution, surface it. The user decides whether their
+            topic is genuinely new or worth folding into the prior one. */}
+        {matches.length > 0 && !dismissed && (
+          <SimilarHeldTopicsCallout
+            matches={matches}
+            heldTopics={heldTopics}
+            onDismiss={() => setDismissed(true)}
+          />
+        )}
+        {matching && matches.length === 0 && title.trim().length >= 4 && (
+          <div className="flex items-center gap-2 text-[10px] text-muted">
+            <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+            Checking whether the team has solved something like this before…
+          </div>
+        )}
+        {matchError && (
+          <p className="text-[10px] text-red-400">
+            Similarity check failed: {matchError}
+          </p>
+        )}
+
         <Field label="Topic title" required>
           <Input
             value={title}
@@ -377,5 +473,93 @@ function CreateTopicModal({
         </div>
       </div>
     </Modal>
+  );
+}
+
+// ─── Similar-held-topics callout ───────────────────────────────
+//
+// Rendered above the new-topic form when /api/chat/similar finds prior
+// held-durability topics ≥ 70% similar to what the user is typing.
+//
+// UI discipline (§3.3 guide-don't-overtake):
+//  - Title is informational, not assertive ("might overlap", not "duplicate").
+//  - Each match is a passive surface — click-through to read the prior
+//    topic, not a "use this instead" button.
+//  - Dismiss is one click. We do not nag.
+//  - The user can always proceed with their new topic; we never block.
+
+function SimilarHeldTopicsCallout({
+  matches,
+  heldTopics,
+  onDismiss,
+}: {
+  matches: SimilarMatch[];
+  heldTopics: ChatTopic[];
+  onDismiss: () => void;
+}) {
+  const byId = new Map(heldTopics.map((t) => [t.id, t]));
+  return (
+    <div className="rounded-lg border border-arc-400/30 bg-arc-400/5 p-3">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-arc-300" aria-hidden="true" />
+          <p className="text-xs font-semibold text-primary">
+            The team has resolved something similar before
+          </p>
+        </div>
+        <button
+          onClick={onDismiss}
+          className="text-[10px] text-muted hover:text-primary"
+        >
+          Dismiss
+        </button>
+      </div>
+      <p className="text-[10px] text-muted mb-2.5 leading-relaxed">
+        Worth a quick read before starting a new conversation — the prior
+        resolution held. You may decide your topic is genuinely different,
+        and that&apos;s fine.
+      </p>
+      <ul className="space-y-2">
+        {matches.map((m) => {
+          const t = byId.get(m.id);
+          if (!t) return null;
+          return (
+            <li key={m.id}>
+              <Link
+                href={`/dashboard/chats/${t.id}`}
+                target="_blank"
+                className="block rounded-md border border-arc-400/30 bg-surface px-2.5 py-2 hover:border-arc-400/60 transition-colors group"
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <CheckCircle2
+                      className="w-3 h-3 text-gold-300 flex-shrink-0"
+                      aria-hidden="true"
+                    />
+                    <p className="text-xs font-medium text-primary truncate group-hover:text-brand transition-colors">
+                      {t.title}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-arc-300 flex-shrink-0">
+                    <span className="font-mono">
+                      {Math.round(m.similarity * 100)}%
+                    </span>
+                    <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted leading-relaxed">
+                  {m.reason}
+                </p>
+                {t.closeSummary && (
+                  <p className="text-[10px] text-gold-200/80 mt-1 italic leading-relaxed line-clamp-2">
+                    What held: {t.closeSummary}
+                  </p>
+                )}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
