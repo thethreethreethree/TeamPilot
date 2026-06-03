@@ -14,14 +14,66 @@
       "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
     }
   ],
-  "headers": [],
+  "headers": [
+    {
+      "source": "/:path*",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), interest-cohort=(), browsing-topics=()"
+        },
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        }
+      ],
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
+    }
+  ],
   "onMatchHeaders": [],
   "rewrites": {
     "beforeFiles": [],
     "afterFiles": [],
     "fallback": []
   },
-  "dynamicRoutes": [],
+  "dynamicRoutes": [
+    {
+      "page": "/api/export/[entity]",
+      "regex": "^/api/export/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPentity": "nxtPentity"
+      },
+      "namedRegex": "^/api/export/(?<nxtPentity>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/dashboard/chats/[id]",
+      "regex": "^/dashboard/chats/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/dashboard/chats/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/invite/[code]",
+      "regex": "^/invite/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPcode": "nxtPcode"
+      },
+      "namedRegex": "^/invite/(?<nxtPcode>[^/]+?)(?:/)?$"
+    }
+  ],
   "staticRoutes": [
     {
       "page": "/",
@@ -54,10 +106,22 @@
       "namedRegex": "^/api/ai/briefing(?:/)?$"
     },
     {
+      "page": "/api/ai/briefing/stream",
+      "regex": "^/api/ai/briefing/stream(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/ai/briefing/stream(?:/)?$"
+    },
+    {
       "page": "/api/ai/conversation",
       "regex": "^/api/ai/conversation(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/ai/conversation(?:/)?$"
+    },
+    {
+      "page": "/api/ai/conversation-dialogue",
+      "regex": "^/api/ai/conversation\\-dialogue(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/ai/conversation\\-dialogue(?:/)?$"
     },
     {
       "page": "/api/ai/decision",
@@ -66,10 +130,160 @@
       "namedRegex": "^/api/ai/decision(?:/)?$"
     },
     {
+      "page": "/api/ai/decision-dialogue",
+      "regex": "^/api/ai/decision\\-dialogue(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/ai/decision\\-dialogue(?:/)?$"
+    },
+    {
+      "page": "/api/ai/finance",
+      "regex": "^/api/ai/finance(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/ai/finance(?:/)?$"
+    },
+    {
+      "page": "/api/ai/marketing",
+      "regex": "^/api/ai/marketing(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/ai/marketing(?:/)?$"
+    },
+    {
+      "page": "/api/brain",
+      "regex": "^/api/brain(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/brain(?:/)?$"
+    },
+    {
+      "page": "/api/brain/learn",
+      "regex": "^/api/brain/learn(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/brain/learn(?:/)?$"
+    },
+    {
+      "page": "/api/brain/unlock",
+      "regex": "^/api/brain/unlock(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/brain/unlock(?:/)?$"
+    },
+    {
+      "page": "/api/chat/formulate",
+      "regex": "^/api/chat/formulate(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/chat/formulate(?:/)?$"
+    },
+    {
+      "page": "/api/chat/guide",
+      "regex": "^/api/chat/guide(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/chat/guide(?:/)?$"
+    },
+    {
+      "page": "/api/chat/similar",
+      "regex": "^/api/chat/similar(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/chat/similar(?:/)?$"
+    },
+    {
+      "page": "/api/chat/summarize",
+      "regex": "^/api/chat/summarize(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/chat/summarize(?:/)?$"
+    },
+    {
+      "page": "/api/decisions",
+      "regex": "^/api/decisions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/decisions(?:/)?$"
+    },
+    {
+      "page": "/api/diagnosis/close",
+      "regex": "^/api/diagnosis/close(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/diagnosis/close(?:/)?$"
+    },
+    {
+      "page": "/api/diagnosis/outside-view",
+      "regex": "^/api/diagnosis/outside\\-view(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/diagnosis/outside\\-view(?:/)?$"
+    },
+    {
+      "page": "/api/diagnosis/ripple-trace",
+      "regex": "^/api/diagnosis/ripple\\-trace(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/diagnosis/ripple\\-trace(?:/)?$"
+    },
+    {
+      "page": "/api/health",
+      "regex": "^/api/health(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/health(?:/)?$"
+    },
+    {
+      "page": "/api/llm/ping",
+      "regex": "^/api/llm/ping(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/llm/ping(?:/)?$"
+    },
+    {
+      "page": "/api/problems",
+      "regex": "^/api/problems(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/problems(?:/)?$"
+    },
+    {
+      "page": "/api/resolutions",
+      "regex": "^/api/resolutions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/resolutions(?:/)?$"
+    },
+    {
+      "page": "/api/seed",
+      "regex": "^/api/seed(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/seed(?:/)?$"
+    },
+    {
+      "page": "/api/settings",
+      "regex": "^/api/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/settings(?:/)?$"
+    },
+    {
+      "page": "/api/tasks",
+      "regex": "^/api/tasks(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/tasks(?:/)?$"
+    },
+    {
+      "page": "/api/team",
+      "regex": "^/api/team(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/team(?:/)?$"
+    },
+    {
+      "page": "/api/team/accept",
+      "regex": "^/api/team/accept(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/team/accept(?:/)?$"
+    },
+    {
       "page": "/dashboard",
       "regex": "^/dashboard(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/dashboard/brain",
+      "regex": "^/dashboard/brain(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/brain(?:/)?$"
+    },
+    {
+      "page": "/dashboard/chats",
+      "regex": "^/dashboard/chats(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/chats(?:/)?$"
     },
     {
       "page": "/dashboard/conversations",
@@ -84,10 +298,40 @@
       "namedRegex": "^/dashboard/decisions(?:/)?$"
     },
     {
+      "page": "/dashboard/diagnose",
+      "regex": "^/dashboard/diagnose(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/diagnose(?:/)?$"
+    },
+    {
+      "page": "/dashboard/finance",
+      "regex": "^/dashboard/finance(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/finance(?:/)?$"
+    },
+    {
+      "page": "/dashboard/marketing",
+      "regex": "^/dashboard/marketing(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/marketing(?:/)?$"
+    },
+    {
       "page": "/dashboard/operations",
       "regex": "^/dashboard/operations(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/dashboard/operations(?:/)?$"
+    },
+    {
+      "page": "/dashboard/problems",
+      "regex": "^/dashboard/problems(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/problems(?:/)?$"
+    },
+    {
+      "page": "/dashboard/resolutions",
+      "regex": "^/dashboard/resolutions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/resolutions(?:/)?$"
     },
     {
       "page": "/dashboard/settings",
@@ -114,10 +358,34 @@
       "namedRegex": "^/login(?:/)?$"
     },
     {
+      "page": "/manifest.webmanifest",
+      "regex": "^/manifest\\.webmanifest(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/manifest\\.webmanifest(?:/)?$"
+    },
+    {
       "page": "/onboarding",
       "regex": "^/onboarding(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/onboarding(?:/)?$"
+    },
+    {
+      "page": "/pitch",
+      "regex": "^/pitch(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/pitch(?:/)?$"
+    },
+    {
+      "page": "/robots.txt",
+      "regex": "^/robots\\.txt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/robots\\.txt(?:/)?$"
+    },
+    {
+      "page": "/sitemap.xml",
+      "regex": "^/sitemap\\.xml(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/sitemap\\.xml(?:/)?$"
     }
   ],
   "dataRoutes": [],
