@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import {
   closeTopic,
   postMessage,
+  reviewDurability,
   togglePin,
   fetchMessages,
   fetchParticipants,
@@ -14,6 +15,7 @@ import {
   type ChatMessage,
   type ChatParticipant,
   type ChatTopic,
+  type DurabilityReview,
 } from "@/lib/data/chats";
 import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
 import {
@@ -42,7 +44,7 @@ import { useSseStream } from "@/lib/hooks/useSseStream";
 
 const STATUS_BADGE: Record<string, string> = {
   open: "bg-surface-raised text-active-text border border-[#5EC8E0]/30",
-  closed: "bg-gold-400/15 text-gold-300 border border-gold-400/40",
+  closed: "bg-gold-400/15 text-accent-text border border-gold-400/40",
   archived: "bg-surface-raised text-muted border border-default",
 };
 
@@ -85,6 +87,7 @@ export default function TeamChatTopicPage() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [formulateOpen, setFormulateOpen] = useState(false);
   const [summarizeOpen, setSummarizeOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -261,7 +264,7 @@ export default function TeamChatTopicPage() {
             {iAmAdmin && !isClosed && (
               <button
                 onClick={() => setClosingOpen(true)}
-                className="flex items-center gap-1.5 text-xs text-gold-300 hover:text-gold-200 border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 text-xs text-accent-text hover:text-accent-text border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1.5 rounded-lg transition-colors"
               >
                 <Lock className="w-3 h-3" aria-hidden="true" />
                 Close topic
@@ -282,7 +285,7 @@ export default function TeamChatTopicPage() {
                 >
                   {p.role === "admin" && (
                     <Crown
-                      className="w-3 h-3 text-gold-300"
+                      className="w-3 h-3 text-accent-text"
                       aria-hidden="true"
                     />
                   )}
@@ -297,27 +300,58 @@ export default function TeamChatTopicPage() {
         )}
       </div>
 
-      {/* Closed banner */}
+      {/* Closed banner — surfaces the close summary and, if the reviewer
+          has set §3.5 close_durability, the consequence label. When
+          durability has not yet been recorded (or is "unknown"), the
+          admin can click Review outcome to record it; that update
+          fires the chat.topic_durability_reviewed event which derives
+          the appropriate consequence signal. */}
       {isClosed && topic.closeSummary && (
         <div className="max-w-5xl mx-auto w-full px-6 mt-4">
           <div className="flex items-start gap-3 p-3 rounded-xl bg-gold-400/5 border border-gold-400/30">
             <CheckCircle2
-              className="w-4 h-4 text-gold-300 mt-0.5 flex-shrink-0"
+              className="w-4 h-4 text-accent-text mt-0.5 flex-shrink-0"
               aria-hidden="true"
             />
-            <div>
-              <p className="text-xs text-gold-200 font-medium mb-1">
+            <div className="flex-1">
+              <p className="text-xs text-accent-text font-medium mb-1">
                 Topic closed{" "}
                 {topic.closeDurability && (
-                  <span className="text-gold-300/70">
+                  <span className="text-accent-text/70">
                     · outcome: {topic.closeDurability}
                   </span>
                 )}
               </p>
-              <p className="text-xs text-gold-100/80 leading-relaxed">
+              {/* The close summary is body content (the WHY of the closure)
+                  — it must be readable, not branded. text-primary keeps
+                  legibility in both modes; the gold accent stays on the
+                  label above. */}
+              <p className="text-xs text-primary leading-relaxed">
                 {topic.closeSummary}
               </p>
             </div>
+            {iAmAdmin &&
+              (topic.closeDurability === null ||
+                topic.closeDurability === "unknown") && (
+                <button
+                  onClick={() => setReviewOpen(true)}
+                  className="flex-shrink-0 self-start flex items-center gap-1.5 text-[11px] text-accent-text hover:text-accent-text border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1 rounded-lg transition-colors"
+                >
+                  <Sparkles className="w-3 h-3" aria-hidden="true" />
+                  Review outcome
+                </button>
+              )}
+            {iAmAdmin &&
+              topic.closeDurability &&
+              topic.closeDurability !== "unknown" && (
+                <button
+                  onClick={() => setReviewOpen(true)}
+                  className="flex-shrink-0 self-start text-[11px] text-accent-text underline underline-offset-2"
+                  title="Change the outcome label if new evidence makes the prior judgement wrong. Both judgements stay on the §3.1 record."
+                >
+                  Update
+                </button>
+              )}
           </div>
         </div>
       )}
@@ -491,6 +525,31 @@ export default function TeamChatTopicPage() {
         />
       )}
 
+      {reviewOpen && (
+        <ReviewOutcomeModal
+          topic={topic}
+          onClose={() => setReviewOpen(false)}
+          onReviewed={async (durability) => {
+            try {
+              await reviewDurability({ topicId: topic.id, durability });
+              setReviewOpen(false);
+              toast.success(
+                "Outcome recorded",
+                durability === "unknown"
+                  ? "Marked as 'not yet measurable' — no signal fires until you set a real outcome."
+                  : `'${durability}' is now on the record. The §3.5 signal has been derived.`
+              );
+              void refresh();
+            } catch (err) {
+              toast.error(
+                "Couldn't record outcome",
+                err instanceof Error ? err.message : "Unknown error."
+              );
+            }
+          }}
+        />
+      )}
+
       {summarizeOpen && (
         <SummarizeModal
           topic={topic}
@@ -633,7 +692,7 @@ function MessageRow({
           )}
           {msg.pinned && (
             <span
-              className="flex items-center gap-0.5 text-[10px] text-gold-300"
+              className="flex items-center gap-0.5 text-[10px] text-accent-text"
               title="Pinned to priority data assets"
             >
               <Pin className="w-2.5 h-2.5" aria-hidden="true" />
@@ -659,7 +718,7 @@ function MessageRow({
                 ? "Remove from priority data"
                 : "Pin as priority data — the brain learns from pinned messages"
             }
-            className="absolute top-2 right-2 text-muted hover:text-gold-300 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute top-2 right-2 text-muted hover:text-accent-text opacity-0 group-hover:opacity-100 transition-opacity"
           >
             {msg.pinned ? (
               <PinOff className="w-3.5 h-3.5" aria-hidden="true" />
@@ -706,10 +765,10 @@ function CloseTopicModal({
       <div className="space-y-3">
         <div className="flex items-start gap-2.5 p-3 rounded-xl bg-gold-400/5 border border-gold-400/20">
           <ShieldCheck
-            className="w-4 h-4 text-gold-300 mt-0.5 flex-shrink-0"
+            className="w-4 h-4 text-accent-text mt-0.5 flex-shrink-0"
             aria-hidden="true"
           />
-          <p className="text-xs text-gold-100 leading-relaxed">
+          <p className="text-xs text-primary leading-relaxed">
             Closing a topic creates a permanent resolution record. The
             conversation history stays accessible, and the System uses it to
             help with similar topics later. If this is linked to a problem,
@@ -824,7 +883,7 @@ function GuideMyResponseModal({
             )}
           </div>
           {suppressed && (
-            <p className="text-[10px] text-gold-300 mt-1.5">
+            <p className="text-[10px] text-accent-text mt-1.5">
               Guidance suppressed (§3.4 control window): {"reason" in status ? status.reason : ""}
             </p>
           )}
@@ -851,6 +910,170 @@ function GuideMyResponseModal({
               className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
             >
               Use the suggestion
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── §3.5 durability review modal ──────────────────────────────────
+//
+// The structural payoff of §3.5: someone comes back to a closed topic
+// and says "did this hold?" The four-option vocabulary is fixed by the
+// schema (held / reopened / partial / unknown) and matches the
+// chat_topics.close_durability check constraint. Each option carries
+// its own short explanation so the reviewer is doing it deliberately
+// — the constitution forbids inventing consequences (§3.4).
+
+const DURABILITY_OPTIONS: ReadonlyArray<{
+  value: DurabilityReview;
+  title: string;
+  hint: string;
+  positive: boolean;
+}> = [
+  {
+    value: "held",
+    title: "Held",
+    hint: "The resolution stuck. The problem has not returned. This is the only outcome that counts as fully successful.",
+    positive: true,
+  },
+  {
+    value: "partial",
+    title: "Partial",
+    hint: "Something stuck but not everything. The team is partly better off; the underlying issue is partly still open.",
+    positive: false,
+  },
+  {
+    value: "reopened",
+    title: "Reopened",
+    hint: "The same problem came back. The closure was premature. The System should treat this as a recurrence signal.",
+    positive: false,
+  },
+  {
+    value: "unknown",
+    title: "Not yet measurable",
+    hint: "There isn't enough evidence yet to judge the outcome. No signal fires until a real outcome is recorded.",
+    positive: false,
+  },
+];
+
+function ReviewOutcomeModal({
+  topic,
+  onClose,
+  onReviewed,
+}: {
+  topic: ChatTopic;
+  onClose: () => void;
+  onReviewed: (durability: DurabilityReview) => void | Promise<void>;
+}) {
+  const current = topic.closeDurability as DurabilityReview | null;
+  const [selected, setSelected] = useState<DurabilityReview | null>(current);
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async () => {
+    if (!selected) return;
+    setSubmitting(true);
+    try {
+      await onReviewed(selected);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title="Review outcome" size="xl">
+      <div className="space-y-3">
+        <p className="text-xs text-muted leading-relaxed">
+          §3.5: closing a topic records the action. Reviewing the outcome
+          records the <em>consequence</em>. The System uses your judgement
+          here to derive a signal — held vs reopened is the only honest
+          measure of whether a resolution actually worked.
+          {current && current !== "unknown" && (
+            <span className="block mt-1.5 text-accent-text/80">
+              Current outcome: <strong>{current}</strong>. Pick a different
+              option to change it. The prior judgement stays on the §3.1
+              record.
+            </span>
+          )}
+        </p>
+        <div className="grid grid-cols-1 gap-2">
+          {DURABILITY_OPTIONS.map((opt) => {
+            const isActive = selected === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setSelected(opt.value)}
+                disabled={submitting}
+                className={`text-left p-3 rounded-lg border transition-colors ${
+                  isActive
+                    ? opt.positive
+                      ? "border-gold-400/70 bg-gold-400/10"
+                      : "border-arc-400/50 bg-arc-400/8"
+                    : "border-default hover:border-strong bg-surface"
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <p
+                    className={`text-sm font-semibold ${
+                      isActive
+                        ? opt.positive
+                          ? "text-accent-text"
+                          : "text-arc-300"
+                        : "text-primary"
+                    }`}
+                  >
+                    {opt.title}
+                  </p>
+                  {isActive && (
+                    <span
+                      className={`text-[10px] uppercase tracking-widest font-mono ${
+                        opt.positive ? "text-accent-text" : "text-arc-300"
+                      }`}
+                    >
+                      Selected
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-secondary leading-relaxed">
+                  {opt.hint}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-[10px] text-secondary italic">
+            Each non-unknown choice fires a §3.5 consequence signal.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              disabled={submitting}
+              className="text-xs text-muted hover:text-primary px-3 py-2 disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => void submit()}
+              disabled={!selected || submitting || selected === current}
+              className="flex items-center gap-2 bg-gold-400 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
+            >
+              {submitting ? (
+                <>
+                  <Loader2
+                    className="w-3.5 h-3.5 animate-spin"
+                    aria-hidden="true"
+                  />
+                  Recording…
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  Record outcome
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -947,7 +1170,7 @@ function FormulateResponseModal({
           </div>
         )}
         {suppressed && (
-          <p className="text-[10px] text-gold-300">
+          <p className="text-[10px] text-accent-text">
             Guidance suppressed (§3.4 control window): {"reason" in status ? status.reason : ""}
           </p>
         )}
@@ -1075,7 +1298,7 @@ function SummarizeModal({
           )}
         </div>
         {suppressed && (
-          <p className="text-[10px] text-gold-300">
+          <p className="text-[10px] text-accent-text">
             Guidance suppressed (§3.4 control window): {"reason" in status ? status.reason : ""}
           </p>
         )}

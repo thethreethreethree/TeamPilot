@@ -29,7 +29,7 @@ import { useEffect, useMemo, useState } from "react";
 
 const STATUS_BADGE: Record<string, string> = {
   open: "bg-surface-raised text-active-text border border-[#5EC8E0]/30",
-  closed: "bg-gold-400/15 text-gold-300 border border-gold-400/40",
+  closed: "bg-gold-400/15 text-accent-text border border-gold-400/40",
   archived: "bg-surface-raised text-muted border border-default",
 };
 
@@ -101,10 +101,10 @@ export default function TeamChatListPage() {
         {mode === "demo-fixtures" && (
           <div className="flex items-start gap-2.5 p-3 rounded-xl bg-gold-400/5 border border-gold-400/20">
             <AlertTriangle
-              className="w-4 h-4 text-gold-300 mt-0.5 flex-shrink-0"
+              className="w-4 h-4 text-accent-text mt-0.5 flex-shrink-0"
               aria-hidden="true"
             />
-            <p className="text-xs text-gold-200">
+            <p className="text-xs text-accent-text">
               <span className="font-medium">Demo mode.</span> Three example topics
               are loaded — including one closed conversation showing what a
               resolved topic looks like. Try opening one, sending a message, and
@@ -213,7 +213,7 @@ function Stat({
     tone === "open"
       ? "text-arc-300"
       : tone === "closed"
-      ? "text-gold-300"
+      ? "text-accent-text"
       : "text-primary";
   return (
     <div>
@@ -265,7 +265,7 @@ function TopicCard({ topic }: { topic: ChatTopic }) {
         <span>{formatRelative(topic.lastMessageAt ?? topic.createdAt)}</span>
       </div>
       {topic.closeDurability === "held" && (
-        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gold-300">
+        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-accent-text">
           <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
           Resolution held
         </div>
@@ -534,7 +534,7 @@ function SimilarHeldTopicsCallout({
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <CheckCircle2
-                      className="w-3 h-3 text-gold-300 flex-shrink-0"
+                      className="w-3 h-3 text-accent-text flex-shrink-0"
                       aria-hidden="true"
                     />
                     <p className="text-xs font-medium text-primary truncate group-hover:text-brand transition-colors">
@@ -552,7 +552,7 @@ function SimilarHeldTopicsCallout({
                   {m.reason}
                 </p>
                 {t.closeSummary && (
-                  <p className="text-[10px] text-gold-200/80 mt-1 italic leading-relaxed line-clamp-2">
+                  <p className="text-[10px] text-accent-text/80 mt-1 italic leading-relaxed line-clamp-2">
                     What held: {t.closeSummary}
                   </p>
                 )}

@@ -76,6 +76,13 @@ const HEX_LITERAL = new RegExp(
 // switching (crimson-400 is correct on dark, illegible on light surfaces).
 const CRIMSON_TEXT_LEAK = /\btext-crimson-\d+\b/g;
 
+// Gold text variants that should use `text-accent-text` — gold-100/200/300
+// are pale helmet tones that pop on dark navy and disappear on light cream.
+// gold-600 is the contrast-aware replacement encoded in text-accent-text.
+// User-reported in the §3.5 review build: the closed-banner body was
+// invisible in light mode because text-gold-100/80 was used for body text.
+const GOLD_TEXT_LEAK = /\btext-gold-\d+\b|\bhover:text-gold-\d+\b/g;
+
 // Inline `style={{ background: '#...' }}` (and similar) — captures any
 // dark-themed hex baked into JSX attributes. Only flag if the hex is in
 // the navy/dark family.
@@ -99,6 +106,10 @@ const FILE_ALLOWLIST = new Map([
     "src/app/manifest.ts",
     "PWA manifest is built at compile time — cannot follow user's runtime theme preference. Brand-dark splash is the accepted static value.",
   ],
+  [
+    "src/lib/design/tokens.ts",
+    "Design-tokens source file. Any Tailwind utility name appearing here is documentation referencing the utility, not an applied class.",
+  ],
 ]);
 
 const files = Array.from(
@@ -118,6 +129,7 @@ const leaks = {
   navyNamed: [],
   hexLeak: [],
   crimsonText: [],
+  goldText: [],
   inlineStyle: [],
 };
 
@@ -164,6 +176,18 @@ for (const file of files) {
       leaks.crimsonText.push({ file, lineNo, match: m[0] });
     }
 
+    // ── Gold text leak (needs `text-accent-text`) ──
+    // Exception: text-gold-N is legitimate when the SAME element has a
+    // bright fill (the option pill in the durability review modal) —
+    // dark text on a bright button is correct on both modes. We use
+    // the same hasFill heuristic as the white-text migration.
+    const hasFillInline =
+      /\bbg-gold-\d+\/\d+/.test(line) || /\bbg-gold-\d+\b/.test(line);
+    for (const m of line.matchAll(GOLD_TEXT_LEAK)) {
+      if (hasFillInline) continue;
+      leaks.goldText.push({ file, lineNo, match: m[0] });
+    }
+
     // ── Tailwind arbitrary hex literal — brand vs leak ──
     for (const m of line.matchAll(HEX_LITERAL)) {
       const [whole, _prefix, hex] = m;
@@ -192,6 +216,7 @@ const totalLeaks =
   leaks.navyNamed.length +
   leaks.hexLeak.length +
   leaks.crimsonText.length +
+  leaks.goldText.length +
   leaks.inlineStyle.length;
 
 function group(items) {
@@ -244,6 +269,11 @@ printSection(
   "› text-crimson-N (needs contrast-aware text-brand)",
   leaks.crimsonText,
   "crimson-400 is correct on dark, illegible on light. Use `text-brand`."
+);
+printSection(
+  "› text-gold-N body/label uses (needs contrast-aware text-accent-text)",
+  leaks.goldText,
+  "gold-100/200/300 are pale helmet tones — invisible on light cream. Use `text-accent-text`. Exception: text-gold-N is intentional when paired with a bg-gold-N fill (dark text on bright button)."
 );
 printSection(
   "› Inline style hex in dark family",

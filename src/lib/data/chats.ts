@@ -833,11 +833,58 @@ export async function togglePin(args: {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not signed in.");
+  // company_id is NOT NULL on chat_pins and not auto-populated by the
+  // schema. Resolve from the topic so the row lands on the right
+  // company partition for RLS + per-company analytics. The §1.7 audit's
+  // pin smoke-test surfaced this — without it the insert fails 23502.
+  const { data: topic, error: tErr } = await supabase
+    .from("chat_topics")
+    .select("company_id")
+    .eq("id", args.topicId)
+    .maybeSingle();
+  if (tErr || !topic) throw new Error(tErr?.message ?? "Topic not found.");
   const { error } = await supabase.from("chat_pins").insert({
     topic_id: args.topicId,
     message_id: args.messageId,
+    company_id: topic.company_id,
     pinned_by: user.id,
   });
+  if (error) throw new Error(error.message);
+  return true;
+}
+
+/**
+ * §3.5 durability review — record the consequence of a closed topic.
+ *
+ * Setting close_durability for the first time (or changing it later)
+ * fires `chat.topic_durability_reviewed` via the 0015 trigger, which
+ * derives the appropriate consequence signal (resolution_held,
+ * problem_recurrence, partial_resolution). "unknown" earns no signal
+ * by design — it means "we haven't measured the consequence yet."
+ *
+ * No demo branch: durability review is a §3.5 measurement and only
+ * makes sense against persisted topics. In demo mode the closed topic
+ * lives in localStorage and we just update the local state.
+ */
+export type DurabilityReview = "held" | "reopened" | "partial" | "unknown";
+
+export async function reviewDurability(args: {
+  topicId: string;
+  durability: DurabilityReview;
+}): Promise<boolean> {
+  if (!supabaseEnabled) {
+    const state = readDemoState();
+    const topic = state.topics.find((t) => t.id === args.topicId);
+    if (!topic) return false;
+    topic.closeDurability = args.durability;
+    writeDemoState(state);
+    return true;
+  }
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("chat_topics")
+    .update({ close_durability: args.durability })
+    .eq("id", args.topicId);
   if (error) throw new Error(error.message);
   return true;
 }
