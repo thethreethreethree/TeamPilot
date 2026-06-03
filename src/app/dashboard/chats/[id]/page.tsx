@@ -228,6 +228,19 @@ export default function TeamChatTopicPage() {
               {participants.length}
               <ChevronDown className="w-3 h-3" aria-hidden="true" />
             </button>
+            {/* Summarize is available to any participant — the summary
+                is framed as the System's read for confirm-or-correct
+                (§3.3), so democratizing it serves the discipline. Only
+                offered once there are ≥2 messages to summarize. */}
+            {messages.filter((m) => m.kind === "message").length >= 2 && (
+              <button
+                onClick={() => setSummarizeOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors"
+              >
+                <Sparkles className="w-3 h-3" aria-hidden="true" />
+                Summarize
+              </button>
+            )}
             {iAmAdmin && !isClosed && (
               <button
                 onClick={() => setClosingOpen(true)}
