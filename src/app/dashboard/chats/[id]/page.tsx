@@ -25,6 +25,7 @@ import {
   Lock,
   MessageSquare,
   Sparkles,
+  UserPlus,
   Users,
   Wand2,
 } from "lucide-react";
@@ -246,6 +247,18 @@ export default function TeamChatTopicPage() {
               {participants.length}
               <ChevronDown className="w-3 h-3" aria-hidden="true" />
             </button>
+            {/* Invite member — opens the existing invite flow on the
+                Team page. Sits next to the participant pill because
+                "who's in this conversation?" and "add someone to this
+                conversation" are the same mental action. */}
+            <Link
+              href="/dashboard/team?new=1"
+              title="Invite a team member"
+              className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors"
+            >
+              <UserPlus className="w-3 h-3" aria-hidden="true" />
+              Invite
+            </Link>
             {/* Summarize is available to any participant — the summary
                 is framed as the System's read for confirm-or-correct
                 (§3.3), so democratizing it serves the discipline. Only

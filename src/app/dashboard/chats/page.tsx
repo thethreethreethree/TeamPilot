@@ -22,6 +22,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -121,14 +122,28 @@ export default function TeamChatListPage() {
             <Stat label="Closed" value={closedCount} tone="closed" />
             <Stat label="Total" value={topics.length} tone="all" />
           </div>
-          <button
-            onClick={() => setCreating(true)}
-            disabled={!supabaseEnabled && mode !== "demo-fixtures"}
-            className="flex items-center gap-2 bg-crimson-500 hover:bg-crimson-600 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
-          >
-            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-            New topic
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Invite member — discoverability entry point so testers can
+                pull a teammate into the conversation without hunting for
+                the Team page. Links to /dashboard/team?new=1 which
+                auto-opens the invite modal (existing flow). */}
+            <Link
+              href="/dashboard/team?new=1"
+              title="Invite a team member"
+              className="flex items-center gap-2 border border-default hover:border-strong text-secondary hover:text-primary font-semibold px-3 py-2 rounded-lg transition-colors text-xs"
+            >
+              <UserPlus className="w-3.5 h-3.5" aria-hidden="true" />
+              Invite member
+            </Link>
+            <button
+              onClick={() => setCreating(true)}
+              disabled={!supabaseEnabled && mode !== "demo-fixtures"}
+              className="flex items-center gap-2 bg-crimson-500 hover:bg-crimson-600 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+              New topic
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
