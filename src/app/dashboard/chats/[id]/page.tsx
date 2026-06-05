@@ -42,6 +42,8 @@ import { FormulateResponseModal } from "@/components/chats/FormulateResponseModa
 import { ReviewOutcomeModal } from "@/components/chats/ReviewOutcomeModal";
 import { SummarizeModal } from "@/components/chats/SummarizeModal";
 import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
+import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
+import { useCompanyName } from "@/lib/hooks/useCompany";
 
 export default function TeamChatTopicPage() {
   const params = useParams<{ id: string }>();
@@ -61,6 +63,8 @@ export default function TeamChatTopicPage() {
   const [summarizeOpen, setSummarizeOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const companyName = useCompanyName();
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -247,18 +251,20 @@ export default function TeamChatTopicPage() {
               {participants.length}
               <ChevronDown className="w-3 h-3" aria-hidden="true" />
             </button>
-            {/* Invite member — opens the existing invite flow on the
-                Team page. Sits next to the participant pill because
-                "who's in this conversation?" and "add someone to this
-                conversation" are the same mental action. */}
-            <Link
-              href="/dashboard/team?new=1"
+            {/* Invite member — opens the shared dialog in place so the
+                tester stays in the chat instead of being navigated to
+                /dashboard/team. Sits next to the participant pill
+                because "who's in this conversation?" and "add someone
+                to this conversation" are the same mental action. */}
+            <button
+              type="button"
+              onClick={() => setInviting(true)}
               title="Invite a team member"
               className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors"
             >
               <UserPlus className="w-3 h-3" aria-hidden="true" />
               Invite
-            </Link>
+            </button>
             {/* Summarize is available to any participant — the summary
                 is framed as the System's read for confirm-or-correct
                 (§3.3), so democratizing it serves the discipline. Only
@@ -588,6 +594,11 @@ export default function TeamChatTopicPage() {
           }}
         />
       )}
+      <InviteMemberDialog
+        open={inviting}
+        onClose={() => setInviting(false)}
+        companyName={companyName}
+      />
     </div>
   );
 }

@@ -4,11 +4,9 @@ import TopBar from "@/components/layout/TopBar";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import { fetchTeam, type TeamMember, type TeamInvitation } from "@/lib/data/team";
-import Modal from "@/components/ui/Modal";
-import { Field, Input, Select } from "@/components/ui/Field";
+import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 import {
   AlertTriangle,
-  CheckCircle2,
   Copy,
   Loader2,
   Mail,
@@ -18,8 +16,6 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-
-const ROLES = ["CEO", "COO", "Lead", "Member"] as const;
 
 export default function TeamPage() {
   const companyName = useCompanyName();
@@ -147,15 +143,12 @@ export default function TeamPage() {
         )}
       </div>
 
-      {inviting && (
-        <InviteModal
-          onClose={() => setInviting(false)}
-          onInvited={() => {
-            setInviting(false);
-            refresh();
-          }}
-        />
-      )}
+      <InviteMemberDialog
+        open={inviting}
+        onClose={() => setInviting(false)}
+        onInvited={refresh}
+        companyName={companyName}
+      />
     </div>
   );
 }
@@ -315,124 +308,3 @@ function HistoryRow({ invitation }: { invitation: TeamInvitation }) {
   );
 }
 
-function InviteModal({
-  onClose,
-  onInvited,
-}: {
-  onClose: () => void;
-  onInvited: () => void;
-}) {
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<(typeof ROLES)[number]>("Member");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [inviteUrl, setInviteUrl] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  const submit = async () => {
-    if (!email.includes("@")) {
-      setError("Valid email required.");
-      return;
-    }
-    setSubmitting(true);
-    setError("");
-    try {
-      const res = await fetch("/api/team", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Invite failed.");
-      const url = `${window.location.origin}/invite/${data.code}`;
-      setInviteUrl(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Invite failed.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const copy = async () => {
-    await navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  return (
-    <Modal open onClose={onClose} title="Invite member" size="md">
-      {!inviteUrl ? (
-        <div className="space-y-3" aria-busy={submitting}>
-          <Field label="Email" required>
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              placeholder="teammate@company.com"
-            />
-          </Field>
-          <Field label="Role">
-            <Select
-              value={role}
-              onChange={(e) => setRole(e.target.value as (typeof ROLES)[number])}
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              onClick={onClose}
-              className="text-xs text-muted hover:text-secondary px-3 py-2"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={submit}
-              disabled={submitting}
-              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
-            >
-              {submitting ? "Creating…" : "Create invitation"}
-              {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-            <p className="text-xs text-primary mb-2">
-              Invitation created. Share this link with your teammate. (Email
-              sending is not configured — copy-paste the link for now.)
-            </p>
-            <div className="flex items-center gap-2">
-              <input
-                value={inviteUrl}
-                readOnly
-                className="flex-1 bg-surface border border-default rounded-lg px-3 py-2 text-xs text-secondary font-mono"
-              />
-              <button
-                onClick={copy}
-                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-2.5 py-2 rounded-lg transition-all"
-              >
-                <Copy className="w-3 h-3" />
-                {copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center justify-end pt-2">
-            <button
-              onClick={onInvited}
-              className="text-xs text-brand hover:text-primary px-3 py-2"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
-    </Modal>
-  );
-}

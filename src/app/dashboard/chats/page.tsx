@@ -27,6 +27,7 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 
 const STATUS_BADGE: Record<string, string> = {
   open: "bg-surface-raised text-active-text border border-[#5EC8E0]/30",
@@ -55,6 +56,7 @@ export default function TeamChatListPage() {
   const [mode, setMode] = useState<ChatsMode>("demo-fixtures");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
   const [query, setQuery] = useState("");
 
@@ -123,18 +125,20 @@ export default function TeamChatListPage() {
             <Stat label="Total" value={topics.length} tone="all" />
           </div>
           <div className="flex items-center gap-2">
-            {/* Invite member — discoverability entry point so testers can
-                pull a teammate into the conversation without hunting for
-                the Team page. Links to /dashboard/team?new=1 which
-                auto-opens the invite modal (existing flow). */}
-            <Link
-              href="/dashboard/team?new=1"
+            {/* Invite member — mounts the shared dialog in place so we
+                don't yank testers out of the chat surface they're on.
+                Earlier this was a Link to /dashboard/team?new=1, which
+                worked functionally but produced a jarring context shift
+                that the user (rightly) flagged as a UX bug. */}
+            <button
+              type="button"
+              onClick={() => setInviting(true)}
               title="Invite a team member"
               className="flex items-center gap-2 border border-default hover:border-strong text-secondary hover:text-primary font-semibold px-3 py-2 rounded-lg transition-colors text-xs"
             >
               <UserPlus className="w-3.5 h-3.5" aria-hidden="true" />
               Invite member
-            </Link>
+            </button>
             <button
               onClick={() => setCreating(true)}
               disabled={!supabaseEnabled && mode !== "demo-fixtures"}
@@ -209,6 +213,11 @@ export default function TeamChatListPage() {
           }}
         />
       )}
+      <InviteMemberDialog
+        open={inviting}
+        onClose={() => setInviting(false)}
+        companyName={companyName}
+      />
     </div>
   );
 }
