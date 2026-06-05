@@ -19,7 +19,7 @@ export default function DesignPreviewBanner({
     <div className="flex items-start gap-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/30">
       <Beaker className="w-4 h-4 text-violet-300 mt-0.5 flex-shrink-0" />
       <div className="text-xs leading-relaxed">
-        <p className="text-violet-200 font-medium mb-1">
+        <p className="text-primary font-medium mb-1">
           Design preview — {domain} is not production yet
         </p>
         <p className="text-secondary">

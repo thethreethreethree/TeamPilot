@@ -1,4 +1,5 @@
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { loadUserContext } from "./userContext";
 
 /**
  * Team Chat data layer.
@@ -465,18 +466,34 @@ export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
     return readDemoState().messages[topicId] ?? [];
   }
   const supabase = createClient();
-  const { data } = await supabase
-    .from("chat_messages")
-    .select(
-      "id, topic_id, author_id, kind, body, media_url, media_type, reply_to_id, ai_assisted, created_at"
-    )
-    .eq("topic_id", topicId)
-    .order("created_at", { ascending: true });
+  // Fetch messages, pins, and the name index in parallel — they don't
+  // depend on each other. Three queries, one round trip's worth of
+  // wall-clock time.
+  const [msgRes, pinRes] = await Promise.all([
+    supabase
+      .from("chat_messages")
+      .select(
+        "id, topic_id, author_id, kind, body, media_url, media_type, reply_to_id, ai_assisted, created_at"
+      )
+      .eq("topic_id", topicId)
+      .order("created_at", { ascending: true }),
+    // Pins join — without this, every reload shows messages as
+    // unpinned even when the row exists in chat_pins. §1.7 audit
+    // caught this when the optimistic pin UI exposed the bug.
+    supabase
+      .from("chat_pins")
+      .select("message_id")
+      .eq("topic_id", topicId),
+  ]);
+  const data = msgRes.data;
   if (!data) return [];
 
   const nameById = await resolveAuthorNames(
     supabase,
     data.map((m) => m.author_id as string | null)
+  );
+  const pinnedIds = new Set(
+    (pinRes.data ?? []).map((p) => p.message_id as string)
   );
 
   return data.map((m) => {
@@ -495,7 +512,7 @@ export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
       replyToId: m.reply_to_id,
       aiAssisted: m.ai_assisted,
       createdAt: m.created_at,
-      pinned: false,
+      pinned: pinnedIds.has(m.id),
     };
   });
 }
@@ -643,26 +660,9 @@ export function demoTogglePin(args: {
 // remember to keep both branches in sync. Centralizing the switch
 // here means callers say `createTopic(...)` and never branch.
 
-/** Fetches the current user's company_id from the profile row. */
-async function getMyCompanyId(): Promise<string> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in.");
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("company_id")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!profile?.company_id) {
-    throw new Error(
-      "Your profile has no company. Join or create one in onboarding before posting."
-    );
-  }
-  return profile.company_id;
-}
+// `getMyCompanyId` was removed in favour of the session-scoped
+// `loadUserContext()` cache. See src/lib/data/userContext.ts for the
+// rationale (§1.7 R1 audit finding — cut 2 round trips per chat write).
 
 export async function createTopic(args: {
   title: string;
@@ -672,22 +672,18 @@ export async function createTopic(args: {
   if (!supabaseEnabled) {
     return demoCreateTopic(args);
   }
+  const ctx = await loadUserContext();
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in.");
-  const companyId = await getMyCompanyId();
 
   // Insert the topic. RLS validates company_id == auth_company_id().
   const { data: topicRow, error: topicErr } = await supabase
     .from("chat_topics")
     .insert({
-      company_id: companyId,
+      company_id: ctx.companyId,
       title: args.title,
       description: args.description || null,
       tags: args.tags,
-      created_by: user.id,
+      created_by: ctx.userId,
     })
     .select(
       "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags"
@@ -704,7 +700,7 @@ export async function createTopic(args: {
   // see in the list but not post to — surfaceable, not silent.
   const { error: pErr } = await supabase.from("chat_participants").insert({
     topic_id: topicRow.id,
-    user_id: user.id,
+    user_id: ctx.userId,
     role: "admin",
   });
   if (pErr) {
@@ -743,27 +739,19 @@ export async function postMessage(args: {
   if (!supabaseEnabled) {
     return demoPostMessage(args);
   }
+  const ctx = await loadUserContext();
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in.");
-  // company_id lives on chat_topics; the RLS check on chat_messages
-  // verifies it matches the user's auth_company_id() — so we fetch it
-  // from the topic to keep the insert canonical.
-  const { data: topic, error: tErr } = await supabase
-    .from("chat_topics")
-    .select("company_id")
-    .eq("id", args.topicId)
-    .maybeSingle();
-  if (tErr || !topic) throw new Error(tErr?.message ?? "Topic not found.");
 
+  // We use ctx.companyId rather than re-fetching from chat_topics. The user
+  // can only post into topics that share their auth_company_id() (enforced
+  // by RLS), so the two are guaranteed equal in any path that reaches here.
+  // Skipping the topic lookup eliminates one round trip per post.
   const { data, error } = await supabase
     .from("chat_messages")
     .insert({
       topic_id: args.topicId,
-      company_id: topic.company_id,
-      author_id: user.id,
+      company_id: ctx.companyId,
+      author_id: ctx.userId,
       kind: args.kind ?? "message",
       body: args.body,
       ai_assisted: args.aiAssisted ?? args.kind === "summary",
@@ -774,21 +762,16 @@ export async function postMessage(args: {
     .single();
   if (error || !data) throw new Error(error?.message ?? "Post failed.");
 
-  // Resolve poster's display name from profiles so the freshly-posted
-  // message renders consistently with reloaded messages (which also go
-  // through resolveAuthorNames). Override beats lookup beats email.
+  // Resolve poster's display name. Override beats summary-system-author
+  // beats cached profile name beats email. The cached full_name in ctx
+  // saves the profile lookup that used to run per-post.
   let resolvedName: string;
   if (args.authorName) {
     resolvedName = args.authorName;
   } else if (args.kind === "summary") {
     resolvedName = "System summary";
   } else {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.id)
-      .maybeSingle();
-    resolvedName = profile?.full_name || user.email || "You";
+    resolvedName = ctx.fullName || ctx.email || "You";
   }
 
   return {
@@ -829,25 +812,17 @@ export async function togglePin(args: {
     if (error) throw new Error(error.message);
     return false;
   }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in.");
+  const ctx = await loadUserContext();
   // company_id is NOT NULL on chat_pins and not auto-populated by the
-  // schema. Resolve from the topic so the row lands on the right
-  // company partition for RLS + per-company analytics. The §1.7 audit's
-  // pin smoke-test surfaced this — without it the insert fails 23502.
-  const { data: topic, error: tErr } = await supabase
-    .from("chat_topics")
-    .select("company_id")
-    .eq("id", args.topicId)
-    .maybeSingle();
-  if (tErr || !topic) throw new Error(tErr?.message ?? "Topic not found.");
+  // schema. We use ctx.companyId (guaranteed equal to the topic's
+  // company_id by RLS) instead of re-fetching from chat_topics. The
+  // §1.7 audit caught the original missing-company_id bug; this refactor
+  // also eliminates the redundant topic lookup.
   const { error } = await supabase.from("chat_pins").insert({
     topic_id: args.topicId,
     message_id: args.messageId,
-    company_id: topic.company_id,
-    pinned_by: user.id,
+    company_id: ctx.companyId,
+    pinned_by: ctx.userId,
   });
   if (error) throw new Error(error.message);
   return true;
@@ -896,17 +871,14 @@ export async function closeTopic(args: {
   if (!supabaseEnabled) {
     return demoCloseTopic(args);
   }
+  const ctx = await loadUserContext();
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in.");
   const { error } = await supabase
     .from("chat_topics")
     .update({
       status: "closed",
       closed_at: new Date().toISOString(),
-      closed_by: user.id,
+      closed_by: ctx.userId,
       close_summary: args.summary,
     })
     .eq("id", args.topicId);

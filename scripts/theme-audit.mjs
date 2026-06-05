@@ -83,6 +83,18 @@ const CRIMSON_TEXT_LEAK = /\btext-crimson-\d+\b/g;
 // invisible in light mode because text-gold-100/80 was used for body text.
 const GOLD_TEXT_LEAK = /\btext-gold-\d+\b|\bhover:text-gold-\d+\b/g;
 
+// Tailwind palette text-color-100/200 — the general shape of "pale tint
+// designed for dark-bg legibility" that disappears on light mode. Toast
+// notifications hit this with text-emerald-100 / text-red-100 / etc.
+// after the audit caught the gold variant; same root cause, different
+// palette. Use `text-primary` instead (contrast-aware) and let the
+// background tint + colored border carry kind-recognition.
+//
+// We intentionally only flag the -100 and -200 tones — those are the
+// pale ones that always need replacing. Higher numbers (-300, -400) are
+// often valid for icons or accent text on tinted backgrounds.
+const PALE_TEXT_LEAK = /\btext-(emerald|red|yellow|blue|amber|lime|green|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose|orange|slate|gray|zinc|neutral|stone)-(100|200)\b/g;
+
 // Inline `style={{ background: '#...' }}` (and similar) — captures any
 // dark-themed hex baked into JSX attributes. Only flag if the hex is in
 // the navy/dark family.
@@ -130,6 +142,7 @@ const leaks = {
   hexLeak: [],
   crimsonText: [],
   goldText: [],
+  paleText: [],
   inlineStyle: [],
 };
 
@@ -188,6 +201,23 @@ for (const file of files) {
       leaks.goldText.push({ file, lineNo, match: m[0] });
     }
 
+    // ── Pale Tailwind text leak (text-X-100/200) ──
+    // Same shape as the gold-100 issue: pale tints intended for dark
+    // backgrounds that disappear on light cream. Use text-primary plus
+    // a colored border/icon for kind-recognition. Exception: when the
+    // same element has a fully-saturated colored fill (e.g.
+    // `bg-emerald-500 text-emerald-100`), the dark pale text is
+    // intentional contrast against the bright fill.
+    for (const m of line.matchAll(PALE_TEXT_LEAK)) {
+      const palette = m[1];
+      // Same-palette fill on same line = intentional pale-on-bright pairing.
+      const hasMatchingFill = new RegExp(
+        `\\bbg-${palette}-(400|500|600|700|800|900)\\b(?!/\\d)`
+      ).test(line);
+      if (hasMatchingFill) continue;
+      leaks.paleText.push({ file, lineNo, match: m[0] });
+    }
+
     // ── Tailwind arbitrary hex literal — brand vs leak ──
     for (const m of line.matchAll(HEX_LITERAL)) {
       const [whole, _prefix, hex] = m;
@@ -217,6 +247,7 @@ const totalLeaks =
   leaks.hexLeak.length +
   leaks.crimsonText.length +
   leaks.goldText.length +
+  leaks.paleText.length +
   leaks.inlineStyle.length;
 
 function group(items) {
@@ -274,6 +305,11 @@ printSection(
   "› text-gold-N body/label uses (needs contrast-aware text-accent-text)",
   leaks.goldText,
   "gold-100/200/300 are pale helmet tones — invisible on light cream. Use `text-accent-text`. Exception: text-gold-N is intentional when paired with a bg-gold-N fill (dark text on bright button)."
+);
+printSection(
+  "› text-<palette>-100/200 (pale tints designed for dark, invisible on light)",
+  leaks.paleText,
+  "Pale Tailwind tints (text-emerald-100, text-red-100, text-yellow-100, etc.) work on dark navy but disappear on light cream. Use `text-primary` plus a colored border / icon for kind-recognition. Exception: paired with a saturated bg-<palette>-500/600/etc. on the same element (dark text on bright fill)."
 );
 printSection(
   "› Inline style hex in dark family",

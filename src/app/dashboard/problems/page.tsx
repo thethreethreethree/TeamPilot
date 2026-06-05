@@ -89,7 +89,7 @@ export default function ProblemsPage() {
         {mode === "demo-fixtures" && (
           <div className="flex items-start gap-2.5 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
             <AlertTriangle className="w-4 h-4 text-yellow-300 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-yellow-100">
+            <p className="text-xs text-primary">
               <span className="font-medium">Demo fixtures.</span> The two problems below
               illustrate the production surface. Creating, surfacing, and dismissing
               require live mode (Supabase + DB Understanding Gate trigger).
@@ -404,7 +404,7 @@ function CreateProblemModal({
               </p>
             </div>
             {!gate.passes && (
-              <p className="text-[11px] text-yellow-200">{describeGapToGate(gate)}</p>
+              <p className="text-[11px] text-primary">{describeGapToGate(gate)}</p>
             )}
             <div className="grid grid-cols-3 gap-2 mt-2 text-[10px] text-muted">
               <div>

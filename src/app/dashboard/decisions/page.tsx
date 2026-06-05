@@ -200,13 +200,13 @@ export default function DecisionsPage() {
 
         {restoredFrom && (
           <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-            <p className="text-xs text-emerald-200">
+            <p className="text-xs text-primary">
               Restored from local save ({restoredFrom.slice(0, 19).replace("T", " ")}).
               Continue or reset to start fresh.
             </p>
             <button
               onClick={reset}
-              className="text-xs text-emerald-200 hover:text-primary border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
+              className="text-xs text-primary hover:text-primary border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
             >
               Reset dialogue
             </button>
@@ -395,7 +395,7 @@ export default function DecisionsPage() {
                 <div className="mt-4 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <p className="text-sm font-medium text-emerald-200">
+                    <p className="text-sm font-medium text-primary">
                       Choice noted ({decision.kind}).
                     </p>
                   </div>
@@ -408,7 +408,7 @@ export default function DecisionsPage() {
                     <button
                       onClick={persistDecision}
                       disabled={persisting || !supabaseEnabled}
-                      className="flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-40 text-emerald-200 font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                      className="flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-40 text-primary font-semibold px-4 py-2 rounded-lg transition-all text-xs"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       {persisting

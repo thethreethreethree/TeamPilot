@@ -113,7 +113,7 @@ export default function BrainPage() {
         {!supabaseEnabled && (
           <div className="glass-card p-6 text-center">
             <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
-            <p className="text-sm text-yellow-100 mb-1">Live mode required</p>
+            <p className="text-sm text-primary mb-1">Live mode required</p>
             <p className="text-xs text-muted max-w-md mx-auto">
               The brain is a per-company DB record. Configure Supabase to use this surface.
             </p>
@@ -323,7 +323,7 @@ function GateCard({
       <div className="glass-card p-4 border-emerald-500/30">
         <div className="flex items-center gap-2 mb-1">
           <Unlock className="w-4 h-4 text-emerald-400" />
-          <p className="text-sm font-medium text-emerald-200">
+          <p className="text-sm font-medium text-primary">
             AI guidance enabled
           </p>
         </div>
@@ -339,14 +339,14 @@ function GateCard({
     <div className="glass-card p-4 border-yellow-500/30 bg-yellow-500/5">
       <div className="flex items-center gap-2 mb-1">
         <Lock className="w-4 h-4 text-yellow-300" />
-        <p className="text-sm font-medium text-yellow-200">
+        <p className="text-sm font-medium text-primary">
           AI guidance suppressed (§3.4 control window)
         </p>
       </div>
       <p className="text-xs text-secondary mb-3">{gate.reason}</p>
       <button
         onClick={onUnlock}
-        className="text-xs text-yellow-200 hover:text-primary border border-yellow-500/40 hover:border-yellow-500/70 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
+        className="text-xs text-primary hover:text-primary border border-yellow-500/40 hover:border-yellow-500/70 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
       >
         <Unlock className="w-3 h-3" /> Unlock early (with reason)
       </button>
@@ -415,7 +415,7 @@ function UnlockModal({
           <button
             onClick={submit}
             disabled={submitting}
-            className="flex items-center gap-2 bg-yellow-500/20 hover:bg-yellow-500/30 disabled:opacity-40 text-yellow-200 font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            className="flex items-center gap-2 bg-yellow-500/20 hover:bg-yellow-500/30 disabled:opacity-40 text-primary font-semibold px-4 py-2 rounded-lg transition-all text-xs"
           >
             {submitting ? "Unlocking…" : "Unlock with reason"}
           </button>

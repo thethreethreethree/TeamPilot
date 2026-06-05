@@ -125,11 +125,18 @@ const ICON_MAP = {
   info: Info,
 };
 
+// Contrast-aware styling: `text-primary` resolves correctly in both modes
+// (white-ish on dark, navy on light). The colored tint + 2x-stronger
+// border keep the kind-recognition affordance while ensuring the box
+// edge and text are legible regardless of theme. Caught by the §1.7
+// audit user-side: the original pale palette text colors (the X-hundred
+// tints) were the same shape of bug as the pale gold one (designed for
+// dark navy, invisible on cream).
 const STYLE_MAP = {
-  success: "bg-emerald-500/10 border-emerald-500/30 text-emerald-100",
-  error: "bg-red-500/10 border-red-500/30 text-red-100",
-  warn: "bg-yellow-500/10 border-yellow-500/30 text-yellow-100",
-  info: "bg-blue-500/10 border-blue-500/30 text-blue-100",
+  success: "bg-emerald-500/15 border-emerald-500/60 text-primary",
+  error: "bg-red-500/15 border-red-500/60 text-primary",
+  warn: "bg-yellow-500/15 border-yellow-500/60 text-primary",
+  info: "bg-blue-500/15 border-blue-500/60 text-primary",
 };
 
 const ICON_COLOR_MAP = {

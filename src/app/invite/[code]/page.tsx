@@ -214,7 +214,7 @@ export default function InviteAcceptPage() {
           {phase === "done" && (
             <div className="text-center">
               <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
-              <p className="text-sm text-emerald-200 mb-1">Welcome to the team.</p>
+              <p className="text-sm text-primary mb-1">Welcome to the team.</p>
               <p className="text-xs text-muted">Redirecting to your dashboard…</p>
             </div>
           )}

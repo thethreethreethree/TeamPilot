@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "theme:audit": "node scripts/theme-audit.mjs",
-    "check": "npm run typecheck && npm run lint && npm run theme:audit && npm run test",
+    "rls:audit": "node scripts/rls-audit.mjs",
+    "test:chain": "cross-env EXECOS_INTEGRATION_TEST=1 vitest run src/lib/data/__tests__/chain.integration.test.ts",
+    "check": "npm run typecheck && npm run lint && npm run theme:audit && npm run rls:audit && npm run test",
     "setup:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/check-setup.ps1"
   },
   "dependencies": {
@@ -34,6 +36,7 @@
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.1.8",
     "autoprefixer": "^10.0.1",
+    "cross-env": "^10.1.0",
     "docx": "^9.7.1",
     "eslint": "^8",
     "eslint-config-next": "15.3.2",

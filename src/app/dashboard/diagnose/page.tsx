@@ -250,13 +250,13 @@ export default function DiagnosePage() {
 
         {restoredFrom && (
           <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-            <p className="text-xs text-emerald-200">
+            <p className="text-xs text-primary">
               Restored from local save ({restoredFrom.slice(0, 19).replace("T", " ")}).
               Continue or reset to start fresh.
             </p>
             <button
               onClick={resetRun}
-              className="text-xs text-emerald-200 hover:text-primary border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
+              className="text-xs text-primary hover:text-primary border border-emerald-500/30 hover:border-emerald-500/60 px-3 py-1 rounded-lg"
             >
               Reset run
             </button>
@@ -511,7 +511,7 @@ export default function DiagnosePage() {
                       </p>
                       <button
                         onClick={() => commitChoice(c)}
-                        className="mt-3 flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                        className="mt-3 flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-primary font-semibold px-4 py-2 rounded-lg transition-all text-xs"
                       >
                         Commit to this
                       </button>
@@ -538,7 +538,7 @@ export default function DiagnosePage() {
                   <EmptyHint text="No commitment yet. Return to Decide and commit to a candidate." />
                 ) : (
                   <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                    <p className="text-sm font-medium text-emerald-200 mb-2">
+                    <p className="text-sm font-medium text-primary mb-2">
                       Ready to persist.
                     </p>
                     <p className="text-xs text-secondary mb-3">
@@ -776,7 +776,7 @@ function GateBadge({ gate }: { gate: GateEvaluation }) {
           content the live region announces. */}
       <p className="text-xs text-primary mb-2">{gate.reason}</p>
       {!gate.passes && (
-        <p className="text-[10px] text-yellow-200">{describeGapToGate(gate)}</p>
+        <p className="text-[10px] text-primary">{describeGapToGate(gate)}</p>
       )}
       <div className="grid grid-cols-3 gap-2 mt-3 text-[10px] text-muted">
         <div>

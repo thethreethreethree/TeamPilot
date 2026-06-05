@@ -62,7 +62,7 @@ export default function TeamPage() {
         {!supabaseEnabled && (
           <div className="glass-card p-6 text-center">
             <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
-            <p className="text-sm text-yellow-100 mb-1">Live mode required</p>
+            <p className="text-sm text-primary mb-1">Live mode required</p>
             <p className="text-xs text-muted max-w-md mx-auto">
               Team management requires the database. Configure Supabase to invite members.
             </p>
@@ -404,7 +404,7 @@ function InviteModal({
       ) : (
         <div className="space-y-3">
           <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-            <p className="text-xs text-emerald-200 mb-2">
+            <p className="text-xs text-primary mb-2">
               Invitation created. Share this link with your teammate. (Email
               sending is not configured — copy-paste the link for now.)
             </p>

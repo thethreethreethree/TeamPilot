@@ -58,7 +58,6 @@ const NAV_ACTIONS: Omit<Action, "run">[] = [
   { id: "nav-resolutions", label: "Resolutions", icon: Sparkles, href: "/dashboard/resolutions", group: "Navigate", keywords: ["outcomes", "held"] },
   { id: "nav-brain", label: "Company Brain", icon: Brain, href: "/dashboard/brain", group: "Navigate", keywords: ["learning", "memory"] },
   { id: "nav-decisions", label: "Decision Dialogue", icon: Brain, href: "/dashboard/decisions", group: "Navigate", keywords: ["decide", "dialogue"] },
-  { id: "nav-conversations", label: "Conversation Dialogue", icon: MessageSquare, href: "/dashboard/conversations", group: "Navigate", keywords: ["meeting", "transcript"] },
   { id: "nav-finance", label: "Finance (design preview)", icon: DollarSign, href: "/dashboard/finance", group: "Navigate", keywords: ["money", "runway", "burn"] },
   { id: "nav-marketing", label: "Marketing (design preview)", icon: Megaphone, href: "/dashboard/marketing", group: "Navigate", keywords: ["growth", "leads"] },
   { id: "nav-settings", label: "Settings", icon: Settings, href: "/dashboard/settings", group: "System", keywords: ["config", "provider", "company"] },

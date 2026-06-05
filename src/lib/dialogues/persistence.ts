@@ -1,17 +1,23 @@
 "use client";
 
 /**
- * Local persistence for in-progress dialogues (Decision + Conversation).
+ * Local persistence for in-progress Decision Dialogue state.
  *
  * Mirrors the pattern from src/lib/diagnosis/persistence.ts. Uses localStorage,
  * scoped by dialogue kind. Survives refresh and navigation. Not synced across
  * browsers/devices (that requires Supabase).
  *
+ * History (2026-06-04 Pass-3 audit): a "conversation" kind formerly existed
+ * for the Conversation Dialogue page. That surface was removed when the §1.7
+ * audit caught it as dead (table dropped in 0013, UI never reached the DB).
+ * The DialogueKind union is now intentionally a single value — kept as a
+ * union so future kinds slot in without a structural rewrite.
+ *
  * When the Supabase-backed dialogues persistence layer fully lands, this file
  * becomes the offline-mode fallback — same shape, same API.
  */
 
-type DialogueKind = "decision" | "conversation";
+type DialogueKind = "decision";
 
 type PersistedDialogue<T> = {
   state: T;

@@ -1,11 +1,8 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
-import Modal from "@/components/ui/Modal";
-import { Field, Textarea } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/toast";
 import {
-  closeTopic,
   postMessage,
   reviewDurability,
   togglePin,
@@ -15,24 +12,18 @@ import {
   type ChatMessage,
   type ChatParticipant,
   type ChatTopic,
-  type DurabilityReview,
 } from "@/lib/data/chats";
 import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
 import {
   ArrowLeft,
-  CheckCircle2,
   ChevronDown,
+  CheckCircle2,
   CornerDownLeft,
   Crown,
-  HelpCircle,
   Lightbulb,
   Loader2,
   Lock,
   MessageSquare,
-  Pin,
-  PinOff,
-  Send,
-  ShieldCheck,
   Sparkles,
   Users,
   Wand2,
@@ -40,36 +31,16 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSseStream } from "@/lib/hooks/useSseStream";
 
-const STATUS_BADGE: Record<string, string> = {
-  open: "bg-surface-raised text-active-text border border-[#5EC8E0]/30",
-  closed: "bg-gold-400/15 text-accent-text border border-gold-400/40",
-  archived: "bg-surface-raised text-muted border border-default",
-};
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatDateHeader(iso: string): string {
-  const d = new Date(iso);
-  const today = new Date();
-  const isToday = d.toDateString() === today.toDateString();
-  if (isToday) return "Today";
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
-}
+// Extracted chat surfaces — moved out of this file during the §1.7
+// B2 refactor. Page is now orchestration; each modal owns its concern.
+import { MessageRow } from "@/components/chats/MessageRow";
+import { CloseTopicModal } from "@/components/chats/CloseTopicModal";
+import { GuideMyResponseModal } from "@/components/chats/GuideMyResponseModal";
+import { FormulateResponseModal } from "@/components/chats/FormulateResponseModal";
+import { ReviewOutcomeModal } from "@/components/chats/ReviewOutcomeModal";
+import { SummarizeModal } from "@/components/chats/SummarizeModal";
+import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
 
 export default function TeamChatTopicPage() {
   const params = useParams<{ id: string }>();
@@ -131,19 +102,32 @@ export default function TeamChatTopicPage() {
 
   const grouped = useMemo(() => groupMessages(messages), [messages]);
 
+  // Optimistic post — replaces the prior full-page `refresh()` (which
+  // caused the skeleton flash on every send and incurred 3 round trips
+  // per action). We clear the input immediately, fire the write, then
+  // APPEND the server-confirmed row to local state. The §1.7 audit's
+  // R2 finding motivated this; the §1.4 root cause was "always refetch"
+  // being a habit, not a requirement — postMessage already returns the
+  // canonical row with the correct author name resolved.
   const post = async (body: string, opts?: { aiAssisted?: boolean }) => {
-    if (!body.trim()) return;
+    const trimmed = body.trim();
+    if (!trimmed) return;
     setSubmitting(true);
+    const aiFlag = opts?.aiAssisted ?? aiAssisted;
+    // Optimistic UI: clear the input now so the user can keep typing.
+    setDraft("");
+    setAiAssisted(false);
     try {
-      await postMessage({
+      const msg = await postMessage({
         topicId,
-        body: body.trim(),
-        aiAssisted: opts?.aiAssisted ?? aiAssisted,
+        body: trimmed,
+        aiAssisted: aiFlag,
       });
-      setDraft("");
-      setAiAssisted(false);
-      void refresh();
+      setMessages((prev) => [...prev, msg]);
     } catch (err) {
+      // Rollback the input so the user can retry without re-typing.
+      setDraft(trimmed);
+      setAiAssisted(aiFlag);
       toast.error(
         "Couldn't post",
         err instanceof Error ? err.message : "Unknown error."
@@ -158,18 +142,32 @@ export default function TeamChatTopicPage() {
     void post(draft);
   };
 
-  // Renamed from `togglePin` to avoid shadowing the imported function.
+  // Optimistic pin/unpin. We flip the local row immediately, then
+  // reconcile to the server-confirmed value on success or roll back on
+  // failure. No more full refresh — pin changes a single row, the rest
+  // of the stream is unchanged. Renamed from `togglePin` to avoid
+  // shadowing the imported data-layer function.
   const handleTogglePin = async (msg: ChatMessage) => {
+    const previous = msg.pinned;
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msg.id ? { ...m, pinned: !previous } : m))
+    );
     try {
       const pinned = await togglePin({ topicId, messageId: msg.id });
+      // Defensive reconcile in case server result differs from our guess.
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msg.id ? { ...m, pinned } : m))
+      );
       toast.success(
         pinned ? "Pinned" : "Unpinned",
         pinned
           ? "Added to priority data assets for the brain to learn from."
           : "Removed from priority data assets."
       );
-      void refresh();
     } catch (err) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msg.id ? { ...m, pinned: previous } : m))
+      );
       toast.error(
         "Pin toggle failed",
         err instanceof Error ? err.message : "Unknown error."
@@ -582,753 +580,3 @@ export default function TeamChatTopicPage() {
 }
 
 // ─── Message rendering ───────────────────────────────────────
-
-interface MessageGroup {
-  dateKey: string;
-  label: string;
-  messages: ChatMessage[];
-}
-
-function groupMessages(msgs: ChatMessage[]): MessageGroup[] {
-  const groups: MessageGroup[] = [];
-  for (const m of msgs) {
-    const dateKey = m.createdAt.slice(0, 10);
-    let g = groups[groups.length - 1];
-    if (!g || g.dateKey !== dateKey) {
-      g = { dateKey, label: formatDateHeader(m.createdAt), messages: [] };
-      groups.push(g);
-    }
-    g.messages.push(m);
-  }
-  return groups;
-}
-
-function MessageRow({
-  msg,
-  currentUserId,
-  onTogglePin,
-}: {
-  msg: ChatMessage;
-  /** The id that identifies the viewer — for own-message styling. Null
-   *  while the auth session loads; treated as "not mine" until known. */
-  currentUserId: string | null;
-  onTogglePin: () => void;
-}) {
-  const isSummary = msg.kind === "summary";
-  const isSystem = msg.kind === "system";
-  const isMine = currentUserId !== null && msg.authorId === currentUserId;
-  const initials = (msg.authorName ?? "?")
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  if (isSystem) {
-    return (
-      <div className="flex items-center gap-2 justify-center py-2">
-        <div className="h-px flex-1 bg-surface-raised max-w-16" />
-        <span className="text-[10px] text-muted italic">{msg.body}</span>
-        <div className="h-px flex-1 bg-surface-raised max-w-16" />
-      </div>
-    );
-  }
-
-  if (isSummary) {
-    return (
-      <div className="flex gap-3 group">
-        <div className="w-8 h-8 rounded-lg bg-arc-400/15 border border-arc-400/40 flex items-center justify-center flex-shrink-0">
-          <Sparkles className="w-4 h-4 text-arc-300" aria-hidden="true" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-medium text-arc-300">
-              System summary
-            </span>
-            <span className="text-[10px] text-secondary font-mono">
-              {formatTime(msg.createdAt)}
-            </span>
-            <span className="text-[10px] text-secondary italic">
-              · the System&apos;s read — confirm or correct
-            </span>
-          </div>
-          <div className="bg-arc-400/5 border border-arc-400/20 rounded-xl px-3 py-2">
-            <p className="text-sm text-primary whitespace-pre-wrap leading-relaxed">
-              {msg.body}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex gap-3 group">
-      <div
-        className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-          isMine
-            ? "bg-gradient-to-br from-crimson-400 to-crimson-700 text-white"
-            : "bg-surface-raised border border-default text-primary"
-        }`}
-      >
-        {initials}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-medium text-primary">
-            {msg.authorName}
-          </span>
-          <span className="text-[10px] text-secondary font-mono">
-            {formatTime(msg.createdAt)}
-          </span>
-          {msg.aiAssisted && (
-            <span
-              className="flex items-center gap-0.5 text-[10px] text-arc-300"
-              title="The author used the System to sharpen this message"
-            >
-              <Sparkles className="w-2.5 h-2.5" aria-hidden="true" />
-              AI-assisted
-            </span>
-          )}
-          {msg.pinned && (
-            <span
-              className="flex items-center gap-0.5 text-[10px] text-accent-text"
-              title="Pinned to priority data assets"
-            >
-              <Pin className="w-2.5 h-2.5" aria-hidden="true" />
-              Pinned
-            </span>
-          )}
-        </div>
-        <div
-          className={`relative rounded-xl px-3 py-2 ${
-            msg.pinned
-              ? "bg-gold-400/5 border border-gold-400/20"
-              : "bg-surface/60 border border-default"
-          }`}
-        >
-          <p className="text-sm text-primary whitespace-pre-wrap leading-relaxed pr-7">
-            {msg.body}
-          </p>
-          <button
-            onClick={onTogglePin}
-            aria-label={msg.pinned ? "Unpin message" : "Pin message"}
-            title={
-              msg.pinned
-                ? "Remove from priority data"
-                : "Pin as priority data — the brain learns from pinned messages"
-            }
-            className="absolute top-2 right-2 text-muted hover:text-accent-text opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            {msg.pinned ? (
-              <PinOff className="w-3.5 h-3.5" aria-hidden="true" />
-            ) : (
-              <Pin className="w-3.5 h-3.5" aria-hidden="true" />
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Modals ─────────────────────────────────────────────────
-
-function CloseTopicModal({
-  topic,
-  onClose,
-  onClosed,
-}: {
-  topic: ChatTopic;
-  onClose: () => void;
-  onClosed: () => void;
-}) {
-  const [summary, setSummary] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async () => {
-    if (summary.trim().length < 20) return;
-    setSubmitting(true);
-    try {
-      const ok = await closeTopic({
-        topicId: topic.id,
-        summary: summary.trim(),
-      });
-      if (ok) onClosed();
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal open onClose={onClose} title={`Close topic: ${topic.title}`} size="lg">
-      <div className="space-y-3">
-        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-gold-400/5 border border-gold-400/20">
-          <ShieldCheck
-            className="w-4 h-4 text-accent-text mt-0.5 flex-shrink-0"
-            aria-hidden="true"
-          />
-          <p className="text-xs text-primary leading-relaxed">
-            Closing a topic creates a permanent resolution record. The
-            conversation history stays accessible, and the System uses it to
-            help with similar topics later. If this is linked to a problem,
-            closing here also marks the problem resolved.
-          </p>
-        </div>
-        <Field label="What was decided / resolved? (≥20 chars)" required>
-          <Textarea
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            rows={4}
-            placeholder="Plain language. What was actually concluded? What was the call?"
-            autoFocus
-          />
-        </Field>
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <button
-            onClick={onClose}
-            className="text-xs text-muted hover:text-primary px-3 py-2"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={submit}
-            disabled={submitting || summary.trim().length < 20}
-            className="flex items-center gap-2 bg-gold-400 hover:bg-gold-500 disabled:opacity-40 text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
-          >
-            <Lock className="w-3.5 h-3.5" aria-hidden="true" />
-            {submitting ? "Closing…" : "Close topic"}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function GuideMyResponseModal({
-  draft,
-  topic,
-  recent,
-  onClose,
-  onAccept,
-}: {
-  draft: string;
-  topic: ChatTopic;
-  recent: ChatMessage[];
-  onClose: () => void;
-  onAccept: (revised: string) => void;
-}) {
-  // Streams a sharpened version from POST /api/chat/guide — see the route
-  // for the §3.3 discipline (no overtaking; the model produces a
-  // suggestion in the user's voice that the user accepts or discards).
-  const { status, run, abort } = useSseStream();
-  const recentPayload = useMemo(
-    () =>
-      recent.slice(-6).map((m) => ({
-        author: m.authorName,
-        content: m.body ?? "",
-      })),
-    [recent]
-  );
-
-  // Auto-start on mount — the user opened this expecting an answer; an
-  // extra "Generate" button would be friction with no purpose.
-  useEffect(() => {
-    if (draft.trim().length === 0) return;
-    run("/api/chat/guide", {
-      draft,
-      topic: { title: topic.title, description: topic.description },
-      recent: recentPayload,
-    });
-    return () => abort();
-    // Intentionally only on mount — re-running on draft change would
-    // surprise the user mid-stream.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const suggestion = status.text;
-  const streaming = status.state === "streaming";
-  const suppressed = status.state === "suppressed";
-  const errored = status.state === "error";
-  const ready = status.state === "done" && suggestion.trim().length > 0;
-
-  return (
-    <Modal open onClose={onClose} title="Sharpen your response" size="lg">
-      <div className="space-y-3">
-        <p className="text-xs text-muted leading-relaxed">
-          The System offers a sharper version of your draft. Accept, edit, or
-          close and send your original — the discipline (§3.3): the System
-          never decides for you. It surfaces a refinement; you decide.
-        </p>
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-muted mb-1.5">
-            Your draft
-          </p>
-          <div className="bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap">
-            {draft || "(empty)"}
-          </div>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-arc-300 mb-1.5 flex items-center gap-1.5">
-            <Sparkles className="w-3 h-3" aria-hidden="true" />
-            System&apos;s suggestion
-            {streaming && (
-              <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-            )}
-          </p>
-          <div className="bg-arc-400/5 border border-arc-400/30 rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap min-h-[3rem]">
-            {suggestion || (streaming ? "…" : "(waiting)")}
-            {streaming && (
-              <span className="cursor-blink ml-0.5" aria-hidden="true" />
-            )}
-          </div>
-          {suppressed && (
-            <p className="text-[10px] text-accent-text mt-1.5">
-              Guidance suppressed (§3.4 control window): {"reason" in status ? status.reason : ""}
-            </p>
-          )}
-          {errored && (
-            <p className="text-[10px] text-red-400 mt-1.5">
-              {"error" in status ? status.error : "Stream failed."}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-[10px] text-secondary italic">
-            Streamed via DeepSeek through the brain layer.
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="text-xs text-muted hover:text-primary px-3 py-2"
-            >
-              Send my original
-            </button>
-            <button
-              onClick={() => onAccept(suggestion)}
-              disabled={!ready}
-              className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
-            >
-              Use the suggestion
-            </button>
-          </div>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-// ─── §3.5 durability review modal ──────────────────────────────────
-//
-// The structural payoff of §3.5: someone comes back to a closed topic
-// and says "did this hold?" The four-option vocabulary is fixed by the
-// schema (held / reopened / partial / unknown) and matches the
-// chat_topics.close_durability check constraint. Each option carries
-// its own short explanation so the reviewer is doing it deliberately
-// — the constitution forbids inventing consequences (§3.4).
-
-const DURABILITY_OPTIONS: ReadonlyArray<{
-  value: DurabilityReview;
-  title: string;
-  hint: string;
-  positive: boolean;
-}> = [
-  {
-    value: "held",
-    title: "Held",
-    hint: "The resolution stuck. The problem has not returned. This is the only outcome that counts as fully successful.",
-    positive: true,
-  },
-  {
-    value: "partial",
-    title: "Partial",
-    hint: "Something stuck but not everything. The team is partly better off; the underlying issue is partly still open.",
-    positive: false,
-  },
-  {
-    value: "reopened",
-    title: "Reopened",
-    hint: "The same problem came back. The closure was premature. The System should treat this as a recurrence signal.",
-    positive: false,
-  },
-  {
-    value: "unknown",
-    title: "Not yet measurable",
-    hint: "There isn't enough evidence yet to judge the outcome. No signal fires until a real outcome is recorded.",
-    positive: false,
-  },
-];
-
-function ReviewOutcomeModal({
-  topic,
-  onClose,
-  onReviewed,
-}: {
-  topic: ChatTopic;
-  onClose: () => void;
-  onReviewed: (durability: DurabilityReview) => void | Promise<void>;
-}) {
-  const current = topic.closeDurability as DurabilityReview | null;
-  const [selected, setSelected] = useState<DurabilityReview | null>(current);
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async () => {
-    if (!selected) return;
-    setSubmitting(true);
-    try {
-      await onReviewed(selected);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal open onClose={onClose} title="Review outcome" size="xl">
-      <div className="space-y-3">
-        <p className="text-xs text-muted leading-relaxed">
-          §3.5: closing a topic records the action. Reviewing the outcome
-          records the <em>consequence</em>. The System uses your judgement
-          here to derive a signal — held vs reopened is the only honest
-          measure of whether a resolution actually worked.
-          {current && current !== "unknown" && (
-            <span className="block mt-1.5 text-accent-text/80">
-              Current outcome: <strong>{current}</strong>. Pick a different
-              option to change it. The prior judgement stays on the §3.1
-              record.
-            </span>
-          )}
-        </p>
-        <div className="grid grid-cols-1 gap-2">
-          {DURABILITY_OPTIONS.map((opt) => {
-            const isActive = selected === opt.value;
-            return (
-              <button
-                key={opt.value}
-                onClick={() => setSelected(opt.value)}
-                disabled={submitting}
-                className={`text-left p-3 rounded-lg border transition-colors ${
-                  isActive
-                    ? opt.positive
-                      ? "border-gold-400/70 bg-gold-400/10"
-                      : "border-arc-400/50 bg-arc-400/8"
-                    : "border-default hover:border-strong bg-surface"
-                } disabled:opacity-40 disabled:cursor-not-allowed`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <p
-                    className={`text-sm font-semibold ${
-                      isActive
-                        ? opt.positive
-                          ? "text-accent-text"
-                          : "text-arc-300"
-                        : "text-primary"
-                    }`}
-                  >
-                    {opt.title}
-                  </p>
-                  {isActive && (
-                    <span
-                      className={`text-[10px] uppercase tracking-widest font-mono ${
-                        opt.positive ? "text-accent-text" : "text-arc-300"
-                      }`}
-                    >
-                      Selected
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-secondary leading-relaxed">
-                  {opt.hint}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-[10px] text-secondary italic">
-            Each non-unknown choice fires a §3.5 consequence signal.
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              disabled={submitting}
-              className="text-xs text-muted hover:text-primary px-3 py-2 disabled:opacity-40"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => void submit()}
-              disabled={!selected || submitting || selected === current}
-              className="flex items-center gap-2 bg-gold-400 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
-            >
-              {submitting ? (
-                <>
-                  <Loader2
-                    className="w-3.5 h-3.5 animate-spin"
-                    aria-hidden="true"
-                  />
-                  Recording…
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-                  Record outcome
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function FormulateResponseModal({
-  topic,
-  recent,
-  onClose,
-  onCompose,
-}: {
-  topic: ChatTopic;
-  recent: ChatMessage[];
-  onClose: () => void;
-  onCompose: (composed: string) => void;
-}) {
-  const QUESTIONS = [
-    "What is your read of what the conversation is actually about?",
-    "What outcome would you consider a success here?",
-    "What concern or risk is not yet being named?",
-  ];
-  const [answers, setAnswers] = useState<string[]>(["", "", ""]);
-  const { status, run, abort, reset } = useSseStream();
-  const recentPayload = useMemo(
-    () =>
-      recent.slice(-6).map((m) => ({
-        author: m.authorName,
-        content: m.body ?? "",
-      })),
-    [recent]
-  );
-
-  const ready = answers.every((a) => a.trim().length >= 10);
-  const streaming = status.state === "streaming";
-  const suppressed = status.state === "suppressed";
-  const errored = status.state === "error";
-  const haveDraft =
-    (status.state === "done" || status.state === "streaming") &&
-    status.text.trim().length > 0;
-  const composedReady = status.state === "done" && status.text.trim().length > 0;
-
-  const compose = () =>
-    run("/api/chat/formulate", {
-      answers,
-      topic: { title: topic.title, description: topic.description },
-      recent: recentPayload,
-    });
-
-  // Abort any in-flight stream when the modal unmounts.
-  useEffect(() => () => abort(), [abort]);
-
-  return (
-    <Modal open onClose={onClose} title="Formulate a fuller response" size="xl">
-      <div className="space-y-3">
-        <p className="text-xs text-muted leading-relaxed">
-          Three short prompts. Your answers ground the System&apos;s draft in
-          YOUR read of the conversation. The draft that comes back is a
-          starting point — edit it before sending.
-        </p>
-        {QUESTIONS.map((q, i) => (
-          <Field key={i} label={`${i + 1}. ${q}`} required>
-            <Textarea
-              value={answers[i]}
-              onChange={(e) => {
-                const next = [...answers];
-                next[i] = e.target.value;
-                setAnswers(next);
-              }}
-              rows={3}
-              placeholder="Plain language — what you actually think."
-              disabled={streaming}
-            />
-          </Field>
-        ))}
-
-        {haveDraft && (
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-arc-300 mb-1.5 flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3" aria-hidden="true" />
-              Draft built from your answers
-              {streaming && (
-                <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-              )}
-            </p>
-            <div className="bg-arc-400/5 border border-arc-400/30 rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap min-h-[3rem]">
-              {status.text}
-              {streaming && (
-                <span className="cursor-blink ml-0.5" aria-hidden="true" />
-              )}
-            </div>
-          </div>
-        )}
-        {suppressed && (
-          <p className="text-[10px] text-accent-text">
-            Guidance suppressed (§3.4 control window): {"reason" in status ? status.reason : ""}
-          </p>
-        )}
-        {errored && (
-          <p className="text-[10px] text-red-400">
-            {"error" in status ? status.error : "Stream failed."}
-          </p>
-        )}
-
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-[10px] text-secondary italic flex items-center gap-1.5">
-            <HelpCircle className="w-3 h-3" aria-hidden="true" />
-            Streamed via DeepSeek through the brain layer.
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="text-xs text-muted hover:text-primary px-3 py-2"
-            >
-              Cancel
-            </button>
-            {composedReady ? (
-              <>
-                <button
-                  onClick={reset}
-                  className="text-xs text-muted hover:text-primary px-3 py-2"
-                >
-                  Re-compose
-                </button>
-                <button
-                  onClick={() => onCompose(status.text.trim())}
-                  className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
-                >
-                  <Send className="w-3.5 h-3.5" aria-hidden="true" />
-                  Use this draft
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={compose}
-                disabled={!ready || streaming}
-                className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
-              >
-                {streaming ? (
-                  <>
-                    <Loader2
-                      className="w-3.5 h-3.5 animate-spin"
-                      aria-hidden="true"
-                    />
-                    Composing…
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5" aria-hidden="true" />
-                    Compose draft
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-// ─── Summarize the conversation so far ─────────────────────────
-//
-// Per §3.3, the summary is explicitly framed in the prompt as "the
-// System's read — confirm or correct." The user can choose to post
-// it back into the conversation as a kind="summary" message (which
-// the existing renderer styles distinctly), or close without posting.
-
-function SummarizeModal({
-  topic,
-  messages,
-  onClose,
-  onPost,
-}: {
-  topic: ChatTopic;
-  messages: ChatMessage[];
-  onClose: () => void;
-  onPost: (text: string) => void;
-}) {
-  const { status, run, abort } = useSseStream();
-  const payload = useMemo(
-    () => ({
-      topic: { title: topic.title, description: topic.description },
-      messages: messages
-        .filter((m) => m.kind === "message" && m.body)
-        .map((m) => ({
-          author: m.authorName,
-          content: m.body ?? "",
-          createdAt: m.createdAt,
-        })),
-    }),
-    [topic, messages]
-  );
-
-  useEffect(() => {
-    run("/api/chat/summarize", payload);
-    return () => abort();
-    // Intentionally only on mount — the user opened this expecting an
-    // immediate read; re-running would surprise mid-stream.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const streaming = status.state === "streaming";
-  const suppressed = status.state === "suppressed";
-  const errored = status.state === "error";
-  const ready = status.state === "done" && status.text.trim().length > 0;
-
-  return (
-    <Modal open onClose={onClose} title="Summarize the conversation" size="xl">
-      <div className="space-y-3">
-        <p className="text-xs text-muted leading-relaxed">
-          What follows is the System&apos;s read — confirm, correct, or
-          replace it. Posting it back to the conversation puts it on the
-          record as the team&apos;s current understanding (§3.3).
-        </p>
-        <div className="bg-arc-400/5 border border-arc-400/30 rounded-lg px-3 py-2 text-sm text-primary whitespace-pre-wrap min-h-[6rem]">
-          {status.text || (streaming ? "…" : "(waiting)")}
-          {streaming && (
-            <span className="cursor-blink ml-0.5" aria-hidden="true" />
-          )}
-        </div>
-        {suppressed && (
-          <p className="text-[10px] text-accent-text">
-            Guidance suppressed (§3.4 control window): {"reason" in status ? status.reason : ""}
-          </p>
-        )}
-        {errored && (
-          <p className="text-[10px] text-red-400">
-            {"error" in status ? status.error : "Stream failed."}
-          </p>
-        )}
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-[10px] text-secondary italic">
-            Streamed via DeepSeek through the brain layer.
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="text-xs text-muted hover:text-primary px-3 py-2"
-            >
-              Discard
-            </button>
-            <button
-              onClick={() => onPost(status.text.trim())}
-              disabled={!ready}
-              className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
-            >
-              <Send className="w-3.5 h-3.5" aria-hidden="true" />
-              Post to conversation
-            </button>
-          </div>
-        </div>
-      </div>
-    </Modal>
-  );
-}

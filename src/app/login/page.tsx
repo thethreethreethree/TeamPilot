@@ -88,7 +88,7 @@ export default function LoginPage() {
           </p>
 
           {!supabaseEnabled && (
-            <div className="mb-5 p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20 text-xs text-yellow-200">
+            <div className="mb-5 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/40 text-xs text-primary">
               Demo mode — Supabase not configured. Submitting will take you straight into the
               dashboard with mock data.
             </div>

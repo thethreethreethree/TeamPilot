@@ -466,9 +466,9 @@ function ModeBanner({ mode }: { mode: FetchTasksMode }) {
     return (
       <div className="flex items-start gap-2.5 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
         <AlertTriangle className="w-4 h-4 text-yellow-300 mt-0.5 flex-shrink-0" />
-        <div className="text-xs text-yellow-100">
+        <div className="text-xs text-primary">
           <p className="font-medium mb-1">Demo fixtures · Supabase not configured.</p>
-          <p className="text-yellow-200/70">
+          <p className="text-primary/70">
             You&apos;re viewing read-only sample data so the UI is browsable. Tasks created here
             do nothing. Configure Supabase keys in <code>.env.local</code> and re-run the
             migrations to use the production task system.

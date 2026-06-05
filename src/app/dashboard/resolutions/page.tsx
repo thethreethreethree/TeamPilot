@@ -99,7 +99,7 @@ export default function ResolutionsPage() {
         {mode === "demo-fixtures" && (
           <div className="flex items-start gap-2.5 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
             <AlertTriangle className="w-4 h-4 text-yellow-300 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-yellow-100">
+            <p className="text-xs text-primary">
               <span className="font-medium">Demo fixtures.</span> Two resolutions are
               shown — one held, one awaiting review. Recording new outcomes requires
               live mode.
@@ -202,7 +202,7 @@ function ResolutionRow({
             </p>
           )}
           {resolution.observedOutcome && (
-            <p className="text-xs text-emerald-200/80 mt-1 leading-relaxed">
+            <p className="text-xs text-primary/80 mt-1 leading-relaxed">
               <span className="text-emerald-300/80 uppercase tracking-widest text-[10px]">observed</span>{" "}
               {resolution.observedOutcome}
             </p>

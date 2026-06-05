@@ -74,10 +74,10 @@ export const DialogueDecisionSchema = z.object({
   userProposal: z.string().min(20).max(20_000),
 });
 
-export const DialogueConversationSchema = z.object({
-  conversation: z.string().min(20).max(60_000),
-  userRead: z.string().min(20).max(20_000),
-});
+// DialogueConversationSchema removed 2026-06-04 (Pass-3 audit) — the
+// Conversation Dialogue surface was dropped after the §1.7 audit caught
+// it as dead (table dropped in 0013, UI never reached DB). See
+// supabase/migrations/0013_drop_conversations.sql for the WHY.
 
 export const RippleTraceSchema = z.object({
   problemTitle: z.string().min(1).max(200),

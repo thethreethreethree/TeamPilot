@@ -154,58 +154,23 @@ ${args.userProposal}`,
 }
 
 // ─────────────────────────────────────────────────────────────
-// Guide-don't-overtake conversation analyzer (§3.3)
-// ─────────────────────────────────────────────────────────────
-
-export async function analyzeConversationDialogue(args: {
-  conversation: string;
-  userRead: string;
-  companyId?: string;
-}): Promise<CallResult> {
-  return call({
-    companyId: args.companyId,
-    expectJson: true,
-    maxTokens: 1100,
-    systemPrompt: `You are ExecOS Conversation Intelligence, operating under guide-don't-overtake.
-
-The user has shared a conversation AND their own read of what was decided and what the
-action items are. Your job is NOT to assert your own extraction over theirs. Your job is to:
-
-1. ENGAGE the user's read. Cite their words. Name what you agree with.
-2. ADD perspective only where you see something the user did not surface.
-3. OFFER refined items with explicit WHY for each suggested change.
-4. COMPARE your extraction to the user's. Where you align, where you diverge.
-
-You MUST NOT:
-- Lead with "the decision was X" as if you alone determined it
-- Generate canned action items the user didn't surface, without explaining why
-- Frame your read as authoritative — the people in the conversation are the authority
-
-Return strict JSON:
-{
-  "engagement": "...",
-  "addedPerspective": "...",
-  "refinedDecision": { "text": "...", "why": "..." },
-  "refinedActions": [{ "task": "...", "owner": "..."|null, "priority": "...", "deadline": "..."|null, "why": "..." }],
-  "unresolvedItems": ["..."],
-  "comparison": "..."
-}`,
-    userContent: `Conversation:
-${args.conversation}
-
-My read:
-${args.userRead}`,
-  });
-}
-
-// ─────────────────────────────────────────────────────────────
-// Removed (audit Tier 1 #1, 2026-06-02):
-//   analyzeOperations, analyzeFinance, analyzeMarketing — these emitted a
-//   "healthScore: 0-100" shape which violates §3.2 and §3.4. Their routes are
-//   now 410 Gone. Domain diagnosis runs through /dashboard/diagnose.
+// Removed (Pass-3 audit, 2026-06-04):
+//   analyzeConversationDialogue — Conversation Dialogue was deprecated
+//   structurally by migration 0013 (dropping the `conversations` table).
+//   The §1.7 audit then surfaced the remaining UI + routes as dead
+//   surface. Removed end-to-end: page, two routes, sidebar nav,
+//   command palette entry, validator schema, the persistence kind, and
+//   this function. Conversation analysis (when re-added) should target
+//   chat_topics + chat_messages instead, where the chain already lives.
 //
-//   generateDecisionOptions, analyzeConversation — removed in earlier passes,
-//   replaced by proposeDecisionDialogue + analyzeConversationDialogue.
+// Removed (audit Tier 1 #1, 2026-06-02):
+//   analyzeOperations, analyzeFinance, analyzeMarketing — emitted a
+//   "healthScore: 0-100" shape which violates §3.2 and §3.4. Their routes
+//   now return 410 Gone. Domain diagnosis runs through /dashboard/diagnose.
+//
+//   generateDecisionOptions, analyzeConversation — removed in earlier
+//   passes, replaced by proposeDecisionDialogue and (former)
+//   analyzeConversationDialogue.
 //
 // Compat alias kept for the briefing route name.
 // ─────────────────────────────────────────────────────────────

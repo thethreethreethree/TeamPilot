@@ -35,7 +35,6 @@ const productionNav = [
   { label: "Resolutions", href: "/dashboard/resolutions", icon: Sparkles },
   { label: "Company Brain", href: "/dashboard/brain", icon: Brain },
   { label: "Decision Dialogue", href: "/dashboard/decisions", icon: Brain },
-  { label: "Conversation Dialogue", href: "/dashboard/conversations", icon: MessageSquare },
 ];
 
 const designPreviewNav = [

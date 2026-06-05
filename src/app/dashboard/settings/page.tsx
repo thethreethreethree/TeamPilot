@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import { LlmConnectionPanel } from "@/components/settings/LlmConnectionPanel";
+import { ChangePasswordPanel } from "@/components/settings/ChangePasswordPanel";
 
 interface Settings {
   company: {
@@ -131,10 +132,13 @@ export default function SettingsPage() {
             verify provider connectivity before wiring anything else. */}
         <LlmConnectionPanel />
 
+        {/* In-app password rotation. Hidden in demo mode (no auth). */}
+        <ChangePasswordPanel />
+
         {!supabaseEnabled && (
           <div className="glass-card p-6 text-center">
             <AlertTriangle className="w-5 h-5 text-yellow-300 mx-auto mb-2" />
-            <p className="text-sm text-yellow-100 mb-1">
+            <p className="text-sm text-primary mb-1">
               Company profile requires live mode
             </p>
             <p className="text-xs text-muted max-w-md mx-auto">
