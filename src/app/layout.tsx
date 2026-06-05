@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { FeedbackButton } from "@/components/feedback/FeedbackButton";
+import { ToastProvider } from "@/components/ui/toast";
 
 /**
  * No-flash theme bootstrap.
@@ -113,7 +115,19 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-base text-primary antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {/* ToastProvider here (in addition to dashboard layout) so the
+              feedback button — which needs toast — works on public pages
+              too. Nested ToastProvider in /dashboard layout is harmless;
+              the dashboard one will be its own context within. */}
+          <ToastProvider>
+            {children}
+            {/* Floating feedback button — visible on every page per
+                the user's directive. Auth-aware: routes to /login on
+                public pages, opens the slide-out panel on authed pages. */}
+            <FeedbackButton />
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

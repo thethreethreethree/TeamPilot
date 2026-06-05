@@ -152,3 +152,64 @@ export const SettingsPatchSchema = z.object({
     .optional()
     .nullable(),
 });
+
+// ─── Feedback + smoke test schemas (0018) ─────────────────────────
+
+export const FEEDBACK_KINDS = [
+  "bug",
+  "idea",
+  "question",
+  "friction",
+  "praise",
+  "smoke_test_result",
+] as const;
+
+export const FEEDBACK_STATUSES = [
+  "open",
+  "triaged",
+  "in_progress",
+  "resolved",
+  "declined",
+  "duplicate",
+] as const;
+
+export const FeedbackCreateSchema = z.object({
+  kind: z.enum(FEEDBACK_KINDS),
+  title: z.string().min(1).max(200),
+  body: z.string().max(20_000).optional().default(""),
+  page_path: z.string().max(500),
+  viewport: z.record(z.string(), z.unknown()).optional().default({}),
+  payload: z.record(z.string(), z.unknown()).optional().default({}),
+  parent_id: z.string().uuid().optional().nullable(),
+});
+
+export const FeedbackStatusPatchSchema = z.object({
+  status: z.enum(FEEDBACK_STATUSES),
+  resolution_note: z.string().max(20_000).optional().nullable(),
+  duplicate_of: z.string().uuid().optional().nullable(),
+});
+
+export const SmokeTestResultSchema = z.object({
+  version_id: z.string().uuid(),
+  item_id: z.string().min(1).max(120),
+  status: z.enum(["pass", "fail", "unable"]),
+  notes: z.string().max(20_000).optional().default(""),
+  feedback_id: z.string().uuid().optional().nullable(),
+});
+
+export const SmokeTestVersionSchema = z.object({
+  label: z.string().min(1).max(200),
+  items: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(120),
+        title: z.string().min(1).max(200),
+        instructions: z.string().max(20_000),
+        expected: z.string().max(20_000),
+        reference_image_url: z.string().url().optional(),
+      })
+    )
+    .min(1)
+    .max(200),
+  is_active: z.boolean().optional().default(true),
+});

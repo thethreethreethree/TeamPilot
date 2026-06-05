@@ -10,6 +10,8 @@ import {
   DollarSign,
   Megaphone,
   MessageSquare,
+  MessageSquarePlus,
+  ClipboardList,
   Brain,
   Settings,
   ChevronRight,
@@ -35,6 +37,19 @@ const productionNav = [
   { label: "Resolutions", href: "/dashboard/resolutions", icon: Sparkles },
   { label: "Company Brain", href: "/dashboard/brain", icon: Brain },
   { label: "Decision Dialogue", href: "/dashboard/decisions", icon: Brain },
+];
+
+const testingNav = [
+  { label: "Smoke test", href: "/dashboard/smoke-test", icon: ClipboardList },
+  { label: "My feedback", href: "/dashboard/feedback", icon: MessageSquare },
+];
+
+const adminNav = [
+  {
+    label: "Feedback inbox",
+    href: "/dashboard/admin/feedback",
+    icon: MessageSquarePlus,
+  },
 ];
 
 const designPreviewNav = [
@@ -163,6 +178,63 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Testing — visible to all signed-in users. Admins also see
+            the Feedback inbox below. */}
+        <div className="pt-4">
+          <p className="px-3 mb-2 text-[10px] text-muted uppercase tracking-widest">
+            Testing
+          </p>
+          {testingNav.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                  isActive
+                    ? "bg-[#C8232C]/15 text-brand border border-[#C8232C]/30"
+                    : "text-secondary hover:text-primary hover:bg-surface-raised"
+                )}
+              >
+                <Icon
+                  className={cn(
+                    "w-4 h-4 flex-shrink-0",
+                    isActive ? "text-brand" : "text-muted"
+                  )}
+                />
+                {item.label}
+              </Link>
+            );
+          })}
+          {(userRole === "admin" || userRole === "CEO" || userRole === "COO") &&
+            adminNav.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                    isActive
+                      ? "bg-[#C8232C]/15 text-brand border border-[#C8232C]/30"
+                      : "text-secondary hover:text-primary hover:bg-surface-raised"
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "w-4 h-4 flex-shrink-0",
+                      isActive ? "text-brand" : "text-muted"
+                    )}
+                  />
+                  {item.label}
+                </Link>
+              );
+            })}
+        </div>
 
         <div className="pt-4">
           <p className="px-3 mb-2 text-[10px] text-muted uppercase tracking-widest flex items-center gap-1.5">

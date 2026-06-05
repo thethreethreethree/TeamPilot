@@ -141,6 +141,28 @@ const ALLOWLIST = new Map([
     "profiles.delete",
     "Profile is the auth-user-to-company link. Deletion happens via cascade from auth.users (account closure), not via direct delete.",
   ],
+
+  // Feedback (0018) — append-only per §3.1. Status updates are
+  // permitted (the trigger emits a feedback.status_changed event on
+  // each transition); rows are never deleted. The §1.1 'data-as-
+  // asset' rule applies — even rejected/declined feedback is
+  // preserved as part of the record.
+  [
+    "feedback.delete",
+    "§3.1 append-only. Feedback is permanent record; declined/duplicate marked via status, never deleted.",
+  ],
+  [
+    "smoke_test_versions.delete",
+    "§3.1 append-only. New checklist edits create new versions; old versions remain referenceable from prior results.",
+  ],
+  [
+    "smoke_test_results.update",
+    "§3.1 append-only. A re-test by the same tester appends a new row, preserving the journey of fail → fix → pass.",
+  ],
+  [
+    "smoke_test_results.delete",
+    "§3.1 append-only. Test results are permanent measurement record.",
+  ],
 ]);
 
 // ─── Parse migrations ─────────────────────────────────────────────────
