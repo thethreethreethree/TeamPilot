@@ -235,7 +235,7 @@ export default function DiagnosePage() {
     <div className="min-h-screen bg-base">
       <TopBar
         title="Living Diagnosis"
-        subtitle={`${companyName} · The constitution as runtime (CLAUDE.md §1)`}
+        subtitle={`${companyName} · The constitution as runtime`}
       />
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">

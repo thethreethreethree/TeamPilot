@@ -1,5 +1,5 @@
 /**
- * Understanding Gate — client-side evaluator (CLAUDE.md §3.2).
+ * Understanding Gate — client-side evaluator (§3.2).
  *
  * The authoritative gate is the DB trigger in migration 0002. This is a *mirror*
  * the application uses to predict, BEFORE attempting to surface, whether the gate

@@ -183,7 +183,7 @@ export default function DecisionsPage() {
     <div className="min-h-screen bg-base">
       <TopBar
         title="Decision Dialogue"
-        subtitle={`${companyName} · Guide, don't overtake (CLAUDE.md §3.3)`}
+        subtitle={`${companyName} · Guide, don't overtake`}
       />
 
       <div className="p-6 max-w-5xl mx-auto space-y-6">

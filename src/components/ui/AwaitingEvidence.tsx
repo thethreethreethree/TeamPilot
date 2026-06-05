@@ -2,7 +2,7 @@ import { Lock } from "lucide-react";
 
 /**
  * The honest empty state for any panel that previously asserted a problem before
- * earning the right to (CLAUDE.md §3.2). Surfaces the Understanding Gate so the user
+ * earning the right to (§3.2). Surfaces the Understanding Gate so the user
  * knows *why* the System is not speaking — it is not a bug, it is the rule.
  *
  * Once the signals layer is producing data, this panel will swap to a "1 of 3 signals
@@ -33,7 +33,7 @@ export default function AwaitingEvidence({
           <span className="text-brand">What would unblock it:</span> {hint}
         </p>
         <p className="text-[10px] text-muted mt-2 uppercase tracking-widest">
-          Understanding Gate · CLAUDE.md §3.2
+          Understanding Gate · §3.2
         </p>
       </div>
     </div>

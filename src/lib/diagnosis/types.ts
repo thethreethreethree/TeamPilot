@@ -1,9 +1,9 @@
 /**
  * Living Diagnosis — type definitions.
  *
- * The diagnosis engine implements CLAUDE.md §1 ("Living Diagnosis") as runtime code.
+ * The diagnosis engine implements §1 ("Living Diagnosis") as runtime code.
  * Every type here is a structural representation of a step in the loop. The names
- * mirror the constitution intentionally — if a section is renamed in CLAUDE.md, the
+ * mirror the constitution intentionally — if a section is renamed, the
  * corresponding type/function here is renamed in the same amendment.
  */
 

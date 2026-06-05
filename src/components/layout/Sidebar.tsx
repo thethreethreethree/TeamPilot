@@ -293,7 +293,7 @@ export default function Sidebar() {
           className="block pt-2 text-[10px] text-muted hover:text-muted transition-colors font-mono"
           title={`Last amendment: ${CONSTITUTION.lastAmendmentId} (${CONSTITUTION.lastAmendmentDate})`}
         >
-          CLAUDE.md v{CONSTITUTION.version} · {CONSTITUTION.amendmentCount} amendments
+          Constitution v{CONSTITUTION.version} · {CONSTITUTION.amendmentCount} amendments
         </Link>
       </div>
 

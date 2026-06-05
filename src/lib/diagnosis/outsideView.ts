@@ -5,7 +5,7 @@ import { runBrainCall } from "@/lib/brain";
 import type { OutsideViewReading } from "./types";
 
 /**
- * Outside-Perspective Identification (CLAUDE.md §1.3).
+ * Outside-Perspective Identification (§1.3).
  *
  * Generates alternative readings via the configured provider (DeepSeek primary),
  * routed through the brain when a companyId is provided so the per-company
@@ -21,7 +21,7 @@ type GenerateArgs = {
   companyId?: string;
 };
 
-const SYSTEM_PROMPT = (count: number) => `You are running CLAUDE.md §1.3 — Outside-Perspective Identification.
+const SYSTEM_PROMPT = (count: number) => `You are running §1.3 — Outside-Perspective Identification.
 
 Your job is to generate ${count} alternative readings of the same situation, each
 from a stance with NO investment in the user's current framing. You are actively

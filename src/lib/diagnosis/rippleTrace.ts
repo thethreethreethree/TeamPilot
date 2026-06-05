@@ -5,7 +5,7 @@ import { runBrainCall } from "@/lib/brain";
 import type { RippleEffect } from "./types";
 
 /**
- * Ripple-Trace — holistic affected-systems analysis (CLAUDE.md §1.5, §2).
+ * Ripple-Trace — holistic affected-systems analysis (§1.5, §2).
  */
 
 type TraceArgs = {
@@ -16,7 +16,7 @@ type TraceArgs = {
   companyId?: string;
 };
 
-const SYSTEM_PROMPT = `You are running CLAUDE.md §1.5 — Holistic Ripple-Trace.
+const SYSTEM_PROMPT = `You are running §1.5 — Holistic Ripple-Trace.
 
 You are given a problem and a candidate action. Your job is to enumerate every
 subject (task, person, process, signal stream, downstream dependency) that this

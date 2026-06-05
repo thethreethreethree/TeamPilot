@@ -1,6 +1,6 @@
 -- 0004 — Events (append-only foundation under signals)
 --
--- Encodes CLAUDE.md §3.1:
+-- Encodes §3.1:
 --   "Everything is an event. Events are append-only. Never update or delete — append.
 --    Entity state (tasks, projects, people) is derived by replaying events, never
 --    edited directly. Core chain: events → signals → problems → resolutions →

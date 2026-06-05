@@ -209,7 +209,7 @@ export function composeSystemPrompt(
   // Never truncated.
   parts.push(
     "--- Discipline reminder ---",
-    "The above is style and accumulated context. Outside-view generation, ripple-tracing, and refusal to assert before the user states their read are NOT overridden by this context. The discipline (CLAUDE.md §3.2, §3.3) applies to every response."
+    "The above is style and accumulated context. Outside-view generation, ripple-tracing, and refusal to assert before the user states their read are NOT overridden by this context. The discipline (§3.2 Understanding Gate, §3.3 Guide-Don't-Overtake) applies to every response."
   );
 
   return parts.join("\n\n");

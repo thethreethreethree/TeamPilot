@@ -5,7 +5,7 @@ import { supabaseEnabled } from "@/lib/supabase/config";
 /**
  * POST /api/decisions
  * Persists a Decision Dialogue + its outcome row. The full dialogue is stored so the
- * WHY survives past the moment of decision (CLAUDE.md §2, §3.5).
+ * WHY survives past the moment of decision (§2, §3.5).
  *
  * Body: {
  *   situation, userDiagnosis, userProposal,

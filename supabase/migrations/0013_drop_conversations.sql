@@ -13,7 +13,7 @@
 -- LLM analysis back to the client and persists nothing server-side.
 --
 -- Result: `conversations` is dead schema. The §1.7 audit caught it.
--- Per CLAUDE.md §1 (data-as-asset) and the "don't add features beyond
+-- Per §1 (data-as-asset) and the "don't add features beyond
 -- what the task requires" guidance, living dead schema is worse than
 -- no schema — it suggests a feature that doesn't exist and confuses
 -- future readers of the schema map.

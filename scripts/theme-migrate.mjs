@@ -4,8 +4,8 @@
 //
 // Why one atomic pass: surface (`bg-*`) and foreground (`text-*`) must
 // migrate in lockstep, or mid-migration the page renders illegible
-// (dark text on dark surface in light mode, vice versa). See CLAUDE.md
-// §1.5 — holistic over local.
+// (dark text on dark surface in light mode, vice versa). See §1.5 of the
+// constitution — holistic over local.
 //
 // Run from repo root:  node scripts/theme-migrate.mjs
 

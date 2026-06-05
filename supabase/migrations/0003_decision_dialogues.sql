@@ -2,7 +2,7 @@
 --
 -- Records the full guide-don't-overtake conversation (situation, user's diagnosis,
 -- user's proposal, system response, chosen path) so the WHY survives past the moment
--- of decision. Per CLAUDE.md §2 "Explain the WHY, not just the WHAT" and §3.5
+-- of decision. Per §2 "Explain the WHY, not just the WHAT" and §3.5
 -- (consequence measurement needs the dialogue to compare against the outcome).
 --
 -- The existing decisions table from 0001 stays — it represents the *outcome* of a

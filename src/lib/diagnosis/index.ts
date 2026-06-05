@@ -1,5 +1,5 @@
 /**
- * Living Diagnosis — runtime orchestrator (CLAUDE.md §1).
+ * Living Diagnosis — runtime orchestrator (§1).
  *
  * This file is the engine that walks the executive through the diagnostic loop
  * over their own data. It composes the per-step modules into a sequence:

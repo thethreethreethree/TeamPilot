@@ -13,8 +13,8 @@ that holds open the diagnostic questions an executive needs to think about, surf
 evidence as it accumulates, and only ever offers suggestions in dialogue with the user —
 never as directives.
 
-The governing document is [CLAUDE.md](CLAUDE.md). Every architectural choice in this
-repo is enforcing one of its rules.
+The governing document is the project constitution (private). Every architectural
+choice in this repo is enforcing one of its rules.
 
 ### Core surfaces
 
@@ -170,9 +170,9 @@ HTTPS port.
 
 ## Constitutional discipline
 
-Every change to this codebase is subject to the rules in [CLAUDE.md](CLAUDE.md). Changes
-to those rules themselves go through the amendment process in
-[docs/amendments/](docs/amendments/). Ratified amendments so far:
+Every change to this codebase is subject to the rules in the project constitution
+(private). Changes to those rules themselves go through the amendment process. Ratified
+amendments so far:
 
 - [AMD-001](docs/amendments/AMD-001-establish-process.md) — Establish the amendment process
 - [AMD-002](docs/amendments/AMD-002-understanding-gate-defaults.md) — Ratify Understanding Gate default thresholds (3 / 2 / 80)

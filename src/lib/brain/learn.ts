@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { llmCall } from "@/lib/llm";
 
 /**
- * Brain learning cycle (CLAUDE.md §3.6, §4).
+ * Brain learning cycle (§3.6, §4).
  *
  * Distills the recent chain activity into structured brain updates. Only sources
  * that have *measured consequence* count toward "validated" learning:

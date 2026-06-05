@@ -1,6 +1,6 @@
 -- 0005 — Resolutions + Signal Derivation
 --
--- Closes the chain CLAUDE.md §3.1 mandates:
+-- Closes the chain §3.1 mandates:
 --   events → signals → problems → resolutions → (new events)
 --
 -- The resolutions table is the missing fourth link. Without it the chain is open —

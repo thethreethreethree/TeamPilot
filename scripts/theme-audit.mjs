@@ -11,7 +11,7 @@
 //
 // Why it exists
 // ─────────────
-//   Per CLAUDE.md feedback discipline: the agent shall not declare a UI
+//   Per the constitution's feedback discipline: the agent shall not declare a UI
 //   migration "complete" based on its own narrow tests. Every prior pass
 //   was scoped to "the patterns I happened to think of," which produced
 //   a sequence of false-confidence completion claims and forced the user

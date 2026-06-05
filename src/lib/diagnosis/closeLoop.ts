@@ -1,5 +1,5 @@
 /**
- * Close the Loop (CLAUDE.md §1.6).
+ * Close the Loop (§1.6).
  *
  * "Every resolution — and its measured outcome — becomes a new asset that feeds
  *  step 1. The System gets smarter about this specific team/codebase over time."

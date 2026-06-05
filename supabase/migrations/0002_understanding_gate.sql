@@ -1,6 +1,6 @@
 -- 0002 — Understanding Gate
 --
--- Encodes CLAUDE.md Rule 3.2 in the schema:
+-- Encodes Rule 3.2 in the schema:
 --   "A `problem` may NOT be surfaced to users until it links to a minimum threshold
 --    of supporting `signals`. The schema itself must prevent half-understood problems
 --    from reaching a human."

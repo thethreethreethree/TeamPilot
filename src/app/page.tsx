@@ -352,18 +352,12 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Footer — the constitution is mentioned once, for the curious */}
+      {/* Footer — the discipline is named, but its source document is
+          the user's private IP and not linked. */}
       <footer className="border-t border-default mt-10 px-6 py-8 text-center">
         <p className="text-[10px] text-muted mb-1">
-          ExecOS is built on a strict discipline we call our constitution.
-          Curious how it works under the hood?{" "}
-          <Link
-            href="https://github.com/your-username/TeamPilot/blob/main/CLAUDE.md"
-            className="text-brand hover:text-primary"
-          >
-            Read it
-          </Link>
-          .
+          ExecOS is built on a strict discipline we call our constitution —
+          the rules of the System are encoded as runtime, not advisory.
         </p>
         <p className="text-[10px] text-muted">
           © {new Date().getFullYear()} ExecOS · Constitution v1.4 · 4 amendments ratified

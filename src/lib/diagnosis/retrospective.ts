@@ -1,5 +1,5 @@
 /**
- * Retrospective Identification (CLAUDE.md §1.2).
+ * Retrospective Identification (§1.2).
  *
  * "Identify problems by looking backward at the actual record of what happened —
  *  logs, prior commits, past failures, event history — not by theorizing forward."
