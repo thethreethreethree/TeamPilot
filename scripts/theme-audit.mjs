@@ -76,6 +76,30 @@ const HEX_LITERAL = new RegExp(
 // switching (crimson-400 is correct on dark, illegible on light surfaces).
 const CRIMSON_TEXT_LEAK = /\btext-crimson-\d+\b/g;
 
+// Same-element brand-red fill + theme-aware text = inverted contrast bug.
+// The brand-red background is solid and constant across themes, but
+// text-primary resolves to ~white on dark and ~near-black on light. So a
+// button like `bg-crimson-500 text-primary` reads correctly on dark mode
+// and is illegible (black on dark red) on light mode. Every other brand-
+// red button in the codebase uses `text-white` explicitly; these are the
+// outliers. User-reported on the chats page: the "New topic" button had
+// black text blending into the dark red.
+//
+// Match only SOLID brand-red fills (no /opacity suffix). Tinted fills like
+// `bg-[#C8232C]/10` are translucent overlays on a theme-aware surface, so
+// `text-primary` against them is correct.
+//
+// Flagged text is intentionally narrow: text-primary only. text-secondary
+// and text-muted are valid for muted hover/disabled states inside larger
+// patterns and would over-flag.
+const SOLID_BRAND_RED = [
+  /\bbg-crimson-\d+\b(?!\/)/,
+  /\bbg-\[#C8232C\](?!\/)/,
+  /\bbg-\[#A91D24\](?!\/)/,
+  /\bbg-\[#8A1820\](?!\/)/,
+];
+const THEME_AWARE_TEXT_ON_BRAND = /\btext-primary\b/;
+
 // Gold text variants that should use `text-accent-text` — gold-100/200/300
 // are pale helmet tones that pop on dark navy and disappear on light cream.
 // gold-600 is the contrast-aware replacement encoded in text-accent-text.
@@ -144,6 +168,7 @@ const leaks = {
   goldText: [],
   paleText: [],
   inlineStyle: [],
+  brandRedSameElement: [],
 };
 
 const brandHits = {
@@ -229,6 +254,28 @@ for (const file of files) {
       }
     }
 
+    // ── Same-element brand-red fill + text-primary ──
+    // The inverted-contrast bug: text-primary swings to near-black on
+    // light mode, which on a constant brand-red fill produces unreadable
+    // black-on-red. Other brand-red buttons all use text-white directly.
+    //
+    // Restricted to .ts / .tsx: in `src/app/globals.css` the same two
+    // strings appear together as part of the descendant-guard CSS
+    // selector (`[class*="bg-[#C8232C]"] .text-primary { color: white }`)
+    // which is exactly the rule that protects the child-element case.
+    // That's not a leak — it's the fix.
+    if (/\.tsx?$/.test(file) && THEME_AWARE_TEXT_ON_BRAND.test(line)) {
+      const brandFill = SOLID_BRAND_RED.find((re) => re.test(line));
+      if (brandFill) {
+        const fillMatch = line.match(brandFill);
+        leaks.brandRedSameElement.push({
+          file,
+          lineNo,
+          match: `${fillMatch?.[0] ?? "brand-red"} + text-primary`,
+        });
+      }
+    }
+
     // ── Inline-style hex in dark family ──
     if (isDarkMediaQueryLine) return; // explicitly dark-gated, allowed
     for (const m of line.matchAll(INLINE_STYLE_HEX)) {
@@ -248,7 +295,8 @@ const totalLeaks =
   leaks.crimsonText.length +
   leaks.goldText.length +
   leaks.paleText.length +
-  leaks.inlineStyle.length;
+  leaks.inlineStyle.length +
+  leaks.brandRedSameElement.length;
 
 function group(items) {
   const byFile = new Map();
@@ -315,6 +363,11 @@ printSection(
   "› Inline style hex in dark family",
   leaks.inlineStyle,
   "Replace with CSS variable: `rgb(var(--bg-base))` etc., or migrate the attribute to a className."
+);
+printSection(
+  "› Same-element brand-red fill + text-primary (inverted contrast)",
+  leaks.brandRedSameElement,
+  "Solid brand-red is dark on both modes; text-primary swings to near-black on light → unreadable. Use `text-white` explicitly, matching every other brand-red button."
 );
 
 if (totalLeaks === 0) {
