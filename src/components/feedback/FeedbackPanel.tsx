@@ -122,7 +122,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
       if (!result) {
         toast.warn(
           "Couldn't capture screenshot",
-          "Both getDisplayMedia and the DOM fallback returned nothing. Try again or submit without one."
+          "The page render returned nothing. Try again, or submit without a screenshot."
         );
         return;
       }
@@ -378,8 +378,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                 </div>
               )}
               <p className="mt-1.5 text-[10px] text-muted leading-relaxed">
-                Browser asks permission for the accurate screen-capture path.
-                If declined, falls back to a DOM render so you never get nothing.
+                Captures the current page silently — no permission prompt.
                 Click the captured image (or &ldquo;Annotate&rdquo;) to point
                 at the thing you&apos;re reporting — arrow, text, highlight,
                 box, or circle.

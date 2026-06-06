@@ -1,25 +1,33 @@
 "use client";
 
 /**
- * Screenshot capture — getDisplayMedia primary, html2canvas fallback.
+ * Screenshot capture — DOM-rendered via html2canvas, no permission prompt.
  *
- * Per the user's stated preference (accuracy > friction), this module
- * tries the high-accuracy native screen-capture path first and falls
- * back silently to a DOM render if:
- *   - the browser doesn't support getDisplayMedia (older Safari, all
- *     mobile browsers)
- *   - the user declines the permission prompt
- *   - getDisplayMedia throws for any reason mid-capture
+ * History: the first version tried `getDisplayMedia()` as the primary
+ * path for pixel-accurate capture, with html2canvas as the fallback.
+ * The user reported that path was unacceptable: Chrome's
+ * `getDisplayMedia` always shows the native "choose what to share"
+ * picker (tab / window / entire screen), even with the
+ * `preferCurrentTab` hint. The picker reads as "the system is asking
+ * me what to share" — exactly the friction that turns a feedback
+ * report into a chore. For an in-app feedback tool capturing the
+ * user's own current view, the browser permission prompt is the
+ * wrong UX entirely.
  *
- * The fallback ensures every feedback report has some screenshot
- * rather than none — a partial screenshot is better diagnostic data
- * than no screenshot. The output format is a downscaled JPEG data
- * URL kept under ~200KB so we can stash it inline in the feedback
- * payload's jsonb column without exhausting database row size.
+ * So this module captures only what the DOM can paint. Trade-offs:
+ *   + No permission prompt, instant capture, completely silent
+ *   + Works in every modern browser without an opt-in
+ *   - Cross-origin iframes render blank (we don't paint them anyway
+ *     and the feedback button itself is marked `data-feedback-ignore`
+ *     so it doesn't appear in the capture)
+ *   - Some complex CSS (gradient masks, advanced filters, shadow DOM)
+ *     may render imperfectly — acceptable for a feedback diagnostic
  *
- * A future migration could move this to Supabase Storage for the
- * full-resolution path; for now inline base64 keeps the integration
- * shape simple and the data co-located with the feedback row.
+ * Output: a downscaled JPEG data URL ≤ ~200 KB so we can stash it
+ * inline in the feedback payload's jsonb column without exhausting the
+ * row-size budget. A future migration could route this to Supabase
+ * Storage for full-resolution captures; for now inline base64 keeps
+ * the data co-located with its feedback row.
  */
 
 const MAX_WIDTH = 1600;
@@ -27,7 +35,7 @@ const TARGET_QUALITY = 0.7;
 
 type CaptureResult = {
   dataUrl: string;
-  method: "getDisplayMedia" | "html2canvas";
+  method: "html2canvas";
   width: number;
   height: number;
   /** Approximate base64 byte size — useful for the payload-size guard. */
@@ -49,10 +57,7 @@ function downscaleCanvas(
   return out;
 }
 
-function canvasToResult(
-  canvas: HTMLCanvasElement,
-  method: CaptureResult["method"]
-): CaptureResult {
+function canvasToResult(canvas: HTMLCanvasElement): CaptureResult {
   const downscaled = downscaleCanvas(canvas, MAX_WIDTH);
   const dataUrl = downscaled.toDataURL("image/jpeg", TARGET_QUALITY);
   // Rough byte estimate: base64 inflates by 4/3.
@@ -60,65 +65,21 @@ function canvasToResult(
   const bytes = Math.floor((base64Len * 3) / 4);
   return {
     dataUrl,
-    method,
+    method: "html2canvas",
     width: downscaled.width,
     height: downscaled.height,
     bytes,
   };
 }
 
-async function captureViaGetDisplayMedia(): Promise<CaptureResult | null> {
-  if (typeof navigator === "undefined" || !navigator.mediaDevices) return null;
-  const md = navigator.mediaDevices as MediaDevices & {
-    getDisplayMedia?: (constraints?: MediaStreamConstraints) => Promise<MediaStream>;
-  };
-  if (!md.getDisplayMedia) return null;
-
-  let stream: MediaStream | null = null;
-  try {
-    // `preferCurrentTab: true` hints Chromium-based browsers to default
-    // the screen-share picker to the current tab — reduces the picker
-    // friction for the common case.
-    stream = await md.getDisplayMedia({
-      video: {
-        // @ts-expect-error preferCurrentTab is a Chromium-only hint
-        preferCurrentTab: true,
-      },
-      audio: false,
-    });
-    const track = stream.getVideoTracks()[0];
-    if (!track) return null;
-
-    // Grab a single frame. ImageCapture is the cleanest path, but
-    // not all browsers expose it from a display stream; fall back to
-    // drawing the live video element onto a canvas.
-    const video = document.createElement("video");
-    video.srcObject = stream;
-    video.muted = true;
-    await video.play();
-    // One frame is enough — let the video tick once.
-    await new Promise((r) => requestAnimationFrame(r));
-
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    video.pause();
-    video.srcObject = null;
-    return canvasToResult(canvas, "getDisplayMedia");
-  } catch {
-    // User declined OR browser threw. Caller falls back to html2canvas.
-    return null;
-  } finally {
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop());
-    }
-  }
-}
-
-async function captureViaHtml2Canvas(): Promise<CaptureResult | null> {
+/**
+ * Capture a screenshot of the current page silently.
+ *
+ * No permission prompt, no picker. Returns null only if the DOM
+ * cannot be rendered (SSR context, or html2canvas threw on a page
+ * with cross-origin content it couldn't paint).
+ */
+export async function captureScreenshot(): Promise<CaptureResult | null> {
   if (typeof document === "undefined") return null;
   try {
     // Dynamic import keeps html2canvas out of the main bundle until
@@ -130,24 +91,14 @@ async function captureViaHtml2Canvas(): Promise<CaptureResult | null> {
       // Capture at devicePixelRatio for sharpness on retina screens;
       // downscaleCanvas later trims to MAX_WIDTH for size.
       scale: Math.min(window.devicePixelRatio || 1, 2),
-      // Skip nodes that obviously can't be rendered (third-party
-      // iframes, etc.).
+      // Skip nodes we explicitly opt out (the feedback button itself,
+      // the slide-out panel, the annotation editor — anything marked
+      // with data-feedback-ignore so the capture looks like what the
+      // user sees, not what the feedback UI overlaid).
       ignoreElements: (el) => el.hasAttribute("data-feedback-ignore"),
     });
-    return canvasToResult(canvas, "html2canvas");
+    return canvasToResult(canvas);
   } catch {
     return null;
   }
-}
-
-/**
- * Public capture entry point. Tries getDisplayMedia first; falls back
- * to html2canvas on failure (incl. user decline). Returns null only
- * if BOTH paths fail (e.g. SSR context, or html2canvas threw on a
- * page with cross-origin content it couldn't paint).
- */
-export async function captureScreenshot(): Promise<CaptureResult | null> {
-  const primary = await captureViaGetDisplayMedia();
-  if (primary) return primary;
-  return await captureViaHtml2Canvas();
 }
