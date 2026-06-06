@@ -42,8 +42,7 @@ import { FormulateResponseModal } from "@/components/chats/FormulateResponseModa
 import { ReviewOutcomeModal } from "@/components/chats/ReviewOutcomeModal";
 import { SummarizeModal } from "@/components/chats/SummarizeModal";
 import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
-import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
-import { useCompanyName } from "@/lib/hooks/useCompany";
+import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
 
 export default function TeamChatTopicPage() {
   const params = useParams<{ id: string }>();
@@ -63,8 +62,7 @@ export default function TeamChatTopicPage() {
   const [summarizeOpen, setSummarizeOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
-  const [inviting, setInviting] = useState(false);
-  const companyName = useCompanyName();
+  const [addingParticipants, setAddingParticipants] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -251,19 +249,19 @@ export default function TeamChatTopicPage() {
               {participants.length}
               <ChevronDown className="w-3 h-3" aria-hidden="true" />
             </button>
-            {/* Invite member — opens the shared dialog in place so the
-                tester stays in the chat instead of being navigated to
-                /dashboard/team. Sits next to the participant pill
-                because "who's in this conversation?" and "add someone
-                to this conversation" are the same mental action. */}
+            {/* Add member — semantically distinct from /dashboard/team's
+                "Invite member": this adds EXISTING company members to
+                THIS topic. Onboarding a brand-new person to the company
+                is the Team page's job. The user explicitly called out
+                this distinction — mixing the two is confusing. */}
             <button
               type="button"
-              onClick={() => setInviting(true)}
-              title="Invite a team member"
+              onClick={() => setAddingParticipants(true)}
+              title="Add a team member to this topic"
               className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors"
             >
               <UserPlus className="w-3 h-3" aria-hidden="true" />
-              Invite
+              Add member
             </button>
             {/* Summarize is available to any participant — the summary
                 is framed as the System's read for confirm-or-correct
@@ -594,10 +592,16 @@ export default function TeamChatTopicPage() {
           }}
         />
       )}
-      <InviteMemberDialog
-        open={inviting}
-        onClose={() => setInviting(false)}
-        companyName={companyName}
+      <AddParticipantsDialog
+        open={addingParticipants}
+        topicId={topic.id}
+        topicTitle={topic.title}
+        alreadyParticipantIds={new Set(participants.map((p) => p.userId))}
+        onClose={() => setAddingParticipants(false)}
+        onAdded={async () => {
+          const next = await fetchParticipants(topic.id);
+          setParticipants(next);
+        }}
       />
     </div>
   );

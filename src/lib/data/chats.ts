@@ -546,6 +546,41 @@ export async function fetchParticipants(
   }));
 }
 
+/**
+ * Add existing company members to a chat topic.
+ *
+ * Used by the in-chat "Invite" affordance — different semantic action
+ * from the team-invitation flow. Team invitations onboard NEW people
+ * to the company via email + invite link. This adds people who already
+ * have accounts to the topic's participant roster, granting them read
+ * + write per the §3.1 RLS rules (`chat_messages` is gated to active
+ * participants of the topic).
+ *
+ * Upsert handles re-join: if a user was a participant previously but
+ * marked `left_at`, this clears `left_at` and refreshes `joined_at` so
+ * they don't appear as having left the conversation when re-added.
+ */
+export async function addParticipantsToTopic(
+  topicId: string,
+  userIds: string[]
+): Promise<{ added: number }> {
+  if (userIds.length === 0) return { added: 0 };
+  if (!supabaseEnabled) return { added: userIds.length };
+  const supabase = createClient();
+  const rows = userIds.map((user_id) => ({
+    topic_id: topicId,
+    user_id,
+    role: "member" as const,
+    joined_at: new Date().toISOString(),
+    left_at: null as string | null,
+  }));
+  const { error } = await supabase
+    .from("chat_participants")
+    .upsert(rows, { onConflict: "topic_id,user_id" });
+  if (error) throw new Error(error.message);
+  return { added: userIds.length };
+}
+
 // ─── Demo-mode writes ───────────────────────────────────────
 
 export function demoPostMessage(args: {
