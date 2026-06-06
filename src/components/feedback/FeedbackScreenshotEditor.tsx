@@ -268,7 +268,13 @@ export function FeedbackScreenshotEditor({
     const strokePx = Math.max(3, Math.round(img.naturalWidth / 600));
     const fontPx = Math.max(16, Math.round(img.naturalWidth / 65));
     for (const a of list) drawAnnotationOnCanvas(ctx, a, strokePx, fontPx);
-    return canvas.toDataURL("image/jpeg", 0.82);
+    // Match the capture pipeline: prefer WebP at high quality so baking
+    // annotations doesn't re-soften the originally-sharp screenshot.
+    // Fall back to high-quality JPEG only if a browser silently rejects
+    // WebP (very rare on modern engines).
+    const webp = canvas.toDataURL("image/webp", 0.92);
+    if (webp.startsWith("data:image/webp")) return webp;
+    return canvas.toDataURL("image/jpeg", 0.92);
   };
 
   const stroke = naturalSize ? Math.max(3, Math.round(naturalSize.w / 600)) : 3;

@@ -30,8 +30,22 @@
  * the data co-located with its feedback row.
  */
 
-const MAX_WIDTH = 1600;
-const TARGET_QUALITY = 0.7;
+// Capture quality knobs. Tuned for legible text in feedback screenshots:
+//   - Earlier values (1600 max, JPEG q=0.7) produced visibly mushy text and
+//     compression halos around letterforms, which made annotations hard to
+//     read against the page they were marking up.
+//   - 2400 max means a 1200px-wide viewport on a retina screen (canvas
+//     scaled to 2400 by devicePixelRatio) is preserved at native resolution
+//     with no downscale at all — the sharpest path we can ship without
+//     blowing up the inline payload.
+//   - WebP at q=0.92 is dramatically sharper than JPEG at q=0.7 for the
+//     same file size class. Modern browsers (Chrome, Edge, Firefox 65+,
+//     Safari 16+) all support `canvas.toDataURL("image/webp")`. If a
+//     browser silently returns PNG instead (very rare now), we detect it
+//     and fall back to high-quality JPEG so we never ship the blurry one.
+const MAX_WIDTH = 2400;
+const WEBP_QUALITY = 0.92;
+const JPEG_FALLBACK_QUALITY = 0.88;
 
 type CaptureResult = {
   dataUrl: string;
@@ -59,7 +73,14 @@ function downscaleCanvas(
 
 function canvasToResult(canvas: HTMLCanvasElement): CaptureResult {
   const downscaled = downscaleCanvas(canvas, MAX_WIDTH);
-  const dataUrl = downscaled.toDataURL("image/jpeg", TARGET_QUALITY);
+  // Prefer WebP; if a browser silently returns PNG (signaled by the
+  // dataUrl mime not being image/webp), fall back to high-quality JPEG.
+  // Either way we never ship the old low-quality JPEG that produced the
+  // mushy text the user flagged.
+  let dataUrl = downscaled.toDataURL("image/webp", WEBP_QUALITY);
+  if (!dataUrl.startsWith("data:image/webp")) {
+    dataUrl = downscaled.toDataURL("image/jpeg", JPEG_FALLBACK_QUALITY);
+  }
   // Rough byte estimate: base64 inflates by 4/3.
   const base64Len = dataUrl.split(",")[1]?.length ?? 0;
   const bytes = Math.floor((base64Len * 3) / 4);
