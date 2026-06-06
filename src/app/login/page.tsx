@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, ArrowRight } from "lucide-react";
+import { Activity, ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
@@ -21,7 +21,11 @@ export default function LoginPage() {
     setError("");
     setNotice("");
 
+    // Demo mode jumps straight to the dashboard. Keep the button
+    // disabled across the redirect so a user can't double-click during
+    // the navigation window — same UX rule as the live path below.
     if (!supabaseEnabled) {
+      setLoading(true);
       router.push("/dashboard");
       return;
     }
@@ -34,12 +38,19 @@ export default function LoginPage() {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (!data.session) {
+          // Signup needs email confirmation — surface the notice and
+          // re-enable the button so the user can sign in once confirmed.
           setNotice("Check your email to confirm your account, then sign in.");
           setMode("signin");
+          setLoading(false);
           return;
         }
         router.push("/onboarding");
         router.refresh();
+        // NOTE: deliberately not resetting loading on the success path.
+        // setLoading(false) here would re-enable the button between
+        // router.push() firing and the page actually unmounting, which
+        // lets users click again and feel like the submit "didn't work."
         return;
       }
 
@@ -56,9 +67,12 @@ export default function LoginPage() {
 
       router.push(profile?.company_id ? "/dashboard" : "/onboarding");
       router.refresh();
+      // Same as the signup-with-session branch — leave loading=true
+      // so the button stays disabled through the redirect.
     } catch (err) {
+      // Only the failure path resets loading; the user needs to fix
+      // their input and retry.
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
       setLoading(false);
     }
   };
@@ -100,10 +114,11 @@ export default function LoginPage() {
               <input
                 type="email"
                 required
+                disabled={loading}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ceo@company.com"
-                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
             <div>
@@ -112,10 +127,11 @@ export default function LoginPage() {
                 type="password"
                 required
                 minLength={6}
+                disabled={loading}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -125,14 +141,24 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors shadow-glow hover:shadow-none"
+              aria-busy={loading}
+              className="w-full flex items-center justify-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors shadow-glow hover:shadow-none"
             >
-              {loading
-                ? "Please wait…"
-                : mode === "signin"
-                ? "Enter Command Center"
-                : "Create account"}
-              {!loading && <ArrowRight className="w-4 h-4" />}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                  {mode === "signin"
+                    ? "Signing you in…"
+                    : "Creating account…"}
+                </>
+              ) : (
+                <>
+                  {mode === "signin"
+                    ? "Enter Command Center"
+                    : "Create account"}
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                </>
+              )}
             </button>
           </form>
 
@@ -144,7 +170,8 @@ export default function LoginPage() {
                 setError("");
                 setNotice("");
               }}
-              className="text-brand hover:text-primary transition-colors"
+              disabled={loading}
+              className="text-brand hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {mode === "signin" ? "Set up ExecOS" : "Sign in"}
             </button>
