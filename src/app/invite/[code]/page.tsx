@@ -98,7 +98,7 @@ export default function InviteAcceptPage() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
             <Activity className="w-5 h-5 text-primary" />
           </div>
-          <span className="text-xl font-bold text-primary">ExecOS</span>
+          <span className="text-xl font-bold text-primary">ELOSTATE</span>
         </div>
 
         <div className="glass-card p-8">
@@ -120,7 +120,7 @@ export default function InviteAcceptPage() {
           {phase === "needs-auth" && (
             <>
               <h1 className="text-lg font-semibold text-primary mb-1">
-                You&apos;ve been invited to ExecOS
+                You&apos;ve been invited to ELOSTATE
               </h1>
               <p className="text-sm text-secondary mb-6">
                 {mode === "signup"

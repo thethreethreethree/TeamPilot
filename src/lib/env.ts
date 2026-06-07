@@ -85,7 +85,7 @@ if (!parsed.success) {
     .join("\n");
   // Fail loudly. The Next.js dev server will surface this stack trace clearly.
   throw new Error(
-    `\n[ExecOS] Environment validation failed:\n${issues}\n\nFix the values in .env.local (or your deployment env), then restart.\n`
+    `\n[ELOSTATE] Environment validation failed:\n${issues}\n\nFix the values in .env.local (or your deployment env), then restart.\n`
   );
 }
 

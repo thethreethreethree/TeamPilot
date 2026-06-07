@@ -40,17 +40,17 @@ const NO_FLASH_THEME_SCRIPT = `
 })();
 `.trim();
 
-const TITLE = "ExecOS — An honest AI executive operating system";
+const TITLE = "ELOSTATE — An honest AI executive operating system";
 const DESCRIPTION =
-  "An AI that refuses to give you an answer it hasn't earned. ExecOS stays silent until it has real evidence, asks for your read before it speaks, and learns only from outcomes that actually held.";
+  "An AI that refuses to give you an answer it hasn't earned. ELOSTATE stays silent until it has real evidence, asks for your read before it speaks, and learns only from outcomes that actually held.";
 
 export const metadata: Metadata = {
   title: {
     default: TITLE,
-    template: "%s · ExecOS",
+    template: "%s · ELOSTATE",
   },
   description: DESCRIPTION,
-  applicationName: "ExecOS",
+  applicationName: "ELOSTATE",
   // metadataBase is used to resolve relative URLs in OG tags. In production set
   // NEXT_PUBLIC_SITE_URL to your deployed origin; falls back to a placeholder
   // so build doesn't fail in dev.
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
     type: "website",
     title: TITLE,
     description: DESCRIPTION,
-    siteName: "ExecOS",
+    siteName: "ELOSTATE",
     locale: "en_US",
   },
   twitter: {

@@ -1,4 +1,4 @@
-// ExecOS Landing Page JS
+// ELOSTATE Landing Page JS
 
 // ── Showcase tab switching ────────────────────────────────
 function showTab(id, btn) {

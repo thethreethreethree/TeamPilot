@@ -88,7 +88,7 @@ export default function LoginPage() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
             <Activity className="w-5 h-5 text-primary" />
           </div>
-          <span className="text-xl font-bold text-primary">ExecOS</span>
+          <span className="text-xl font-bold text-primary">ELOSTATE</span>
         </div>
 
         <div className="glass-card p-8">
@@ -173,7 +173,7 @@ export default function LoginPage() {
               disabled={loading}
               className="text-brand hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {mode === "signin" ? "Set up ExecOS" : "Sign in"}
+              {mode === "signin" ? "Set up ELOSTATE" : "Sign in"}
             </button>
           </p>
         </div>

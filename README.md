@@ -1,4 +1,4 @@
-# ExecOS — AI Executive Operating System
+# ELOSTATE — AI Executive Operating System
 
 > An AI Executive Operating System built under a constitutional discipline: the System
 > must earn the right to speak before it asserts. Confident, fluent answers delivered
@@ -6,9 +6,9 @@
 
 ---
 
-## What ExecOS is
+## What ELOSTATE is
 
-ExecOS is not a productivity tool and not an instant-answers dashboard. It is a system
+ELOSTATE is not a productivity tool and not an instant-answers dashboard. It is a system
 that holds open the diagnostic questions an executive needs to think about, surfaces
 evidence as it accumulates, and only ever offers suggestions in dialogue with the user —
 never as directives.

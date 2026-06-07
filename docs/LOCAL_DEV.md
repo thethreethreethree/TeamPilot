@@ -1,6 +1,6 @@
 # Local development — Windows + PowerShell + VS Code + Claude Code
 
-This is the day-to-day workflow for running and hacking on ExecOS / TeamPilot on a local Windows machine.
+This is the day-to-day workflow for running and hacking on ELOSTATE / TeamPilot on a local Windows machine.
 
 ---
 

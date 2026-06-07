@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 import { crimson, gold, arc, navy } from "./src/lib/design/tokens";
 
 /**
- * ExecOS Tailwind config — dual-mode (light + dark) Iron Man identity.
+ * ELOSTATE Tailwind config — dual-mode (light + dark) Iron Man identity.
  *
  * Mode switching: `darkMode: ["class", '[data-theme="dark"]']` means
  * `dark:` variants activate when the `<html>` element has `data-theme="dark"`.

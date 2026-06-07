@@ -22,7 +22,7 @@ import { LlmError } from "@/lib/llm/errors";
  *   - error: { error, kind?, provider? }
  */
 
-const SYSTEM_PROMPT = `You are ExecOS, helping a team member sharpen their draft chat message.
+const SYSTEM_PROMPT = `You are ELOSTATE, helping a team member sharpen their draft chat message.
 
 Your task: produce a clearer, more specific, less hedged version of their draft — IN THEIR VOICE. You are not writing a new message; you are surfacing what they were trying to say more precisely.
 

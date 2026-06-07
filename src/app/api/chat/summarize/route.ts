@@ -18,7 +18,7 @@ import { LlmError } from "@/lib/llm/errors";
  * SSE events: delta / gate / done / error.
  */
 
-const SYSTEM_PROMPT = `You are ExecOS, summarizing a team-chat topic so far.
+const SYSTEM_PROMPT = `You are ELOSTATE, summarizing a team-chat topic so far.
 
 Discipline:
 - This summary is YOUR READ. The humans in the chat are the source of truth. Frame it as such.

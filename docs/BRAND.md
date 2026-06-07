@@ -1,9 +1,9 @@
-# ExecOS — Brand & Visual Identity
+# ELOSTATE — Brand & Visual Identity
 
 > **Inspiration source:** Iron Man (2008) Marvel Studios theatrical poster.
 > **Established:** 2026-06-02
 >
-> This document is the canonical source of truth for ExecOS's visual identity.
+> This document is the canonical source of truth for ELOSTATE's visual identity.
 > Designers, engineers, and copywriters should treat this as the spec — any
 > deviation is a decision that should be defended in writing.
 
@@ -112,7 +112,7 @@ sparingly** — most UI should stay in the brand-and-neutral palette.
 | `info` | `#5EC8E0` | Informational / AI-active (uses brand cyan) |
 
 > **Critical:** `success` is gold, not the conventional emerald. This is a
-> deliberate brand choice — in ExecOS, success means *something that held*,
+> deliberate brand choice — in ELOSTATE, success means *something that held*,
 > which is the brand promise. Generic green here would be a brand violation.
 
 ### 1.4 Color usage rules

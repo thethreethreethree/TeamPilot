@@ -325,7 +325,7 @@ function printSection(title, items, hint) {
   }
 }
 
-console.log("═══ ExecOS theme-leak audit ═══");
+console.log("═══ ELOSTATE theme-leak audit ═══");
 console.log(`  Files scanned: ${files.length}`);
 console.log(`  Brand-color uses (allowed): ${brandHits.brandHex} hex, ${brandHits.brandScale} named`);
 console.log(`  Files on documented allowlist: ${FILE_ALLOWLIST.size}`);

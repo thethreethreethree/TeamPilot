@@ -10,7 +10,7 @@ CLAUDE.md §3.2: *"A `problem` may NOT be surfaced to users until it links to a 
 threshold of supporting `signals`. The schema itself must prevent half-understood problems
 from reaching a human. The bottleneck is encoded, not left to discretion."*
 
-The audit on 2026-05-16 found multiple existing surfaces in ExecOS that violate this
+The audit on 2026-05-16 found multiple existing surfaces in ELOSTATE that violate this
 rule — pre-filled diagnoses on Operations/Finance/Marketing pages, instant `healthScore`
 values, AI calls that return confident judgments after one prompt. Migration 0002 builds
 the structural enforcement that closes that hole going forward. Migration 0001's tables

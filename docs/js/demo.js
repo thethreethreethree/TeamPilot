@@ -1,4 +1,4 @@
-// ExecOS Demo Application Logic
+// ELOSTATE Demo Application Logic
 
 const SCREEN_META = {
   command:    { title: 'Command Center',          subtitle: 'AI-powered executive overview of your business health' },
@@ -6,7 +6,7 @@ const SCREEN_META = {
   team:       { title: 'Team Intelligence',       subtitle: 'Workload analysis, performance scores & burnout detection' },
   convo:      { title: 'Conversation Intelligence', subtitle: 'Paste any meeting or thread — AI generates decisions & plans' },
   decision:   { title: 'AI Decision Engine',      subtitle: 'Claude AI generates Safe, Balanced & Aggressive options' },
-  settings:   { title: 'Settings',                subtitle: 'Configure your ExecOS workspace and AI integration' },
+  settings:   { title: 'Settings',                subtitle: 'Configure your ELOSTATE workspace and AI integration' },
 };
 
 let currentOpsFilter = 'All';

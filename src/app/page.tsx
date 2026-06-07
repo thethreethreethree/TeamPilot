@@ -64,7 +64,7 @@ const benefits = [
   {
     icon: Sparkles,
     title: "Patterns get caught early",
-    body: "ExecOS watches what's happening across your team — tasks, status changes, recurring issues. When something is showing up over and over, it flags it. Before it flags it, it shows you the evidence.",
+    body: "ELOSTATE watches what's happening across your team — tasks, status changes, recurring issues. When something is showing up over and over, it flags it. Before it flags it, it shows you the evidence.",
   },
   {
     icon: Users,
@@ -83,7 +83,7 @@ const outcomes = [
   ["Faster onboarding.", "New hires can read the real history of how decisions get made here."],
   ["Shorter, better meetings.", "Hard decisions get a structured place to live, so the weekly leadership meeting stops being a rerun."],
   ["Confidence in AI without losing control.", "Instead of people quietly using ChatGPT and you wondering what they're getting back, AI is built into the workflow with full transparency."],
-  ["Real institutional memory.", "Six months in, ExecOS knows how your team makes calls. Two years in, it's a record competitors will never have."],
+  ["Real institutional memory.", "Six months in, ELOSTATE knows how your team makes calls. Two years in, it's a record competitors will never have."],
 ];
 
 export default function Landing() {
@@ -96,7 +96,7 @@ export default function Landing() {
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
               <Activity className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
             </div>
-            <span className="text-sm font-bold tracking-tight text-primary">ExecOS</span>
+            <span className="text-sm font-bold tracking-tight text-primary">ELOSTATE</span>
           </div>
           <div className="flex items-center gap-3 text-xs">
             <ThemeToggle />
@@ -127,7 +127,7 @@ export default function Landing() {
           {" "}Will you remember why six months from now?
         </h1>
         <p className="text-base text-secondary leading-relaxed max-w-2xl mx-auto mb-8">
-          ExecOS is software that helps your team think clearly together, write
+          ELOSTATE is software that helps your team think clearly together, write
           down the reasoning behind every decision, and learn from what
           actually worked. It uses AI — but the AI is built to help your team
           think, not replace their thinking.
@@ -137,7 +137,7 @@ export default function Landing() {
             href="/login"
             className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
-            Try ExecOS <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            Try ELOSTATE <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
           <Link
             href="/pitch"
@@ -197,21 +197,21 @@ export default function Landing() {
         </div>
 
         <p className="text-xs text-muted italic text-center mt-8 max-w-2xl mx-auto">
-          You feel these every week. ExecOS exists to close them — one team
+          You feel these every week. ELOSTATE exists to close them — one team
           decision at a time.
         </p>
       </section>
 
-      {/* What ExecOS actually does — plain English */}
+      {/* What ELOSTATE actually does — plain English */}
       <section className="px-6 py-16 max-w-5xl mx-auto">
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
-          What ExecOS actually does
+          What ELOSTATE actually does
         </p>
         <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-3 max-w-3xl mx-auto leading-tight">
           A second brain for how your team makes calls.
         </h2>
         <p className="text-sm text-secondary leading-relaxed max-w-2xl mx-auto text-center mb-12">
-          ExecOS lives next to the tools your team already uses. It doesn&apos;t
+          ELOSTATE lives next to the tools your team already uses. It doesn&apos;t
           replace your task tracker or your chat app — it captures the
           reasoning that those tools throw away.
         </p>
@@ -282,7 +282,7 @@ export default function Landing() {
               &quot;Will my team actually use this?&quot;
             </p>
             <p>
-              ExecOS sits in the moments your team is already pausing — the
+              ELOSTATE sits in the moments your team is already pausing — the
               hard decision, the messy meeting, the recurring problem. It
               doesn&apos;t add work; it gives the work you already do a place
               to live where it stops getting lost.
@@ -293,9 +293,9 @@ export default function Landing() {
               &quot;We already use ChatGPT. Why this?&quot;
             </p>
             <p>
-              ChatGPT is a smart assistant for one person. ExecOS is a memory
+              ChatGPT is a smart assistant for one person. ELOSTATE is a memory
               system for the whole team. ChatGPT forgets the conversation as
-              soon as you close the tab. ExecOS remembers — and learns from
+              soon as you close the tab. ELOSTATE remembers — and learns from
               what actually worked here over months.
             </p>
           </div>
@@ -332,7 +332,7 @@ export default function Landing() {
         <p className="text-sm text-secondary mb-8 max-w-xl mx-auto leading-relaxed">
           You don&apos;t have to roll this out across the whole team to see
           whether it works. Take one real decision your team is wrestling with
-          right now, walk it through ExecOS, and see if the conversation that
+          right now, walk it through ELOSTATE, and see if the conversation that
           comes out is one you&apos;d want preserved.
         </p>
         <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -356,11 +356,11 @@ export default function Landing() {
           the user's private IP and not linked. */}
       <footer className="border-t border-default mt-10 px-6 py-8 text-center">
         <p className="text-[10px] text-muted mb-1">
-          ExecOS is built on a strict discipline we call our constitution —
+          ELOSTATE is built on a strict discipline we call our constitution —
           the rules of the System are encoded as runtime, not advisory.
         </p>
         <p className="text-[10px] text-muted">
-          © {new Date().getFullYear()} ExecOS · Constitution v1.4 · 4 amendments ratified
+          © {new Date().getFullYear()} ELOSTATE · Constitution v1.4 · 4 amendments ratified
         </p>
       </footer>
     </div>

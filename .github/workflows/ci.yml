@@ -1,4 +1,4 @@
-# CI for ExecOS — runs typecheck, lint, and tests on every PR and push to main.
+# CI for ELOSTATE — runs typecheck, lint, and tests on every PR and push to main.
 # Closes audit Tier 2 #10 (no CI) from docs/AUDIT-2026-06-02.md.
 
 name: CI

@@ -25,7 +25,7 @@ export default function AwaitingEvidence({
           Awaiting evidence
         </p>
         <p className="text-xs text-muted mt-1 leading-relaxed">
-          ExecOS will surface a {domain} problem here once it links to{" "}
+          ELOSTATE will surface a {domain} problem here once it links to{" "}
           <span className="text-secondary font-medium">≥3 signals from ≥2 distinct sources</span>{" "}
           and an explicit diagnosis is stated. Until that gate clears, the System stays silent.
         </p>

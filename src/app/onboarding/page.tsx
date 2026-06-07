@@ -126,7 +126,7 @@ export default function OnboardingPage() {
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
             <Activity className="w-4 h-4 text-primary" />
           </div>
-          <span className="text-lg font-bold text-primary">ExecOS</span>
+          <span className="text-lg font-bold text-primary">ELOSTATE</span>
         </div>
 
         {/* Progress */}
@@ -150,7 +150,7 @@ export default function OnboardingPage() {
                 <Building2 className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">What&apos;s your company called?</h2>
-              <p className="text-sm text-muted mb-6">ExecOS will personalize everything around your business.</p>
+              <p className="text-sm text-muted mb-6">ELOSTATE will personalize everything around your business.</p>
               <input
                 type="text"
                 value={form.companyName}
@@ -239,7 +239,7 @@ export default function OnboardingPage() {
                 <Target className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">What are your top priorities?</h2>
-              <p className="text-sm text-muted mb-6">Select all that apply. ExecOS will focus its intelligence here.</p>
+              <p className="text-sm text-muted mb-6">Select all that apply. ELOSTATE will focus its intelligence here.</p>
               <div className="grid grid-cols-2 gap-2">
                 {goals.map((goal) => (
                   <button
@@ -271,7 +271,7 @@ export default function OnboardingPage() {
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">Last step — who are you?</h2>
               <p className="text-sm text-muted mb-6">
-                ExecOS will personalize your executive experience.
+                ELOSTATE will personalize your executive experience.
               </p>
               <input
                 type="text"
@@ -285,7 +285,7 @@ export default function OnboardingPage() {
                 <div className="bg-[#C8232C]/10 border border-[#C8232C]/20 rounded-xl p-4 fade-in">
                   <p className="text-sm text-secondary">
                     Welcome, <span className="text-primary font-semibold">{form.ceoName}</span>.
-                    ExecOS is ready to activate for{" "}
+                    ELOSTATE is ready to activate for{" "}
                     <span className="text-primary font-semibold">{form.companyName}</span>.
                   </p>
                 </div>
@@ -305,7 +305,7 @@ export default function OnboardingPage() {
               {submitting
                 ? "Launching…"
                 : step === totalSteps
-                ? "Launch ExecOS"
+                ? "Launch ELOSTATE"
                 : "Continue"}
               {step === totalSteps ? <Activity className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>

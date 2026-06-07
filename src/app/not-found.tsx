@@ -16,7 +16,7 @@ export default function NotFound() {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
             <Activity className="w-4 h-4 text-primary" />
           </div>
-          <span className="text-sm font-bold tracking-tight">ExecOS</span>
+          <span className="text-sm font-bold tracking-tight">ELOSTATE</span>
         </div>
 
         <p className="text-[10px] uppercase tracking-widest text-brand mb-3 font-mono">

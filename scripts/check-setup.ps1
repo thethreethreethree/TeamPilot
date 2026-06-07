@@ -1,4 +1,4 @@
-# ExecOS / TeamPilot - local setup check
+# ELOSTATE / TeamPilot - local setup check
 # Usage:  powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/check-setup.ps1
 #         (or just: npm run setup:check)
 

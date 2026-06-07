@@ -101,12 +101,12 @@ export function InviteMemberDialog({
   const mailto = (() => {
     if (!inviteUrl) return "";
     const subject = companyName
-      ? `Join ${companyName} on ExecOS`
-      : "You're invited to ExecOS";
+      ? `Join ${companyName} on ELOSTATE`
+      : "You're invited to ELOSTATE";
     const body = [
       companyName
-        ? `You've been invited to join ${companyName} on ExecOS as a ${role}.`
-        : `You've been invited to ExecOS as a ${role}.`,
+        ? `You've been invited to join ${companyName} on ELOSTATE as a ${role}.`
+        : `You've been invited to ELOSTATE as a ${role}.`,
       "",
       `Accept here: ${inviteUrl}`,
       "",

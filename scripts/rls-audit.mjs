@@ -263,7 +263,7 @@ for (const [name, t] of tables) {
 
 // ─── Report ───────────────────────────────────────────────────────────
 
-console.log("═══ ExecOS RLS policy audit ═══");
+console.log("═══ ELOSTATE RLS policy audit ═══");
 console.log(`  Migrations scanned:    ${files.length}`);
 const rlsTables = [...tables.values()].filter(
   (t) => t.rlsEnabled && !t.droppedTable

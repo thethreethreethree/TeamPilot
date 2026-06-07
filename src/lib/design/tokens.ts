@@ -1,5 +1,5 @@
 /**
- * ExecOS design tokens — canonical source for component-level color access.
+ * ELOSTATE design tokens — canonical source for component-level color access.
  *
  * For Tailwind utility usage (`bg-crimson-500`, `text-gold-400`) see
  * `tailwind.config.ts` which extends the palette from this file.

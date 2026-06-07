@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 /**
- * /pitch — ExecOS product presentation deck.
+ * /pitch — ELOSTATE product presentation deck.
  *
  * Designed as a single, scrollable URL that doubles as a slide deck:
  *  - Each section is full-viewport (one "slide" per screen)
@@ -34,11 +34,11 @@ import {
  *  - "S" key toggles a small slide counter
  *  - Scrolls naturally on any device
  *
- * Audience: anyone evaluating ExecOS — from a 50-staff restaurant owner to a
+ * Audience: anyone evaluating ELOSTATE — from a 50-staff restaurant owner to a
  * Fortune 500 division president. The structure is:
  *   1. Universal problem (everyone recognizes)
  *   2. Same problem at different scales (restaurant → SMB → mid-market → F500)
- *   3. What ExecOS does in plain English
+ *   3. What ELOSTATE does in plain English
  *   4. Three concrete walkthroughs at three different scales
  *   5. What makes it different from generic AI
  *   6. What this means for the business at each scale
@@ -149,7 +149,7 @@ export default function PitchPage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
               <Activity className="w-5 h-5 text-primary" aria-hidden="true" />
             </div>
-            <span className="text-lg font-bold tracking-tight">ExecOS</span>
+            <span className="text-lg font-bold tracking-tight">ELOSTATE</span>
           </div>
           <p className="text-xs uppercase tracking-widest text-brand mb-6">
             A product presentation
@@ -262,17 +262,17 @@ export default function PitchPage() {
         </div>
       </Slide>
 
-      {/* What ExecOS is */}
+      {/* What ELOSTATE is */}
       <Slide ref={slideRef("what-it-is")} id="what-it-is">
         <div className="text-center max-w-3xl">
           <p className="text-xs uppercase tracking-widest text-muted mb-4">
-            What ExecOS is
+            What ELOSTATE is
           </p>
           <h2 className="text-4xl md:text-5xl font-bold text-primary leading-tight mb-8">
             A second brain for how your team makes calls.
           </h2>
           <p className="text-lg text-secondary leading-relaxed mb-6">
-            ExecOS is software that captures the reasoning behind every
+            ELOSTATE is software that captures the reasoning behind every
             decision your team makes — and learns what actually worked.
           </p>
           <p className="text-base text-secondary leading-relaxed">
@@ -294,11 +294,11 @@ export default function PitchPage() {
           </h2>
           <div className="space-y-3">
             {[
-              ["Things happen", "Tasks get done. Status changes. Decisions get made. Meetings happen. ExecOS quietly captures each of these as a permanent record."],
-              ["Patterns get noticed", "When the same kind of thing keeps happening, ExecOS flags it. One late task is anecdote. Three late tasks across two teams is a pattern worth knowing."],
+              ["Things happen", "Tasks get done. Status changes. Decisions get made. Meetings happen. ELOSTATE quietly captures each of these as a permanent record."],
+              ["Patterns get noticed", "When the same kind of thing keeps happening, ELOSTATE flags it. One late task is anecdote. Three late tasks across two teams is a pattern worth knowing."],
               ["You walk through the hard ones", "When something looks worth a real decision, your team works through a short structured conversation. What's happening, what they think, what they'd do. The AI offers perspective with reasoning."],
               ["You decide", "The AI never makes the call. You do. The whole conversation gets saved — including the AI's perspective and yours."],
-              ["The team gets sharper over time", "Months later, you mark whether the decision actually worked. ExecOS only learns from the outcomes that held. Generic AI plateaus on day one. ExecOS sharpens every month."],
+              ["The team gets sharper over time", "Months later, you mark whether the decision actually worked. ELOSTATE only learns from the outcomes that held. Generic AI plateaus on day one. ELOSTATE sharpens every month."],
             ].map(([title, body], i) => (
               <div key={title} className="glass-card p-4 flex gap-4">
                 <div
@@ -327,8 +327,8 @@ export default function PitchPage() {
           title="The head chef wants to switch fish suppliers."
           situation="Friday afternoon. The head chef tells the owner she wants to drop the current fish vendor and switch to a new one she's been talking to. Better pricing, fresher product. The owner has a nagging memory that there was a problem with this same vendor before — but can't remember what."
           journey={[
-            "The owner opens ExecOS and starts a decision walkthrough.",
-            "ExecOS surfaces a prior episode: 18 months ago this same supplier was tried, billed twice, and had a temperature-log issue that nearly caused a food-safety incident.",
+            "The owner opens ELOSTATE and starts a decision walkthrough.",
+            "ELOSTATE surfaces a prior episode: 18 months ago this same supplier was tried, billed twice, and had a temperature-log issue that nearly caused a food-safety incident.",
             "The owner shows the chef. They walk through what's different this time — new ownership at the supplier, a different delivery route, a 90-day trial structure.",
             "The chef writes down WHY she still wants to switch, given the prior history.",
             "Decision made: cautious 90-day trial, supplier on probation.",
@@ -345,8 +345,8 @@ export default function PitchPage() {
           title="A regional manager wants to merge two roles."
           situation="The regional manager proposes merging the account-strategist and project-manager roles. She thinks it'll save money and speed up delivery. The COO agrees in principle but has a feeling this has been tried before."
           journey={[
-            "The COO opens ExecOS and starts a decision walkthrough.",
-            "ExecOS surfaces a similar restructure from 2023: the same merge was tried, the rate of missed deliverables spiked, and the merge was reversed within four months. The reasoning at the time was written down: the two roles serve different stakeholders.",
+            "The COO opens ELOSTATE and starts a decision walkthrough.",
+            "ELOSTATE surfaces a similar restructure from 2023: the same merge was tried, the rate of missed deliverables spiked, and the merge was reversed within four months. The reasoning at the time was written down: the two roles serve different stakeholders.",
             "The COO shares this with the regional manager. They discuss what's actually different now (better tooling, a different client mix).",
             "The manager proposes a modified structure that addresses what failed last time.",
             "Decision made: a targeted pilot on two accounts, not the whole region.",
@@ -363,8 +363,8 @@ export default function PitchPage() {
           title="The division president is approving a vendor consolidation."
           situation="A $400M division president is being asked to approve consolidating fifteen vendor relationships into three. The team that built the proposal believes it's the right call. The president has limited time and ultimate accountability."
           journey={[
-            "The president opens ExecOS and starts a structured decision walkthrough.",
-            "ExecOS surfaces the patterns: which similar consolidations across the company have produced held outcomes, which suggestions from the AI in similar past decisions were rejected and why, what the divisions that took this path actually saved versus what they predicted.",
+            "The president opens ELOSTATE and starts a structured decision walkthrough.",
+            "ELOSTATE surfaces the patterns: which similar consolidations across the company have produced held outcomes, which suggestions from the AI in similar past decisions were rejected and why, what the divisions that took this path actually saved versus what they predicted.",
             "The president states his own read first. The AI offers a sharpened version of the proposal, naming two assumptions the team made that didn't hold in previous consolidations.",
             "The team revises the plan to address the named risks.",
             "Decision approved with the reasoning preserved in full.",
@@ -410,13 +410,13 @@ export default function PitchPage() {
             What&apos;s actually different about this
           </p>
           <h2 className="text-3xl md:text-4xl font-bold text-primary text-center mb-12 leading-tight">
-            ExecOS does four things no general-purpose AI does.
+            ELOSTATE does four things no general-purpose AI does.
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <DifferentiatorCard
               icon={ShieldCheck}
               title="It refuses to assert without evidence"
-              body="Generic AI gives you a confident answer whether or not it understands the situation. ExecOS stays silent until there's enough evidence on the record to back what it's saying."
+              body="Generic AI gives you a confident answer whether or not it understands the situation. ELOSTATE stays silent until there's enough evidence on the record to back what it's saying."
             />
             <DifferentiatorCard
               icon={Brain}
@@ -426,12 +426,12 @@ export default function PitchPage() {
             <DifferentiatorCard
               icon={Sparkles}
               title="It learns YOUR team specifically"
-              body="Most AI is one model serving every customer the same way. ExecOS builds a private memory for your team — your vocabulary, what's worked, what hasn't, what got rejected and why."
+              body="Most AI is one model serving every customer the same way. ELOSTATE builds a private memory for your team — your vocabulary, what's worked, what hasn't, what got rejected and why."
             />
             <DifferentiatorCard
               icon={CheckCircle2}
               title="It measures outcomes, not agreement"
-              body="Generic AI learns from what users accepted. ExecOS only learns from outcomes that actually held — so the AI gets sharper based on what really worked, not what sounded good."
+              body="Generic AI learns from what users accepted. ELOSTATE only learns from outcomes that actually held — so the AI gets sharper based on what really worked, not what sounded good."
             />
           </div>
         </div>
@@ -521,7 +521,7 @@ export default function PitchPage() {
             You don&apos;t have to roll this out across the company. Take one
             real decision your team is wrestling with right now — a vendor
             switch, a structure change, an approval — and walk it through
-            ExecOS. See if the conversation that comes out is one you&apos;d
+            ELOSTATE. See if the conversation that comes out is one you&apos;d
             want preserved.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-10 max-w-2xl mx-auto">
@@ -534,7 +534,7 @@ export default function PitchPage() {
             <StartStep
               icon={GitMerge}
               n="2"
-              title="Walk it through ExecOS"
+              title="Walk it through ELOSTATE"
               body="The structured conversation takes about 15 minutes."
             />
             <StartStep
@@ -560,7 +560,7 @@ export default function PitchPage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
               <Activity className="w-5 h-5 text-primary" aria-hidden="true" />
             </div>
-            <span className="text-lg font-bold tracking-tight">ExecOS</span>
+            <span className="text-lg font-bold tracking-tight">ELOSTATE</span>
           </div>
           <h2 className="text-4xl md:text-5xl font-bold text-primary leading-tight mb-6">
             Better decisions, remembered.
@@ -568,7 +568,7 @@ export default function PitchPage() {
           <p className="text-base text-secondary leading-relaxed mb-10 max-w-xl mx-auto">
             Whether your team is 50 or 50,000, the gap is the same: decisions
             without reasoning, repeated mistakes, knowledge that walks out the
-            door. ExecOS closes the gap one decision at a time.
+            door. ELOSTATE closes the gap one decision at a time.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
@@ -724,7 +724,7 @@ function ExampleSlide({
         </div>
         <div className="glass-card p-5">
           <p className="text-[10px] uppercase tracking-widest text-muted mb-3">
-            What happens with ExecOS
+            What happens with ELOSTATE
           </p>
           <ol className="space-y-2">
             {journey.map((step, i) => (

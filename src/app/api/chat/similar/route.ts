@@ -38,7 +38,7 @@ import { LlmError } from "@/lib/llm/errors";
  *   { error, kind? } on failure
  */
 
-const SYSTEM_PROMPT = `You are ExecOS, surfacing prior team conversations whose resolution HELD that resemble a new topic a team member is starting.
+const SYSTEM_PROMPT = `You are ELOSTATE, surfacing prior team conversations whose resolution HELD that resemble a new topic a team member is starting.
 
 You will receive:
   - A new topic the user is composing (title + description).

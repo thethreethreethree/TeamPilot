@@ -111,7 +111,7 @@ export default function Sidebar() {
             <Activity className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <span className="text-base font-bold text-primary tracking-tight">ExecOS</span>
+            <span className="text-base font-bold text-primary tracking-tight">ELOSTATE</span>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${

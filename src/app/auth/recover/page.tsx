@@ -158,7 +158,7 @@ export default function RecoverPage() {
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
             <Activity className="w-4 h-4 text-white" aria-hidden />
           </div>
-          <span className="text-lg font-bold text-primary">ExecOS</span>
+          <span className="text-lg font-bold text-primary">ELOSTATE</span>
         </div>
 
         <div className="glass-card p-8 fade-in">
