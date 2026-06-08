@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
+import { MentionText } from "@/components/ui/MentionText";
 
 /**
  * /dashboard/feedback — tester-facing "My feedback" view.
@@ -285,7 +286,7 @@ function MyFeedbackRow({
         <div className="mt-3 pt-3 border-t border-default space-y-3">
           {row.body && (
             <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
-              {row.body}
+              <MentionText text={row.body} />
             </p>
           )}
           {screenshot && (
@@ -312,7 +313,7 @@ function MyFeedbackRow({
                 Admin note
               </p>
               <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
-                {row.resolution_note}
+                <MentionText text={row.resolution_note} />
               </p>
             </div>
           )}

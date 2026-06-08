@@ -18,6 +18,8 @@ import {
 import { captureScreenshot } from "@/lib/feedback/screenshot";
 import { useToast } from "@/components/ui/toast";
 import { FeedbackScreenshotEditor } from "./FeedbackScreenshotEditor";
+import { MentionInput, type MentionMember } from "@/components/ui/MentionInput";
+import { fetchTeam } from "@/lib/data/team";
 
 /**
  * FeedbackPanel — slide-out form for submitting feedback.
@@ -92,7 +94,25 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [editingScreenshot, setEditingScreenshot] = useState(false);
+  const [members, setMembers] = useState<MentionMember[]>([]);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  // Pull the company roster once on open so @-autocomplete has the
+  // candidate list ready before the tester starts typing.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchTeam().then((snap) => {
+      if (cancelled) return;
+      setMembers(
+        snap.members
+          .filter((m) => m.status === "active" && m.fullName)
+          .map((m) => ({ id: m.id, fullName: m.fullName as string }))
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Esc to close + focus trap-ish behavior. We keep this minimal —
   // shared Modal would be heavier; this panel is its own surface.
@@ -337,14 +357,22 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
               />
             </div>
 
-            {/* Body */}
+            {/* Body — MentionInput supports @-tagging teammates. Type
+                "@" + name to insert a styled mention; on submit the
+                server emits mention.created events into the §3.1 chain
+                so the tag is on the record. */}
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-muted mb-1.5">
                 Details
+                <span className="ml-2 text-muted/70 font-normal normal-case tracking-normal">
+                  · type <kbd className="font-mono text-brand">@</kbd> to tag a
+                  teammate
+                </span>
               </label>
-              <textarea
+              <MentionInput
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={setBody}
+                members={members}
                 rows={5}
                 placeholder="What you expected, what actually happened, anything that helps reproduce…"
                 className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 resize-none leading-relaxed"

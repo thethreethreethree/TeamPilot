@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { readBody, FeedbackCreateSchema } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { emitMentionEvents } from "@/lib/mentions/emit";
 
 /**
  * POST /api/feedback — submit a new feedback record.
@@ -79,6 +80,19 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  // Mentions become §3.1 chain events so a "mentions about me"
+  // surface can derive from the audit trail later. Non-fatal: if
+  // this fails we keep the feedback row.
+  await emitMentionEvents({
+    supabase: ctx.supabase,
+    companyId: ctx.companyId,
+    actorId: ctx.userId,
+    bodyText: body.body ?? "",
+    sourceKind: "feedback",
+    sourceId: data.id,
+  });
+
   return NextResponse.json({
     id: data.id,
     status: data.status,

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { readBody, SmokeTestResultSchema } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { emitMentionEvents } from "@/lib/mentions/emit";
 
 /**
  * POST /api/smoke-test/result — submit a single test item result.
@@ -98,5 +99,17 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  // @mentions in the notes become §3.1 chain events tying tester →
+  // tagged teammate → this result row. Non-fatal on failure.
+  await emitMentionEvents({
+    supabase,
+    companyId: profile.company_id,
+    actorId: auth.user.id,
+    bodyText: body.notes ?? "",
+    sourceKind: "smoke_test_result",
+    sourceId: data.id,
+  });
+
   return NextResponse.json({ id: data.id, status: data.status });
 }

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
+import { MentionText } from "@/components/ui/MentionText";
 
 /**
  * /dashboard/admin/feedback
@@ -304,7 +305,7 @@ function FeedbackRowCard({
         <div className="mt-3 pt-3 border-t border-default space-y-3">
           {row.body && (
             <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
-              {row.body}
+              <MentionText text={row.body} />
             </p>
           )}
 

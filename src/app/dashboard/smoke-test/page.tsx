@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
+import { MentionInput, type MentionMember } from "@/components/ui/MentionInput";
+import { fetchTeam } from "@/lib/data/team";
 
 /**
  * /dashboard/smoke-test
@@ -66,6 +68,23 @@ export default function SmokeTestPage() {
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<SmokeTestVersion | null>(null);
   const [results, setResults] = useState<Record<string, ItemState>>({});
+  const [members, setMembers] = useState<MentionMember[]>([]);
+
+  // Roster for @-tagging in the notes field. Fetched once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchTeam().then((snap) => {
+      if (cancelled) return;
+      setMembers(
+        snap.members
+          .filter((m) => m.status === "active" && m.fullName)
+          .map((m) => ({ id: m.id, fullName: m.fullName as string }))
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -160,7 +179,9 @@ export default function SmokeTestPage() {
               <p className="text-xs text-muted leading-relaxed">
                 Walk each item. Mark pass, fail, or unable. Notes are
                 required when marking fail or unable so the chain captures
-                why (≥5 characters). Your results are private to you;
+                why (≥5 characters). Type{" "}
+                <kbd className="font-mono text-brand">@</kbd> to tag a
+                teammate inside a note. Your results are private to you;
                 admins see the aggregate.
               </p>
             </div>
@@ -172,6 +193,7 @@ export default function SmokeTestPage() {
                   index={i + 1}
                   item={item}
                   result={results[item.id] ?? null}
+                  members={members}
                   onSubmit={(status, notes) => submitResult(item, status, notes)}
                 />
               ))}
@@ -187,11 +209,13 @@ function SmokeTestItemCard({
   index,
   item,
   result,
+  members,
   onSubmit,
 }: {
   index: number;
   item: SmokeTestItem;
   result: SmokeTestResult | null;
+  members: ReadonlyArray<MentionMember>;
   onSubmit: (status: "pass" | "fail" | "unable", notes: string) => void;
 }) {
   const [notes, setNotes] = useState(result?.notes ?? "");
@@ -288,13 +312,16 @@ function SmokeTestItemCard({
           <span className="text-muted font-mono">Expected:</span> {item.expected}
         </p>
       </div>
-      <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        rows={2}
-        placeholder="Notes (required for fail / unable; ≥5 chars)"
-        className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 resize-none mb-3"
-      />
+      <div className="mb-3">
+        <MentionInput
+          value={notes}
+          onChange={setNotes}
+          members={members}
+          rows={2}
+          placeholder="Notes (required for fail / unable; ≥5 chars) — type @ to tag a teammate"
+          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 resize-none"
+        />
+      </div>
       <div className="flex items-center gap-2">
         <button
           onClick={() => void wrap("pass")}
