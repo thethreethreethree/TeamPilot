@@ -122,11 +122,32 @@ export function FeedbackScreenshotEditor({
     };
   }, [dataUrl]);
 
-  // Editor-scoped Esc → cancel. The parent FeedbackPanel skips its own
-  // Esc handler while editing (see FeedbackPanel.tsx).
+  // Editor-scoped keyboard shortcuts. Esc cancels, Ctrl/Cmd+Z undoes
+  // the last annotation. We check both metaKey (macOS) and ctrlKey
+  // (Windows/Linux) so the shortcut feels native on either platform —
+  // the user explicitly asked for cross-platform support. While a text
+  // annotation is being edited (editingTextId set), we let the
+  // textarea own its own key handling and skip both shortcuts.
+  // The parent FeedbackPanel skips its own Esc handler while editing
+  // (see FeedbackPanel.tsx).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !editingTextId) onCancel();
+      if (editingTextId) return;
+      if (e.key === "Escape") {
+        onCancel();
+        return;
+      }
+      // Ctrl+Z (Windows/Linux) or Cmd+Z (macOS), no Shift → undo last.
+      if (
+        e.key.toLowerCase() === "z" &&
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        setAnnotations((prev) => prev.slice(0, -1));
+        return;
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -268,13 +289,13 @@ export function FeedbackScreenshotEditor({
     const strokePx = Math.max(3, Math.round(img.naturalWidth / 600));
     const fontPx = Math.max(16, Math.round(img.naturalWidth / 65));
     for (const a of list) drawAnnotationOnCanvas(ctx, a, strokePx, fontPx);
-    // Match the capture pipeline: prefer WebP at high quality so baking
-    // annotations doesn't re-soften the originally-sharp screenshot.
-    // Fall back to high-quality JPEG only if a browser silently rejects
-    // WebP (very rare on modern engines).
-    const webp = canvas.toDataURL("image/webp", 0.92);
+    // Match the capture pipeline (screenshot.ts) — near-lossless WebP so
+    // baking annotations doesn't degrade the originally-sharp screenshot.
+    // Falls back to high-quality JPEG only if the browser silently
+    // rejects WebP (very rare on modern engines).
+    const webp = canvas.toDataURL("image/webp", 0.97);
     if (webp.startsWith("data:image/webp")) return webp;
-    return canvas.toDataURL("image/jpeg", 0.92);
+    return canvas.toDataURL("image/jpeg", 0.95);
   };
 
   const stroke = naturalSize ? Math.max(3, Math.round(naturalSize.w / 600)) : 3;
@@ -427,8 +448,9 @@ export function FeedbackScreenshotEditor({
       {/* Hint */}
       <div className="px-4 py-2 text-[11px] text-muted text-center border-t border-default bg-base">
         Drag on the image with the active tool. Text drops a red label —
-        type into it, press Enter to commit. Done bakes the marks into the
-        screenshot.
+        type into it, press Enter to commit.{" "}
+        <kbd className="font-mono text-brand">Ctrl/Cmd+Z</kbd> undoes the
+        last mark. Done bakes the marks into the screenshot.
       </div>
     </div>
   );

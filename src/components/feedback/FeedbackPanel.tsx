@@ -114,6 +114,43 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
     };
   }, [onClose, editingScreenshot]);
 
+  // Clipboard paste handler — Ctrl+V (Windows/Linux) or Cmd+V (macOS)
+  // anywhere in the panel pulls an image off the clipboard and sets it
+  // as the screenshot. The browser fires the `paste` event whenever
+  // the modifier-combo lands in our window, so we don't need a custom
+  // keydown listener — we just consume the event. This lets a tester
+  // paste an image they captured with Snipping Tool / Cmd+Shift+4 /
+  // any other native screenshot tool, side-stepping html2canvas
+  // entirely when they want absolute pixel control. Skips when the
+  // annotation editor is open so its own keys keep working.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (editingScreenshot || done) return;
+      if (!e.clipboardData) return;
+      const imageItem = Array.from(e.clipboardData.items).find((item) =>
+        item.type.startsWith("image/")
+      );
+      if (!imageItem) return;
+      const blob = imageItem.getAsFile();
+      if (!blob) return;
+      e.preventDefault();
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result;
+        if (typeof dataUrl !== "string") return;
+        setScreenshot({
+          dataUrl,
+          method: "clipboard",
+          bytes: blob.size,
+        });
+        toast.success("Screenshot pasted", "From your clipboard — annotate below.");
+      };
+      reader.readAsDataURL(blob);
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [editingScreenshot, done, toast]);
+
   const captureNow = async () => {
     if (capturing) return;
     setCapturing(true);
@@ -381,7 +418,11 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                 Captures the current page silently — no permission prompt.
                 Click the captured image (or &ldquo;Annotate&rdquo;) to point
                 at the thing you&apos;re reporting — arrow, text, highlight,
-                box, or circle.
+                box, or circle. You can also paste an image from your
+                clipboard with{" "}
+                <kbd className="font-mono text-brand">Ctrl/Cmd+V</kbd> (handy
+                if you grabbed a region with Snipping Tool or{" "}
+                <kbd className="font-mono text-brand">Cmd+Shift+4</kbd>).
               </p>
             </div>
 

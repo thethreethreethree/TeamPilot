@@ -43,9 +43,19 @@
 //     Safari 16+) all support `canvas.toDataURL("image/webp")`. If a
 //     browser silently returns PNG instead (very rare now), we detect it
 //     and fall back to high-quality JPEG so we never ship the blurry one.
-const MAX_WIDTH = 2400;
-const WEBP_QUALITY = 0.92;
-const JPEG_FALLBACK_QUALITY = 0.88;
+// Second round of quality tuning after the first bump still read as
+// soft. Pushed to:
+//   - 3200 max width so a 1600px viewport on a retina screen (canvas
+//     scaled to 3200 by devicePixelRatio) is preserved at native
+//     resolution with zero downscale. Even on 4K monitors at 100%
+//     scaling the captured page lives well inside the budget.
+//   - WebP at quality 0.97 — visually indistinguishable from PNG for
+//     screenshot text but a fraction of the file size.
+//   - JPEG fallback raised to 0.92 (matches the bake step's old
+//     ceiling) for the rare browser that silently rejects WebP.
+const MAX_WIDTH = 3200;
+const WEBP_QUALITY = 0.97;
+const JPEG_FALLBACK_QUALITY = 0.92;
 
 type CaptureResult = {
   dataUrl: string;
