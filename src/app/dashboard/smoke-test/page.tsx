@@ -7,6 +7,8 @@ import {
   ClipboardList,
   HelpCircle,
   Loader2,
+  ServerCog,
+  Users,
   XCircle,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
@@ -25,12 +27,20 @@ import { useToast } from "@/components/ui/toast";
  * `test_unreachable` signals respectively (0018 signal_sources).
  */
 
+type SmokeTestAssignee = "john" | "partners";
+
 type SmokeTestItem = {
   id: string;
   title: string;
   instructions: string;
   expected: string;
   reference_image_url?: string;
+  /** Who owns verifying this item. "john" = backend / infra surface
+   *  (Supabase, Vercel, chain inspection, LLM config) the owner handles
+   *  personally; partners observe but no action needed. "partners" =
+   *  UI / functional / observable behavior testers can verify end-to-end
+   *  without backend access. Defaults to "partners" when unset. */
+  assignee?: SmokeTestAssignee;
 };
 
 type SmokeTestVersion = {
@@ -216,19 +226,60 @@ function SmokeTestItemCard({
     </span>
   );
 
+  // Assignee defaults to "partners" so legacy items (no field set)
+  // behave the same as items explicitly tagged for the wider team.
+  const assignee: SmokeTestAssignee = item.assignee ?? "partners";
+  const johnOwns = assignee === "john";
+
   return (
     <div className="glass-card p-4">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-[10px] font-mono text-muted">
               #{String(index).padStart(2, "0")}
             </span>
             {statusBadge}
+            {johnOwns ? (
+              <span
+                className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-[#C8232C] bg-[#C8232C]/10 border border-[#C8232C]/30 px-1.5 py-0.5 rounded-full"
+                title="Backend / infra item — John handles this verification personally"
+              >
+                <ServerCog className="w-3 h-3" aria-hidden /> John
+              </span>
+            ) : (
+              <span
+                className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-arc-300 bg-arc-400/10 border border-arc-400/30 px-1.5 py-0.5 rounded-full"
+                title="Partners run this verification end-to-end"
+              >
+                <Users className="w-3 h-3" aria-hidden /> Partners
+              </span>
+            )}
           </div>
           <p className="text-sm font-semibold text-primary mb-1">{item.title}</p>
         </div>
       </div>
+
+      {/* Partner-facing note: John-owned items don't require partner
+          action, but partners should still SEE them on the record so
+          they know coverage is happening across the board. */}
+      {johnOwns && (
+        <div className="mb-3 rounded-lg border border-[#C8232C]/25 bg-[#C8232C]/5 px-3 py-2">
+          <p className="text-[11px] text-secondary leading-relaxed">
+            <ServerCog
+              className="inline w-3 h-3 text-brand mr-1 -mt-0.5"
+              aria-hidden
+            />
+            <span className="font-semibold text-brand">
+              Backend test — John handles this.
+            </span>{" "}
+            Partners don&apos;t have Supabase / Vercel access, so this one
+            isn&apos;t your action item. You can still submit a result if
+            you observe something worth noting.
+          </p>
+        </div>
+      )}
+
       <div className="text-xs text-secondary leading-relaxed space-y-1.5 mb-3">
         <p>
           <span className="text-muted font-mono">Steps:</span> {item.instructions}

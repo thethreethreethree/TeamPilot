@@ -197,6 +197,16 @@ export const SmokeTestResultSchema = z.object({
   feedback_id: z.string().uuid().optional().nullable(),
 });
 
+// Smoke-test item assignment.
+//   "john"     — backend/infra surface (Supabase, Vercel, chain inspection,
+//                LLM config). Partners can see + comment but the owner
+//                personally handles the verification.
+//   "partners" — UI / functional / observable behavior partners can
+//                verify end-to-end without backend access.
+// Defaults to "partners" since that's the common case; only call out
+// John-assigned items explicitly.
+export const SMOKE_TEST_ASSIGNEES = ["john", "partners"] as const;
+
 export const SmokeTestVersionSchema = z.object({
   label: z.string().min(1).max(200),
   items: z
@@ -207,6 +217,7 @@ export const SmokeTestVersionSchema = z.object({
         instructions: z.string().max(20_000),
         expected: z.string().max(20_000),
         reference_image_url: z.string().url().optional(),
+        assignee: z.enum(SMOKE_TEST_ASSIGNEES).optional().default("partners"),
       })
     )
     .min(1)
