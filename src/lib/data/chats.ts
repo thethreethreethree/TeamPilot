@@ -30,6 +30,9 @@ export interface ChatTopic {
   participantCount: number;
   messageCount: number;
   lastMessageAt: string | null;
+  /** Conversational Coach v1 opt-in flag — see migration 0019.
+   *  Defaults to false; topics created before 0019 backfill to false. */
+  coachEnabled: boolean;
 }
 
 export interface ChatMessage {
@@ -91,6 +94,7 @@ const seedDemoState = (): DemoState => ({
       participantCount: 4,
       messageCount: 5,
       lastMessageAt: "2025-05-31T15:32:00Z",
+      coachEnabled: false,
     },
     {
       id: "demo-topic-bottleneck",
@@ -109,6 +113,7 @@ const seedDemoState = (): DemoState => ({
       participantCount: 3,
       messageCount: 3,
       lastMessageAt: "2025-05-31T11:10:00Z",
+      coachEnabled: false,
     },
     {
       id: "demo-topic-resolved",
@@ -128,6 +133,7 @@ const seedDemoState = (): DemoState => ({
       participantCount: 5,
       messageCount: 4,
       lastMessageAt: "2025-05-08T14:00:00Z",
+      coachEnabled: false,
     },
   ],
   messages: {
@@ -372,7 +378,7 @@ export async function fetchTopics(): Promise<{
   const { data, error } = await supabase
     .from("chat_topics")
     .select(
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags"
+      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled"
     )
     .order("created_at", { ascending: false });
   if (error || !data) return { topics: [], mode: "live-empty" };
@@ -393,11 +399,57 @@ export async function fetchTopics(): Promise<{
     participantCount: 0,
     messageCount: 0,
     lastMessageAt: null,
+    coachEnabled: row.coach_enabled ?? false,
   }));
   return {
     topics,
     mode: topics.length === 0 ? "live-empty" : "live-data",
   };
+}
+
+/**
+ * Flip the Conversational Coach on/off for a topic.
+ *
+ * RLS on chat_topics already allows company members to update — we
+ * gate this further in the UI to topic admins only, since the toggle
+ * affects everyone's composer experience in the topic. The §4 readout
+ * sees the toggle indirectly via coach_enabled at the topic level
+ * (coached vs uncoached topic outcomes are the consequence measure).
+ *
+ * Emits a chain event so the §4 readout can attribute later outcomes
+ * to "Coach was active during the conversation" rather than blanket
+ * topic-level state — a topic that flips between coached and
+ * uncoached during its life is a confound to track.
+ */
+export async function toggleCoach(
+  topicId: string,
+  enabled: boolean
+): Promise<void> {
+  if (!supabaseEnabled) return;
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("chat_topics")
+    .update({ coach_enabled: enabled })
+    .eq("id", topicId);
+  if (error) throw new Error(error.message);
+  // Fire-and-forget audit event. Non-fatal.
+  void (async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("id", auth.user.id)
+      .maybeSingle();
+    if (!profile?.company_id) return;
+    await supabase.from("events").insert({
+      company_id: profile.company_id,
+      actor: auth.user.id,
+      kind: enabled ? "coach.enabled" : "coach.disabled",
+      subject: `chat_topic:${topicId}`,
+      payload: { enabled },
+    });
+  })();
 }
 
 export async function fetchTopic(id: string): Promise<ChatTopic | null> {
@@ -408,7 +460,7 @@ export async function fetchTopic(id: string): Promise<ChatTopic | null> {
   const { data } = await supabase
     .from("chat_topics")
     .select(
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags"
+      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled"
     )
     .eq("id", id)
     .maybeSingle();
@@ -429,6 +481,7 @@ export async function fetchTopic(id: string): Promise<ChatTopic | null> {
     participantCount: 0,
     messageCount: 0,
     lastMessageAt: null,
+    coachEnabled: data.coach_enabled ?? false,
   };
 }
 
@@ -653,6 +706,7 @@ export function demoCreateTopic(args: {
     participantCount: 1,
     messageCount: 0,
     lastMessageAt: null,
+      coachEnabled: false,
   };
   state.topics.unshift(topic);
   state.messages[topic.id] = [];
@@ -721,7 +775,7 @@ export async function createTopic(args: {
       created_by: ctx.userId,
     })
     .select(
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags"
+      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled"
     )
     .single();
   if (topicErr || !topicRow) {
@@ -761,6 +815,7 @@ export async function createTopic(args: {
     participantCount: 1,
     messageCount: 0,
     lastMessageAt: null,
+      coachEnabled: false,
   };
 }
 

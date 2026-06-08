@@ -6,6 +6,7 @@ import {
   postMessage,
   reviewDurability,
   togglePin,
+  toggleCoach,
   fetchMessages,
   fetchParticipants,
   fetchTopic,
@@ -43,6 +44,8 @@ import { ReviewOutcomeModal } from "@/components/chats/ReviewOutcomeModal";
 import { SummarizeModal } from "@/components/chats/SummarizeModal";
 import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
 import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
+import { CoachPanel } from "@/components/chats/CoachPanel";
+import { BookOpen, BookOpenCheck } from "lucide-react";
 
 export default function TeamChatTopicPage() {
   const params = useParams<{ id: string }>();
@@ -278,6 +281,46 @@ export default function TeamChatTopicPage() {
             )}
             {iAmAdmin && !isClosed && (
               <button
+                onClick={async () => {
+                  // Optimistic flip — we know RLS accepts admins via
+                  // chat_topics update policy already in place. If
+                  // the row update fails the next refresh will revert.
+                  const next = !topic.coachEnabled;
+                  setTopic({ ...topic, coachEnabled: next });
+                  await toggleCoach(topic.id, next).catch(() => {
+                    setTopic({ ...topic, coachEnabled: !next });
+                    toast.error("Couldn't toggle Coach");
+                  });
+                  toast.success(
+                    next
+                      ? "Conversational Coach: on"
+                      : "Conversational Coach: off",
+                    next
+                      ? "Heuristic citations will surface as you draft."
+                      : "Composer returns to default behavior."
+                  );
+                }}
+                title={
+                  topic.coachEnabled
+                    ? "Coach is on — citations surface as you draft. Click to turn off."
+                    : "Coach is off — click to turn on. Default OFF so the §4 readout has a clean A/B."
+                }
+                className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors border ${
+                  topic.coachEnabled
+                    ? "text-brand border-[#C8232C]/40 hover:border-[#C8232C]/70 bg-[#C8232C]/5"
+                    : "text-secondary border-default hover:border-strong"
+                }`}
+              >
+                {topic.coachEnabled ? (
+                  <BookOpenCheck className="w-3 h-3" aria-hidden />
+                ) : (
+                  <BookOpen className="w-3 h-3" aria-hidden />
+                )}
+                Coach: {topic.coachEnabled ? "on" : "off"}
+              </button>
+            )}
+            {iAmAdmin && !isClosed && (
+              <button
                 onClick={() => setClosingOpen(true)}
                 className="flex items-center gap-1.5 text-xs text-accent-text hover:text-accent-text border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1.5 rounded-lg transition-colors"
               >
@@ -424,6 +467,17 @@ export default function TeamChatTopicPage() {
             onSubmit={handleSubmit}
             className="max-w-5xl mx-auto"
           >
+            {/* Conversational Coach v1 — only rendered when the topic
+                has opted in (coach_enabled = true). A3 default-OFF so
+                the §4 readout has a clean A/B between coached and
+                uncoached topics. */}
+            {topic.coachEnabled && (
+              <CoachPanel
+                topicId={topic.id}
+                draft={draft}
+                onRefine={() => inputRef.current?.focus()}
+              />
+            )}
             <div className="bg-surface border border-default rounded-xl focus-within:border-crimson-500/40 transition-colors">
               <textarea
                 ref={inputRef}
