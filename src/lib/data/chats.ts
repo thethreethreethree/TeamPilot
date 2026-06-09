@@ -852,6 +852,20 @@ export async function postMessage(args: {
     .single();
   if (error || !data) throw new Error(error?.message ?? "Post failed.");
 
+  // Coach v2 (mirror frame, asset A11) — log per-heuristic pattern
+  // observations on the FINAL posted text. The mirror chip in the
+  // composer reads these durable counts back to decide whether to
+  // surface itself on the next draft. Async fire-and-forget; if it
+  // fails the post still stands.
+  if (args.kind !== "summary" && args.body) {
+    void import("@/lib/coach/observe").then(({ observePatterns }) =>
+      observePatterns({
+        subject: `chat_topic:${args.topicId}`,
+        bodyText: args.body,
+      })
+    );
+  }
+
   // Resolve poster's display name. Override beats summary-system-author
   // beats cached profile name beats email. The cached full_name in ctx
   // saves the profile lookup that used to run per-post.

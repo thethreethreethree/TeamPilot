@@ -52,6 +52,10 @@ type Common = {
   subject: string;
   citation: CoachCitation;
   draftExcerpt: string;
+  /** Total pattern count (past observations + current draft hit) at
+   *  the moment this event fires. Mirror-frame instrumentation per A11
+   *  — lets the §4 readout compare accept rates by count threshold. */
+  mirrorCount: number;
 };
 
 async function emitOne(kind: string, opts: Common): Promise<void> {
@@ -72,6 +76,10 @@ async function emitOne(kind: string, opts: Common): Promise<void> {
       kind,
       subject: opts.subject,
       payload: {
+        // mode == "mirror" since Coach v2; "verdict" events are
+        // historical (Coach v1) and won't fire from current code.
+        mode: "mirror",
+        mirror_count: opts.mirrorCount,
         heuristic_id: opts.citation.id,
         heuristic_source: opts.citation.source,
         heuristic_label: opts.citation.label,

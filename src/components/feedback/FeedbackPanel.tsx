@@ -245,6 +245,18 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
         toast.error("Couldn't submit", data.error ?? `HTTP ${res.status}`);
         return;
       }
+      // Coach v2 (mirror, A11) — log per-heuristic observations on the
+      // final feedback body. Subject is the feedback id when the API
+      // returns it; otherwise stays generic. Async, non-blocking.
+      const submitted = (await res.json().catch(() => ({}))) as {
+        id?: string;
+      };
+      const fbSubject = submitted.id
+        ? `feedback:${submitted.id}`
+        : "feedback:draft";
+      void import("@/lib/coach/observe").then(({ observePatterns }) =>
+        observePatterns({ subject: fbSubject, bodyText: body.trim() })
+      );
       setDone(true);
       toast.success("Feedback received", "Thanks — it's now on the record.");
     } catch (err) {

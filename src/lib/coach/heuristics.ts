@@ -34,6 +34,71 @@ export type CoachCitation = {
   triggerExcerpt: string;
 };
 
+/**
+ * Per-heuristic threshold for the mirror frame (v2).
+ *
+ * Coach v2 (mirror) — the chip surfaces only when the running count
+ * of past + current-draft hits >= threshold. The chip content reports
+ * the count and asks the user a question; it never asserts a verdict.
+ *
+ * Identity-collision has a lower threshold because identity attacks
+ * carry higher stakes — a single occurrence is worth surfacing. The
+ * mirror still doesn't judge it ("first occurrence — intentional, or
+ * pattern starting?"), but the surfacing fires earlier.
+ *
+ * Per asset A4 (defer uncertainties to evidence), these starting
+ * values are recorded as §4 readout questions, not pre-decisions.
+ * The readout shows per-heuristic accept rate by threshold so we can
+ * tune later from real data.
+ */
+export const COACH_THRESHOLDS: Record<CoachCitation["id"], number> = {
+  "nvc-evaluation": 3,
+  "voss-bare-assertion": 3,
+  "stone-identity-collision": 1,
+};
+
+/**
+ * Build the count + question chip text for the mirror frame.
+ * Replaces the v1 verdict assertion ("Reads as evaluation").
+ *
+ * The shape is always:
+ *   <pattern summary including count> + <question, never a judgment>
+ *
+ * The user is the one rendering the verdict. The System reports a
+ * fact (a count) and asks. See A11 (revised).
+ */
+export function mirrorChipText(
+  citationId: CoachCitation["id"],
+  totalCount: number,
+  contextLabel: string = "this thread"
+): { label: string; question: string } {
+  const n = totalCount;
+  const occ = n === 1 ? "once" : `${n} times`;
+  switch (citationId) {
+    case "nvc-evaluation":
+      return {
+        label: `Absolute / judgmental phrasing — ${occ} in ${contextLabel}`,
+        question: n === 1
+          ? "First occurrence — pattern starting, or fair callback to a real situation?"
+          : "Pattern, or fair callbacks to a real situation?",
+      };
+    case "voss-bare-assertion":
+      return {
+        label: `Assertion before label — ${occ} in ${contextLabel}`,
+        question: n === 1
+          ? "First occurrence — has the other side already been heard, or worth opening with a label?"
+          : "Pattern, or has the other side already been heard each time?",
+      };
+    case "stone-identity-collision":
+      return {
+        label: `Critique of person, not behavior — ${occ} in ${contextLabel}`,
+        question: n === 1
+          ? "First occurrence — intentional escalation, or worth trading 'who they are' for 'what happened'?"
+          : "Pattern — worth pausing on, or all intentional?",
+      };
+  }
+}
+
 const NVC_EVALUATION_PATTERNS: ReadonlyArray<RegExp> = [
   // Absolutes about people/situations.
   /\b(always|never|constantly|forever|whenever)\b/i,

@@ -153,6 +153,14 @@ export default function CoachReadoutPage() {
             does not present a verdict. The reader interprets.
           </p>
           <p className="text-[11px] text-muted leading-relaxed mt-2">
+            <span className="font-semibold text-brand">Coach v2 — mirror frame:</span>{" "}
+            chips no longer assert a verdict on a single draft. They
+            surface a per-user pattern count drawn from the §3.1 record
+            (past <code className="font-mono">coach.pattern_observed</code>{" "}
+            events) and ask a question. The user renders the verdict; the
+            System only reports a count. Asset A11 in the Library.
+          </p>
+          <p className="text-[11px] text-muted leading-relaxed mt-2">
             What would falsify the Coach: at N ≥ {COACHED_TOPIC_THRESHOLD}{" "}
             coached topics, the held-resolution rate is no better than
             uncoached. Or at N ≥ {HEURISTIC_OFFERED_THRESHOLD} offered

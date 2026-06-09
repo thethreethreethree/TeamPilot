@@ -2,38 +2,45 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, X } from "lucide-react";
-import { detectAll, type CoachCitation } from "@/lib/coach/heuristics";
+import {
+  detectAll,
+  mirrorChipText,
+  COACH_THRESHOLDS,
+  type CoachCitation,
+} from "@/lib/coach/heuristics";
 import {
   emitCoachOffered,
   emitCoachAccepted,
   emitCoachDismissed,
 } from "@/lib/coach/emit";
+import { fetchPatternCounts } from "@/lib/coach/counts";
 
 /**
- * CoachPanel — surfaces a heuristic citation when the user's draft
- * triggers one of the Coach detectors.
+ * CoachPanel — v2 (mirror frame).
  *
- * Constitutional shape (per ThinkerThinker Asset A3):
- *   - Citation, not auto-rewrite. The user keeps authorship.
- *   - Three actions: Refine (apply suggestion), Keep (dismiss with
- *     reason), or just ignore. Send-through always allowed.
+ * Per asset A11: the System does not judge; it mirrors. The chip no
+ * longer asserts a verdict on the user's draft ("Reads as evaluation").
+ * Instead it surfaces a COUNT of past + current-draft occurrences of
+ * the heuristic's pattern, asks the user a question, and lets them
+ * render the verdict.
  *
- * Lifecycle in chain:
- *   - First trigger of a heuristic on this draft → coach.suggestion_offered
- *   - User clicks "Refine and revise" → component clears, parent
- *     can splice the suggestion into the textarea; we wait to emit
- *     accepted/dismissed until the user takes the terminal action
- *     (send or further-refine-leads-to-no-trigger).
- *   - User dismisses via X → coach.suggestion_dismissed
+ * Lifecycle:
+ *   1. On mount (and when subject changes), load past
+ *      `coach.pattern_observed` events for (current user, subject,
+ *      each heuristic) from the §3.1 chain. These are counts of
+ *      hits on POSTED messages — durable record, not draft state.
+ *   2. On every (debounced) draft change, run detectors. For each
+ *      heuristic hit on the current draft, add 1 to the past count.
+ *   3. If the running total ≥ the heuristic's threshold, surface
+ *      the mirror chip with the count + a question. Otherwise no
+ *      chip.
+ *   4. The first surface of a chip emits coach.suggestion_offered
+ *      with mode="mirror" and mirror_count = total. Accept /
+ *      dismiss emit the same way as v1.
  *
- * The visible chip is one citation at a time (highest priority first
- * — identity > evaluation > assertion). Suppressed lower-priority
- * triggers still emit `offered` so the readout sees them.
- *
- * NB: the component is purely additive — when the topic has
- * coach_enabled = false, parent doesn't render this at all and the
- * composer behaves exactly like before. That's the A3 default-OFF
- * discipline.
+ * NOTE: this component does NOT log new pattern_observed events
+ * itself — those land via `observePatterns` called from the
+ * surface's post handler (chat post, task post, feedback submit).
  */
 
 const DEBOUNCE_MS = 350;
@@ -45,56 +52,83 @@ export function CoachPanel({
 }: {
   /** Chain-event subject — see emit.ts for the convention. Examples:
    *  "chat_topic:<id>", "task:<id>", "decision:<id>", "feedback:draft",
-   *  "smoke_test_result:draft". The readout buckets by the prefix
-   *  before `:` so new surfaces auto-appear. */
+   *  "smoke_test_result:draft". */
   subject: string;
   draft: string;
   /** Called when the user accepts a suggestion. Parent can use the
    *  callback to (e.g.) focus the textarea so the user can rewrite. */
   onRefine?: (citation: CoachCitation) => void;
 }) {
-  const [active, setActive] = useState<CoachCitation | null>(null);
+  const [active, setActive] = useState<{
+    citation: CoachCitation;
+    count: number;
+  } | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [pastCounts, setPastCounts] = useState<
+    Partial<Record<CoachCitation["id"], number>>
+  >({});
   const lastFiredIdRef = useRef<string | null>(null);
   const debounceRef = useRef<number | null>(null);
+
   // `subject` is often a template literal in callers (`task:${id}`)
-  // which creates a new string identity on every parent render. We
-  // stash it in a ref so the debounce useEffect only re-runs on draft
-  // changes — not on every parent re-render. Same pattern keeps the
-  // emit subject current when it does change (e.g., transitioning
-  // task:draft → task:<id> after a create).
+  // which creates a new string identity on every parent render. Ref
+  // pattern keeps the emit subject current without re-running the
+  // debounce effect on every parent render.
   const subjectRef = useRef(subject);
   useEffect(() => {
     subjectRef.current = subject;
   }, [subject]);
 
-  // Re-run detectors on debounced draft. We don't want to fire an
-  // offered event on every keystroke — that would flood the chain
-  // and over-count the same draft state. Debounce + suppress
-  // duplicates (only fire offered when the detected heuristic id
-  // changes for this draft).
+  // Load past pattern counts on mount + when subject actually changes
+  // (not on every render — useEffect deps are simple primitives).
+  useEffect(() => {
+    let cancelled = false;
+    void fetchPatternCounts({ subject }).then((counts) => {
+      if (!cancelled) setPastCounts(counts);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [subject]);
+
+  // Re-run detectors on debounced draft. For each hit, combine with
+  // the past count to decide whether the mirror threshold is crossed.
   useEffect(() => {
     if (debounceRef.current !== null) {
       window.clearTimeout(debounceRef.current);
     }
     debounceRef.current = window.setTimeout(() => {
-      const all = detectAll(draft);
-      const top = all[0] ?? null;
-      setActive(top);
-      if (top && top.id !== lastFiredIdRef.current) {
-        lastFiredIdRef.current = top.id;
-        // Emit one offered event per UNIQUE heuristic that triggered
-        // on this draft session. Suppressed (lower-priority) triggers
-        // also emit so the readout sees the full picture.
-        for (const c of all) {
-          void emitCoachOffered({
-            subject: subjectRef.current,
-            citation: c,
-            draftExcerpt: draft,
-          });
+      const hits = detectAll(draft);
+      if (hits.length === 0) {
+        setActive(null);
+        lastFiredIdRef.current = null;
+        return;
+      }
+      // Walk hits in priority order; surface the highest-priority
+      // hit whose running total clears its threshold.
+      let surfaced: { citation: CoachCitation; count: number } | null = null;
+      for (const c of hits) {
+        const past = pastCounts[c.id] ?? 0;
+        const total = past + 1; // +1 for the current draft hit
+        const threshold = COACH_THRESHOLDS[c.id];
+        if (total >= threshold) {
+          surfaced = { citation: c, count: total };
+          break;
         }
       }
-      if (!top) {
+      setActive(surfaced);
+      if (surfaced && surfaced.citation.id !== lastFiredIdRef.current) {
+        lastFiredIdRef.current = surfaced.citation.id;
+        // Emit one offered event per UNIQUE heuristic surfaced in
+        // this draft session, with the mirror count for the readout.
+        void emitCoachOffered({
+          subject: subjectRef.current,
+          citation: surfaced.citation,
+          draftExcerpt: draft,
+          mirrorCount: surfaced.count,
+        });
+      }
+      if (!surfaced) {
         lastFiredIdRef.current = null;
       }
     }, DEBOUNCE_MS);
@@ -103,17 +137,20 @@ export function CoachPanel({
         window.clearTimeout(debounceRef.current);
       }
     };
-  }, [draft]);
+  }, [draft, pastCounts]);
 
   if (!active) return null;
+
+  const text = mirrorChipText(active.citation.id, active.count);
 
   const refine = () => {
     void emitCoachAccepted({
       subject: subjectRef.current,
-      citation: active,
+      citation: active.citation,
       draftExcerpt: draft,
+      mirrorCount: active.count,
     });
-    onRefine?.(active);
+    onRefine?.(active.citation);
     setActive(null);
     setExpanded(false);
   };
@@ -121,8 +158,9 @@ export function CoachPanel({
   const dismiss = () => {
     void emitCoachDismissed({
       subject: subjectRef.current,
-      citation: active,
+      citation: active.citation,
       draftExcerpt: draft,
+      mirrorCount: active.count,
     });
     setActive(null);
     setExpanded(false);
@@ -132,7 +170,7 @@ export function CoachPanel({
     <div
       className="mb-2 border border-[#C8232C]/30 bg-[#C8232C]/5 rounded-lg px-3 py-2"
       role="region"
-      aria-label="Conversational coach suggestion"
+      aria-label="Conversational coach mirror"
     >
       <div className="flex items-start gap-2">
         <BookOpen
@@ -146,19 +184,19 @@ export function CoachPanel({
             className="text-left w-full"
           >
             <p className="text-xs text-primary font-semibold mb-0.5">
-              {active.label}
+              {text.label}
             </p>
-            <p className="text-[10px] text-muted font-mono uppercase tracking-widest">
-              {active.source}
+            <p className="text-[11px] text-secondary leading-relaxed">
+              {text.question}
             </p>
           </button>
           {expanded && (
             <div className="mt-2 space-y-2">
-              <p className="text-[11px] text-secondary leading-relaxed">
-                {active.principle}
+              <p className="text-[10px] text-muted font-mono uppercase tracking-widest">
+                {active.citation.source}
               </p>
               <p className="text-[11px] text-secondary leading-relaxed italic border-l-2 border-[#C8232C]/40 pl-2">
-                {active.suggestion}
+                {active.citation.principle}
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <button
@@ -173,7 +211,7 @@ export function CoachPanel({
                   onClick={dismiss}
                   className="text-[11px] text-muted hover:text-secondary"
                 >
-                  Keep as-is
+                  Keep as-is — pattern is intentional
                 </button>
               </div>
             </div>
@@ -182,7 +220,7 @@ export function CoachPanel({
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Dismiss coach suggestion"
+          aria-label="Dismiss coach mirror"
           className="text-muted hover:text-secondary p-0.5"
         >
           <X className="w-3.5 h-3.5" aria-hidden />

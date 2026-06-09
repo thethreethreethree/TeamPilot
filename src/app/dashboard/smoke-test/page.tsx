@@ -140,6 +140,16 @@ export default function SmokeTestPage() {
       toast.error("Submit failed", data.error ?? `HTTP ${res.status}`);
       return;
     }
+    // Coach v2 mirror (A11) — log per-heuristic observations on the
+    // submitted note so the next note's mirror chip has fresh counts.
+    if (notes && notes.trim().length >= 6) {
+      void import("@/lib/coach/observe").then(({ observePatterns }) =>
+        observePatterns({
+          subject: `smoke_test_result:draft:${item.id}`,
+          bodyText: notes,
+        })
+      );
+    }
     toast.success(
       status === "pass" ? "Marked pass" : status === "fail" ? "Marked fail" : "Marked unable"
     );

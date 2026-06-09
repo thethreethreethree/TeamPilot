@@ -308,6 +308,16 @@ export async function postTaskMessage(args: {
 
   void recordEngagement(args.taskId);
 
+  // Coach v2 (mirror frame, A11) — log per-heuristic observations on
+  // the FINAL posted text so the next draft's mirror chip has fresh
+  // counts to compare against.
+  void import("@/lib/coach/observe").then(({ observePatterns }) =>
+    observePatterns({
+      subject: `task:${args.taskId}`,
+      bodyText: args.body,
+    })
+  );
+
   return {
     id: data.id,
     taskId: data.task_id,
