@@ -163,6 +163,18 @@ const ALLOWLIST = new Map([
     "smoke_test_results.delete",
     "§3.1 append-only. Test results are permanent measurement record.",
   ],
+  [
+    "task_messages.update",
+    "§3.1 append-only. The task thread is the record — no edits, no deletes.",
+  ],
+  [
+    "task_messages.delete",
+    "§3.1 append-only. The task thread is the record — no edits, no deletes.",
+  ],
+  [
+    "task_participants.delete",
+    "Participants leave a task by setting left_at, never by deletion. Engagement history (last_engaged_at, engagement_count) is constitutional record per A10 transparency.",
+  ],
 ]);
 
 // ─── Parse migrations ─────────────────────────────────────────────────

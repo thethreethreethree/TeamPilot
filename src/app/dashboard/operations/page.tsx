@@ -8,8 +8,6 @@ import { supabaseEnabled } from "@/lib/supabase/client";
 import Modal from "@/components/ui/Modal";
 import { Field, Input, Textarea, Select } from "@/components/ui/Field";
 import ExportMenu from "@/components/ui/ExportMenu";
-import { CoachPanel } from "@/components/chats/CoachPanel";
-import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -76,7 +74,6 @@ export default function OperationsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [members, setMembers] = useState<TeamMember[]>([]);
-  const { enabled: coachEnabled } = useCoachEnabled();
 
   const refresh = async () => {
     setLoading(true);
@@ -267,14 +264,22 @@ export default function OperationsPage() {
                 {filtered.map((t) => (
                   <tr key={t.id} className="hover:bg-surface transition-colors group">
                     <td className="py-3 pr-4">
-                      <div>
-                        <p className="text-sm font-medium text-primary group-hover:text-white transition-colors">
+                      <a
+                        href={`/dashboard/operations/${t.id}`}
+                        className="block"
+                      >
+                        <p className="text-sm font-medium text-primary group-hover:text-brand transition-colors">
                           {t.title}
+                          {!t.gateCleared && (
+                            <span className="ml-2 text-[9px] uppercase tracking-widest text-accent-text bg-gold-400/15 border border-gold-400/40 px-1.5 py-0.5 rounded">
+                              gate
+                            </span>
+                          )}
                         </p>
                         {t.blockerReason && (
                           <p className="text-xs text-red-400 mt-0.5">⚠ {t.blockerReason}</p>
                         )}
-                      </div>
+                      </a>
                     </td>
                     <td className="py-3 pr-4">
                       <span className="text-xs text-muted">{t.department ?? "—"}</span>
@@ -346,16 +351,12 @@ export default function OperationsPage() {
             />
           </Field>
           <Field label="Description">
-            {/* Coach v1.1 — surfaces in tasks when companies.coach_enabled
-                is true. Subject uses the existing task id for edit, or
-                `task:draft` for create (no id yet). The §4 readout buckets
-                events by surface; both paths attribute to "task". */}
-            {coachEnabled && (
-              <CoachPanel
-                subject={editing ? `task:${editing.id}` : "task:draft"}
-                draft={draft.description}
-              />
-            )}
+            {/* Coach used to mount here. Removed — the Coach belongs
+                inside the task's communication thread (built in v1),
+                not on the description field at create time. A task's
+                description is a *gate question* answer, not a
+                conversation, so the Coach has no thread to surface
+                against here. See A6 in ThinkerThinker.md. */}
             <Textarea
               value={draft.description}
               onChange={(e) =>
