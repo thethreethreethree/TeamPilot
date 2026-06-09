@@ -45,6 +45,7 @@ import { SummarizeModal } from "@/components/chats/SummarizeModal";
 import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
 import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import { BookOpen, BookOpenCheck } from "lucide-react";
 
 export default function TeamChatTopicPage() {
@@ -58,6 +59,11 @@ export default function TeamChatTopicPage() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Company-level Coach master switch. When ON, the Coach activates
+  // in every topic regardless of the per-topic flag. Per-topic
+  // remains as a fallback when company-level is OFF (the existing
+  // chat-only opt-in path from migration 0019).
+  const { enabled: companyCoachOn } = useCoachEnabled();
   const [showParticipants, setShowParticipants] = useState(false);
   const [closingOpen, setClosingOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -282,6 +288,13 @@ export default function TeamChatTopicPage() {
             {iAmAdmin && !isClosed && (
               <button
                 onClick={async () => {
+                  // No-op when the company-wide switch is on —
+                  // toggling per-topic has no effect since the master
+                  // switch already activates Coach everywhere. We
+                  // disable the click so users don't get a confusing
+                  // "I just turned it off but it's still showing"
+                  // experience.
+                  if (companyCoachOn) return;
                   // Optimistic flip — we know RLS accepts admins via
                   // chat_topics update policy already in place. If
                   // the row update fails the next refresh will revert.
@@ -300,23 +313,26 @@ export default function TeamChatTopicPage() {
                       : "Composer returns to default behavior."
                   );
                 }}
+                disabled={companyCoachOn}
                 title={
-                  topic.coachEnabled
-                    ? "Coach is on — citations surface as you draft. Click to turn off."
-                    : "Coach is off — click to turn on. Default OFF so the §4 readout has a clean A/B."
+                  companyCoachOn
+                    ? "Coach is on company-wide (admin set this in Settings). The per-topic toggle has no effect while company-wide is on."
+                    : topic.coachEnabled
+                      ? "Coach is on for this topic. Click to turn off."
+                      : "Coach is off for this topic. Click to turn on. Default OFF per §4 readout discipline."
                 }
                 className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors border ${
-                  topic.coachEnabled
+                  companyCoachOn || topic.coachEnabled
                     ? "text-brand border-[#C8232C]/40 hover:border-[#C8232C]/70 bg-[#C8232C]/5"
                     : "text-secondary border-default hover:border-strong"
-                }`}
+                } ${companyCoachOn ? "cursor-default opacity-90" : ""}`}
               >
-                {topic.coachEnabled ? (
+                {companyCoachOn || topic.coachEnabled ? (
                   <BookOpenCheck className="w-3 h-3" aria-hidden />
                 ) : (
                   <BookOpen className="w-3 h-3" aria-hidden />
                 )}
-                Coach: {topic.coachEnabled ? "on" : "off"}
+                Coach: {companyCoachOn ? "on (company)" : topic.coachEnabled ? "on" : "off"}
               </button>
             )}
             {iAmAdmin && !isClosed && (
@@ -471,7 +487,12 @@ export default function TeamChatTopicPage() {
                 has opted in (coach_enabled = true). A3 default-OFF so
                 the §4 readout has a clean A/B between coached and
                 uncoached topics. */}
-            {topic.coachEnabled && (
+            {/* Coach surface here = (company-wide flag OR per-topic flag).
+                Company-wide is the master switch the user flipped under
+                /dashboard/settings; per-topic is the v1 fallback that
+                lets an admin enable Coach in a specific topic when the
+                company-wide switch is OFF. */}
+            {(companyCoachOn || topic.coachEnabled) && (
               <CoachPanel
                 subject={`chat_topic:${topic.id}`}
                 draft={draft}
