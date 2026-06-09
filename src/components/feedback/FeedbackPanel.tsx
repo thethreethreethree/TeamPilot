@@ -122,19 +122,28 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
   // While the screenshot editor is open, the editor owns Esc — let it
   // handle the key and skip our own handler so we don't tear down the
   // whole panel when the user just wants out of annotation mode.
+  // Body scroll lock — runs once on mount / cleans up on unmount.
+  // Don't bind to onClose / editingScreenshot deps; doing so was
+  // the same bug class as the Modal (parent passing a new onClose
+  // reference every render thrashed the scroll lock).
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  // Esc handler — rebound when onClose / editingScreenshot change
+  // so we always read the latest values. No scroll-lock side effects
+  // here; those belong to the mount effect above.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editingScreenshot) return;
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    // Lock scroll on body while open.
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose, editingScreenshot]);
 
   // Clipboard paste handler — Ctrl+V (Windows/Linux) or Cmd+V (macOS)

@@ -34,6 +34,14 @@ export default function Modal({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
+  // Open/close lifecycle — runs ONLY when `open` flips, not on every
+  // parent re-render. This was the cause of the "X-button-steals-focus
+  // on every keystroke" bug: when this effect listed `onClose` in its
+  // dep array, every parent render that created a new `onClose`
+  // reference caused the effect to re-run, which scheduled a fresh
+  // requestAnimationFrame that focused the first focusable inside the
+  // dialog (the close X). Splitting the keydown listener (which DOES
+  // need the latest `onClose`) from the focus-init keeps both correct.
   useEffect(() => {
     if (!open) return;
 
@@ -42,6 +50,34 @@ export default function Modal({
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    // Initial focus: prefer inputs / textareas / selects before
+    // buttons so opening a form modal lands the cursor in the first
+    // field, not on the close X. The button fallback handles modals
+    // that have no input controls (confirmation dialogs, etc.).
+    requestAnimationFrame(() => {
+      const root = dialogRef.current;
+      if (!root) return;
+      const first =
+        root.querySelector<HTMLElement>(
+          'input:not([disabled]), textarea:not([disabled]), select:not([disabled])'
+        ) ??
+        root.querySelector<HTMLElement>('button:not([disabled]):not([aria-label="Close"])') ??
+        root.querySelector<HTMLElement>('button:not([disabled])');
+      first?.focus();
+    });
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      restoreFocusRef.current?.focus?.();
+    };
+  }, [open]);
+
+  // Keydown listener — re-bound when `onClose` identity changes so
+  // Escape always calls the latest closer. This effect intentionally
+  // does NOT touch focus or body scroll; that work belongs to the
+  // open-lifecycle effect above.
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -66,24 +102,8 @@ export default function Modal({
         first.focus();
       }
     };
-
     document.addEventListener("keydown", onKey);
-
-    // Initial focus: first focusable inside the dialog
-    requestAnimationFrame(() => {
-      const root = dialogRef.current;
-      if (!root) return;
-      const first = root.querySelector<HTMLElement>(
-        'input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])'
-      );
-      first?.focus();
-    });
-
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = originalOverflow;
-      restoreFocusRef.current?.focus?.();
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   if (!open) return null;

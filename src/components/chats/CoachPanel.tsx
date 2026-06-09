@@ -57,6 +57,16 @@ export function CoachPanel({
   const [expanded, setExpanded] = useState(false);
   const lastFiredIdRef = useRef<string | null>(null);
   const debounceRef = useRef<number | null>(null);
+  // `subject` is often a template literal in callers (`task:${id}`)
+  // which creates a new string identity on every parent render. We
+  // stash it in a ref so the debounce useEffect only re-runs on draft
+  // changes — not on every parent re-render. Same pattern keeps the
+  // emit subject current when it does change (e.g., transitioning
+  // task:draft → task:<id> after a create).
+  const subjectRef = useRef(subject);
+  useEffect(() => {
+    subjectRef.current = subject;
+  }, [subject]);
 
   // Re-run detectors on debounced draft. We don't want to fire an
   // offered event on every keystroke — that would flood the chain
@@ -78,7 +88,7 @@ export function CoachPanel({
         // also emit so the readout sees the full picture.
         for (const c of all) {
           void emitCoachOffered({
-            subject,
+            subject: subjectRef.current,
             citation: c,
             draftExcerpt: draft,
           });
@@ -93,13 +103,13 @@ export function CoachPanel({
         window.clearTimeout(debounceRef.current);
       }
     };
-  }, [draft, subject]);
+  }, [draft]);
 
   if (!active) return null;
 
   const refine = () => {
     void emitCoachAccepted({
-      subject,
+      subject: subjectRef.current,
       citation: active,
       draftExcerpt: draft,
     });
@@ -110,7 +120,7 @@ export function CoachPanel({
 
   const dismiss = () => {
     void emitCoachDismissed({
-      subject,
+      subject: subjectRef.current,
       citation: active,
       draftExcerpt: draft,
     });

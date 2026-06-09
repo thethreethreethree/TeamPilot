@@ -191,13 +191,23 @@ export default function CommandPalette() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // Local keyboard handling while open
+  // Open lifecycle (focus + body scroll) — runs only on `open` change
+  // to avoid re-focusing on every keystroke. Same fix shape as Modal.
   useEffect(() => {
     if (!open) return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     requestAnimationFrame(() => inputRef.current?.focus());
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [open]);
 
+  // Keydown listener — re-bound when filtered/active/close/runAction
+  // change so the latest closure is used. No focus or body-scroll
+  // side effects here; those belong to the open-lifecycle effect.
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -223,10 +233,7 @@ export default function CommandPalette() {
       }
     };
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = originalOverflow;
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [open, filtered, active, close, runAction]);
 
   // Scroll active row into view
