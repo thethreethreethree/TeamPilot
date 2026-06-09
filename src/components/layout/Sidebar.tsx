@@ -11,6 +11,7 @@ import {
   Megaphone,
   MessageSquare,
   MessageSquarePlus,
+  BookOpen,
   ClipboardList,
   Brain,
   Settings,
@@ -49,6 +50,11 @@ const adminNav = [
     label: "Feedback inbox",
     href: "/dashboard/admin/feedback",
     icon: MessageSquarePlus,
+  },
+  {
+    label: "Coach readout",
+    href: "/dashboard/admin/coach-readout",
+    icon: BookOpen,
   },
 ];
 
