@@ -15,6 +15,8 @@ import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { MentionInput, type MentionMember } from "@/components/ui/MentionInput";
 import { fetchTeam } from "@/lib/data/team";
+import { CoachPanel } from "@/components/chats/CoachPanel";
+import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 /**
  * /dashboard/smoke-test
@@ -220,6 +222,7 @@ function SmokeTestItemCard({
 }) {
   const [notes, setNotes] = useState(result?.notes ?? "");
   const [pending, setPending] = useState<null | "pass" | "fail" | "unable">(null);
+  const { enabled: coachEnabled } = useCoachEnabled();
 
   const wrap = async (status: "pass" | "fail" | "unable") => {
     setPending(status);
@@ -313,6 +316,16 @@ function SmokeTestItemCard({
         </p>
       </div>
       <div className="mb-3">
+        {/* Coach v1.1 — surfaces in smoke-test notes when company-
+            level coach_enabled is true. Subject is `smoke_test_result:
+            draft` (no row id yet). The §4 readout buckets by surface
+            prefix so smoke test notes attribute cleanly. */}
+        {coachEnabled && (
+          <CoachPanel
+            subject={`smoke_test_result:draft:${item.id}`}
+            draft={notes}
+          />
+        )}
         <MentionInput
           value={notes}
           onChange={setNotes}

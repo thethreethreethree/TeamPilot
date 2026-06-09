@@ -473,7 +473,7 @@ export default function TeamChatTopicPage() {
                 uncoached topics. */}
             {topic.coachEnabled && (
               <CoachPanel
-                topicId={topic.id}
+                subject={`chat_topic:${topic.id}`}
                 draft={draft}
                 onRefine={() => inputRef.current?.focus()}
               />

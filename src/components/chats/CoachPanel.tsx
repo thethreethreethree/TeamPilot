@@ -39,11 +39,15 @@ import {
 const DEBOUNCE_MS = 350;
 
 export function CoachPanel({
-  topicId,
+  subject,
   draft,
   onRefine,
 }: {
-  topicId: string;
+  /** Chain-event subject — see emit.ts for the convention. Examples:
+   *  "chat_topic:<id>", "task:<id>", "decision:<id>", "feedback:draft",
+   *  "smoke_test_result:draft". The readout buckets by the prefix
+   *  before `:` so new surfaces auto-appear. */
+  subject: string;
   draft: string;
   /** Called when the user accepts a suggestion. Parent can use the
    *  callback to (e.g.) focus the textarea so the user can rewrite. */
@@ -74,7 +78,7 @@ export function CoachPanel({
         // also emit so the readout sees the full picture.
         for (const c of all) {
           void emitCoachOffered({
-            topicId,
+            subject,
             citation: c,
             draftExcerpt: draft,
           });
@@ -89,13 +93,13 @@ export function CoachPanel({
         window.clearTimeout(debounceRef.current);
       }
     };
-  }, [draft, topicId]);
+  }, [draft, subject]);
 
   if (!active) return null;
 
   const refine = () => {
     void emitCoachAccepted({
-      topicId,
+      subject,
       citation: active,
       draftExcerpt: draft,
     });
@@ -106,7 +110,7 @@ export function CoachPanel({
 
   const dismiss = () => {
     void emitCoachDismissed({
-      topicId,
+      subject,
       citation: active,
       draftExcerpt: draft,
     });

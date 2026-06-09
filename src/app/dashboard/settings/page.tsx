@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import { LlmConnectionPanel } from "@/components/settings/LlmConnectionPanel";
 import { ChangePasswordPanel } from "@/components/settings/ChangePasswordPanel";
+import { CoachTogglePanel } from "@/components/settings/CoachTogglePanel";
 
 interface Settings {
   company: {
@@ -134,6 +135,11 @@ export default function SettingsPage() {
 
         {/* In-app password rotation. Hidden in demo mode (no auth). */}
         <ChangePasswordPanel />
+
+        {/* Conversational Coach v1.1 — company-wide toggle. Default
+            OFF per asset A3; flipping it on activates the Coach
+            across tasks, feedback, smoke test notes, and chat. */}
+        <CoachTogglePanel />
 
         {!supabaseEnabled && (
           <div className="glass-card p-6 text-center">

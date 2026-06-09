@@ -34,8 +34,22 @@ import type { CoachCitation } from "./heuristics";
  * expected event volume; that's a separate health signal.
  */
 
+/**
+ * Subject convention (extended in v1.1 to span all communication
+ * surfaces, not just chat):
+ *   - chat_topic:<id>           — Coach fired inside a chat composer
+ *   - task:<id>                  — Coach fired inside a task description / blocker
+ *   - decision:<id>              — Coach fired inside a Decision Dialogue field
+ *   - feedback:draft             — Coach fired in the feedback panel composer
+ *                                  (draft because the row id doesn't exist yet)
+ *   - smoke_test_result:draft    — Coach fired in a smoke test note draft
+ *
+ * The readout's "by surface" bucket key is the prefix before `:`.
+ * Anything new added later picks up automatically.
+ */
 type Common = {
-  topicId: string;
+  /** Chain subject (e.g. "chat_topic:abc", "task:xyz", "feedback:draft"). */
+  subject: string;
   citation: CoachCitation;
   draftExcerpt: string;
 };
@@ -56,7 +70,7 @@ async function emitOne(kind: string, opts: Common): Promise<void> {
       company_id: profile.company_id,
       actor: auth.user.id,
       kind,
-      subject: `chat_topic:${opts.topicId}`,
+      subject: opts.subject,
       payload: {
         heuristic_id: opts.citation.id,
         heuristic_source: opts.citation.source,

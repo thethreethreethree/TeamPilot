@@ -20,6 +20,8 @@ import { useToast } from "@/components/ui/toast";
 import { FeedbackScreenshotEditor } from "./FeedbackScreenshotEditor";
 import { MentionInput, type MentionMember } from "@/components/ui/MentionInput";
 import { fetchTeam } from "@/lib/data/team";
+import { CoachPanel } from "@/components/chats/CoachPanel";
+import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 /**
  * FeedbackPanel — slide-out form for submitting feedback.
@@ -95,6 +97,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
   const [done, setDone] = useState(false);
   const [editingScreenshot, setEditingScreenshot] = useState(false);
   const [members, setMembers] = useState<MentionMember[]>([]);
+  const { enabled: coachEnabled } = useCoachEnabled();
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   // Pull the company roster once on open so @-autocomplete has the
@@ -369,6 +372,12 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                   teammate
                 </span>
               </label>
+              {/* Coach v1.1 — surfaces in feedback drafts when company-
+                  level coach_enabled is true. Subject is `feedback:draft`
+                  because the row doesn't exist yet at compose time. */}
+              {coachEnabled && (
+                <CoachPanel subject="feedback:draft" draft={body} />
+              )}
               <MentionInput
                 value={body}
                 onChange={setBody}

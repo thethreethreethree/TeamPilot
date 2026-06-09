@@ -8,6 +8,8 @@ import { supabaseEnabled } from "@/lib/supabase/client";
 import Modal from "@/components/ui/Modal";
 import { Field, Input, Textarea, Select } from "@/components/ui/Field";
 import ExportMenu from "@/components/ui/ExportMenu";
+import { CoachPanel } from "@/components/chats/CoachPanel";
+import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -74,6 +76,7 @@ export default function OperationsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const { enabled: coachEnabled } = useCoachEnabled();
 
   const refresh = async () => {
     setLoading(true);
@@ -343,6 +346,16 @@ export default function OperationsPage() {
             />
           </Field>
           <Field label="Description">
+            {/* Coach v1.1 — surfaces in tasks when companies.coach_enabled
+                is true. Subject uses the existing task id for edit, or
+                `task:draft` for create (no id yet). The §4 readout buckets
+                events by surface; both paths attribute to "task". */}
+            {coachEnabled && (
+              <CoachPanel
+                subject={editing ? `task:${editing.id}` : "task:draft"}
+                draft={draft.description}
+              />
+            )}
             <Textarea
               value={draft.description}
               onChange={(e) =>

@@ -54,6 +54,20 @@ type HeuristicStats = {
   acceptRate: number | null;
 };
 
+type SurfaceStats = {
+  /** Prefix of the event subject — e.g. "chat_topic", "task",
+   *  "feedback", "smoke_test_result", "decision". Drives the
+   *  bucketing in the §4 readout. */
+  surface: string;
+  offered: number;
+  accepted: number;
+  dismissed: number;
+  acceptRate: number | null;
+  /** Top heuristic by offered count on this surface (for at-a-glance
+   *  in the per-surface row; full per-heuristic table is below). */
+  topHeuristic: string | null;
+};
+
 function summarize(
   topics: Array<{
     id: string;
@@ -163,10 +177,11 @@ export async function GET() {
   );
 
   // 3. Heuristic events. We could narrow further with a kind filter
-  // but the coach event volume is small in v1.
+  // but the coach event volume is small in v1. Pulling subject too so
+  // we can bucket by surface (prefix before `:`).
   const { data: coachEvents, error: eventsErr } = await supabase
     .from("events")
-    .select("kind, payload")
+    .select("kind, payload, subject")
     .ilike("kind", "coach.suggestion_%");
   if (eventsErr) {
     return NextResponse.json({ error: eventsErr.message }, { status: 500 });
@@ -174,6 +189,18 @@ export async function GET() {
   const heuristicAgg = new Map<
     string,
     { offered: number; accepted: number; dismissed: number }
+  >();
+  // Per-surface bucket: subject prefix (before ':') → counts +
+  // per-heuristic tally so we can name the top heuristic for that
+  // surface at-a-glance.
+  const surfaceAgg = new Map<
+    string,
+    {
+      offered: number;
+      accepted: number;
+      dismissed: number;
+      heuristics: Map<string, number>;
+    }
   >();
   for (const e of coachEvents ?? []) {
     const payload = (e.payload ?? {}) as Record<string, unknown>;
@@ -187,6 +214,26 @@ export async function GET() {
     if (e.kind === "coach.suggestion_offered") agg.offered++;
     else if (e.kind === "coach.suggestion_accepted") agg.accepted++;
     else if (e.kind === "coach.suggestion_dismissed") agg.dismissed++;
+
+    // Surface bucketing — split subject on the first `:`.
+    const subject = typeof e.subject === "string" ? e.subject : "";
+    const surface = subject.split(":")[0] || "unknown";
+    if (!surfaceAgg.has(surface)) {
+      surfaceAgg.set(surface, {
+        offered: 0,
+        accepted: 0,
+        dismissed: 0,
+        heuristics: new Map(),
+      });
+    }
+    const s = surfaceAgg.get(surface);
+    if (!s) continue;
+    if (e.kind === "coach.suggestion_offered") s.offered++;
+    else if (e.kind === "coach.suggestion_accepted") s.accepted++;
+    else if (e.kind === "coach.suggestion_dismissed") s.dismissed++;
+    if (e.kind === "coach.suggestion_offered") {
+      s.heuristics.set(id, (s.heuristics.get(id) ?? 0) + 1);
+    }
   }
   const heuristics: HeuristicStats[] = Array.from(heuristicAgg.entries())
     .map(([id, counts]) => {
@@ -199,10 +246,29 @@ export async function GET() {
     })
     .sort((a, b) => b.offered - a.offered);
 
+  const surfaces: SurfaceStats[] = Array.from(surfaceAgg.entries())
+    .map(([surface, counts]) => {
+      const acted = counts.accepted + counts.dismissed;
+      const topHeuristic =
+        Array.from(counts.heuristics.entries()).sort(
+          (a, b) => b[1] - a[1]
+        )[0]?.[0] ?? null;
+      return {
+        surface,
+        offered: counts.offered,
+        accepted: counts.accepted,
+        dismissed: counts.dismissed,
+        acceptRate: acted > 0 ? counts.accepted / acted : null,
+        topHeuristic,
+      };
+    })
+    .sort((a, b) => b.offered - a.offered);
+
   return NextResponse.json({
     coached,
     uncoached,
     heuristics,
+    surfaces,
     generatedAt: new Date().toISOString(),
   });
 }

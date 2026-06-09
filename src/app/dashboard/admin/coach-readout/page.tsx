@@ -49,11 +49,29 @@ type HeuristicStats = {
   acceptRate: number | null;
 };
 
+type SurfaceStats = {
+  surface: string;
+  offered: number;
+  accepted: number;
+  dismissed: number;
+  acceptRate: number | null;
+  topHeuristic: string | null;
+};
+
 type Readout = {
   coached: TopicStats;
   uncoached: TopicStats;
   heuristics: HeuristicStats[];
+  surfaces: SurfaceStats[];
   generatedAt: string;
+};
+
+const SURFACE_LABEL: Record<string, string> = {
+  chat_topic: "Chat topics",
+  task: "Tasks",
+  decision: "Decision Dialogue",
+  feedback: "Feedback drafts",
+  smoke_test_result: "Smoke test notes",
 };
 
 const HEURISTIC_LABEL: Record<string, { name: string; source: string }> = {
@@ -243,6 +261,66 @@ export default function CoachReadoutPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Per-surface — Coach reach across communication surfaces */}
+            <div className="glass-card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="w-4 h-4 text-brand" aria-hidden />
+                <h2 className="text-sm font-semibold text-primary">
+                  By surface — where the Coach is firing
+                </h2>
+              </div>
+              <p className="text-[11px] text-muted leading-relaxed mb-4">
+                Coach v1.1 runs on chat topics, tasks, feedback drafts,
+                smoke-test notes (and Decision Dialogue once that mount
+                lands). Per-surface acceptance shows where the heuristics
+                land vs where they read as noise — input to surface-
+                specific calibration, NOT a consequence measure for the
+                Coach as a whole.
+              </p>
+              {data.surfaces.length === 0 ? (
+                <p className="text-xs text-muted text-center py-6">
+                  No Coach activity on any surface yet.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-[10px] uppercase tracking-widest text-muted border-b border-default">
+                        <th className="py-2 pr-4">Surface</th>
+                        <th className="py-2 pr-4">Offered</th>
+                        <th className="py-2 pr-4">Accepted</th>
+                        <th className="py-2 pr-4">Dismissed</th>
+                        <th className="py-2 pr-4">Accept rate</th>
+                        <th className="py-2 pr-4">Top heuristic</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-default">
+                      {data.surfaces.map((s) => (
+                        <tr key={s.surface}>
+                          <td className="py-2 pr-4 text-primary">
+                            {SURFACE_LABEL[s.surface] ?? s.surface}
+                          </td>
+                          <td className="py-2 pr-4 font-mono">{s.offered}</td>
+                          <td className="py-2 pr-4 font-mono">{s.accepted}</td>
+                          <td className="py-2 pr-4 font-mono">{s.dismissed}</td>
+                          <td className="py-2 pr-4 font-mono">
+                            {s.acceptRate == null
+                              ? "—"
+                              : `${Math.round(s.acceptRate * 100)}%`}
+                          </td>
+                          <td className="py-2 pr-4 text-[10px] text-muted font-mono">
+                            {s.topHeuristic
+                              ? (HEURISTIC_LABEL[s.topHeuristic]?.name ?? s.topHeuristic)
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* Per-heuristic acceptance */}
