@@ -32,6 +32,16 @@ export type CoachCitation = {
   suggestion: string;
   /** Excerpt that triggered the detector (used in the chain payload). */
   triggerExcerpt: string;
+  /** Kind, compassionate, concise explanation of WHY this pattern
+   *  matters in human communication. Always shown when the chip is
+   *  expanded — built into the Coach's behavior per the user's
+   *  directive, not gated behind an option.
+   *
+   *  Tone constraints (A11-aligned): general context about the
+   *  pattern, never personally corrective. "When this pattern shows
+   *  up in conversations…" not "you should change because…". The
+   *  explanation educates; the user still renders any verdict. */
+  kindExplanation: string;
 };
 
 /**
@@ -145,6 +155,8 @@ export function detectNvcEvaluation(text: string): CoachCitation | null {
       "Strip the evaluation from the observation. Describe behavior the other person could acknowledge before they react.",
     suggestion: `Try restating the observable behavior. "${hit.trim()}" is a judgment — what specifically did you notice happen?`,
     triggerExcerpt: hit.trim(),
+    kindExplanation:
+      "Built-in evaluation — words like “broken,” “always,” “obviously” — often put the other person in a defensive position before they engage with what you noticed. Observation language (“the deploy retried three times in five minutes”) tends to keep conversations open, where evaluation language can stall them. Neither is universally right; it just helps to notice which one you reach for.",
   };
 }
 
@@ -159,6 +171,8 @@ export function detectBareAssertion(text: string): CoachCitation | null {
       "Label the other person's position before asserting yours. Tactical empathy first — it earns the right to be heard.",
     suggestion: `Open with a label of where they are: "It sounds like…" or "What I'm noticing is…" before you say "${hit.trim()}"`,
     triggerExcerpt: hit.trim(),
+    kindExplanation:
+      "People are usually more open to a new idea when they feel heard first. A short label of the other position — “It sounds like…” or “What I'm noticing is…” — before your own move shows them you've actually understood theirs. The trade-off most people don't expect: conversations that start with a label often end up shorter, not longer.",
   };
 }
 
@@ -173,6 +187,8 @@ export function detectIdentityCollision(text: string): CoachCitation | null {
       "Critique the behavior and its impact, not the person. Identity-level critique triggers defensiveness before content lands.",
     suggestion: `"${hit.trim()}" is identity. What specifically did they do, and what was its impact? Trade who they are for what happened.`,
     triggerExcerpt: hit.trim(),
+    kindExplanation:
+      "When critique lands on who someone is, not what they did, the rest of the message usually doesn't make it through — they're protecting their sense of self before they can hear the content. Naming the specific behavior and its impact (“the deploy missed the migrate step, which cost us four hours”) keeps the conversation on the work, where it can actually move. The frustration is often real and fair; the framing is the part that changes whether anyone can act on it.",
   };
 }
 

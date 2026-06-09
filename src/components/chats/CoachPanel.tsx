@@ -198,6 +198,13 @@ export function CoachPanel({
               <p className="text-[11px] text-secondary leading-relaxed italic border-l-2 border-[#C8232C]/40 pl-2">
                 {active.citation.principle}
               </p>
+              {/* Kind, compassionate, concise explanation — programmed
+                  into every chip by design. Tone constraints (A11):
+                  general context about the pattern, never personally
+                  corrective. */}
+              <p className="text-[11px] text-secondary leading-relaxed">
+                {active.citation.kindExplanation}
+              </p>
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
