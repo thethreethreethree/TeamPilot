@@ -100,6 +100,9 @@ alter table task_messages     enable row level security;
 
 -- Participants: any company member can see the participant roster for
 -- a task in their company (same model as chat_participants).
+-- DROP IF EXISTS before CREATE makes the migration safely re-runnable
+-- — CREATE POLICY itself has no IF NOT EXISTS in current Postgres.
+drop policy if exists "task_participants - select" on task_participants;
 create policy "task_participants - select" on task_participants
   for select using (
     exists (
@@ -109,6 +112,7 @@ create policy "task_participants - select" on task_participants
     )
   );
 
+drop policy if exists "task_participants - insert" on task_participants;
 create policy "task_participants - insert" on task_participants
   for insert with check (
     exists (
@@ -118,6 +122,7 @@ create policy "task_participants - insert" on task_participants
     )
   );
 
+drop policy if exists "task_participants - update" on task_participants;
 create policy "task_participants - update" on task_participants
   for update using (
     exists (
@@ -131,9 +136,11 @@ create policy "task_participants - update" on task_participants
 -- Stricter participant-only gating would mirror chat_messages; here
 -- we keep it company-wide because tasks are typically broader than
 -- private threads. Can tighten later.
+drop policy if exists "task_messages - select" on task_messages;
 create policy "task_messages - select" on task_messages
   for select using (company_id = auth_company_id());
 
+drop policy if exists "task_messages - insert" on task_messages;
 create policy "task_messages - insert" on task_messages
   for insert with check (company_id = auth_company_id());
 
