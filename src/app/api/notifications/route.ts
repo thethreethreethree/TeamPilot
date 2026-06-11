@@ -19,15 +19,15 @@ import { supabaseEnabled } from "@/lib/supabase/config";
  *     the caller is NOT the actor. "You opened the dialogue" is not
  *     a notification — it's a thing you just did.
  *
+ * Phase 2 task source (added 2026-06-12, migration 0023):
+ *   - task.participant_added events where payload.added_user_id ==
+ *     caller. Self-add is filtered at the trigger level so we don't
+ *     have to re-check actor here, but we still defensively skip
+ *     self rows in case a trigger predates the self-skip logic.
+ *
  * Read state stays client-side in localStorage for now. The sidebar
  * bell uses the same key for the unread dot. Cross-device sync waits
  * on a real read-receipts table when the §4 readout shows it matters.
- *
- * task.assigned is intentionally NOT a source yet — the legacy
- * `tasks.assignee` column is free text, not a user_id. A clean
- * `task.participant_added` event from a trigger on task_participants
- * is the right shape; that's a future migration, not a fake source
- * stapled on here.
  */
 
 type ChainEventRow = {
@@ -40,6 +40,7 @@ type ChainEventRow = {
 };
 
 const PHASE_2_TOPIC_KINDS = ["decision.opened", "decision.decided"] as const;
+const TASK_PARTICIPANT_KIND = "task.participant_added";
 
 export async function GET() {
   if (!supabaseEnabled) {
@@ -70,7 +71,11 @@ export async function GET() {
 
   // Pull the relevant event kinds in one query. RLS scopes to the
   // user's company; we filter further in JS.
-  const kinds = ["mention.created", ...PHASE_2_TOPIC_KINDS];
+  const kinds = [
+    "mention.created",
+    ...PHASE_2_TOPIC_KINDS,
+    TASK_PARTICIPANT_KIND,
+  ];
   const { data: events, error } = await supabase
     .from("events")
     .select("id, kind, subject, actor, payload, occurred_at")
@@ -84,13 +89,19 @@ export async function GET() {
 
   // Filter to events that actually belong to THIS user.
   const mine = rows.filter((e) => {
+    const p = (e.payload ?? {}) as Record<string, unknown>;
     if (e.kind === "mention.created") {
-      const p = e.payload ?? {};
-      return (p as Record<string, unknown>).target_user_id === userId;
+      return p.target_user_id === userId;
     }
     if ((PHASE_2_TOPIC_KINDS as readonly string[]).includes(e.kind)) {
       // Active participant + not the actor (you don't notify yourself).
       return e.actor !== userId && mySubjects.has(e.subject);
+    }
+    if (e.kind === TASK_PARTICIPANT_KIND) {
+      // I was the added user, AND the actor wasn't me. Trigger-level
+      // self-skip should already enforce the second clause, but we
+      // check defensively in case an older trigger emitted.
+      return p.added_user_id === userId && e.actor !== userId;
     }
     return false;
   });
@@ -151,6 +162,26 @@ export async function GET() {
         sourceId: payload.source_id ?? null,
         excerpt: payload.excerpt ?? null,
         topicTitle: null,
+        taskTitle: null,
+        role: null,
+        chosenPath: null,
+      };
+    }
+    if (e.kind === TASK_PARTICIPANT_KIND) {
+      const taskId = (payload.task_id as string | undefined) ?? null;
+      return {
+        id: e.id,
+        kind: e.kind,
+        subject: e.subject,
+        actorId: e.actor,
+        actorName,
+        occurredAt: e.occurred_at,
+        sourceKind: "task",
+        sourceId: taskId,
+        excerpt: null,
+        topicTitle: null,
+        taskTitle: (payload.task_title as string | undefined) ?? null,
+        role: (payload.role as string | undefined) ?? null,
         chosenPath: null,
       };
     }
@@ -167,6 +198,8 @@ export async function GET() {
       sourceId: topicId,
       excerpt: null,
       topicTitle: topicTitleById.get(topicId) ?? null,
+      taskTitle: null,
+      role: null,
       chosenPath: (payload.chosen_path as string | undefined) ?? null,
     };
   });

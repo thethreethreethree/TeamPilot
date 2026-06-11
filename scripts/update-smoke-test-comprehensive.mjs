@@ -543,6 +543,20 @@ const items = [
     assignee: "john",
   },
   {
+    id: "notif-task-participant-added",
+    title: "Being added to a task notifies you (migration 0023)",
+    instructions: "As Admin A, open a task on /dashboard/operations/{taskId} and add User B as a participant. Sign in as B and visit /dashboard/notifications.",
+    expected: "B sees a new row: '{A's name} added you to a task: {task title}'. Sidebar bell shows an unread dot first. Deep-link goes to /dashboard/operations/{taskId}.",
+    assignee: "partners",
+  },
+  {
+    id: "notif-task-participant-self-add-suppressed",
+    title: "Self-add to a task does NOT create a notification for yourself",
+    instructions: "Create a new task. The creator becomes the owner participant automatically. Visit /dashboard/notifications.",
+    expected: "No 'you added yourself to a task' row appears. The trigger-level self-skip prevents firing the event when actor == added_user.",
+    assignee: "partners",
+  },
+  {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
     instructions: "Visit /dashboard/diagnose.",

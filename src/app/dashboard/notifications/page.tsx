@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AtSign, Bell, Brain, CheckCircle2, Loader2 } from "lucide-react";
+import { AtSign, Bell, Brain, CheckCircle2, ListChecks, Loader2 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import {
   markNotificationsRead,
@@ -34,6 +34,8 @@ type Notification = {
   sourceId: string | null;
   excerpt: string | null;
   topicTitle: string | null;
+  taskTitle: string | null;
+  role: string | null;
   chosenPath: string | null;
 };
 
@@ -61,6 +63,10 @@ function sourceLink(n: Notification): string | null {
     n.sourceId
   ) {
     return `/dashboard/chats/${n.sourceId}`;
+  }
+  // task.participant_added deep-links to the task surface.
+  if (n.kind === "task.participant_added" && n.sourceId) {
+    return `/dashboard/operations/${n.sourceId}`;
   }
   return null;
 }
@@ -120,9 +126,10 @@ export default function NotificationsPage() {
             <Bell className="w-7 h-7 text-muted mx-auto mb-3" aria-hidden />
             <p className="text-sm text-primary mb-1">No notifications yet.</p>
             <p className="text-xs text-muted max-w-sm mx-auto leading-relaxed">
-              When a teammate @mentions you, opens a Decision Dialogue in
-              one of your topics, or records a decision there — it lands
-              here. Everything reads from the chain.
+              When a teammate @mentions you, adds you to a task, opens a
+              Decision Dialogue in one of your topics, or records a
+              decision there — it lands here. Everything reads from the
+              chain.
             </p>
           </div>
         )}
@@ -202,6 +209,34 @@ function NotificationRow({ n }: { n: Notification }) {
                 <span className="text-muted">in</span>{" "}
                 <span className="font-medium">{n.topicTitle}</span>
               </>
+            )}
+          </p>
+          <p className="text-[10px] text-muted font-mono mt-1">
+            {new Date(n.occurredAt).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (kind === "task.participant_added") {
+    return (
+      <div className="glass-card p-3 flex items-start gap-3 hover:border-strong transition-colors">
+        <ListChecks
+          className="w-4 h-4 text-brand mt-0.5 flex-shrink-0"
+          aria-hidden
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-primary mb-1">
+            <span className="font-semibold">{n.actorName}</span>{" "}
+            <span className="text-muted">added you to a task</span>
+            {n.taskTitle && (
+              <>
+                {": "}
+                <span className="font-medium">{n.taskTitle}</span>
+              </>
+            )}
+            {n.role && n.role !== "member" && (
+              <span className="text-muted"> ({n.role})</span>
             )}
           </p>
           <p className="text-[10px] text-muted font-mono mt-1">
