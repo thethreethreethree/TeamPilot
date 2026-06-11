@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { LightbulbMark, TAGLINE } from "@/components/brand/Logo";
+import { BrandLogo, LightbulbMark, TAGLINE } from "@/components/brand/Logo";
 
 /**
  * Landing page — rewritten 2026-06-02 for a non-technical business owner.
@@ -124,9 +124,9 @@ export default function Landing() {
         >
           <div className="w-[600px] h-[600px] bulb-glow" />
         </div>
-        {/* Hero mark — the lit bulb */}
+        {/* Hero — canonical brand logo (bulb + wordmark stacked) */}
         <div className="flex justify-center mb-6">
-          <LightbulbMark className="w-20 h-20 shadow-glow-ember rounded-2xl" />
+          <BrandLogo width={200} height={200} priority className="shadow-glow-ember" />
         </div>
         <p className="text-xs uppercase tracking-widest text-brand mb-4">
           {TAGLINE}

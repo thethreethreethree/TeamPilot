@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { LightbulbMark, TAGLINE } from "@/components/brand/Logo";
+import { BrandLogo, TAGLINE } from "@/components/brand/Logo";
 
 type Mode = "signin" | "signup";
 
@@ -86,16 +86,14 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm relative">
-        <div className="flex flex-col items-center gap-3 mb-8">
-          <LightbulbMark className="w-14 h-14 shadow-glow-ember rounded-xl" />
-          <div className="flex flex-col items-center">
-            <span className="text-2xl font-black tracking-tight text-primary">
-              ELOSTATE
-            </span>
-            <span className="text-[11px] text-muted tracking-wide">
-              {TAGLINE}
-            </span>
-          </div>
+        <div className="flex flex-col items-center gap-2 mb-8">
+          {/* Full canonical logo (bulb + ELOSTATE wordmark as provided).
+              Tagline is rendered separately below since the canonical
+              asset does not include it. */}
+          <BrandLogo width={160} height={160} priority className="shadow-glow-ember" />
+          <span className="text-[11px] text-muted tracking-wide">
+            {TAGLINE}
+          </span>
         </div>
 
         <div className="glass-card p-8">
