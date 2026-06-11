@@ -512,6 +512,36 @@ const items = [
     expected: "Four event rows for the dialogue: decision.opened (on open), decision.phase_entered (on each advance — at least 2), decision.system_responded (when AI returns), decision.decided (on finalize). Each payload includes decision_id, mode='in_thread', and the relevant context (from_phase/to_phase, chosen_path, persisted_decision_id, etc.).",
     assignee: "john",
   },
+
+  // ─── Notifications Phase 2 (Decision Dialogue events) ──────────
+  {
+    id: "notif-decision-opened-arrives",
+    title: "Opening a Decision Dialogue notifies other topic participants",
+    instructions: "As Admin A, open a Decision Dialogue in a topic where User B is also an active participant. Sign in as B and visit /dashboard/notifications.",
+    expected: "B sees a new row: '{A's name} opened a Decision Dialogue in {topic title}'. Sidebar bell shows a brand-red unread dot before the inbox is visited; the dot clears once B opens the inbox. Clicking the row deep-links to /dashboard/chats/{topic-id}.",
+    assignee: "partners",
+  },
+  {
+    id: "notif-decision-decided-arrives",
+    title: "Recording a decision notifies other topic participants",
+    instructions: "Continuing the previous flow: Admin A walks the dialogue to Decide and records (e.g. Hybrid with a note). Sign in as B and visit /dashboard/notifications.",
+    expected: "B sees a new row: '{A's name} recorded a decision in {topic title}' with the path label (Hybrid / Went with proposal / Defer / etc.) underneath. Deep-link goes to the topic.",
+    assignee: "partners",
+  },
+  {
+    id: "notif-decision-not-self",
+    title: "You don't get notified for dialogues you opened or decided yourself",
+    instructions: "As Admin A, open a dialogue and walk it to Decide. Then visit your OWN /dashboard/notifications.",
+    expected: "No decision.opened or decision.decided rows show up attributed to yourself. Only the dialogues someone ELSE in your topics ran appear.",
+    assignee: "partners",
+  },
+  {
+    id: "notif-decision-not-outside-topic",
+    title: "Dialogues in topics you're not a participant of don't notify you",
+    instructions: "(JOHN) Open a Decision Dialogue in a topic User B is NOT a participant of. Sign in as B.",
+    expected: "B's notifications inbox does NOT show that dialogue — even though B is in the same company. Active participant scoping is enforced.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
