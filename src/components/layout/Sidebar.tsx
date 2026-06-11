@@ -22,6 +22,7 @@ import {
   Sparkles,
   Beaker,
   Bell,
+  Heart,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,11 @@ const adminNav = [
     label: "Coach readout",
     href: "/dashboard/admin/coach-readout",
     icon: BookOpen,
+  },
+  {
+    label: "Team check",
+    href: "/dashboard/admin/team-check",
+    icon: Heart,
   },
 ];
 
