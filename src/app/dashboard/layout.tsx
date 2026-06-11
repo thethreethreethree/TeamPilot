@@ -49,7 +49,7 @@ export default async function DashboardLayout({
     <ToastProvider>
       <div className="flex min-h-screen bg-base">
         <Sidebar />
-        <main className="flex-1 ml-64 min-h-screen overflow-x-hidden">
+        <main className="flex-1 md:ml-64 min-h-screen overflow-x-hidden">
           {children}
         </main>
         <CommandPalette />

@@ -1,5 +1,6 @@
 "use client";
 
+import { Menu } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
@@ -23,13 +24,33 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
     return () => clearInterval(timer);
   }, []);
 
+  const openMenu = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("elostate:toggle-sidebar"));
+    }
+  };
+
   return (
-    <header className="h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-30">
-      <div>
-        <h1 className="text-lg font-semibold text-primary">{title}</h1>
-        {subtitle && (
-          <p className="text-xs text-muted">{subtitle}</p>
-        )}
+    <header className="h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 gap-3">
+      <div className="flex items-center gap-2 min-w-0">
+        <button
+          type="button"
+          onClick={openMenu}
+          aria-label="Open menu"
+          className="md:hidden p-2 -ml-1 rounded-lg text-muted hover:text-primary hover:bg-surface-raised flex-shrink-0"
+        >
+          <Menu className="w-5 h-5" aria-hidden />
+        </button>
+        <div className="min-w-0">
+          <h1 className="text-base md:text-lg font-semibold text-primary truncate">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="text-[11px] md:text-xs text-muted truncate">
+              {subtitle}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-3">

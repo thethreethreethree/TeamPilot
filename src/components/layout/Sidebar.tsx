@@ -23,6 +23,7 @@ import {
   Sparkles,
   Beaker,
   Bell,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
@@ -73,6 +74,23 @@ export default function Sidebar() {
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
   const unread = useUnreadNotifications();
+  // Mobile drawer state — controlled via a custom event the TopBar
+  // hamburger dispatches. Closes when the user navigates (effect on
+  // pathname) and on backdrop tap.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => {
+    const onToggle = () => setMobileOpen((v) => !v);
+    const onClose = () => setMobileOpen(false);
+    window.addEventListener("elostate:toggle-sidebar", onToggle);
+    window.addEventListener("elostate:close-sidebar", onClose);
+    return () => {
+      window.removeEventListener("elostate:toggle-sidebar", onToggle);
+      window.removeEventListener("elostate:close-sidebar", onClose);
+    };
+  }, []);
+  useEffect(() => {
+    setMobileOpen(false); // close drawer on route change
+  }, [pathname]);
 
   useEffect(() => {
     if (!supabaseEnabled) {
@@ -113,7 +131,23 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-surface border-r border-default flex flex-col z-40">
+    <>
+    {/* Mobile backdrop — appears below the drawer, taps to close. */}
+    {mobileOpen && (
+      <div
+        className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30"
+        onClick={() => setMobileOpen(false)}
+        aria-hidden
+      />
+    )}
+    <aside
+      className={cn(
+        "fixed left-0 top-0 h-screen w-64 bg-surface border-r border-default flex flex-col z-40 transition-transform duration-200",
+        "md:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      )}
+      aria-label="Primary navigation"
+    >
       {/* Logo */}
       <div className="px-6 py-6 border-b border-default">
         <div className="flex items-center gap-3">
@@ -339,6 +373,18 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
+      {/* Close button — only shown on mobile when the drawer is open. */}
+      {mobileOpen && (
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close menu"
+          className="md:hidden absolute top-3 right-3 p-2 rounded-lg text-muted hover:text-primary hover:bg-surface-raised"
+        >
+          <X className="w-4 h-4" aria-hidden />
+        </button>
+      )}
     </aside>
+    </>
   );
 }
