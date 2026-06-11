@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
 /**
  * Landing page — rewritten 2026-06-02 for a non-technical business owner.
@@ -363,6 +364,7 @@ export default function Landing() {
           © {new Date().getFullYear()} ELOSTATE · Constitution v1.4 · 4 amendments ratified
         </p>
       </footer>
+      <InstallPrompt />
     </div>
   );
 }

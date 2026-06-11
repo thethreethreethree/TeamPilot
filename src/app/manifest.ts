@@ -18,6 +18,19 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#0A1429",
     orientation: "any",
     categories: ["business", "productivity"],
-    icons: [],
+    icons: [
+      {
+        src: "/icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "any",
+      },
+      {
+        src: "/icon-maskable.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "maskable",
+      },
+    ],
   };
 }

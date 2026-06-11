@@ -4,6 +4,7 @@ import { Activity, ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
 type Mode = "signin" | "signup";
 
@@ -178,6 +179,7 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+      <InstallPrompt />
     </div>
   );
 }
