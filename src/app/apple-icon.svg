@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Apple touch icon (iOS "Add to Home Screen", macOS bookmarks).
+       Same matte-black fill as src/app/icon.svg with the full safe
+       zone — iOS overlays a rounded mask on top, so the bulb sits
+       in the inner 88% just to be safe. -->
+  <rect width="512" height="512" fill="#09090B"/>
+  <g fill="none" stroke="#FACC15" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 200 340 Q 145 295 145 215 Q 145 110 256 110 Q 367 110 367 215 Q 367 295 312 340 L 312 358 L 200 358 Z"/>
+    <line x1="210" y1="380" x2="302" y2="380"/>
+    <line x1="215" y1="402" x2="297" y2="402"/>
+    <path d="M 232 420 Q 256 442 280 420"/>
+    <circle cx="250" cy="220" r="42"/>
+    <path d="M 208 222 L 290 222 Q 302 222 302 236 Q 302 252 284 250"/>
+  </g>
+</svg>

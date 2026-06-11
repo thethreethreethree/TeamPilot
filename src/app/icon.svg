@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Browser-tab favicon variant. Filled matte-black background so
+       the amber stroke reads cleanly in both light and dark browser
+       chrome (Chrome tab bar, Safari sidebar) — without the fill,
+       the bulb disappears against a white tab. Geometry mirrors
+       public/icon.svg exactly. Next.js picks this up via the
+       app-router file convention at src/app/icon.svg. -->
+  <rect width="512" height="512" rx="80" fill="#09090B"/>
+  <g fill="none" stroke="#FACC15" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 200 340 Q 145 295 145 215 Q 145 110 256 110 Q 367 110 367 215 Q 367 295 312 340 L 312 358 L 200 358 Z"/>
+    <line x1="210" y1="380" x2="302" y2="380"/>
+    <line x1="215" y1="402" x2="297" y2="402"/>
+    <path d="M 232 420 Q 256 442 280 420"/>
+    <circle cx="250" cy="220" r="42"/>
+    <path d="M 208 222 L 290 222 Q 302 222 302 236 Q 302 252 284 250"/>
+  </g>
+</svg>

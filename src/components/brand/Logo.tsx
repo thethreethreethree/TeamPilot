@@ -113,7 +113,18 @@ export function Logo({
  * Geometry mirrors public/icon.svg exactly so the favicon, PWA icon,
  * and inline component all render the same shape at any size.
  */
-export function LightbulbMark({ className }: { className?: string }) {
+export function LightbulbMark({
+  className,
+  filled = false,
+}: {
+  className?: string;
+  /** Render with a matte-black rounded-square background. Use for
+   *  contexts where the surface is unknown (login dark / light mode
+   *  switching) so the bulb always reads correctly. Default false
+   *  (transparent), which is right for sidebar/landing where the
+   *  surrounding chrome is consistent. */
+  filled?: boolean;
+}) {
   return (
     <svg
       viewBox="0 0 512 512"
@@ -121,19 +132,20 @@ export function LightbulbMark({ className }: { className?: string }) {
       className={className}
       aria-hidden
     >
+      {filled && <rect width="512" height="512" rx="80" fill="#09090B" />}
       <g
         fill="none"
         stroke="#FACC15"
-        strokeWidth={18}
+        strokeWidth={32}
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M 205 340 Q 158 300 158 218 Q 158 122 256 122 Q 354 122 354 218 Q 354 300 307 340 L 307 360 L 205 360 Z" />
-        <line x1="212" y1="380" x2="300" y2="380" />
-        <line x1="218" y1="402" x2="294" y2="402" />
-        <path d="M 238 422 Q 256 440 274 422" />
-        <circle cx="248" cy="220" r="38" />
-        <path d="M 213 222 L 286 222 Q 296 222 296 234 Q 296 247 280 245" />
+        <path d="M 200 340 Q 145 295 145 215 Q 145 110 256 110 Q 367 110 367 215 Q 367 295 312 340 L 312 358 L 200 358 Z" />
+        <line x1="210" y1="380" x2="302" y2="380" />
+        <line x1="215" y1="402" x2="297" y2="402" />
+        <path d="M 232 420 Q 256 442 280 420" />
+        <circle cx="250" cy="220" r="42" />
+        <path d="M 208 222 L 290 222 Q 302 222 302 236 Q 302 252 284 250" />
       </g>
     </svg>
   );
