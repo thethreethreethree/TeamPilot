@@ -50,6 +50,30 @@
   },
   "dynamicRoutes": [
     {
+      "page": "/api/chat/topic-decisions/[id]",
+      "regex": "^/api/chat/topic\\-decisions/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/chat/topic\\-decisions/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/chat/topic-decisions/[id]/decide",
+      "regex": "^/api/chat/topic\\-decisions/([^/]+?)/decide(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/chat/topic\\-decisions/(?<nxtPid>[^/]+?)/decide(?:/)?$"
+    },
+    {
+      "page": "/api/chat/topic-decisions/[id]/respond",
+      "regex": "^/api/chat/topic\\-decisions/([^/]+?)/respond(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/chat/topic\\-decisions/(?<nxtPid>[^/]+?)/respond(?:/)?$"
+    },
+    {
       "page": "/api/export/[entity]",
       "regex": "^/api/export/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -58,12 +82,28 @@
       "namedRegex": "^/api/export/(?<nxtPentity>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/api/feedback/[id]",
+      "regex": "^/api/feedback/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/feedback/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/dashboard/chats/[id]",
       "regex": "^/dashboard/chats/([^/]+?)(?:/)?$",
       "routeKeys": {
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/dashboard/chats/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/dashboard/operations/[id]",
+      "regex": "^/dashboard/operations/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/dashboard/operations/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/invite/[code]",
@@ -94,6 +134,12 @@
       "namedRegex": "^/_not\\-found(?:/)?$"
     },
     {
+      "page": "/api/admin/coach-readout",
+      "regex": "^/api/admin/coach\\-readout(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/admin/coach\\-readout(?:/)?$"
+    },
+    {
       "page": "/api/ai/analyze",
       "regex": "^/api/ai/analyze(?:/)?$",
       "routeKeys": {},
@@ -110,18 +156,6 @@
       "regex": "^/api/ai/briefing/stream(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/ai/briefing/stream(?:/)?$"
-    },
-    {
-      "page": "/api/ai/conversation",
-      "regex": "^/api/ai/conversation(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/api/ai/conversation(?:/)?$"
-    },
-    {
-      "page": "/api/ai/conversation-dialogue",
-      "regex": "^/api/ai/conversation\\-dialogue(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/api/ai/conversation\\-dialogue(?:/)?$"
     },
     {
       "page": "/api/ai/decision",
@@ -190,6 +224,12 @@
       "namedRegex": "^/api/chat/summarize(?:/)?$"
     },
     {
+      "page": "/api/chat/topic-decisions",
+      "regex": "^/api/chat/topic\\-decisions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/chat/topic\\-decisions(?:/)?$"
+    },
+    {
       "page": "/api/decisions",
       "regex": "^/api/decisions(?:/)?$",
       "routeKeys": {},
@@ -214,6 +254,12 @@
       "namedRegex": "^/api/diagnosis/ripple\\-trace(?:/)?$"
     },
     {
+      "page": "/api/feedback",
+      "regex": "^/api/feedback(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/feedback(?:/)?$"
+    },
+    {
       "page": "/api/health",
       "regex": "^/api/health(?:/)?$",
       "routeKeys": {},
@@ -224,6 +270,12 @@
       "regex": "^/api/llm/ping(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/llm/ping(?:/)?$"
+    },
+    {
+      "page": "/api/notifications",
+      "regex": "^/api/notifications(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/notifications(?:/)?$"
     },
     {
       "page": "/api/problems",
@@ -250,6 +302,18 @@
       "namedRegex": "^/api/settings(?:/)?$"
     },
     {
+      "page": "/api/smoke-test/active",
+      "regex": "^/api/smoke\\-test/active(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/smoke\\-test/active(?:/)?$"
+    },
+    {
+      "page": "/api/smoke-test/result",
+      "regex": "^/api/smoke\\-test/result(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/smoke\\-test/result(?:/)?$"
+    },
+    {
       "page": "/api/tasks",
       "regex": "^/api/tasks(?:/)?$",
       "routeKeys": {},
@@ -268,10 +332,28 @@
       "namedRegex": "^/api/team/accept(?:/)?$"
     },
     {
+      "page": "/auth/recover",
+      "regex": "^/auth/recover(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/auth/recover(?:/)?$"
+    },
+    {
       "page": "/dashboard",
       "regex": "^/dashboard(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/dashboard/admin/coach-readout",
+      "regex": "^/dashboard/admin/coach\\-readout(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/admin/coach\\-readout(?:/)?$"
+    },
+    {
+      "page": "/dashboard/admin/feedback",
+      "regex": "^/dashboard/admin/feedback(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/admin/feedback(?:/)?$"
     },
     {
       "page": "/dashboard/brain",
@@ -286,12 +368,6 @@
       "namedRegex": "^/dashboard/chats(?:/)?$"
     },
     {
-      "page": "/dashboard/conversations",
-      "regex": "^/dashboard/conversations(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/dashboard/conversations(?:/)?$"
-    },
-    {
       "page": "/dashboard/decisions",
       "regex": "^/dashboard/decisions(?:/)?$",
       "routeKeys": {},
@@ -304,6 +380,12 @@
       "namedRegex": "^/dashboard/diagnose(?:/)?$"
     },
     {
+      "page": "/dashboard/feedback",
+      "regex": "^/dashboard/feedback(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/feedback(?:/)?$"
+    },
+    {
       "page": "/dashboard/finance",
       "regex": "^/dashboard/finance(?:/)?$",
       "routeKeys": {},
@@ -314,6 +396,12 @@
       "regex": "^/dashboard/marketing(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/dashboard/marketing(?:/)?$"
+    },
+    {
+      "page": "/dashboard/notifications",
+      "regex": "^/dashboard/notifications(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/notifications(?:/)?$"
     },
     {
       "page": "/dashboard/operations",
@@ -338,6 +426,12 @@
       "regex": "^/dashboard/settings(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/dashboard/settings(?:/)?$"
+    },
+    {
+      "page": "/dashboard/smoke-test",
+      "regex": "^/dashboard/smoke\\-test(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/smoke\\-test(?:/)?$"
     },
     {
       "page": "/dashboard/team",
