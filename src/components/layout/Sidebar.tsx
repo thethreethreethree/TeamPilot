@@ -22,11 +22,13 @@ import {
   ShieldCheck,
   Sparkles,
   Beaker,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { CONSTITUTION } from "@/lib/constitution";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useUnreadNotifications } from "@/lib/notifications/useUnread";
 
 const productionNav = [
   { label: "Command Center", href: "/dashboard", icon: LayoutDashboard },
@@ -43,6 +45,7 @@ const productionNav = [
 const testingNav = [
   { label: "Smoke test", href: "/dashboard/smoke-test", icon: ClipboardList },
   { label: "My feedback", href: "/dashboard/feedback", icon: MessageSquare },
+  { label: "Notifications", href: "/dashboard/notifications", icon: Bell },
 ];
 
 const adminNav = [
@@ -69,6 +72,7 @@ export default function Sidebar() {
   const [companyName, setCompanyName] = useState("—");
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
+  const unread = useUnreadNotifications();
 
   useEffect(() => {
     if (!supabaseEnabled) {
@@ -194,6 +198,8 @@ export default function Sidebar() {
           {testingNav.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
+            const showUnreadDot =
+              item.href === "/dashboard/notifications" && unread;
             return (
               <Link
                 key={item.href}
@@ -205,12 +211,20 @@ export default function Sidebar() {
                     : "text-secondary hover:text-primary hover:bg-surface-raised"
                 )}
               >
-                <Icon
-                  className={cn(
-                    "w-4 h-4 flex-shrink-0",
-                    isActive ? "text-brand" : "text-muted"
+                <span className="relative flex-shrink-0">
+                  <Icon
+                    className={cn(
+                      "w-4 h-4",
+                      isActive ? "text-brand" : "text-muted"
+                    )}
+                  />
+                  {showUnreadDot && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C8232C] ring-2 ring-base"
+                      aria-label="Unread notifications"
+                    />
                   )}
-                />
+                </span>
                 {item.label}
               </Link>
             );
