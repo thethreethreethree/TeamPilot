@@ -447,6 +447,71 @@ const items = [
     expected: "Each phase requires prior to advance. System response only generates AFTER you state your read (no overtaking).",
     assignee: "partners",
   },
+
+  // ─── In-thread Decision Dialogue (NEW — migration 0022) ─────────
+  {
+    id: "in-thread-decision-open-button-admin-only",
+    title: "'Open as Decision Dialogue' button is admin-only and topic-scoped",
+    instructions: "Open a chat topic where you ARE an admin and the topic is open. Then open one where you are NOT an admin.",
+    expected: "Admin view: brand-red 'Open as Decision Dialogue' button visible in the topic header, next to Close topic. Non-admin view: button hidden entirely. Closed topics never show the button.",
+    assignee: "partners",
+  },
+  {
+    id: "in-thread-decision-open-posts-system-message",
+    title: "Opening a dialogue posts a system message AND surfaces the card",
+    instructions: "Click 'Open as Decision Dialogue' in an open topic. Watch the thread and the composer area.",
+    expected: "Toast 'Decision Dialogue opened'. New system-kind message lands at the bottom of the thread (timestamped, marked as system). Brand-red 4-phase card appears anchored above the composer with PHASE 1 active and a Situation textarea.",
+    assignee: "partners",
+  },
+  {
+    id: "in-thread-decision-situation-required",
+    title: "Cannot advance past Situation without text",
+    instructions: "With a fresh dialogue open, leave the Situation textarea empty. Look at the Continue button.",
+    expected: "Continue button is disabled (40% opacity). Once you type something, it enables. Click → phase advances to 'Your read' and a system message records the phase change.",
+    assignee: "partners",
+  },
+  {
+    id: "in-thread-decision-elicit-requires-both",
+    title: "'Your read' requires diagnosis AND proposal before System will respond",
+    instructions: "Advance to Phase 2. Fill diagnosis only — leave proposal blank. Check 'Ask the System' button.",
+    expected: "Button is disabled until BOTH fields contain text. The structural §3.3 interrupt is enforced — the System won't respond to a half-stated read.",
+    assignee: "partners",
+  },
+  {
+    id: "in-thread-decision-system-responds",
+    title: "Ask the System generates the 4-block response in-card",
+    instructions: "With diagnosis + proposal filled, click 'Ask the System'. Wait a few seconds.",
+    expected: "Button shows 'Asking the System…' with pulsing icon. Phase 3 'System response' card expands below with four blocks: emerald 'Engages your diagnosis' · blue 'Adds perspective' · brand-red 'Suggestion / Why' · violet 'Compared to your proposal'. Decide button surfaces.",
+    assignee: "partners",
+  },
+  {
+    id: "in-thread-decision-decide-records",
+    title: "Decide records all 4 path choices including Hybrid note",
+    instructions: "Click Decide. Try selecting each: 'Go with my proposal', 'Go with System's suggestion', 'Hybrid', 'Defer'. For Hybrid, type a note. Click 'Record decision'.",
+    expected: "Each selection highlights brand-red. Hybrid requires its note before Record activates. Defer auto-clears the note field. On Record: toast confirms, card folds to a one-line decided summary, and the system message 'Decision recorded: …' appears in the thread.",
+    assignee: "partners",
+  },
+  {
+    id: "in-thread-decision-folded-and-new",
+    title: "Decided dialogue folds + 'New dialogue' surfaces for admin",
+    instructions: "After finalizing, look at the folded card above the composer.",
+    expected: "Single-line green card: '✓ Decision Dialogue closed · {path label}'. If you're admin, a small 'New dialogue' button is visible on the right. Clicking it re-opens phase 1.",
+    assignee: "partners",
+  },
+  {
+    id: "in-thread-decision-coach-mounts",
+    title: "Coach mirror chips fire on Situation/diagnosis/proposal textareas",
+    instructions: "With Coach ON (company or per-topic), open a dialogue. In Situation, type 'we always miss the deploy window'. Advance, then in diagnosis type 'they don't get it'.",
+    expected: "Mirror chip surfaces above each affected textarea reporting the count + asking a question (e.g. 'Absolute / judgmental phrasing — once in this thread. First occurrence — pattern starting, or fair callback?'). Chip never renders a verdict.",
+    assignee: "partners",
+  },
+  {
+    id: "in-thread-decision-chain-events",
+    title: "decision.opened / phase_entered / system_responded / decided land on chain",
+    instructions: "(JOHN) Walk a full dialogue end-to-end. In Supabase events table, filter subject ~ 'chat_topic:<topic-id>'.",
+    expected: "Four event rows for the dialogue: decision.opened (on open), decision.phase_entered (on each advance — at least 2), decision.system_responded (when AI returns), decision.decided (on finalize). Each payload includes decision_id, mode='in_thread', and the relevant context (from_phase/to_phase, chosen_path, persisted_decision_id, etc.).",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
@@ -504,7 +569,7 @@ const items = [
     id: "maint-rls-audit",
     title: "RLS audit shows 0 gaps",
     instructions: "(JOHN) Run `npm run rls:audit`.",
-    expected: "Every RLS-enabled table is covered or documented. 0 missing policies. 27 allowlisted omissions.",
+    expected: "Every RLS-enabled table is covered or documented. 0 missing policies. 31 allowlisted omissions.",
     assignee: "john",
   },
   {
@@ -534,7 +599,7 @@ const patch = await fetch(
     method: "PATCH",
     headers,
     body: JSON.stringify({
-      label: "Comprehensive verification — 2026-06-09",
+      label: "Comprehensive verification — 2026-06-12 (in-thread Decision Dialogue added)",
       items,
     }),
   }
