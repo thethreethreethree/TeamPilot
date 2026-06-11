@@ -148,14 +148,22 @@ export default function Sidebar() {
       )}
       aria-label="Primary navigation"
     >
-      {/* Logo — lightbulb mark + ELOSTATE wordmark + tagline + live/demo dot */}
+      {/* Logo — canonical bulb (amber, transparent) + ELOSTATE wordmark
+          (Inter-Black for theme adaptability) + tagline + live/demo dot.
+          The bulb image's native aspect is 255×354 (taller than wide),
+          so width/height match the actual asset proportions to avoid
+          stretching. */}
       <div className="px-6 py-6 border-b border-default">
         <Link
           href="/"
           aria-label="ELOSTATE — landing page"
           className="flex items-center gap-3 group"
         >
-          <LightbulbMark className="w-9 h-9 shadow-glow-ember-soft rounded-md transition-shadow group-hover:shadow-glow-ember" />
+          <LightbulbMark
+            width={28}
+            height={39}
+            className="flex-shrink-0 transition-transform group-hover:scale-105"
+          />
           <div className="min-w-0">
             <span className="block text-base font-black text-primary tracking-tight leading-none">
               ELOSTATE

@@ -94,7 +94,7 @@ export default function Landing() {
       <header className="border-b border-default bg-base/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5" aria-label="ELOSTATE — home">
-            <LightbulbMark className="w-7 h-7 shadow-glow-ember-soft rounded-md" />
+            <LightbulbMark width={22} height={30} className="flex-shrink-0" />
             <span className="text-sm font-black tracking-tight text-primary">ELOSTATE</span>
           </Link>
           <div className="flex items-center gap-3 text-xs">
