@@ -45,8 +45,14 @@ import { SummarizeModal } from "@/components/chats/SummarizeModal";
 import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
 import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { InThreadDecisionDialogue } from "@/components/chats/InThreadDecisionDialogue";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
-import { BookOpen, BookOpenCheck } from "lucide-react";
+import { BookOpen, BookOpenCheck, Brain } from "lucide-react";
+import {
+  fetchTopicDecision,
+  openTopicDecision,
+  type TopicDecision,
+} from "@/lib/data/topicDecisions";
 
 export default function TeamChatTopicPage() {
   const params = useParams<{ id: string }>();
@@ -59,6 +65,8 @@ export default function TeamChatTopicPage() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [topicDecision, setTopicDecision] = useState<TopicDecision | null>(null);
+  const [openingDialogue, setOpeningDialogue] = useState(false);
   // Company-level Coach master switch. When ON, the Coach activates
   // in every topic regardless of the per-topic flag. Per-topic
   // remains as a fallback when company-level is OFF (the existing
@@ -78,14 +86,16 @@ export default function TeamChatTopicPage() {
 
   const refresh = async () => {
     setLoading(true);
-    const [t, m, p] = await Promise.all([
+    const [t, m, p, d] = await Promise.all([
       fetchTopic(topicId),
       fetchMessages(topicId),
       fetchParticipants(topicId),
+      fetchTopicDecision(topicId),
     ]);
     setTopic(t);
     setMessages(m);
     setParticipants(p);
+    setTopicDecision(d);
     setLoading(false);
   };
 
@@ -152,6 +162,42 @@ export default function TeamChatTopicPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     void post(draft);
+  };
+
+  // Open / re-open an in-thread Decision Dialogue. Posts a system
+  // message + emits decision.opened on the chain; on success we
+  // refresh the whole topic so the new message renders alongside the
+  // dialogue card. The card itself drives state independently after
+  // that — refreshes happen on phase advance + finalization.
+  const handleOpenDecisionDialogue = async () => {
+    if (!topic) return;
+    setOpeningDialogue(true);
+    try {
+      const created = await openTopicDecision(topic.id, "");
+      setTopicDecision(created);
+      // Pull the new system message into the stream.
+      const m = await fetchMessages(topic.id);
+      setMessages(m);
+      toast.success(
+        "Decision Dialogue opened",
+        "The four-phase flow is now active above the composer."
+      );
+    } catch (err) {
+      toast.error(
+        "Couldn't open dialogue",
+        err instanceof Error ? err.message : "Unknown error."
+      );
+    } finally {
+      setOpeningDialogue(false);
+    }
+  };
+
+  const handleDecisionChange = async (next: TopicDecision) => {
+    setTopicDecision(next);
+    // Each phase advance / system-response / finalize posts a system
+    // message; pull the updated stream so it renders.
+    const m = await fetchMessages(topicId);
+    setMessages(m);
   };
 
   // Optimistic pin/unpin. We flip the local row immediately, then
@@ -335,6 +381,24 @@ export default function TeamChatTopicPage() {
                 Coach: {companyCoachOn ? "on (company)" : topic.coachEnabled ? "on" : "off"}
               </button>
             )}
+            {/* Open as Decision Dialogue — admin-only, hidden while a
+                dialogue is in flight (the card itself becomes the
+                control surface). Also hidden when the topic is closed.
+                Per §3.3, opening is an act of room leadership; we don't
+                let any participant flip the room into structured mode. */}
+            {iAmAdmin &&
+              !isClosed &&
+              (!topicDecision || topicDecision.phase === "decided") && (
+                <button
+                  onClick={() => void handleOpenDecisionDialogue()}
+                  disabled={openingDialogue}
+                  title="Open the structured 4-phase Decision Dialogue inline in this thread"
+                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/40 hover:border-[#C8232C]/70 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                >
+                  <Brain className="w-3 h-3" aria-hidden="true" />
+                  {openingDialogue ? "Opening…" : "Open as Decision Dialogue"}
+                </button>
+              )}
             {iAmAdmin && !isClosed && (
               <button
                 onClick={() => setClosingOpen(true)}
@@ -483,6 +547,20 @@ export default function TeamChatTopicPage() {
             onSubmit={handleSubmit}
             className="max-w-5xl mx-auto"
           >
+            {/* In-thread Decision Dialogue card — when present, sits
+                directly above the composer so the conversation
+                continues to flow above it and the dialogue stays
+                anchored. The card folds to a one-line summary once
+                decided. */}
+            {topicDecision && (
+              <InThreadDecisionDialogue
+                decision={topicDecision}
+                coachOn={companyCoachOn || topic.coachEnabled}
+                iAmAdmin={iAmAdmin}
+                onChange={(next) => void handleDecisionChange(next)}
+                onOpenNew={() => void handleOpenDecisionDialogue()}
+              />
+            )}
             {/* Conversational Coach v1 — only rendered when the topic
                 has opted in (coach_enabled = true). A3 default-OFF so
                 the §4 readout has a clean A/B between coached and

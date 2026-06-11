@@ -175,6 +175,10 @@ const ALLOWLIST = new Map([
     "task_participants.delete",
     "Participants leave a task by setting left_at, never by deletion. Engagement history (last_engaged_at, engagement_count) is constitutional record per A10 transparency.",
   ],
+  [
+    "chat_topic_decisions.delete",
+    "§A1 data-as-asset. An opened-by-mistake in-thread dialogue is resolved as chosen_path='defer', never deleted — the constitutional meaning of 'not enough understanding yet' is exactly this record.",
+  ],
 ]);
 
 // ─── Parse migrations ─────────────────────────────────────────────────
