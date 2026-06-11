@@ -45,25 +45,34 @@ export type CoachCitation = {
 };
 
 /**
- * Per-heuristic threshold for the mirror frame (v2).
+ * Per-heuristic threshold for the mirror frame (v2 → v2.1).
  *
  * Coach v2 (mirror) — the chip surfaces only when the running count
  * of past + current-draft hits >= threshold. The chip content reports
  * the count and asks the user a question; it never asserts a verdict.
  *
- * Identity-collision has a lower threshold because identity attacks
- * carry higher stakes — a single occurrence is worth surfacing. The
- * mirror still doesn't judge it ("first occurrence — intentional, or
- * pattern starting?"), but the surfacing fires earlier.
+ * Why all thresholds are 1 in v2.1:
+ *   User feedback on v2 shipped clearly: the Coach was effectively
+ *   invisible because elevated thresholds (3 for nvc / voss) gated
+ *   surfacing until the conversation had already drifted past the
+ *   moment where guidance would have helped. The mirror frame (A11)
+ *   was supposed to ENABLE surfacing earlier — not gate it later.
+ *   Threshold 1 makes the Coach responsive from the first message.
  *
- * Per asset A4 (defer uncertainties to evidence), these starting
- * values are recorded as §4 readout questions, not pre-decisions.
- * The readout shows per-heuristic accept rate by threshold so we can
- * tune later from real data.
+ * Why threshold 1 doesn't violate A11:
+ *   A11 says the System reports a fact and asks a question; the user
+ *   judges. A count of 1 is still a fact ("you used an absolute once
+ *   in this thread"). The chip text for N=1 already asks an open
+ *   question ("first occurrence — pattern starting, or fair callback?").
+ *   Threshold 1 only changes WHEN the question gets asked — the
+ *   System still doesn't render a verdict.
+ *
+ * Per asset A4, the choice of 1 is itself a §4 readout question:
+ * if the early-fire dismiss rate exceeds 60% per heuristic, we revisit.
  */
 export const COACH_THRESHOLDS: Record<CoachCitation["id"], number> = {
-  "nvc-evaluation": 3,
-  "voss-bare-assertion": 3,
+  "nvc-evaluation": 1,
+  "voss-bare-assertion": 1,
   "stone-identity-collision": 1,
 };
 
