@@ -20,6 +20,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { CoachPanel } from "@/components/chats/CoachPanel";
+import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 interface DialogueResponse {
   engagement: string;
@@ -62,6 +64,10 @@ export default function DecisionsPage() {
   const [persistMsg, setPersistMsg] = useState("");
   const [decisions, setDecisions] = useState<DecisionRecord[]>([]);
   const [decisionsAreMock, setDecisionsAreMock] = useState(true);
+  // Coach is a growth-aware participant in the user's own thinking
+  // here (A8) — same mirror frame (A11) applies to the user writing
+  // their diagnosis as to a message they send someone else.
+  const { enabled: coachEnabled } = useCoachEnabled();
   const [restoredFrom, setRestoredFrom] = useState<string | null>(null);
 
   // Restore in-progress dialogue from localStorage on mount.
@@ -223,6 +229,9 @@ export default function DecisionsPage() {
           title="Situation"
           subtitle="Describe what's happening. The System is silent."
         >
+          {coachEnabled && phase === "situation" && (
+            <CoachPanel subject="decision:draft:situation" draft={situation} />
+          )}
           <textarea
             value={situation}
             onChange={(e) => setSituation(e.target.value)}
@@ -259,6 +268,7 @@ export default function DecisionsPage() {
                 onChange={setUserDiagnosis}
                 disabled={phase !== "elicit"}
                 placeholder="Diagnose the situation in your own words. The underlying cause, not just the symptom."
+                coachSubject={coachEnabled && phase === "elicit" ? "decision:draft:diagnosis" : undefined}
               />
               <ElicitField
                 icon={<Lightbulb className="w-3.5 h-3.5" />}
@@ -267,6 +277,7 @@ export default function DecisionsPage() {
                 onChange={setUserProposal}
                 disabled={phase !== "elicit"}
                 placeholder="State your proposal. The action AND the reasoning — what makes this the right move."
+                coachSubject={coachEnabled && phase === "elicit" ? "decision:draft:proposal" : undefined}
               />
             </div>
             {error && <p className="text-xs text-red-400 mt-3">{error}</p>}
@@ -558,6 +569,7 @@ function ElicitField({
   onChange,
   disabled,
   placeholder,
+  coachSubject,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -565,6 +577,9 @@ function ElicitField({
   onChange: (v: string) => void;
   disabled: boolean;
   placeholder: string;
+  /** When provided, Coach mirror chip surfaces above this textarea
+   *  using the given chain subject. Undefined = no coach mount. */
+  coachSubject?: string;
 }) {
   return (
     <div>
@@ -572,6 +587,7 @@ function ElicitField({
         <span className="text-brand">{icon}</span>
         {label}
       </label>
+      {coachSubject && <CoachPanel subject={coachSubject} draft={value} />}
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}

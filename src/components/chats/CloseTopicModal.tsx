@@ -5,6 +5,8 @@ import { Lock, ShieldCheck } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Field, Textarea } from "@/components/ui/Field";
 import { closeTopic, type ChatTopic } from "@/lib/data/chats";
+import { CoachPanel } from "@/components/chats/CoachPanel";
+import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 /**
  * CloseTopicModal — admin-only action to mark a topic resolved.
@@ -28,6 +30,7 @@ export function CloseTopicModal({
 }) {
   const [summary, setSummary] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { enabled: coachEnabled } = useCoachEnabled();
 
   const submit = async () => {
     if (summary.trim().length < 20) return;
@@ -59,6 +62,12 @@ export function CloseTopicModal({
           </p>
         </div>
         <Field label="What was decided / resolved? (≥20 chars)" required>
+          {coachEnabled && (
+            <CoachPanel
+              subject={`chat_topic:${topic.id}:close_summary`}
+              draft={summary}
+            />
+          )}
           <Textarea
             value={summary}
             onChange={(e) => setSummary(e.target.value)}

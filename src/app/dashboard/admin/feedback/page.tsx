@@ -15,6 +15,8 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { MentionText } from "@/components/ui/MentionText";
+import { CoachPanel } from "@/components/chats/CoachPanel";
+import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 /**
  * /dashboard/admin/feedback
@@ -271,6 +273,7 @@ function FeedbackRowCard({
   const [note, setNote] = useState(row.resolution_note ?? "");
   const Icon = KIND_ICONS[row.kind];
   const screenshot = row.payload["screenshot_data_url"] as string | undefined;
+  const { enabled: coachEnabled } = useCoachEnabled();
 
   return (
     <div className="glass-card p-3">
@@ -318,6 +321,12 @@ function FeedbackRowCard({
 
           {/* Triage actions */}
           <div>
+            {coachEnabled && (
+              <CoachPanel
+                subject={`feedback:${row.id}:resolution_note`}
+                draft={note}
+              />
+            )}
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
