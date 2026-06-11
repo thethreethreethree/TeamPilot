@@ -60,6 +60,7 @@
   "/dashboard/smoke-test/page": "app/dashboard/smoke-test/page.js",
   "/dashboard/team/page": "app/dashboard/team/page.js",
   "/demo/page": "app/demo/page.js",
+  "/icon.svg/route": "app/icon.svg/route.js",
   "/invite/[code]/page": "app/invite/[code]/page.js",
   "/login/page": "app/login/page.js",
   "/manifest.webmanifest/route": "app/manifest.webmanifest/route.js",

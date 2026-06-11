@@ -60,6 +60,7 @@
   "/dashboard/smoke-test/page": "/dashboard/smoke-test",
   "/dashboard/team/page": "/dashboard/team",
   "/demo/page": "/demo",
+  "/icon.svg/route": "/icon.svg",
   "/invite/[code]/page": "/invite/[code]",
   "/login/page": "/login",
   "/manifest.webmanifest/route": "/manifest.webmanifest",
