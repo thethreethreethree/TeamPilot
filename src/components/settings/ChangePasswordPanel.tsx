@@ -79,7 +79,7 @@ export function ChangePasswordPanel() {
             onChange={(e) => setNext(e.target.value)}
             disabled={state.kind === "submitting"}
             placeholder="••••••••"
-            className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors"
+            className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors"
             aria-label="New password"
           />
         </div>
@@ -93,7 +93,7 @@ export function ChangePasswordPanel() {
             onChange={(e) => setConfirm(e.target.value)}
             disabled={state.kind === "submitting"}
             placeholder="••••••••"
-            className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors"
+            className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors"
             aria-label="Confirm password"
           />
         </div>
@@ -110,7 +110,7 @@ export function ChangePasswordPanel() {
         <button
           type="submit"
           disabled={state.kind === "submitting" || !next || !confirm}
-          className="inline-flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
         >
           {state.kind === "submitting" ? (
             <>

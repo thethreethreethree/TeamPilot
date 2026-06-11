@@ -37,7 +37,7 @@ export function MentionText({
           <span
             key={i}
             data-mention-user-id={seg.userId}
-            className="inline-flex items-center font-semibold text-brand bg-[#C8232C]/10 border border-[#C8232C]/30 rounded px-1.5 py-0.5 mx-0.5 text-[0.9em]"
+            className="inline-flex items-center font-semibold text-brand bg-[#FACC15]/10 border border-[#FACC15]/30 rounded px-1.5 py-0.5 mx-0.5 text-[0.9em]"
             title={`Mentioned: ${seg.displayName}`}
           >
             @{seg.displayName}

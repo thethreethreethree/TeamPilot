@@ -13,7 +13,7 @@ export default function NotFound() {
     <div className="min-h-screen bg-base text-primary flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center">
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center shadow-glow">
             <Activity className="w-4 h-4 text-primary" />
           </div>
           <span className="text-sm font-bold tracking-tight">ELOSTATE</span>
@@ -33,7 +33,7 @@ export default function NotFound() {
         <div className="flex items-center justify-center gap-3">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-5 py-2.5 rounded-lg transition-colors text-xs"
+            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-5 py-2.5 rounded-lg transition-colors text-xs"
           >
             Go to dashboard
             <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />

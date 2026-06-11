@@ -117,13 +117,13 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-base flex items-center justify-center px-4 py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-[#C8232C]/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-[#FACC15]/5 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-lg relative">
         {/* Header */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center shadow-glow">
             <Activity className="w-4 h-4 text-primary" />
           </div>
           <span className="text-lg font-bold text-primary">ELOSTATE</span>
@@ -135,7 +135,7 @@ export default function OnboardingPage() {
             <div
               key={i}
               className={`flex-1 h-1 rounded-full transition-all duration-500 ${
-                i + 1 <= step ? "bg-[#C8232C]" : "bg-surface-raised"
+                i + 1 <= step ? "bg-[#FACC15]" : "bg-surface-raised"
               }`}
             />
           ))}
@@ -146,7 +146,7 @@ export default function OnboardingPage() {
           {/* Step 1: Company name */}
           {step === 1 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#C8232C]/10 border border-[#C8232C]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
                 <Building2 className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">What&apos;s your company called?</h2>
@@ -157,7 +157,7 @@ export default function OnboardingPage() {
                 onChange={(e) => update("companyName", e.target.value)}
                 placeholder="Acme Corp"
                 autoFocus
-                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors text-base"
+                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors text-base"
               />
             </div>
           )}
@@ -165,7 +165,7 @@ export default function OnboardingPage() {
           {/* Step 2: Company profile */}
           {step === 2 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#C8232C]/10 border border-[#C8232C]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
                 <Target className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">Tell us about {form.companyName}</h2>
@@ -181,7 +181,7 @@ export default function OnboardingPage() {
                         onClick={() => update("industry", ind)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                           form.industry === ind
-                            ? "bg-[#C8232C]/15 border-[#C8232C]/50 text-brand"
+                            ? "bg-[#FACC15]/15 border-[#FACC15]/50 text-brand"
                             : "border-default text-muted hover:border-strong hover:text-secondary"
                         }`}
                       >
@@ -200,7 +200,7 @@ export default function OnboardingPage() {
                         onClick={() => update("size", s)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                           form.size === s
-                            ? "bg-[#C8232C]/15 border-[#C8232C]/50 text-brand"
+                            ? "bg-[#FACC15]/15 border-[#FACC15]/50 text-brand"
                             : "border-default text-muted hover:border-strong hover:text-secondary"
                         }`}
                       >
@@ -219,7 +219,7 @@ export default function OnboardingPage() {
                         onClick={() => update("stage", s)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                           form.stage === s
-                            ? "bg-[#C8232C]/15 border-[#C8232C]/50 text-brand"
+                            ? "bg-[#FACC15]/15 border-[#FACC15]/50 text-brand"
                             : "border-default text-muted hover:border-strong hover:text-secondary"
                         }`}
                       >
@@ -235,7 +235,7 @@ export default function OnboardingPage() {
           {/* Step 3: Goals */}
           {step === 3 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#C8232C]/10 border border-[#C8232C]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
                 <Target className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">What are your top priorities?</h2>
@@ -247,13 +247,13 @@ export default function OnboardingPage() {
                     onClick={() => toggleGoal(goal)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm border text-left transition-all ${
                       form.selectedGoals.includes(goal)
-                        ? "bg-[#C8232C]/15 border-[#C8232C]/50 text-brand"
+                        ? "bg-[#FACC15]/15 border-[#FACC15]/50 text-brand"
                         : "border-default text-muted hover:border-strong hover:text-secondary"
                     }`}
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        form.selectedGoals.includes(goal) ? "bg-[#C8232C]" : "bg-surface-raised"
+                        form.selectedGoals.includes(goal) ? "bg-[#FACC15]" : "bg-surface-raised"
                       }`}
                     />
                     {goal}
@@ -266,7 +266,7 @@ export default function OnboardingPage() {
           {/* Step 4: CEO name */}
           {step === 4 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#C8232C]/10 border border-[#C8232C]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
                 <Users className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">Last step — who are you?</h2>
@@ -279,10 +279,10 @@ export default function OnboardingPage() {
                 onChange={(e) => update("ceoName", e.target.value)}
                 placeholder="Your name"
                 autoFocus
-                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors text-base mb-4"
+                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors text-base mb-4"
               />
               {form.ceoName && (
-                <div className="bg-[#C8232C]/10 border border-[#C8232C]/20 rounded-xl p-4 fade-in">
+                <div className="bg-[#FACC15]/10 border border-[#FACC15]/20 rounded-xl p-4 fade-in">
                   <p className="text-sm text-secondary">
                     Welcome, <span className="text-primary font-semibold">{form.ceoName}</span>.
                     ELOSTATE is ready to activate for{" "}
@@ -300,7 +300,7 @@ export default function OnboardingPage() {
             <button
               onClick={next}
               disabled={!canProceed() || submitting}
-              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
             >
               {submitting
                 ? "Launching…"

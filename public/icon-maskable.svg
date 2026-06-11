@@ -1,13 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#C8232C"/>
-      <stop offset="100%" stop-color="#F75663"/>
-    </linearGradient>
-  </defs>
-  <!-- Maskable icon has 20% safe-zone padding on all sides per W3C spec. -->
-  <rect width="512" height="512" fill="url(#g)"/>
-  <g transform="translate(180 144)" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M0 0 L184 0 M0 112 L144 112 M0 224 L184 224 M0 0 L0 224"/>
+  <!-- Maskable variant: matte-black fill with 20% W3C safe-zone padding.
+       The bulb is centered in the inner 60% so OS-level icon masks
+       (circle, squircle, rounded square) never crop the bulb body. -->
+  <rect width="512" height="512" fill="#09090B"/>
+  <g transform="translate(102 102) scale(0.605)" fill="none" stroke="#FACC15" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="
+      M 205 340
+      Q 158 300 158 218
+      Q 158 122 256 122
+      Q 354 122 354 218
+      Q 354 300 307 340
+      L 307 360
+      L 205 360 Z"/>
+    <line x1="212" y1="380" x2="300" y2="380"/>
+    <line x1="218" y1="402" x2="294" y2="402"/>
+    <path d="M 238 422 Q 256 440 274 422"/>
+    <circle cx="248" cy="220" r="38"/>
+    <path d="M 213 222 L 286 222 Q 296 222 296 234 Q 296 247 280 245"/>
   </g>
 </svg>

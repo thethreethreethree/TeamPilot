@@ -40,9 +40,9 @@ const NO_FLASH_THEME_SCRIPT = `
 })();
 `.trim();
 
-const TITLE = "ELOSTATE — An honest AI executive operating system";
+const TITLE = "ELOSTATE — Problem Solving System for Teams";
 const DESCRIPTION =
-  "An AI that refuses to give you an answer it hasn't earned. ELOSTATE stays silent until it has real evidence, asks for your read before it speaks, and learns only from outcomes that actually held.";
+  "A problem-solving system for teams. ELOSTATE refuses to give you an answer it hasn't earned — it stays silent until it has real evidence, asks for your read before it speaks, and learns only from outcomes that actually held.";
 
 export const metadata: Metadata = {
   title: {
@@ -94,8 +94,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F4F6FA" },
-    { media: "(prefers-color-scheme: dark)", color: "#0A1429" },
+    { media: "(prefers-color-scheme: light)", color: "#FAFAFA" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090B" },
   ],
 };
 

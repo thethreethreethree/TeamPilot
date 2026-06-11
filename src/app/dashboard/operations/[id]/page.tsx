@@ -68,7 +68,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 
 const STATUS_COLOR: Record<string, string> = {
   "To Do": "border-default bg-surface text-secondary",
-  "In Progress": "border-[#C8232C]/40 bg-[#C8232C]/10 text-brand",
+  "In Progress": "border-[#FACC15]/40 bg-[#FACC15]/10 text-brand",
   Blocked: "border-red-500/40 bg-red-500/10 text-red-300",
   "Needs Review": "border-arc-400/40 bg-arc-400/10 text-arc-300",
   Completed: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
@@ -393,12 +393,12 @@ export default function TaskDetailPage() {
                           void submitMessage(e as unknown as React.FormEvent);
                         }
                       }}
-                      className="flex-1 bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 resize-none"
+                      className="flex-1 bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 resize-none"
                     />
                     <button
                       type="submit"
                       disabled={submitting || !draft.trim()}
-                      className="flex items-center gap-1.5 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold text-xs px-3 py-2 rounded-lg transition-colors"
+                      className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold text-xs px-3 py-2 rounded-lg transition-colors"
                     >
                       {submitting ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -448,7 +448,7 @@ function ThreadMessage({ message }: { message: TaskMessage }) {
   const isSystem = message.kind !== "message";
   return (
     <li
-      className={`text-xs ${isSystem ? "border-l-2 border-[#C8232C]/30 pl-3 py-1.5 bg-[#C8232C]/5 rounded" : ""}`}
+      className={`text-xs ${isSystem ? "border-l-2 border-[#FACC15]/30 pl-3 py-1.5 bg-[#FACC15]/5 rounded" : ""}`}
     >
       <div className="flex items-center gap-2 mb-1">
         {icon}
@@ -532,7 +532,7 @@ function GateForm({
   };
 
   return (
-    <div className="glass-card p-5 border border-[#C8232C]/30 bg-[#C8232C]/5 space-y-4">
+    <div className="glass-card p-5 border border-[#FACC15]/30 bg-[#FACC15]/5 space-y-4">
       <div className="flex items-start gap-3">
         <Lock className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" aria-hidden />
         <div>
@@ -555,7 +555,7 @@ function GateForm({
           onClick={() => setMode("small")}
           className={`text-left rounded-lg border p-3 transition-colors ${
             mode === "small"
-              ? "border-brand bg-[#C8232C]/8"
+              ? "border-brand bg-[#FACC15]/8"
               : "border-default hover:border-strong"
           }`}
         >
@@ -571,7 +571,7 @@ function GateForm({
           onClick={() => setMode("real")}
           className={`text-left rounded-lg border p-3 transition-colors ${
             mode === "real"
-              ? "border-brand bg-[#C8232C]/8"
+              ? "border-brand bg-[#FACC15]/8"
               : "border-default hover:border-strong"
           }`}
         >
@@ -590,7 +590,7 @@ function GateForm({
           onChange={(e) => setWhat(e.target.value)}
           rows={2}
           placeholder="One clear sentence. Not 'fix the bug' — 'restore pin durability on chat refresh'."
-          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 resize-none"
+          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 resize-none"
         />
       </Field>
 
@@ -602,7 +602,7 @@ function GateForm({
               onChange={(e) => setResources(e.target.value)}
               rows={2}
               placeholder="What can the team draw on? Existing docs, services, prior work, people who've solved this before."
-              className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 resize-none"
+              className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 resize-none"
             />
           </Field>
           <Field label="Who's involved + their roles" required>
@@ -611,7 +611,7 @@ function GateForm({
               onChange={(e) => setRoles(e.target.value)}
               rows={2}
               placeholder="One line per person — name, what they own, what they're accountable for."
-              className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 resize-none"
+              className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 resize-none"
             />
           </Field>
         </>
@@ -622,7 +622,7 @@ function GateForm({
           type="button"
           onClick={submit}
           disabled={submitting}
-          className="flex items-center gap-1.5 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold text-xs px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold text-xs px-4 py-2 rounded-lg transition-colors"
         >
           {submitting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />

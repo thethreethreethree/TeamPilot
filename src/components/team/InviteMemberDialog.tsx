@@ -164,7 +164,7 @@ export function InviteMemberDialog({
               type="button"
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Creating…" : "Create invitation"}
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />}
@@ -182,7 +182,7 @@ export function InviteMemberDialog({
             <div className="flex items-center gap-2 flex-wrap">
               <a
                 href={mailto}
-                className="flex items-center gap-1.5 text-xs bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-3 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 text-xs bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-3 py-2 rounded-lg transition-colors"
                 title="Open in your mail client"
               >
                 <Send className="w-3 h-3" aria-hidden />
@@ -191,7 +191,7 @@ export function InviteMemberDialog({
               <button
                 type="button"
                 onClick={copy}
-                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-2.5 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/30 hover:border-[#FACC15]/60 px-2.5 py-2 rounded-lg transition-colors"
                 title="Copy invite link to clipboard"
               >
                 <Copy className="w-3 h-3" aria-hidden />

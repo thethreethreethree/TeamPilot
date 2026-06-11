@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  Activity,
   ArrowRight,
   BookOpen,
   Brain,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { LightbulbMark, TAGLINE } from "@/components/brand/Logo";
 
 /**
  * Landing page — rewritten 2026-06-02 for a non-technical business owner.
@@ -93,12 +93,10 @@ export default function Landing() {
       {/* Header — theme-aware surface so the page chrome flips with the rest. */}
       <header className="border-b border-default bg-base/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
-              <Activity className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-            </div>
-            <span className="text-sm font-bold tracking-tight text-primary">ELOSTATE</span>
-          </div>
+          <Link href="/" className="flex items-center gap-2.5" aria-label="ELOSTATE — home">
+            <LightbulbMark className="w-7 h-7 shadow-glow-ember-soft rounded-md" />
+            <span className="text-sm font-black tracking-tight text-primary">ELOSTATE</span>
+          </Link>
           <div className="flex items-center gap-3 text-xs">
             <ThemeToggle />
             <Link
@@ -109,7 +107,7 @@ export default function Landing() {
             </Link>
             <Link
               href="/login"
-              className="flex items-center gap-1.5 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors"
             >
               Get started <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
@@ -118,9 +116,20 @@ export default function Landing() {
       </header>
 
       {/* Hero — plain-English headline, team-problem framing */}
-      <section className="px-6 py-24 max-w-4xl mx-auto text-center">
+      <section className="relative px-6 py-24 max-w-4xl mx-auto text-center">
+        {/* Bulb-glow ambient behind the hero — the brand's signature */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 flex items-start justify-center -z-10"
+        >
+          <div className="w-[600px] h-[600px] bulb-glow" />
+        </div>
+        {/* Hero mark — the lit bulb */}
+        <div className="flex justify-center mb-6">
+          <LightbulbMark className="w-20 h-20 shadow-glow-ember rounded-2xl" />
+        </div>
         <p className="text-xs uppercase tracking-widest text-brand mb-4">
-          Better decisions for growing teams
+          {TAGLINE}
         </p>
         <h1 className="text-4xl md:text-5xl font-bold text-primary leading-tight tracking-tight mb-5">
           Your team makes big decisions every week.
@@ -136,7 +145,7 @@ export default function Landing() {
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
             href="/login"
-            className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
+            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
             Try ELOSTATE <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
@@ -339,7 +348,7 @@ export default function Landing() {
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
             href="/login"
-            className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
+            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
             Get started — free preview{" "}
             <ArrowRight className="w-4 h-4" aria-hidden="true" />

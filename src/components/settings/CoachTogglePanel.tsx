@@ -151,7 +151,7 @@ export function CoachTogglePanel() {
           disabled={loading || saving || enabled == null}
           className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border ${
             enabled
-              ? "border-[#C8232C]/40 hover:border-[#C8232C]/70 text-brand bg-[#C8232C]/5"
+              ? "border-[#FACC15]/40 hover:border-[#FACC15]/70 text-brand bg-[#FACC15]/5"
               : "border-default hover:border-strong text-secondary"
           } disabled:opacity-40`}
         >

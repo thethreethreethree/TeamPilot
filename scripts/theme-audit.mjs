@@ -46,19 +46,28 @@ const COLOR_PREFIXES = [
 ];
 
 // ─── Brand-fill / brand-border tokens that are explicitly mode-agnostic
-//      Crimson primary (suit) — same on both modes; white-on-crimson
-//      contrast holds on both. Same for gold (helmet) and arc cyan.
+//      Ember (the bulb yellow) holds contrast on both dark and light
+//      surfaces. ink (the matte-black grayscale) is the field; near-
+//      black 950 reads correctly as bg-base in dark mode, the same
+//      utility maps to bg-base resolving to cream in light mode via
+//      CSS var swap. No red, no cyan, no navy — dropped 2026-06-12.
 const BRAND_HEXES = new Set([
-  // Crimson family
-  "C8232C", "A91D24", "8A1820", "F75663", "FF8A92",
-  // Gold family
+  // Ember (amber) family — the bulb
+  "FFFDF0", "FEF9C3", "FEF08A", "FDE047",
+  "FACC15", "EAB308", "CA8A04", "A16207", "854D0E", "713F12",
+  // Ink (matte-black grayscale) family — for inline mark stroke / bg
+  "FAFAFA", "F4F4F5", "E4E4E7", "D4D4D8",
+  "A1A1AA", "71717A", "52525B",
+  "3F3F46", "27272A", "18181B", "09090B",
+  // Back-compat — some legacy gold hex literals may still appear during
+  // sweep; recognized as brand because gold→ember is an alias now.
   "E8B53A", "F2C94C", "D4A024", "A6801C",
-  // Arc cyan family
-  "5EC8E0", "7DDCE8", "A8E6F0", "3FB1CC", "1F6B7E",
 ]);
 
 const BRAND_NAMED_SCALES = new Set([
-  "crimson", "gold", "arc",
+  "ember", "ink",
+  // Back-compat aliases — still resolve via tailwind config to ember/ink.
+  "gold", "navy",
 ]);
 
 // ─── Patterns that ARE always leaks (theme-bound) ──────────────────────
@@ -72,31 +81,24 @@ const HEX_LITERAL = new RegExp(
   "g"
 );
 
-// Crimson text variants that should use `text-brand` for contrast-aware
-// switching (crimson-400 is correct on dark, illegible on light surfaces).
+// Crimson named scale should no longer appear after the 2026-06-12 sweep.
+// Leaks here mean the sweep missed a reference; flag for cleanup.
 const CRIMSON_TEXT_LEAK = /\btext-crimson-\d+\b/g;
 
-// Same-element brand-red fill + theme-aware text = inverted contrast bug.
-// The brand-red background is solid and constant across themes, but
-// text-primary resolves to ~white on dark and ~near-black on light. So a
-// button like `bg-crimson-500 text-primary` reads correctly on dark mode
-// and is illegible (black on dark red) on light mode. Every other brand-
-// red button in the codebase uses `text-white` explicitly; these are the
-// outliers. User-reported on the chats page: the "New topic" button had
-// black text blending into the dark red.
+// Same-element brand-fill + theme-aware text = inverted contrast bug.
+// Ember (#FACC15) is bright yellow — white text on it is unreadable.
+// The CSS contrast guard in globals.css swaps text-primary children to
+// #09090B inside ember backgrounds, but explicit text-primary on a
+// solid ember button is still a smell worth catching at audit time.
 //
-// Match only SOLID brand-red fills (no /opacity suffix). Tinted fills like
-// `bg-[#C8232C]/10` are translucent overlays on a theme-aware surface, so
-// `text-primary` against them is correct.
-//
-// Flagged text is intentionally narrow: text-primary only. text-secondary
-// and text-muted are valid for muted hover/disabled states inside larger
-// patterns and would over-flag.
+// Match only SOLID ember fills (no /opacity suffix). Tinted fills like
+// `bg-[#FACC15]/10` are translucent overlays on a theme-aware surface,
+// so `text-primary` against them is correct.
 const SOLID_BRAND_RED = [
-  /\bbg-crimson-\d+\b(?!\/)/,
-  /\bbg-\[#C8232C\](?!\/)/,
-  /\bbg-\[#A91D24\](?!\/)/,
-  /\bbg-\[#8A1820\](?!\/)/,
+  /\bbg-ember-(400|500|600)\b(?!\/)/,
+  /\bbg-\[#FACC15\](?!\/)/,
+  /\bbg-\[#EAB308\](?!\/)/,
+  /\bbg-\[#CA8A04\](?!\/)/,
 ];
 const THEME_AWARE_TEXT_ON_BRAND = /\btext-primary\b/;
 

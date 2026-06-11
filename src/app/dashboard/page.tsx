@@ -222,7 +222,7 @@ export default function CommandDashboard() {
 
         {/* Quickstart — real, state-derived suggestion */}
         {quickstart && (
-          <div className="glass-card p-5 border-[#C8232C]/30">
+          <div className="glass-card p-5 border-[#FACC15]/30">
             <p className="text-[10px] text-brand uppercase tracking-widest mb-2">
               Where to focus next
             </p>
@@ -242,21 +242,21 @@ export default function CommandDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Today's Open Questions */}
           <div className="lg:col-span-2 space-y-5">
-            <div className="glass-card p-5 border-[#C8232C]/20">
+            <div className="glass-card p-5 border-[#FACC15]/20">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <CircleHelp className="w-4 h-4 text-brand" />
                   <h2 className="text-sm font-semibold text-primary">
                     Today&apos;s Open Questions
                   </h2>
-                  <span className="text-[10px] font-medium text-brand bg-[#C8232C]/10 border border-[#C8232C]/20 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-medium text-brand bg-[#FACC15]/10 border border-[#FACC15]/20 px-2 py-0.5 rounded-full">
                     Guide, don&apos;t overtake
                   </span>
                 </div>
                 <button
                   onClick={surfaceQuestions}
                   disabled={loadingBriefing}
-                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/30 hover:border-[#FACC15]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
                   aria-live="polite"
                 >
                   <RefreshCw

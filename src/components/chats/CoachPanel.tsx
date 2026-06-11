@@ -168,7 +168,7 @@ export function CoachPanel({
 
   return (
     <div
-      className="mb-2 border border-[#C8232C]/30 bg-[#C8232C]/5 rounded-lg px-3 py-2"
+      className="mb-2 border border-[#FACC15]/30 bg-[#FACC15]/5 rounded-lg px-3 py-2"
       role="region"
       aria-label="Conversational coach mirror"
     >
@@ -195,7 +195,7 @@ export function CoachPanel({
               <p className="text-[10px] text-muted font-mono uppercase tracking-widest">
                 {active.citation.source}
               </p>
-              <p className="text-[11px] text-secondary leading-relaxed italic border-l-2 border-[#C8232C]/40 pl-2">
+              <p className="text-[11px] text-secondary leading-relaxed italic border-l-2 border-[#FACC15]/40 pl-2">
                 {active.citation.principle}
               </p>
               {/* Kind, compassionate, concise explanation — programmed
@@ -209,7 +209,7 @@ export function CoachPanel({
                 <button
                   type="button"
                   onClick={refine}
-                  className="text-[11px] font-semibold text-white bg-[#C8232C] hover:bg-[#A91D24] px-2.5 py-1 rounded-md transition-colors"
+                  className="text-[11px] font-semibold text-white bg-[#FACC15] hover:bg-[#EAB308] px-2.5 py-1 rounded-md transition-colors"
                 >
                   Refine and revise
                 </button>

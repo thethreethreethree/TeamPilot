@@ -1,10 +1,11 @@
 "use client";
 
-import { Activity, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { LightbulbMark, TAGLINE } from "@/components/brand/Logo";
 
 type Mode = "signin" | "signup";
 
@@ -81,15 +82,20 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#C8232C]/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bulb-glow rounded-full" />
       </div>
 
       <div className="w-full max-w-sm relative">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
-            <Activity className="w-5 h-5 text-primary" />
+        <div className="flex flex-col items-center gap-3 mb-8">
+          <LightbulbMark className="w-14 h-14 shadow-glow-ember rounded-xl" />
+          <div className="flex flex-col items-center">
+            <span className="text-2xl font-black tracking-tight text-primary">
+              ELOSTATE
+            </span>
+            <span className="text-[11px] text-muted tracking-wide">
+              {TAGLINE}
+            </span>
           </div>
-          <span className="text-xl font-bold text-primary">ELOSTATE</span>
         </div>
 
         <div className="glass-card p-8">
@@ -98,8 +104,8 @@ export default function LoginPage() {
           </h1>
           <p className="text-sm text-muted mb-6">
             {mode === "signin"
-              ? "Sign in to your executive system"
-              : "Set up your AI Executive Operating System"}
+              ? "Sign in to your team's problem-solving system"
+              : "Set up your team's problem-solving system"}
           </p>
 
           {!supabaseEnabled && (
@@ -119,7 +125,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ceo@company.com"
-                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
             <div>
@@ -132,7 +138,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -143,7 +149,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               aria-busy={loading}
-              className="w-full flex items-center justify-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors shadow-glow hover:shadow-none"
+              className="w-full flex items-center justify-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-60 disabled:cursor-not-allowed text-[#09090B] font-semibold py-2.5 rounded-lg transition-colors shadow-glow hover:shadow-none"
             >
               {loading ? (
                 <>
@@ -155,7 +161,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   {mode === "signin"
-                    ? "Enter Command Center"
+                    ? "Enter ELOSTATE"
                     : "Create account"}
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />
                 </>

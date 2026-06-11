@@ -279,7 +279,7 @@ function SmokeTestItemCard({
             {statusBadge}
             {johnOwns ? (
               <span
-                className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-[#C8232C] bg-[#C8232C]/10 border border-[#C8232C]/30 px-1.5 py-0.5 rounded-full"
+                className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-[#FACC15] bg-[#FACC15]/10 border border-[#FACC15]/30 px-1.5 py-0.5 rounded-full"
                 title="Backend / infra item — John handles this verification personally"
               >
                 <ServerCog className="w-3 h-3" aria-hidden /> John
@@ -301,7 +301,7 @@ function SmokeTestItemCard({
           action, but partners should still SEE them on the record so
           they know coverage is happening across the board. */}
       {johnOwns && (
-        <div className="mb-3 rounded-lg border border-[#C8232C]/25 bg-[#C8232C]/5 px-3 py-2">
+        <div className="mb-3 rounded-lg border border-[#FACC15]/25 bg-[#FACC15]/5 px-3 py-2">
           <p className="text-[11px] text-secondary leading-relaxed">
             <ServerCog
               className="inline w-3 h-3 text-brand mr-1 -mt-0.5"
@@ -342,7 +342,7 @@ function SmokeTestItemCard({
           members={members}
           rows={2}
           placeholder="Notes (required for fail / unable; ≥5 chars) — type @ to tag a teammate"
-          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 resize-none"
+          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 resize-none"
         />
       </div>
       <div className="flex items-center gap-2">

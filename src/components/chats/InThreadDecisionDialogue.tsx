@@ -203,9 +203,9 @@ export function InThreadDecisionDialogue({
   const phase = decision.phase;
 
   return (
-    <div className="mb-3 rounded-xl border border-[#C8232C]/30 bg-[#C8232C]/[0.03] overflow-hidden">
+    <div className="mb-3 rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/[0.03] overflow-hidden">
       {/* Header strip */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[#C8232C]/20 bg-[#C8232C]/[0.06]">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[#FACC15]/20 bg-[#FACC15]/[0.06]">
         <div className="flex items-center gap-2">
           <Brain className="w-3.5 h-3.5 text-brand" aria-hidden />
           <span className="text-[11px] font-semibold text-brand uppercase tracking-widest">
@@ -230,7 +230,7 @@ export function InThreadDecisionDialogue({
             disabled={phase !== "situation"}
             rows={4}
             placeholder="What's happening, in your words. State the facts of the case before anyone proposes a fix."
-            className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+            className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
           />
           {phase === "situation" && (
             <div className="mt-2 flex items-center justify-end">
@@ -238,7 +238,7 @@ export function InThreadDecisionDialogue({
                 type="button"
                 onClick={() => void advance("elicit")}
                 disabled={!situation.trim() || advancing}
-                className="flex items-center gap-1.5 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
+                className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
               >
                 {advancing ? "Saving…" : "Continue"}
                 <ChevronRight className="w-3.5 h-3.5" aria-hidden />
@@ -291,7 +291,7 @@ export function InThreadDecisionDialogue({
                     !userDiagnosis.trim() ||
                     !userProposal.trim()
                   }
-                  className="flex items-center gap-1.5 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
+                  className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
                 >
                   <MessageCircleQuestion
                     className={`w-3.5 h-3.5 ${askingSystem ? "animate-pulse" : ""}`}
@@ -327,7 +327,7 @@ export function InThreadDecisionDialogue({
                   body={decision.systemResponse.addedPerspective}
                 />
               )}
-              <div className="rounded-lg border border-[#C8232C]/30 bg-[#C8232C]/5 p-3">
+              <div className="rounded-lg border border-[#FACC15]/30 bg-[#FACC15]/5 p-3">
                 <p className="text-[10px] text-brand uppercase tracking-widest mb-1.5">
                   Suggestion
                 </p>
@@ -354,7 +354,7 @@ export function InThreadDecisionDialogue({
                   type="button"
                   onClick={() => void advance("decide")}
                   disabled={advancing}
-                  className="flex items-center gap-1.5 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
+                  className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
                 >
                   {advancing ? "Saving…" : "Decide"}
                   <ChevronRight className="w-3.5 h-3.5" aria-hidden />
@@ -417,7 +417,7 @@ export function InThreadDecisionDialogue({
                       ? "Describe the combined approach you're actually adopting."
                       : "What's the gap in understanding that justified deferring?"
                   }
-                  className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed"
+                  className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-none leading-relaxed"
                 />
               )}
 
@@ -496,7 +496,7 @@ function FoldedDecided({
         <button
           type="button"
           onClick={onOpenNew}
-          className="flex-shrink-0 flex items-center gap-1.5 text-[11px] text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-2 py-1 rounded-lg transition-colors"
+          className="flex-shrink-0 flex items-center gap-1.5 text-[11px] text-brand hover:text-primary border border-[#FACC15]/30 hover:border-[#FACC15]/60 px-2 py-1 rounded-lg transition-colors"
         >
           <RotateCcw className="w-3 h-3" aria-hidden />
           New dialogue
@@ -530,7 +530,7 @@ function PhaseStepper({
             <div
               className={`text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors ${
                 active
-                  ? "bg-[#C8232C]/20 text-brand"
+                  ? "bg-[#FACC15]/20 text-brand"
                   : reached
                     ? "text-secondary"
                     : "text-muted"
@@ -600,7 +600,7 @@ function ElicitField({
         disabled={disabled}
         rows={3}
         placeholder={placeholder}
-        className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+        className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
       />
     </div>
   );
@@ -650,7 +650,7 @@ function DecisionChoice({
       onClick={onSelect}
       className={`w-full text-left rounded-lg border p-2.5 transition-all ${
         selected
-          ? "border-[#C8232C]/60 bg-[#C8232C]/10"
+          ? "border-[#FACC15]/60 bg-[#FACC15]/10"
           : "border-default bg-surface hover:border-strong"
       }`}
     >

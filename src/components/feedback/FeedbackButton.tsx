@@ -68,7 +68,7 @@ export function FeedbackButton() {
         aria-label="Send feedback"
         title="Send feedback"
         data-feedback-ignore
-        className="fixed bottom-4 right-4 z-[60] flex items-center gap-1.5 bg-[#C8232C] hover:bg-[#A91D24] text-white text-xs font-semibold px-3 py-2.5 rounded-full shadow-glow transition-colors"
+        className="fixed bottom-4 right-4 z-[60] flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-white text-xs font-semibold px-3 py-2.5 rounded-full shadow-glow transition-colors"
       >
         <MessageSquarePlus className="w-4 h-4" aria-hidden />
         Feedback

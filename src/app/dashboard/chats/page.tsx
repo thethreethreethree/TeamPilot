@@ -30,7 +30,7 @@ import { useEffect, useMemo, useState } from "react";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 
 const STATUS_BADGE: Record<string, string> = {
-  open: "bg-surface-raised text-active-text border border-[#5EC8E0]/30",
+  open: "bg-surface-raised text-active-text border border-[#FACC15]/30",
   closed: "bg-gold-400/15 text-accent-text border border-gold-400/40",
   archived: "bg-surface-raised text-muted border border-default",
 };

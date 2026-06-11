@@ -369,7 +369,7 @@ export default function TeamChatTopicPage() {
                 }
                 className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors border ${
                   companyCoachOn || topic.coachEnabled
-                    ? "text-brand border-[#C8232C]/40 hover:border-[#C8232C]/70 bg-[#C8232C]/5"
+                    ? "text-brand border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5"
                     : "text-secondary border-default hover:border-strong"
                 } ${companyCoachOn ? "cursor-default opacity-90" : ""}`}
               >
@@ -393,7 +393,7 @@ export default function TeamChatTopicPage() {
                   onClick={() => void handleOpenDecisionDialogue()}
                   disabled={openingDialogue}
                   title="Open the structured 4-phase Decision Dialogue inline in this thread"
-                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/40 hover:border-[#C8232C]/70 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/40 hover:border-[#FACC15]/70 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition-colors"
                 >
                   <Brain className="w-3 h-3" aria-hidden="true" />
                   {openingDialogue ? "Opening…" : "Open as Decision Dialogue"}

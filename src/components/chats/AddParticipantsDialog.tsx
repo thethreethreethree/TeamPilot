@@ -153,7 +153,7 @@ export function AddParticipantsDialog({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Filter by name or role…"
-              className="w-full bg-surface border border-default rounded-lg pl-9 pr-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30"
+              className="w-full bg-surface border border-default rounded-lg pl-9 pr-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30"
             />
           </div>
 
@@ -193,7 +193,7 @@ export function AddParticipantsDialog({
                     onClick={() => toggle(m.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
                       checked
-                        ? "bg-[#C8232C]/8"
+                        ? "bg-[#FACC15]/8"
                         : "hover:bg-surface-raised"
                     }`}
                   >
@@ -202,9 +202,9 @@ export function AddParticipantsDialog({
                       checked={checked}
                       onChange={() => toggle(m.id)}
                       aria-label={`Select ${m.fullName ?? "member"}`}
-                      className="h-4 w-4 rounded border-default accent-[#C8232C]"
+                      className="h-4 w-4 rounded border-default accent-[#FACC15]"
                     />
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -245,7 +245,7 @@ export function AddParticipantsDialog({
                 type="button"
                 onClick={submit}
                 disabled={submitting || selected.size === 0}
-                className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
               >
                 {submitting ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />

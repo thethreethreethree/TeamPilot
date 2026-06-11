@@ -1,21 +1,21 @@
 import type { MetadataRoute } from "next";
 
-/** Web app manifest for "Add to Home Screen" on mobile + desktop PWA install. */
+/** Web app manifest for "Add to Home Screen" on mobile + desktop PWA install.
+ *  Identity comes from docs/BRAND.md — amber lightbulb on matte black, with
+ *  the canonical tagline "Problem Solving System for Teams". */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ELOSTATE",
+    name: "ELOSTATE — Problem Solving System for Teams",
     short_name: "ELOSTATE",
     description:
-      "An honest AI executive operating system. Stays silent until it has earned the right to speak.",
+      "Problem Solving System for Teams. The system stays silent until it has earned the right to speak.",
     start_url: "/dashboard",
     display: "standalone",
-    // PWA manifest is static — cannot follow the user's light/dark
-    // preference. We pick the brand's dark base (navy.900) so the install
-    // splash matches the dark-mode chrome the OS shows by default. Users
-    // on light mode see a brief navy splash on PWA cold-start; an
-    // accepted tradeoff for static manifest behavior. See docs/BRAND.md.
-    background_color: "#0A1429",
-    theme_color: "#0A1429",
+    // Matte black with an ember theme accent so the OS install splash
+    // matches the brand. background_color paints the splash field;
+    // theme_color paints the address bar / title bar tint.
+    background_color: "#09090B",
+    theme_color: "#FACC15",
     orientation: "any",
     categories: ["business", "productivity"],
     icons: [

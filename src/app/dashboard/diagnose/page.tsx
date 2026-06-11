@@ -239,7 +239,7 @@ export default function DiagnosePage() {
       />
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#FACC15]/5 border border-[#FACC15]/20">
           <Activity className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
           <p className="text-xs text-secondary leading-relaxed">
             This is the diagnostic discipline operating on your data. The engine refuses to
@@ -279,7 +279,7 @@ export default function DiagnosePage() {
                   <button
                     onClick={loadSignals}
                     disabled={loadingSignals}
-                    className="text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+                    className="text-xs text-brand hover:text-primary border border-[#FACC15]/30 hover:border-[#FACC15]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <RefreshCw className={`w-3 h-3 ${loadingSignals ? "animate-spin" : ""}`} />
                     Refresh signals
@@ -360,12 +360,12 @@ export default function DiagnosePage() {
                   onChange={(e) => setCurrentRead(e.target.value)}
                   placeholder="What do you currently think is going on?"
                   rows={4}
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed mb-3"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-none leading-relaxed mb-3"
                 />
                 <button
                   onClick={requestOutsideView}
                   disabled={loadingOutside || !currentRead.trim()}
-                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                  className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingOutside ? "animate-spin" : ""}`} />
                   {loadingOutside ? "Generating alternatives…" : "Generate outside views"}
@@ -407,20 +407,20 @@ export default function DiagnosePage() {
                     value={hypothesisTitle}
                     onChange={(e) => setHypothesisTitle(e.target.value)}
                     placeholder="Problem title — one line"
-                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50"
+                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50"
                   />
                   <input
                     value={hypothesisKind}
                     onChange={(e) => setHypothesisKind(e.target.value)}
                     placeholder="Kind — e.g. operational_bottleneck, financial_risk"
-                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 font-mono"
+                    className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 font-mono"
                   />
                   <textarea
                     value={hypothesisDiagnosis}
                     onChange={(e) => setHypothesisDiagnosis(e.target.value)}
                     placeholder="Diagnosis — state the WHY. Required to be ≥80 characters."
                     rows={5}
-                    className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 resize-none"
+                    className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 resize-none"
                   />
                 </div>
                 {liveRun.gate && <GateBadge gate={liveRun.gate} />}
@@ -437,18 +437,18 @@ export default function DiagnosePage() {
                   value={candidateAction}
                   onChange={(e) => setCandidateAction(e.target.value)}
                   placeholder="Candidate action — what would you do?"
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 mb-3"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 mb-3"
                 />
                 <input
                   value={candidateExpected}
                   onChange={(e) => setCandidateExpected(e.target.value)}
                   placeholder="Expected outcome (your prediction — recorded for §3.5 measurement)"
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 mb-3"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 mb-3"
                 />
                 <button
                   onClick={requestRipples}
                   disabled={loadingRipples || !candidateAction.trim()}
-                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                  className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingRipples ? "animate-spin" : ""}`} />
                   {loadingRipples ? "Tracing ripples…" : "Trace ripples"}
@@ -494,7 +494,7 @@ export default function DiagnosePage() {
                   liveRun.candidates.map((c, i) => (
                     <div
                       key={i}
-                      className="p-4 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20 mb-4"
+                      className="p-4 rounded-xl bg-[#FACC15]/5 border border-[#FACC15]/20 mb-4"
                     >
                       <p className="text-sm font-medium text-primary">{c.action}</p>
                       <p className="text-[10px] text-muted mt-2 uppercase tracking-widest">why</p>
@@ -523,7 +523,7 @@ export default function DiagnosePage() {
                   onChange={(e) => setChosenNote(e.target.value)}
                   placeholder="Optional note — what made this the right call from your perspective?"
                   rows={3}
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 resize-none"
+                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 resize-none"
                 />
               </StepCard>
             )}
@@ -558,7 +558,7 @@ export default function DiagnosePage() {
 
           {/* Right column — engine state / advance gate */}
           <div className="space-y-6">
-            <div className="glass-card p-5 border-[#C8232C]/20">
+            <div className="glass-card p-5 border-[#FACC15]/20">
               <p className="text-[10px] text-brand uppercase tracking-widest mb-2">
                 Engine state
               </p>
@@ -687,7 +687,7 @@ function StepStepper({
             onClick={() => onJump(s)}
             className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition-colors text-left ${
               active
-                ? "bg-[#C8232C]/15 border-[#C8232C]/50"
+                ? "bg-[#FACC15]/15 border-[#FACC15]/50"
                 : reached
                 ? "border-default hover:border-strong"
                 : "border-default opacity-50"

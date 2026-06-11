@@ -1,12 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#C8232C"/>
-      <stop offset="100%" stop-color="#F75663"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="96" fill="url(#g)"/>
-  <g transform="translate(128 96)" fill="none" stroke="#ffffff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M0 0 L256 0 M0 160 L200 160 M0 320 L256 320 M0 0 L0 320"/>
+  <!-- ELOSTATE — Lightbulb-with-stylized-e mark.
+       The bulb is the metaphor: an idea forming. The e is the brand
+       letter folded inside the idea. Yellow (#FACC15) on transparent
+       so the mark drops cleanly onto any surface. -->
+  <g fill="none" stroke="#FACC15" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Bulb body: continuous outline -->
+    <path d="
+      M 205 340
+      Q 158 300 158 218
+      Q 158 122 256 122
+      Q 354 122 354 218
+      Q 354 300 307 340
+      L 307 360
+      L 205 360 Z"/>
+    <!-- Screw threads -->
+    <line x1="212" y1="380" x2="300" y2="380"/>
+    <line x1="218" y1="402" x2="294" y2="402"/>
+    <!-- Base contact point -->
+    <path d="M 238 422 Q 256 440 274 422"/>
+    <!-- Stylized lowercase e inside the bulb -->
+    <circle cx="248" cy="220" r="38"/>
+    <path d="M 213 222 L 286 222 Q 296 222 296 234 Q 296 247 280 245"/>
   </g>
 </svg>

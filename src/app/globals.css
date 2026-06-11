@@ -7,49 +7,49 @@
 /**
  * ELOSTATE base styles.
  *
- * Brand identity: Iron Man (2008) visual grammar — crimson, gold, arc-reactor
- * cyan, deep navy. The full identity map lives at docs/BRAND.md. The
- * programmatic tokens live at src/lib/design/tokens.ts. The Tailwind utility
- * exposure lives at tailwind.config.ts. This file holds the CSS-variable
- * mirror plus the animation primitives.
+ * Brand identity: Lightbulb. Amber-yellow (#FACC15) on matte black —
+ * derived directly from the logo as design governance. The full
+ * identity map lives at docs/BRAND.md. The programmatic tokens live at
+ * src/lib/design/tokens.ts. The Tailwind utility exposure lives at
+ * tailwind.config.ts. This file holds the CSS-variable mirror plus the
+ * animation primitives.
+ *
+ * Color governance:
+ *   - ember (amber)  — primary brand surface, mode-agnostic
+ *   - ink (grayscale)— field. matte-black in dark mode, cream in light
+ *   - no red, no cyan, no navy
  */
 
 :root {
-  /* ─── Brand triad — Iron Man (mode-agnostic) ──────────────────────
-     Crimson, gold, and arc cyan stay identical in both modes per
-     docs/BRAND.md §9.5. Only the surface scale swaps. */
-  --crimson-400: #F75663;
-  --crimson-500: #C8232C; /* brand primary (the suit) */
-  --crimson-600: #A91D24; /* primary hover / light-mode text */
-  --crimson-700: #8A1820;
+  /* ─── Brand: ember (mode-agnostic) ──────────────────────────
+     The bulb yellow looks correct on both dark and light surfaces
+     because it sits in the warm-yellow band where contrast holds. */
+  --ember-200: #FEF08A;
+  --ember-300: #FDE047;
+  --ember-400: #FACC15; /* brand primary (the bulb) */
+  --ember-500: #EAB308; /* primary hover / pressed */
+  --ember-600: #CA8A04; /* light-mode text accent */
+  --ember-700: #A16207;
+  --ember-800: #854D0E; /* warning / error (burnt amber, no red) */
 
-  --gold-300: #F2C94C;
-  --gold-400: #E8B53A; /* held / validated (the helmet gold) */
-  --gold-500: #D4A024;
-  --gold-600: #A6801C; /* light-mode text */
+  /* Ink — the matte-black grayscale field */
+  --ink-50:  #FAFAFA;
+  --ink-100: #F4F4F5;
+  --ink-200: #E4E4E7;
+  --ink-300: #D4D4D8;
+  --ink-400: #A1A1AA;
+  --ink-500: #71717A;
+  --ink-600: #52525B;
+  --ink-700: #3F3F46;
+  --ink-800: #27272A;
+  --ink-900: #18181B;
+  --ink-950: #09090B;
 
-  --arc-200: #A8E6F0;
-  --arc-300: #7DDCE8;
-  --arc-400: #5EC8E0; /* AI active (the arc reactor) */
-  --arc-500: #3FB1CC;
-  --arc-700: #1F6B7E; /* light-mode text */
-
-  /* Neutrals — the navy field */
-  --navy-100: #C7D1E3;
-  --navy-200: #94A3BF;
-  --navy-300: #5F7290;
-  --navy-400: #3C4D6A;
-  --navy-500: #2D446C;
-  --navy-600: #1F3050;
-  --navy-700: #152339;
-  --navy-800: #0D1B2D;
-  --navy-900: #0A1429;
-
-  /* Semantic — also mode-agnostic */
-  --success: #E8B53A;
-  --warning: #FF9F1C;
-  --error:   #E63946;
-  --info:    #5EC8E0;
+  /* Semantic — also mode-agnostic. All inside the ember palette. */
+  --success: #FDE047; /* ember-300 */
+  --warning: #EAB308; /* ember-500 */
+  --error:   #854D0E; /* ember-800 — burnt amber, no red */
+  --info:    #FACC15; /* ember-400 */
 }
 
 /**
@@ -64,78 +64,73 @@
  * Tailwind's `<alpha-value>` substitution works (e.g. `bg-surface/60`).
  */
 
-/* Default — dark (night) mode. Applied when no data-theme is set. */
+/* Default — dark (night) mode. The bulb-on-matte-black logo state. */
 :root,
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg-base:           10 20 41;     /* navy.900 #0A1429 */
-  --bg-surface:        13 27 45;     /* navy.800 #0D1B2D */
-  --bg-surface-raised: 21 35 57;     /* navy.700 #152339 */
+  --bg-base:           9  9  11;      /* ink.950 #09090B */
+  --bg-surface:        24 24 27;      /* ink.900 #18181B */
+  --bg-surface-raised: 39 39 42;      /* ink.800 #27272A */
 
-  --border-default: 31 48 80;        /* navy.600 #1F3050 */
-  --border-strong:  45 68 108;       /* navy.500 #2D446C */
+  --border-default: 39 39 42;         /* ink.800 #27272A */
+  --border-strong:  63 63 70;         /* ink.700 #3F3F46 */
 
-  --text-primary:   241 245 250;     /* #F1F5FA */
-  --text-secondary: 148 163 191;     /* navy.200 #94A3BF */
-  --text-muted:     95 114 144;      /* navy.300 #5F7290 */
+  --text-primary:   250 250 250;      /* ink.50  #FAFAFA */
+  --text-secondary: 161 161 170;      /* ink.400 #A1A1AA */
+  --text-muted:     113 113 122;      /* ink.500 #71717A */
 
-  /* Contrast-aware brand text — bright on dark surfaces */
-  --brand-text:  247 86 99;          /* crimson.400 #F75663 */
-  --accent-text: 242 201 76;         /* gold.300 #F2C94C */
-  --active-text: 125 220 232;        /* arc.300 #7DDCE8 */
+  /* Contrast-aware brand text — bulb amber stays bright on matte black */
+  --brand-text:  250 204 21;          /* ember.400 #FACC15 */
 
-  /* Legacy alias names — kept so existing component literals still
-     render correctly during incremental migration. */
-  --bg-primary: var(--navy-900);
-  --bg-secondary: var(--navy-800);
-  --bg-card: var(--navy-700);
-  --bg-card-hover: var(--navy-500);
-  --border: var(--navy-600);
-  --border-hover: var(--navy-500);
-  --text-primary-legacy: #F1F5FA;
-  --text-secondary-legacy: var(--navy-200);
-  --text-muted-legacy: var(--navy-300);
-  --brand: var(--crimson-500);
-  --brand-light: var(--crimson-400);
-  --brand-glow: rgba(200, 35, 44, 0.35);
+  /* Legacy alias names — preserved so unswept component literals still
+     render correctly in the meantime. Every legacy alias points at the
+     same ember/ink scale; nothing is "different" anymore. */
+  --bg-primary: var(--ink-950);
+  --bg-secondary: var(--ink-900);
+  --bg-card: var(--ink-800);
+  --bg-card-hover: var(--ink-700);
+  --border: var(--ink-800);
+  --border-hover: var(--ink-700);
+  --text-primary-legacy: #FAFAFA;
+  --text-secondary-legacy: var(--ink-400);
+  --text-muted-legacy: var(--ink-500);
+  --brand: var(--ember-400);
+  --brand-light: var(--ember-300);
+  --brand-glow: rgba(250, 204, 21, 0.35);
   --danger: var(--error);
 }
 
-/* Light (day) mode. */
+/* Light (day) mode — cream/parchment surface, matte-black text, ember accents. */
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg-base:           244 246 250;  /* cool slate #F4F6FA */
-  --bg-surface:        255 255 255;  /* #FFFFFF */
-  --bg-surface-raised: 248 250 253;  /* #F8FAFD */
+  --bg-base:           250 250 250;   /* ink.50  #FAFAFA */
+  --bg-surface:        255 255 255;   /* white */
+  --bg-surface-raised: 244 244 245;   /* ink.100 #F4F4F5 */
 
-  --border-default: 229 232 238;     /* #E5E8EE */
-  --border-strong:  203 210 221;     /* #CBD2DD */
+  --border-default: 228 228 231;      /* ink.200 #E4E4E7 */
+  --border-strong:  212 212 216;      /* ink.300 #D4D4D8 */
 
-  --text-primary:   10 20 41;        /* navy.900 #0A1429 */
-  --text-secondary: 60 77 106;       /* navy.400 #3C4D6A */
-  --text-muted:     95 114 144;      /* navy.300 #5F7290 */
+  --text-primary:   24 24 27;         /* ink.900 #18181B */
+  --text-secondary: 63 63 70;         /* ink.700 #3F3F46 */
+  --text-muted:     113 113 122;      /* ink.500 #71717A */
 
-  /* Contrast-aware brand text — darker variants for legibility on white */
-  --brand-text:  169 29 36;          /* crimson.600 #A91D24 */
-  --accent-text: 166 128 28;         /* gold.600 #A6801C */
-  --active-text: 31 107 126;         /* arc.700 #1F6B7E */
+  /* Contrast-aware brand text — ember-600 is darker, holds on cream. */
+  --brand-text:  202 138 4;           /* ember.600 #CA8A04 */
 
-  /* Legacy aliases mapped onto light surfaces so non-migrated components
-     still look intentional in light mode (not jarring navy-on-white). */
-  --bg-primary: #F4F6FA;
+  --bg-primary: #FAFAFA;
   --bg-secondary: #FFFFFF;
-  --bg-card: #F8FAFD;
-  --bg-card-hover: #EDF1F7;
-  --border: #E5E8EE;
-  --border-hover: #CBD2DD;
-  --text-primary-legacy: #0A1429;
-  --text-secondary-legacy: #3C4D6A;
-  --text-muted-legacy: #5F7290;
-  --brand: var(--crimson-600);
-  --brand-light: var(--crimson-500);
-  --brand-glow: rgba(169, 29, 36, 0.25);
+  --bg-card: #F4F4F5;
+  --bg-card-hover: #E4E4E7;
+  --border: #E4E4E7;
+  --border-hover: #D4D4D8;
+  --text-primary-legacy: #18181B;
+  --text-secondary-legacy: #3F3F46;
+  --text-muted-legacy: #71717A;
+  --brand: var(--ember-600);
+  --brand-light: var(--ember-500);
+  --brand-glow: rgba(202, 138, 4, 0.25);
   --danger: var(--error);
 }
 
@@ -149,16 +144,14 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  /* Follows the active theme via CSS variables (set by [data-theme="*"]). */
   background: rgb(var(--bg-base));
   color: rgb(var(--text-primary));
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  /* Smooth mode transition without flashing during scroll. */
   transition: background-color 200ms ease, color 200ms ease;
 }
 
-/* Custom scrollbar — theme-aware, with crimson hover (subtle brand presence) */
+/* Custom scrollbar — theme-aware, with ember hover (subtle brand presence) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -171,7 +164,7 @@ body {
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--crimson-700);
+  background: var(--ember-500);
 }
 
 /* Glass card — follows the active surface scale */
@@ -185,65 +178,83 @@ body {
   border-color: rgb(var(--border-strong));
 }
 
-/* Iron Man shadow utilities (also available as Tailwind shadow-glow-*) */
+/* Bulb-glow shadow utilities — the signature ambient treatment */
 .shadow-glow {
-  box-shadow: 0 0 24px rgba(200, 35, 44, 0.35);
+  box-shadow: 0 0 24px rgba(250, 204, 21, 0.35);
 }
-.shadow-glow-gold {
-  box-shadow: 0 0 20px rgba(232, 181, 58, 0.30);
+.shadow-glow-ember {
+  box-shadow: 0 0 24px rgba(250, 204, 21, 0.35);
 }
-.shadow-glow-arc {
-  box-shadow: 0 0 28px rgba(94, 200, 224, 0.40);
+.shadow-glow-ember-soft {
+  box-shadow: 0 0 16px rgba(250, 204, 21, 0.20);
+}
+.shadow-glow-ember-strong {
+  box-shadow: 0 0 48px rgba(250, 204, 21, 0.55);
+}
+/* Back-compat — old glow classes all map to ember now. */
+.shadow-glow-gold,
+.shadow-glow-arc,
+.shadow-glow-crimson {
+  box-shadow: 0 0 24px rgba(250, 204, 21, 0.35);
 }
 
-/* Reactor ring — the arc-reactor logo treatment.
-   Used on landing hero, pitch cover, error pages. */
+/* Bulb-glow radial — used behind the mark on landing/login hero,
+   replaces the prior arc-reactor ring. */
+.bulb-glow {
+  background: radial-gradient(
+    circle at center,
+    rgba(250, 204, 21, 0.30) 0%,
+    rgba(250, 204, 21, 0.12) 35%,
+    transparent 70%
+  );
+}
+/* Back-compat — old reactor-ring class now produces bulb-glow. */
 .reactor-ring {
   background: radial-gradient(
     circle at center,
-    #FFFFFF 0%,
-    var(--arc-200) 18%,
-    var(--arc-400) 38%,
+    rgba(250, 204, 21, 0.30) 0%,
+    rgba(250, 204, 21, 0.12) 35%,
     transparent 70%
   );
-  box-shadow: 0 0 60px rgba(94, 200, 224, 0.4);
 }
 
-/* Metallic gold gradient — reserved for hero titles, premium badges */
+/* Metallic ember gradient — reserved for hero titles, premium badges */
+.text-ember-metallic,
 .text-gold-metallic {
-  background: linear-gradient(135deg, #F2C94C 0%, #E8B53A 45%, #A6801C 100%);
+  background: linear-gradient(135deg, #FDE047 0%, #FACC15 50%, #CA8A04 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Metallic crimson — reserved for hero CTAs */
+/* Hero CTA gradient — replaces the prior crimson-metallic. */
+.bg-ember-metallic,
 .bg-crimson-metallic {
-  background: linear-gradient(135deg, #F75663 0%, #C8232C 60%, #8A1820 100%);
+  background: linear-gradient(135deg, #FDE047 0%, #FACC15 50%, #CA8A04 100%);
 }
 
 /**
  * Brand-fill child contrast guard.
  *
- * Why: during theme migration, many lucide icons that used to say
- * `text-white` were rewritten to `text-primary` (which resolves to
- * white-on-dark, near-black-on-light). When those icons sit INSIDE a
- * crimson button or a brand gradient (where the parent is a brand fill
- * that stays the same in both modes), text-primary going dark in light
- * mode reads as a regression. This rule keeps any child text/icon
- * rendered against a crimson/gradient surface visually white, in either
- * mode — matching what `text-white` did before.
+ * When a button or chip has an ember background, child text/icons that
+ * are styled `text-primary` should render as INK-950 (matte black),
+ * since ember is bright and white-on-yellow fails accessibility. This
+ * rule swaps text-primary children inside ember surfaces to ink-950.
  *
- * The selectors target Tailwind's compiled brand-fill class names. They
- * are intentionally narrow: only the brand crimson family and gradient
- * containers — not general dark backgrounds, which the theme should own.
+ * Targets:
+ *   - any class containing #FACC15 / #EAB308 / #CA8A04 backgrounds
+ *   - bg-ember-* utilities
+ *   - gradient containers
  */
+.bg-ember-metallic .text-primary,
 .bg-crimson-metallic .text-primary,
-[class*="bg-[#C8232C]"] .text-primary,
-[class*="bg-[#A91D24]"] .text-primary,
-[class*="bg-[#8A1820]"] .text-primary,
+[class*="bg-[#FACC15]"] .text-primary,
+[class*="bg-[#EAB308]"] .text-primary,
+[class*="bg-[#CA8A04]"] .text-primary,
+[class*="bg-ember-400"] .text-primary,
+[class*="bg-ember-500"] .text-primary,
 [class*="bg-gradient-to"] .text-primary {
-  color: #ffffff;
+  color: #09090B;
 }
 
 /* Score ring animation */
@@ -255,10 +266,10 @@ body {
   animation: score-fill 1s ease forwards;
 }
 
-/* Pulse dot — arc reactor heartbeat for AI-active indicators */
+/* Pulse dot — bulb heartbeat for AI-active indicators */
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(94, 200, 224, 0.7); }
-  50%      { opacity: 0.5; box-shadow: 0 0 4px rgba(94, 200, 224, 0.3); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(250, 204, 21, 0.7); }
+  50%      { opacity: 0.5; box-shadow: 0 0 4px rgba(250, 204, 21, 0.3); }
 }
 .pulse-dot {
   animation: pulse-dot 2s ease-in-out infinite;
@@ -273,9 +284,9 @@ body {
   animation: fadeIn 0.4s ease forwards;
 }
 
-/* Gradient text (legacy class) — now uses brand crimson→gold for warmth */
+/* Gradient text — now ember-only warmth */
 .gradient-text {
-  background: linear-gradient(135deg, #F75663 0%, #E8B53A 100%);
+  background: linear-gradient(135deg, #FDE047 0%, #FACC15 50%, #CA8A04 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -289,12 +300,11 @@ body {
 .cursor-blink::after {
   content: '|';
   animation: blink 1s step-end infinite;
-  color: var(--arc-400);
+  color: var(--ember-400);
 }
 
 /**
- * Respect the user's reduced-motion preference (a11y).
- * Pins ScoreRing/pulse-dot/fade-in/cursor-blink to their final visible state.
+ * Respect reduced-motion preference (a11y).
  */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -304,7 +314,7 @@ body {
     scroll-behavior: auto !important;
   }
   .score-ring circle { stroke-dashoffset: var(--score-offset) !important; }
-  .pulse-dot { opacity: 1 !important; box-shadow: 0 0 8px rgba(94, 200, 224, 0.7) !important; }
+  .pulse-dot { opacity: 1 !important; box-shadow: 0 0 8px rgba(250, 204, 21, 0.7) !important; }
   .fade-in { opacity: 1 !important; transform: none !important; }
   .cursor-blink::after { opacity: 1 !important; }
 }

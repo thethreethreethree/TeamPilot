@@ -235,10 +235,10 @@ export function MentionInput({
                 }}
                 onMouseEnter={() => setSelected(i)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
-                  active ? "bg-[#C8232C]/10" : "hover:bg-surface-raised"
+                  active ? "bg-[#FACC15]/10" : "hover:bg-surface-raised"
                 }`}
               >
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
                   {initials}
                 </div>
                 <span className="text-sm text-primary truncate">

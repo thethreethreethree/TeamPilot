@@ -194,7 +194,7 @@ export default function DecisionsPage() {
 
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         {/* Constitution banner */}
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#FACC15]/5 border border-[#FACC15]/20">
           <Brain className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
           <p className="text-xs text-secondary leading-relaxed">
             The System will not assert a decision until you state your own diagnosis and
@@ -237,14 +237,14 @@ export default function DecisionsPage() {
             onChange={(e) => setSituation(e.target.value)}
             disabled={phase !== "situation"}
             rows={5}
-            className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+            className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
           />
           {phase === "situation" && (
             <div className="mt-3 flex items-center justify-end">
               <button
                 onClick={startElicit}
                 disabled={!situation.trim()}
-                className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
               >
                 Continue <ChevronRight className="w-4 h-4" />
               </button>
@@ -294,7 +294,7 @@ export default function DecisionsPage() {
                   disabled={
                     loading || !userDiagnosis.trim() || !userProposal.trim()
                   }
-                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                  className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
                 >
                   <MessageCircleQuestion className={`w-4 h-4 ${loading ? "animate-pulse" : ""}`} />
                   {loading ? "Asking the System…" : "Ask the System"}
@@ -325,7 +325,7 @@ export default function DecisionsPage() {
                   body={response.addedPerspective}
                 />
               )}
-              <div className="rounded-xl border border-[#C8232C]/30 bg-[#C8232C]/5 p-5">
+              <div className="rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/5 p-5">
                 <p className="text-[10px] text-brand uppercase tracking-widest mb-2">
                   Suggestion
                 </p>
@@ -357,7 +357,7 @@ export default function DecisionsPage() {
                 </button>
                 <button
                   onClick={() => setPhase("decide")}
-                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                  className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
                 >
                   Decide <ChevronRight className="w-4 h-4" />
                 </button>
@@ -516,7 +516,7 @@ function PhaseStepper({ current }: { current: Phase }) {
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                 active
-                  ? "bg-[#C8232C]/15 border-[#C8232C]/50 text-brand"
+                  ? "bg-[#FACC15]/15 border-[#FACC15]/50 text-brand"
                   : reached
                   ? "border-default text-secondary"
                   : "border-default text-muted"
@@ -594,7 +594,7 @@ function ElicitField({
         disabled={disabled}
         rows={3}
         placeholder={placeholder}
-        className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+        className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
       />
     </div>
   );
@@ -643,7 +643,7 @@ function DecisionChoice({
       onClick={onSelect}
       className={`w-full text-left rounded-xl border p-4 transition-all ${
         selected
-          ? "border-[#C8232C]/60 bg-[#C8232C]/10"
+          ? "border-[#FACC15]/60 bg-[#FACC15]/10"
           : "border-default bg-surface hover:border-strong"
       }`}
     >

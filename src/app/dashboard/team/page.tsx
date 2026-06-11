@@ -77,7 +77,7 @@ export default function TeamPage() {
               </div>
               <button
                 onClick={() => setInviting(true)}
-                className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 Invite member
@@ -194,7 +194,7 @@ function MemberRow({
   return (
     <div className="flex items-center justify-between py-3">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center text-xs font-bold text-white">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center text-xs font-bold text-white">
           {initials}
         </div>
         <div>
@@ -269,7 +269,7 @@ function InviteRow({
         <div className="flex items-center gap-2">
           <button
             onClick={copy}
-            className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#C8232C]/30 hover:border-[#C8232C]/60 px-2.5 py-1.5 rounded-lg transition-all"
+            className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/30 hover:border-[#FACC15]/60 px-2.5 py-1.5 rounded-lg transition-all"
             aria-label={`Copy invite link for ${invitation.email}`}
             title="Copy invite link"
           >

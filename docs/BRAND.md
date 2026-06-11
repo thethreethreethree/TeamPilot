@@ -1,403 +1,237 @@
-# ELOSTATE — Brand & Visual Identity
+# ELOSTATE — Brand Identity (Lightbulb)
 
-> **Inspiration source:** Iron Man (2008) Marvel Studios theatrical poster.
-> **Established:** 2026-06-02
->
-> This document is the canonical source of truth for ELOSTATE's visual identity.
-> Designers, engineers, and copywriters should treat this as the spec — any
-> deviation is a decision that should be defended in writing.
-
-The visual identity borrows the Iron Man aesthetic deliberately: a system that
-projects **structural confidence** (the armor), **earned intelligence** (the
-arc reactor), and **considered heroism** (the gold) on a backdrop of
-**operational seriousness** (the deep navy). The metaphor maps to the product:
-the discipline is the suit, the per-company brain is the arc reactor, the
-hard-won outcomes are the gold.
-
-This is not Marvel fan art. We borrow the *visual grammar* — crimson, gold,
-arc-reactor cyan, deep navy — and let the product's own personality grow on
-top.
+> Ratified 2026-06-12 as the governing visual identity. Replaces the prior
+> "Iron Man" identity (crimson / gold / arc-cyan / navy) which is now
+> archived. The new identity is governed by the logo asset at
+> `IMMAGE ASSETS/ELOSTATE_LOGO.jpeg` — that file is the source of truth.
 
 ---
 
-## 1. Color system
+## 1. The mark
 
-The palette is organized in three tiers: **brand** (identity carriers),
-**semantic** (meaning carriers), and **neutral** (surface carriers). Every UI
-color choice maps to one of these.
+A continuous-stroke lightbulb containing a stylized lowercase **e**.
 
-### 1.1 Brand colors — the Iron Man triad
+- The bulb is the metaphor: an idea forming.
+- The **e** folded inside the bulb is the brand letter sitting where the
+  filament would.
+- The stroke is consistent weight (~6% of canvas) for legibility at
+  every size from a 16px favicon to a 512px PWA install splash.
+- Color: ember-400 (`#FACC15`).
+- Background: transparent for inline use; matte-black (`#09090B`) for
+  the PWA-maskable variant.
 
-#### Iron Man Crimson — `crimson`
-The suit. Used for primary actions, brand identity, the most important
-interactive element on every screen.
+Canonical files:
 
-| Token | Hex | Role |
-|---|---|---|
-| `crimson.50`  | `#FFF1F2` | Lightest tint (rare; toast backgrounds) |
-| `crimson.100` | `#FFE3E5` | Subtle hover backgrounds |
-| `crimson.200` | `#FFB8BD` | Soft tint |
-| `crimson.300` | `#FF8A92` | Light interactive |
-| `crimson.400` | `#F75663` | Hover-bright |
-| **`crimson.500`** | **`#C8232C`** | **Primary brand — the suit red** |
-| `crimson.600` | `#A91D24` | Primary hover / active state |
-| `crimson.700` | `#8A1820` | Pressed state |
-| `crimson.800` | `#6B131A` | Dark accent |
-| `crimson.900` | `#4D0E14` | Deepest crimson |
-
-#### Iron Man Gold — `gold`
-The helmet, the title text, the metallic highlights. Used for **success
-states, validated outcomes, premium emphasis**. In the product, gold is the
-color of *something that held*.
-
-| Token | Hex | Role |
-|---|---|---|
-| `gold.50`  | `#FEF8E7` | Soft success tint |
-| `gold.100` | `#FDEEC4` | Subtle hover |
-| `gold.200` | `#FADD89` | Soft tint |
-| `gold.300` | `#F2C94C` | Bright highlight |
-| **`gold.400`** | **`#E8B53A`** | **Primary gold (held outcomes, validated)** |
-| `gold.500` | `#D4A024` | Gold hover |
-| `gold.600` | `#A6801C` | Darker gold |
-| `gold.700` | `#785C14` | Deep gold |
-| `gold.800` | `#4B380D` | Dark accent |
-| `gold.900` | `#2C2008` | Deepest gold |
-
-#### Arc Reactor Cyan — `arc`
-The chest reactor, the eye glow. Used for **AI activity, active processing,
-informational status, "the System is thinking."** Whenever the AI is doing
-something live, this is the color.
-
-| Token | Hex | Role |
-|---|---|---|
-| `arc.50`  | `#ECFBFE` | Lightest cyan |
-| `arc.100` | `#D0F4FA` | Soft cyan tint |
-| `arc.200` | `#A8E6F0` | Reactor core glow inner |
-| `arc.300` | `#7DDCE8` | Bright cyan highlight |
-| **`arc.400`** | **`#5EC8E0`** | **Primary cyan — AI active / energy** |
-| `arc.500` | `#3FB1CC` | Cyan hover |
-| `arc.600` | `#2A8FA8` | Darker cyan |
-| `arc.700` | `#1F6B7E` | Deep cyan |
-| `arc.800` | `#144654` | Dark accent |
-| `arc.900` | `#0A222A` | Deepest cyan |
-
-### 1.2 Neutral colors — the navy field
-
-The dark backdrop in the Iron Man poster — a deep, slightly cool navy with the
-subtle suggestion of technical schematics behind it. This is our base surface.
-
-| Token | Hex | Role |
-|---|---|---|
-| `navy.50`  | `#E3E8F0` | Lightest navy (rarely used) |
-| `navy.100` | `#C7D1E3` | High-contrast text on dark |
-| `navy.200` | `#94A3BF` | **Body text on dark** |
-| `navy.300` | `#5F7290` | Muted text |
-| `navy.400` | `#3C4D6A` | Deeper muted / disabled |
-| `navy.500` | `#2D446C` | Border hover |
-| **`navy.600`** | **`#1F3050`** | **Border default** |
-| `navy.700` | `#152339` | Card raised / hover surface |
-| **`navy.800`** | **`#0D1B2D`** | **Card surface (glass-card)** |
-| **`navy.900`** | **`#0A1429`** | **Primary background (the field)** |
-
-### 1.3 Semantic colors — meaning carriers
-
-These extend the brand triad with specialized purpose colors. **Use these
-sparingly** — most UI should stay in the brand-and-neutral palette.
-
-| Token | Hex | Meaning |
-|---|---|---|
-| `success` | `#E8B53A` | Held outcome (uses brand gold) |
-| `warning` | `#FF9F1C` | Caution / amber |
-| `error` | `#E63946` | Failure / rejected (distinct from brand crimson) |
-| `info` | `#5EC8E0` | Informational / AI-active (uses brand cyan) |
-
-> **Critical:** `success` is gold, not the conventional emerald. This is a
-> deliberate brand choice — in ELOSTATE, success means *something that held*,
-> which is the brand promise. Generic green here would be a brand violation.
-
-### 1.4 Color usage rules
-
-1. **Crimson** appears on at most **one** element per surface — the primary
-   action. Multiple crimson buttons on the same screen dilute the brand.
-2. **Gold** marks things the system has *earned* — held outcomes, validated
-   methods, status badges for things that succeeded. Never use gold for
-   "premium" decoration without earned meaning.
-3. **Cyan** is the AI-active color. Pulse-dot, streaming text indicator,
-   "thinking…" states, brain-related UI. Off when the AI is silent (§3.4).
-4. **Navy** is the field. Backgrounds, surfaces, borders, body text — most
-   pixels on most screens.
-5. **Never combine bright crimson, bright gold, and bright cyan in the same
-   small region.** That's the Iron Man title card visual — overwhelming for
-   utility UI. Save it for hero moments only (landing page, pitch deck).
+- `public/icon.svg` — transparent background, inline use (sidebar, login, hero).
+- `public/icon-maskable.svg` — matte-black background with 20% W3C safe-zone
+  padding, for OS-level icon masks (circle, squircle, rounded square).
+- `src/components/brand/Logo.tsx` — React wrapper. Use `<LightbulbMark />`
+  for just the bulb, `<Logo variant="wordmark" />` for mark + ELOSTATE text,
+  `<Logo showTagline />` to append the tagline.
 
 ---
 
-## 2. Glow & metallic effects
+## 2. The wordmark
 
-A signature element of the Iron Man poster is the **light emission**: the arc
-reactor glows, the eyes glow, the gold has specular highlights. We translate
-this to UI as:
+**ELOSTATE** in Inter Black (weight 900), tracking `-0.01em`, white
+(`#FAFAFA`) on dark surfaces, ink-900 (`#18181B`) on light surfaces.
 
-### 2.1 Glow shadows
+Always use the `<Logo>` component or the inline pattern from `Logo.tsx`.
+Do not re-implement a wordmark with a different weight or tracking — the
+mark + wordmark are a unit.
 
-```css
-/* Crimson glow — for primary CTAs */
-box-shadow: 0 0 24px rgba(200, 35, 44, 0.35);
+---
 
-/* Gold glow — for "earned" badges */
-box-shadow: 0 0 20px rgba(232, 181, 58, 0.30);
+## 3. The tagline
 
-/* Arc reactor glow — for AI-active elements */
-box-shadow: 0 0 28px rgba(94, 200, 224, 0.40);
+```
+Problem Solving System for Teams
 ```
 
-### 2.2 Metallic gradients
+This is the canonical positioning line, taken directly from the logo. It
+replaces the prior "AI Executive Operating System" framing, which was
+dropped on 2026-06-12 because it was a category label that the new logo
+explicitly contradicted ("Problem Solving" is a sharper, more honest
+positioning).
 
-Used for **logo treatments and hero buttons only** — never on routine UI.
+Constants live at `src/components/brand/Logo.tsx`:
+
+- `TAGLINE` — full line, used on landing hero, login subhead, PWA description.
+- `TAGLINE_SHORT` — "Problem Solving for Teams" — used in compact contexts
+  (sidebar wordmark, manifest short name fallback).
+
+---
+
+## 4. Palette
+
+### 4.1 Brand: **ember** (the bulb)
+
+| Token | Hex | Use |
+| --- | --- | --- |
+| ember-50  | `#FFFDF0` | Light-mode hover surface tint |
+| ember-100 | `#FEF9C3` | Light-mode background accent |
+| ember-200 | `#FEF08A` | Light tint, badge backgrounds |
+| ember-300 | `#FDE047` | Success / "validated/held" semantic |
+| ember-400 | `#FACC15` | **Brand primary — the bulb** |
+| ember-500 | `#EAB308` | Primary hover / pressed |
+| ember-600 | `#CA8A04` | Brand text in light mode |
+| ember-700 | `#A16207` | Deeper accent |
+| ember-800 | `#854D0E` | **Warning / error semantic — burnt amber, no red** |
+| ember-900 | `#713F12` | Deepest amber, rare use |
+
+### 4.2 Field: **ink** (the matte-black grayscale)
+
+| Token | Hex | Use |
+| --- | --- | --- |
+| ink-50  | `#FAFAFA` | Light-mode base background / dark-mode text-primary |
+| ink-100 | `#F4F4F5` | Light-mode surface-raised |
+| ink-200 | `#E4E4E7` | Light-mode borders |
+| ink-300 | `#D4D4D8` | Light-mode strong border |
+| ink-400 | `#A1A1AA` | Text-secondary (dark mode) |
+| ink-500 | `#71717A` | Text-muted (both modes) |
+| ink-600 | `#52525B` | Mid-gray |
+| ink-700 | `#3F3F46` | Dark-mode strong border / light-mode text-secondary |
+| ink-800 | `#27272A` | Dark-mode borders / surface-raised |
+| ink-900 | `#18181B` | Dark-mode surface / light-mode text-primary |
+| ink-950 | `#09090B` | **Dark-mode base — matte black** |
+
+### 4.3 What is NOT in the palette
+
+- **No red.** Even error/danger uses ember-800 (burnt amber) so the
+  palette stays mono-warm. This is intentional design governance,
+  derived from the logo.
+- **No cyan.** The prior arc-reactor cyan is gone.
+- **No navy.** The prior surface scale is gone.
+- **No bright neon yellow.** ember-400 is warm amber, not lemon yellow.
+
+If a UI need seems to require a color outside ember/ink, the design
+answer is "use ember-800 with an icon" before "introduce a new color".
+
+---
+
+## 5. Surface tokens (mode-switching)
+
+The semantic surface utilities resolve via CSS variables in
+`src/app/globals.css`. Use these — not raw hex — in any new component.
+
+| Utility | Dark mode | Light mode |
+| --- | --- | --- |
+| `bg-base` | ink-950 | ink-50 |
+| `bg-surface` | ink-900 | white |
+| `bg-surface-raised` | ink-800 | ink-100 |
+| `border-default` | ink-800 | ink-200 |
+| `border-strong` | ink-700 | ink-300 |
+| `text-primary` | ink-50 | ink-900 |
+| `text-secondary` | ink-400 | ink-700 |
+| `text-muted` | ink-500 | ink-500 |
+| `text-brand` | ember-400 | ember-600 |
+
+---
+
+## 6. Signature treatments
+
+### 6.1 Bulb glow
+
+Radial ambient gradient behind the mark on hero surfaces.
 
 ```css
-/* Gold metallic — title text, premium badges */
-background: linear-gradient(135deg, #F2C94C 0%, #E8B53A 45%, #A6801C 100%);
-
-/* Crimson metallic — hero CTA */
-background: linear-gradient(135deg, #F75663 0%, #C8232C 60%, #8A1820 100%);
-
-/* Reactor core — AI-active indicator */
-background: radial-gradient(circle, #FFFFFF 0%, #A8E6F0 30%, #5EC8E0 60%, #1F6B7E 100%);
-```
-
-### 2.3 Border treatments
-
-- Default: 1px solid `navy.600` (#1F3050)
-- Hover: 1px solid `navy.500` (#2D446C)
-- Active (focus): 1px solid `crimson.500` + ring `crimson.500/30`
-- AI-active surfaces: 1px solid `arc.400` (#5EC8E0)
-- Earned/held: 1px solid `gold.400` (#E8B53A)
-
----
-
-## 3. Typography
-
-### 3.1 Font stack
-
-| Role | Font | Fallback | Weights |
-|---|---|---|---|
-| **Display** | Inter | system-ui, sans-serif | 800–900 (Black) |
-| **Headings** | Inter | system-ui, sans-serif | 700 (Bold) |
-| **Body** | Inter | system-ui, sans-serif | 400, 500 |
-| **Numerals / data** | Geist Mono | "Fira Code", monospace | 400, 600 |
-| **Captions / category labels** | Inter | system-ui, sans-serif | 500, uppercase tracking |
-
-We keep **Inter** as the primary face because it pairs cleanly with the dark
-field and remains readable at small UI sizes. The Iron Man title's slab-style
-heroism is borrowed via **weight and tracking discipline**, not by switching
-to a display face.
-
-### 3.2 Type scale & treatment
-
-| Use | Size | Weight | Tracking | Notes |
-|---|---|---|---|---|
-| Hero | 48–56px | 800 (Black) | -0.02em (tight) | Reserved for landing/pitch covers |
-| H1 page title | 28–32px | 700 (Bold) | -0.01em | TopBar titles, section heroes |
-| H2 section | 22–24px | 700 | -0.01em | Card group headers |
-| H3 card | 14–16px | 600 (Semibold) | normal | Individual card titles |
-| Body | 14px | 400 (Regular) | normal, 1.5 leading | Default paragraph |
-| Body small | 12px | 400 | normal | Helper text |
-| Caption | 10px | 500 (Medium) | 0.15em (widest) | All-caps category labels |
-| Numerals | 14–24px | 600 | tabular-nums | Stats, version numbers, counts |
-
-### 3.3 Tracking discipline (the Iron Man "title" feel)
-
-To borrow the IRONMAN title's tight monumental quality without switching
-fonts, we apply **negative tracking on large headings** and **wide tracking
-on small captions**:
-
-- Display & H1 → `tracking-tight` (-0.02em to -0.01em)
-- Caption (all-caps) → `tracking-widest` (0.15em or higher)
-
-This produces the same "compressed-headline, spaced-eyebrow" rhythm without
-adding a font dependency.
-
----
-
-## 4. Iconography
-
-- **Library:** lucide-react (already in use)
-- **Stroke weight:** 2 (default) — matches the Iron Man poster's clean line
-  weight rather than the heavier marvel-comics line
-- **Size:** 14px / 16px / 18px for inline UI; 20–24px for section markers
-- **Color rule:** icons inherit text color by default. Only colorize icons
-  when they carry brand meaning (crimson for primary action, gold for
-  earned status, cyan for AI-active, etc.).
-
----
-
-## 5. Layout & spacing
-
-| Token | Value | Role |
-|---|---|---|
-| `xs` | 4px | Tight gaps between related items |
-| `sm` | 8px | Default form spacing |
-| `md` | 16px | Card internal padding |
-| `lg` | 24px | Section spacing |
-| `xl` | 40px | Major section breaks |
-| `2xl` | 64px | Hero / pitch slide padding |
-
-**Border radius scale:**
-
-| Token | Value | Role |
-|---|---|---|
-| `radius-sm` | 6px | Small chips, badges |
-| `radius-md` | 8px | Inputs, buttons |
-| `radius-lg` | 12px | Cards |
-| `radius-xl` | 16px | Modals |
-| `radius-pill` | 9999px | Pills, toggles |
-
----
-
-## 6. Motion
-
-Per the existing `prefers-reduced-motion` policy, all motion is overridden to
-0.01ms when the user requests reduced motion. For default motion:
-
-- **Standard transition:** 150ms ease-out
-- **Surface transition:** 200ms ease
-- **Glow pulse (arc reactor):** 2s ease-in-out infinite
-- **Score-ring fill:** 1s ease forwards
-- **Fade-in:** 400ms ease forwards
-
-The arc reactor pulse is reserved for **AI-active indicators** — never used
-for decoration alone.
-
----
-
-## 7. Hero patterns (for landing / pitch / cover surfaces)
-
-These are the **only** places where the full Iron Man visual grammar appears
-together. Routine UI stays calmer.
-
-### 7.1 The reactor ring
-
-A radial-gradient circle used as a logo treatment. Used on:
-- Landing page hero
-- Pitch deck cover & close
-- 404 / error pages (smaller variant)
-
-```css
-.reactor-ring {
+.bulb-glow {
   background: radial-gradient(
     circle at center,
-    #FFFFFF 0%,
-    #A8E6F0 18%,
-    #5EC8E0 35%,
+    rgba(250, 204, 21, 0.30) 0%,
+    rgba(250, 204, 21, 0.12) 35%,
     transparent 70%
   );
-  box-shadow: 0 0 60px rgba(94, 200, 224, 0.4);
 }
 ```
 
-### 7.2 The schematic backdrop
+### 6.2 Bulb shadow
 
-A subtle vertical-line pattern in `navy.700` over `navy.900`, evoking the
-technical schematics in the Iron Man poster background. Used at low opacity
-on hero sections only.
+Three intensities of amber-only glow shadows:
 
-### 7.3 The gold seal
+| Class | Use |
+| --- | --- |
+| `shadow-glow-ember-soft` | Hovered chips, inline marks |
+| `shadow-glow-ember` | Default — buttons, hero marks |
+| `shadow-glow-ember-strong` | Splash screens, install prompts |
 
-A small gold-gradient badge used to mark **constitutional milestones** —
-ratified amendments, validated methods, held resolutions. Carries the
-"earned" semantic.
+`shadow-glow` (legacy) is aliased to `shadow-glow-ember`.
 
----
+### 6.3 Pulse dot
 
-## 8. Brand voice (carries with the visual identity)
+Live / AI-active indicator. Same animation as before, recolored:
 
-The visual is heroic-restrained. The voice is the same:
-
-- **Confident, not loud.** Crimson on navy, not crimson on red.
-- **Earned, not asserted.** Gold marks things that held — never decorative.
-- **Live, not noisy.** Cyan only when the AI is actually doing something.
-- **Plain, not corporate.** Display Inter Black, not Times New Roman.
-
----
-
-## 9. Where this identity is enforced in code
-
-| File | Role |
-|---|---|
-| `docs/BRAND.md` | This document (canonical) |
-| `src/lib/design/tokens.ts` | Programmatic tokens for components |
-| `tailwind.config.ts` | Extends Tailwind palette with brand tokens |
-| `src/app/globals.css` | CSS variables, animations, base styles |
-| `src/components/ui/*` | Components consume tokens via Tailwind utilities |
-
-Any new visual element should be expressible in this palette. If it can't be,
-that's a brand decision to be made consciously — not an accident.
+```css
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(250, 204, 21, 0.7); }
+  50%      { opacity: 0.5; box-shadow: 0 0 4px rgba(250, 204, 21, 0.3); }
+}
+```
 
 ---
 
-## 9.5 Dual-mode operation — Light (day) + Dark (night)
+## 7. Brand-fill child contrast guard
 
-The Iron Man identity translates faithfully across both modes. **Brand colors
-(crimson, gold, arc cyan) stay identical** — they pop on both surfaces. Only
-the **surface scale** swaps:
+Ember (`#FACC15`) is bright yellow. White text on it fails accessibility.
+The CSS rule in `globals.css` automatically swaps `text-primary` children
+inside ember backgrounds to `#09090B` (matte black) so semantic styling
+"just works" without per-component overrides.
 
-| Token | Dark (default — operator mode) | Light (day mode) |
-|---|---|---|
-| `bg-base` (page background) | `navy.900` `#0A1429` | cool slate `#F4F6FA` |
-| `bg-surface` (cards, modals) | `navy.800` `#0D1B2D` | white `#FFFFFF` |
-| `bg-surface-raised` (hover) | `navy.700` `#152339` | `#F8FAFD` |
-| `border-default` | `navy.600` `#1F3050` | `#E5E8EE` |
-| `border-strong` (hover) | `navy.500` `#2D446C` | `#CBD2DD` |
-| `text-primary` | `#F1F5FA` | `navy.900` `#0A1429` |
-| `text-secondary` | `navy.200` `#94A3BF` | `navy.400` `#3C4D6A` |
-| `text-muted` | `navy.300` `#5F7290` | `navy.300` `#5F7290` |
-
-**Contrast-aware brand text:** the brand triad needs darker variants when used
-as *text on white*. Components that switch should use these:
-
-| Use | Dark mode | Light mode |
-|---|---|---|
-| Crimson text/link | `crimson.400` `#F75663` | `crimson.600` `#A91D24` |
-| Gold text | `gold.300` `#F2C94C` | `gold.600` `#A6801C` |
-| Arc cyan text | `arc.300` `#7DDCE8` | `arc.700` `#1F6B7E` |
-
-**Brand backgrounds and glows stay identical** in both modes — `bg-crimson-500`
-is the same crimson on a dark page or a light page. The visual signature is
-intact across modes.
-
-### Mode-selection rules
-
-- Mode persists in `localStorage` under `execos.theme.v1`
-- Initial mode honors `prefers-color-scheme` (system preference)
-- A no-flash inline script in `layout.tsx` sets `data-theme` *before* first
-  paint so the wrong theme never flashes
-- Toggle is available in the landing-page header and the dashboard sidebar
-- Three-state switcher: `system | light | dark` — "system" follows the OS
-
-### What's themed vs what isn't
-
-- **Themed:** page background, card, border, text color, modal, input field
-- **Brand-fixed:** crimson buttons, gold "held" badges, arc-cyan AI-active
-  indicators, the pulse-dot, gradient effects, hero treatments
-- **Imagery:** `.bg-crimson-metallic`, `.text-gold-metallic`, `.reactor-ring`
-  are mode-agnostic — brand signatures
-- **Code/data surfaces:** stay dark in both modes (operators expect this)
+This means: **do not write `text-white` on an ember button.** Use
+`text-primary` (which the rule rewrites) or the explicit `text-[#09090B]`
+inline.
 
 ---
 
-## 10. Quick reference — the 9 colors that matter most
+## 8. Where to use the logo
 
-| Use | Color | Hex |
-|---|---|---|
-| Background | navy.900 | `#0A1429` |
-| Card surface | navy.800 | `#0D1B2D` |
-| Border | navy.600 | `#1F3050` |
-| Body text | navy.200 | `#94A3BF` |
-| **Primary action** | **crimson.500** | **`#C8232C`** |
-| **Primary action hover** | **crimson.600** | **`#A91D24`** |
-| **Earned / success** | **gold.400** | **`#E8B53A`** |
-| **AI active** | **arc.400** | **`#5EC8E0`** |
-| Error / rejected | error | `#E63946` |
+| Surface | Treatment |
+| --- | --- |
+| Landing header | `<LightbulbMark className="w-7 h-7" />` + wordmark |
+| Landing hero | `<LightbulbMark className="w-20 h-20" />` + `bulb-glow` behind |
+| Login page | `<LightbulbMark className="w-14 h-14" />` + wordmark + tagline |
+| Sidebar | `<LightbulbMark className="w-9 h-9" />` + wordmark + `TAGLINE_SHORT` + live/demo dot |
+| Pitch page | Hero treatment matches landing |
+| PWA install prompt | `<LightbulbMark className="w-12 h-12" />` |
+| Favicon | `/icon.svg` |
+| PWA icons | `/icon.svg` + `/icon-maskable.svg` |
+| Error / 404 pages | `<LightbulbMark className="w-16 h-16" />` |
 
-If you remember nothing else, remember these nine.
+When in doubt, drop the mark wherever a brand surface needs anchoring.
+The bulb is the brand.
+
+---
+
+## 9. Theme-audit enforcement
+
+`scripts/theme-audit.mjs` enforces palette discipline. Allowed brand
+hexes are restricted to the ember + ink scales above. Any other hex
+literal in a Tailwind utility is a leak that must either be swept to a
+semantic token or explicitly allowlisted in the script with a stated
+reason.
+
+Run before committing: `npm run theme:audit`.
+
+---
+
+## 10. The prior identity
+
+The "Iron Man" identity (crimson + gold + arc-cyan + navy) was the
+foundation of the visual system from inception through 2026-06-11. It
+was a strong identity, but it implied "powered armor / superhero" which
+diverged from the actual product positioning ("Problem Solving System
+for Teams"). The lightbulb identity collapses the visual language to
+one warm, idea-anchored mark that matches what the System actually does:
+help teams see the problem clearly.
+
+The prior tokens (`crimson`, `arc`, `navy` as distinct scales) are gone.
+Aliases (`gold` → `ember`, `navy` → `ink`) survive in `tailwind.config.ts`
+so legacy class names don't break — but the visual result is mono-amber
+regardless of which alias a component happens to use. The aliases will
+be removed in a future cleanup once unused.
+
+---
+
+**The logo is the constitution of the visual identity. When in doubt,
+look at `IMMAGE ASSETS/ELOSTATE_LOGO.jpeg` and ask whether the surface
+you're building extends or contradicts it.**

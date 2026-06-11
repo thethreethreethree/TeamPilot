@@ -155,14 +155,14 @@ export default function RecoverPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center shadow-glow">
             <Activity className="w-4 h-4 text-white" aria-hidden />
           </div>
           <span className="text-lg font-bold text-primary">ELOSTATE</span>
         </div>
 
         <div className="glass-card p-8 fade-in">
-          <div className="w-12 h-12 rounded-xl bg-[#C8232C]/10 border border-[#C8232C]/20 flex items-center justify-center mb-5">
+          <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
             <Lock className="w-6 h-6 text-brand" aria-hidden />
           </div>
 
@@ -195,7 +195,7 @@ export default function RecoverPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoFocus
                 disabled={phase.kind === "submitting"}
-                className="w-full bg-surface border border-default rounded-lg px-4 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors text-base mb-4"
+                className="w-full bg-surface border border-default rounded-lg px-4 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors text-base mb-4"
                 placeholder="••••••••"
                 aria-label="New password"
               />
@@ -207,14 +207,14 @@ export default function RecoverPage() {
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 disabled={phase.kind === "submitting"}
-                className="w-full bg-surface border border-default rounded-lg px-4 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-[#C8232C]/50 focus:ring-1 focus:ring-[#C8232C]/30 transition-colors text-base mb-5"
+                className="w-full bg-surface border border-default rounded-lg px-4 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors text-base mb-5"
                 placeholder="••••••••"
                 aria-label="Confirm new password"
               />
               <button
                 type="submit"
                 disabled={phase.kind === "submitting" || !password || !confirm}
-                className="w-full flex items-center justify-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-all text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-all text-sm"
               >
                 {phase.kind === "submitting" ? "Saving…" : "Save new password"}
               </button>

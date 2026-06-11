@@ -99,7 +99,7 @@ export function InstallPrompt() {
   if (installed || dismissed || !deferred) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:max-w-sm z-50 glass-card p-4 border border-[#C8232C]/40 shadow-glow">
+    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:max-w-sm z-50 glass-card p-4 border border-[#FACC15]/40 shadow-glow">
       <div className="flex items-start gap-3">
         <Download
           className="w-4 h-4 text-brand mt-0.5 flex-shrink-0"
@@ -117,7 +117,7 @@ export function InstallPrompt() {
             <button
               type="button"
               onClick={install}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-[#C8232C] hover:bg-[#A91D24] text-white px-3 py-1.5 rounded-md transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] px-3 py-1.5 rounded-md transition-colors"
             >
               <Download className="w-3 h-3" aria-hidden />
               Install

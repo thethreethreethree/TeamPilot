@@ -152,7 +152,7 @@ export function LlmConnectionPanel() {
           type="button"
           onClick={runTest}
           disabled={status.state === "loading"}
-          className="inline-flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
         >
           {status.state === "loading" ? (
             <>
@@ -248,7 +248,7 @@ function ProviderTile({
     <div
       className={`rounded-lg border p-3 transition-colors ${
         active
-          ? "border-brand bg-[#C8232C]/8"
+          ? "border-brand bg-[#FACC15]/8"
           : configured
           ? "border-default bg-surface-raised"
           : "border-default bg-surface-raised opacity-60"

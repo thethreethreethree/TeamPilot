@@ -146,7 +146,7 @@ export default function PitchPage() {
       <Slide ref={slideRef("cover")} id="cover">
         <div className="text-center max-w-3xl">
           <div className="flex items-center justify-center gap-3 mb-12">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center shadow-glow">
               <Activity className="w-5 h-5 text-primary" aria-hidden="true" />
             </div>
             <span className="text-lg font-bold tracking-tight">ELOSTATE</span>
@@ -303,7 +303,7 @@ export default function PitchPage() {
               <div key={title} className="glass-card p-4 flex gap-4">
                 <div
                   aria-hidden="true"
-                  className="w-9 h-9 rounded-lg bg-[#C8232C]/15 border border-[#C8232C]/30 text-brand text-sm font-bold flex items-center justify-center flex-shrink-0"
+                  className="w-9 h-9 rounded-lg bg-[#FACC15]/15 border border-[#FACC15]/30 text-brand text-sm font-bold flex items-center justify-center flex-shrink-0"
                 >
                   {i + 1}
                 </div>
@@ -546,7 +546,7 @@ export default function PitchPage() {
           </div>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
+            className="inline-flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
             Start your first decision <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
@@ -557,7 +557,7 @@ export default function PitchPage() {
       <Slide ref={slideRef("close")} id="close">
         <div className="text-center max-w-3xl">
           <div className="flex items-center justify-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center shadow-glow">
               <Activity className="w-5 h-5 text-primary" aria-hidden="true" />
             </div>
             <span className="text-lg font-bold tracking-tight">ELOSTATE</span>
@@ -573,7 +573,7 @@ export default function PitchPage() {
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
               href="/login"
-              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] text-white font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
             >
               Get started — free preview
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -787,7 +787,7 @@ function SizeFit({
     <div className="glass-card p-4 flex items-start gap-4">
       <div
         aria-hidden="true"
-        className="w-10 h-10 rounded-lg bg-[#C8232C]/15 border border-[#C8232C]/30 text-brand flex items-center justify-center flex-shrink-0"
+        className="w-10 h-10 rounded-lg bg-[#FACC15]/15 border border-[#FACC15]/30 text-brand flex items-center justify-center flex-shrink-0"
       >
         <Icon className="w-5 h-5" aria-hidden="true" />
       </div>
@@ -815,7 +815,7 @@ function StartStep({
       <div className="flex items-center gap-2 mb-2">
         <div
           aria-hidden="true"
-          className="w-6 h-6 rounded-full bg-[#C8232C]/15 border border-[#C8232C]/30 text-brand text-xs font-bold flex items-center justify-center"
+          className="w-6 h-6 rounded-full bg-[#FACC15]/15 border border-[#FACC15]/30 text-brand text-xs font-bold flex items-center justify-center"
         >
           {n}
         </div>

@@ -208,7 +208,7 @@ export default function OperationsPage() {
                 onClick={() => setActiveFilter(f)}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                   activeFilter === f
-                    ? "bg-[#C8232C]/15 text-brand border border-[#C8232C]/30"
+                    ? "bg-[#FACC15]/15 text-brand border border-[#FACC15]/30"
                     : "text-muted hover:text-secondary border border-transparent hover:border-default"
                 }`}
               >
@@ -225,7 +225,7 @@ export default function OperationsPage() {
             <button
               onClick={openCreate}
               disabled={!supabaseEnabled}
-              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
               title={
                 supabaseEnabled
                   ? "Create a new task"
@@ -458,7 +458,7 @@ export default function OperationsPage() {
             <button
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Saving…" : editing ? "Save changes" : "Create task"}
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}

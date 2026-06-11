@@ -100,7 +100,7 @@ export default function BrainPage() {
       />
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#C8232C]/5 border border-[#C8232C]/20">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#FACC15]/5 border border-[#FACC15]/20">
           <BrainIcon className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
           <p className="text-xs text-secondary leading-relaxed">
             The brain accumulates per-company learning from the §3.1 chain. Only
@@ -183,7 +183,7 @@ export default function BrainPage() {
                 <button
                   onClick={triggerLearning}
                   disabled={learning}
-                  className="flex items-center gap-2 bg-[#C8232C] hover:bg-[#A91D24] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs flex-shrink-0"
+                  className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs flex-shrink-0"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${learning ? "animate-spin" : ""}`} />
                   {learning ? "Running…" : "Run learning cycle"}

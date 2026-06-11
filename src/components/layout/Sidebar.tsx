@@ -16,7 +16,6 @@ import {
   Brain,
   Settings,
   ChevronRight,
-  Activity,
   LogOut,
   GitMerge,
   ShieldCheck,
@@ -30,6 +29,7 @@ import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { CONSTITUTION } from "@/lib/constitution";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useUnreadNotifications } from "@/lib/notifications/useUnread";
+import { LightbulbMark, TAGLINE_SHORT } from "@/components/brand/Logo";
 
 const productionNav = [
   { label: "Command Center", href: "/dashboard", icon: LayoutDashboard },
@@ -148,18 +148,25 @@ export default function Sidebar() {
       )}
       aria-label="Primary navigation"
     >
-      {/* Logo */}
+      {/* Logo — lightbulb mark + ELOSTATE wordmark + tagline + live/demo dot */}
       <div className="px-6 py-6 border-b border-default">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center shadow-glow">
-            <Activity className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <span className="text-base font-bold text-primary tracking-tight">ELOSTATE</span>
-            <div className="flex items-center gap-1.5 mt-0.5">
+        <Link
+          href="/"
+          aria-label="ELOSTATE — landing page"
+          className="flex items-center gap-3 group"
+        >
+          <LightbulbMark className="w-9 h-9 shadow-glow-ember-soft rounded-md transition-shadow group-hover:shadow-glow-ember" />
+          <div className="min-w-0">
+            <span className="block text-base font-black text-primary tracking-tight leading-none">
+              ELOSTATE
+            </span>
+            <span className="block text-[10px] text-muted tracking-wide mt-0.5 leading-none">
+              {TAGLINE_SHORT}
+            </span>
+            <div className="flex items-center gap-1.5 mt-1.5">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  supabaseEnabled ? "bg-emerald-400 pulse-dot" : "bg-yellow-400"
+                  supabaseEnabled ? "bg-ember-300 pulse-dot" : "bg-ember-500"
                 }`}
               />
               <span className="text-[10px] text-muted uppercase tracking-widest">
@@ -167,7 +174,7 @@ export default function Sidebar() {
               </span>
             </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Company pill — single-tap to company settings.
@@ -205,7 +212,7 @@ export default function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                 isActive
-                  ? "bg-[#C8232C]/15 text-brand border border-[#C8232C]/30"
+                  ? "bg-[#FACC15]/15 text-brand border border-[#FACC15]/30"
                   : "text-secondary hover:text-primary hover:bg-surface-raised"
               )}
             >
@@ -217,7 +224,7 @@ export default function Sidebar() {
               />
               {item.label}
               {isActive && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#C8232C]" />
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#FACC15]" />
               )}
             </Link>
           );
@@ -241,7 +248,7 @@ export default function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                   isActive
-                    ? "bg-[#C8232C]/15 text-brand border border-[#C8232C]/30"
+                    ? "bg-[#FACC15]/15 text-brand border border-[#FACC15]/30"
                     : "text-secondary hover:text-primary hover:bg-surface-raised"
                 )}
               >
@@ -254,7 +261,7 @@ export default function Sidebar() {
                   />
                   {showUnreadDot && (
                     <span
-                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C8232C] ring-2 ring-base"
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#FACC15] ring-2 ring-base"
                       aria-label="Unread notifications"
                     />
                   )}
@@ -274,7 +281,7 @@ export default function Sidebar() {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                     isActive
-                      ? "bg-[#C8232C]/15 text-brand border border-[#C8232C]/30"
+                      ? "bg-[#FACC15]/15 text-brand border border-[#FACC15]/30"
                       : "text-secondary hover:text-primary hover:bg-surface-raised"
                   )}
                 >
@@ -354,7 +361,7 @@ export default function Sidebar() {
       {/* User footer */}
       <div className="px-4 py-4 border-t border-default">
         <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C8232C] to-[#F75663] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
             {initials}
           </div>
           <div className="min-w-0 flex-1">
