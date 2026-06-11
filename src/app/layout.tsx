@@ -40,9 +40,11 @@ const NO_FLASH_THEME_SCRIPT = `
 })();
 `.trim();
 
-const TITLE = "ELOSTATE — Problem Solving System for Teams";
+const TITLE = "ELOSTATE";
+// Product-descriptive, not slogan. The slogan slot is intentionally
+// empty until the canonical slogan is provided — do not invent one.
 const DESCRIPTION =
-  "A problem-solving system for teams. ELOSTATE refuses to give you an answer it hasn't earned — it stays silent until it has real evidence, asks for your read before it speaks, and learns only from outcomes that actually held.";
+  "ELOSTATE refuses to give you an answer it hasn't earned. It stays silent until it has real evidence, asks for your read before it speaks, and learns only from outcomes that actually held.";
 
 export const metadata: Metadata = {
   title: {

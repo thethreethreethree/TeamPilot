@@ -29,7 +29,7 @@ import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { CONSTITUTION } from "@/lib/constitution";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useUnreadNotifications } from "@/lib/notifications/useUnread";
-import { LightbulbMark, TAGLINE_SHORT } from "@/components/brand/Logo";
+import { LightbulbMark } from "@/components/brand/Logo";
 
 const productionNav = [
   { label: "Command Center", href: "/dashboard", icon: LayoutDashboard },
@@ -167,9 +167,6 @@ export default function Sidebar() {
           <div className="min-w-0">
             <span className="block text-base font-black text-primary tracking-tight leading-none">
               ELOSTATE
-            </span>
-            <span className="block text-[10px] text-muted tracking-wide mt-0.5 leading-none">
-              {TAGLINE_SHORT}
             </span>
             <div className="flex items-center gap-1.5 mt-1.5">
               <span

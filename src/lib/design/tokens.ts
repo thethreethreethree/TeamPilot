@@ -10,11 +10,15 @@
  * is the machine mirror, kept in lockstep.
  *
  * Design governance: the ELOSTATE logo (amber lightbulb-with-e on matte
- * black, "Problem Solving System for Teams"). The visual identity is
- * mono-amber: warm yellow primary on near-black surfaces, with white
- * text. No red, no cyan, no navy — those were the prior Iron Man
- * identity and were dropped on 2026-06-12 when the logo became design
- * governance.
+ * black). The visual identity is mono-amber: warm yellow primary on
+ * near-black surfaces, with white text. No red, no cyan, no navy —
+ * those were the prior Iron Man identity and were dropped on 2026-06-12
+ * when the logo became design governance.
+ *
+ * No slogan tagline is encoded here. An earlier version of this file
+ * referenced "Problem Solving (System) for Teams"; the user has since
+ * confirmed that is NOT the canonical brand slogan. The slot stays
+ * empty until provided.
  *
  * Two scales:
  *   - ember : the bulb. Warm amber-yellow, used for brand + accents.

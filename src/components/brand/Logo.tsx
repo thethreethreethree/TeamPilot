@@ -27,17 +27,15 @@
  *                       dark text; the canonical wordmark asset is
  *                       pure white).
  *
- * Tagline constants — single source for manifest / meta / heroes:
- *
- *   TAGLINE        = "Problem Solving System for Teams"
- *   TAGLINE_SHORT  = "Problem Solving for Teams"
+ * NOTE on tagline: there is intentionally no exported slogan. An earlier
+ * version of this file shipped "Problem Solving (System) for Teams"
+ * derived from a pre-release version of the logo JPEG, but the user
+ * confirmed that is NOT the canonical brand slogan. The slot is left
+ * empty until the actual slogan is provided. Do not invent one.
  */
 
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-
-export const TAGLINE = "Problem Solving System for Teams";
-export const TAGLINE_SHORT = "Problem Solving for Teams";
 
 // ─── Full logo (bulb + wordmark, as provided) ────────────────────
 
@@ -55,7 +53,7 @@ export function BrandLogo({
   return (
     <Image
       src="/elostate-logo.svg"
-      alt="ELOSTATE — Problem Solving System for Teams"
+      alt="ELOSTATE"
       width={width}
       height={height}
       priority={priority}
@@ -147,22 +145,13 @@ const WORDMARK_SIZES: Record<Size, string> = {
   xl: "text-4xl",
 };
 
-const TAGLINE_SIZES: Record<Size, string> = {
-  sm: "text-[10px]",
-  md: "text-xs",
-  lg: "text-sm",
-  xl: "text-base",
-};
-
 export function Logo({
   variant = "wordmark",
   size = "md",
-  showTagline = false,
   className,
 }: {
   variant?: Variant;
   size?: Size;
-  showTagline?: boolean;
   className?: string;
 }) {
   const dims = MARK_DIMS[size];
@@ -175,24 +164,15 @@ export function Logo({
   );
 
   const word = variant !== "mark" && (
-    <div className="flex flex-col">
-      <span
-        className={cn(
-          "font-black tracking-tight text-primary leading-none",
-          WORDMARK_SIZES[size]
-        )}
-        style={{ letterSpacing: "-0.01em" }}
-      >
-        ELOSTATE
-      </span>
-      {showTagline && (
-        <span
-          className={cn("text-muted tracking-wide mt-1", TAGLINE_SIZES[size])}
-        >
-          {TAGLINE}
-        </span>
+    <span
+      className={cn(
+        "font-black tracking-tight text-primary leading-none",
+        WORDMARK_SIZES[size]
       )}
-    </div>
+      style={{ letterSpacing: "-0.01em" }}
+    >
+      ELOSTATE
+    </span>
   );
 
   return (

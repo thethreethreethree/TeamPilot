@@ -44,21 +44,21 @@ mark + wordmark are a unit.
 
 ## 3. The tagline
 
-```
-Problem Solving System for Teams
-```
+There is intentionally no canonical tagline at the moment.
 
-This is the canonical positioning line, taken directly from the logo. It
-replaces the prior "AI Executive Operating System" framing, which was
-dropped on 2026-06-12 because it was a category label that the new logo
-explicitly contradicted ("Problem Solving" is a sharper, more honest
-positioning).
+A previous version of this document carried "Problem Solving System for
+Teams" as the slogan, derived from text that appeared below the bulb in
+an early version of the logo JPEG. The user has confirmed that is NOT
+the canonical brand slogan. The slot is left empty here until the actual
+slogan is provided.
 
-Constants live at `src/components/brand/Logo.tsx`:
+Do not invent or default a slogan into the title, meta description,
+sidebar, hero, footer, or any other surface. The brand name "ELOSTATE"
+stands alone until further notice.
 
-- `TAGLINE` — full line, used on landing hero, login subhead, PWA description.
-- `TAGLINE_SHORT` — "Problem Solving for Teams" — used in compact contexts
-  (sidebar wordmark, manifest short name fallback).
+If you need product-descriptive prose for SEO meta tags, use a factual
+statement about behavior (e.g. "ELOSTATE stays silent until it has
+earned the right to speak") — not a slogan-shaped claim.
 
 ---
 

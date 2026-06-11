@@ -1,14 +1,13 @@
 import type { MetadataRoute } from "next";
 
 /** Web app manifest for "Add to Home Screen" on mobile + desktop PWA install.
- *  Identity comes from docs/BRAND.md — amber lightbulb on matte black, with
- *  the canonical tagline "Problem Solving System for Teams". */
+ *  Identity comes from docs/BRAND.md — amber lightbulb on matte black. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ELOSTATE — Problem Solving System for Teams",
+    name: "ELOSTATE",
     short_name: "ELOSTATE",
     description:
-      "Problem Solving System for Teams. The system stays silent until it has earned the right to speak.",
+      "ELOSTATE stays silent until it has earned the right to speak.",
     start_url: "/dashboard",
     display: "standalone",
     // Matte black with an ember theme accent so the OS install splash
