@@ -65,7 +65,13 @@ create table if not exists chat_topic_decisions (
 -- can carry multiple HISTORICAL decided dialogues but only one OPEN one
 -- at a time. The named constraint above was the wrong shape for that —
 -- it would block a second decided dialogue from ever opening.
-alter table chat_topic_decisions drop constraint chat_topic_decisions_unique;
+--
+-- `if exists` is critical: when `create table if not exists` above is a
+-- no-op (the table already exists from a prior partial run), the inline
+-- constraint creation is also skipped — so the drop must tolerate the
+-- constraint being absent. Same class of bug we fixed in migration 0021;
+-- the discipline is "safe to re-run," not just "runs once cleanly."
+alter table chat_topic_decisions drop constraint if exists chat_topic_decisions_unique;
 create unique index if not exists chat_topic_decisions_one_open_idx
   on chat_topic_decisions (topic_id)
   where phase <> 'decided';
