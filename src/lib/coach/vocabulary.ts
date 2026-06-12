@@ -149,6 +149,47 @@ export const PEJORATIVES_FOR_THINGS = [
 ] as const;
 
 /**
+ * v3.8 (2026-06-12) — feeling-as-judgment adjectives.
+ *
+ * Distinct from PEJORATIVES_FOR_THINGS even though both fire the
+ * nvc-evaluation heuristic via the same shapes. The difference:
+ *   - PEJORATIVES_FOR_THINGS encode a quality judgment about the
+ *     thing ("this is broken" — the thing IS bad).
+ *   - FEELING_AS_JUDGMENT_ADJECTIVES encode the SPEAKER's emotional
+ *     impact projected as a property of the thing ("this is annoying"
+ *     — the speaker IS annoyed, the thing got labeled).
+ *
+ * Both shapes are NVC evaluation in the technical sense (judgment
+ * substituted for observation), but they map to slightly different
+ * revisions — the feeling-shape's natural revision is "I feel X
+ * when…" rather than "what specifically did you notice?". Keeping
+ * them as separate categories per A13 (vocabulary-once, by category)
+ * makes future refinement to the suggestion text shape-aware without
+ * having to re-author the regex.
+ *
+ * Surfaced this category from the "thats annoying" miss — the
+ * structural shape "that's [feeling_adj]" was identical to the
+ * existing "that's [pejorative]" pattern but the adjective was
+ * categorically absent from any vocabulary group.
+ */
+export const FEELING_AS_JUDGMENT_ADJECTIVES = [
+  "annoying", "irritating", "infuriating", "maddening", "aggravating",
+  "exasperating", "vexing", "grating", "galling", "tiresome", "wearing",
+  "exhausting", "draining", "tiring", "fatiguing",
+  "frustrating", "discouraging", "disheartening", "demoralizing",
+  "stressful", "overwhelming", "smothering", "suffocating",
+  "tedious", "boring", "dull",
+  "uncomfortable", "unpleasant", "disagreeable",
+  "depressing", "saddening", "upsetting", "disturbing",
+  "concerning", "worrying", "alarming",
+  "confusing", "baffling", "bewildering", "perplexing",
+  "off-putting", "off putting",
+  "disappointing", "underwhelming",
+  "petty", "childish", "immature",
+  "passive-aggressive", "passive aggressive",
+] as const;
+
+/**
  * Identity attacks — labels a PERSON as a type/trait rather than
  * describing what they did. Drives stone-identity-collision.
  *

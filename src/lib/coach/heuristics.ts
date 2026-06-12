@@ -184,6 +184,7 @@ import {
   AGGRESSIVE_IMPERATIVES,
   CATASTROPHIZING,
   EMOTIONAL_STATES,
+  FEELING_AS_JUDGMENT_ADJECTIVES,
   HIGH_INTENSITY_ADJECTIVES,
   IDENTITY_ATTACKS,
   INTENSIFIER_ADVERBS,
@@ -195,6 +196,13 @@ import {
 
 const EMOTIONAL_STATES_ALT = vocabAlt(EMOTIONAL_STATES);
 const PEJORATIVES_FOR_THINGS_ALT = vocabAlt(PEJORATIVES_FOR_THINGS);
+// v3.8: feeling-as-judgment adjectives share NVC evaluation shape with
+// PEJORATIVES_FOR_THINGS but encode speaker-emotional-impact-projected-
+// as-property rather than thing-quality. Composed into a combined alt
+// so the existing "this is X" / "[X] [noun]" patterns catch both
+// without per-pattern duplication.
+const FEELING_AS_JUDGMENT_ALT = vocabAlt(FEELING_AS_JUDGMENT_ADJECTIVES);
+const EVALUATION_ADJECTIVES_ALT = `${PEJORATIVES_FOR_THINGS_ALT}|${FEELING_AS_JUDGMENT_ALT}`;
 const IDENTITY_ATTACKS_ALT = vocabAlt(IDENTITY_ATTACKS);
 const PROFANITY_ALT = vocabAlt(PROFANITY);
 const AGGRESSIVE_IMPERATIVES_ALT = vocabAlt(AGGRESSIVE_IMPERATIVES);
@@ -219,16 +227,22 @@ const EVALUATABLE_NOUNS_ALT =
   "suggestions|change|changes|build|builds|release|releases|deploy|deploys|" +
   "shipment|ship|product|feature|features|implementation|implementations|" +
   "post|posts|reply|replies|take|takes|opinion|opinions|reasoning|argument|" +
-  "arguments|point|points|line|lines|tweet|tweets|claim|claims";
+  "arguments|point|points|line|lines|tweet|tweets|claim|claims|" +
+  "behavior|behaviors|behaviour|behaviours|attitude|attitudes|" +
+  "pattern|patterns|habit|habits|move|tactic|tactics|strategy|strategies|" +
+  "process|processes|workflow|workflows|policy|policies|rule|rules";
 
 const NVC_EVALUATION_PATTERNS: ReadonlyArray<RegExp> = [
   // Absolutes about people/situations — expanded the family.
   /\b(always|never|constantly|forever|whenever|every (single )?time|all the time|each and every|every single|nobody ever|no one ever)\b/i,
-  // "this is / that is / it's X" — X drawn from the comprehensive
-  // pejorative vocabulary. The verb forms cover the contractions
-  // people actually type ("this's" is rare but real in chat).
+  // "this is / that is / it's X" — X drawn from the COMBINED evaluation
+  // adjective space (PEJORATIVES_FOR_THINGS + FEELING_AS_JUDGMENT). The
+  // verb forms cover the contractions people actually type ("this's" is
+  // rare but real in chat). v3.8 added feeling-as-judgment ("that's
+  // annoying") to the alt — same structural shape, was missing only
+  // because the adjective category was missing from any vocab group.
   new RegExp(
-    `\\b(this is|that is|this'?s|that'?s|it'?s|its)\\s+(${PEJORATIVES_FOR_THINGS_ALT})\\b`,
+    `\\b(this is|that is|this'?s|that'?s|it'?s|its)\\s+(${EVALUATION_ADJECTIVES_ALT})\\b`,
     "i"
   ),
   // v3.6: ellipted "this is" — "stupid move", "dumb idea", "terrible
@@ -237,8 +251,10 @@ const NVC_EVALUATION_PATTERNS: ReadonlyArray<RegExp> = [
   // already route to stone-identity-collision with their pronoun-led
   // shape ("you're stupid"). The noun list catches the actional /
   // output-shaped targets that "evaluation language" naturally lands on.
+  // v3.8: same combined evaluation alt so "annoying behavior" / "tiresome
+  // approach" / "frustrating decision" all surface.
   new RegExp(
-    `\\b(${PEJORATIVES_FOR_THINGS_ALT})\\s+(${EVALUATABLE_NOUNS_ALT})\\b`,
+    `\\b(${EVALUATION_ADJECTIVES_ALT})\\s+(${EVALUATABLE_NOUNS_ALT})\\b`,
     "i"
   ),
   // v3.6: direct first-person evaluation. "I don't like it" / "I hate

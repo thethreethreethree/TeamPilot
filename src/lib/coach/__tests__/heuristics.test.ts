@@ -81,6 +81,21 @@ describe("detectNvcEvaluation", () => {
     expect(detectNvcEvaluation("you're a stupid friend")).toBeNull();
     expect(detectNvcEvaluation("they are dumb people")).toBeNull();
   });
+
+  // v3.8 (2026-06-12) — closes the "thats annoying" gap.
+  it("fires on feeling-as-judgment 'that's X' shapes", () => {
+    expect(detectNvcEvaluation("thats annoying")).not.toBeNull();
+    expect(detectNvcEvaluation("that's frustrating")).not.toBeNull();
+    expect(detectNvcEvaluation("this is exhausting")).not.toBeNull();
+    expect(detectNvcEvaluation("it's tiresome")).not.toBeNull();
+    expect(detectNvcEvaluation("this is overwhelming")).not.toBeNull();
+  });
+
+  it("fires on feeling-as-judgment ellipted-verb shape", () => {
+    expect(detectNvcEvaluation("annoying behavior")).not.toBeNull();
+    expect(detectNvcEvaluation("frustrating decision")).not.toBeNull();
+    expect(detectNvcEvaluation("tiresome approach")).not.toBeNull();
+  });
 });
 
 describe("detectBareAssertion", () => {

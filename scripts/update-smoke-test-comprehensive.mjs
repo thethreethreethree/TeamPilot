@@ -1516,6 +1516,29 @@ const items = [
     expected: "Five citation fields, five render branches. citation.kindExplanation is intentionally NOT rendered post-v3.7 — the System's Read card supersedes it for draft-specific content, the principle covers durable theory. Per A14, removing a render path is as much an audit-able choice as adding one — documented inline in CoachPanel.tsx so future maintainers see the intent.",
     assignee: "john",
   },
+
+  // ─── Coach v3.8 — feeling-as-judgment vocabulary ────────────
+  {
+    id: "coach-v3.8-thats-annoying-fires",
+    title: "'thats annoying' / 'that's frustrating' surface the Coach chip",
+    instructions: "Type 'thats annoying' (or 'that's frustrating', 'this is exhausting', 'it's tiresome'). Wait 350ms.",
+    expected: "Coach chip surfaces with NVC evaluation. Closes the 'loading icon shows up but Coach doesn't activate' bug — the regex had a category gap where 'feeling-projected-as-thing-property' adjectives (annoying/frustrating/irritating/exhausting/tiresome) weren't in PEJORATIVES_FOR_THINGS, so 'that's annoying' matched the structural shape but no vocabulary entry to fire. v3.8 added FEELING_AS_JUDGMENT_ADJECTIVES as a named category and combined it with PEJORATIVES via EVALUATION_ADJECTIVES_ALT so both fire from the existing pattern.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.8-feeling-adj-ellipted-noun",
+    title: "'annoying behavior' / 'frustrating decision' / 'tiresome approach' fire ellipted-verb NVC pattern",
+    instructions: "Type 'annoying behavior' (no other words). Then 'frustrating decision'. Then 'tiresome approach'. Each on its own.",
+    expected: "Each triggers the Coach chip — feeling-as-judgment adjective + EVALUATABLE_NOUN. The v3.6 ellipted shape now consumes both PEJORATIVES_FOR_THINGS (stupid/dumb/terrible) and FEELING_AS_JUDGMENT (annoying/frustrating/tiresome). v3.8 also expanded EVALUATABLE_NOUNS to include behavior, attitude, pattern, habit, tactic, strategy, process, workflow, policy, rule — common evaluation targets the v3.6 noun list missed.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.8-vocabulary-by-category-not-word",
+    title: "(JOHN) New vocab additions are by category (A13), not per-word",
+    instructions: "(JOHN) Read src/lib/coach/vocabulary.ts and confirm FEELING_AS_JUDGMENT_ADJECTIVES is exported as its own named category, distinct from PEJORATIVES_FOR_THINGS. Confirm the docstring explains the structural distinction (quality-of-thing vs speaker-emotional-impact-projected-as-property).",
+    expected: "FEELING_AS_JUDGMENT_ADJECTIVES is a top-level export with ~40 entries grouped by sub-shape (irritation, exhaustion, frustration, stress, confusion, etc.). Per A13, the discipline is: when the same shape recurs, name the CATEGORY once at the right altitude rather than patching per-word. 'thats annoying' was the trigger; the category was the missing space.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
