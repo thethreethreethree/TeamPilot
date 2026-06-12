@@ -1075,6 +1075,36 @@ const items = [
     expected: "html { overflow-x: hidden; position: relative; } applied. Belt-and-suspenders with body's existing overflow-x: hidden. Catches iOS Safari edge cases where fixed-position children (sidebar drawer, install prompt) could push touch-gesture scroll past viewport.",
     assignee: "john",
   },
+
+  // ─── Coach v3.2.1 — vocabulary + verb-phrase + LLM threshold ───
+  {
+    id: "coach-v3.2.1-getting-annoyed-triggers",
+    title: "'I'm getting annoyed' (19 chars) now triggers the hot-state chip",
+    instructions: "In any Coach-enabled topic, type 'I'm getting annoyed' and pause for ~1.5 seconds.",
+    expected: "Coach chip surfaces within 350ms (regex) with 'Composing from a hot state' label. The expanded HOT_STATE regex now matches 'I'm getting X' verb phrasing (was rigid 'I'm X') and the 'annoyed' vocabulary entry (was missing). Previously this draft slipped both passes — regex didn't match the phrasing/word and the 19-char draft fell below the LLM_MIN_DRAFT_CHARS=20 floor.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.2.1-onset-verb-coverage",
+    title: "Onset-verb phrasings all activate hot-state detection",
+    instructions: "Try each on separate posts: 'I'm getting irritated', 'I'm feeling cranky', 'I'm becoming agitated', 'I'm starting to feel done'.",
+    expected: "All four trigger the hot-state chip. The regex captures the four onset verbs (getting / feeling / becoming / starting to feel) as optional inserts between 'I'm' and the emotion vocabulary.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.2.1-expanded-vocabulary",
+    title: "Expanded everyday-emotion vocabulary triggers hot-state",
+    instructions: "Try each: 'I'm annoyed', 'I'm irritated', 'I'm upset', 'I'm bothered', 'I'm cranky', 'I'm on edge', 'I'm frazzled', 'I'm cooked'.",
+    expected: "Each one triggers the hot-state chip. v3 had only the high-intensity tail (exhausted / burnt out / frustrated); v3.2.1 adds the everyday-emotion vocabulary the Coach was missing.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.2.1-llm-fires-on-short-drafts",
+    title: "LLM analyze fires on drafts ≥ 12 chars (was 20)",
+    instructions: "(JOHN) Type a 14-char draft that wouldn't trigger the regex ('this is rough' or similar). Watch the Network tab.",
+    expected: "/api/coach/analyze fires within 1.2s of typing stopping. Previously the 20-char floor blocked the LLM fallback on short emotional drafts; 12 covers the realistic short-message surface without burning LLM calls on 'ok'/'yes'/'thanks!' (all <12).",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

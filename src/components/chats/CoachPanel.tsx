@@ -59,7 +59,13 @@ import { fetchPatternCounts } from "@/lib/coach/counts";
 
 const REGEX_DEBOUNCE_MS = 350;
 const LLM_DEBOUNCE_MS = 1200;
-const LLM_MIN_DRAFT_CHARS = 20;
+// v3.2.1 — lowered from 20 to 12 after the user reported "I'm
+// getting annoyed" (19 chars) didn't activate the LLM fallback when
+// the regex also missed. 12 chars is the floor: shorter drafts
+// ("ok", "yes", "got it!") are too low-signal to be worth a real
+// LLM round trip; ≥12 covers the realistic emotional short-message
+// surface ("I'm done", "this sucks", "I quit", "go away").
+const LLM_MIN_DRAFT_CHARS = 12;
 
 type CitationFactory = (text: string) => CoachCitation | null;
 

@@ -199,9 +199,21 @@ const BLAME_PROJECTION_PATTERNS: ReadonlyArray<RegExp> = [
 // composing a message. Not about whether the message is valid; about
 // whether the AUTHOR would want this exact message to be the durable
 // record their future-self reads tomorrow.
+//
+// v3.2.1 (2026-06-12) — expanded after the user reported "I'm getting
+// annoyed" missed the detector. Two gaps:
+//   - "annoyed" / "irritated" / "upset" / "bothered" weren't in the
+//     vocabulary (we had the high-intensity tail: exhausted/burnt out)
+//   - the verb phrase was rigid "I'm X" — "I'm getting X" / "I'm
+//     feeling X" / "I'm starting to feel X" all slipped through
+// Both classes of mistake were affecting daily-use sensitivity in
+// the exact case the Coach is most needed for (low-intensity
+// emotional drift that escalates if unsurfaced).
 const HOT_STATE_PATTERNS: ReadonlyArray<RegExp> = [
-  // First-person hot-state declarations near the message.
-  /\b(i'?m|i am) (so |really |really really |very )?(hungry|starving|exhausted|tired|drained|wasted|burnt out|burned out|stressed|anxious|fried|done|over it|over this|fed up|sick of (it|this)|losing it)\b/i,
+  // First-person hot-state declarations with optional onset-verb +
+  // optional intensifier. Onset verbs cover "I'm getting X" /
+  // "I'm feeling X" / "I'm starting to feel X" / "I'm becoming X".
+  /\b(i'?m|i am)( getting| feeling| becoming| starting to feel)?( so | really | really really | very |\s)?(hungry|starving|exhausted|tired|drained|wasted|burnt out|burned out|stressed|anxious|fried|done|over it|over this|fed up|sick of (it|this)|losing it|annoyed|irritated|upset|bothered|agitated|cranky|grumpy|on edge|frazzled|wiped|spent|cooked|toast)\b/i,
   // "Up all night / hadn't slept" sleep deprivation tells.
   /\b(up all night|haven'?t slept|no sleep|running on (fumes|empty))\b/i,
 ];
