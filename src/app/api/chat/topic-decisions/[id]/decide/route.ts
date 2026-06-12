@@ -8,20 +8,26 @@ import { rateLimit } from "@/lib/api/rateLimit";
 /**
  * POST /api/chat/topic-decisions/[id]/decide
  *
- * Finalize an in-thread Decision Dialogue. Three coupled writes:
+ * Finalize an in-thread Decision Dialogue.
  *
- *   1. INSERT into `decisions` (the canonical outcome row used by
- *      /dashboard/decisions Decision Memory) + INSERT into
- *      `decision_dialogues` (the §3.1 append-only dialogue record).
- *      This is the same write-through the off-thread page does so
- *      both surfaces produce identical durability/measurement signals.
- *   2. UPDATE chat_topic_decisions to phase='decided', set
- *      decided_at, chosen_path, chosen_note, and persisted_decision_id.
- *      The table trigger then locks the row.
- *   3. POST a system message into the topic timeline + emit a
- *      `decision.decided` chain event so the readout can attribute
- *      downstream effects (durability, follow-on tasks) to this
- *      moment.
+ * §1.7 audit M1 fix (2026-06-12): this route used to perform FIVE
+ * sequential Supabase writes (decisions / decision_dialogues /
+ * chat_topic_decisions / chat_messages / events) with no transaction
+ * boundary. Any failure between writes 2–5 left the database in a
+ * partial state — the dialogue could be persisted but the
+ * chat_topic_decisions row still in phase='decide', or the system
+ * message could land but the §3.1 chain event drop, so the
+ * Brain readout under-counted decisions.
+ *
+ * Migration 0027 introduced `decide_chat_topic_decision()` — a
+ * SECURITY INVOKER plpgsql function that performs all five writes
+ * inside one implicit transaction. RLS still applies per write
+ * (no privilege elevation). If any write fails, every write rolls
+ * back. The route is now a single rpc() call plus the read-back.
+ *
+ * What this route still owns: auth check, rate limiting, input
+ * shape validation, error→HTTP-status mapping. The DB function
+ * owns the write-through invariant.
  */
 
 const DecideSchema = z.object({
@@ -29,8 +35,23 @@ const DecideSchema = z.object({
   chosenNote: z.string().max(20_000).optional().default(""),
 });
 
-const FIELDS_SELECT =
-  "id, company_id, topic_id, opened_by, opened_at, phase, situation, user_diagnosis, user_proposal, system_response, chosen_path, chosen_note, decided_at, persisted_decision_id, updated_at";
+type DecidedRow = {
+  id: string;
+  company_id: string;
+  topic_id: string;
+  opened_by: string;
+  opened_at: string;
+  phase: string;
+  situation: string | null;
+  user_diagnosis: string | null;
+  user_proposal: string | null;
+  system_response: unknown;
+  chosen_path: string | null;
+  chosen_note: string | null;
+  decided_at: string | null;
+  persisted_decision_id: string | null;
+  updated_at: string;
+};
 
 export async function POST(
   req: NextRequest,
@@ -60,143 +81,52 @@ export async function POST(
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  const { data: row, error: fetchErr } = await supabase
-    .from("chat_topic_decisions")
-    .select(FIELDS_SELECT)
-    .eq("id", id)
-    .maybeSingle();
-  if (fetchErr || !row) {
-    return NextResponse.json({ error: "Dialogue not found." }, { status: 404 });
-  }
-  if (row.phase === "decided") {
-    return NextResponse.json(
-      { error: "This dialogue is already decided." },
-      { status: 409 }
-    );
-  }
-  if (!row.system_response) {
-    return NextResponse.json(
-      {
-        error:
-          "Cannot decide before the System has responded. Run the System response phase first.",
-      },
-      { status: 400 }
-    );
-  }
-
-  // Compose title from the user's proposal, mirroring the off-thread
-  // path's behavior so Decision Memory shows in-thread decisions with
-  // the same title shape.
-  const proposalFirstLine = (row.user_proposal ?? "").split("\n")[0] ?? "Decision";
-  const title = proposalFirstLine.slice(0, 80) || "Decision";
-  const outcome =
-    body.chosenPath === "defer"
-      ? "Deferred — understanding not yet earned"
-      : body.chosenNote ||
-        (body.chosenPath === "system"
-          ? (row.system_response as { suggestion?: { action?: string } })
-              .suggestion?.action ?? ""
-          : row.user_proposal ?? "");
-
-  const { data: decision, error: decisionErr } = await supabase
-    .from("decisions")
-    .insert({
-      company_id: row.company_id,
-      title,
-      situation: row.situation,
-      outcome,
-      execution_status:
-        body.chosenPath === "defer" ? "Deferred" : "In Progress",
-      options: row.system_response,
-    })
-    .select("id")
-    .single();
-  if (decisionErr || !decision) {
-    return NextResponse.json(
-      { error: decisionErr?.message ?? "Could not persist decision." },
-      { status: 500 }
-    );
-  }
-
-  const systemResponse = row.system_response as {
-    engagement?: string;
-    addedPerspective?: string;
-    suggestion?: { action?: string; why?: string };
-    comparison?: string;
-  };
-  const { error: dialogueErr } = await supabase
-    .from("decision_dialogues")
-    .insert({
-      company_id: row.company_id,
-      decision_id: decision.id,
-      situation: row.situation ?? "",
-      user_diagnosis: row.user_diagnosis ?? "",
-      user_proposal: row.user_proposal ?? "",
-      system_engagement: systemResponse.engagement ?? null,
-      system_added_perspective: systemResponse.addedPerspective ?? null,
-      system_suggestion_action: systemResponse.suggestion?.action ?? null,
-      system_suggestion_why: systemResponse.suggestion?.why ?? null,
-      system_comparison: systemResponse.comparison ?? null,
-      chosen_path: body.chosenPath,
-      chosen_note: body.chosenNote || null,
-      created_by: auth.user.id,
-      decided_at: new Date().toISOString(),
-    });
-  if (dialogueErr) {
-    return NextResponse.json(
-      { error: dialogueErr.message },
-      { status: 500 }
-    );
-  }
-
-  const decidedAt = new Date().toISOString();
-  const { data: updated, error: updateErr } = await supabase
-    .from("chat_topic_decisions")
-    .update({
-      phase: "decided",
-      chosen_path: body.chosenPath,
-      chosen_note: body.chosenNote || null,
-      decided_at: decidedAt,
-      persisted_decision_id: decision.id,
-    })
-    .eq("id", id)
-    .select(FIELDS_SELECT)
-    .single();
-  if (updateErr || !updated) {
-    return NextResponse.json(
-      { error: updateErr?.message ?? "Could not finalize dialogue." },
-      { status: 500 }
-    );
-  }
-
-  const pathLabel: Record<typeof body.chosenPath & string, string> = {
-    user: "Going with my proposal",
-    system: "Going with the System's suggestion",
-    hybrid: "Hybrid",
-    defer: "Deferred — understanding not yet earned",
-  };
-  await supabase.from("chat_messages").insert({
-    topic_id: row.topic_id,
-    company_id: row.company_id,
-    author_id: auth.user.id,
-    kind: "system",
-    body: `Decision recorded: ${pathLabel[body.chosenPath]}.${
-      body.chosenNote ? `\n\n${body.chosenNote}` : ""
-    }`,
+  const { data, error } = await supabase.rpc("decide_chat_topic_decision", {
+    p_topic_decision_id: id,
+    p_chosen_path: body.chosenPath,
+    p_chosen_note: body.chosenNote ?? "",
   });
 
-  await supabase.from("events").insert({
-    company_id: row.company_id,
-    actor: auth.user.id,
-    kind: "decision.decided",
-    subject: `chat_topic:${row.topic_id}`,
-    payload: {
-      decision_id: row.id,
-      persisted_decision_id: decision.id,
-      chosen_path: body.chosenPath,
-      mode: "in_thread",
-    },
-  });
+  if (error) {
+    // Map the function's typed errcodes to HTTP statuses. The codes
+    // are set explicitly in the SQL function so the route's response
+    // shape stays identical to the pre-M1 sequential-write version
+    // (test harness + UI both still consume the same error.message
+    // string contract).
+    const msg = error.message ?? "Could not finalize dialogue.";
+    if (msg.includes("Not authenticated")) {
+      return NextResponse.json({ error: msg }, { status: 401 });
+    }
+    if (msg.includes("Dialogue not found")) {
+      return NextResponse.json({ error: msg }, { status: 404 });
+    }
+    if (msg.includes("Dialogue already decided")) {
+      return NextResponse.json(
+        { error: "This dialogue is already decided." },
+        { status: 409 }
+      );
+    }
+    if (msg.includes("Cannot decide before the System has responded")) {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot decide before the System has responded. Run the System response phase first.",
+        },
+        { status: 400 }
+      );
+    }
+    if (msg.includes("Invalid chosen_path")) {
+      return NextResponse.json({ error: msg }, { status: 422 });
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 
-  return NextResponse.json({ row: updated });
+  const row = (data as DecidedRow | null) ?? null;
+  if (!row) {
+    return NextResponse.json(
+      { error: "Decide RPC returned no row." },
+      { status: 500 }
+    );
+  }
+  return NextResponse.json({ row });
 }
