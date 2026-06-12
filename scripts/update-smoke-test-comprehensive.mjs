@@ -1008,6 +1008,43 @@ const items = [
     expected: "Top-patterns card still renders, but its body says 'No Coach observations in the last 7 days. Either the team has been communicating without triggering any heuristics, or Coach is off…'. This is honest signal — the empty state itself is data.",
     assignee: "partners",
   },
+
+  // ─── Coach v3.2 — context-aware verdict + veto ──────────────────
+  {
+    id: "coach-v3.2-llm-vetoes-critique-of-word",
+    title: "LLM vetoes regex hit when user is critiquing the word, not using it",
+    instructions: "In any Coach-enabled topic, type: 'I don't like \"this is dumb\" as a phrase' and pause for ~2 seconds.",
+    expected: "Initially (within 350ms) the regex chip may flash for 'Absolute / judgmental phrasing' — within 1.2s the LLM verdicts the hit as 'vetoed' (user is critiquing the phrase, not using it) and the chip disappears. The §4 chain still records the regex hit + LLM veto for the readout, but the UI doesn't surface the false positive.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.2-context-note-replaces-generic-question",
+    title: "Confirmed hits show LLM context-specific note instead of generic question",
+    instructions: "Type the user's earlier flag: 'I'm hungry and you guys are making mad' and pause for the chip to land.",
+    expected: "Closed chip shows: pattern label + trigger excerpt + a SPECIFIC 1-2 sentence note that references the actual words from the draft (e.g. \"The phrase 'you guys are making mad' lands the cause of the feeling on them; an alternative is 'I'm getting frustrated when…'\"). NOT the generic 'First occurrence — pattern starting, or fair callback to a real situation?' question that v2 used for every hit.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.2-uncertain-verdict-tag",
+    title: "Uncertain LLM verdict shows subtle '· context uncertain' tag",
+    instructions: "Type a draft where the pattern shape is ambiguous (e.g. 'we should probably take a look at this when we get time' — between bare assertion and reasonable suggestion). Wait for the LLM pass.",
+    expected: "If the LLM returns verdict='uncertain' (not confirmed, not vetoed), the chip's label line shows a small muted '· CONTEXT UNCERTAIN' suffix. The chip still surfaces but with this hedge — System is honest that it read the context but isn't certain.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.2-regex-hits-sent-to-llm",
+    title: "(JOHN) Regex hits are sent to LLM as part of the analyze request body",
+    instructions: "(JOHN) Type a draft that triggers regex (e.g. 'this is absolutely stupid'). Inspect the POST body to /api/coach/analyze in Network tab.",
+    expected: "Request body contains a 'regexHits' array with the pattern_id + trigger_excerpt of every regex hit. The LLM uses these to render verdicts. Empty regexHits is also valid — LLM will surface any patterns it sees independently.",
+    assignee: "john",
+  },
+  {
+    id: "coach-v3.2-vocab-allowlist-still-holds",
+    title: "(JOHN) API still filters returned hits to the 7-pattern allowlist + valid verdicts",
+    instructions: "(JOHN) If the LLM returns a hit with verdict='maybe' or pattern_id='some-new-id', confirm the API drops it before returning to the client.",
+    expected: "Defense-in-depth filter still active: ALLOWED_PATTERN_IDS check + ['confirmed','uncertain','vetoed'] verdict check + non-empty context_note check. Any hit failing any check is silently dropped from the response.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

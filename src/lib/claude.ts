@@ -219,90 +219,110 @@ export type CoachLlmHit = {
     | "coach-aggressive-language";
   trigger_excerpt: string;
   confidence: "high" | "medium" | "low";
-  // Brief reason — for the §4 readout, NOT shown to the user.
-  reason: string;
+  /** v3.2: verdict the LLM renders against this hit after reading
+   *  the full draft context.
+   *
+   *  - "confirmed": context affirms the pattern. The chip should
+   *    swap its generic kindExplanation for the context_note below.
+   *  - "uncertain": pattern shape is present but context is ambiguous.
+   *    Surface the chip but with the "may be intentional" framing
+   *    softened further.
+   *  - "vetoed": context contradicts the surface match — user is
+   *    critiquing the word, quoting someone else, etc. Suppress
+   *    the chip entirely. */
+  verdict: "confirmed" | "uncertain" | "vetoed";
+  /** v3.2: 1–2 sentence note specific to what the user wrote, NOT
+   *  the static kindExplanation. Shown in the closed chip when the
+   *  verdict is "confirmed" or "uncertain". The static principle +
+   *  generic kindExplanation remain in the expanded view as the
+   *  durable theory; this note is the moment-specific read. */
+  context_note: string;
 };
 
 export async function proposeCoachPatterns(args: {
   draft: string;
-  // Recent thread excerpt (last 3-5 messages) so the LLM can read tone
-  // context. Stripped of author names by the caller to avoid bias.
   recentThread?: string;
   companyId?: string;
+  /** v3.2: regex hits the instant detector already found. The LLM is
+   *  asked to render a verdict on each (confirmed / uncertain /
+   *  vetoed) and provide a context-specific note. The LLM can ALSO
+   *  surface new patterns the regex missed. */
+  regexHits?: Array<{ pattern_id: string; trigger_excerpt: string }>;
 }): Promise<CallResult> {
   return call({
     companyId: args.companyId,
     expectJson: true,
-    maxTokens: 600,
-    systemPrompt: `You are the ELOSTATE Conversational Coach v3 detection pass.
+    maxTokens: 900,
+    systemPrompt: `You are the ELOSTATE Conversational Coach v3.2 — the context-reading pass on top of an instant regex detector.
 
-Your job: identify which of seven specific COMMUNICATION PATTERN SHAPES appear in the user's draft message. You are NOT judging the message. You are NOT saying it is wrong. You are surfacing PATTERN PRESENCE so the user's own UI can ask them a question.
+THE INSTANT REGEX DETECTOR caught literal pattern words ("dumb", "always", "we should"). It cannot read context. The user has complained — correctly — that the Coach was "not actively reading the content." Your job is to fix that by rendering a VERDICT on each regex hit and surfacing patterns the regex missed.
 
 THE SEVEN ALLOWED PATTERNS (return pattern_id exactly as written):
 
-1. nvc-evaluation
-   The draft contains evaluation language rather than observation language —
-   absolutes (always/never), pejorative shorthand ("this is stupid/broken/
-   garbage"), mind-reading ("you don't get it"), or "obviously/clearly"
-   asserting one read as the only read.
+1. nvc-evaluation — evaluation language vs observation (absolutes, "this is broken/stupid", "obviously/clearly", mind-reading)
+2. voss-bare-assertion — OPENS with prescription ("We should...", "You need to...") without labeling the other side first
+3. stone-identity-collision — critiques WHO someone is, not what they did ("you're incompetent", "they're lazy")
+4. coach-blame-projection — locates writer's emotional cause in another ("you're making me mad", "you guys made me feel X")
+5. coach-emotional-escalation — heightened emotional language overshooting the recipient ("absolutely unacceptable", "I'm livid", "disaster")
+6. coach-hot-state — writer signals tired/hungry/stressed while composing ("I'm hungry", "I'm exhausted", "haven't slept")
+7. coach-aggressive-language — profanity or direct aggression AT a person ("fuck off", "shut up", "you're an idiot")
 
-2. voss-bare-assertion
-   The draft OPENS with an assertion or prescription ("We should...",
-   "You need to...", "The answer is...") without first labeling the
-   other person's position or context.
+YOUR VERDICT JOB:
 
-3. stone-identity-collision
-   The draft critiques WHO someone is rather than WHAT they did
-   ("you're incompetent", "they're lazy", "he's a moron").
+For EACH regex hit input, render a verdict:
+  - "confirmed": context affirms the pattern. The writer IS using the
+    pattern (not quoting, not critiquing, not negating).
+  - "uncertain": the pattern shape is present but context is ambiguous.
+    Surface it but the user may have intended it.
+  - "vetoed": context CONTRADICTS the surface match. Common cases:
+      * the writer is QUOTING someone else who used the word
+      * the writer is CRITIQUING the word being used ("I don't like this is dumb" → critique of 'dumb')
+      * the word appears inside a hypothetical or negation
+      * the writer is meta-discussing communication itself
+    When vetoed, the chip is suppressed entirely. Use this generously
+    when the user is clearly NOT using the pattern.
 
-4. coach-blame-projection
-   The draft locates the cause of the writer's emotional state in
-   another person ("you're making me mad", "you guys are making me
-   stressed", "you made me feel X").
+For each pattern you DO surface (confirmed or uncertain, OR a new
+pattern the regex missed), provide a CONTEXT-SPECIFIC NOTE — 1 or 2
+sentences SPECIFIC to what the user wrote. NOT generic. Reference
+the actual words. Examples:
 
-5. coach-emotional-escalation
-   The draft uses heightened emotional language that may overshoot the
-   recipient's ability to act on it ("absolutely unacceptable", "I'm
-   livid", "this is a disaster", "I'm done with this").
+GOOD: "You're framing the late deploy as 'always' — is the regularity what makes it costly, or is this one specifically?"
+GOOD: "The phrase 'you guys are making mad' lands the cause of the feeling on them; an alternative is 'I'm getting frustrated when standups slip past noon.'"
+GOOD: "You're inside the word 'dumb' rather than using it as your own — looks like a critique of someone else's framing rather than evaluation language. Vetoed."
 
-6. coach-hot-state
-   The draft signals the WRITER is in a tired/hungry/stressed/burnt-out
-   state while composing ("I'm hungry", "I'm exhausted", "I'm so
-   stressed", "I haven't slept", "I'm fried"). This is not about
-   whether the message is valid — it's noticing the author may not
-   want this exact message to be the durable record tomorrow.
-
-7. coach-aggressive-language
-   The draft contains profanity or direct aggression aimed AT a person
-   in the conversation ("fuck off", "shut up", "you're an idiot").
-   Generic frustration at situations is NOT this pattern (it's nvc-
-   evaluation if anything).
+BAD: "Built-in evaluation often puts the other person in a defensive position…" (generic, not specific to draft)
+BAD: "This is a pattern worth pausing on." (no specificity)
 
 RULES:
-- Be conservative. Only flag clear matches. When in doubt, DO NOT flag.
-- Multiple patterns CAN apply to one draft. Return all of them.
-- Use confidence to mark how clearly the pattern appears.
-- trigger_excerpt must be the EXACT span from the draft, not paraphrased.
-- reason is brief (< 12 words) and describes the pattern shape, NOT a
-  judgment of the user.
+- Be conservative on confirmations. When in doubt, "vetoed" if the
+  context clearly contradicts; "uncertain" otherwise.
+- Multiple verdicts can apply. Return all of them, including vetoes.
+- trigger_excerpt must be the EXACT span from the draft.
+- context_note must reference the actual draft words, not paraphrased.
 
 Return STRICT JSON in this exact shape:
 
 {
   "hits": [
     {
-      "pattern_id": "coach-blame-projection",
-      "trigger_excerpt": "you guys are making mad",
+      "pattern_id": "nvc-evaluation",
+      "trigger_excerpt": "this is dumb",
       "confidence": "high",
-      "reason": "locates emotional cause in others"
+      "verdict": "vetoed",
+      "context_note": "You're inside the phrase 'this is dumb' as a critique — the draft starts with 'I don't like…' which signals you're objecting to the word being used, not using it yourself."
     }
   ]
 }
 
-If no patterns are present, return: { "hits": [] }`,
+If no patterns are present and no regex hits to evaluate, return: { "hits": [] }`,
     userContent: `Draft to analyze:
 
 ${args.draft}
+
+${args.regexHits && args.regexHits.length > 0
+  ? `Regex hits to verdict (confirm / uncertain / veto each, with a context-specific note):\n${args.regexHits.map((h) => `  - ${h.pattern_id}: "${h.trigger_excerpt}"`).join("\n")}\n`
+  : "(No regex hits — surface any patterns YOU see that the regex missed.)\n"}
 ${args.recentThread ? `\nRecent thread context (for tone, not blame attribution):\n${args.recentThread}` : ""}`,
   });
 }

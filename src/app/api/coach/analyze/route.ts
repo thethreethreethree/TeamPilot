@@ -31,6 +31,18 @@ import { LlmError } from "@/lib/llm/errors";
 const AnalyzeSchema = z.object({
   draft: z.string().min(6).max(8000),
   recentThread: z.string().max(4000).optional(),
+  // v3.2: regex hits the instant detector already surfaced. The LLM
+  // renders a verdict on each (confirmed / uncertain / vetoed) +
+  // provides a context-specific note. Client passes [] if none.
+  regexHits: z
+    .array(
+      z.object({
+        pattern_id: z.string().max(64),
+        trigger_excerpt: z.string().max(280),
+      })
+    )
+    .max(10)
+    .optional(),
 });
 
 const ALLOWED_PATTERN_IDS = new Set<CoachLlmHit["pattern_id"]>([
@@ -59,6 +71,7 @@ export async function POST(req: NextRequest) {
     const r = await proposeCoachPatterns({
       draft: body.draft,
       recentThread: body.recentThread,
+      regexHits: body.regexHits,
       companyId,
     });
     if (r.suppressed) {
@@ -72,6 +85,9 @@ export async function POST(req: NextRequest) {
     // Filter to allowed pattern IDs even if the LLM goes off-script.
     // Constitutional defense: the LLM's vocabulary is constrained at the
     // application layer, not just in the prompt.
+    // v3.2: filter against the constrained vocabulary AND validate the
+    // verdict + context_note fields. Each filter is defense-in-depth
+    // against the LLM going off-script.
     const hits: CoachLlmHit[] = Array.isArray(parsed.hits)
       ? parsed.hits.filter(
           (h) =>
@@ -80,7 +96,11 @@ export async function POST(req: NextRequest) {
             ALLOWED_PATTERN_IDS.has(h.pattern_id) &&
             typeof h.trigger_excerpt === "string" &&
             h.trigger_excerpt.length > 0 &&
-            ["high", "medium", "low"].includes(h.confidence)
+            ["high", "medium", "low"].includes(h.confidence) &&
+            ["confirmed", "uncertain", "vetoed"].includes(h.verdict) &&
+            typeof h.context_note === "string" &&
+            h.context_note.length > 0 &&
+            h.context_note.length <= 400
         )
       : [];
 

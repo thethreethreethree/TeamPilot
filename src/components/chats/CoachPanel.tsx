@@ -89,6 +89,12 @@ type LlmHit = {
   pattern_id: CoachCitation["id"];
   trigger_excerpt: string;
   confidence: "high" | "medium" | "low";
+  /** v3.2 — LLM's verdict on this hit after reading context. */
+  verdict: "confirmed" | "uncertain" | "vetoed";
+  /** v3.2 — 1–2 sentence note specific to the user's actual draft.
+   *  Shown in the closed chip; replaces the generic kindExplanation
+   *  for the moment-specific read. */
+  context_note: string;
 };
 
 /** Synthesize a CoachCitation for an LLM hit. Re-uses the existing
@@ -127,6 +133,8 @@ export function CoachPanel({
   const [active, setActive] = useState<{
     citation: CoachCitation;
     count: number;
+    contextNote: string | null;
+    verdict: LlmHit["verdict"] | null;
   } | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [pastCounts, setPastCounts] = useState<
@@ -180,10 +188,17 @@ export function CoachPanel({
       setLlmAnalyzing(true);
       void (async () => {
         try {
+          // v3.2 — send the regex hits to the LLM so it can verdict
+          // each (confirmed / uncertain / vetoed) instead of being
+          // additive only.
+          const regexHits = detectAll(draft).map((c) => ({
+            pattern_id: c.id,
+            trigger_excerpt: c.triggerExcerpt,
+          }));
           const res = await fetch("/api/coach/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ draft, recentThread }),
+            body: JSON.stringify({ draft, recentThread, regexHits }),
             signal: controller.signal,
           });
           if (!res.ok) {
@@ -211,30 +226,59 @@ export function CoachPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, recentThread]);
 
-  // ─── Combined detection (regex instant + LLM enriched) ────────
+  // ─── Combined detection (regex instant + LLM verdict + enrichment) ────
+  // v3.2: LLM can now VETO regex hits when context contradicts them
+  // (user critiquing a word, quoting someone, hypothetical, etc.) AND
+  // attach a context-specific note that replaces the generic explanation
+  // in the chip. Two specific failures the user named in the screenshot:
+  //   - "similar answer" → generic kindExplanation, no draft-specificity
+  //   - "doesn't evaluate the message" → regex fires without reading context
+  // Both are addressed by routing the regex hits through the LLM verdict
+  // pass before surfacing.
   useEffect(() => {
     if (regexDebounceRef.current !== null) {
       window.clearTimeout(regexDebounceRef.current);
     }
     regexDebounceRef.current = window.setTimeout(() => {
       const regexHits = detectAll(draft);
-      // Convert LLM hits (high + medium confidence only) into citations.
-      // Low-confidence is suppressed — surfaces too many false positives.
-      const llmCitations: CoachCitation[] = llmHits
-        .filter((h) => h.confidence === "high" || h.confidence === "medium")
+
+      // Build a verdict lookup keyed by pattern_id from the LLM. We
+      // accept hits at high + medium confidence only — low-confidence
+      // surfaces too many false positives at the §4 readout.
+      const verdicts = new Map<
+        CoachCitation["id"],
+        { verdict: LlmHit["verdict"]; contextNote: string }
+      >();
+      for (const h of llmHits) {
+        if (h.confidence === "low") continue;
+        verdicts.set(h.pattern_id, {
+          verdict: h.verdict,
+          contextNote: h.context_note,
+        });
+      }
+
+      // Filter regex hits through LLM verdicts: a "vetoed" verdict
+      // suppresses the regex hit. "confirmed" + "uncertain" both
+      // pass through.
+      const survivingRegex = regexHits.filter((c) => {
+        const v = verdicts.get(c.id);
+        return !(v && v.verdict === "vetoed");
+      });
+
+      // Convert any LLM-surfaced patterns the regex DIDN'T catch
+      // (verdicts the LLM rendered "confirmed" / "uncertain" with no
+      // matching regex hit) into citations.
+      const newLlmCitations: CoachCitation[] = llmHits
+        .filter(
+          (h) =>
+            h.confidence !== "low" &&
+            h.verdict !== "vetoed" &&
+            !regexHits.some((r) => r.id === h.pattern_id)
+        )
         .map(citationFromLlmHit)
         .filter((c): c is CoachCitation => c !== null);
 
-      // Merge: regex first (it's authoritative on what it matches),
-      // then any LLM patterns NOT already covered.
-      const seenIds = new Set(regexHits.map((c) => c.id));
-      const combined: CoachCitation[] = [...regexHits];
-      for (const c of llmCitations) {
-        if (!seenIds.has(c.id)) {
-          combined.push(c);
-          seenIds.add(c.id);
-        }
-      }
+      const combined = [...survivingRegex, ...newLlmCitations];
 
       if (combined.length === 0) {
         setActive(null);
@@ -247,13 +291,24 @@ export function CoachPanel({
         (a, b) =>
           PRIORITY_ORDER.indexOf(a.id) - PRIORITY_ORDER.indexOf(b.id)
       );
-      let surfaced: { citation: CoachCitation; count: number } | null = null;
+      let surfaced: {
+        citation: CoachCitation;
+        count: number;
+        contextNote: string | null;
+        verdict: LlmHit["verdict"] | null;
+      } | null = null;
       for (const c of sorted) {
         const past = pastCounts[c.id] ?? 0;
         const total = past + 1;
         const threshold = COACH_THRESHOLDS[c.id];
         if (total >= threshold) {
-          surfaced = { citation: c, count: total };
+          const v = verdicts.get(c.id);
+          surfaced = {
+            citation: c,
+            count: total,
+            contextNote: v?.contextNote ?? null,
+            verdict: v?.verdict ?? null,
+          };
           break;
         }
       }
@@ -355,21 +410,41 @@ export function CoachPanel({
             onClick={() => setExpanded((v) => !v)}
             className="text-left w-full"
           >
-            <p className="text-xs text-primary font-semibold mb-0.5">
+            <p className="text-xs text-primary font-semibold mb-0.5 flex items-center gap-1.5">
               {text.label}
+              {/* v3.2: if the LLM verdict is "uncertain", surface that
+                  subtly so the user knows the System read the context
+                  but isn't certain. "confirmed" is implicit. */}
+              {active.verdict === "uncertain" && (
+                <span className="text-[9px] uppercase tracking-widest font-mono text-muted">
+                  · context uncertain
+                </span>
+              )}
             </p>
             {/* Trigger excerpt — surfaced prominently in the closed
                 chip state (v3.1) so the user can SEE which words fired
-                the detector without expanding. Previously this was
-                buried behind the "Refine and revise" expand. */}
+                the detector without expanding. */}
             {triggerSnippetShort && (
               <p className="text-[11px] text-brand mb-1 font-mono italic break-words">
                 &ldquo;{triggerSnippetShort}&rdquo;
               </p>
             )}
-            <p className="text-[11px] text-secondary leading-relaxed">
-              {text.question}
-            </p>
+            {/* v3.2: LLM-generated context-specific note. When present,
+                replaces the generic mirror-question with a sentence
+                that REFERENCES the user's actual draft words. This is
+                the fix for the user's complaint that Coach gives
+                "similar answer" every time and "doesn't evaluate the
+                message." Falls back to the generic question if the
+                LLM didn't return a note (regex-only fire). */}
+            {active.contextNote ? (
+              <p className="text-[11px] text-primary leading-relaxed">
+                {active.contextNote}
+              </p>
+            ) : (
+              <p className="text-[11px] text-secondary leading-relaxed">
+                {text.question}
+              </p>
+            )}
           </button>
           {expanded && (
             <div className="mt-2 space-y-2">
