@@ -404,32 +404,17 @@ export async function fetchTaskParticipants(
  * about this data to the user must come with a constructive next
  * step, not a warning.
  *
- * Upserts the (task_id, user_id) row in task_participants — joins
- * the user automatically if they weren't already a participant.
+ * §1.7 audit M4 fix (2026-06-12): previously a read-then-write
+ * (SELECT engagement_count, then UPSERT with read+1). Two concurrent
+ * engagement events both observed the same pre-value and each wrote
+ * pre+1 — one increment lost on every collision. Now delegated to
+ * record_task_engagement() (migration 0028), which performs a
+ * single-statement INSERT ... ON CONFLICT DO UPDATE with the increment
+ * happening inside the on-conflict path under the row lock. Atomic
+ * by construction; concurrent calls serialize cleanly.
  */
 export async function recordEngagement(taskId: string): Promise<void> {
   if (!supabaseEnabled) return;
   const supabase = createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return;
-  const now = new Date().toISOString();
-
-  // First read existing engagement_count so we can increment cleanly.
-  const { data: existing } = await supabase
-    .from("task_participants")
-    .select("engagement_count")
-    .eq("task_id", taskId)
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
-
-  await supabase.from("task_participants").upsert(
-    {
-      task_id: taskId,
-      user_id: auth.user.id,
-      role: existing ? undefined : "member",
-      last_engaged_at: now,
-      engagement_count: (existing?.engagement_count ?? 0) + 1,
-    },
-    { onConflict: "task_id,user_id" }
-  );
+  await supabase.rpc("record_task_engagement", { p_task_id: taskId });
 }

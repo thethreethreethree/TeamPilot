@@ -1378,6 +1378,50 @@ const items = [
     expected: "Second run is a clean no-op — CREATE OR REPLACE FUNCTION replaces in place. Per A12, every migration must be replayable against a partially-applied target. Zero error, zero side-effects beyond function re-creation.",
     assignee: "john",
   },
+
+  // ─── Audit M4 — atomic task engagement increment (migration 0028) ──
+  {
+    id: "engagement-rpc-no-lost-increments-under-concurrency",
+    title: "(JOHN) Concurrent engagement events no longer lose increments",
+    instructions: "(JOHN) After migration 0028 is applied, simulate 10 concurrent calls to record_task_engagement(SAME_task_id) for the SAME user (e.g. via psql: SELECT record_task_engagement('<task-uuid>') FROM generate_series(1,10);). Then SELECT engagement_count FROM task_participants WHERE ...",
+    expected: "engagement_count is exactly 10 (or N-prior+10). Previously the client-side read-then-write could lose up to N-1 increments under any concurrent burst. The single-statement INSERT … ON CONFLICT DO UPDATE holds the row lock through the increment expression; concurrent calls serialize cleanly. Closes audit finding M4.",
+    assignee: "john",
+  },
+  {
+    id: "engagement-rpc-first-time-engagement",
+    title: "First-time engagement (no prior row) creates row with count=1",
+    instructions: "Open a task you've never engaged with as a fresh user (or query task_participants confirming no row exists for {task_id, user_id}). Trigger an engagement action (post a message, change status).",
+    expected: "Row created with engagement_count=1, role='member', last_engaged_at=now. Per A8, joining happens automatically through engagement — no explicit 'join task' click needed.",
+    assignee: "partners",
+  },
+  {
+    id: "engagement-rpc-subsequent-engagement",
+    title: "Subsequent engagements increment count and refresh last_engaged_at",
+    instructions: "On a task where you already have a participant row, trigger several engagement actions in quick succession (post 3 messages, change status twice).",
+    expected: "engagement_count goes up by 5 (not by 1, 2, or 3 from lost increments). last_engaged_at is the most recent action's timestamp. The §4 readout's 'meaningful action frequency' signal is now trustworthy.",
+    assignee: "partners",
+  },
+  {
+    id: "engagement-rpc-rls-still-applies",
+    title: "(JOHN) SECURITY INVOKER means RLS still applies to task_participants writes",
+    instructions: "(JOHN) From a user account that's NOT a member of the task's company, attempt: SELECT record_task_engagement('<other-company-task-uuid>');",
+    expected: "Returns an error from the RLS policy on task_participants (INSERT or UPDATE policy violation). No privilege elevation — SECURITY INVOKER preserves the caller's auth.uid() and the policies see it as the actual user. The atomic-write benefit doesn't bypass authorization.",
+    assignee: "john",
+  },
+  {
+    id: "engagement-rpc-recordengagement-helper-now-single-call",
+    title: "(JOHN) recordEngagement() in src/lib/data/tasks.ts is a single RPC call",
+    instructions: "(JOHN) Read src/lib/data/tasks.ts — the recordEngagement function should be: supabaseEnabled check + supabase.rpc('record_task_engagement', {p_task_id: taskId}). No SELECT, no UPSERT, no read-then-write pattern.",
+    expected: "Function body is 3 lines (plus return). The old read-then-write pattern is gone. All callers (createTask, transitionTaskStatus, message posts) still invoke recordEngagement(taskId) the same way — fire-and-forget — but the underlying write is now atomic. Same client contract, structural fix below.",
+    assignee: "john",
+  },
+  {
+    id: "engagement-rpc-migration-0028-idempotent",
+    title: "(JOHN) Migration 0028 re-runs cleanly (CREATE OR REPLACE FUNCTION)",
+    instructions: "(JOHN) Apply migration 0028. Re-apply without resetting the DB.",
+    expected: "Second run is a clean no-op — CREATE OR REPLACE FUNCTION replaces in place. Per A12, every migration is replayable against a partially-applied target.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
