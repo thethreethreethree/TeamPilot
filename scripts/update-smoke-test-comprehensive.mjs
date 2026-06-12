@@ -1486,6 +1486,36 @@ const items = [
     expected: "EVALUATABLE_NOUNS is bounded by category — calling a MOVE/IDEA/DECISION stupid is NVC evaluation; calling a PERSON stupid is identity-attack and routes to stone-identity-collision via the pronoun-led 'you're a stupid X' shape. Keeping the noun list category-bounded is the §1.5 holistic boundary between two detectors that share vocabulary. No bleed; tests in heuristics.test.ts pin this down.",
     assignee: "john",
   },
+
+  // ─── Coach v3.7 — dedupe contextNote + surface citation.suggestion ──
+  {
+    id: "coach-v3.7-no-duplicate-context-note",
+    title: "Expanded chip does NOT show contextNote twice (once in primary line + once in System's Read card)",
+    instructions: "Open a chat composer. Type a draft that triggers a Coach chip with an LLM context_note (e.g. 'stupid move'). Click the chip to expand. Count how many times the System's draft-specific sentence appears.",
+    expected: "Sentence appears EXACTLY ONCE — inside the 'System's read on this draft' card. The closed-chip primary line is suppressed when the chip is expanded AND a contextNote exists, since the card below already shows it. Previously the same sentence rendered in both places, producing the 'two exact sentence creates unnecessary content' duplication.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.7-how-to-revise-renders",
+    title: "Expanded chip surfaces the actionable 'How to revise' guidance",
+    instructions: "Expand any Coach chip. Look for a card labeled 'How to revise' (yellow uppercase header).",
+    expected: "Card shows citation.suggestion text — draft-specific actionable guidance (e.g. for nvc-evaluation: '\"stupid move\" is a judgment — what specifically did you notice happen?'). Previously this field was authored in every citation factory but the expanded view never rendered it — the user only saw the abstract 'Underlying principle' which flagged as 'unclear guidance for correction.' A14 strike again: data path had the actionable text; render path didn't consume it. Now it's the first thing shown after the System's-read card.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.7-principle-collapsed-by-default",
+    title: "'Why this matters (principle)' is collapsed by default, expandable on click",
+    instructions: "Expand a Coach chip. Look at the bottom of the expanded area.",
+    expected: "A collapsed `<details>` element labeled 'Why this matters (principle)' renders below the How-to-revise card. Clicking expands it to show citation.principle (the abstract durable theory). The kindExplanation paragraph is REMOVED entirely — it duplicated the principle's abstract framing without adding draft-specific value. Three honest layers now: System's Read (draft-specific), How to revise (actionable), Why this matters (collapsed theory). No duplication.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.7-a14-render-walk-complete",
+    title: "(JOHN) Every citation.* field has a render branch (A14 verified)",
+    instructions: "(JOHN) Grep `active\\.citation\\.` in src/components/chats/CoachPanel.tsx. Confirm: source (expanded header), principle (Why-this-matters details), suggestion (How-to-revise card), triggerExcerpt (closed + expanded), id (mirrorChipText + reset effect).",
+    expected: "Five citation fields, five render branches. citation.kindExplanation is intentionally NOT rendered post-v3.7 — the System's Read card supersedes it for draft-specific content, the principle covers durable theory. Per A14, removing a render path is as much an audit-able choice as adding one — documented inline in CoachPanel.tsx so future maintainers see the intent.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

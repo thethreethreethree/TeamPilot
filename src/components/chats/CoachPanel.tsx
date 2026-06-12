@@ -525,11 +525,17 @@ export function CoachPanel({
                 empty excerpt the previous render produced "You wrote
                 '' —" nonsense. Three-state ternary falls through to
                 #3 when #2's precondition isn't met. */}
-            {active.contextNote ? (
+            {/* v3.7 (2026-06-12) — dedupe. When expanded AND contextNote
+                exists, the "System's read on this draft" card below shows
+                the same exact sentence — rendering it here too produces
+                the "same response twice" duplication the user flagged.
+                Suppress this line in the expanded+contextNote case; the
+                closed state still shows it as the at-a-glance preview. */}
+            {active.contextNote && !expanded ? (
               <p className="text-[11px] text-primary leading-relaxed">
                 {active.contextNote}
               </p>
-            ) : triggerSnippetShort ? (
+            ) : active.contextNote && expanded ? null : triggerSnippetShort ? (
               <p className="text-[11px] text-secondary leading-relaxed">
                 You wrote &ldquo;{triggerSnippetShort}&rdquo; — {text.question.toLowerCase()}
               </p>
@@ -615,24 +621,47 @@ export function CoachPanel({
                   System read this draft — no concern beyond the pattern itself.
                 </p>
               )}
-              <p className="text-[10px] text-muted uppercase tracking-widest font-mono mt-2">
-                Underlying principle
-              </p>
-              <p className="text-[11px] text-secondary leading-relaxed italic border-l-2 border-[#FACC15]/40 pl-2">
-                {active.citation.principle}
-              </p>
-              {/* v3.5: the generic kindExplanation only renders when
-                  the System actually read the draft and had a context
-                  note — i.e. when the principle is being applied to a
-                  diagnosed instance, not a regex-pattern-match. In the
-                  regex-only / no-context-note state, the principle
-                  stands alone as durable theory; the static paragraph
-                  was the part that made every fire feel identical. */}
-              {active.contextNote && (
-                <p className="text-[11px] text-secondary leading-relaxed">
-                  {active.citation.kindExplanation}
+              {/* v3.7 (2026-06-12) — actionable revision guidance was
+                  authored in citation.suggestion all along (e.g. for
+                  "stupid move": '"stupid move" is a judgment — what
+                  specifically did you notice happen?') but the expanded
+                  view never rendered it. User flagged the expanded
+                  chip as "unclear guidance for correction" — accurate,
+                  because the only guidance shown was the abstract
+                  principle + kindExplanation pair, neither of which
+                  said HOW to revise THIS draft. A14 strike again: data
+                  path had the actionable text; render path didn't
+                  consume it. Surfacing it here as the FIRST thing the
+                  user sees after the System's-read card. */}
+              <div className="rounded-lg bg-surface border border-default p-2.5 mt-1">
+                <p className="text-[10px] uppercase tracking-widest font-mono text-brand mb-1">
+                  How to revise
                 </p>
-              )}
+                <p className="text-xs text-primary leading-relaxed">
+                  {active.citation.suggestion}
+                </p>
+              </div>
+              {/* v3.7: the "Underlying principle" + kindExplanation pair
+                  was the "unclear guidance" the user flagged — both are
+                  abstract framings, and showing them prominently
+                  produced theory-not-help. The principle stays as a
+                  collapsible "Why this matters" footnote at the bottom
+                  of the chip — durable theory available to readers who
+                  want it, without crowding out the actionable revision
+                  guidance above. kindExplanation is removed: it
+                  duplicates the principle's abstract framing without
+                  adding draft-specific value. The System's-read card
+                  (above) is the draft-specific reading; "How to revise"
+                  is the actionable; principle is the theory. Three
+                  honest layers, no duplication. */}
+              <details className="mt-1">
+                <summary className="text-[10px] text-muted uppercase tracking-widest font-mono cursor-pointer hover:text-secondary">
+                  Why this matters (principle)
+                </summary>
+                <p className="text-[11px] text-secondary leading-relaxed italic border-l-2 border-[#FACC15]/40 pl-2 mt-1">
+                  {active.citation.principle}
+                </p>
+              </details>
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
