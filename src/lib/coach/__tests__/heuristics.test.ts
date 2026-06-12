@@ -56,6 +56,31 @@ describe("detectNvcEvaluation", () => {
     ).toBeNull();
     expect(detectNvcEvaluation("the test returned 500")).toBeNull();
   });
+
+  // v3.6 (2026-06-12) — closes the "stupid move i don't like it" gap.
+  it("fires on ellipted-verb pejorative + actionable noun", () => {
+    expect(detectNvcEvaluation("stupid move")).not.toBeNull();
+    expect(detectNvcEvaluation("dumb idea")).not.toBeNull();
+    expect(detectNvcEvaluation("terrible decision")).not.toBeNull();
+    expect(detectNvcEvaluation("awful design")).not.toBeNull();
+    expect(detectNvcEvaluation("horrible response")).not.toBeNull();
+  });
+
+  it("fires on first-person evaluation declarations", () => {
+    expect(detectNvcEvaluation("i don't like it")).not.toBeNull();
+    expect(detectNvcEvaluation("I hate this")).not.toBeNull();
+    expect(detectNvcEvaluation("i can't stand the new approach")).not.toBeNull();
+    expect(detectNvcEvaluation("I don't love this direction")).not.toBeNull();
+  });
+
+  it("does NOT fire pejorative+noun on identity-attack shapes", () => {
+    // "stupid person" + "dumb people" sit on the identity boundary —
+    // they go to stone-identity-collision via the pronoun-led shapes,
+    // not to nvc-evaluation. The EVALUATABLE_NOUNS list deliberately
+    // excludes person-words to keep the boundary clean.
+    expect(detectNvcEvaluation("you're a stupid friend")).toBeNull();
+    expect(detectNvcEvaluation("they are dumb people")).toBeNull();
+  });
 });
 
 describe("detectBareAssertion", () => {

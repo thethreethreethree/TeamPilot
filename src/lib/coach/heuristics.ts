@@ -203,6 +203,24 @@ const HIGH_INTENSITY_ALT = vocabAlt(HIGH_INTENSITY_ADJECTIVES);
 const ONSET_VERBS_ALT = vocabAlt(ONSET_VERBS);
 const INTENSIFIER_ALT = vocabAlt(INTENSIFIER_ADVERBS);
 
+// v3.6 (2026-06-12) — closes the "stupid move i don't like it" gap.
+// A targeted noun list that names "things you do or produce" — actions,
+// outputs, decisions. Used to catch "[pejorative] [noun]" ellipted-verb
+// evaluation ("stupid move") without bleeding into identity-attack
+// territory ("stupid person") which belongs to stone-identity. The
+// distinction is the noun: a MOVE/IDEA/DECISION can be evaluated under
+// NVC; a PERSON gets attacked under Stone. Keeping the noun list
+// bounded by category is the §1.5 holistic boundary between detectors.
+const EVALUATABLE_NOUNS_ALT =
+  "move|moves|idea|ideas|decision|decisions|choice|choices|plan|plans|" +
+  "thing|things|response|responses|comment|comments|question|questions|" +
+  "answer|answers|approach|approaches|solution|solutions|fix|fixes|" +
+  "design|designs|code|work|output|outputs|message|messages|suggestion|" +
+  "suggestions|change|changes|build|builds|release|releases|deploy|deploys|" +
+  "shipment|ship|product|feature|features|implementation|implementations|" +
+  "post|posts|reply|replies|take|takes|opinion|opinions|reasoning|argument|" +
+  "arguments|point|points|line|lines|tweet|tweets|claim|claims";
+
 const NVC_EVALUATION_PATTERNS: ReadonlyArray<RegExp> = [
   // Absolutes about people/situations — expanded the family.
   /\b(always|never|constantly|forever|whenever|every (single )?time|all the time|each and every|every single|nobody ever|no one ever)\b/i,
@@ -213,6 +231,22 @@ const NVC_EVALUATION_PATTERNS: ReadonlyArray<RegExp> = [
     `\\b(this is|that is|this'?s|that'?s|it'?s|its)\\s+(${PEJORATIVES_FOR_THINGS_ALT})\\b`,
     "i"
   ),
+  // v3.6: ellipted "this is" — "stupid move", "dumb idea", "terrible
+  // decision". The verb is implied. Restricted to the EVALUATABLE_NOUNS
+  // list so identity attacks ("stupid person") don't leak in — those
+  // already route to stone-identity-collision with their pronoun-led
+  // shape ("you're stupid"). The noun list catches the actional /
+  // output-shaped targets that "evaluation language" naturally lands on.
+  new RegExp(
+    `\\b(${PEJORATIVES_FOR_THINGS_ALT})\\s+(${EVALUATABLE_NOUNS_ALT})\\b`,
+    "i"
+  ),
+  // v3.6: direct first-person evaluation. "I don't like it" / "I hate
+  // this" / "I can't stand the new design" — explicit speaker-state
+  // judgment with no observation underneath. The NVC principle applies
+  // identically: strip the evaluation, name what specifically was
+  // observed.
+  /\bi\s+(don'?t\s+(like|love|enjoy)|hate|can'?t\s+stand|can'?t\s+take|loathe|despise)\b/i,
   // "Obviously" / "clearly" assert the speaker's read as the only read.
   /\b(obviously|clearly|of course|naturally|patently|plainly|undeniably|self-evident),?\s/i,
   // Mind-reading — expanded verbs.

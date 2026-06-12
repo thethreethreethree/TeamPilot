@@ -1463,6 +1463,29 @@ const items = [
     expected: "Both files state: per-event observability via console.error is for individual failures (RLS, FK, payload regression); systemic drop (entire deploy can't write events) is caught by the §4 readout comparing event volume to chat_message volume. Two layers, both named on the record. §1.7 audit L2 closed.",
     assignee: "john",
   },
+
+  // ─── Coach v3.6 — ellipted pejorative + first-person evaluation ──
+  {
+    id: "coach-v3.6-stupid-move-fires",
+    title: "'stupid move' / 'dumb idea' / 'terrible decision' surface the Coach chip",
+    instructions: "Open any chat composer. Type 'stupid move' (no other words). Wait 350ms.",
+    expected: "Coach chip surfaces with the 'Reads as evaluation, not observation' header and 'stupid move' as the trigger excerpt. Previously the regex only fired on explicit 'this is/that is X' phrasing; the ellipted 'X move' / 'X idea' shape (where X is a pejorative adjective and the noun is an actional/output target) now also fires via the new EVALUATABLE_NOUNS pattern. Closes the bug surfaced by 'stupid move i don't like it' showing only the COACH READING pulse with no chip.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.6-i-dont-like-fires",
+    title: "'I don't like it' / 'I hate this' surfaces the Coach chip",
+    instructions: "Type 'i don't like it' OR 'I hate this approach' in any composer. Wait 350ms.",
+    expected: "Coach chip surfaces. The first-person evaluation pattern catches: don't like, hate, can't stand, loathe, despise, can't take, don't love. The NVC principle applies identically to direct speaker-state judgments — strip the evaluation, name what specifically was observed.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.6-pejorative-noun-boundary",
+    title: "(JOHN) Pejorative+noun pattern stays out of identity-attack territory",
+    instructions: "(JOHN) Read src/lib/coach/heuristics.ts. Confirm EVALUATABLE_NOUNS contains ACTIONAL/OUTPUT nouns (move, idea, decision, design, etc.) but NOT person-words (person, people, friend, colleague, team).",
+    expected: "EVALUATABLE_NOUNS is bounded by category — calling a MOVE/IDEA/DECISION stupid is NVC evaluation; calling a PERSON stupid is identity-attack and routes to stone-identity-collision via the pronoun-led 'you're a stupid X' shape. Keeping the noun list category-bounded is the §1.5 holistic boundary between two detectors that share vocabulary. No bleed; tests in heuristics.test.ts pin this down.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
