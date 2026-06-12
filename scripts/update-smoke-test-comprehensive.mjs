@@ -1253,6 +1253,36 @@ const items = [
     expected: "active.contextNote → closed-chip primary + expanded 'System's read' card. active.verdict → closed 'context uncertain' tag + expanded badge (confirmed/uncertain/vetoed/regex-only). active.citation.source/principle/kindExplanation → expanded view. active.count → mirrorChipText call. active.citation.id → expanded reset effect dependency. No orphaned state.",
     assignee: "john",
   },
+
+  // ─── Audit H3 + H4 + M7 — orphan event documentation ─────────
+  {
+    id: "orphan-events-documented-disabled-rows",
+    title: "(JOHN) Every orphan event kind has a disabled signal_sources row with A4 §4 question",
+    instructions: "(JOHN) After migration 0026 is applied, query: SELECT event_kind, signal_kind, enabled, notes FROM signal_sources WHERE enabled = false ORDER BY event_kind;",
+    expected: "14 rows returned, covering coach.* (6), decision.* (4), task.gate_cleared/nudge_sent/system_message/participant_added (4). Each row's `notes` field states the explicit §4 readout question the deferral is waiting on — not 'TODO' or 'future work', a concrete testable hypothesis. Closes audit findings H3 + H4 + M7.",
+    assignee: "john",
+  },
+  {
+    id: "signal-sources-enabled-true-by-default-still",
+    title: "(JOHN) signal_sources.enabled default is still TRUE — disabled-by-default would have been a §3.4 violation",
+    instructions: "(JOHN) Confirm \\d signal_sources shows enabled is boolean with default true, and that the 0026 INSERTs explicitly pass false.",
+    expected: "Default remains true. Explicit false on every documentation-only row. If enabled were flipped to false-by-default, real signal mappings would silently turn off — exactly the kind of structural change that should require explicit per-row opt-in per §3.4 (no instant results).",
+    assignee: "john",
+  },
+  {
+    id: "0026-migration-safe-to-rerun",
+    title: "(JOHN) Migration 0026 re-runs cleanly (ON CONFLICT DO NOTHING)",
+    instructions: "(JOHN) Apply migration 0026, confirm 14 rows inserted. Re-apply the same migration without resetting. Confirm 0 NEW rows inserted, no error.",
+    expected: "ON CONFLICT (event_kind, signal_kind) DO NOTHING guarantees idempotent re-application per A12. The (event_kind, signal_kind) unique constraint also blocks any later migration from adding a CONFLICTING enabled=true mapping for the same pair without first deleting the disabled marker — which is the correct behavior, surfacing the documentation/active transition as an explicit change rather than a silent drift.",
+    assignee: "john",
+  },
+  {
+    id: "a4-deferred-rows-distinct-from-todo",
+    title: "(JOHN) Disabled signal_sources `notes` fields name §4 questions, not generic deferrals",
+    instructions: "(JOHN) Read each notes field in the 14 disabled rows from migration 0026.",
+    expected: "Each `notes` field ends with a concrete §4 readout question (e.g. 'do admin nudges actually move work forward...within 72h'). Per A4, deferral is honest signal ONLY when the §4 question is named. Generic 'future work' notes would defeat the purpose — an outside auditor should be able to read the row and know what evidence to look for.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
