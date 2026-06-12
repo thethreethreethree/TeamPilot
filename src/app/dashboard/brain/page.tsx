@@ -4,6 +4,7 @@ import TopBar from "@/components/layout/TopBar";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import Modal from "@/components/ui/Modal";
 import { Textarea } from "@/components/ui/Field";
+import { LearningVisibleSection } from "@/components/brain/LearningVisibleSection";
 import {
   AlertTriangle,
   Brain as BrainIcon,
@@ -100,6 +101,14 @@ export default function BrainPage() {
       />
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
+        {/* §3.6 — Learning Visible. Surfaces what the System has
+            noticed about this team from the §3.1 chain: Coach pattern
+            observations, decision durability, topic resolutions,
+            chain growth vs prior period. Mounted at the top so the
+            user sees evidence of accumulating learning before the
+            brain-internals scroll below. */}
+        <LearningVisibleSection />
+
         <div className="flex items-start gap-3 p-3 rounded-xl bg-[#FACC15]/5 border border-[#FACC15]/20">
           <BrainIcon className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
           <p className="text-xs text-secondary leading-relaxed">

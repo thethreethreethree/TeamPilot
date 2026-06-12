@@ -957,6 +957,57 @@ const items = [
     expected: "Pulse disappears immediately when the draft drops below the LLM minimum length (LLM_MIN_DRAFT_CHARS = 20). The in-flight LLM call is aborted via AbortController. No stale chip surfaces from the cancelled call.",
     assignee: "partners",
   },
+
+  // ─── §3.6 Brain Learning Visible ───────────────────────────────
+  {
+    id: "brain-learning-visible-section-loads",
+    title: "Brain page shows 'What the System has noticed lately' section",
+    instructions: "Visit /dashboard/brain.",
+    expected: "Top of the page (above the existing brain internals) shows an ember-tinted banner 'What the System has noticed lately' explaining the surface is counts-not-verdicts. Below it: 4 headline stat boxes, then top Coach patterns, then durability + decision-path cards (only if there's data for them).",
+    assignee: "partners",
+  },
+  {
+    id: "brain-learning-headline-stats",
+    title: "Four headline stat boxes show chain growth + Coach + decision + topic counts",
+    instructions: "Read the four stat cards under the Learning Visible banner.",
+    expected: "Cards labeled: 'Chain events · 7d' (with %-trend vs prior 7d), 'Coach observations · 7d' (with cumulative all-time), 'Decisions decided · 28d' (with opened context), 'Topics closed · 28d' (with opened context). Each shows a tabular-nums count + a smaller context line below.",
+    assignee: "partners",
+  },
+  {
+    id: "brain-learning-top-patterns",
+    title: "Top 3 Coach patterns from the last 7 days surface with trend arrows",
+    instructions: "Trigger the Coach a few times across messages (use the v3 trigger phrases from earlier smoke items). Then visit /dashboard/brain.",
+    expected: "'Top communication patterns the Coach noticed' card lists up to 3 patterns sorted by frequency. Each row: human label + heuristic_id (mono), large count, trend indicator (TrendingUp green / TrendingDown gray) with delta vs prior 7 days. Zero-state shows honest copy: 'No Coach observations… The empty state is honest signal — not a placeholder.'",
+    assignee: "partners",
+  },
+  {
+    id: "brain-learning-durability-block",
+    title: "Topic durability block surfaces ONLY when closed topics exist",
+    instructions: "On a company with at least one closed topic in the last 28 days, visit /dashboard/brain.",
+    expected: "'Topic durability · §3.5 consequence' card surfaces with five chips: Held / Partial / Reopened / Unknown / Unrated. Footer copy clarifies that held = validated learning, unrated = awaiting review. If no closed topics: card does not render at all.",
+    assignee: "partners",
+  },
+  {
+    id: "brain-learning-decision-paths",
+    title: "Decision paths block shows distribution across the four choices",
+    instructions: "After running at least one Decision Dialogue to completion, visit /dashboard/brain.",
+    expected: "'Decision paths · last 28 days' card shows four chips: User's proposal / System suggestion / Hybrid / Deferred. Footer copy frames deferred as healthy signal, not failure. Card hidden if no decisions decided in window.",
+    assignee: "partners",
+  },
+  {
+    id: "brain-learning-accumulating-state",
+    title: "Low-activity companies see honest 'Accumulating' state, not fake metrics",
+    instructions: "(JOHN) On a company with fewer than 30 chain events total (e.g. a freshly seeded org), visit /dashboard/brain.",
+    expected: "Learning Visible section shows a single card with 'Accumulating — not enough activity to surface yet' header. Explanation references §3.4 (no instant results) and explicitly refuses to fabricate signal. No stat boxes or top-pattern cards render in this state.",
+    assignee: "john",
+  },
+  {
+    id: "brain-learning-zero-coach-empty-state",
+    title: "If Coach has 0 observations last 7 days, top-patterns card shows honest empty",
+    instructions: "On a company with chain activity but no Coach observations in the last 7 days, visit /dashboard/brain.",
+    expected: "Top-patterns card still renders, but its body says 'No Coach observations in the last 7 days. Either the team has been communicating without triggering any heuristics, or Coach is off…'. This is honest signal — the empty state itself is data.",
+    assignee: "partners",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
