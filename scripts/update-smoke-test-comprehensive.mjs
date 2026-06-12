@@ -927,6 +927,36 @@ const items = [
     expected: "Each typing change cancels the previous in-flight analyze request (AbortController). Only the LAST settled draft generates a real network request after debounce settles. No race condition where stale hits surface for stale text.",
     assignee: "john",
   },
+
+  // ─── Coach v3.1 fine-tunes ─────────────────────────────────────
+  {
+    id: "coach-v3.1-recent-thread-context",
+    title: "LLM analyzer receives recent thread context",
+    instructions: "(JOHN) Open a chat topic with several recent messages. Type a draft long enough to trigger LLM analysis (>20 chars). Inspect the POST body to /api/coach/analyze in DevTools Network tab.",
+    expected: "POST body contains a recentThread field with the last ~5 user-authored messages joined by newlines (names stripped, each capped at 280 chars). The LLM can now distinguish 'first frustrated message in thread' from 'fifth frustrated message in thread' for sharper detection.",
+    assignee: "john",
+  },
+  {
+    id: "coach-v3.1-trigger-excerpt-in-closed-chip",
+    title: "Trigger excerpt shows prominently in the closed chip",
+    instructions: "In a Coach-enabled topic, type 'I'm hungry and you guys are making mad'. Wait for the chip to surface but do NOT expand it.",
+    expected: "Closed chip shows: (1) the pattern label, (2) the trigger excerpt in amber-tinted italic monospace like “you guys are making mad”, (3) the mirror-frame question. User can identify the offending words without expanding the chip.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.1-loading-pulse",
+    title: "Subtle 'Coach reading…' pulse appears during LLM analysis",
+    instructions: "Type a 20+ char draft slowly. After your last keystroke, watch the area where the Coach chip would appear.",
+    expected: "Within ~1.2s a subtle muted bar appears with a small spinning icon and 'COACH READING…' text. When the LLM returns hits, this is replaced by the real chip. If no hits are returned, the pulse disappears silently.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.1-pulse-disappears-on-short-draft",
+    title: "Pulse disappears if you shorten the draft below 20 chars",
+    instructions: "Type a long draft to trigger the pulse. Then delete characters until the draft is below 20 chars.",
+    expected: "Pulse disappears immediately when the draft drops below the LLM minimum length (LLM_MIN_DRAFT_CHARS = 20). The in-flight LLM call is aborted via AbortController. No stale chip surfaces from the cancelled call.",
+    assignee: "partners",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

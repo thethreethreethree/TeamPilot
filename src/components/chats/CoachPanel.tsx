@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, X } from "lucide-react";
+import { BookOpen, Loader2, X } from "lucide-react";
 import {
   detectAll,
   detectIdentityCollision,
@@ -133,6 +133,10 @@ export function CoachPanel({
     Partial<Record<CoachCitation["id"], number>>
   >({});
   const [llmHits, setLlmHits] = useState<LlmHit[]>([]);
+  // v3.1 — surfaces a subtle "Coach reading…" pulse while the LLM call
+  // is in flight. Without it, there's a 1.2s perceptual gap between
+  // the regex pass and the LLM result where the user has no feedback.
+  const [llmAnalyzing, setLlmAnalyzing] = useState(false);
   const lastFiredIdRef = useRef<string | null>(null);
   const regexDebounceRef = useRef<number | null>(null);
   const llmDebounceRef = useRef<number | null>(null);
@@ -167,11 +171,13 @@ export function CoachPanel({
     }
     if (draft.trim().length < LLM_MIN_DRAFT_CHARS) {
       setLlmHits([]);
+      setLlmAnalyzing(false);
       return;
     }
     llmDebounceRef.current = window.setTimeout(() => {
       const controller = new AbortController();
       llmAbortRef.current = controller;
+      setLlmAnalyzing(true);
       void (async () => {
         try {
           const res = await fetch("/api/coach/analyze", {
@@ -190,6 +196,10 @@ export function CoachPanel({
           }
         } catch {
           // Network blip / abort — leave LLM hits alone, regex still works.
+        } finally {
+          if (!controller.signal.aborted) {
+            setLlmAnalyzing(false);
+          }
         }
       })();
     }, LLM_DEBOUNCE_MS);
@@ -268,9 +278,42 @@ export function CoachPanel({
     };
   }, [draft, pastCounts, llmHits]);
 
-  if (!active) return null;
+  // v3.1 — when LLM is analyzing AND no regex chip is active yet,
+  // surface a subtle "Coach reading…" pulse so the user knows the
+  // System is thinking. This closes the 1.2s perceptual gap between
+  // typing stop and chip surface.
+  if (!active) {
+    if (llmAnalyzing && draft.trim().length >= LLM_MIN_DRAFT_CHARS) {
+      return (
+        <div
+          className="mb-2 border border-[#FACC15]/15 bg-[#FACC15]/[0.03] rounded-lg px-3 py-1.5 flex items-center gap-2"
+          role="status"
+          aria-label="Coach reading the draft"
+        >
+          <Loader2
+            className="w-3 h-3 text-brand/60 animate-spin"
+            aria-hidden
+          />
+          <span className="text-[10px] text-muted uppercase tracking-widest font-mono">
+            Coach reading…
+          </span>
+        </div>
+      );
+    }
+    return null;
+  }
 
   const text = mirrorChipText(active.citation.id, active.count);
+  // Trim the trigger excerpt to a single line for compact display in
+  // the closed chip. The full excerpt + principle remain available
+  // in the expanded view.
+  const triggerSnippet = active.citation.triggerExcerpt
+    .replace(/\s+/g, " ")
+    .trim();
+  const triggerSnippetShort =
+    triggerSnippet.length > 72
+      ? `${triggerSnippet.slice(0, 72)}…`
+      : triggerSnippet;
 
   const refine = () => {
     void emitCoachAccepted({
@@ -315,6 +358,15 @@ export function CoachPanel({
             <p className="text-xs text-primary font-semibold mb-0.5">
               {text.label}
             </p>
+            {/* Trigger excerpt — surfaced prominently in the closed
+                chip state (v3.1) so the user can SEE which words fired
+                the detector without expanding. Previously this was
+                buried behind the "Refine and revise" expand. */}
+            {triggerSnippetShort && (
+              <p className="text-[11px] text-brand mb-1 font-mono italic break-words">
+                &ldquo;{triggerSnippetShort}&rdquo;
+              </p>
+            )}
             <p className="text-[11px] text-secondary leading-relaxed">
               {text.question}
             </p>

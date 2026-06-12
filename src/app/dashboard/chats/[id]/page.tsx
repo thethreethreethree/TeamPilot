@@ -187,6 +187,20 @@ export default function TeamChatTopicPage() {
 
   const grouped = useMemo(() => groupMessages(messages), [messages]);
 
+  // Recent thread context for Coach v3.1 — last 5 user-authored
+  // messages, names stripped, newest first. Drives the LLM detector
+  // so it can distinguish "first frustrated message in this thread"
+  // from "fifth frustrated message in this thread."
+  const recentThread = useMemo(() => {
+    const lines: string[] = [];
+    for (let i = messages.length - 1; i >= 0 && lines.length < 5; i -= 1) {
+      const m = messages[i];
+      if (!m || m.kind !== "message" || !m.body) continue;
+      lines.push(m.body.replace(/\s+/g, " ").slice(0, 280));
+    }
+    return lines.reverse().join("\n");
+  }, [messages]);
+
   // Optimistic post — replaces the prior full-page `refresh()` (which
   // caused the skeleton flash on every send and incurred 3 round trips
   // per action). We clear the input immediately, fire the write, then
@@ -702,6 +716,7 @@ export default function TeamChatTopicPage() {
               <CoachPanel
                 subject={`chat_topic:${topic.id}`}
                 draft={draft}
+                recentThread={recentThread}
                 onRefine={() => inputRef.current?.focus()}
               />
             )}
