@@ -151,6 +151,14 @@ export function CoachPanel({
   // is in flight. Without it, there's a 1.2s perceptual gap between
   // the regex pass and the LLM result where the user has no feedback.
   const [llmAnalyzing, setLlmAnalyzing] = useState(false);
+  // v3.5 — distinguishes "haven't tried the LLM yet" from "tried, came
+  // back empty." Without this, the regex-only state and the
+  // LLM-read-but-found-nothing state look identical to the user — both
+  // show the chip with no verdict. After a manual or auto LLM read
+  // completes with no draft-specific note, we surface "System read this
+  // — no specific concern beyond the pattern" so the user can tell the
+  // System actually engaged.
+  const [llmReadAttempted, setLlmReadAttempted] = useState(false);
   const lastFiredIdRef = useRef<string | null>(null);
   const regexDebounceRef = useRef<number | null>(null);
   const llmDebounceRef = useRef<number | null>(null);
@@ -184,6 +192,66 @@ export function CoachPanel({
     setExpanded(false);
   }, [activeCitationId]);
 
+  // ─── LLM call (factored v3.5 for reuse from auto + on-demand) ────
+  // The actual fetch/parse. Returns a promise so the on-demand caller
+  // can await completion if it wants. `flagAttempted` controls whether
+  // the resulting empty/non-empty state should be marked as a
+  // user-visible "the System read this" event — auto reads still mark
+  // it (so the chip's "no specific concern" state can surface), and
+  // on-demand reads obviously mark it.
+  const draftRef = useRef(draft);
+  const recentThreadRef = useRef(recentThread);
+  useEffect(() => {
+    draftRef.current = draft;
+    recentThreadRef.current = recentThread;
+  }, [draft, recentThread]);
+  const runLlmAnalyze = (flagAttempted: boolean) => {
+    if (llmAbortRef.current) {
+      llmAbortRef.current.abort();
+      llmAbortRef.current = null;
+    }
+    const controller = new AbortController();
+    llmAbortRef.current = controller;
+    setLlmAnalyzing(true);
+    const draftAtCallTime = draftRef.current;
+    const recentAtCallTime = recentThreadRef.current;
+    return (async () => {
+      try {
+        const regexHits = detectAll(draftAtCallTime).map((c) => ({
+          pattern_id: c.id,
+          trigger_excerpt: c.triggerExcerpt,
+        }));
+        const res = await fetch("/api/coach/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draft: draftAtCallTime,
+            recentThread: recentAtCallTime,
+            regexHits,
+          }),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          if (flagAttempted && !controller.signal.aborted) {
+            setLlmReadAttempted(true);
+          }
+          return;
+        }
+        const data = (await res.json()) as { hits?: LlmHit[] };
+        if (!controller.signal.aborted) {
+          setLlmHits(data.hits ?? []);
+          if (flagAttempted) setLlmReadAttempted(true);
+        }
+      } catch {
+        // Network blip / abort — leave LLM hits alone, regex still works.
+      } finally {
+        if (!controller.signal.aborted) {
+          setLlmAnalyzing(false);
+        }
+      }
+    })();
+  };
+
   // ─── LLM pass (debounced 1.2s, only on substantial drafts) ────
   // Audit C2 / M2 fix (2026-06-12): every time the draft changes we
   // (a) abort the in-flight LLM call so stale responses can't land,
@@ -205,44 +273,12 @@ export function CoachPanel({
     // regex governs detection.
     setLlmHits([]);
     setLlmAnalyzing(false);
+    setLlmReadAttempted(false);
     if (draft.trim().length < LLM_MIN_DRAFT_CHARS) {
       return;
     }
     llmDebounceRef.current = window.setTimeout(() => {
-      const controller = new AbortController();
-      llmAbortRef.current = controller;
-      setLlmAnalyzing(true);
-      void (async () => {
-        try {
-          // v3.2 — send the regex hits to the LLM so it can verdict
-          // each (confirmed / uncertain / vetoed) instead of being
-          // additive only.
-          const regexHits = detectAll(draft).map((c) => ({
-            pattern_id: c.id,
-            trigger_excerpt: c.triggerExcerpt,
-          }));
-          const res = await fetch("/api/coach/analyze", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ draft, recentThread, regexHits }),
-            signal: controller.signal,
-          });
-          if (!res.ok) {
-            // Silent fallback — Coach v2 (regex) is the lower bound.
-            return;
-          }
-          const data = (await res.json()) as { hits?: LlmHit[] };
-          if (!controller.signal.aborted) {
-            setLlmHits(data.hits ?? []);
-          }
-        } catch {
-          // Network blip / abort — leave LLM hits alone, regex still works.
-        } finally {
-          if (!controller.signal.aborted) {
-            setLlmAnalyzing(false);
-          }
-        }
-      })();
+      void runLlmAnalyze(true);
     }, LLM_DEBOUNCE_MS);
     return () => {
       if (llmDebounceRef.current !== null) {
@@ -513,8 +549,8 @@ export function CoachPanel({
               </p>
               {/* v3.4: when the LLM produced a context-specific note,
                   it goes FIRST in the expanded view as the primary
-                  read for this exact draft. The static principle +
-                  kindExplanation move below as the durable theory. */}
+                  read for this exact draft. The static principle stays
+                  below as durable theory. */}
               {active.contextNote && (
                 <div className="rounded-lg bg-ember-400/10 border border-ember-400/30 p-2.5">
                   <p className="text-[10px] uppercase tracking-widest font-mono text-brand mb-1">
@@ -525,15 +561,58 @@ export function CoachPanel({
                   </p>
                 </div>
               )}
+              {/* v3.5 (2026-06-12) — honesty repair. Previously the
+                  expanded view ALWAYS rendered active.citation.kindExplanation
+                  (a static paragraph keyed to the heuristic ID) directly
+                  beneath the "Regex-only · LLM didn't read context"
+                  badge. The badge said "I didn't read this draft"; the
+                  paragraph below it READ like a draft-specific reading.
+                  Two contradictory claims rendered as one unit — the
+                  "same response" the user kept flagging. The static
+                  paragraph stays only when the System actually read AND
+                  had nothing draft-specific to add. Otherwise we show
+                  an honest state + an explicit "have the System read
+                  this" trigger. */}
+              {!active.contextNote && llmAnalyzing && (
+                <div className="flex items-center gap-2 text-[10px] text-muted uppercase tracking-widest font-mono">
+                  <Loader2 className="w-3 h-3 text-brand/60 animate-spin" aria-hidden />
+                  System reading this draft…
+                </div>
+              )}
+              {!active.contextNote && !llmAnalyzing && !llmReadAttempted && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void runLlmAnalyze(true);
+                  }}
+                  className="text-[11px] text-brand hover:text-[#EAB308] underline underline-offset-2 self-start"
+                >
+                  Have the System read this draft
+                </button>
+              )}
+              {!active.contextNote && !llmAnalyzing && llmReadAttempted && (
+                <p className="text-[10px] text-muted leading-relaxed italic">
+                  System read this draft — no concern beyond the pattern itself.
+                </p>
+              )}
               <p className="text-[10px] text-muted uppercase tracking-widest font-mono mt-2">
                 Underlying principle
               </p>
               <p className="text-[11px] text-secondary leading-relaxed italic border-l-2 border-[#FACC15]/40 pl-2">
                 {active.citation.principle}
               </p>
-              <p className="text-[11px] text-secondary leading-relaxed">
-                {active.citation.kindExplanation}
-              </p>
+              {/* v3.5: the generic kindExplanation only renders when
+                  the System actually read the draft and had a context
+                  note — i.e. when the principle is being applied to a
+                  diagnosed instance, not a regex-pattern-match. In the
+                  regex-only / no-context-note state, the principle
+                  stands alone as durable theory; the static paragraph
+                  was the part that made every fire feel identical. */}
+              {active.contextNote && (
+                <p className="text-[11px] text-secondary leading-relaxed">
+                  {active.citation.kindExplanation}
+                </p>
+              )}
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
