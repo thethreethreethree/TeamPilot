@@ -1156,6 +1156,43 @@ const items = [
     expected: "All vocabulary-driven regex patterns are built from vocabAlt(...) over imports from vocabulary.ts. Per §1.3, ad-hoc inline vocabulary lists are the error-loop shape the v3.3 refactor explicitly stopped. Adding a new word means editing vocabulary.ts, not heuristics.ts.",
     assignee: "john",
   },
+
+  // ─── Coach v3.4 — render path verification (closed + expanded) ──
+  {
+    id: "coach-v3.4-closed-chip-draft-aware-fallback",
+    title: "Closed chip references the trigger excerpt even when LLM is offline",
+    instructions: "In any Coach-enabled topic, type 'this is dumb' (a regex hit). Open Network tab and verify whether /api/coach/analyze returns hits. If the LLM is slow / empty / down, observe the closed chip text.",
+    expected: "Closed chip's question line reads 'You wrote \"this is dumb\" — first occurrence, pattern starting, or fair callback to a real situation?' — references the actual draft excerpt rather than the previous generic 'First occurrence — pattern starting?' question. Even regex-only fires now feel draft-aware.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.4-expanded-chip-shows-context-note",
+    title: "Expanded chip shows LLM context_note PROMINENTLY when present",
+    instructions: "Type 'I'm hungry and you guys are making mad'. Wait for the chip to land. CLICK the chip to expand it.",
+    expected: "Expanded view's TOP section is the System's read on THIS draft (LLM context_note), styled as an amber card titled 'SYSTEM'S READ ON THIS DRAFT' with the LLM-generated 1-2 sentence note. BELOW that is the static principle + kindExplanation labeled 'UNDERLYING PRINCIPLE'. The new context-specific read takes visual priority over the generic theory.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.4-verdict-badge-visible",
+    title: "Expanded chip shows a verdict badge so the user knows whether LLM read the context",
+    instructions: "Open various Coach chips with the expand toggle.",
+    expected: "Inline badge next to the source label shows ONE of: 'System read the context · verdict: confirmed' (emerald), 'verdict: uncertain' (amber), 'verdict: vetoed' (muted), OR 'Regex-only · LLM didn't read context' (muted) when no LLM verdict came back. The user can now tell at a glance whether the System actually evaluated their specific message.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.4-expanded-fallback-when-llm-down",
+    title: "When LLM didn't return, expanded view ONLY shows static principle (not a fake LLM card)",
+    instructions: "Force a regex-only fire (LLM unavailable or empty hits). Expand the chip.",
+    expected: "Expanded view shows the 'Regex-only' badge AND skips the 'System's read on this draft' card entirely — falling through to just the underlying principle + kindExplanation. Per §0 honesty: never fabricate a context note when none was generated.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.4-render-path-verification-meta",
+    title: "(JOHN) Both closed AND expanded chip render paths consume active.contextNote",
+    instructions: "(JOHN) Grep src/components/chats/CoachPanel.tsx for active.contextNote — should appear in BOTH the closed chip body AND the expanded chip body, not just one.",
+    expected: "active.contextNote is consumed in: (a) the closed chip's primary text line, AND (b) the expanded view's 'System's read' card. v3.2 wired only (a) which is what produced the user's complaint that the expanded view looked identical for every fire. A14 captured the meta-rule: 'data path complete ≠ render path complete.'",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

@@ -435,27 +435,71 @@ export function CoachPanel({
                 &ldquo;{triggerSnippetShort}&rdquo;
               </p>
             )}
-            {/* v3.2: LLM-generated context-specific note. When present,
-                replaces the generic mirror-question with a sentence
-                that REFERENCES the user's actual draft words. This is
-                the fix for the user's complaint that Coach gives
-                "similar answer" every time and "doesn't evaluate the
-                message." Falls back to the generic question if the
-                LLM didn't return a note (regex-only fire). */}
+            {/* v3.4 (2026-06-12) — the chip's primary line is the
+                most draft-specific thing we have:
+                  1. LLM context_note (sentence that references the
+                     actual draft words)
+                  2. Draft-aware fallback referencing the trigger
+                     excerpt so even regex-only fires don't feel
+                     generic
+                  3. Last resort: the generic mirror question
+                The earlier render unconditionally fell to #3 when
+                the LLM didn't return — making every fire look
+                identical, exactly what the user flagged. */}
             {active.contextNote ? (
               <p className="text-[11px] text-primary leading-relaxed">
                 {active.contextNote}
               </p>
             ) : (
               <p className="text-[11px] text-secondary leading-relaxed">
-                {text.question}
+                You wrote &ldquo;{triggerSnippetShort}&rdquo; — {text.question.toLowerCase()}
               </p>
             )}
           </button>
           {expanded && (
             <div className="mt-2 space-y-2">
-              <p className="text-[10px] text-muted font-mono uppercase tracking-widest">
+              <p className="text-[10px] text-muted font-mono uppercase tracking-widest flex items-center gap-2">
                 {active.citation.source}
+                {/* v3.4: visible state indicator so the user can tell
+                    whether the LLM actually read the context (its
+                    verdict landed) vs the regex-only state where the
+                    chip uses static principle text. Without this, the
+                    expanded view looked identical for every fire. */}
+                {active.verdict && (
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded normal-case tracking-normal font-sans ${
+                      active.verdict === "confirmed"
+                        ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+                        : active.verdict === "uncertain"
+                          ? "bg-ember-400/10 text-brand border border-ember-400/30"
+                          : "bg-surface text-muted border border-default"
+                    }`}
+                  >
+                    System read the context · verdict: {active.verdict}
+                  </span>
+                )}
+                {!active.verdict && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded normal-case tracking-normal font-sans bg-surface text-muted border border-default">
+                    Regex-only · LLM didn&apos;t read context
+                  </span>
+                )}
+              </p>
+              {/* v3.4: when the LLM produced a context-specific note,
+                  it goes FIRST in the expanded view as the primary
+                  read for this exact draft. The static principle +
+                  kindExplanation move below as the durable theory. */}
+              {active.contextNote && (
+                <div className="rounded-lg bg-ember-400/10 border border-ember-400/30 p-2.5">
+                  <p className="text-[10px] uppercase tracking-widest font-mono text-brand mb-1">
+                    System&apos;s read on this draft
+                  </p>
+                  <p className="text-xs text-primary leading-relaxed">
+                    {active.contextNote}
+                  </p>
+                </div>
+              )}
+              <p className="text-[10px] text-muted uppercase tracking-widest font-mono mt-2">
+                Underlying principle
               </p>
               <p className="text-[11px] text-secondary leading-relaxed italic border-l-2 border-[#FACC15]/40 pl-2">
                 {active.citation.principle}
