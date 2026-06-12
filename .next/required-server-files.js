@@ -105,7 +105,7 @@ self.__SERVER_FILES_MANIFEST={
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "c:\\Users\\johns\\OneDrive\\Documents\\GitHub\\TeamPilot",
+    "outputFileTracingRoot": "C:\\Users\\johns\\OneDrive\\Documents\\GitHub\\TeamPilot",
     "cacheComponents": false,
     "cacheLife": {
       "default": {
@@ -305,11 +305,11 @@ self.__SERVER_FILES_MANIFEST={
     "bundlePagesRouterDependencies": false,
     "configFileName": "next.config.ts",
     "turbopack": {
-      "root": "c:\\Users\\johns\\OneDrive\\Documents\\GitHub\\TeamPilot"
+      "root": "C:\\Users\\johns\\OneDrive\\Documents\\GitHub\\TeamPilot"
     },
     "distDirRoot": ".next"
   },
-  "appDir": "c:\\Users\\johns\\OneDrive\\Documents\\GitHub\\TeamPilot",
+  "appDir": "C:\\Users\\johns\\OneDrive\\Documents\\GitHub\\TeamPilot",
   "relativeAppDir": "",
   "files": [
     ".next\\routes-manifest.json",
