@@ -1193,6 +1193,22 @@ const items = [
     expected: "active.contextNote is consumed in: (a) the closed chip's primary text line, AND (b) the expanded view's 'System's read' card. v3.2 wired only (a) which is what produced the user's complaint that the expanded view looked identical for every fire. A14 captured the meta-rule: 'data path complete ≠ render path complete.'",
     assignee: "john",
   },
+
+  // ─── Audit C1 — decision_dialogues append-only at SQL layer ──
+  {
+    id: "decision-dialogues-no-update-rule",
+    title: "(JOHN) UPDATE statements against decision_dialogues are silently no-op (DO INSTEAD NOTHING)",
+    instructions: "(JOHN) After migration 0025 is applied, attempt: UPDATE decision_dialogues SET chosen_note = 'tampered' WHERE id = '<any existing id>'; from a non-service-role context. Verify 0 rows affected and the original value preserved.",
+    expected: "Statement reports 0 rows affected. The chosen_note value is unchanged. §3.1 append-only discipline now enforced at the SQL rule layer for decision_dialogues, matching chat_messages / events / signals / brain_evolution_events.",
+    assignee: "john",
+  },
+  {
+    id: "decision-dialogues-no-delete-rule",
+    title: "(JOHN) DELETE statements against decision_dialogues are silently no-op (DO INSTEAD NOTHING)",
+    instructions: "(JOHN) Attempt: DELETE FROM decision_dialogues WHERE id = '<any existing id>'; — and confirm the row remains.",
+    expected: "0 rows deleted. Row remains in the table. Closes §1.7 audit finding C1: decision_dialogues was claimed append-only but lacked the SQL-rule enforcement that chat_messages / events / signals all have.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
