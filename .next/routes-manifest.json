@@ -140,6 +140,18 @@
       "namedRegex": "^/api/admin/coach\\-readout(?:/)?$"
     },
     {
+      "page": "/api/admin/team-check",
+      "regex": "^/api/admin/team\\-check(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/admin/team\\-check(?:/)?$"
+    },
+    {
+      "page": "/api/admin/team-check/nudge",
+      "regex": "^/api/admin/team\\-check/nudge(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/admin/team\\-check/nudge(?:/)?$"
+    },
+    {
       "page": "/api/ai/analyze",
       "regex": "^/api/ai/analyze(?:/)?$",
       "routeKeys": {},
@@ -194,6 +206,12 @@
       "namedRegex": "^/api/brain/learn(?:/)?$"
     },
     {
+      "page": "/api/brain/learning-summary",
+      "regex": "^/api/brain/learning\\-summary(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/brain/learning\\-summary(?:/)?$"
+    },
+    {
       "page": "/api/brain/unlock",
       "regex": "^/api/brain/unlock(?:/)?$",
       "routeKeys": {},
@@ -228,6 +246,12 @@
       "regex": "^/api/chat/topic\\-decisions(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/chat/topic\\-decisions(?:/)?$"
+    },
+    {
+      "page": "/api/coach/analyze",
+      "regex": "^/api/coach/analyze(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/coach/analyze(?:/)?$"
     },
     {
       "page": "/api/decisions",
@@ -354,6 +378,12 @@
       "regex": "^/dashboard/admin/feedback(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/dashboard/admin/feedback(?:/)?$"
+    },
+    {
+      "page": "/dashboard/admin/team-check",
+      "regex": "^/dashboard/admin/team\\-check(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/admin/team\\-check(?:/)?$"
     },
     {
       "page": "/dashboard/brain",
