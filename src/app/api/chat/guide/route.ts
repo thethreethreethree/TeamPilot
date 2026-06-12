@@ -4,6 +4,7 @@ import { runBrainStream, type ControlGate } from "@/lib/brain";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
+import { detectAll } from "@/lib/coach/heuristics";
 
 /**
  * POST /api/chat/guide
@@ -47,16 +48,38 @@ The Coach layer (the team's communication-discipline mirror) has flagged the fol
 Patterns to address:
 {{COACH_PATTERNS}}
 
-For each flagged pattern, the rewrite should:
-- nvc-evaluation → strip the evaluation, name the observable thing the user reacted to. ("this is stupid" → "this didn't account for X")
-- voss-bare-assertion → label the other side's position briefly before the user's own. ("we should X" → "It sounds like the constraint is Y — that's why I'm pushing for X")
-- stone-identity-collision → critique the behavior and its impact, not the person. ("you're lazy" → "the deploy missed the migrate step — that cost us four hours")
-- coach-blame-projection → lead with the speaker's feeling and the specific behavior. ("you're making me mad" → "I'm getting frustrated when standups go long")
-- coach-emotional-escalation → calibrate intensity to the action the user wants. ("this is a disaster" → "this is the third time this week — can we figure out why?")
-- coach-hot-state → keep the substance; flag that this is a hot-state message in tone (the rewrite is still on the user; they choose to send or pause).
-- coach-aggressive-language → remove the direct attack; keep the substance. ("could you not act stupid" → "could you walk through the reasoning for that move — I'm not following")
+ABSOLUTE RULES when Coach has flagged the draft:
 
-Hard rule: the rewrite must NOT contain the flagged trigger excerpt verbatim. If the flagged excerpt appears in the rewrite, you have failed the task.`;
+1. INFERRING THE SUBJECT FROM CONTEXT IS GOOD. If the user wrote "don't act stupid" and the recent thread is about a PDF reference dispute, you SHOULD identify that the user is frustrated about the PDF — that's reading the situation correctly. The user wants the rewrite to be about the real concern. What you must NOT do is invent a NEW concern that isn't in the conversation. Read the context; do not invent context.
+
+2. THE ATTACK / ACCUSATION SHAPE MUST BE STRIPPED. This is the core transformation. The original draft uses attack shape ("don't act stupid"); a rewrite that uses accusation shape ("please don't pretend you don't know what I'm referring to") has FAILED — it's the same attack, just articulated. The accusation IS the pattern Coach flagged. Replace it with the underlying concern.
+
+   Test: would the Coach layer fire the SAME heuristic on the rewrite? If yes, the rewrite has failed. Attack-shaped, accusation-shaped, judgment-shaped rewrites all fail this test regardless of how grammatical or polite they sound.
+
+3. LENGTH IS FREE — when the extra words serve de-escalation. Welcome: labeling the other side's position ("it sounds like X"), naming the speaker's feeling ("I'm getting frustrated"), inviting a slower exchange ("can we slow down?"), or restating the underlying observation. Failure: extra words that articulate the attack at higher resolution.
+
+4. NO VERBATIM TRIGGER. The flagged trigger excerpt must NOT appear in the rewrite at all.
+
+Transformation shapes:
+- nvc-evaluation: replace the evaluation with the observation. Pull the observation from the conversation context if available. ("this is stupid" in a thread about a PDF mix-up → "we already covered this in the earlier message — I'm hitting a wall here")
+- voss-bare-assertion: open with a short label of the other side before stating the user's position.
+- stone-identity-collision: critique the behavior and impact, not the person. The behavior may come from context; the identity attack must go.
+- coach-blame-projection: lead with "I'm getting X" instead of "you're making me X". Same emotional substance, no projection.
+- coach-emotional-escalation: replace catastrophizing language with the underlying concern, drawn from context if needed.
+- coach-hot-state: do not rewrite — return the draft unchanged. The user's job is to pause, not rephrase.
+- coach-aggressive-language: convert attack to feeling-plus-concern. Pulling the concern from conversation context is good ("we already covered this — I'm getting frustrated"); preserving the attack shape with new words is failure ("please don't pretend you don't know" — same attack, more words).
+
+CONCRETE EXAMPLE applying these rules:
+- Draft: "please don't act stupid"
+- Recent thread: someone asked "which PDF are you referring to?" after a PDF was discussed earlier
+- BAD rewrite (FAILS rule 2 — still accusation): "Please don't pretend you don't know what I'm referring to."
+- GOOD rewrite (passes all four rules): "I'm getting frustrated — I thought we already covered this PDF in the earlier message. Could you take another look?"
+  - Pulled subject from context ✓ (rule 1)
+  - Stripped accusation: "I'm getting frustrated" instead of "you're acting stupid / pretending" ✓ (rule 2)
+  - Longer because de-escalation needed the extra framing ✓ (rule 3)
+  - No verbatim "stupid" ✓ (rule 4)
+
+If you cannot produce a rewrite that strips the attack-shape, return the draft unchanged. Honesty beats articulated aggression.`;
 
 function sse(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -136,10 +159,36 @@ export async function POST(req: NextRequest) {
   const companyId = (await getCurrentCompanyId()) ?? undefined;
   const encoder = new TextEncoder();
 
+  // v3.10 (2026-06-12): server-side rewrite verification via Coach.
+  // The LLM ignored "do not invent" and produced a 140-char rewrite
+  // that pulled a "PDF" reference from recent thread context and was
+  // STILL passive-aggressive ("please don't pretend you don't know
+  // what I'm referring to"). Prompt rules alone are not enforcement;
+  // the server must verify the rewrite actually stripped the pattern.
+  //
+  // Composition contract (A16): Coach detects → Sharpen rewrites →
+  // Coach verifies the rewrite. If the rewrite STILL fires any of the
+  // same heuristics that fired on the original, the rewrite has
+  // failed its contract — strip the suggestion and emit a gate
+  // suppression telling the user the System refused to ship a rewrite
+  // that didn't actually pass its own check. Honest > polished.
+  //
+  // Length is intentionally NOT capped: a longer rewrite is welcome
+  // when the extra words serve de-escalation (e.g., labeling the
+  // other position before stating disagreement). Length-as-failure
+  // was the wrong axis to enforce on — content is what matters.
+  const originalHitIds = new Set(
+    citations.length > 0
+      ? citations.map((c) => c.id)
+      : detectAll(draft).map((c) => c.id)
+  );
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: string, data: unknown) =>
         controller.enqueue(encoder.encode(sse(event, data)));
+
+      let accumulated = "";
 
       try {
         if (companyId) {
@@ -151,12 +200,15 @@ export async function POST(req: NextRequest) {
           });
           let next = await gen.next();
           while (!next.done) {
+            accumulated += next.value;
             send("delta", { text: next.value });
             next = await gen.next();
           }
-          const gate: ControlGate = next.value.gate;
-          if (!gate.guidanceEnabled) {
-            send("gate", { suppressed: true, reason: gate.reason });
+          if (next.done) {
+            const gate: ControlGate = next.value.gate;
+            if (!gate.guidanceEnabled) {
+              send("gate", { suppressed: true, reason: gate.reason });
+            }
           }
         } else {
           // Demo mode (no Supabase): bypass brain and call provider directly.
@@ -165,9 +217,36 @@ export async function POST(req: NextRequest) {
             messages: [{ role: "user", content: context }],
             maxTokens: 400,
           })) {
+            accumulated += delta;
             send("delta", { text: delta });
           }
         }
+
+        // ─── A16 composition: verify the rewrite via Coach ──
+        // Strip surrounding quotes the same way the client does so the
+        // verification reads the actual content the user would see.
+        let cleaned = accumulated.trim();
+        if (
+          (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+          (cleaned.startsWith("“") && cleaned.endsWith("”"))
+        ) {
+          cleaned = cleaned.slice(1, -1).trim();
+        }
+        if (originalHitIds.size > 0 && cleaned.length > 0) {
+          const rewriteHits = detectAll(cleaned).map((c) => c.id);
+          const carriedForward = rewriteHits.filter((id) =>
+            originalHitIds.has(id)
+          );
+          if (carriedForward.length > 0) {
+            send("gate", {
+              suppressed: true,
+              reason: `Rewrite still fires the same Coach pattern${
+                carriedForward.length > 1 ? "s" : ""
+              } (${carriedForward.join(", ")}) — the System refused to ship a rewrite that didn't actually strip what Coach flagged. Your original draft is preserved.`,
+            });
+          }
+        }
+
         send("done", {});
         controller.close();
       } catch (err) {

@@ -1569,6 +1569,36 @@ const items = [
     expected: "The hard rule is the final constraint in the addendum. Without it, the LLM might still output the trigger phrase ('stupid', 'this is broken') verbatim — defeating the rewrite. The route trusts the LLM to follow this rule per its prompt-instruction-following budget; a future defense would be a server-side substring check. For v3.9, prompt-level enforcement is the floor.",
     assignee: "john",
   },
+
+  // ─── Sharpen v3.10 — destructive→constructive enforcement ──
+  {
+    id: "sharpen-v3.10-destructive-rewrite-suppressed",
+    title: "Rewrite that's STILL Coach-flagged is suppressed (destructive→constructive contract)",
+    instructions: "Type 'please don't act stupid' in a chat with prior PDF discussion. Click Guide my response. Watch the suggestion.",
+    expected: "If the LLM returns a constructive rewrite (e.g. 'I'm getting frustrated — I thought we already covered this PDF, could you take another look?'), it surfaces and the Accept button enables. If the LLM returns a destructive rewrite that still fires the SAME Coach heuristic the original fired (e.g. 'Please don't pretend you don't know what I'm referring to' — still accusation), the server emits a gate-suppressed event with reason 'Rewrite still fires the same Coach pattern (X) — the System refused to ship a rewrite that didn't actually strip what Coach flagged.' Accept button stays disabled.",
+    assignee: "partners",
+  },
+  {
+    id: "sharpen-v3.10-context-pulling-is-good",
+    title: "Pulling subject from conversation context is GOOD, not invention",
+    instructions: "(JOHN) Read the COACH_AWARE_ADDENDUM in src/app/api/chat/guide/route.ts. Confirm rule 1 explicitly says 'INFERRING THE SUBJECT FROM CONTEXT IS GOOD' and gives a concrete example.",
+    expected: "Rule 1 distinguishes 'read the context' (correct) from 'invent context' (failure). The earlier framing ('no invention of referents') was wrong — pulling a real concern from the recent thread to anchor the rewrite is exactly what good de-escalation does. User explicitly corrected this: 'the pdf answer is not an invention, our chat acted properly.' The prompt now says: read context; don't invent context. The failure mode is the ACCUSATION shape, not the use of context.",
+    assignee: "john",
+  },
+  {
+    id: "sharpen-v3.10-length-not-capped",
+    title: "Longer rewrites are welcome when they serve de-escalation",
+    instructions: "(JOHN) Read the addendum rule 3 and confirm there is no character cap. Verify the v3.10 commit removed the previous server-side length-cap logic.",
+    expected: "Rule 3: 'LENGTH IS FREE — when the extra words serve de-escalation.' No server-side length cap. A rewrite that adds 'It sounds like X' or 'I'm getting frustrated when Y' is welcome even if it's 4x the original draft. The enforcement axis is content (does it still trip Coach?), not length. User clarified: 'the response being longer can be a good thing if it's meant to explain and deescalate.'",
+    assignee: "john",
+  },
+  {
+    id: "sharpen-v3.10-a16-composition-loop",
+    title: "(JOHN) Sharpen→Coach verification loop closes the A16 composition contract",
+    instructions: "(JOHN) Read src/app/api/chat/guide/route.ts — confirm: (a) detectAll is imported, (b) originalHitIds is computed from the citations OR detectAll(draft), (c) after streaming completes, detectAll runs on the accumulated rewrite, (d) if the rewrite shares any heuristic ID with originalHitIds, gate-suppressed is emitted.",
+    expected: "Full composition loop: Coach detects → Sharpen rewrites → Coach verifies. Per A16, multi-tool composition is the structural fix for the 'tools that don't talk produce contradictory output' failure. Sharpen v3.10 is the first ELOSTATE feature where the composition is BOTH directions: data flows IN (citations from Coach into the prompt) AND verification flows OUT (Coach re-runs on the rewrite to confirm the transformation actually happened).",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
