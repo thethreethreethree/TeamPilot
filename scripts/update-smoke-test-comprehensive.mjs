@@ -1209,6 +1209,50 @@ const items = [
     expected: "0 rows deleted. Row remains in the table. Closes §1.7 audit finding C1: decision_dialogues was claimed append-only but lacked the SQL-rule enforcement that chat_messages / events / signals all have.",
     assignee: "john",
   },
+
+  // ─── Audit C2 + H1 + M2 — Coach state lifecycle refactor ────
+  {
+    id: "coach-stale-llm-hits-cleared-on-draft-change",
+    title: "Stale LLM verdicts can no longer suppress new regex hits across draft changes",
+    instructions: "Type 'this is dumb' and wait for the Coach chip (regex fires). Wait for LLM to potentially veto/confirm it (1.2s). Now without dismissing, change the draft to 'this is broken instead'. Watch the chip.",
+    expected: "Draft change wipes llmHits + llmAnalyzing immediately. The new draft triggers fresh regex detection and a fresh LLM call. No leftover veto from the previous draft can suppress the new regex hit. Closes audit finding C2.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-expanded-resets-between-fires",
+    title: "Expanded chip state does NOT carry across different chip fires",
+    instructions: "Type a draft that triggers Coach. Click the chip to expand it. Now clear the draft (chip vanishes). Type a NEW draft that triggers Coach with a DIFFERENT heuristic.",
+    expected: "The new chip surfaces in COLLAPSED state, not expanded. The expanded boolean resets whenever active.citation.id changes (or active goes null). Closes audit finding H1 — previously the next chip resurrected stale expanded=true.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-llm-hits-cleared-on-short-draft",
+    title: "Short drafts (<12 chars) cleanly clear LLM state including in-flight",
+    instructions: "Type a long draft (>20 chars) triggering both regex and LLM. Wait for LLM. Then delete chars until draft is <12 chars.",
+    expected: "llmHits cleared, llmAnalyzing cleared, in-flight LLM call aborted via AbortController. No stale chip from the cancelled call appears. The canonical reset on every draft change handles this without a separate threshold-crossing check. Closes audit finding M2.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-api-json-parse-graceful-fallback",
+    title: "(JOHN) Malformed LLM JSON falls back to empty hits, not 500",
+    instructions: "(JOHN) Mock the LLM to return non-JSON text (e.g. 'Rate limit reached'). Hit /api/coach/analyze.",
+    expected: "Route returns 200 with { hits: [] } instead of crashing to 500. In dev mode (NODE_ENV !== production) a console.warn surfaces the first 200 chars of the malformed response so failure rate is observable. Closes audit finding M3.",
+    assignee: "john",
+  },
+  {
+    id: "coach-empty-trigger-excerpt-guard",
+    title: "(JOHN) Closed-chip fallback handles empty trigger_excerpt without rendering 'You wrote \"\"'",
+    instructions: "(JOHN) Inspect CoachPanel.tsx — the closed-chip render is now a three-state ternary: contextNote → draft-aware fallback (only if triggerSnippetShort non-empty) → generic question.",
+    expected: "If a future code path ever produces an active citation with empty triggerExcerpt, the closed chip falls through to the generic question text rather than rendering nonsense. Defense-in-depth — the regex factories guarantee non-empty excerpts today, but the guard removes the cliff. Closes audit finding M6.",
+    assignee: "john",
+  },
+  {
+    id: "coach-a14-render-walk-verified",
+    title: "(JOHN) A14 verification — every active.* field has a render branch",
+    instructions: "(JOHN) Grep `active\\.` in src/components/chats/CoachPanel.tsx and confirm each property (citation, count, contextNote, verdict) is consumed in at least one render branch.",
+    expected: "active.contextNote → closed-chip primary + expanded 'System's read' card. active.verdict → closed 'context uncertain' tag + expanded badge (confirmed/uncertain/vetoed/regex-only). active.citation.source/principle/kindExplanation → expanded view. active.count → mirrorChipText call. active.citation.id → expanded reset effect dependency. No orphaned state.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

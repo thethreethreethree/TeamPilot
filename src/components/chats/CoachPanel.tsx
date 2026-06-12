@@ -172,20 +172,40 @@ export function CoachPanel({
     };
   }, [subject]);
 
+  // Audit H1 fix (2026-06-12): `expanded` is local UI state for the
+  // currently-active chip. When the active citation changes (chip
+  // cycles between different heuristic fires) OR clears entirely,
+  // the expanded boolean must reset — otherwise the next chip
+  // resurrects in a stale expanded state. The previous code only
+  // reset expanded on user-driven dismiss/refine, missing the
+  // "draft cleared while chip was expanded" path.
+  const activeCitationId = active?.citation.id ?? null;
+  useEffect(() => {
+    setExpanded(false);
+  }, [activeCitationId]);
+
   // ─── LLM pass (debounced 1.2s, only on substantial drafts) ────
+  // Audit C2 / M2 fix (2026-06-12): every time the draft changes we
+  // (a) abort the in-flight LLM call so stale responses can't land,
+  // AND (b) clear llmHits / llmAnalyzing so the merge effect can't
+  // briefly see a previous draft's verdicts applied to the current
+  // text. The previous code only cleared llmHits when draft dropped
+  // below LLM_MIN_DRAFT_CHARS — between two long drafts, stale
+  // verdicts could persist and suppress valid regex hits.
   useEffect(() => {
     if (llmDebounceRef.current !== null) {
       window.clearTimeout(llmDebounceRef.current);
     }
-    // Abort any in-flight LLM call when the draft changes — we want
-    // the response to match the CURRENT draft, not a stale one.
     if (llmAbortRef.current) {
       llmAbortRef.current.abort();
       llmAbortRef.current = null;
     }
+    // CANONICAL RESET — any draft change wipes prior LLM state.
+    // The next LLM call will re-populate; until it returns, only
+    // regex governs detection.
+    setLlmHits([]);
+    setLlmAnalyzing(false);
     if (draft.trim().length < LLM_MIN_DRAFT_CHARS) {
-      setLlmHits([]);
-      setLlmAnalyzing(false);
       return;
     }
     llmDebounceRef.current = window.setTimeout(() => {
@@ -443,16 +463,23 @@ export function CoachPanel({
                      excerpt so even regex-only fires don't feel
                      generic
                   3. Last resort: the generic mirror question
-                The earlier render unconditionally fell to #3 when
-                the LLM didn't return — making every fire look
-                identical, exactly what the user flagged. */}
+                Audit M6 fix (2026-06-12): #2 requires a non-empty
+                triggerSnippetShort. Regex factories guarantee this
+                today, but if an LLM-only hit ever surfaces with an
+                empty excerpt the previous render produced "You wrote
+                '' —" nonsense. Three-state ternary falls through to
+                #3 when #2's precondition isn't met. */}
             {active.contextNote ? (
               <p className="text-[11px] text-primary leading-relaxed">
                 {active.contextNote}
               </p>
-            ) : (
+            ) : triggerSnippetShort ? (
               <p className="text-[11px] text-secondary leading-relaxed">
                 You wrote &ldquo;{triggerSnippetShort}&rdquo; — {text.question.toLowerCase()}
+              </p>
+            ) : (
+              <p className="text-[11px] text-secondary leading-relaxed">
+                {text.question}
               </p>
             )}
           </button>

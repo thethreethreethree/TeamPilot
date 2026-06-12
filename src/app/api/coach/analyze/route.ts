@@ -80,7 +80,24 @@ export async function POST(req: NextRequest) {
         { status: 200 }
       );
     }
-    const parsed = JSON.parse(r.text) as { hits?: CoachLlmHit[] };
+    // Audit M3 fix (2026-06-12): LLM occasionally returns non-JSON
+    // (mid-response cutoff, rate-limit error inlined into text).
+    // Previously this threw and the route 500'd; the client then
+    // silently fell back to regex-only with no signal that the LLM
+    // tried. Now we fall back to `{ hits: [] }` and log so the
+    // failure rate is observable in dev.
+    let parsed: { hits?: CoachLlmHit[] };
+    try {
+      parsed = JSON.parse(r.text) as { hits?: CoachLlmHit[] };
+    } catch (parseErr) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[coach/analyze] LLM returned non-JSON; falling back to empty hits.",
+          { sample: r.text.slice(0, 200), error: String(parseErr) }
+        );
+      }
+      parsed = { hits: [] };
+    }
 
     // Filter to allowed pattern IDs even if the LLM goes off-script.
     // Constitutional defense: the LLM's vocabulary is constrained at the
