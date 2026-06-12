@@ -690,6 +690,8 @@ export function demoPostMessage(args: {
   kind?: ChatMessage["kind"];
   /** Override the author display for non-human posts (e.g. summary). */
   authorName?: string;
+  /** Threaded reply to an existing message in this topic. */
+  replyToId?: string | null;
 }): ChatMessage {
   const state = readDemoState();
   const now = new Date().toISOString();
@@ -705,7 +707,7 @@ export function demoPostMessage(args: {
     body: args.body,
     mediaUrl: null,
     mediaType: null,
-    replyToId: null,
+    replyToId: args.replyToId ?? null,
     aiAssisted: args.aiAssisted ?? isSummary,
     createdAt: now,
     pinned: false,
@@ -872,6 +874,10 @@ export async function postMessage(args: {
   aiAssisted?: boolean;
   kind?: ChatMessage["kind"];
   authorName?: string;
+  /** Threaded reply to an existing message in the same topic. The id
+   *  must reference a message that already exists; RLS verifies the
+   *  message is in the same company. */
+  replyToId?: string | null;
 }): Promise<ChatMessage> {
   if (!supabaseEnabled) {
     return demoPostMessage(args);
@@ -892,6 +898,7 @@ export async function postMessage(args: {
       kind: args.kind ?? "message",
       body: args.body,
       ai_assisted: args.aiAssisted ?? args.kind === "summary",
+      reply_to_id: args.replyToId ?? null,
     })
     .select(
       "id, topic_id, author_id, kind, body, media_url, media_type, reply_to_id, ai_assisted, created_at"

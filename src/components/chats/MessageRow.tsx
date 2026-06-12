@@ -1,6 +1,6 @@
 "use client";
 
-import { Pin, PinOff, Sparkles } from "lucide-react";
+import { Pin, PinOff, Reply, Sparkles } from "lucide-react";
 import type { ChatMessage } from "@/lib/data/chats";
 import { formatTime } from "./utils";
 import {
@@ -17,23 +17,36 @@ import {
  *   - kind="summary" → arc-cyan System summary card with "confirm or correct" label
  *   - default        → avatar + author + timestamp + pinned/AI-assisted chips + body
  *
- * Avatars (default render path):
- *   The author's avatar color + initials come from their profile if
- *   they've set them in Settings → Avatar (migration 0024). When the
- *   profile fields are null, we fall back to deterministic defaults
- *   derived from author id + name so the avatar is still stable and
- *   distinct across users without any setup.
+ * Threaded reply support:
+ *   - If `parent` is supplied (the message this one is replying to),
+ *     the row renders a compact quote pill above the body. Clicking
+ *     the quote calls onJumpToParent so the chat page can smooth-scroll
+ *     to the original.
+ *   - `onStartReply` exposes a hover-revealed Reply button so the
+ *     viewer can start a threaded reply to this row.
+ *
+ * Avatars use profile-customized color/initials when set, otherwise
+ * deterministic defaults from src/lib/brand/avatar.ts.
+ *
+ * Each row gets `id="msg-<id>"` so the scrollToMessage helper on the
+ * chat page can find it and apply the highlight ring.
  */
 export function MessageRow({
   msg,
+  parent,
   currentUserId,
   onTogglePin,
+  onStartReply,
+  onJumpToParent,
 }: {
   msg: ChatMessage;
-  /** The id that identifies the viewer — for own-message styling. Null
-   *  while the auth session loads; treated as "not mine" until known. */
+  /** Parent message this row replies to. Null when not a reply, or
+   *  when the parent is outside the loaded window. */
+  parent?: ChatMessage | null;
   currentUserId: string | null;
   onTogglePin: () => void;
+  onStartReply?: () => void;
+  onJumpToParent?: (parentId: string) => void;
 }) {
   const isSummary = msg.kind === "summary";
   const isSystem = msg.kind === "system";
@@ -45,7 +58,10 @@ export function MessageRow({
 
   if (isSystem) {
     return (
-      <div className="flex items-center gap-2 justify-center py-2">
+      <div
+        id={`msg-${msg.id}`}
+        className="flex items-center gap-2 justify-center py-2 transition-shadow"
+      >
         <div className="h-px flex-1 bg-surface-raised max-w-16" />
         <span className="text-[10px] text-muted italic">{msg.body}</span>
         <div className="h-px flex-1 bg-surface-raised max-w-16" />
@@ -55,7 +71,7 @@ export function MessageRow({
 
   if (isSummary) {
     return (
-      <div className="flex gap-3 group">
+      <div id={`msg-${msg.id}`} className="flex gap-3 group transition-shadow">
         <div className="w-8 h-8 rounded-lg bg-arc-400/15 border border-arc-400/40 flex items-center justify-center flex-shrink-0">
           <Sparkles className="w-4 h-4 text-arc-300" aria-hidden="true" />
         </div>
@@ -82,7 +98,10 @@ export function MessageRow({
   }
 
   return (
-    <div className="flex gap-3 group">
+    <div
+      id={`msg-${msg.id}`}
+      className="flex gap-3 group rounded-xl transition-shadow"
+    >
       <div
         className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold border border-default/40"
         style={{ backgroundColor: bg, color: fg }}
@@ -117,6 +136,33 @@ export function MessageRow({
             </span>
           )}
         </div>
+        {/* Reply context quote — surfaces when this message replies to
+            another. Click jumps to the parent message in the stream.
+            If the parent is outside the loaded window we still render
+            a placeholder so the reply doesn't look orphaned. */}
+        {msg.replyToId && (
+          <button
+            type="button"
+            onClick={() =>
+              parent && onJumpToParent && onJumpToParent(parent.id)
+            }
+            disabled={!parent || !onJumpToParent}
+            className="w-full text-left flex items-start gap-2 mb-1 pl-2 py-1 rounded-md border-l-2 border-ember-400/60 bg-ember-400/[0.04] hover:bg-ember-400/[0.08] disabled:opacity-60 transition-colors"
+            title={parent ? "Jump to original message" : "Original message not loaded"}
+          >
+            <Reply className="w-3 h-3 text-brand mt-0.5 flex-shrink-0" aria-hidden />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-brand font-semibold tracking-wide mb-0.5">
+                {parent?.authorName ?? "Original message"}
+              </p>
+              <p className="text-[11px] text-secondary truncate">
+                {parent
+                  ? (parent.body ?? "").replace(/\s+/g, " ").slice(0, 140)
+                  : "Outside the loaded window — scroll up to find it."}
+              </p>
+            </div>
+          </button>
+        )}
         <div
           className={`relative rounded-xl px-3 py-2 ${
             msg.pinned
@@ -124,25 +170,38 @@ export function MessageRow({
               : "bg-surface/60 border border-default"
           }`}
         >
-          <p className="text-sm text-primary whitespace-pre-wrap leading-relaxed pr-7">
+          <p className="text-sm text-primary whitespace-pre-wrap leading-relaxed pr-14">
             {msg.body}
           </p>
-          <button
-            onClick={onTogglePin}
-            aria-label={msg.pinned ? "Unpin message" : "Pin message"}
-            title={
-              msg.pinned
-                ? "Remove from priority data"
-                : "Pin as priority data — the brain learns from pinned messages"
-            }
-            className="absolute top-2 right-2 text-muted hover:text-accent-text opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            {msg.pinned ? (
-              <PinOff className="w-3.5 h-3.5" aria-hidden="true" />
-            ) : (
-              <Pin className="w-3.5 h-3.5" aria-hidden="true" />
+          <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onStartReply && (
+              <button
+                type="button"
+                onClick={onStartReply}
+                aria-label="Reply to this message"
+                title="Reply — threads under this message"
+                className="text-muted hover:text-brand"
+              >
+                <Reply className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
             )}
-          </button>
+            <button
+              onClick={onTogglePin}
+              aria-label={msg.pinned ? "Unpin message" : "Pin message"}
+              title={
+                msg.pinned
+                  ? "Remove from priority data"
+                  : "Pin as priority data — the brain learns from pinned messages"
+              }
+              className="text-muted hover:text-accent-text"
+            >
+              {msg.pinned ? (
+                <PinOff className="w-3.5 h-3.5" aria-hidden="true" />
+              ) : (
+                <Pin className="w-3.5 h-3.5" aria-hidden="true" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

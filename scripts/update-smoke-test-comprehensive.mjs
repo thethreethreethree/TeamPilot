@@ -716,6 +716,57 @@ const items = [
     expected: "RLS refuses the cross-user update (0 rows affected). The existing profiles update policy gates updates to the owner's row.",
     assignee: "john",
   },
+
+  // ─── Reply / quote (threaded replies) ──────────────────────────
+  {
+    id: "reply-hover-button-appears",
+    title: "Reply button appears on hover over any non-system message",
+    instructions: "Open any chat topic with messages. Move the mouse over a message bubble.",
+    expected: "A small Reply icon (curved-arrow) appears in the upper-right of the bubble, next to the pin icon. Visible only on hover (opacity-0 → 100). Visible on every non-system, non-summary message including your own.",
+    assignee: "partners",
+  },
+  {
+    id: "reply-pill-surfaces-in-composer",
+    title: "Clicking Reply surfaces a 'Replying to X' pill above the composer",
+    instructions: "Click Reply on any older message. Look at the composer area.",
+    expected: "An ember-tinted pill appears above the textarea showing: 'Replying to {Author}' label + the first ~120 chars of the parent message. A small X on the right cancels the reply. The composer textarea gets focus automatically so the user can type immediately.",
+    assignee: "partners",
+  },
+  {
+    id: "reply-cancel-clears-state",
+    title: "Cancel button on the reply pill clears the reply state",
+    instructions: "With a reply pill active, click the X on the right side of the pill.",
+    expected: "The pill disappears. The composer is back in normal mode. Next message you send will NOT be threaded.",
+    assignee: "partners",
+  },
+  {
+    id: "reply-sends-with-reply-to-id",
+    title: "Sending a reply persists the reply_to_id and renders the quote context",
+    instructions: "Click Reply on a message, type 'this is a threaded reply', send.",
+    expected: "Your new message appears at the bottom of the stream. ABOVE its body, a quote pill renders showing the original author + a snippet of the original body, with a left-side ember border. The pill is interactive (cursor pointer).",
+    assignee: "partners",
+  },
+  {
+    id: "reply-quote-jumps-to-parent",
+    title: "Clicking the quote scrolls back to the original message + highlights it",
+    instructions: "On a reply message, click the quote pill above the body.",
+    expected: "The viewport smooth-scrolls to the parent message (centered). The parent gets a brief amber ring/highlight that fades over ~1.6 seconds so you can find it. If the parent is outside the loaded window, the pill shows 'Outside the loaded window' text and the click is disabled.",
+    assignee: "partners",
+  },
+  {
+    id: "reply-survives-refresh",
+    title: "Reply relationship survives a hard refresh (data lives in DB)",
+    instructions: "After posting a reply, hard refresh (Ctrl+Shift+R).",
+    expected: "The reply still shows the quote context above its body. The relationship is durable — stored as chat_messages.reply_to_id on the row, not transient client state.",
+    assignee: "partners",
+  },
+  {
+    id: "reply-cancellation-on-failed-post",
+    title: "If the post fails, the reply state is restored (not lost)",
+    instructions: "Start a reply, type a message, then simulate a network failure (offline mode or kill connection) and click Send.",
+    expected: "Toast shows the post error. The reply pill is restored to the composer alongside the draft text so the user can retry without losing context. (This is the failure-path rollback — same shape as the existing draft restoration.)",
+    assignee: "partners",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

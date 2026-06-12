@@ -25,10 +25,12 @@ import {
   Loader2,
   Lock,
   MessageSquare,
+  Reply,
   Sparkles,
   UserPlus,
   Users,
   Wand2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -81,6 +83,9 @@ export default function TeamChatTopicPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
   const [addingParticipants, setAddingParticipants] = useState(false);
+  // Reply state — when set, the composer shows a "Replying to X" pill
+  // above the textarea and the next post carries reply_to_id.
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -193,20 +198,24 @@ export default function TeamChatTopicPage() {
     if (!trimmed) return;
     setSubmitting(true);
     const aiFlag = opts?.aiAssisted ?? aiAssisted;
+    const replyToSnapshot = replyTo;
     // Optimistic UI: clear the input now so the user can keep typing.
     setDraft("");
     setAiAssisted(false);
+    setReplyTo(null);
     try {
       const msg = await postMessage({
         topicId,
         body: trimmed,
         aiAssisted: aiFlag,
+        replyToId: replyToSnapshot?.id ?? null,
       });
       setMessages((prev) => [...prev, msg]);
     } catch (err) {
       // Rollback the input so the user can retry without re-typing.
       setDraft(trimmed);
       setAiAssisted(aiFlag);
+      setReplyTo(replyToSnapshot);
       toast.error(
         "Couldn't post",
         err instanceof Error ? err.message : "Unknown error."
@@ -214,6 +223,26 @@ export default function TeamChatTopicPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Scroll a specific message into view + briefly highlight it. Called
+  // when the user clicks the reply-context quote on a reply message —
+  // takes them back to the original they were responding to.
+  const scrollToMessage = (messageId: string) => {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(`msg-${messageId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("ring-2", "ring-[#FACC15]", "ring-offset-2", "ring-offset-base");
+    window.setTimeout(() => {
+      el.classList.remove("ring-2", "ring-[#FACC15]", "ring-offset-2", "ring-offset-base");
+    }, 1600);
+  };
+
+  const startReply = (msg: ChatMessage) => {
+    setReplyTo(msg);
+    // Bring focus to the composer so the user can type immediately.
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -593,14 +622,22 @@ export default function TeamChatTopicPage() {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      {group.messages.map((msg) => (
-                        <MessageRow
-                          key={msg.id}
-                          msg={msg}
-                          currentUserId={currentUserId}
-                          onTogglePin={() => void handleTogglePin(msg)}
-                        />
-                      ))}
+                      {group.messages.map((msg) => {
+                        const parent = msg.replyToId
+                          ? messages.find((m) => m.id === msg.replyToId) ?? null
+                          : null;
+                        return (
+                          <MessageRow
+                            key={msg.id}
+                            msg={msg}
+                            parent={parent}
+                            currentUserId={currentUserId}
+                            onTogglePin={() => void handleTogglePin(msg)}
+                            onStartReply={() => startReply(msg)}
+                            onJumpToParent={(id) => scrollToMessage(id)}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -659,6 +696,34 @@ export default function TeamChatTopicPage() {
                 draft={draft}
                 onRefine={() => inputRef.current?.focus()}
               />
+            )}
+            {/* Reply-to pill — surfaces above the textarea when the
+                user has clicked Reply on a message. Shows the author
+                + a one-line snippet of the parent so context is clear
+                before they type. Click X to cancel the reply. */}
+            {replyTo && (
+              <div className="flex items-start gap-2 mb-2 px-3 py-2 rounded-lg bg-ember-400/[0.06] border border-ember-400/30">
+                <Reply
+                  className="w-3.5 h-3.5 text-brand mt-0.5 flex-shrink-0"
+                  aria-hidden
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-brand uppercase tracking-widest font-semibold mb-0.5">
+                    Replying to {replyTo.authorName}
+                  </p>
+                  <p className="text-xs text-secondary truncate">
+                    {(replyTo.body ?? "").replace(/\s+/g, " ").slice(0, 120)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyTo(null)}
+                  aria-label="Cancel reply"
+                  className="text-muted hover:text-secondary flex-shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" aria-hidden />
+                </button>
+              </div>
             )}
             <div className="bg-surface border border-default rounded-xl focus-within:border-crimson-500/40 transition-colors">
               <textarea
