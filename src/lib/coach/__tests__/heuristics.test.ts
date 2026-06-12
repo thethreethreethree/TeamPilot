@@ -96,6 +96,27 @@ describe("detectNvcEvaluation", () => {
     expect(detectNvcEvaluation("frustrating decision")).not.toBeNull();
     expect(detectNvcEvaluation("tiresome approach")).not.toBeNull();
   });
+
+  // v3.11 (2026-06-12) — closes the "that is dumbest thing" gap.
+  it("fires on superlative / comparative forms via -er/-est suffix relaxation", () => {
+    expect(detectNvcEvaluation("that is dumbest thing")).not.toBeNull();
+    expect(detectNvcEvaluation("this is stupider")).not.toBeNull();
+    expect(detectNvcEvaluation("that's the dumbest idea")).not.toBeNull();
+    expect(detectNvcEvaluation("dumbest move")).not.toBeNull();
+  });
+
+  it("fires on most/more intensifier prefix", () => {
+    expect(detectNvcEvaluation("this is most ridiculous")).not.toBeNull();
+    expect(detectNvcEvaluation("that is more terrible")).not.toBeNull();
+    expect(detectNvcEvaluation("most idiotic decision")).not.toBeNull();
+    expect(detectNvcEvaluation("more annoying behavior")).not.toBeNull();
+  });
+
+  it("fires on irregular superlatives via vocabulary", () => {
+    expect(detectNvcEvaluation("that is the worst idea")).not.toBeNull();
+    expect(detectNvcEvaluation("this is worse")).not.toBeNull();
+    expect(detectNvcEvaluation("worst response")).not.toBeNull();
+  });
 });
 
 describe("detectBareAssertion", () => {

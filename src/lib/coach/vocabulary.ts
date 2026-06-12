@@ -146,6 +146,11 @@ export const PEJORATIVES_FOR_THINGS = [
 
   // Colloquial "sucks" forms
   "sucks", "blows", "sucks ass", "blows chunks", "stinks",
+
+  // v3.11: irregular superlatives + comparatives that the
+  // (?:er|est)? suffix relaxation in heuristics.ts can't reach.
+  // "bad" → "worst" / "worse" (suppletive); "lousy" → "lousiest".
+  "worst", "worse", "lousiest", "lousier", "lousy",
 ] as const;
 
 /**

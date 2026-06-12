@@ -1599,6 +1599,22 @@ const items = [
     expected: "Full composition loop: Coach detects → Sharpen rewrites → Coach verifies. Per A16, multi-tool composition is the structural fix for the 'tools that don't talk produce contradictory output' failure. Sharpen v3.10 is the first ELOSTATE feature where the composition is BOTH directions: data flows IN (citations from Coach into the prompt) AND verification flows OUT (Coach re-runs on the rewrite to confirm the transformation actually happened).",
     assignee: "john",
   },
+
+  // ─── Coach v3.11 — superlative/comparative grammar relaxation ──
+  {
+    id: "coach-v3.11-superlative-comparative-fires",
+    title: "'that is dumbest thing' / 'this is stupider' fire NVC evaluation",
+    instructions: "Type 'that is dumbest thing' in a composer. Wait 350ms. Then try 'this is stupider' and 'that's the worst idea'. Each on its own.",
+    expected: "Each triggers the Coach chip. Previously \\bdumb\\b wouldn't match 'dumbest' because the regex word boundary failed (the 'est' suffix continues word chars). v3.11 added (?:er|est)? suffix relaxation + (?:the\\s+|most\\s+|more\\s+)? intensifier prefix to BOTH the 'this is X' and the ellipted '[adj] [noun]' patterns. Catches dumber/dumbest/stupider/stupidest/most ridiculous/more terrible without per-word enumeration. Plus 'worst' and 'lousiest' added to vocabulary as irregular suppletives (bad→worst, lousy→lousiest).",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.11-shape-not-word-fix",
+    title: "(JOHN) v3.11 is a SHAPE fix, not a per-word vocabulary expansion",
+    instructions: "(JOHN) Read src/lib/coach/heuristics.ts NVC_EVALUATION_PATTERNS. Confirm the regex includes (?:er|est)? as an optional suffix on the adjective match, and (?:the\\s+|most\\s+|more\\s+)? as an optional prefix.",
+    expected: "Per A13: when the same MISS-class recurs (vocabulary missing grammatical variants), the structural fix is at the SHAPE altitude, not by adding 50 -er/-est word variants to the vocab list. The regex relaxation catches every adjective in EVALUATION_ADJECTIVES_ALT's comparative+superlative forms in one change. Only irregular suppletives (worst, worse, lousiest) — which the suffix relaxation can't reach — needed direct vocab additions. The discipline holds: name the shape once, consume existing vocabulary by reference.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

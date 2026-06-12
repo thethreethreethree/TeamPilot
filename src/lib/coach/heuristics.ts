@@ -241,8 +241,15 @@ const NVC_EVALUATION_PATTERNS: ReadonlyArray<RegExp> = [
   // rare but real in chat). v3.8 added feeling-as-judgment ("that's
   // annoying") to the alt — same structural shape, was missing only
   // because the adjective category was missing from any vocab group.
+  // v3.11 (2026-06-12): handle comparative/superlative grammar via
+  // suffix relaxation + optional intensifier prefix. Closes the
+  // "that is dumbest thing" miss — \bdumb\b was failing to match
+  // "dumbest" because "est" continues word chars. (?:er|est)? matches
+  // dumber/dumbest/stupider/stupidest etc.; (?:the\s+|most\s+|more\s+)?
+  // handles "that is THE dumbest", "this is MOST ridiculous", "that
+  // is MORE terrible". Per A13: shape fix, not per-word enumeration.
   new RegExp(
-    `\\b(this is|that is|this'?s|that'?s|it'?s|its)\\s+(${EVALUATION_ADJECTIVES_ALT})\\b`,
+    `\\b(this is|that is|this'?s|that'?s|it'?s|its)\\s+(?:the\\s+|most\\s+|more\\s+)?(${EVALUATION_ADJECTIVES_ALT})(?:er|est)?\\b`,
     "i"
   ),
   // v3.6: ellipted "this is" — "stupid move", "dumb idea", "terrible
@@ -253,8 +260,10 @@ const NVC_EVALUATION_PATTERNS: ReadonlyArray<RegExp> = [
   // output-shaped targets that "evaluation language" naturally lands on.
   // v3.8: same combined evaluation alt so "annoying behavior" / "tiresome
   // approach" / "frustrating decision" all surface.
+  // v3.11: same suffix / intensifier relaxation as the "this is X" form
+  // — "dumbest thing", "most ridiculous decision", "more terrible idea".
   new RegExp(
-    `\\b(${EVALUATION_ADJECTIVES_ALT})\\s+(${EVALUATABLE_NOUNS_ALT})\\b`,
+    `\\b(?:the\\s+|most\\s+|more\\s+)?(${EVALUATION_ADJECTIVES_ALT})(?:er|est)?\\s+(${EVALUATABLE_NOUNS_ALT})\\b`,
     "i"
   ),
   // v3.6: direct first-person evaluation. "I don't like it" / "I hate
