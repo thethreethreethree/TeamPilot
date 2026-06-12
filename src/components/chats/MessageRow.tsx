@@ -8,6 +8,7 @@ import {
   avatarInitialsFor,
   avatarTextColorFor,
 } from "@/lib/brand/avatar";
+import { renderMessageBody } from "@/lib/chat/markdown";
 
 /**
  * MessageRow — renders a single message in the chat stream.
@@ -88,12 +89,12 @@ export function MessageRow({
             </span>
           </div>
           <div className="bg-arc-400/5 border border-arc-400/20 rounded-xl px-3 py-2 min-w-0">
-            <p
-              className="text-sm text-primary whitespace-pre-wrap leading-relaxed break-words"
+            <div
+              className="chat-message-body text-sm text-primary leading-relaxed break-words space-y-1"
               style={{ overflowWrap: "anywhere" }}
             >
-              {msg.body}
-            </p>
+              {renderMessageBody(msg.body)}
+            </div>
           </div>
         </div>
       </div>
@@ -169,22 +170,20 @@ export function MessageRow({
         <div
           className={`relative rounded-xl px-3 py-2 min-w-0 ${
             msg.pinned
-              ? "bg-gold-400/5 border border-gold-400/20"
-              : "bg-surface/60 border border-default"
+              ? "bg-ember-400/[0.04] border border-ember-400/30"
+              : "bg-surface/40 border border-ember-400/15"
           }`}
         >
-          {/* break-words + overflow-wrap-anywhere force long unbroken
-              tokens (URLs, Facebook share links from the WhatsApp
-              migration) to wrap mid-string instead of overflowing the
-              bubble. Without this the page horizontally scrolls on
-              mobile. whitespace-pre-wrap kept so multi-line bodies
-              still render line breaks. */}
-          <p
-            className="text-sm text-primary whitespace-pre-wrap leading-relaxed pr-14 break-words"
+          {/* Markdown render — supports bold, italic, code, links,
+              lists, blockquote, auto-linked URLs. Long unbroken
+              URLs wrap mid-string via the renderer's break-all class
+              so mobile doesn't horizontally overflow. */}
+          <div
+            className="chat-message-body text-sm text-primary leading-relaxed pr-14 break-words space-y-1"
             style={{ overflowWrap: "anywhere" }}
           >
-            {msg.body}
-          </p>
+            {renderMessageBody(msg.body)}
+          </div>
           <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             {onStartReply && (
               <button

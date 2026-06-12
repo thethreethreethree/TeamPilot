@@ -49,6 +49,7 @@ import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
 import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
 import { CoachPanel } from "@/components/chats/CoachPanel";
 import { InThreadDecisionDialogue } from "@/components/chats/InThreadDecisionDialogue";
+import { ComposerToolbar } from "@/components/chats/ComposerToolbar";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import { BookOpen, BookOpenCheck, Brain } from "lucide-react";
 import {
@@ -732,12 +733,21 @@ export default function TeamChatTopicPage() {
                 </button>
               </div>
             )}
-            <div className="bg-surface border border-default rounded-xl focus-within:border-crimson-500/40 transition-colors">
+            <div className="bg-surface border border-ember-400/20 rounded-xl focus-within:border-ember-400/60 transition-colors overflow-hidden">
+              {/* Markdown formatting toolbar — B / I / Code / Link /
+                  lists / blockquote. Operates directly on the textarea
+                  via ref so selection is preserved. Keyboard shortcuts
+                  (Ctrl+B etc.) are wired by the component itself. */}
+              <ComposerToolbar
+                textareaRef={inputRef}
+                value={draft}
+                onChange={setDraft}
+              />
               <textarea
                 ref={inputRef}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Write your message…"
+                placeholder="Write your message…  (Markdown: **bold** · *italic* · `code` · [link](url) · - list · > quote)"
                 rows={2}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
