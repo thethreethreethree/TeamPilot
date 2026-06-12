@@ -1105,6 +1105,57 @@ const items = [
     expected: "/api/coach/analyze fires within 1.2s of typing stopping. Previously the 20-char floor blocked the LLM fallback on short emotional drafts; 12 covers the realistic short-message surface without burning LLM calls on 'ok'/'yes'/'thanks!' (all <12).",
     assignee: "john",
   },
+
+  // ─── Coach v3.3 — comprehensive negative-vocabulary library ────
+  {
+    id: "coach-v3.3-emotional-states-comprehensive",
+    title: "Every emotional state from the vocabulary library triggers hot-state",
+    instructions: "Try a representative sample on separate posts: 'I'm livid', 'I'm crushed', 'I'm bewildered', 'I'm checked out', 'I'm jaded', 'I'm overwhelmed', 'I'm hangry', 'I'm at my breaking point', 'I'm in a bad mood', 'I'm cooked', 'I'm fried out'.",
+    expected: "Each one triggers the hot-state chip. v3.3 vocabulary library covers anger / frustration / sadness / anxiety / disappointment / exhaustion / disgust / confusion / boredom / resentment / defeat / overwhelm / physical-state / 'done with this' families — exhaustive, not ad-hoc.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.3-pejoratives-comprehensive",
+    title: "Every pejorative-for-things triggers nvc-evaluation",
+    instructions: "Try: 'this is asinine', 'this is a clusterfuck', 'this is rubbish', 'this is wack', 'this is jacked', 'this is appalling', 'it's a sham', 'that's outrageous', 'this is going down in flames'.",
+    expected: "Each triggers the 'Absolute / judgmental phrasing' chip. v3.3 covers calm pejoratives, loaded judgment phrases, direct judgments, colloquial 'sucks' forms — exhaustive.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.3-identity-attacks-comprehensive",
+    title: "Every identity-attack vocabulary entry triggers stone-identity",
+    instructions: "Try: 'you're a narcissist', 'they're toxic', 'he's a fraud', 'she's amateurish', 'you're bush league', 'they're a gaslighter', 'he's out of his depth'.",
+    expected: "Each triggers the 'Identity, not behavior' chip. Covers competence / character / mental / failure-identity / profane epithets / 'won't change' framings — exhaustive.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.3-aggression-imperatives-comprehensive",
+    title: "Every aggressive imperative from the library triggers aggressive-language",
+    instructions: "Try (individually): 'shut up', 'fuck off', 'piss off', 'go to hell', 'eat shit', 'drop dead', 'leave me alone', 'kiss my ass', 'knock it off'.",
+    expected: "Each triggers the 'Direct aggression toward a person' chip. The Aggressive Imperatives vocabulary is exhaustively enumerated; future common phrasings either belong here OR need a new category in vocabulary.ts (not ad-hoc additions to the regex).",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.3-onset-verbs-cascade",
+    title: "Onset-verb expansion cascades through every emotional state",
+    instructions: "Try: 'I'm getting bewildered', 'I'm feeling jaded', 'I'm becoming bitter', 'I'm starting to feel hopeless', 'I'm ending up frazzled', 'I'm growing irritable'.",
+    expected: "Each triggers the hot-state chip. The ONSET_VERBS vocabulary now multiplies into EMOTIONAL_STATES via the regex composition — adding a new onset verb or a new emotional state cascades to all combinations automatically.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.3-blame-projection-with-comprehensive-emotion",
+    title: "Blame projection works across the full emotional-state vocabulary",
+    instructions: "Try: 'you guys are making me jaded', 'they made me hopeless', 'y'all are making me bewildered'.",
+    expected: "Each triggers the 'Locating cause in someone else' chip. v3 had a hand-typed short list (mad / angry / furious / upset / stressed / anxious / crazy / nuts / insane / frustrated / annoyed / miserable); v3.3 inherits the full EMOTIONAL_STATES library by reference.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.3-vocabulary-as-library-not-arrays",
+    title: "(JOHN) Vocabulary lives in src/lib/coach/vocabulary.ts, NOT in heuristics.ts arrays",
+    instructions: "(JOHN) Inspect src/lib/coach/heuristics.ts — verify every word in any regex pattern comes via `vocabAlt(VOCAB_LIST)` from vocabulary.ts, not as inline `(word1|word2|word3)` arrays.",
+    expected: "All vocabulary-driven regex patterns are built from vocabAlt(...) over imports from vocabulary.ts. Per §1.3, ad-hoc inline vocabulary lists are the error-loop shape the v3.3 refactor explicitly stopped. Adding a new word means editing vocabulary.ts, not heuristics.ts.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

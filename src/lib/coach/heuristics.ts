@@ -168,80 +168,132 @@ export function mirrorChipText(
   }
 }
 
+// ─── v3.3 (2026-06-12) — vocabulary library refactor ───
+//
+// All seven detectors now build their pattern arrays from the shared
+// vocabulary library at src/lib/coach/vocabulary.ts. Per §1.3, after
+// four rounds of incremental vocabulary patches we stopped the loop
+// and authored the vocabulary surface ONCE, by semantic category.
+//
+// Adding a new word now means "which category does it belong to?" in
+// vocabulary.ts. Adding a new CATEGORY here is exceptional; if the
+// §4 readout shows one category over- or under-fires, that's the
+// signal to tune it, not the whole detector.
+
+import {
+  AGGRESSIVE_IMPERATIVES,
+  CATASTROPHIZING,
+  EMOTIONAL_STATES,
+  HIGH_INTENSITY_ADJECTIVES,
+  IDENTITY_ATTACKS,
+  INTENSIFIER_ADVERBS,
+  ONSET_VERBS,
+  PEJORATIVES_FOR_THINGS,
+  PROFANITY,
+  vocabAlt,
+} from "./vocabulary";
+
+const EMOTIONAL_STATES_ALT = vocabAlt(EMOTIONAL_STATES);
+const PEJORATIVES_FOR_THINGS_ALT = vocabAlt(PEJORATIVES_FOR_THINGS);
+const IDENTITY_ATTACKS_ALT = vocabAlt(IDENTITY_ATTACKS);
+const PROFANITY_ALT = vocabAlt(PROFANITY);
+const AGGRESSIVE_IMPERATIVES_ALT = vocabAlt(AGGRESSIVE_IMPERATIVES);
+const CATASTROPHIZING_ALT = vocabAlt(CATASTROPHIZING);
+const HIGH_INTENSITY_ALT = vocabAlt(HIGH_INTENSITY_ADJECTIVES);
+const ONSET_VERBS_ALT = vocabAlt(ONSET_VERBS);
+const INTENSIFIER_ALT = vocabAlt(INTENSIFIER_ADVERBS);
+
 const NVC_EVALUATION_PATTERNS: ReadonlyArray<RegExp> = [
-  // Absolutes about people/situations.
-  /\b(always|never|constantly|forever|whenever)\b/i,
-  // Diagnostic shorthand presented as fact — expanded v3 to include
-  // common conversational pejoratives that the original pattern missed.
-  /\b(this is|that is|this'?s|that'?s) (broken|wrong|stupid|dumb|terrible|useless|garbage|trash|awful|bs|bullshit|ridiculous|insane|absurd|crap|shit)\b/i,
+  // Absolutes about people/situations — expanded the family.
+  /\b(always|never|constantly|forever|whenever|every (single )?time|all the time|each and every|every single|nobody ever|no one ever)\b/i,
+  // "this is / that is / it's X" — X drawn from the comprehensive
+  // pejorative vocabulary. The verb forms cover the contractions
+  // people actually type ("this's" is rare but real in chat).
+  new RegExp(
+    `\\b(this is|that is|this'?s|that'?s|it'?s|its)\\s+(${PEJORATIVES_FOR_THINGS_ALT})\\b`,
+    "i"
+  ),
   // "Obviously" / "clearly" assert the speaker's read as the only read.
-  /\b(obviously|clearly|of course),?\s/i,
-  // Mind-reading.
-  /\b(you|they|he|she) (don't|doesn't|never) (get it|understand|listen|care)\b/i,
+  /\b(obviously|clearly|of course|naturally|patently|plainly|undeniably|self-evident),?\s/i,
+  // Mind-reading — expanded verbs.
+  /\b(you|they|he|she|y'?all|you guys) (don't|doesn't|won't|never|can't|cannot) (get it|understand|listen|care|see|hear|appreciate|grasp|comprehend|notice)\b/i,
 ];
 
 // Blame projection — locating the cause of one's emotional state in
-// someone else. The pattern the user flagged ("you guys are making me
-// mad") sits exactly here. We're not naming the user's feeling as
-// wrong; we're surfacing the LOCATION of the cause and asking if
-// that's where they want to land it.
+// someone else. v3.3: emotional vocabulary now comes from the shared
+// EMOTIONAL_STATES so we never have to remember to add a word in two
+// places again.
 const BLAME_PROJECTION_PATTERNS: ReadonlyArray<RegExp> = [
-  // "you are/y'all are/they are making me [emotion]" (the trailing
-  // pronoun "me" is optional — captures the user's "making mad" too).
-  /\b(you|you guys|y'?all|they|he|she) (are|is|'re|'s) making( me)? (mad|angry|furious|upset|stressed|anxious|crazy|nuts|insane|frustrated|annoyed|miserable)\b/i,
-  // "you made me [emotion]" past-tense variant
-  /\b(you|you guys|y'?all|they|he|she) made me (mad|angry|furious|upset|frustrated|annoyed)\b/i,
-  // "you're the reason / it's your fault" — direct blame
-  /\b(you'?re the reason|it'?s your fault|because of you)\b/i,
+  // "you/y'all/they are making (me) X" — emotion vocabulary drawn
+  // from the shared list. Trailing "me" is optional to catch the
+  // user's original "making mad" case.
+  new RegExp(
+    `\\b(you|you guys|y'?all|they|he|she|everyone) (are|is|'?re|'?s)\\s+making(\\s+me)?\\s+(${EMOTIONAL_STATES_ALT})\\b`,
+    "i"
+  ),
+  // Past-tense variant: "you made me X".
+  new RegExp(
+    `\\b(you|you guys|y'?all|they|he|she) made me\\s+(${EMOTIONAL_STATES_ALT})\\b`,
+    "i"
+  ),
+  // Direct attribution: "you're the reason / it's your fault /
+  // because of you / your fault".
+  /\b(you'?re the reason|it'?s your fault|because of you|your fault|on you|on y'?all)\b/i,
 ];
 
-// Hot-state communication — signaling tired/hungry/stressed/etc while
-// composing a message. Not about whether the message is valid; about
-// whether the AUTHOR would want this exact message to be the durable
-// record their future-self reads tomorrow.
-//
-// v3.2.1 (2026-06-12) — expanded after the user reported "I'm getting
-// annoyed" missed the detector. Two gaps:
-//   - "annoyed" / "irritated" / "upset" / "bothered" weren't in the
-//     vocabulary (we had the high-intensity tail: exhausted/burnt out)
-//   - the verb phrase was rigid "I'm X" — "I'm getting X" / "I'm
-//     feeling X" / "I'm starting to feel X" all slipped through
-// Both classes of mistake were affecting daily-use sensitivity in
-// the exact case the Coach is most needed for (low-intensity
-// emotional drift that escalates if unsurfaced).
+// Hot-state — first-person signals of tired/hungry/stressed/etc
+// while composing. v3.3 builds the pattern from the EMOTIONAL_STATES
+// + ONSET_VERBS + INTENSIFIER_ADVERBS vocabulary library so every
+// emotional state we ever surface here cascades to blame-projection
+// and back (consistency by construction).
 const HOT_STATE_PATTERNS: ReadonlyArray<RegExp> = [
-  // First-person hot-state declarations with optional onset-verb +
-  // optional intensifier. Onset verbs cover "I'm getting X" /
-  // "I'm feeling X" / "I'm starting to feel X" / "I'm becoming X".
-  /\b(i'?m|i am)( getting| feeling| becoming| starting to feel)?( so | really | really really | very |\s)?(hungry|starving|exhausted|tired|drained|wasted|burnt out|burned out|stressed|anxious|fried|done|over it|over this|fed up|sick of (it|this)|losing it|annoyed|irritated|upset|bothered|agitated|cranky|grumpy|on edge|frazzled|wiped|spent|cooked|toast)\b/i,
-  // "Up all night / hadn't slept" sleep deprivation tells.
-  /\b(up all night|haven'?t slept|no sleep|running on (fumes|empty))\b/i,
+  new RegExp(
+    `\\b(i'?m|i am)(\\s+(${ONSET_VERBS_ALT}))?(\\s+(${INTENSIFIER_ALT}))?\\s+(${EMOTIONAL_STATES_ALT})\\b`,
+    "i"
+  ),
+  // Sleep deprivation tells stay as a separate hand-authored
+  // pattern — they don't follow the "I'm X" shape.
+  /\b(up all night|haven'?t slept|no sleep|running on (fumes|empty)|barely slept|3 hours of sleep|2 hours of sleep|all-nighter)\b/i,
 ];
 
-// Direct aggression — profanity or attacks aimed AT people in the
-// conversation. Generic frustration ("this sucks") is covered by the
-// NVC evaluation patterns; this is about words directed at people.
+// Direct aggression — profanity or aggressive imperatives aimed AT
+// a person in the conversation. Distinct from stone-identity-
+// collision (which covers all "you're [identity attack]" shapes);
+// keeping them disjoint prevents overlap-induced priority confusion
+// in detectAll's ordering.
 const AGGRESSIVE_LANGUAGE_PATTERNS: ReadonlyArray<RegExp> = [
-  // Profanity directed at "you/they/them" — second/third-person target.
-  /\b(fuck|fucking|shit|damn|hell|piss off|asshole|jackass|moron|idiot)\b.*\b(you|him|her|them|they)\b/i,
-  /\b(you|him|her|them|they)\b.*\b(fuck|fucking|shit|damn|asshole|jackass|moron|idiot)\b/i,
-  // Imperative aggression
-  /\b(shut up|shut it|fuck off|piss off|get lost|go to hell)\b/i,
-  // Direct insults targeting "you"
-  /\byou'?re (a |an )?(fucking |damn |stupid |dumb )?(idiot|moron|asshole|jackass|loser|joke|fool)\b/i,
+  // Profanity within reach of a second/third-person pronoun.
+  // We don't require strict adjacency because chat often inserts
+  // intervening words ("fuck what you said", "fuck all of them").
+  new RegExp(
+    `\\b(${PROFANITY_ALT})\\b.{0,40}\\b(you|y'?all|him|her|them|they|everyone)\\b`,
+    "i"
+  ),
+  new RegExp(
+    `\\b(you|y'?all|him|her|them|they|everyone)\\b.{0,40}\\b(${PROFANITY_ALT})\\b`,
+    "i"
+  ),
+  // Aggressive imperatives drawn from the shared list (shut up, fuck
+  // off, piss off, eat shit, etc.).
+  new RegExp(`\\b(${AGGRESSIVE_IMPERATIVES_ALT})\\b`, "i"),
 ];
 
 // Emotional escalation — heightened language that tends to overshoot
-// what the author actually wants the recipient to do. Distinct from
-// blame projection (which locates cause externally) and aggressive
-// language (which targets a person).
+// what the author actually wants the recipient to do.
 const EMOTIONAL_ESCALATION_PATTERNS: ReadonlyArray<RegExp> = [
-  // High-intensity self-states broadcast in a message
-  /\b(i'?m|i am) (absolutely |completely |totally |utterly |so |really )?(furious|livid|enraged|outraged|disgusted|appalled|seething)\b/i,
-  // "This is" + extreme judgment
-  /\bthis is (absolutely |completely |totally |utterly )?(unacceptable|outrageous|inexcusable|disgraceful|appalling|disgusting|infuriating)\b/i,
-  // Catastrophizing language
-  /\b(disaster|catastrophe|nightmare|train wreck|dumpster fire)\b/i,
+  // "I'm [intensifier] [high-intensity adj]" — first-person broadcast
+  // of a hot state in heightened language.
+  new RegExp(
+    `\\b(i'?m|i am)(\\s+(${INTENSIFIER_ALT}))?\\s+(${HIGH_INTENSITY_ALT})\\b`,
+    "i"
+  ),
+  // "This is [intensifier] [high-intensity adj]" — external judgment.
+  new RegExp(
+    `\\bthis is(\\s+(${INTENSIFIER_ALT}))?\\s+(${HIGH_INTENSITY_ALT})\\b`,
+    "i"
+  ),
+  // Catastrophizing nouns/phrases drawn from the shared list.
+  new RegExp(`\\b(${CATASTROPHIZING_ALT})\\b`, "i"),
 ];
 
 const VOSS_ASSERTION_PATTERNS: ReadonlyArray<RegExp> = [
@@ -252,9 +304,18 @@ const VOSS_ASSERTION_PATTERNS: ReadonlyArray<RegExp> = [
 ];
 
 const STONE_IDENTITY_PATTERNS: ReadonlyArray<RegExp> = [
-  // Person-as-trait, not behavior.
-  /\b(you('?re| are)|they('?re| are)|he is|she is|that person is) (incompetent|lazy|stupid|amateur|clueless|hopeless|useless|toxic|a joke|out of their depth|in over their head)\b/i,
-  /\b(can't be trusted|doesn't belong here|shouldn't be here|won't ever (get|learn|change))\b/i,
+  // Person-as-trait, not behavior. Identity attacks drawn from the
+  // shared vocabulary list so all person-attacking forms are caught
+  // consistently. Optional intensifier covers "you're a fucking idiot"
+  // / "they're a damn loser" etc.
+  new RegExp(
+    `\\b(you('?re| are)|they('?re| are)|he is|she is|that person is|y'?all are)\\s+(a |an )?(${INTENSIFIER_ALT}\\s+)?(${IDENTITY_ATTACKS_ALT})\\b`,
+    "i"
+  ),
+  // "Can't be trusted / doesn't belong here / won't ever change" —
+  // identity-as-fixed-judgment framings. Hand-authored because they
+  // don't follow the "X is Y" shape.
+  /\b(can't be trusted|doesn't belong here|shouldn't be here|won't ever (get|learn|change|improve|grow|listen))\b/i,
 ];
 
 function firstMatch(
