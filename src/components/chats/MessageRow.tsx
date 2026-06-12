@@ -87,8 +87,11 @@ export function MessageRow({
               · the System&apos;s read — confirm or correct
             </span>
           </div>
-          <div className="bg-arc-400/5 border border-arc-400/20 rounded-xl px-3 py-2">
-            <p className="text-sm text-primary whitespace-pre-wrap leading-relaxed">
+          <div className="bg-arc-400/5 border border-arc-400/20 rounded-xl px-3 py-2 min-w-0">
+            <p
+              className="text-sm text-primary whitespace-pre-wrap leading-relaxed break-words"
+              style={{ overflowWrap: "anywhere" }}
+            >
               {msg.body}
             </p>
           </div>
@@ -100,7 +103,7 @@ export function MessageRow({
   return (
     <div
       id={`msg-${msg.id}`}
-      className="flex gap-3 group rounded-xl transition-shadow"
+      className="flex gap-2 md:gap-3 group rounded-xl transition-shadow min-w-0"
     >
       <div
         className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold border border-default/40"
@@ -147,7 +150,7 @@ export function MessageRow({
               parent && onJumpToParent && onJumpToParent(parent.id)
             }
             disabled={!parent || !onJumpToParent}
-            className="w-full text-left flex items-start gap-2 mb-1 pl-2 py-1 rounded-md border-l-2 border-ember-400/60 bg-ember-400/[0.04] hover:bg-ember-400/[0.08] disabled:opacity-60 transition-colors"
+            className="w-full text-left flex items-start gap-2 mb-1 pl-2 py-1 rounded-md border-l-2 border-ember-400/60 bg-ember-400/[0.04] hover:bg-ember-400/[0.08] disabled:opacity-60 transition-colors min-w-0"
             title={parent ? "Jump to original message" : "Original message not loaded"}
           >
             <Reply className="w-3 h-3 text-brand mt-0.5 flex-shrink-0" aria-hidden />
@@ -164,13 +167,22 @@ export function MessageRow({
           </button>
         )}
         <div
-          className={`relative rounded-xl px-3 py-2 ${
+          className={`relative rounded-xl px-3 py-2 min-w-0 ${
             msg.pinned
               ? "bg-gold-400/5 border border-gold-400/20"
               : "bg-surface/60 border border-default"
           }`}
         >
-          <p className="text-sm text-primary whitespace-pre-wrap leading-relaxed pr-14">
+          {/* break-words + overflow-wrap-anywhere force long unbroken
+              tokens (URLs, Facebook share links from the WhatsApp
+              migration) to wrap mid-string instead of overflowing the
+              bubble. Without this the page horizontally scrolls on
+              mobile. whitespace-pre-wrap kept so multi-line bodies
+              still render line breaks. */}
+          <p
+            className="text-sm text-primary whitespace-pre-wrap leading-relaxed pr-14 break-words"
+            style={{ overflowWrap: "anywhere" }}
+          >
             {msg.body}
           </p>
           <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

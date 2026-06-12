@@ -100,7 +100,7 @@ export default function TeamChatListPage() {
         subtitle={`${companyName} · Topic-based conversations with structured outcomes`}
       />
 
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="p-3 md:p-6 max-w-6xl mx-auto space-y-6 min-w-0">
         {mode === "demo-fixtures" && (
           <div className="flex items-start gap-2.5 p-3 rounded-xl bg-gold-400/5 border border-gold-400/20">
             <AlertTriangle

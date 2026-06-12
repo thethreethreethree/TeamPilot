@@ -47,9 +47,13 @@ export default async function DashboardLayout({
 
   return (
     <ToastProvider>
-      <div className="flex min-h-screen bg-base">
+      <div className="flex min-h-screen bg-base overflow-x-hidden">
         <Sidebar />
-        <main className="flex-1 md:ml-64 min-h-screen overflow-x-hidden">
+        {/* min-w-0 on <main> is the load-bearing guard against children
+            (chat URLs, long table cells, etc.) pushing the page wider
+            than the viewport. Combined with overflow-x-hidden it
+            structurally prevents horizontal scroll on mobile. */}
+        <main className="flex-1 md:ml-64 min-h-screen min-w-0 overflow-x-hidden">
           {children}
         </main>
         <CommandPalette />

@@ -351,12 +351,13 @@ export default function TeamChatTopicPage() {
   }
 
   return (
-    <div className="h-screen bg-base flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-base flex flex-col overflow-hidden">
       <TopBar title={topic.title} subtitle={topic.description ?? ""} />
 
-      {/* Topic header bar */}
-      <div className="border-b border-default bg-surface/50 px-6 py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+      {/* Topic header bar — uses px-3 on mobile to give chips/buttons
+          room before falling back to px-6 on larger screens. */}
+      <div className="border-b border-default bg-surface/50 px-3 md:px-6 py-3 overflow-x-hidden">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2 md:gap-4 flex-wrap min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <Link
               href="/dashboard/chats"
@@ -531,7 +532,7 @@ export default function TeamChatTopicPage() {
           fires the chat.topic_durability_reviewed event which derives
           the appropriate consequence signal. */}
       {isClosed && topic.closeSummary && (
-        <div className="max-w-5xl mx-auto w-full px-6 mt-4">
+        <div className="max-w-5xl mx-auto w-full px-3 md:px-6 mt-4 min-w-0">
           <div className="flex items-start gap-3 p-3 rounded-xl bg-gold-400/5 border border-gold-400/30">
             <CheckCircle2
               className="w-4 h-4 text-accent-text mt-0.5 flex-shrink-0"
@@ -582,14 +583,20 @@ export default function TeamChatTopicPage() {
 
       {/* Message stream — the only scrollable area on this page.
           Sticky date dividers float at the top of the viewport as you
-          scroll past a day's worth of messages (Slack pattern). */}
-      <div className="relative flex-1 min-h-0">
+          scroll past a day's worth of messages (Slack pattern).
+
+          Mobile-overflow defense: every nesting level here has
+          overflow-x-hidden + min-w-0 so a single long URL inside a
+          message bubble cannot push the page wider than the viewport.
+          The 210-message migration brought in raw URLs (Tony Robbins,
+          Facebook share links) that broke the original layout. */}
+      <div className="relative flex-1 min-h-0 overflow-x-hidden">
         <div
           ref={scrollRef}
           onScroll={onMessagesScroll}
-          className="absolute inset-0 overflow-y-auto px-6 py-6"
+          className="absolute inset-0 overflow-y-auto overflow-x-hidden px-3 md:px-6 py-6"
         >
-          <div className="max-w-5xl mx-auto w-full">
+          <div className="max-w-5xl mx-auto w-full min-w-0">
             {grouped.length === 0 ? (
               <div className="text-center py-12">
                 <MessageSquare
@@ -610,12 +617,12 @@ export default function TeamChatTopicPage() {
                   <div key={group.dateKey}>
                     {/* Sticky date divider — Slack-style. Floats at top
                         of the visible viewport as the user scrolls past
-                        a day. Backdrop blur so it stays legible over the
-                        messages it's covering. */}
-                    <div className="sticky top-0 z-10 -mx-6 px-6 py-2 mb-4 bg-base/85 backdrop-blur-sm">
-                      <div className="flex items-center gap-3 max-w-5xl mx-auto">
+                        a day. Negative margin is mobile-safe via
+                        -mx-3 md:-mx-6 (matches parent padding). */}
+                    <div className="sticky top-0 z-10 -mx-3 md:-mx-6 px-3 md:px-6 py-2 mb-4 bg-base/85 backdrop-blur-sm">
+                      <div className="flex items-center gap-3 max-w-5xl mx-auto min-w-0">
                         <div className="flex-1 h-px bg-surface-raised" />
-                        <span className="text-[10px] uppercase tracking-widest text-muted font-mono bg-surface border border-default rounded-full px-2.5 py-1">
+                        <span className="text-[10px] uppercase tracking-widest text-muted font-mono bg-surface border border-default rounded-full px-2.5 py-1 flex-shrink-0">
                           {group.label}
                         </span>
                         <div className="flex-1 h-px bg-surface-raised" />
@@ -662,7 +669,7 @@ export default function TeamChatTopicPage() {
 
       {/* Composer */}
       {!isClosed && (
-        <div className="border-t border-default bg-surface/50 px-6 py-4">
+        <div className="border-t border-default bg-surface/50 px-3 md:px-6 py-4 overflow-x-hidden">
           <form
             onSubmit={handleSubmit}
             className="max-w-5xl mx-auto"

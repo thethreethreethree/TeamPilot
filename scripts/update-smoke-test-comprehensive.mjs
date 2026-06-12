@@ -767,6 +767,43 @@ const items = [
     expected: "Toast shows the post error. The reply pill is restored to the composer alongside the draft text so the user can retry without losing context. (This is the failure-path rollback — same shape as the existing draft restoration.)",
     assignee: "partners",
   },
+
+  // ─── Mobile horizontal-overflow guards ─────────────────────────
+  {
+    id: "mobile-chat-no-horizontal-scroll",
+    title: "Mobile chat page does NOT scroll horizontally",
+    instructions: "Open the migrated Development LAB topic (210 messages, several long URLs) on a phone OR Chrome DevTools mobile preview at 375px width.",
+    expected: "Page does NOT scroll left-right. Composer is visible at the bottom. Messages with long URLs (Tony Robbins course link, Facebook share link) wrap mid-URL rather than overflowing the bubble. The screen never reveals empty white space to the left or right.",
+    assignee: "partners",
+  },
+  {
+    id: "mobile-long-url-wraps",
+    title: "Long URLs in messages wrap mid-token instead of overflowing",
+    instructions: "On mobile width (375px), find a message containing a long unbroken URL (search the WhatsApp migration for 'facebook.com/share' or 'claude101.com').",
+    expected: "URL wraps across multiple lines inside the bubble. The bubble itself does not extend beyond its container. No horizontal scroll appears.",
+    assignee: "partners",
+  },
+  {
+    id: "mobile-sticky-divider-no-shift",
+    title: "Sticky date divider doesn't shift the page on mobile",
+    instructions: "Scroll the chat slowly on mobile width — watch the date pill at the top as you scroll past day boundaries.",
+    expected: "Sticky date pill stays centered at the top of the message stream, never causes the surrounding messages to shift horizontally. Negative-margin trick (–mx-3 md:–mx-6) respects parent padding at each breakpoint.",
+    assignee: "partners",
+  },
+  {
+    id: "mobile-topic-header-wraps-cleanly",
+    title: "Topic header chips wrap onto multiple lines instead of overflowing",
+    instructions: "On mobile, open a topic with several tags + status. Look at the top header strip.",
+    expected: "Status badge + tag chips wrap onto a second/third line as needed without forcing horizontal scroll. Action buttons (people count, Add member, Summarize, Open Decision Dialogue, Close) wrap similarly.",
+    assignee: "partners",
+  },
+  {
+    id: "mobile-dashboard-layout-overflow-guard",
+    title: "Dashboard layout structurally prevents horizontal scroll",
+    instructions: "Visit any dashboard page on mobile (375px). Try to scroll horizontally on Tasks, Notifications, Team check, Settings, Brain.",
+    expected: "None of these scroll horizontally. The <main> element has min-w-0 + overflow-x-hidden so any child component that contains a long unbroken token wraps instead of pushing the layout wider than the viewport.",
+    assignee: "partners",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

@@ -151,6 +151,21 @@ body {
   transition: background-color 200ms ease, color 200ms ease;
 }
 
+/* Defense against unbroken user content (URLs from the WhatsApp
+   migration, especially) pushing the page wider than the viewport
+   on mobile. Targets only message-body + reply-quote paragraphs so
+   we don't change the wrapping behavior of UI chrome that relies
+   on words staying intact.
+
+   The `whitespace-pre-wrap` className these elements use preserves
+   line breaks from user input; overflow-wrap: anywhere is the modern
+   spec that breaks even mid-word for tokens that exceed the line. */
+.chat-message-body,
+.chat-message-body * {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* Custom scrollbar — theme-aware, with ember hover (subtle brand presence) */
 ::-webkit-scrollbar {
   width: 6px;
