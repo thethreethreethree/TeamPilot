@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { useSseStream } from "@/lib/hooks/useSseStream";
+import { detectAll, type CoachCitation } from "@/lib/coach/heuristics";
 import type { ChatMessage, ChatTopic } from "@/lib/data/chats";
 
 /**
@@ -38,6 +39,24 @@ export function GuideMyResponseModal({
     [recent]
   );
 
+  // v3.9 (2026-06-12): Sharpen runs the same regex Coach uses against
+  // the draft, so the route can know what was flagged and apply each
+  // heuristic's principle during the rewrite. Without this, Sharpen
+  // optimized for clarity ONLY — meaning an attack like "could you
+  // not act stupid" would be returned essentially unchanged because
+  // it's already direct. With it, Sharpen also strips the identity
+  // attack while preserving the user's intent. Holistic (§1.5) — the
+  // two tools now compose instead of working at cross-purposes.
+  const citationsPayload = useMemo(() => {
+    const cs = detectAll(draft) as CoachCitation[];
+    return cs.map((c) => ({
+      id: c.id,
+      label: c.label,
+      principle: c.principle,
+      trigger_excerpt: c.triggerExcerpt,
+    }));
+  }, [draft]);
+
   // Auto-start on mount — the user opened this expecting an answer; an
   // extra "Generate" button would be friction with no purpose.
   useEffect(() => {
@@ -46,6 +65,7 @@ export function GuideMyResponseModal({
       draft,
       topic: { title: topic.title, description: topic.description },
       recent: recentPayload,
+      coachCitations: citationsPayload,
     });
     return () => abort();
     // Intentionally only on mount — re-running on draft change would
@@ -53,7 +73,26 @@ export function GuideMyResponseModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const suggestion = status.text;
+  // v3.9: strip surrounding double-quotes from the streamed suggestion.
+  // The system prompt says "no quotation marks" but the LLM occasionally
+  // wraps the response anyway (most recently on "could you not act
+  // stupid" — returned as `"Could you not act stupid"`). Post-process
+  // is defense-in-depth: even if the LLM ignores the rule, the user
+  // sees the cleaned text and the Accept button substitutes cleaned
+  // text into their composer.
+  const rawSuggestion = status.text;
+  const suggestion = useMemo(() => {
+    let s = rawSuggestion.trim();
+    // Strip a single pair of surrounding straight or curly quotes.
+    if (
+      (s.startsWith('"') && s.endsWith('"')) ||
+      (s.startsWith("“") && s.endsWith("”")) ||
+      (s.startsWith("'") && s.endsWith("'") && s.length > 2)
+    ) {
+      s = s.slice(1, -1).trim();
+    }
+    return s;
+  }, [rawSuggestion]);
   const streaming = status.state === "streaming";
   const suppressed = status.state === "suppressed";
   const errored = status.state === "error";

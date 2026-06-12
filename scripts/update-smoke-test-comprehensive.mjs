@@ -1539,6 +1539,36 @@ const items = [
     expected: "FEELING_AS_JUDGMENT_ADJECTIVES is a top-level export with ~40 entries grouped by sub-shape (irritation, exhaustion, frustration, stress, confusion, etc.). Per A13, the discipline is: when the same shape recurs, name the CATEGORY once at the right altitude rather than patching per-word. 'thats annoying' was the trigger; the category was the missing space.",
     assignee: "john",
   },
+
+  // ─── Sharpen v3.9 — Coach-aware + quote-strip ────────────────
+  {
+    id: "sharpen-v3.9-coach-aware-prompt",
+    title: "Sharpen 'Guide my response' now strips identity-attack language from drafts",
+    instructions: "Type 'could you not act stupid' in any chat composer. Click 'Guide my response'. Watch the suggestion stream.",
+    expected: "System suggestion produces a non-attack revision preserving the user's intent (e.g. 'could you walk through the reasoning — I'm not following'). Previously the prompt told the LLM 'do not soften their disagreement,' so it returned the draft essentially unchanged (just quoted: '\"Could you not act stupid\"'). v3.9 detects Coach-flagged patterns in the draft via detectAll() before opening the modal, passes them to /api/chat/guide as coachCitations, and the system prompt now includes per-heuristic principles. The disagreement is preserved; only the attack framing is stripped. §1.5 holistic: Coach and Sharpen now compose instead of working at cross-purposes.",
+    assignee: "partners",
+  },
+  {
+    id: "sharpen-v3.9-no-coach-hits-unchanged-behavior",
+    title: "Sharpen without Coach hits behaves identically to v3.8",
+    instructions: "Type a clean, neutral draft like 'I'm planning to merge the auth refactor tomorrow morning before standup.' Click Guide my response.",
+    expected: "When detectAll returns zero hits, coachCitations is empty and the route uses the BASE_SYSTEM_PROMPT only (no addendum). Behavior matches pre-v3.9 — clarity-only sharpening with no Coach intervention. The addendum only attaches when there's something to address.",
+    assignee: "partners",
+  },
+  {
+    id: "sharpen-v3.9-strips-surrounding-quotes",
+    title: "Surrounding double-quotes are stripped from the suggestion before display",
+    instructions: "In any chat, click Guide my response. Watch the rendered suggestion. If the LLM returns '\"text\"' (with wrapping quotes despite the prompt rule), check what the UI shows.",
+    expected: "The modal's displayed suggestion has surrounding straight, curly, or single-quote pairs stripped before render. Defense-in-depth: the prompt says no quotation marks, AND the UI strips them anyway in case the LLM ignores the rule (as happened with 'could you not act stupid' → returned as '\"Could you not act stupid\"'). The 'Use the suggestion' button substitutes the cleaned text into the composer.",
+    assignee: "partners",
+  },
+  {
+    id: "sharpen-v3.9-hard-rule-no-verbatim-trigger",
+    title: "(JOHN) Coach-aware addendum includes 'no verbatim trigger' hard rule",
+    instructions: "(JOHN) Read src/app/api/chat/guide/route.ts. Confirm COACH_AWARE_ADDENDUM ends with 'Hard rule: the rewrite must NOT contain the flagged trigger excerpt verbatim.'",
+    expected: "The hard rule is the final constraint in the addendum. Without it, the LLM might still output the trigger phrase ('stupid', 'this is broken') verbatim — defeating the rewrite. The route trusts the LLM to follow this rule per its prompt-instruction-following budget; a future defense would be a server-side substring check. For v3.9, prompt-level enforcement is the floor.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
