@@ -106,19 +106,33 @@ export async function POST(req: NextRequest) {
     // verdict + context_note fields. Each filter is defense-in-depth
     // against the LLM going off-script.
     const hits: CoachLlmHit[] = Array.isArray(parsed.hits)
-      ? parsed.hits.filter(
-          (h) =>
-            h &&
-            typeof h.pattern_id === "string" &&
-            ALLOWED_PATTERN_IDS.has(h.pattern_id) &&
-            typeof h.trigger_excerpt === "string" &&
-            h.trigger_excerpt.length > 0 &&
-            ["high", "medium", "low"].includes(h.confidence) &&
-            ["confirmed", "uncertain", "vetoed"].includes(h.verdict) &&
-            typeof h.context_note === "string" &&
-            h.context_note.length > 0 &&
-            h.context_note.length <= 400
-        )
+      ? parsed.hits
+          .filter(
+            (h) =>
+              h &&
+              typeof h.pattern_id === "string" &&
+              ALLOWED_PATTERN_IDS.has(h.pattern_id) &&
+              typeof h.trigger_excerpt === "string" &&
+              h.trigger_excerpt.length > 0 &&
+              ["high", "medium", "low"].includes(h.confidence) &&
+              ["confirmed", "uncertain", "vetoed"].includes(h.verdict) &&
+              typeof h.context_note === "string" &&
+              h.context_note.length > 0 &&
+              h.context_note.length <= 400
+          )
+          // v3.12: validate the new revision_suggestion field. Optional
+          // but bounded — if present it must be a non-empty string under
+          // 600 chars; if missing the client falls back to citation.suggestion.
+          .map((h) => {
+            const rs = typeof h.revision_suggestion === "string" ? h.revision_suggestion.trim() : "";
+            return {
+              ...h,
+              revision_suggestion:
+                rs.length > 0 && rs.length <= 600 && h.verdict !== "vetoed"
+                  ? rs
+                  : undefined,
+            };
+          })
       : [];
 
     return NextResponse.json({

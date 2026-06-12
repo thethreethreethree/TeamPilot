@@ -237,6 +237,13 @@ export type CoachLlmHit = {
    *  generic kindExplanation remain in the expanded view as the
    *  durable theory; this note is the moment-specific read. */
   context_note: string;
+  /** v3.12 (2026-06-12): draft-specific revision suggestion. The static
+   *  citation.suggestion was per-heuristic template + trigger
+   *  interpolation — user flagged that as "100% the same all the time."
+   *  This field is the LLM's reading of THIS specific draft with a
+   *  concrete revision proposal. Falls back to citation.suggestion when
+   *  absent. Vetoed hits should omit this field. */
+  revision_suggestion?: string;
 };
 
 export async function proposeCoachPatterns(args: {
@@ -283,9 +290,10 @@ For EACH regex hit input, render a verdict:
     when the user is clearly NOT using the pattern.
 
 For each pattern you DO surface (confirmed or uncertain, OR a new
-pattern the regex missed), provide a CONTEXT-SPECIFIC NOTE — 1 or 2
-sentences SPECIFIC to what the user wrote. NOT generic. Reference
-the actual words. Examples:
+pattern the regex missed), provide:
+
+(A) CONTEXT_NOTE — 1 or 2 sentences SPECIFIC to what the user wrote.
+NOT generic. Reference the actual words. Examples:
 
 GOOD: "You're framing the late deploy as 'always' — is the regularity what makes it costly, or is this one specifically?"
 GOOD: "The phrase 'you guys are making mad' lands the cause of the feeling on them; an alternative is 'I'm getting frustrated when standups slip past noon.'"
@@ -294,12 +302,31 @@ GOOD: "You're inside the word 'dumb' rather than using it as your own — looks 
 BAD: "Built-in evaluation often puts the other person in a defensive position…" (generic, not specific to draft)
 BAD: "This is a pattern worth pausing on." (no specificity)
 
+(B) REVISION_SUGGESTION (v3.12) — a concrete, draft-specific revision
+proposal. Not a generic template; an actual rewrite of THIS draft
+that strips the flagged pattern while preserving the user's intent.
+2 or 3 sentences max. Required for "confirmed" and "uncertain" hits;
+OMIT entirely for "vetoed" hits.
+
+GOOD examples (draft-specific, name the actual revision):
+- Draft "this is always broken" → revision_suggestion: "Try naming the specific instance: 'this broke again — that's the third time this week.' The frequency becomes the observation, not the absolute judgment."
+- Draft "you guys are making me mad" → revision_suggestion: "Try 'I'm getting frustrated when X' — the feeling stays yours, and the specific behavior (X) gives the other person something concrete to respond to."
+- Draft "this is the dumbest thing" → revision_suggestion: "Replace 'dumbest thing' with what specifically didn't work — e.g. 'this approach skipped the auth check' — so the recipient knows what to fix."
+
+BAD examples (DO NOT do these):
+- "Try restating the observable behavior." (generic template)
+- "What specifically did you notice happen?" (question, not a revision)
+- "Strip the evaluation from the observation." (principle, not a rewrite)
+
 RULES:
 - Be conservative on confirmations. When in doubt, "vetoed" if the
   context clearly contradicts; "uncertain" otherwise.
 - Multiple verdicts can apply. Return all of them, including vetoes.
 - trigger_excerpt must be the EXACT span from the draft.
 - context_note must reference the actual draft words, not paraphrased.
+- revision_suggestion must propose a CONCRETE rewrite, not advice
+  about how to think about revising. The user should be able to copy
+  the revision verbatim. Omit for vetoed hits.
 
 Return STRICT JSON in this exact shape:
 
@@ -307,10 +334,11 @@ Return STRICT JSON in this exact shape:
   "hits": [
     {
       "pattern_id": "nvc-evaluation",
-      "trigger_excerpt": "this is dumb",
+      "trigger_excerpt": "this is always broken",
       "confidence": "high",
-      "verdict": "vetoed",
-      "context_note": "You're inside the phrase 'this is dumb' as a critique — the draft starts with 'I don't like…' which signals you're objecting to the word being used, not using it yourself."
+      "verdict": "confirmed",
+      "context_note": "You're framing the late deploy as 'always broken' — the absolute makes the problem feel categorical, but the recipient may push back on whether 'always' is fair.",
+      "revision_suggestion": "Try: 'this broke again — that's the third time this week.' The frequency becomes the observation, the absolute drops, and the recipient has a concrete instance to respond to."
     }
   ]
 }

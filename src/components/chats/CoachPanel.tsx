@@ -101,6 +101,9 @@ type LlmHit = {
    *  Shown in the closed chip; replaces the generic kindExplanation
    *  for the moment-specific read. */
   context_note: string;
+  /** v3.12 — concrete, draft-specific revision proposal. Falls back
+   *  to citation.suggestion (per-heuristic template) when absent. */
+  revision_suggestion?: string;
 };
 
 /** Synthesize a CoachCitation for an LLM hit. Re-uses the existing
@@ -141,6 +144,10 @@ export function CoachPanel({
     count: number;
     contextNote: string | null;
     verdict: LlmHit["verdict"] | null;
+    /** v3.12 — LLM-generated draft-specific revision proposal. When
+     *  present, replaces citation.suggestion in the How-to-revise card.
+     *  When null, fall back to the static per-heuristic template. */
+    revisionSuggestion: string | null;
   } | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [pastCounts, setPastCounts] = useState<
@@ -329,13 +336,21 @@ export function CoachPanel({
       // surfaces too many false positives at the §4 readout.
       const verdicts = new Map<
         CoachCitation["id"],
-        { verdict: LlmHit["verdict"]; contextNote: string }
+        {
+          verdict: LlmHit["verdict"];
+          contextNote: string;
+          revisionSuggestion: string | null;
+        }
       >();
       for (const h of llmHits) {
         if (!llmConfidenceCounts(h)) continue;
         verdicts.set(h.pattern_id, {
           verdict: h.verdict,
           contextNote: h.context_note,
+          revisionSuggestion:
+            typeof h.revision_suggestion === "string" && h.revision_suggestion.length > 0
+              ? h.revision_suggestion
+              : null,
         });
       }
 
@@ -378,6 +393,7 @@ export function CoachPanel({
         count: number;
         contextNote: string | null;
         verdict: LlmHit["verdict"] | null;
+        revisionSuggestion: string | null;
       } | null = null;
       for (const c of sorted) {
         const past = pastCounts[c.id] ?? 0;
@@ -390,6 +406,7 @@ export function CoachPanel({
             count: total,
             contextNote: v?.contextNote ?? null,
             verdict: v?.verdict ?? null,
+            revisionSuggestion: v?.revisionSuggestion ?? null,
           };
           break;
         }
@@ -622,23 +639,34 @@ export function CoachPanel({
                 </p>
               )}
               {/* v3.7 (2026-06-12) — actionable revision guidance was
-                  authored in citation.suggestion all along (e.g. for
-                  "stupid move": '"stupid move" is a judgment — what
-                  specifically did you notice happen?') but the expanded
-                  view never rendered it. User flagged the expanded
-                  chip as "unclear guidance for correction" — accurate,
-                  because the only guidance shown was the abstract
-                  principle + kindExplanation pair, neither of which
-                  said HOW to revise THIS draft. A14 strike again: data
-                  path had the actionable text; render path didn't
-                  consume it. Surfacing it here as the FIRST thing the
-                  user sees after the System's-read card. */}
+                  authored in citation.suggestion all along but the
+                  expanded view never rendered it. A14: data path had
+                  the actionable text; render path didn't consume it.
+                  v3.12 (2026-06-12) — user flagged citation.suggestion
+                  as "100% the same all the time" — accurate, because
+                  it's a per-heuristic template with only the trigger
+                  excerpt interpolated. Now we prefer the LLM's
+                  draft-specific revision_suggestion (which proposes a
+                  concrete rewrite of THIS draft) and fall back to the
+                  static template only when the LLM isn't available or
+                  didn't generate one. The presence of a small badge
+                  signals which source is rendering — honesty over
+                  uniform polish. */}
               <div className="rounded-lg bg-surface border border-default p-2.5 mt-1">
-                <p className="text-[10px] uppercase tracking-widest font-mono text-brand mb-1">
+                <p className="text-[10px] uppercase tracking-widest font-mono text-brand mb-1 flex items-center gap-2">
                   How to revise
+                  {active.revisionSuggestion ? (
+                    <span className="text-[9px] normal-case tracking-normal font-sans bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                      Draft-specific (LLM)
+                    </span>
+                  ) : (
+                    <span className="text-[9px] normal-case tracking-normal font-sans bg-surface text-muted border border-default px-1.5 py-0.5 rounded">
+                      Generic template (no LLM read)
+                    </span>
+                  )}
                 </p>
                 <p className="text-xs text-primary leading-relaxed">
-                  {active.citation.suggestion}
+                  {active.revisionSuggestion ?? active.citation.suggestion}
                 </p>
               </div>
               {/* v3.7: the "Underlying principle" + kindExplanation pair

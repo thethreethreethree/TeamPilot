@@ -1615,6 +1615,36 @@ const items = [
     expected: "Per A13: when the same MISS-class recurs (vocabulary missing grammatical variants), the structural fix is at the SHAPE altitude, not by adding 50 -er/-est word variants to the vocab list. The regex relaxation catches every adjective in EVALUATION_ADJECTIVES_ALT's comparative+superlative forms in one change. Only irregular suppletives (worst, worse, lousiest) — which the suffix relaxation can't reach — needed direct vocab additions. The discipline holds: name the shape once, consume existing vocabulary by reference.",
     assignee: "john",
   },
+
+  // ─── Coach v3.12 — draft-specific revision_suggestion ────────
+  {
+    id: "coach-v3.12-revision-suggestion-draft-specific",
+    title: "'How to revise' card shows DRAFT-SPECIFIC text when LLM has read the draft",
+    instructions: "Type 'this is always broken' OR 'you guys are making me mad' OR any clear pattern that the LLM will confirm. Wait for the LLM round trip (~1.2s). Expand the chip.",
+    expected: "The 'How to revise' card shows the LLM's concrete draft-specific revision proposal (e.g. 'Try: this broke again — that's the third time this week. The frequency becomes the observation, the absolute drops, and the recipient has a concrete instance to respond to.') with a small green 'Draft-specific (LLM)' badge in the header. Previously the card showed citation.suggestion — a per-heuristic template that only interpolated the trigger excerpt, looking '100% the same all the time' across fires. User explicitly flagged the previous behavior.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.12-template-fallback-when-no-llm",
+    title: "'How to revise' falls back to template (with honest badge) when LLM hasn't read",
+    instructions: "Force a regex-only state (type fast then expand before 1.2s, OR type a draft the LLM happens to not return on). Expand the chip.",
+    expected: "Card shows citation.suggestion (per-heuristic template) with a muted 'Generic template (no LLM read)' badge in the header. Honest: the user can tell from the badge whether the System has actually read THIS draft vs falling back to the static text. No more silent 'looks personalized but isn't' — same pattern of honesty repair as v3.5's regex-only state.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.12-vetoed-omits-revision",
+    title: "(JOHN) Vetoed LLM hits omit revision_suggestion",
+    instructions: "(JOHN) Read src/app/api/coach/analyze/route.ts. Confirm the validation strips revision_suggestion when verdict === 'vetoed' (it would be nonsensical — a vetoed pattern doesn't need a revision because Coach shouldn't fire at all).",
+    expected: "The map() step after filter() sets revision_suggestion to undefined when verdict === 'vetoed' or length is out of bounds (0 < len <= 600). Vetoed hits never carry a revision proposal; the chip is suppressed entirely upstream anyway. Defense-in-depth at the API boundary.",
+    assignee: "john",
+  },
+  {
+    id: "coach-v3.12-llm-prompt-rejects-generic",
+    title: "(JOHN) LLM prompt explicitly rejects template-shaped revisions",
+    instructions: "(JOHN) Read src/lib/claude.ts proposeCoachPatterns prompt section (B) REVISION_SUGGESTION. Confirm the BAD examples explicitly forbid generic phrasings like 'Try restating the observable behavior.' and 'What specifically did you notice happen?'",
+    expected: "Prompt section (B) has GOOD examples that name the actual revision (a concrete rewrite the user can copy verbatim) and BAD examples that name generic-template shapes the user flagged previously. The LLM is instructed to omit the field if it can only produce a generic template — that fallback to citation.suggestion (with the 'Generic template' badge) is honest, attempting a generic revision while claiming draft-specificity would not be.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",
