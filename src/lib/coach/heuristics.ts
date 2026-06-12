@@ -20,8 +20,26 @@
  */
 
 export type CoachCitation = {
-  /** Stable id used in chain events. Refer to it in the readout. */
-  id: "nvc-evaluation" | "voss-bare-assertion" | "stone-identity-collision";
+  /** Stable id used in chain events. Refer to it in the readout.
+   *
+   *  v3 (2026-06-12) added LLM-detected citation kinds:
+   *    - coach-blame-projection: "you're making me [emotion]" framings
+   *      that locate the cause of one's emotional state in someone else
+   *    - coach-emotional-escalation: heightened emotional language that
+   *      tends to land harder than the author intends
+   *    - coach-hot-state: communicating from a tired/hungry/stressed
+   *      state where the System notices the message may not represent
+   *      how the author will read it tomorrow
+   *    - coach-aggressive-language: profanity / aggression directed
+   *      at people in the conversation (not generic frustration) */
+  id:
+    | "nvc-evaluation"
+    | "voss-bare-assertion"
+    | "stone-identity-collision"
+    | "coach-blame-projection"
+    | "coach-emotional-escalation"
+    | "coach-hot-state"
+    | "coach-aggressive-language";
   /** Short label shown on the chip. Human-readable. */
   label: string;
   /** The framework this comes from. */
@@ -74,6 +92,10 @@ export const COACH_THRESHOLDS: Record<CoachCitation["id"], number> = {
   "nvc-evaluation": 1,
   "voss-bare-assertion": 1,
   "stone-identity-collision": 1,
+  "coach-blame-projection": 1,
+  "coach-emotional-escalation": 1,
+  "coach-hot-state": 1,
+  "coach-aggressive-language": 1,
 };
 
 /**
@@ -115,18 +137,99 @@ export function mirrorChipText(
           ? "First occurrence — intentional escalation, or worth trading 'who they are' for 'what happened'?"
           : "Pattern — worth pausing on, or all intentional?",
       };
+    case "coach-blame-projection":
+      return {
+        label: `Locating cause in someone else — ${occ} in ${contextLabel}`,
+        question: n === 1
+          ? "First occurrence — does framing it as 'they're making me feel X' land where you want, or worth leading with what's happening for you first?"
+          : "Pattern — does this framing usually land, or is something else underneath?",
+      };
+    case "coach-emotional-escalation":
+      return {
+        label: `Heightened emotional language — ${occ} in ${contextLabel}`,
+        question: n === 1
+          ? "First occurrence — is the intensity what you want to land with, or does it overshoot what you actually want them to do?"
+          : "Pattern — is the intensity working, or is it making the message harder to act on?",
+      };
+    case "coach-hot-state":
+      return {
+        label: `Signaling a hot state while sending — ${occ} in ${contextLabel}`,
+        question: n === 1
+          ? "First occurrence — would you read this message the same way tomorrow, or might 30 minutes change what you'd send?"
+          : "Pattern — worth a hot-state pause discipline before send?",
+      };
+    case "coach-aggressive-language":
+      return {
+        label: `Direct aggression / profanity — ${occ} in ${contextLabel}`,
+        question: n === 1
+          ? "First occurrence — intentional, or worth saying it the other way once and seeing if it lands?"
+          : "Pattern — is this the room you want to build?",
+      };
   }
 }
 
 const NVC_EVALUATION_PATTERNS: ReadonlyArray<RegExp> = [
   // Absolutes about people/situations.
   /\b(always|never|constantly|forever|whenever)\b/i,
-  // Diagnostic shorthand presented as fact.
-  /\b(this is|that is) (broken|wrong|stupid|terrible|useless|garbage)\b/i,
+  // Diagnostic shorthand presented as fact — expanded v3 to include
+  // common conversational pejoratives that the original pattern missed.
+  /\b(this is|that is|this'?s|that'?s) (broken|wrong|stupid|dumb|terrible|useless|garbage|trash|awful|bs|bullshit|ridiculous|insane|absurd|crap|shit)\b/i,
   // "Obviously" / "clearly" assert the speaker's read as the only read.
   /\b(obviously|clearly|of course),?\s/i,
   // Mind-reading.
   /\b(you|they|he|she) (don't|doesn't|never) (get it|understand|listen|care)\b/i,
+];
+
+// Blame projection — locating the cause of one's emotional state in
+// someone else. The pattern the user flagged ("you guys are making me
+// mad") sits exactly here. We're not naming the user's feeling as
+// wrong; we're surfacing the LOCATION of the cause and asking if
+// that's where they want to land it.
+const BLAME_PROJECTION_PATTERNS: ReadonlyArray<RegExp> = [
+  // "you are/y'all are/they are making me [emotion]" (the trailing
+  // pronoun "me" is optional — captures the user's "making mad" too).
+  /\b(you|you guys|y'?all|they|he|she) (are|is|'re|'s) making( me)? (mad|angry|furious|upset|stressed|anxious|crazy|nuts|insane|frustrated|annoyed|miserable)\b/i,
+  // "you made me [emotion]" past-tense variant
+  /\b(you|you guys|y'?all|they|he|she) made me (mad|angry|furious|upset|frustrated|annoyed)\b/i,
+  // "you're the reason / it's your fault" — direct blame
+  /\b(you'?re the reason|it'?s your fault|because of you)\b/i,
+];
+
+// Hot-state communication — signaling tired/hungry/stressed/etc while
+// composing a message. Not about whether the message is valid; about
+// whether the AUTHOR would want this exact message to be the durable
+// record their future-self reads tomorrow.
+const HOT_STATE_PATTERNS: ReadonlyArray<RegExp> = [
+  // First-person hot-state declarations near the message.
+  /\b(i'?m|i am) (so |really |really really |very )?(hungry|starving|exhausted|tired|drained|wasted|burnt out|burned out|stressed|anxious|fried|done|over it|over this|fed up|sick of (it|this)|losing it)\b/i,
+  // "Up all night / hadn't slept" sleep deprivation tells.
+  /\b(up all night|haven'?t slept|no sleep|running on (fumes|empty))\b/i,
+];
+
+// Direct aggression — profanity or attacks aimed AT people in the
+// conversation. Generic frustration ("this sucks") is covered by the
+// NVC evaluation patterns; this is about words directed at people.
+const AGGRESSIVE_LANGUAGE_PATTERNS: ReadonlyArray<RegExp> = [
+  // Profanity directed at "you/they/them" — second/third-person target.
+  /\b(fuck|fucking|shit|damn|hell|piss off|asshole|jackass|moron|idiot)\b.*\b(you|him|her|them|they)\b/i,
+  /\b(you|him|her|them|they)\b.*\b(fuck|fucking|shit|damn|asshole|jackass|moron|idiot)\b/i,
+  // Imperative aggression
+  /\b(shut up|shut it|fuck off|piss off|get lost|go to hell)\b/i,
+  // Direct insults targeting "you"
+  /\byou'?re (a |an )?(fucking |damn |stupid |dumb )?(idiot|moron|asshole|jackass|loser|joke|fool)\b/i,
+];
+
+// Emotional escalation — heightened language that tends to overshoot
+// what the author actually wants the recipient to do. Distinct from
+// blame projection (which locates cause externally) and aggressive
+// language (which targets a person).
+const EMOTIONAL_ESCALATION_PATTERNS: ReadonlyArray<RegExp> = [
+  // High-intensity self-states broadcast in a message
+  /\b(i'?m|i am) (absolutely |completely |totally |utterly |so |really )?(furious|livid|enraged|outraged|disgusted|appalled|seething)\b/i,
+  // "This is" + extreme judgment
+  /\bthis is (absolutely |completely |totally |utterly )?(unacceptable|outrageous|inexcusable|disgraceful|appalling|disgusting|infuriating)\b/i,
+  // Catastrophizing language
+  /\b(disaster|catastrophe|nightmare|train wreck|dumpster fire)\b/i,
 ];
 
 const VOSS_ASSERTION_PATTERNS: ReadonlyArray<RegExp> = [
@@ -201,19 +304,105 @@ export function detectIdentityCollision(text: string): CoachCitation | null {
   };
 }
 
+// ─── v3 detectors (regex-instant; LLM enhances via /api/coach/analyze) ─
+
+export function detectBlameProjection(text: string): CoachCitation | null {
+  const hit = firstMatch(BLAME_PROJECTION_PATTERNS, text);
+  if (!hit) return null;
+  return {
+    id: "coach-blame-projection",
+    label: "Locating cause in someone else",
+    source: "ELOSTATE Coach — NVC + observation discipline",
+    principle:
+      "Feelings are real; the location of the cause is something the speaker chooses. Leading with 'I feel X when Y happens' tends to land better than 'you are making me X.'",
+    suggestion: `"${hit.trim()}" locates the cause in another person. Worth trying: "I feel ___ when ___" to lead with what's happening for you first.`,
+    triggerExcerpt: hit.trim(),
+    kindExplanation:
+      "When a message frames someone else as the cause of how the writer feels (\"you're making me mad\"), the recipient often hears it as an accusation before they engage with the feeling underneath. Leading with the feeling first (\"I'm getting frustrated\") followed by the specific behavior (\"…when standups go long\") tends to keep the other person open to the conversation. The frustration is real either way; the framing changes whether they can help with it.",
+  };
+}
+
+export function detectEmotionalEscalation(text: string): CoachCitation | null {
+  const hit = firstMatch(EMOTIONAL_ESCALATION_PATTERNS, text);
+  if (!hit) return null;
+  return {
+    id: "coach-emotional-escalation",
+    label: "Heightened emotional language",
+    source: "ELOSTATE Coach — recipient-impact discipline",
+    principle:
+      "Intensity of language scales the intensity of the response. If you don't want a defensive response, calibrate the language to the response you actually want.",
+    suggestion: `"${hit.trim()}" reads as high-intensity. If the recipient needs to act, the action gets clearer when the language is calmer.`,
+    triggerExcerpt: hit.trim(),
+    kindExplanation:
+      "High-intensity language (\"absolutely unacceptable,\" \"disaster\") tends to elicit equally high-intensity responses — either matching escalation or defensive shutdown. If the goal is for the recipient to fix something, a calibrated message (\"this is the third time this week — can we figure out why?\") is often easier to act on. The emotion is valid; the question is whether the intensity is doing what you want.",
+  };
+}
+
+export function detectHotState(text: string): CoachCitation | null {
+  const hit = firstMatch(HOT_STATE_PATTERNS, text);
+  if (!hit) return null;
+  return {
+    id: "coach-hot-state",
+    label: "Composing from a hot state",
+    source: "ELOSTATE Coach — self-protection discipline",
+    principle:
+      "Future-you is the second reader of every message. If you wouldn't send this on a full night's sleep, the pause is itself information.",
+    suggestion: `"${hit.trim()}" signals you may not be in the best state to send this message. Worth a 30-minute pause to check if it'll still feel right then.`,
+    triggerExcerpt: hit.trim(),
+    kindExplanation:
+      "Hunger, exhaustion, and stress measurably shift how we communicate — we read other people's intent more negatively and we phrase our own messages more sharply. The message itself may still be valid, but the version of you that wrote it may not be the version you want as the durable record. A short pause (food, walk, sleep) often produces a message that does the same work without the cost.",
+  };
+}
+
+export function detectAggressiveLanguage(text: string): CoachCitation | null {
+  const hit = firstMatch(AGGRESSIVE_LANGUAGE_PATTERNS, text);
+  if (!hit) return null;
+  return {
+    id: "coach-aggressive-language",
+    label: "Direct aggression toward a person",
+    source: "ELOSTATE Coach — room-norms discipline",
+    principle:
+      "What gets normalized in a thread becomes the room. Profanity and direct attacks set the floor for what the team thinks they can write to each other.",
+    suggestion: `"${hit.trim()}" targets a person directly. Say the same thing without the attack once, and see whether the substance gets through faster.`,
+    triggerExcerpt: hit.trim(),
+    kindExplanation:
+      "Aggression directed at a person (versus generic frustration at a situation) tends to shape what other people in the thread think they can also write — both upward and laterally. The frustration is often real and fair; the framing is the part that changes whether anyone wants to engage with the work underneath it.",
+  };
+}
+
 /**
- * Run all detectors. Returns the citation list in priority order
- * (identity > evaluation > assertion). The UI consumes index 0 for
- * the visible chip; the full list is recorded in the chain event so
- * we know what was suppressed.
+ * Run all detectors. Returns the citation list in priority order:
+ *   identity > aggression > blame > evaluation > escalation
+ *   > hot-state > bare-assertion
+ *
+ * The UI consumes index 0 for the visible chip; the full list is
+ * recorded in the chain event so we know what was suppressed.
+ *
+ * Priority rationale (v3, 2026-06-12):
+ *   - identity + aggression land highest because they have the biggest
+ *     impact on relational durability
+ *   - blame projection beats generic evaluation because it's more
+ *     actionable (concrete reframe available)
+ *   - hot-state is mid-priority — it's about the AUTHOR's state, not
+ *     the recipient's experience
+ *   - bare-assertion is lowest because it's a style note, not a
+ *     relational risk
  */
 export function detectAll(text: string): CoachCitation[] {
   if (!text || text.trim().length < 6) return [];
   const all: CoachCitation[] = [];
   const identity = detectIdentityCollision(text);
   if (identity) all.push(identity);
+  const aggression = detectAggressiveLanguage(text);
+  if (aggression) all.push(aggression);
+  const blame = detectBlameProjection(text);
+  if (blame) all.push(blame);
   const evaluation = detectNvcEvaluation(text);
   if (evaluation) all.push(evaluation);
+  const escalation = detectEmotionalEscalation(text);
+  if (escalation) all.push(escalation);
+  const hotState = detectHotState(text);
+  if (hotState) all.push(hotState);
   const assertion = detectBareAssertion(text);
   if (assertion) all.push(assertion);
   return all;

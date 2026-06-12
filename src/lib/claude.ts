@@ -176,3 +176,133 @@ ${args.userProposal}`,
 // ─────────────────────────────────────────────────────────────
 
 export const generateDailyBriefing = generateDailyQuestions;
+
+// ─────────────────────────────────────────────────────────────
+// Conversational Coach v3 — LLM pattern detection (mirror frame)
+// ─────────────────────────────────────────────────────────────
+//
+// The instant regex pass (src/lib/coach/heuristics.ts) catches explicit
+// pattern words ("stupid", "always", "we should"). v3 adds an LLM pass
+// for the patterns regex cannot read — blame projection in non-canonical
+// forms, hot-state signaling, emotional escalation that uses words
+// outside the rigid lexicon. The user's example "I'm hungry and you
+// guys are making mad" is exactly this class.
+//
+// CONSTITUTIONAL DEFENSE (asset A11, mirror frame):
+//   The LLM IDENTIFIES which pattern shape is present (factual). It
+//   does NOT render a verdict on whether the user is right/wrong/good/
+//   bad. The chip surfaces the count + question; the user judges. The
+//   LLM is constrained to return patterns from a fixed vocabulary so
+//   it cannot invent a "this is wrong because X" framing.
+//
+// What the LLM is allowed to return:
+//   - One of the seven canonical pattern IDs:
+//       nvc-evaluation, voss-bare-assertion, stone-identity-collision,
+//       coach-blame-projection, coach-emotional-escalation,
+//       coach-hot-state, coach-aggressive-language
+//   - The trigger excerpt (the actual span in the user's text)
+//   - Confidence: "high" | "medium" | "low" — used to gate surfacing
+//
+// What the LLM is NOT allowed to return:
+//   - A new pattern id (we constrain via the schema)
+//   - A judgment about whether the user is wrong
+//   - A "fix" — the citation's own suggestion field handles that
+
+export type CoachLlmHit = {
+  pattern_id:
+    | "nvc-evaluation"
+    | "voss-bare-assertion"
+    | "stone-identity-collision"
+    | "coach-blame-projection"
+    | "coach-emotional-escalation"
+    | "coach-hot-state"
+    | "coach-aggressive-language";
+  trigger_excerpt: string;
+  confidence: "high" | "medium" | "low";
+  // Brief reason — for the §4 readout, NOT shown to the user.
+  reason: string;
+};
+
+export async function proposeCoachPatterns(args: {
+  draft: string;
+  // Recent thread excerpt (last 3-5 messages) so the LLM can read tone
+  // context. Stripped of author names by the caller to avoid bias.
+  recentThread?: string;
+  companyId?: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 600,
+    systemPrompt: `You are the ELOSTATE Conversational Coach v3 detection pass.
+
+Your job: identify which of seven specific COMMUNICATION PATTERN SHAPES appear in the user's draft message. You are NOT judging the message. You are NOT saying it is wrong. You are surfacing PATTERN PRESENCE so the user's own UI can ask them a question.
+
+THE SEVEN ALLOWED PATTERNS (return pattern_id exactly as written):
+
+1. nvc-evaluation
+   The draft contains evaluation language rather than observation language —
+   absolutes (always/never), pejorative shorthand ("this is stupid/broken/
+   garbage"), mind-reading ("you don't get it"), or "obviously/clearly"
+   asserting one read as the only read.
+
+2. voss-bare-assertion
+   The draft OPENS with an assertion or prescription ("We should...",
+   "You need to...", "The answer is...") without first labeling the
+   other person's position or context.
+
+3. stone-identity-collision
+   The draft critiques WHO someone is rather than WHAT they did
+   ("you're incompetent", "they're lazy", "he's a moron").
+
+4. coach-blame-projection
+   The draft locates the cause of the writer's emotional state in
+   another person ("you're making me mad", "you guys are making me
+   stressed", "you made me feel X").
+
+5. coach-emotional-escalation
+   The draft uses heightened emotional language that may overshoot the
+   recipient's ability to act on it ("absolutely unacceptable", "I'm
+   livid", "this is a disaster", "I'm done with this").
+
+6. coach-hot-state
+   The draft signals the WRITER is in a tired/hungry/stressed/burnt-out
+   state while composing ("I'm hungry", "I'm exhausted", "I'm so
+   stressed", "I haven't slept", "I'm fried"). This is not about
+   whether the message is valid — it's noticing the author may not
+   want this exact message to be the durable record tomorrow.
+
+7. coach-aggressive-language
+   The draft contains profanity or direct aggression aimed AT a person
+   in the conversation ("fuck off", "shut up", "you're an idiot").
+   Generic frustration at situations is NOT this pattern (it's nvc-
+   evaluation if anything).
+
+RULES:
+- Be conservative. Only flag clear matches. When in doubt, DO NOT flag.
+- Multiple patterns CAN apply to one draft. Return all of them.
+- Use confidence to mark how clearly the pattern appears.
+- trigger_excerpt must be the EXACT span from the draft, not paraphrased.
+- reason is brief (< 12 words) and describes the pattern shape, NOT a
+  judgment of the user.
+
+Return STRICT JSON in this exact shape:
+
+{
+  "hits": [
+    {
+      "pattern_id": "coach-blame-projection",
+      "trigger_excerpt": "you guys are making mad",
+      "confidence": "high",
+      "reason": "locates emotional cause in others"
+    }
+  ]
+}
+
+If no patterns are present, return: { "hits": [] }`,
+    userContent: `Draft to analyze:
+
+${args.draft}
+${args.recentThread ? `\nRecent thread context (for tone, not blame attribution):\n${args.recentThread}` : ""}`,
+  });
+}
