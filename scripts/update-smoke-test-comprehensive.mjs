@@ -1422,6 +1422,47 @@ const items = [
     expected: "Second run is a clean no-op — CREATE OR REPLACE FUNCTION replaces in place. Per A12, every migration is replayable against a partially-applied target.",
     assignee: "john",
   },
+
+  // ─── Audit M5 — observePatterns idempotency (resolved: not a defect) ──
+  {
+    id: "audit-m5-non-idempotency-is-the-contract",
+    title: "(JOHN) observePatterns non-idempotency is by design, not a bug — M5 resolved not-a-defect",
+    instructions: "(JOHN) Read the doc comment at the top of src/lib/coach/observe.ts and the in-line comment near the rows mapping. Confirm both state that EACH heuristic hit IS a separate observation by design (Rule 3.1 append-only + A11 mirror-frame).",
+    expected: "Doc comment explicitly: '§1.7 audit M5 (2026-06-12) evaluation — NOT A DEFECT.' Diagnosis: outside-view scan of the call graph confirms each invocation fires exactly once per post (no retries, no double-submit paths). Even if it did fire twice, append-only §3.1 means each call would be a separate observation, not a duplicate of one. Idempotency would CONTRADICT A11 mirror semantics. The §1.7 audit flag is honestly resolved as 'not a defect' rather than fixed — that distinction matters per §0 (don't fix what you haven't diagnosed).",
+    assignee: "john",
+  },
+
+  // ─── Audit L1 — confidence/verdict coupling (named, not split) ──
+  {
+    id: "audit-l1-confidence-verdict-named-coupling",
+    title: "(JOHN) confidence/verdict shared filter is named llmConfidenceCounts with §0/A11 rationale",
+    instructions: "(JOHN) Grep `llmConfidenceCounts` in src/components/chats/CoachPanel.tsx. Read the block comment above it.",
+    expected: "Predicate appears as a named arrow function used in BOTH the verdict-application loop (LLM verdict overrides regex hit) AND the new-citation surface filter (LLM-only patterns the regex missed). The comment names both decision sites and explains why §0/A11 conservatism makes them share the same threshold — when the LLM isn't confident, the conservative choice is 'don't influence behavior' for both. Audit L1 resolved as named-coupling, not a split — explicit so a future maintainer doesn't treat it as a bug.",
+    assignee: "john",
+  },
+
+  // ─── Audit L2 — actionable event-emission failure logs ──
+  {
+    id: "audit-l2-emit-error-context",
+    title: "(JOHN) Coach event-emission failures log kind + subject + code, not just 'failed'",
+    instructions: "(JOHN) In Supabase SQL editor, temporarily REVOKE INSERT on events FROM authenticated. Open the app, fire a Coach chip (type a pattern-matching draft). Open browser devtools console.",
+    expected: "Console shows two structured log lines from src/lib/coach/emit.ts: one with {kind: 'coach.suggestion_offered', subject: 'chat_topic:...', code: '42501', message: '...'} from the inline `if (error)` path. Previously the same scenario logged only 'event emit failed' with no kind/subject — invisible. Restore the GRANT after. The §4 readout still catches mass-drop via volume-comparison; this is per-event observability.",
+    assignee: "john",
+  },
+  {
+    id: "audit-l2-observe-error-context",
+    title: "(JOHN) observePatterns failures log subject + row_count + code, not just 'failed'",
+    instructions: "(JOHN) Same setup as L2 emit test (revoke INSERT on events). Post a chat message containing a regex-matching pattern. Watch devtools console.",
+    expected: "Console shows '[coach] observePatterns insert failed' with {subject: 'chat_topic:...', row_count: N, code: '42501', message: '...'}. Previously logged only the raw err. The fix uses the same inline `{ error } = await insert()` pattern as emit.ts because supabase-js returns 4xx INSERT failures through the response object, not by throwing. Restore the GRANT after.",
+    assignee: "john",
+  },
+  {
+    id: "audit-l2-readout-volume-defense-documented",
+    title: "(JOHN) §4 readout volume-comparison defense still named as the mass-drop catcher",
+    instructions: "(JOHN) Read the header comment in src/lib/coach/emit.ts and the equivalent block in src/lib/coach/observe.ts. Confirm both reference the §4 readout volume-comparison as the structural defense against systemic event drop, not just per-event logging.",
+    expected: "Both files state: per-event observability via console.error is for individual failures (RLS, FK, payload regression); systemic drop (entire deploy can't write events) is caught by the §4 readout comparing event volume to chat_message volume. Two layers, both named on the record. §1.7 audit L2 closed.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

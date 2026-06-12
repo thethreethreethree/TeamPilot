@@ -288,6 +288,26 @@ export function CoachPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, recentThread]);
 
+  // ─── L1 audit (2026-06-12) — the confidence/verdict coupling ──
+  // The same predicate `h.confidence !== "low"` filters two distinct
+  // decisions below: (a) whether to apply the LLM's VERDICT to a
+  // matching regex hit, and (b) whether to surface a NEW citation
+  // for an LLM-only pattern hit the regex missed. Audit flagged the
+  // shared threshold as coupling-by-coincidence.
+  //
+  // Resolved as: not-a-defect, intentionally shared. Both decisions
+  // reduce to the same upstream question — "is the LLM confident
+  // enough that its signal should influence behavior?" — and per
+  // §0/A11 the conservative answer is "no" when confidence is low,
+  // for both branches. A low-confidence verdict shouldn't overwrite
+  // a regex hit's default treatment; a low-confidence novel citation
+  // shouldn't bother the user. Named here so future maintainers
+  // don't accidentally split the threshold thinking it's a bug, and
+  // so an actual split (e.g. allow low-confidence context_notes to
+  // enrich existing chips) would arrive as a deliberate constitutional
+  // decision against A11 conservatism, not silently as code drift.
+  const llmConfidenceCounts = (h: LlmHit) => h.confidence !== "low";
+
   // ─── Combined detection (regex instant + LLM verdict + enrichment) ────
   // v3.2: LLM can now VETO regex hits when context contradicts them
   // (user critiquing a word, quoting someone, hypothetical, etc.) AND
@@ -312,7 +332,7 @@ export function CoachPanel({
         { verdict: LlmHit["verdict"]; contextNote: string }
       >();
       for (const h of llmHits) {
-        if (h.confidence === "low") continue;
+        if (!llmConfidenceCounts(h)) continue;
         verdicts.set(h.pattern_id, {
           verdict: h.verdict,
           contextNote: h.context_note,
@@ -333,7 +353,7 @@ export function CoachPanel({
       const newLlmCitations: CoachCitation[] = llmHits
         .filter(
           (h) =>
-            h.confidence !== "low" &&
+            llmConfidenceCounts(h) &&
             h.verdict !== "vetoed" &&
             !regexHits.some((r) => r.id === h.pattern_id)
         )

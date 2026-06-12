@@ -20,6 +20,29 @@ import { detectAll } from "./heuristics";
  * record are the System's only claim — facts, not judgments. The
  * user does all the judging.
  *
+ * §1.7 audit M5 (2026-06-12) evaluation — NOT A DEFECT.
+ *
+ * The audit flagged that observePatterns is non-idempotent: calling
+ * it twice on the same final body would insert two pattern_observed
+ * rows. Outside-view diagnosis of the actual call graph:
+ *   - Every call site fires this once, post-durable-insert, via
+ *     `void import("@/lib/coach/observe").then(observe(...))`
+ *   - There are no retry loops, no useEffect deps that re-fire on
+ *     re-render, no double-submit paths through the post handlers.
+ *   - Even if a double-fire ever occurred (it doesn't), the §3.1
+ *     chain is append-only by construction (Rule 3.1) — each call
+ *     is a separate observation, not a duplicate of one. The chain
+ *     accumulates honestly.
+ *   - Per the explicit design decision below ("we deliberately do
+ *     NOT collapse repeated occurrences"), each heuristic hit IS a
+ *     separate observation by intent. Idempotency would CONTRADICT
+ *     the mirror-frame semantics (A11).
+ *
+ * The audit was wrong to flag this as a defect. Resolved on the
+ * record as "not-a-defect, non-idempotency is the intended
+ * contract" rather than fixed. The flag remains in the §1.7
+ * history; the resolution is part of that history.
+ *
  * Non-fatal on failure: if event emission errors out we log to
  * console and let the post stand. A missing pattern_observed event
  * means the mirror chip will surface a beat later than it could
@@ -63,8 +86,25 @@ export async function observePatterns(args: {
       },
     }));
 
-    await supabase.from("events").insert(rows);
+    const { error } = await supabase.from("events").insert(rows);
+    // L2 audit (2026-06-12): same pattern as coach/emit.ts —
+    // supabase-js returns errors via the response object, not by
+    // throwing. Surface kind+subject+code+message so a per-event
+    // failure is actionable instead of silently dropping. The §4
+    // readout catches mass drops via volume comparison; this is
+    // per-event observability.
+    if (error) {
+      console.error(
+        "[coach] observePatterns insert failed",
+        {
+          subject: args.subject,
+          row_count: rows.length,
+          code: error.code,
+          message: error.message,
+        }
+      );
+    }
   } catch (err) {
-    console.error("[coach] observePatterns failed:", err);
+    console.error("[coach] observePatterns threw", { subject: args.subject, err });
   }
 }

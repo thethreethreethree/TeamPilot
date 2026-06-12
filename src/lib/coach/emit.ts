@@ -70,7 +70,7 @@ async function emitOne(kind: string, opts: Common): Promise<void> {
       .eq("id", auth.user.id)
       .maybeSingle();
     if (!profile?.company_id) return;
-    await supabase.from("events").insert({
+    const { error } = await supabase.from("events").insert({
       company_id: profile.company_id,
       actor: auth.user.id,
       kind,
@@ -90,10 +90,26 @@ async function emitOne(kind: string, opts: Common): Promise<void> {
         draft_excerpt: opts.draftExcerpt.slice(0, 280),
       },
     });
+    // L2 audit (2026-06-12): supabase-js doesn't throw on a 4xx
+    // INSERT failure (RLS denial, FK violation, NOT NULL violation)
+    // — it returns `{ error }` and we previously fell out of the try
+    // block silently. Now we surface the error with enough context
+    // (kind, subject, error code+message) to be actionable from
+    // devtools without exposing user content. The §4 readout still
+    // catches systematic mass-drop via volume-comparison; this is
+    // the per-event observability layer.
+    if (error) {
+      console.error(
+        "[coach] event insert failed",
+        { kind, subject: opts.subject, code: error.code, message: error.message }
+      );
+    }
   } catch (err) {
-    // Non-fatal — see header comment. Console-log so we notice if
-    // emission silently breaks on a deploy.
-    console.error("[coach] event emit failed:", err);
+    // Non-fatal — see header comment. Network failure or thrown
+    // error (rare on supabase-js); the inline `if (error)` above is
+    // the common path. Console-log with the kind so the failure is
+    // attributable.
+    console.error("[coach] event emit threw", { kind, subject: opts.subject, err });
   }
 }
 
