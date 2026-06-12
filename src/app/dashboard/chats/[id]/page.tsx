@@ -684,10 +684,10 @@ export default function TeamChatTopicPage() {
 
       {/* Composer */}
       {!isClosed && (
-        <div className="border-t border-default bg-surface/50 px-3 md:px-6 py-4 overflow-x-hidden">
+        <div className="border-t border-default bg-surface/50 px-3 md:px-6 py-4 overflow-x-hidden min-w-0">
           <form
             onSubmit={handleSubmit}
-            className="max-w-5xl mx-auto"
+            className="max-w-5xl mx-auto min-w-0"
           >
             {/* In-thread Decision Dialogue card — when present, sits
                 directly above the composer so the conversation
@@ -762,7 +762,7 @@ export default function TeamChatTopicPage() {
                 ref={inputRef}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Write your message…  (Markdown: **bold** · *italic* · `code` · [link](url) · - list · > quote)"
+                placeholder="Write your message…"
                 rows={2}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -770,15 +770,21 @@ export default function TeamChatTopicPage() {
                     handleSubmit(e);
                   }
                 }}
-                className="w-full bg-transparent text-sm text-primary placeholder:text-muted px-4 py-3 focus:outline-none resize-none"
+                className="w-full min-w-0 bg-transparent text-sm text-primary placeholder:text-muted px-4 py-3 focus:outline-none resize-none"
               />
-              <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-default">
-                <div className="flex items-center gap-1.5">
+              {/* Composer footer — Guide/Formulate/AI-assisted on the
+                  left, char-count + Send on the right. flex-wrap is
+                  load-bearing: on mobile (≤ 400px) the right group
+                  drops to a second line instead of pushing the page
+                  wider than the viewport. min-w-0 on the left group
+                  lets it shrink below content width when needed. */}
+              <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-default flex-wrap">
+                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                   <button
                     type="button"
                     onClick={() => setGuideOpen(true)}
                     disabled={!draft.trim()}
-                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary disabled:opacity-30 border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary disabled:opacity-30 border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
                     title="Have the System sharpen your draft before you send it"
                   >
                     <Wand2 className="w-3 h-3" aria-hidden="true" />
@@ -787,20 +793,20 @@ export default function TeamChatTopicPage() {
                   <button
                     type="button"
                     onClick={() => setFormulateOpen(true)}
-                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
                     title="Get help formulating a fuller response by answering questions first"
                   >
                     <Lightbulb className="w-3 h-3" aria-hidden="true" />
                     Help me formulate
                   </button>
                   {aiAssisted && (
-                    <span className="flex items-center gap-1 text-[10px] text-arc-300">
+                    <span className="flex items-center gap-1 text-[10px] text-arc-300 flex-shrink-0">
                       <Sparkles className="w-3 h-3" aria-hidden="true" />
                       AI-assisted
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
                   <span className="text-[10px] text-secondary font-mono">
                     {draft.length > 0 ? `${draft.length} chars` : ""}
                   </span>
@@ -815,7 +821,10 @@ export default function TeamChatTopicPage() {
                 </div>
               </div>
             </div>
-            <p className="text-[10px] text-secondary mt-2 px-1">
+            <p
+              className="text-[10px] text-secondary mt-2 px-1 break-words"
+              style={{ overflowWrap: "anywhere" }}
+            >
               Enter to send · Shift+Enter for new line · Pin important messages
               to make them priority data the brain learns from
             </p>

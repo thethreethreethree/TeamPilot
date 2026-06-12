@@ -1045,6 +1045,36 @@ const items = [
     expected: "Defense-in-depth filter still active: ALLOWED_PATTERN_IDS check + ['confirmed','uncertain','vetoed'] verdict check + non-empty context_note check. Any hit failing any check is silently dropped from the response.",
     assignee: "john",
   },
+
+  // ─── Mobile composer overflow regression (post-typing) ─────────
+  {
+    id: "mobile-composer-no-overflow-after-typing",
+    title: "Composer footer wraps cleanly when char-count appears on mobile",
+    instructions: "Open any chat topic at 375px width (Chrome DevTools iPhone preview). With empty draft, verify no horizontal scroll. Then type 1+ chars and verify still no horizontal scroll.",
+    expected: "The composer footer's left group (Guide my response · Help me formulate) stays on one line if it fits, but the right group (char count + Send button) wraps to a second line when needed instead of pushing the page wider than viewport. NO horizontal scroll appears, before OR after typing. Page stays viewport-locked.",
+    assignee: "partners",
+  },
+  {
+    id: "mobile-placeholder-doesnt-cause-scroll",
+    title: "Composer placeholder is short enough to not force horizontal scroll",
+    instructions: "On mobile width with an empty draft, inspect the textarea placeholder.",
+    expected: "Placeholder reads 'Write your message…' (no markdown syntax tutorial appended). The 95-char markdown hint we added in the toolbar build was forcing some browsers to push the textarea wider than its container; the hint is documented via the toolbar's button tooltips instead.",
+    assignee: "partners",
+  },
+  {
+    id: "mobile-helper-text-wraps",
+    title: "Composer helper text wraps mid-word if needed",
+    instructions: "On mobile width, look at the gray helper line below the composer ('Enter to send · Shift+Enter for new line · Pin important messages…').",
+    expected: "Helper text wraps across multiple lines. 'Shift+Enter' breaks mid-token if needed instead of forcing horizontal scroll. break-words + overflow-wrap: anywhere on the <p> ensures no edge case can push the page wider.",
+    assignee: "partners",
+  },
+  {
+    id: "mobile-ios-safari-html-overflow-guard",
+    title: "(JOHN) html element has overflow-x: hidden + position: relative as iOS Safari guard",
+    instructions: "(JOHN) Inspect <html> styles in globals.css; verify the rule applies on the deployed app.",
+    expected: "html { overflow-x: hidden; position: relative; } applied. Belt-and-suspenders with body's existing overflow-x: hidden. Catches iOS Safari edge cases where fixed-position children (sidebar drawer, install prompt) could push touch-gesture scroll past viewport.",
+    assignee: "john",
+  },
   {
     id: "diagnose-engine-renders",
     title: "Living Diagnosis 7-step engine renders",

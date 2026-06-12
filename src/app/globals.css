@@ -166,6 +166,19 @@ body {
   word-break: break-word;
 }
 
+/* iOS Safari safety net: belt-and-suspenders against horizontal
+   page scroll. body's overflow-x: hidden above is the primary
+   guard; this html-level rule and the `position: relative` ensure
+   the safety holds even when fixed-position children try to push
+   the layout (sidebar drawer, install prompt, jump-to-latest pill).
+   Without this, iOS Safari has historically let touch gestures
+   produce a 1-2px horizontal scroll on pages with off-screen fixed
+   elements. */
+html {
+  overflow-x: hidden;
+  position: relative;
+}
+
 /* Custom scrollbar — theme-aware, with ember hover (subtle brand presence) */
 ::-webkit-scrollbar {
   width: 6px;
