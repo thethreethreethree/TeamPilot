@@ -3,6 +3,11 @@
 import { Pin, PinOff, Sparkles } from "lucide-react";
 import type { ChatMessage } from "@/lib/data/chats";
 import { formatTime } from "./utils";
+import {
+  avatarColorFor,
+  avatarInitialsFor,
+  avatarTextColorFor,
+} from "@/lib/brand/avatar";
 
 /**
  * MessageRow — renders a single message in the chat stream.
@@ -12,9 +17,12 @@ import { formatTime } from "./utils";
  *   - kind="summary" → arc-cyan System summary card with "confirm or correct" label
  *   - default        → avatar + author + timestamp + pinned/AI-assisted chips + body
  *
- * Extracted from the chat detail page during the §1.7 B2 refactor. Pure
- * presentation; pinning state is controlled by the parent via `onTogglePin`.
- * The parent owns the optimistic-toggle logic (see chats/[id]/page.tsx).
+ * Avatars (default render path):
+ *   The author's avatar color + initials come from their profile if
+ *   they've set them in Settings → Avatar (migration 0024). When the
+ *   profile fields are null, we fall back to deterministic defaults
+ *   derived from author id + name so the avatar is still stable and
+ *   distinct across users without any setup.
  */
 export function MessageRow({
   msg,
@@ -30,12 +38,10 @@ export function MessageRow({
   const isSummary = msg.kind === "summary";
   const isSystem = msg.kind === "system";
   const isMine = currentUserId !== null && msg.authorId === currentUserId;
-  const initials = (msg.authorName ?? "?")
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const bg = msg.authorAvatarColor ?? avatarColorFor(msg.authorId, msg.authorName);
+  const initials =
+    msg.authorAvatarInitials ?? avatarInitialsFor(msg.authorName);
+  const fg = avatarTextColorFor(bg);
 
   if (isSystem) {
     return (
@@ -78,11 +84,9 @@ export function MessageRow({
   return (
     <div className="flex gap-3 group">
       <div
-        className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-          isMine
-            ? "bg-gradient-to-br from-crimson-400 to-crimson-700 text-white"
-            : "bg-surface-raised border border-default text-primary"
-        }`}
+        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold border border-default/40"
+        style={{ backgroundColor: bg, color: fg }}
+        title={isMine ? "Your avatar — customize in Settings" : msg.authorName}
       >
         {initials}
       </div>

@@ -18,6 +18,7 @@ import { useToast } from "@/components/ui/toast";
 import { LlmConnectionPanel } from "@/components/settings/LlmConnectionPanel";
 import { ChangePasswordPanel } from "@/components/settings/ChangePasswordPanel";
 import { CoachTogglePanel } from "@/components/settings/CoachTogglePanel";
+import { AvatarCustomizationPanel } from "@/components/settings/AvatarCustomizationPanel";
 
 interface Settings {
   company: {
@@ -132,6 +133,10 @@ export default function SettingsPage() {
             doesn't depend on Supabase being configured. Lets the user
             verify provider connectivity before wiring anything else. */}
         <LlmConnectionPanel />
+
+        {/* User-level avatar customization — color + initials shown on
+            chat, tasks, notifications. Stores on profiles row via RLS. */}
+        <AvatarCustomizationPanel />
 
         {/* In-app password rotation. Hidden in demo mode (no auth). */}
         <ChangePasswordPanel />

@@ -32,7 +32,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown } from "lucide-react";
 
 // Extracted chat surfaces — moved out of this file during the §1.7
 // B2 refactor. Page is now orchestration; each modal owns its concern.
@@ -83,6 +84,12 @@ export default function TeamChatTopicPage() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  // Smart-scroll state: track whether the user is reading near the
+  // bottom so new messages auto-scroll, but reading-history is never
+  // yanked (Slack/WhatsApp pattern). When a new message arrives while
+  // scrolled up, the "Jump to latest" pill surfaces instead.
+  const isNearBottomRef = useRef(true);
+  const [hasNewBelow, setHasNewBelow] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
@@ -105,11 +112,61 @@ export default function TeamChatTopicPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicId]);
 
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
+  // Initial scroll-to-bottom AFTER messages render. Two rAFs because
+  // a single rAF runs before layout settles on long threads (the 210-
+  // message migration thread exposed this — scrollHeight was 0 when
+  // the prior single-rAF version ran). Double rAF guarantees layout
+  // and paint completed, so scrollHeight is accurate.
+  useLayoutEffect(() => {
+    if (loading) return;
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+        isNearBottomRef.current = true;
+        setHasNewBelow(false);
+      });
+    });
+  }, [loading]);
+
+  // New-message scroll behavior — only auto-scroll if the user was
+  // already at the bottom. If they're reading history, never yank
+  // them; surface a "Jump to latest" pill instead.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    if (isNearBottomRef.current) {
+      requestAnimationFrame(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      });
+    } else {
+      setHasNewBelow(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
+
+  // Scroll listener — recomputes whether the user is "near the
+  // bottom" so the next message's scroll behavior is right.
+  const onMessagesScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const threshold = 120;
+    const distanceFromBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight;
+    isNearBottomRef.current = distanceFromBottom < threshold;
+    if (isNearBottomRef.current && hasNewBelow) {
+      setHasNewBelow(false);
+    }
+  };
+
+  const jumpToLatest = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    setHasNewBelow(false);
+  };
 
   const currentUserId = useCurrentUserId();
   const me = useMemo(
@@ -265,7 +322,7 @@ export default function TeamChatTopicPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base flex flex-col">
+    <div className="h-screen bg-base flex flex-col overflow-hidden">
       <TopBar title={topic.title} subtitle={topic.description ?? ""} />
 
       {/* Topic header bar */}
@@ -494,49 +551,75 @@ export default function TeamChatTopicPage() {
         </div>
       )}
 
-      {/* Message stream */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-6 py-6 max-w-5xl mx-auto w-full"
-      >
-        {grouped.length === 0 ? (
-          <div className="text-center py-12">
-            <MessageSquare
-              className="w-8 h-8 text-secondary mx-auto mb-3"
-              aria-hidden="true"
-            />
-            <p className="text-sm text-primary mb-1">
-              The conversation starts with you.
-            </p>
-            <p className="text-xs text-muted max-w-md mx-auto">
-              State the situation, ask the first question, share what you know.
-              Everything from here gets captured and structured.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {grouped.map((group) => (
-              <div key={group.dateKey}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex-1 h-px bg-surface-raised" />
-                  <span className="text-[10px] uppercase tracking-widest text-muted font-mono">
-                    {group.label}
-                  </span>
-                  <div className="flex-1 h-px bg-surface-raised" />
-                </div>
-                <div className="space-y-3">
-                  {group.messages.map((msg) => (
-                    <MessageRow
-                      key={msg.id}
-                      msg={msg}
-                      currentUserId={currentUserId}
-                      onTogglePin={() => void handleTogglePin(msg)}
-                    />
-                  ))}
-                </div>
+      {/* Message stream — the only scrollable area on this page.
+          Sticky date dividers float at the top of the viewport as you
+          scroll past a day's worth of messages (Slack pattern). */}
+      <div className="relative flex-1 min-h-0">
+        <div
+          ref={scrollRef}
+          onScroll={onMessagesScroll}
+          className="absolute inset-0 overflow-y-auto px-6 py-6"
+        >
+          <div className="max-w-5xl mx-auto w-full">
+            {grouped.length === 0 ? (
+              <div className="text-center py-12">
+                <MessageSquare
+                  className="w-8 h-8 text-secondary mx-auto mb-3"
+                  aria-hidden="true"
+                />
+                <p className="text-sm text-primary mb-1">
+                  The conversation starts with you.
+                </p>
+                <p className="text-xs text-muted max-w-md mx-auto">
+                  State the situation, ask the first question, share what you know.
+                  Everything from here gets captured and structured.
+                </p>
               </div>
-            ))}
+            ) : (
+              <div className="space-y-6">
+                {grouped.map((group) => (
+                  <div key={group.dateKey}>
+                    {/* Sticky date divider — Slack-style. Floats at top
+                        of the visible viewport as the user scrolls past
+                        a day. Backdrop blur so it stays legible over the
+                        messages it's covering. */}
+                    <div className="sticky top-0 z-10 -mx-6 px-6 py-2 mb-4 bg-base/85 backdrop-blur-sm">
+                      <div className="flex items-center gap-3 max-w-5xl mx-auto">
+                        <div className="flex-1 h-px bg-surface-raised" />
+                        <span className="text-[10px] uppercase tracking-widest text-muted font-mono bg-surface border border-default rounded-full px-2.5 py-1">
+                          {group.label}
+                        </span>
+                        <div className="flex-1 h-px bg-surface-raised" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {group.messages.map((msg) => (
+                        <MessageRow
+                          key={msg.id}
+                          msg={msg}
+                          currentUserId={currentUserId}
+                          onTogglePin={() => void handleTogglePin(msg)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+        </div>
+        {/* Jump-to-latest pill — surfaces only when a new message
+            arrives while the user is scrolled up in history. Pattern
+            from Slack/WhatsApp: never yank you out of reading. */}
+        {hasNewBelow && (
+          <button
+            type="button"
+            onClick={jumpToLatest}
+            className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold text-xs px-3 py-2 rounded-full shadow-glow-ember transition-colors"
+          >
+            <ArrowDown className="w-3.5 h-3.5" aria-hidden />
+            Jump to latest
+          </button>
         )}
       </div>
 

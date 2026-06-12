@@ -40,6 +40,11 @@ export interface ChatMessage {
   topicId: string;
   authorId: string | null;
   authorName: string;
+  /** User-chosen avatar background color (hex). NULL → palette default
+   *  computed by the renderer from the author id. */
+  authorAvatarColor: string | null;
+  /** User-chosen avatar initials (1–3 chars). NULL → derived from name. */
+  authorAvatarInitials: string | null;
   kind: "message" | "system" | "summary" | "voice" | "attachment";
   body: string | null;
   mediaUrl: string | null;
@@ -143,6 +148,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-finance",
         authorId: "demo-cfo",
         authorName: "Sarah Kim (CFO)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "Kicking this off ahead of the board update. I want us to track three numbers: MRR, runway, and the gap between forecast and actuals.",
         mediaUrl: null,
@@ -157,6 +164,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-finance",
         authorId: "demo-ceo",
         authorName: "Alex Park (CEO)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "Agreed. I'd also like us to be explicit about which assumptions in the forecast we are still confident in versus which ones we are not.",
         mediaUrl: null,
@@ -171,6 +180,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-finance",
         authorId: "demo-vp",
         authorName: "Marcus Chen (VP Ops)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "From an ops standpoint, the biggest swing factor is cloud-cost. April came in 12% over forecast. I have a write-up.",
         mediaUrl: null,
@@ -185,6 +196,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-finance",
         authorId: "demo-cfo",
         authorName: "Sarah Kim (CFO)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "summary",
         body: "Summary so far (System's read — confirm or correct):\n• Tracking three metrics: MRR, runway, forecast-actuals gap.\n• CEO requested explicit assumption flagging.\n• Cloud-cost is the highest-impact open variable (April +12%).",
         mediaUrl: null,
@@ -199,6 +212,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-finance",
         authorId: "demo-current-user",
         authorName: "You (Demo)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "Confirmed. I'll add a fourth metric: gross margin trend. Worth tracking alongside runway.",
         mediaUrl: null,
@@ -215,6 +230,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-bottleneck",
         authorId: "demo-coo",
         authorName: "Lena Torres (COO)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "Gateway is now blocked three weeks running. I do not think this is a technical issue — what am I missing?",
         mediaUrl: null,
@@ -229,6 +246,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-bottleneck",
         authorId: "demo-eng",
         authorName: "James Okafor (Eng Lead)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "From engineering's side the API integration is ready. We are blocked on credentials approval from finance. Have been for 16 days.",
         mediaUrl: null,
@@ -243,6 +262,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-bottleneck",
         authorId: "demo-coo",
         authorName: "Lena Torres (COO)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "That is the same pattern as the approval problem we just resolved last month. Worth looking at how we solved that.",
         mediaUrl: null,
@@ -259,6 +280,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-resolved",
         authorId: "demo-coo",
         authorName: "Lena Torres (COO)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "Approvals taking 3+ days across teams. Need a structural fix, not a workaround.",
         mediaUrl: null,
@@ -273,6 +296,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-resolved",
         authorId: "demo-current-user",
         authorName: "You (Demo)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "Proposing: single owner per approval category with 24-hour SLA. Diffusion of responsibility is what is producing the 3-day cycle.",
         mediaUrl: null,
@@ -287,6 +312,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-resolved",
         authorId: "demo-cfo",
         authorName: "Sarah Kim (CFO)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "message",
         body: "Concur. Will pilot in finance for two weeks before rolling.",
         mediaUrl: null,
@@ -301,6 +328,8 @@ const seedDemoState = (): DemoState => ({
         topicId: "demo-topic-resolved",
         authorId: "demo-coo",
         authorName: "Lena Torres (COO)",
+        authorAvatarColor: null,
+        authorAvatarInitials: null,
         kind: "system",
         body: "Topic closed: Assigned a single owner for cross-team approvals with a 24-hour SLA. Validated by reduced cycle time across four weeks.",
         mediaUrl: null,
@@ -497,20 +526,33 @@ export async function fetchTopic(id: string): Promise<ChatTopic | null> {
  * Falls back to "Unknown" for any id we can't resolve (deleted profile,
  * system-emitted row, etc.) — never leaks the raw UUID into the UI.
  */
+type ProfileLite = {
+  name: string;
+  avatarColor: string | null;
+  avatarInitials: string | null;
+};
+
 async function resolveAuthorNames(
   supabase: ReturnType<typeof createClient>,
   authorIds: Array<string | null>
-): Promise<Map<string, string>> {
+): Promise<Map<string, ProfileLite>> {
   const ids = Array.from(
     new Set(authorIds.filter((x): x is string => typeof x === "string"))
   );
   if (ids.length === 0) return new Map();
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name")
+    .select("id, full_name, avatar_color, avatar_initials")
     .in("id", ids);
   return new Map(
-    (data ?? []).map((p) => [p.id as string, (p.full_name as string) ?? ""])
+    (data ?? []).map((p) => [
+      p.id as string,
+      {
+        name: (p.full_name as string) ?? "",
+        avatarColor: (p.avatar_color as string | null) ?? null,
+        avatarInitials: (p.avatar_initials as string | null) ?? null,
+      },
+    ])
   );
 }
 
@@ -551,13 +593,16 @@ export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
 
   return data.map((m) => {
     const isSummary = m.kind === "summary";
+    const profile = m.author_id ? nameById.get(m.author_id) : undefined;
     return {
       id: m.id,
       topicId: m.topic_id,
       authorId: m.author_id,
       authorName: isSummary
         ? "System summary"
-        : (m.author_id && nameById.get(m.author_id)) || "Unknown",
+        : profile?.name || "Unknown",
+      authorAvatarColor: profile?.avatarColor ?? null,
+      authorAvatarInitials: profile?.avatarInitials ?? null,
       kind: m.kind,
       body: m.body,
       mediaUrl: m.media_url,
@@ -590,7 +635,7 @@ export async function fetchParticipants(
 
   return data.map((p) => ({
     userId: p.user_id,
-    name: nameById.get(p.user_id) || "Unknown",
+    name: nameById.get(p.user_id)?.name || "Unknown",
     role: p.role,
     joinedAt: p.joined_at,
     leftAt: p.left_at,
@@ -654,6 +699,8 @@ export function demoPostMessage(args: {
     topicId: args.topicId,
     authorId: isSummary ? null : DEMO_USER_ID,
     authorName: args.authorName ?? (isSummary ? "System summary" : DEMO_USER_NAME),
+    authorAvatarColor: null,
+    authorAvatarInitials: null,
     kind: args.kind ?? "message",
     body: args.body,
     mediaUrl: null,
@@ -883,6 +930,12 @@ export async function postMessage(args: {
     topicId: data.topic_id,
     authorId: data.author_id,
     authorName: resolvedName,
+    // Optimistic post — the userContext cache doesn't carry avatar
+    // fields yet, so the row renders with defaults until the next
+    // fetchMessages pulls the canonical values. The optimistic row
+    // is replaced by the server-confirmed row on the next refresh.
+    authorAvatarColor: null,
+    authorAvatarInitials: null,
     kind: data.kind,
     body: data.body,
     mediaUrl: data.media_url,
@@ -1006,6 +1059,8 @@ export function demoCloseTopic(args: {
     id: `system-close-${Date.now()}`,
     topicId: args.topicId,
     authorId: DEMO_USER_ID,
+    authorAvatarColor: null,
+    authorAvatarInitials: null,
     authorName: DEMO_USER_NAME,
     kind: "system",
     body: `Topic closed: ${args.summary}`,
