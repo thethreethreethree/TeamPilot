@@ -1194,6 +1194,50 @@ const items = [
     assignee: "john",
   },
 
+  // ─── Coach v3.5 — honest expanded view (no fake draft-specific paragraph) ──
+  {
+    id: "coach-v3.5-no-kindexplanation-in-regex-only",
+    title: "Expanded view does NOT show kindExplanation paragraph when LLM didn't read",
+    instructions: "Force a regex-only fire (type 'this is dumb' and expand immediately before LLM returns). Look at the expanded view's content.",
+    expected: "Expanded view shows: source + 'Regex-only · LLM didn't read context' badge + 'Have the System read this draft' button + 'Underlying principle' label + italic principle. The static kindExplanation paragraph ('Built-in evaluation — words like broken, always, obviously...') is HIDDEN. Previously this paragraph rendered immediately under the 'I didn't read' badge — two contradictory claims as one block. Per §0 honesty: don't fake a draft-specific reading.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.5-on-demand-llm-trigger-button",
+    title: "'Have the System read this draft' button fires an explicit LLM call",
+    instructions: "On a regex-only chip, expand it. Click the 'Have the System read this draft' link. Watch the chip.",
+    expected: "Clicking the button immediately calls /api/coach/analyze (bypassing the 1.2s debounce). The button disappears. An inline 'System reading this draft…' spinner shows until the LLM returns. When the LLM responds with a context_note, the 'System's read on this draft' card surfaces. If the LLM responds with no draft-specific note, 'System read this draft — no concern beyond the pattern itself' shows instead.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.5-reading-state-in-expanded-view",
+    title: "'System reading…' state is visible IN the expanded view, not just the closed pre-chip state",
+    instructions: "Type a draft >12 chars that fires a regex hit. Within ~1s (before LLM returns), expand the chip. Watch the expanded view.",
+    expected: "Expanded view shows an inline 'System reading this draft…' spinner while the LLM is in flight. Previously the in-flight state only showed when no chip was active (pre-surface pulse). Now the expanded view tells the user 'I'm reading' instead of falsely claiming 'I didn't read.' Eliminates the brief window where the badge said 'didn't read' but the LLM was actually reading.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.5-empty-llm-response-distinct-state",
+    title: "Empty LLM response shows 'no concern beyond the pattern' — distinct from never-tried",
+    instructions: "Type a draft that the LLM is likely to read but verdict-veto (e.g. quoting someone). Wait for LLM to return. Expand the chip.",
+    expected: "When the LLM read the draft but returned no context-specific note, the expanded view shows: 'System read this draft — no concern beyond the pattern itself.' This is a DIFFERENT state from 'haven't tried yet' (which shows the trigger button). Three states now distinguishable to the user: reading, read-and-empty, never-tried.",
+    assignee: "partners",
+  },
+  {
+    id: "coach-v3.5-llmReadAttempted-reset-on-draft-change",
+    title: "(JOHN) llmReadAttempted resets cleanly between drafts",
+    instructions: "(JOHN) Read CoachPanel.tsx — confirm setLlmReadAttempted(false) is called inside the same useEffect that wipes llmHits + llmAnalyzing on draft change.",
+    expected: "Every draft change wipes ALL three: llmHits, llmAnalyzing, llmReadAttempted. The 'no concern beyond the pattern' state never bleeds across drafts. Same canonical-reset discipline the C2/M2 audit fix established for llmHits — extended to v3.5's new state.",
+    assignee: "john",
+  },
+  {
+    id: "coach-v3.5-render-states-mutually-exclusive",
+    title: "(JOHN) The four expanded-view states are mutually exclusive",
+    instructions: "(JOHN) Read CoachPanel.tsx render block. Confirm the four states (has contextNote / is reading / never tried / read-empty) are mutually exclusive booleans.",
+    expected: "Exactly one of these four branches renders at a time: (a) System's read card when contextNote exists; (b) inline spinner when !contextNote && llmAnalyzing; (c) trigger button when !contextNote && !llmAnalyzing && !llmReadAttempted; (d) 'no concern beyond' when !contextNote && !llmAnalyzing && llmReadAttempted. A14 multi-render-branch discipline applied: every branch consumes the data that distinguishes it.",
+    assignee: "john",
+  },
+
   // ─── Audit C1 — decision_dialogues append-only at SQL layer ──
   {
     id: "decision-dialogues-no-update-rule",
@@ -1281,6 +1325,57 @@ const items = [
     title: "(JOHN) Disabled signal_sources `notes` fields name §4 questions, not generic deferrals",
     instructions: "(JOHN) Read each notes field in the 14 disabled rows from migration 0026.",
     expected: "Each `notes` field ends with a concrete §4 readout question (e.g. 'do admin nudges actually move work forward...within 72h'). Per A4, deferral is honest signal ONLY when the §4 question is named. Generic 'future work' notes would defeat the purpose — an outside auditor should be able to read the row and know what evidence to look for.",
+    assignee: "john",
+  },
+
+  // ─── Audit M1 — atomic in-thread decide RPC (migration 0027) ──
+  {
+    id: "decide-rpc-atomic-success-path",
+    title: "(JOHN) Finalizing an in-thread Decision Dialogue is now a single RPC call",
+    instructions: "(JOHN) After migration 0027 is applied, open Network tab and finalize an in-thread Decision Dialogue (any chosenPath). Watch the POST /api/chat/topic-decisions/[id]/decide call.",
+    expected: "Backend now performs a single supabase.rpc('decide_chat_topic_decision', {p_topic_decision_id, p_chosen_path, p_chosen_note}) instead of five sequential .from(...).insert/update calls. All five writes (decisions / decision_dialogues / chat_topic_decisions update / chat_messages system message / events chain entry) commit or roll back together. Closes audit finding M1.",
+    assignee: "john",
+  },
+  {
+    id: "decide-rpc-rollback-on-failure",
+    title: "(JOHN) If any of the five writes fails, ALL writes roll back",
+    instructions: "(JOHN) In Supabase SQL editor, temporarily revoke INSERT on `events` from authenticated. Attempt to finalize a Decision Dialogue. Then check decisions, decision_dialogues, chat_topic_decisions, chat_messages — each should show NO new rows. Restore the grant after.",
+    expected: "The events INSERT fails inside the RPC. The whole transaction rolls back — no decisions row, no decision_dialogues row, no phase='decided' update, no system message. Previously this was the worst case: first four writes landed, the chain event dropped, and §3.1 readout under-counted decisions silently.",
+    assignee: "john",
+  },
+  {
+    id: "decide-rpc-rls-still-applies",
+    title: "(JOHN) SECURITY INVOKER means RLS still applies to every write",
+    instructions: "(JOHN) From a non-member user account, attempt to call POST /api/chat/topic-decisions/<some-other-company-dialogue-id>/decide.",
+    expected: "Request returns 4xx — the RLS policy on chat_topic_decisions blocks the SELECT inside the function, raising 'Dialogue not found' (P0002 → 404). No privilege elevation. SECURITY INVOKER preserves the caller's auth.uid() throughout the function body.",
+    assignee: "john",
+  },
+  {
+    id: "decide-rpc-already-decided-rejected",
+    title: "Re-deciding an already-decided dialogue returns 409 (same as before refactor)",
+    instructions: "Finalize a Decision Dialogue. Note its decision id. Replay the same POST request (Postman or fetch console).",
+    expected: "Returns 409 with body { error: 'This dialogue is already decided.' }. The SQL function raises P0001 'Dialogue already decided'; the route maps to 409. The error contract that the UI consumes (data.error string) is identical to the pre-M1 sequential-write version.",
+    assignee: "partners",
+  },
+  {
+    id: "decide-rpc-message-text-matches-pre-m1-exactly",
+    title: "(JOHN) System message text in topic timeline is byte-for-byte identical to pre-M1 version",
+    instructions: "(JOHN) Finalize a dialogue with chosenPath='system' and chosenNote='confirming the approach'. Inspect the resulting chat_messages row.",
+    expected: "Body reads exactly: 'Decision recorded: Going with the System\\'s suggestion.\\n\\nconfirming the approach'. Straight apostrophe (U+0027) in 'System\\'s', trailing period after the path label, two-newline gap before the note. A14 discipline applied at migration-author time — data path changed but rendered text in the topic timeline did not drift.",
+    assignee: "john",
+  },
+  {
+    id: "decide-rpc-typed-errcodes-mapped",
+    title: "(JOHN) Function raises typed errcodes; route maps each to its HTTP status",
+    instructions: "(JOHN) Read the decide route — confirm error.message string-match maps to: 28000→401 (Not authenticated), P0002→404 (Dialogue not found), P0001→409 (already decided) or 400 (system hasn't responded), 22023→422 (Invalid chosen_path), else 500.",
+    expected: "Five typed error paths mapped explicitly. The UI's decideTopicDecision() helper throws Error(data.error) — exact strings preserved so the surface-level UX is unchanged. The transaction discipline is structural; the error contract is the visible-output guarantee.",
+    assignee: "john",
+  },
+  {
+    id: "decide-rpc-migration-0027-idempotent",
+    title: "(JOHN) Migration 0027 re-runs cleanly (CREATE OR REPLACE FUNCTION)",
+    instructions: "(JOHN) Apply migration 0027. Re-apply without resetting the DB.",
+    expected: "Second run is a clean no-op — CREATE OR REPLACE FUNCTION replaces in place. Per A12, every migration must be replayable against a partially-applied target. Zero error, zero side-effects beyond function re-creation.",
     assignee: "john",
   },
   {
