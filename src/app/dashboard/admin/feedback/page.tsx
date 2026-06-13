@@ -15,13 +15,9 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { MentionText } from "@/components/ui/MentionText";
-import { CoachPanel } from "@/components/chats/CoachPanel";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
-
-// Admin feedback resolution-note surface migrates to v5.
-const ADMIN_FEEDBACK_COACH_V5_ENABLED = true;
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 /**
@@ -337,28 +333,21 @@ function FeedbackRowCard({
           {/* Triage actions */}
           <div>
             {coachEnabled && (
-              ADMIN_FEEDBACK_COACH_V5_ENABLED ? (
-                <>
-                  <CoachPanelV5
-                    draft={note}
-                    contextType="feedback"
-                    contextPayload={coachV5Payload}
-                    askCoachToken={askCoachToken}
-                    onAcceptRevision={(revised) => setNote(revised)}
-                  />
-                  <div className="mb-2 flex justify-end">
-                    <AskCoachButton
-                      disabled={!note.trim()}
-                      onAsk={() => setAskCoachToken((t) => t + 1)}
-                    />
-                  </div>
-                </>
-              ) : (
-                <CoachPanel
-                  subject={`feedback:${row.id}:resolution_note`}
+              <>
+                <CoachPanelV5
                   draft={note}
+                  contextType="feedback"
+                  contextPayload={coachV5Payload}
+                  askCoachToken={askCoachToken}
+                  onAcceptRevision={(revised) => setNote(revised)}
                 />
-              )
+                <div className="mb-2 flex justify-end">
+                  <AskCoachButton
+                    disabled={!note.trim()}
+                    onAsk={() => setAskCoachToken((t) => t + 1)}
+                  />
+                </div>
+              </>
             )}
             <textarea
               value={note}

@@ -47,7 +47,6 @@ import { ReviewOutcomeModal } from "@/components/chats/ReviewOutcomeModal";
 import { SummarizeModal } from "@/components/chats/SummarizeModal";
 import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
 import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
-import { CoachPanel } from "@/components/chats/CoachPanel";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { CoachAffirmation } from "@/components/chats/CoachAffirmation";
@@ -61,11 +60,6 @@ import {
   gradeSentMessage,
 } from "@/lib/coach/v5/gradeClient";
 
-// Coach v5.0 cutover — chat composer renders the conversational
-// LLM-primary panel. The v4 regex chip remains imported for fallback /
-// other surfaces that haven't migrated yet (Sprint 7 will fully retire
-// it once all surfaces are on v5).
-const COACH_V5_ENABLED = true;
 import { InThreadDecisionDialogue } from "@/components/chats/InThreadDecisionDialogue";
 import { ComposerToolbar } from "@/components/chats/ComposerToolbar";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
@@ -225,19 +219,6 @@ export default function TeamChatTopicPage() {
   const grouped = useMemo(() => groupMessages(messages), [messages]);
 
   // Recent thread context for Coach v3.1 — last 5 user-authored
-  // messages, names stripped, newest first. Drives the LLM detector
-  // so it can distinguish "first frustrated message in this thread"
-  // from "fifth frustrated message in this thread."
-  const recentThread = useMemo(() => {
-    const lines: string[] = [];
-    for (let i = messages.length - 1; i >= 0 && lines.length < 5; i -= 1) {
-      const m = messages[i];
-      if (!m || m.kind !== "message" || !m.body) continue;
-      lines.push(m.body.replace(/\s+/g, " ").slice(0, 280));
-    }
-    return lines.reverse().join("\n");
-  }, [messages]);
-
   // Coach v5 context payload — structured form the v5 prompt consumes
   // directly. Different shape than the v4 recentThread string because the
   // LLM-primary architecture reads each message as its own structured
@@ -801,27 +782,18 @@ export default function TeamChatTopicPage() {
                 lets an admin enable Coach in a specific topic when the
                 company-wide switch is OFF. */}
             {(companyCoachOn || topic.coachEnabled) && (
-              COACH_V5_ENABLED ? (
-                <CoachPanelV5
-                  draft={draft}
-                  contextType="chat_message"
-                  contextPayload={coachV5ContextPayload}
-                  askCoachToken={askCoachToken}
-                  onAcceptRevision={(revised) => {
-                    setDraft(revised);
-                    setAiAssisted(true);
-                    inputRef.current?.focus();
-                    setShowCoachAffirmation(true);
-                  }}
-                />
-              ) : (
-                <CoachPanel
-                  subject={`chat_topic:${topic.id}`}
-                  draft={draft}
-                  recentThread={recentThread}
-                  onRefine={() => inputRef.current?.focus()}
-                />
-              )
+              <CoachPanelV5
+                draft={draft}
+                contextType="chat_message"
+                contextPayload={coachV5ContextPayload}
+                askCoachToken={askCoachToken}
+                onAcceptRevision={(revised) => {
+                  setDraft(revised);
+                  setAiAssisted(true);
+                  inputRef.current?.focus();
+                  setShowCoachAffirmation(true);
+                }}
+              />
             )}
             <CoachAffirmation
               show={showCoachAffirmation}
@@ -906,7 +878,7 @@ export default function TeamChatTopicPage() {
                     <Lightbulb className="w-3 h-3" aria-hidden="true" />
                     Help me formulate
                   </button>
-                  {(companyCoachOn || topic.coachEnabled) && COACH_V5_ENABLED && (
+                  {(companyCoachOn || topic.coachEnabled) && (
                     <AskCoachButton
                       disabled={!draft.trim()}
                       onAsk={() => setAskCoachToken((t) => t + 1)}

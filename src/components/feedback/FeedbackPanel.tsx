@@ -20,14 +20,10 @@ import { useToast } from "@/components/ui/toast";
 import { FeedbackScreenshotEditor } from "./FeedbackScreenshotEditor";
 import { MentionInput, type MentionMember } from "@/components/ui/MentionInput";
 import { fetchTeam } from "@/lib/data/team";
-import { CoachPanel } from "@/components/chats/CoachPanel";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
-
-// Feedback surface migrates to LLM-primary Coach v5.
-const FEEDBACK_COACH_V5_ENABLED = true;
 
 /**
  * FeedbackPanel — slide-out form for submitting feedback.
@@ -416,25 +412,21 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                   Crucial Conversations (high-stakes), or Heath Brothers
                   Simplicity (for ideas / questions). */}
               {coachEnabled && (
-                FEEDBACK_COACH_V5_ENABLED ? (
-                  <>
-                    <CoachPanelV5
-                      draft={body}
-                      contextType="feedback"
-                      contextPayload={coachV5Payload}
-                      askCoachToken={askCoachToken}
-                      onAcceptRevision={(revised) => setBody(revised)}
+                <>
+                  <CoachPanelV5
+                    draft={body}
+                    contextType="feedback"
+                    contextPayload={coachV5Payload}
+                    askCoachToken={askCoachToken}
+                    onAcceptRevision={(revised) => setBody(revised)}
+                  />
+                  <div className="mb-2 flex justify-end">
+                    <AskCoachButton
+                      disabled={!body.trim()}
+                      onAsk={() => setAskCoachToken((t) => t + 1)}
                     />
-                    <div className="mb-2 flex justify-end">
-                      <AskCoachButton
-                        disabled={!body.trim()}
-                        onAsk={() => setAskCoachToken((t) => t + 1)}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <CoachPanel subject="feedback:draft" draft={body} />
-                )
+                  </div>
+                </>
               )}
               <MentionInput
                 value={body}

@@ -254,6 +254,24 @@
       "namedRegex": "^/api/coach/analyze(?:/)?$"
     },
     {
+      "page": "/api/coach/v5/analyze",
+      "regex": "^/api/coach/v5/analyze(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/coach/v5/analyze(?:/)?$"
+    },
+    {
+      "page": "/api/coach/v5/followup",
+      "regex": "^/api/coach/v5/followup(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/coach/v5/followup(?:/)?$"
+    },
+    {
+      "page": "/api/coach/v5/grade-sent",
+      "regex": "^/api/coach/v5/grade\\-sent(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/coach/v5/grade\\-sent(?:/)?$"
+    },
+    {
       "page": "/api/decisions",
       "regex": "^/api/decisions(?:/)?$",
       "routeKeys": {},

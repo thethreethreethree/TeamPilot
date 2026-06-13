@@ -28,14 +28,9 @@ import {
   type TaskMessage,
   type TaskParticipant,
 } from "@/lib/data/tasks";
-import { CoachPanel } from "@/components/chats/CoachPanel";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
-
-// Tasks surface migrates to LLM-primary Coach v5 (matches the chat +
-// Decision Dialogue cutover from Sprints 2 + 4).
-const TASK_COACH_V5_ENABLED = true;
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 /**
@@ -394,28 +389,21 @@ export default function TaskDetailPage() {
               {task.status !== "Completed" && (
                 <form onSubmit={submitMessage} className="mt-4 pt-3 border-t border-default">
                   {coachEnabled && (
-                    TASK_COACH_V5_ENABLED ? (
-                      <>
-                        <CoachPanelV5
-                          draft={draft}
-                          contextType="task_field"
-                          contextPayload={coachV5Payload}
-                          askCoachToken={askCoachToken}
-                          onAcceptRevision={(revised) => setDraft(revised)}
-                        />
-                        <div className="mb-2 flex justify-end">
-                          <AskCoachButton
-                            disabled={!draft.trim()}
-                            onAsk={() => setAskCoachToken((t) => t + 1)}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <CoachPanel
-                        subject={`task:${task.id}`}
+                    <>
+                      <CoachPanelV5
                         draft={draft}
+                        contextType="task_field"
+                        contextPayload={coachV5Payload}
+                        askCoachToken={askCoachToken}
+                        onAcceptRevision={(revised) => setDraft(revised)}
                       />
-                    )
+                      <div className="mb-2 flex justify-end">
+                        <AskCoachButton
+                          disabled={!draft.trim()}
+                          onAsk={() => setAskCoachToken((t) => t + 1)}
+                        />
+                      </div>
+                    </>
                   )}
                   <div className="flex items-end gap-2">
                     <textarea

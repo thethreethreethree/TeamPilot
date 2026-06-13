@@ -5,13 +5,10 @@ import { Lock, ShieldCheck } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Field, Textarea } from "@/components/ui/Field";
 import { closeTopic, type ChatTopic } from "@/lib/data/chats";
-import { CoachPanel } from "@/components/chats/CoachPanel";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
-
-const CLOSE_COACH_V5_ENABLED = true;
 
 /**
  * CloseTopicModal — admin-only action to mark a topic resolved.
@@ -82,28 +79,21 @@ export function CloseTopicModal({
         </div>
         <Field label="What was decided / resolved? (≥20 chars)" required>
           {coachEnabled && (
-            CLOSE_COACH_V5_ENABLED ? (
-              <>
-                <CoachPanelV5
-                  draft={summary}
-                  contextType="chat_message"
-                  contextPayload={coachV5Payload}
-                  askCoachToken={askCoachToken}
-                  onAcceptRevision={(revised) => setSummary(revised)}
-                />
-                <div className="mb-2 flex justify-end">
-                  <AskCoachButton
-                    disabled={!summary.trim()}
-                    onAsk={() => setAskCoachToken((t) => t + 1)}
-                  />
-                </div>
-              </>
-            ) : (
-              <CoachPanel
-                subject={`chat_topic:${topic.id}:close_summary`}
+            <>
+              <CoachPanelV5
                 draft={summary}
+                contextType="chat_message"
+                contextPayload={coachV5Payload}
+                askCoachToken={askCoachToken}
+                onAcceptRevision={(revised) => setSummary(revised)}
               />
-            )
+              <div className="mb-2 flex justify-end">
+                <AskCoachButton
+                  disabled={!summary.trim()}
+                  onAsk={() => setAskCoachToken((t) => t + 1)}
+                />
+              </div>
+            </>
           )}
           <Textarea
             value={summary}

@@ -15,13 +15,9 @@ import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { MentionInput, type MentionMember } from "@/components/ui/MentionInput";
 import { fetchTeam } from "@/lib/data/team";
-import { CoachPanel } from "@/components/chats/CoachPanel";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
-
-// Smoke-test surface migrates to LLM-primary Coach v5.
-const SMOKE_COACH_V5_ENABLED = true;
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 /**
@@ -345,28 +341,21 @@ function SmokeTestItemCard({
             draft` (no row id yet). The §4 readout buckets by surface
             prefix so smoke test notes attribute cleanly. */}
         {coachEnabled && (
-          SMOKE_COACH_V5_ENABLED ? (
-            <>
-              <CoachPanelV5
-                draft={notes}
-                contextType="smoke_test_note"
-                contextPayload={coachV5Payload}
-                askCoachToken={askCoachToken}
-                onAcceptRevision={(revised) => setNotes(revised)}
-              />
-              <div className="mb-2 flex justify-end">
-                <AskCoachButton
-                  disabled={!notes.trim()}
-                  onAsk={() => setAskCoachToken((t) => t + 1)}
-                />
-              </div>
-            </>
-          ) : (
-            <CoachPanel
-              subject={`smoke_test_result:draft:${item.id}`}
+          <>
+            <CoachPanelV5
               draft={notes}
+              contextType="smoke_test_note"
+              contextPayload={coachV5Payload}
+              askCoachToken={askCoachToken}
+              onAcceptRevision={(revised) => setNotes(revised)}
             />
-          )
+            <div className="mb-2 flex justify-end">
+              <AskCoachButton
+                disabled={!notes.trim()}
+                onAsk={() => setAskCoachToken((t) => t + 1)}
+              />
+            </div>
+          </>
         )}
         <MentionInput
           value={notes}

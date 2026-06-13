@@ -497,6 +497,33 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/coach/v5/analyze/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/coach/v5/analyze">> = Specific
+  const handler = {} as typeof import("../../src/app/api/coach/v5/analyze/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/coach/v5/followup/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/coach/v5/followup">> = Specific
+  const handler = {} as typeof import("../../src/app/api/coach/v5/followup/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/coach/v5/grade-sent/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/coach/v5/grade-sent">> = Specific
+  const handler = {} as typeof import("../../src/app/api/coach/v5/grade-sent/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/decisions/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/decisions">> = Specific
