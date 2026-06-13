@@ -2,6 +2,7 @@
 
 import TopBar from "@/components/layout/TopBar";
 import { EnableNotificationsBanner } from "@/components/pwa/EnableNotificationsBanner";
+import { PullToRefresh } from "@/components/pwa/PullToRefresh";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import Modal from "@/components/ui/Modal";
@@ -96,6 +97,7 @@ export default function TeamChatListPage() {
 
   return (
     <div className="min-h-screen bg-base">
+      <PullToRefresh onRefresh={refresh} />
       <TopBar
         title="Team Chat"
         subtitle={`${companyName} · Topic-based conversations with structured outcomes`}
