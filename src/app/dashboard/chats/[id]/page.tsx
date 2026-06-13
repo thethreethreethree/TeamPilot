@@ -48,7 +48,15 @@ import { SummarizeModal } from "@/components/chats/SummarizeModal";
 import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
 import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { CoachAffirmation } from "@/components/chats/CoachAffirmation";
+import type { CoachContextPayload } from "@/lib/coach/v5/types";
+
+// Coach v5.0 cutover — chat composer renders the conversational
+// LLM-primary panel. The v4 regex chip remains imported for fallback /
+// other surfaces that haven't migrated yet (Sprint 7 will fully retire
+// it once all surfaces are on v5).
+const COACH_V5_ENABLED = true;
 import { InThreadDecisionDialogue } from "@/components/chats/InThreadDecisionDialogue";
 import { ComposerToolbar } from "@/components/chats/ComposerToolbar";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
@@ -206,6 +214,30 @@ export default function TeamChatTopicPage() {
     }
     return lines.reverse().join("\n");
   }, [messages]);
+
+  // Coach v5 context payload — structured form the v5 prompt consumes
+  // directly. Different shape than the v4 recentThread string because the
+  // LLM-primary architecture reads each message as its own structured
+  // entry rather than as concatenated prose.
+  const coachV5ContextPayload = useMemo<CoachContextPayload>(() => {
+    const recent: NonNullable<CoachContextPayload["recentThread"]> = [];
+    for (let i = Math.max(0, messages.length - 10); i < messages.length; i += 1) {
+      const m = messages[i];
+      if (!m || m.kind !== "message" || !m.body) continue;
+      recent.push({
+        author: m.authorName ?? "Unknown",
+        body: m.body.slice(0, 2000),
+        timestamp: m.createdAt ?? "",
+      });
+    }
+    return {
+      recentThread: recent,
+      topic: {
+        title: topic?.title,
+        description: topic?.description ?? undefined,
+      },
+    };
+  }, [messages, topic?.title, topic?.description]);
 
   // Optimistic post — replaces the prior full-page `refresh()` (which
   // caused the skeleton flash on every send and incurred 3 round trips
@@ -719,12 +751,26 @@ export default function TeamChatTopicPage() {
                 lets an admin enable Coach in a specific topic when the
                 company-wide switch is OFF. */}
             {(companyCoachOn || topic.coachEnabled) && (
-              <CoachPanel
-                subject={`chat_topic:${topic.id}`}
-                draft={draft}
-                recentThread={recentThread}
-                onRefine={() => inputRef.current?.focus()}
-              />
+              COACH_V5_ENABLED ? (
+                <CoachPanelV5
+                  draft={draft}
+                  contextType="chat_message"
+                  contextPayload={coachV5ContextPayload}
+                  onAcceptRevision={(revised) => {
+                    setDraft(revised);
+                    setAiAssisted(true);
+                    inputRef.current?.focus();
+                    setShowCoachAffirmation(true);
+                  }}
+                />
+              ) : (
+                <CoachPanel
+                  subject={`chat_topic:${topic.id}`}
+                  draft={draft}
+                  recentThread={recentThread}
+                  onRefine={() => inputRef.current?.focus()}
+                />
+              )
             )}
             <CoachAffirmation
               show={showCoachAffirmation}
