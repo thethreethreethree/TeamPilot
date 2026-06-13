@@ -21,6 +21,7 @@
     "@anthropic-ai/sdk": "^0.52.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
+    "@types/web-push": "^3.6.4",
     "clsx": "^2.1.1",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.513.0",
@@ -29,6 +30,7 @@
     "react-dom": "^19.0.0",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.3.0",
+    "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {

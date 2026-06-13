@@ -268,6 +268,23 @@ export default function TeamChatTopicPage() {
         replyToId: replyToSnapshot?.id ?? null,
       });
       setMessages((prev) => [...prev, msg]);
+      // PWA Phase 2.2 — fire the push-notification fan-out for this
+      // new message. Fire-and-forget; if it fails the message has
+      // already landed and nothing breaks.
+      void fetch("/api/notifications/notify-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topicId,
+          messageId: msg.id,
+          bodyPreview: trimmed.slice(0, 120),
+          authorName: msg.authorName ?? "Someone",
+          topicTitle: topic?.title ?? "Team Chat",
+        }),
+      }).catch(() => {
+        // Push fan-out is non-blocking. Errors swallow silently here;
+        // server-side logs surface the actual cause.
+      });
       // Coach v5 — fire the Encouragement System grader. Non-blocking;
       // updates messageGrades when the grade comes back. The message
       // already landed — the grade just drives the indicator next to
