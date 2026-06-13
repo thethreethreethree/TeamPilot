@@ -49,6 +49,7 @@ import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
 import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
 import { CoachPanel } from "@/components/chats/CoachPanel";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
+import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { CoachAffirmation } from "@/components/chats/CoachAffirmation";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
 
@@ -94,6 +95,8 @@ export default function TeamChatTopicPage() {
   // acknowledge the catch. The CoachAffirmation component auto-hides
   // itself; we just need to flip this back to false when it asks.
   const [showCoachAffirmation, setShowCoachAffirmation] = useState(false);
+  // Coach v5 Ask-Coach token — incremented to trigger an active analysis.
+  const [askCoachToken, setAskCoachToken] = useState(0);
   const [summarizeOpen, setSummarizeOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
@@ -756,6 +759,7 @@ export default function TeamChatTopicPage() {
                   draft={draft}
                   contextType="chat_message"
                   contextPayload={coachV5ContextPayload}
+                  askCoachToken={askCoachToken}
                   onAcceptRevision={(revised) => {
                     setDraft(revised);
                     setAiAssisted(true);
@@ -855,6 +859,12 @@ export default function TeamChatTopicPage() {
                     <Lightbulb className="w-3 h-3" aria-hidden="true" />
                     Help me formulate
                   </button>
+                  {(companyCoachOn || topic.coachEnabled) && COACH_V5_ENABLED && (
+                    <AskCoachButton
+                      disabled={!draft.trim()}
+                      onAsk={() => setAskCoachToken((t) => t + 1)}
+                    />
+                  )}
                   {aiAssisted && (
                     <span className="flex items-center gap-1 text-[10px] text-arc-300 flex-shrink-0">
                       <Sparkles className="w-3 h-3" aria-hidden="true" />

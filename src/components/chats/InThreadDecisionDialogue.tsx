@@ -19,6 +19,15 @@ import {
   type TopicDecisionChosenPath,
 } from "@/lib/data/topicDecisions";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
+import { AskCoachButton } from "@/components/chats/AskCoachButton";
+import type { CoachContextPayload } from "@/lib/coach/v5/types";
+
+// Coach v5.0 — Decision Dialogue uses the conversational LLM-primary
+// Coach across all three input-bearing phases. The v3 import stays for
+// the remaining v3-only surfaces (tasks/feedback/smoke-test — Sprint
+// 4.1+ migrates those).
+const DD_COACH_V5_ENABLED = true;
 
 /**
  * InThreadDecisionDialogue — renders the 4-phase Decision Dialogue
@@ -76,6 +85,44 @@ export function InThreadDecisionDialogue({
   const [askingSystem, setAskingSystem] = useState(false);
   const [deciding, setDeciding] = useState(false);
   const [error, setError] = useState("");
+
+  // Coach v5 Ask-Coach tokens — one per field that mounts the Coach.
+  // Incrementing a token triggers an active analysis on that specific
+  // field's Coach panel without affecting the others.
+  const [askSituationToken, setAskSituationToken] = useState(0);
+  const [askDiagnosisToken, setAskDiagnosisToken] = useState(0);
+  const [askProposalToken, setAskProposalToken] = useState(0);
+
+  // Coach v5 contextPayload builders — each field has its own context
+  // because what counts as "prior content" depends on the phase. The
+  // Coach reading the Situation field has nothing prior (it's the
+  // first thing being written); reading Diagnosis has the Situation as
+  // context; reading Proposal has both Situation + Diagnosis.
+  const situationContextPayload = useMemo<CoachContextPayload>(
+    () => ({
+      decisionSituation: situation || undefined,
+    }),
+    [situation]
+  );
+  const diagnosisContextPayload = useMemo<CoachContextPayload>(
+    () => ({
+      decisionSituation: situation || undefined,
+      decisionPriorPhases: {
+        situation: situation || undefined,
+      },
+    }),
+    [situation]
+  );
+  const proposalContextPayload = useMemo<CoachContextPayload>(
+    () => ({
+      decisionSituation: situation || undefined,
+      decisionPriorPhases: {
+        situation: situation || undefined,
+        userRead: userDiagnosis || undefined,
+      },
+    }),
+    [situation, userDiagnosis]
+  );
 
   // When the row changes from the parent (e.g. after a refresh), sync
   // local state — but only fields the user isn't currently editing
@@ -219,10 +266,20 @@ export function InThreadDecisionDialogue({
         {/* Phase 1 — Situation */}
         <PhaseCard active={phase === "situation"} number="1" title="Situation">
           {coachOn && phase === "situation" && (
-            <CoachPanel
-              subject={`topic_decision:${decision.id}:situation`}
-              draft={situation}
-            />
+            DD_COACH_V5_ENABLED ? (
+              <CoachPanelV5
+                draft={situation}
+                contextType="decision_dialogue"
+                contextPayload={situationContextPayload}
+                askCoachToken={askSituationToken}
+                onAcceptRevision={(revised) => setSituation(revised)}
+              />
+            ) : (
+              <CoachPanel
+                subject={`topic_decision:${decision.id}:situation`}
+                draft={situation}
+              />
+            )
           )}
           <textarea
             value={situation}
@@ -233,12 +290,18 @@ export function InThreadDecisionDialogue({
             className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
           />
           {phase === "situation" && (
-            <div className="mt-2 flex items-center justify-end">
+            <div className="mt-2 flex items-center justify-between flex-wrap gap-2">
+              {coachOn && DD_COACH_V5_ENABLED ? (
+                <AskCoachButton
+                  disabled={!situation.trim()}
+                  onAsk={() => setAskSituationToken((t) => t + 1)}
+                />
+              ) : <span />}
               <button
                 type="button"
                 onClick={() => void advance("elicit")}
                 disabled={!situation.trim() || advancing}
-                className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
+                className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
               >
                 {advancing ? "Saving…" : "Continue"}
                 <ChevronRight className="w-3.5 h-3.5" aria-hidden />
@@ -261,11 +324,17 @@ export function InThreadDecisionDialogue({
                 onChange={setUserDiagnosis}
                 disabled={phase !== "elicit"}
                 placeholder="Diagnose in your own words. The underlying cause, not the symptom."
-                coachSubject={
-                  coachOn && phase === "elicit"
-                    ? `topic_decision:${decision.id}:diagnosis`
-                    : undefined
-                }
+                {...(coachOn && phase === "elicit"
+                  ? DD_COACH_V5_ENABLED
+                    ? {
+                        coachV5: {
+                          contextPayload: diagnosisContextPayload,
+                          askToken: askDiagnosisToken,
+                          onAsk: () => setAskDiagnosisToken((t) => t + 1),
+                        },
+                      }
+                    : { coachSubject: `topic_decision:${decision.id}:diagnosis` }
+                  : {})}
               />
               <ElicitField
                 icon={<Lightbulb className="w-3.5 h-3.5" />}
@@ -274,11 +343,17 @@ export function InThreadDecisionDialogue({
                 onChange={setUserProposal}
                 disabled={phase !== "elicit"}
                 placeholder="The action AND the reasoning — what makes this the right move."
-                coachSubject={
-                  coachOn && phase === "elicit"
-                    ? `topic_decision:${decision.id}:proposal`
-                    : undefined
-                }
+                {...(coachOn && phase === "elicit"
+                  ? DD_COACH_V5_ENABLED
+                    ? {
+                        coachV5: {
+                          contextPayload: proposalContextPayload,
+                          askToken: askProposalToken,
+                          onAsk: () => setAskProposalToken((t) => t + 1),
+                        },
+                      }
+                    : { coachSubject: `topic_decision:${decision.id}:proposal` }
+                  : {})}
               />
             </div>
             {phase === "elicit" && (
@@ -578,6 +653,7 @@ function ElicitField({
   disabled,
   placeholder,
   coachSubject,
+  coachV5,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -585,7 +661,15 @@ function ElicitField({
   onChange: (v: string) => void;
   disabled: boolean;
   placeholder: string;
+  /** v3 path — legacy regex subject. Used when v5 not provided. */
   coachSubject?: string;
+  /** v5 path — when present, replaces the v3 CoachPanel with v5 +
+   *  AskCoachButton. Either subject OR v5 should be provided, not both. */
+  coachV5?: {
+    contextPayload: CoachContextPayload;
+    askToken: number;
+    onAsk: () => void;
+  };
 }) {
   return (
     <div>
@@ -593,7 +677,17 @@ function ElicitField({
         <span className="text-brand">{icon}</span>
         {label}
       </label>
-      {coachSubject && <CoachPanel subject={coachSubject} draft={value} />}
+      {coachV5 ? (
+        <CoachPanelV5
+          draft={value}
+          contextType="decision_dialogue"
+          contextPayload={coachV5.contextPayload}
+          askCoachToken={coachV5.askToken}
+          onAcceptRevision={(revised) => onChange(revised)}
+        />
+      ) : coachSubject ? (
+        <CoachPanel subject={coachSubject} draft={value} />
+      ) : null}
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -602,6 +696,14 @@ function ElicitField({
         placeholder={placeholder}
         className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
       />
+      {coachV5 && (
+        <div className="mt-1 flex justify-end">
+          <AskCoachButton
+            disabled={!value.trim() || disabled}
+            onAsk={coachV5.onAsk}
+          />
+        </div>
+      )}
     </div>
   );
 }
