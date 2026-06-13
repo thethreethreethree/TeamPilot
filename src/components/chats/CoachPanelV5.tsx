@@ -10,6 +10,7 @@ import type {
   CoachAnalysisMode,
   CoachFollowUpResponse,
 } from "@/lib/coach/v5/types";
+import { hapticSuccess } from "@/lib/pwa/haptics";
 
 /**
  * CoachPanelV5 — the conversational Coach surface.
@@ -199,6 +200,11 @@ export function CoachPanelV5({
     // If the user then edits the revision themselves, the trim will
     // differ and analysis resumes correctly.
     lastAnalyzedDraftRef.current = revision.trim();
+    // Phase 5.3 — success haptic pulse on accept. The user just
+    // engaged with a teaching surface and chose to adopt the
+    // revision; the celebratory double-tap signals the action
+    // landed and reinforces the "this was worth it" feeling.
+    hapticSuccess();
     onAcceptRevision?.(revision);
     setState({ kind: "idle" });
   };

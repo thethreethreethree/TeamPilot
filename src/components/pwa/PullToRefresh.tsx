@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { RotateCw } from "lucide-react";
+import { hapticThreshold } from "@/lib/pwa/haptics";
 
 /**
  * PullToRefresh — window-level pull-down-to-refresh for PWA surfaces.
@@ -81,6 +82,14 @@ export function PullToRefresh({
       // Damp the pull: each pixel of finger movement contributes
       // proportionally less. Rubber-band effect.
       const damped = Math.min(MAX_PULL, Math.sqrt(delta) * 12);
+      const wasBelow = pullRef.current < PULL_THRESHOLD;
+      const nowAtOrAbove = damped >= PULL_THRESHOLD;
+      // Phase 5.3 — threshold haptic. Fires the exact moment the
+      // pull crosses into the "release-to-refresh" zone. The user
+      // feels the gesture become committed; releasing now will
+      // refresh. Light vibration so it's noticeable without being
+      // a full buzz.
+      if (wasBelow && nowAtOrAbove) hapticThreshold();
       pullRef.current = damped;
       setPull(damped);
     };

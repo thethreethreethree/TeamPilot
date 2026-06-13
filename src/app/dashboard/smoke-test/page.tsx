@@ -22,6 +22,7 @@ import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
+import { hapticSend, hapticSuccess } from "@/lib/pwa/haptics";
 
 /**
  * /dashboard/smoke-test
@@ -403,6 +404,12 @@ function SmokeTestItemCard({
 
   const wrap = async (status: "pass" | "fail" | "unable") => {
     setPending(status);
+    // Phase 5.3 — haptic on submit. Pass = success pulse (celebration
+    // for the green path); fail / unable = standard send tap (action
+    // landed, but not a celebration). Tactile distinction matches
+    // the emotional tone of the result.
+    if (status === "pass") hapticSuccess();
+    else hapticSend();
     try {
       await onSubmit(status, notes);
     } finally {

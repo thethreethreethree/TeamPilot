@@ -51,6 +51,7 @@ import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { CoachAffirmation } from "@/components/chats/CoachAffirmation";
 import { ReviewSentMessageModal } from "@/components/chats/ReviewSentMessageModal";
+import { hapticSend } from "@/lib/pwa/haptics";
 import type {
   CoachContextPayload,
   EncouragementGrade,
@@ -915,7 +916,15 @@ export default function TeamChatTopicPage() {
                   <button
                     type="submit"
                     disabled={!draft.trim() || submitting}
-                    className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
+                    onPointerDown={() => {
+                      // Tap haptic the moment the press lands — gives
+                      // the user a tactile "I felt that" before the
+                      // network round-trip starts. Light vibration
+                      // (Phase 5.3); silent no-op on platforms without
+                      // navigator.vibrate.
+                      if (draft.trim() && !submitting) hapticSend();
+                    }}
+                    className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] active:scale-95 disabled:opacity-40 disabled:active:scale-100 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-all duration-150 text-xs"
                   >
                     Send
                     <CornerDownLeft className="w-3 h-3" aria-hidden="true" />

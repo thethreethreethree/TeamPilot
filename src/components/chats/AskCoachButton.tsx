@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircleQuestion } from "lucide-react";
+import { hapticTap } from "@/lib/pwa/haptics";
 
 /**
  * AskCoachButton — composer-footer trigger for Coach v5.0 active mode.
@@ -40,6 +41,7 @@ export function AskCoachButton({
   const handleClick = () => {
     if (disabled) return;
     setPulse(true);
+    hapticTap();
     onAsk();
     window.setTimeout(() => setPulse(false), 300);
   };
