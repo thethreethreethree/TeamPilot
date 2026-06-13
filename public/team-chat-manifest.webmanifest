@@ -5,20 +5,23 @@
   "start_url": "/dashboard/chats",
   "scope": "/dashboard/chats/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#09090B",
   "theme_color": "#FACC15",
+  "lang": "en",
+  "dir": "ltr",
   "categories": ["business", "productivity", "communication"],
   "id": "elostate-team-chat",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "/icon-team-chat.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable.svg",
+      "src": "/icon-team-chat-maskable.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"

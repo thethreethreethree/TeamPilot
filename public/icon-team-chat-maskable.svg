@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ELOSTATE Team Chat — maskable app icon (Android adaptive icons).
+
+  Per the Web App Manifest spec, maskable icons are clipped by the
+  platform's adaptive icon mask (circle on most Pixel devices, squircle
+  on Samsung, rounded square on others). The "safe zone" is the central
+  ~80% of the viewBox — anything outside can be clipped.
+
+  This variant keeps the bubble centered within the safe zone, with
+  the same brand identity but smaller proportional sizing so the
+  adaptive-icon mask doesn't crop the bubble's tail or dots.
+-->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg"
+     width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Background fills the entire viewBox; the OS mask clips it. -->
+  <rect width="1024" height="1024" fill="#09090B"/>
+
+  <!-- Chat bubble shape — same design language as icon-team-chat.svg
+       but proportionally smaller (~60% of viewBox) so the OS's adaptive
+       icon mask doesn't crop the bubble or its tail. -->
+  <g fill="#FACC15">
+    <rect x="252" y="282" width="520" height="380" rx="76"/>
+    <path d="M 336 654 L 336 740 L 436 654 Z"/>
+  </g>
+
+  <!-- Three dots — recentered to match the smaller bubble -->
+  <g fill="#09090B">
+    <circle cx="416" cy="472" r="38"/>
+    <circle cx="512" cy="472" r="38"/>
+    <circle cx="608" cy="472" r="38"/>
+  </g>
+</svg>

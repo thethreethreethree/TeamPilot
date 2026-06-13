@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ELOSTATE Team Chat — app icon (any-purpose variant).
+
+  Design:
+    - Matte black background (#09090B) — matches the ELOSTATE brand
+    - Amber chat bubble (#FACC15) — the brand color, in a recognizable
+      chat-bubble shape so users can tell the Team Chat PWA apart from
+      the main ELOSTATE PWA on their home screen
+    - Three dots inside the bubble — universal "messages" indicator,
+      readable even at iOS lock-screen badge sizes
+
+  This is the "any purpose" icon — used at full edge-to-edge size on
+  iOS (which doesn't apply adaptive masking). For Android adaptive
+  icons see icon-team-chat-maskable.svg with its safe-area padding.
+-->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg"
+     width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Background: matte black ELOSTATE brand color -->
+  <rect width="1024" height="1024" fill="#09090B" rx="220"/>
+
+  <!-- Chat bubble shape — rounded square with a small tail pointing
+       down-left. The tail is a separate triangle that overlaps the
+       bubble cleanly. -->
+  <g fill="#FACC15">
+    <!-- Main bubble body, centered slightly upper to leave room for the tail -->
+    <rect x="170" y="200" width="684" height="500" rx="100"/>
+    <!-- Tail: triangle anchored to bottom-left of the bubble -->
+    <path d="M 280 690 L 280 800 L 410 690 Z"/>
+  </g>
+
+  <!-- Three dots inside the bubble — the universal "messages" mark.
+       Spaced evenly along the horizontal centerline, sized so they
+       read clearly even at iOS notification-badge resolutions. -->
+  <g fill="#09090B">
+    <circle cx="384" cy="450" r="50"/>
+    <circle cx="512" cy="450" r="50"/>
+    <circle cx="640" cy="450" r="50"/>
+  </g>
+</svg>

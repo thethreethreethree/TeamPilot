@@ -25,6 +25,38 @@ import { TeamChatServiceWorkerRegister } from "@/components/pwa/TeamChatServiceW
  */
 export const metadata: Metadata = {
   manifest: "/team-chat-manifest.webmanifest",
+  // iOS Safari uses these meta tags rather than the manifest fields
+  // for its "Add to Home Screen" install behavior. Set them
+  // explicitly so the installed Team Chat PWA on iPhone/iPad gets:
+  //   - Standalone display (no Safari UI when launched)
+  //   - "Team Chat" label under the home-screen icon
+  //   - Status bar styled to match the brand's matte black
+  //   - The chat-themed icon (vs. the main ELOSTATE icon)
+  appleWebApp: {
+    capable: true,
+    title: "Team Chat",
+    statusBarStyle: "black-translucent",
+    startupImage: [
+      // Apple touch-startup-image hints — iOS uses these as splash
+      // when launching the standalone app. SVG works on iOS 16+;
+      // older iOS falls back to a blank theme-colored screen, which
+      // is still fine given the manifest background_color matches.
+      "/icon-team-chat.svg",
+    ],
+  },
+  other: {
+    // Belt-and-suspenders for older iOS that doesn't pick up the
+    // appleWebApp fields. These mirror the modern fields but as
+    // raw meta tags for maximum compatibility.
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-title": "Team Chat",
+    // The apple-touch-icon meta tag tells iOS which icon to use when
+    // the user adds the page to their home screen. SVG works on iOS
+    // 16+; for broader compatibility we'd add PNG variants here, but
+    // SVG is sufficient for the modern iOS install path.
+    "apple-touch-icon": "/icon-team-chat.svg",
+  },
 };
 
 export default function ChatsLayout({
