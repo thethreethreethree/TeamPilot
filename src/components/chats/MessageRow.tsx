@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Pin, PinOff, Reply, Sparkles } from "lucide-react";
+import { hapticThreshold } from "@/lib/pwa/haptics";
 import type { ChatMessage } from "@/lib/data/chats";
 import { formatTime } from "./utils";
 import {
@@ -116,9 +118,9 @@ export function MessageRow({
   }
 
   return (
-    <div
-      id={`msg-${msg.id}`}
-      className="flex gap-2 md:gap-3 group rounded-xl transition-shadow min-w-0"
+    <SwipeToReplyRow
+      msgId={msg.id}
+      onReplyTriggered={onStartReply}
     >
       <div
         className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold border border-default/40"
@@ -262,6 +264,172 @@ export function MessageRow({
             </button>
           </div>
         </div>
+      </div>
+    </SwipeToReplyRow>
+  );
+}
+
+/**
+ * SwipeToReplyRow — Phase 5.4 wrapper that renders the message row
+ * and supports a right-swipe gesture to trigger reply.
+ *
+ * Behavior:
+ *   - Touch-drag right from the message → reply indicator slides in
+ *     from the left edge while the message itself translates with
+ *     the finger (damped after threshold).
+ *   - Past 60px → release fires onReplyTriggered. Below threshold,
+ *     snap back.
+ *   - Threshold haptic when crossing the commit zone.
+ *   - PWA-standalone only. In browser-tab context the gesture is
+ *     disabled so it doesn't fight horizontal scrolling.
+ *   - msgId is forwarded to the outer div as the `id` attribute so
+ *     scroll-to-message (used by the reply-to jump button) keeps
+ *     working.
+ */
+function SwipeToReplyRow({
+  msgId,
+  onReplyTriggered,
+  children,
+}: {
+  msgId: string;
+  onReplyTriggered?: () => void;
+  children: React.ReactNode;
+}) {
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const lockedDirection = useRef<"horizontal" | "vertical" | null>(null);
+  const swipeRef = useRef(0);
+  const [swipe, setSwipe] = useState(0);
+  const [committed, setCommitted] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setIsStandalone(standalone);
+  }, []);
+
+  const enabled = isStandalone && !!onReplyTriggered;
+  const THRESHOLD = 60;
+  const MAX_SWIPE = 110;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!enabled) return;
+    const t = e.touches[0];
+    if (!t) return;
+    startX.current = t.clientX;
+    startY.current = t.clientY;
+    lockedDirection.current = null;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!enabled || startX.current === null || startY.current === null) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const deltaX = t.clientX - startX.current;
+    const deltaY = t.clientY - startY.current;
+
+    // Lock the gesture direction on first significant movement.
+    // If user moves more vertically than horizontally, treat as
+    // scroll and bail out — don't fight the message stream's
+    // vertical scroll.
+    if (lockedDirection.current === null) {
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+      if (absX < 8 && absY < 8) return; // dead zone — wait for clear intent
+      lockedDirection.current = absX > absY ? "horizontal" : "vertical";
+    }
+
+    if (lockedDirection.current === "vertical") return;
+    if (deltaX <= 0) {
+      swipeRef.current = 0;
+      setSwipe(0);
+      return;
+    }
+    // Damp past the threshold so the message doesn't fly off the
+    // screen if the user keeps dragging — same rubber-band feel as
+    // pull-to-refresh.
+    const damped =
+      deltaX <= THRESHOLD
+        ? deltaX
+        : THRESHOLD + Math.sqrt(deltaX - THRESHOLD) * 8;
+    const clamped = Math.min(MAX_SWIPE, damped);
+    const wasBelow = swipeRef.current < THRESHOLD;
+    const nowAtOrAbove = clamped >= THRESHOLD;
+    if (wasBelow && nowAtOrAbove) {
+      hapticThreshold();
+      setCommitted(true);
+    } else if (clamped < THRESHOLD && committed) {
+      setCommitted(false);
+    }
+    swipeRef.current = clamped;
+    setSwipe(clamped);
+  };
+
+  const handleTouchEnd = () => {
+    if (!enabled || startX.current === null) return;
+    const final = swipeRef.current;
+    startX.current = null;
+    startY.current = null;
+    lockedDirection.current = null;
+    if (final >= THRESHOLD && onReplyTriggered) {
+      // Trigger fires after the snap-back animation so the swipe
+      // feels resolved before the composer's "Replying to" pill
+      // appears.
+      window.setTimeout(() => onReplyTriggered(), 150);
+    }
+    swipeRef.current = 0;
+    setSwipe(0);
+    setCommitted(false);
+  };
+
+  // Indicator opacity ramps from 0 → 1 as the user swipes toward
+  // the threshold. Committed state (past threshold) is fully solid.
+  const indicatorOpacity = committed ? 1 : Math.min(1, swipe / THRESHOLD);
+
+  return (
+    <div
+      id={`msg-${msgId}`}
+      className="relative min-w-0"
+      onTouchStart={enabled ? handleTouchStart : undefined}
+      onTouchMove={enabled ? handleTouchMove : undefined}
+      onTouchEnd={enabled ? handleTouchEnd : undefined}
+      onTouchCancel={enabled ? handleTouchEnd : undefined}
+    >
+      {/* Reply indicator — sits BEHIND the message, revealed as the
+          message slides right. Brand-amber Reply icon in a circle on
+          the left edge. */}
+      {enabled && (
+        <div
+          aria-hidden
+          className="absolute left-0 top-0 bottom-0 flex items-center pointer-events-none"
+          style={{
+            opacity: indicatorOpacity,
+            transform: `translateX(${Math.min(swipe / 2, 30)}px)`,
+          }}
+        >
+          <div
+            className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
+              committed
+                ? "bg-[#FACC15] text-[#09090B]"
+                : "bg-[#FACC15]/20 text-brand"
+            }`}
+          >
+            <Reply className="w-4 h-4" aria-hidden />
+          </div>
+        </div>
+      )}
+
+      <div
+        className="flex gap-2 md:gap-3 group rounded-xl transition-shadow min-w-0"
+        style={{
+          transform: enabled && swipe > 0 ? `translateX(${swipe}px)` : undefined,
+          transition: swipe === 0 ? "transform 200ms ease-out" : undefined,
+        }}
+      >
+        {children}
       </div>
     </div>
   );
