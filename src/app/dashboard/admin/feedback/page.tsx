@@ -16,6 +16,12 @@ import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { MentionText } from "@/components/ui/MentionText";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
+import { AskCoachButton } from "@/components/chats/AskCoachButton";
+import type { CoachContextPayload } from "@/lib/coach/v5/types";
+
+// Admin feedback resolution-note surface migrates to v5.
+const ADMIN_FEEDBACK_COACH_V5_ENABLED = true;
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 /**
@@ -271,6 +277,15 @@ function FeedbackRowCard({
   ) => void | Promise<void>;
 }) {
   const [note, setNote] = useState(row.resolution_note ?? "");
+  // Coach v5 — the admin is writing a resolution note. The
+  // feedbackKind tells the Coach what kind of feedback is being
+  // resolved (bug / idea / friction / praise) so the right
+  // Knowledge Base layer is applied.
+  const [askCoachToken, setAskCoachToken] = useState(0);
+  const coachV5Payload = useMemo<CoachContextPayload>(
+    () => ({ feedbackKind: row.kind }),
+    [row.kind]
+  );
   const Icon = KIND_ICONS[row.kind];
   const screenshot = row.payload["screenshot_data_url"] as string | undefined;
   const { enabled: coachEnabled } = useCoachEnabled();
@@ -322,10 +337,28 @@ function FeedbackRowCard({
           {/* Triage actions */}
           <div>
             {coachEnabled && (
-              <CoachPanel
-                subject={`feedback:${row.id}:resolution_note`}
-                draft={note}
-              />
+              ADMIN_FEEDBACK_COACH_V5_ENABLED ? (
+                <>
+                  <CoachPanelV5
+                    draft={note}
+                    contextType="feedback"
+                    contextPayload={coachV5Payload}
+                    askCoachToken={askCoachToken}
+                    onAcceptRevision={(revised) => setNote(revised)}
+                  />
+                  <div className="mb-2 flex justify-end">
+                    <AskCoachButton
+                      disabled={!note.trim()}
+                      onAsk={() => setAskCoachToken((t) => t + 1)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <CoachPanel
+                  subject={`feedback:${row.id}:resolution_note`}
+                  draft={note}
+                />
+              )
             )}
             <textarea
               value={note}

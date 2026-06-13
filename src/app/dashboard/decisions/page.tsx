@@ -19,9 +19,16 @@ import {
   MessageCircleQuestion,
   RotateCcw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
+import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
+import type { CoachContextPayload } from "@/lib/coach/v5/types";
+
+// Off-thread Decisions page — same v5 migration as the in-thread
+// Decision Dialogue (InThreadDecisionDialogue).
+const OFFTHREAD_DECISIONS_COACH_V5_ENABLED = true;
 
 interface DialogueResponse {
   engagement: string;
@@ -56,6 +63,33 @@ export default function DecisionsPage() {
   const [situation, setSituation] = useState(exampleSituation);
   const [userDiagnosis, setUserDiagnosis] = useState("");
   const [userProposal, setUserProposal] = useState("");
+  // Coach v5 — one ask-token per phase so the buttons don't cross-trigger.
+  const [askSituationToken, setAskSituationToken] = useState(0);
+  const [askDiagnosisToken, setAskDiagnosisToken] = useState(0);
+  const [askProposalToken, setAskProposalToken] = useState(0);
+  // contextPayloads scope what the Coach treats as prior context for
+  // each phase (same pattern as InThreadDecisionDialogue).
+  const situationPayload = useMemo<CoachContextPayload>(
+    () => ({ decisionSituation: situation || undefined }),
+    [situation]
+  );
+  const diagnosisPayload = useMemo<CoachContextPayload>(
+    () => ({
+      decisionSituation: situation || undefined,
+      decisionPriorPhases: { situation: situation || undefined },
+    }),
+    [situation]
+  );
+  const proposalPayload = useMemo<CoachContextPayload>(
+    () => ({
+      decisionSituation: situation || undefined,
+      decisionPriorPhases: {
+        situation: situation || undefined,
+        userRead: userDiagnosis || undefined,
+      },
+    }),
+    [situation, userDiagnosis]
+  );
   const [response, setResponse] = useState<DialogueResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -230,7 +264,25 @@ export default function DecisionsPage() {
           subtitle="Describe what's happening. The System is silent."
         >
           {coachEnabled && phase === "situation" && (
-            <CoachPanel subject="decision:draft:situation" draft={situation} />
+            OFFTHREAD_DECISIONS_COACH_V5_ENABLED ? (
+              <>
+                <CoachPanelV5
+                  draft={situation}
+                  contextType="decision_dialogue"
+                  contextPayload={situationPayload}
+                  askCoachToken={askSituationToken}
+                  onAcceptRevision={(revised) => setSituation(revised)}
+                />
+                <div className="mb-2 flex justify-end">
+                  <AskCoachButton
+                    disabled={!situation.trim()}
+                    onAsk={() => setAskSituationToken((t) => t + 1)}
+                  />
+                </div>
+              </>
+            ) : (
+              <CoachPanel subject="decision:draft:situation" draft={situation} />
+            )
           )}
           <textarea
             value={situation}
@@ -268,7 +320,17 @@ export default function DecisionsPage() {
                 onChange={setUserDiagnosis}
                 disabled={phase !== "elicit"}
                 placeholder="Diagnose the situation in your own words. The underlying cause, not just the symptom."
-                coachSubject={coachEnabled && phase === "elicit" ? "decision:draft:diagnosis" : undefined}
+                {...(coachEnabled && phase === "elicit"
+                  ? OFFTHREAD_DECISIONS_COACH_V5_ENABLED
+                    ? {
+                        coachV5: {
+                          contextPayload: diagnosisPayload,
+                          askToken: askDiagnosisToken,
+                          onAsk: () => setAskDiagnosisToken((t) => t + 1),
+                        },
+                      }
+                    : { coachSubject: "decision:draft:diagnosis" }
+                  : {})}
               />
               <ElicitField
                 icon={<Lightbulb className="w-3.5 h-3.5" />}
@@ -277,7 +339,17 @@ export default function DecisionsPage() {
                 onChange={setUserProposal}
                 disabled={phase !== "elicit"}
                 placeholder="State your proposal. The action AND the reasoning — what makes this the right move."
-                coachSubject={coachEnabled && phase === "elicit" ? "decision:draft:proposal" : undefined}
+                {...(coachEnabled && phase === "elicit"
+                  ? OFFTHREAD_DECISIONS_COACH_V5_ENABLED
+                    ? {
+                        coachV5: {
+                          contextPayload: proposalPayload,
+                          askToken: askProposalToken,
+                          onAsk: () => setAskProposalToken((t) => t + 1),
+                        },
+                      }
+                    : { coachSubject: "decision:draft:proposal" }
+                  : {})}
               />
             </div>
             {error && <p className="text-xs text-red-400 mt-3">{error}</p>}
@@ -570,6 +642,7 @@ function ElicitField({
   disabled,
   placeholder,
   coachSubject,
+  coachV5,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -577,9 +650,15 @@ function ElicitField({
   onChange: (v: string) => void;
   disabled: boolean;
   placeholder: string;
-  /** When provided, Coach mirror chip surfaces above this textarea
-   *  using the given chain subject. Undefined = no coach mount. */
+  /** v3 path — legacy regex subject. Used when v5 not provided. */
   coachSubject?: string;
+  /** v5 path — when present, replaces the v3 CoachPanel with v5 +
+   *  AskCoachButton. Either subject OR v5 should be provided, not both. */
+  coachV5?: {
+    contextPayload: CoachContextPayload;
+    askToken: number;
+    onAsk: () => void;
+  };
 }) {
   return (
     <div>
@@ -587,7 +666,17 @@ function ElicitField({
         <span className="text-brand">{icon}</span>
         {label}
       </label>
-      {coachSubject && <CoachPanel subject={coachSubject} draft={value} />}
+      {coachV5 ? (
+        <CoachPanelV5
+          draft={value}
+          contextType="decision_dialogue"
+          contextPayload={coachV5.contextPayload}
+          askCoachToken={coachV5.askToken}
+          onAcceptRevision={(revised) => onChange(revised)}
+        />
+      ) : coachSubject ? (
+        <CoachPanel subject={coachSubject} draft={value} />
+      ) : null}
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -596,6 +685,14 @@ function ElicitField({
         placeholder={placeholder}
         className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
       />
+      {coachV5 && (
+        <div className="mt-1 flex justify-end">
+          <AskCoachButton
+            disabled={!value.trim() || disabled}
+            onAsk={coachV5.onAsk}
+          />
+        </div>
+      )}
     </div>
   );
 }
