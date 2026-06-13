@@ -99,73 +99,116 @@ export const COACH_THRESHOLDS: Record<CoachCitation["id"], number> = {
 };
 
 /**
- * Build the count + question chip text for the mirror frame.
- * Replaces the v1 verdict assertion ("Reads as evaluation").
+ * Build the chip text — v4.0 voice (2026-06-12).
  *
- * The shape is always:
- *   <pattern summary including count> + <question, never a judgment>
+ * v4.0 redesign: the previous version produced clinical taxonomy labels
+ * ("Absolute / judgmental phrasing — once in this thread"). The user
+ * called out — correctly — that the Coach had been failing its third
+ * contract: making the writer feel they've learned something AND feel
+ * encouraged. The taxonomy NAMED the pathology; it didn't INVITE the
+ * writer to grow.
  *
- * The user is the one rendering the verdict. The System reports a
- * fact (a count) and asks. See A11 (revised).
+ * v4.0 voice principles:
+ *   - First-person (the System "noticed something"), not taxonomic
+ *   - Warm and curious, not clinical
+ *   - Recurrence is framed as GROWTH ("you've noticed this 3 times —
+ *     that awareness IS the practice") not surveillance ("3 times in
+ *     this thread")
+ *   - Questions stay inviting, not interrogative
+ *
+ * A11 still holds: the System surfaces an observation + a question;
+ * the writer renders the verdict. v4.0 just changes the tone — the
+ * mirror remains a mirror.
  */
 export function mirrorChipText(
   citationId: CoachCitation["id"],
   totalCount: number,
-  contextLabel: string = "this thread"
-): { label: string; question: string } {
+): {
+  label: string;
+  question: string;
+  /** v4.0: growth-framing tagline rendered as its own visual element
+   *  when the same pattern has surfaced more than once. Silent on n=1
+   *  (no count needed for first occurrence). On n>=2, names the
+   *  recurrence in practice-shaped language ("you're noticing this
+   *  pattern — that awareness IS the work") rather than surveillance-
+   *  shaped ("3 times in this thread"). */
+  recurrenceFrame: string | null;
+} {
   const n = totalCount;
-  const occ = n === 1 ? "once" : `${n} times`;
+  const recurrenceFrame =
+    n === 1
+      ? null
+      : n === 2
+        ? "Second time today — you're noticing the shape."
+        : `You've noticed this ${n} times. That awareness IS the practice.`;
+
   switch (citationId) {
     case "nvc-evaluation":
       return {
-        label: `Absolute / judgmental phrasing — ${occ} in ${contextLabel}`,
-        question: n === 1
-          ? "First occurrence — pattern starting, or fair callback to a real situation?"
-          : "Pattern, or fair callbacks to a real situation?",
+        label: "I noticed some judgment language",
+        question:
+          n === 1
+            ? "Want to take a look together — is this evaluation, or a fair callback to a real situation?"
+            : "Curious — are these fair callbacks, or is the judgment shape worth a second look?",
+        recurrenceFrame,
       };
     case "voss-bare-assertion":
       return {
-        label: `Assertion before label — ${occ} in ${contextLabel}`,
-        question: n === 1
-          ? "First occurrence — has the other side already been heard, or worth opening with a label?"
-          : "Pattern, or has the other side already been heard each time?",
+        label: "I noticed you opened with a prescription",
+        question:
+          n === 1
+            ? "Has the other side already been heard, or worth opening with a label of where they are first?"
+            : "Want to look at whether the other side gets labeled before the prescription each time?",
+        recurrenceFrame,
       };
     case "stone-identity-collision":
       return {
-        label: `Critique of person, not behavior — ${occ} in ${contextLabel}`,
-        question: n === 1
-          ? "First occurrence — intentional escalation, or worth trading 'who they are' for 'what happened'?"
-          : "Pattern — worth pausing on, or all intentional?",
+        label: "I noticed an identity-level framing",
+        question:
+          n === 1
+            ? "Want to look at trading 'who they are' for 'what happened' here?"
+            : "Curious — is the identity framing the part you mean, or could it be the behavior underneath?",
+        recurrenceFrame,
       };
     case "coach-blame-projection":
       return {
-        label: `Locating cause in someone else — ${occ} in ${contextLabel}`,
-        question: n === 1
-          ? "First occurrence — does framing it as 'they're making me feel X' land where you want, or worth leading with what's happening for you first?"
-          : "Pattern — does this framing usually land, or is something else underneath?",
+        label: "I noticed an outside-cause framing",
+        question:
+          n === 1
+            ? "Want to try leading with what's happening for you first — and see if the message lands differently?"
+            : "Curious — does framing it on them usually land, or might leading with your own feeling shift it?",
+        recurrenceFrame,
       };
     case "coach-emotional-escalation":
       return {
-        label: `Heightened emotional language — ${occ} in ${contextLabel}`,
-        question: n === 1
-          ? "First occurrence — is the intensity what you want to land with, or does it overshoot what you actually want them to do?"
-          : "Pattern — is the intensity working, or is it making the message harder to act on?",
+        label: "I'm picking up some heightened language",
+        question:
+          n === 1
+            ? "Is the intensity what you want them to feel, or does it overshoot what you want them to do?"
+            : "Curious — is the intensity getting action, or making the message harder to act on?",
+        recurrenceFrame,
       };
     case "coach-hot-state":
       return {
-        label: `Signaling a hot state while sending — ${occ} in ${contextLabel}`,
-        question: n === 1
-          ? "First occurrence — would you read this message the same way tomorrow, or might 30 minutes change what you'd send?"
-          : "Pattern — worth a hot-state pause discipline before send?",
+        label: "I'm picking up some hot-state signals",
+        question:
+          n === 1
+            ? "Would you read this the same way tomorrow, or might 30 minutes change what you'd send?"
+            : "Want to think about a hot-state pause as a small discipline before send?",
+        recurrenceFrame,
       };
     case "coach-aggressive-language":
       return {
-        label: `Direct aggression / profanity — ${occ} in ${contextLabel}`,
-        question: n === 1
-          ? "First occurrence — intentional, or worth saying it the other way once and seeing if it lands?"
-          : "Pattern — is this the room you want to build?",
+        label: "I noticed some sharp language",
+        question:
+          n === 1
+            ? "Want to try saying it the other way once and seeing if the substance gets through faster?"
+            : "Curious — is this the room you want to build over time?",
+        recurrenceFrame,
       };
   }
+  // unreachable — TS doesn't narrow the switch fully but the cases are exhaustive
+  return { label: "Worth a pause", question: "Want to take a look?", recurrenceFrame };
 }
 
 // ─── v3.3 (2026-06-12) — vocabulary library refactor ───

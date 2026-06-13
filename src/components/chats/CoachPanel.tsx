@@ -449,7 +449,7 @@ export function CoachPanel({
             aria-hidden
           />
           <span className="text-[10px] text-muted uppercase tracking-widest font-mono">
-            Coach reading…
+            Sitting with what you wrote…
           </span>
         </div>
       );
@@ -509,17 +509,32 @@ export function CoachPanel({
             onClick={() => setExpanded((v) => !v)}
             className="text-left w-full"
           >
-            <p className="text-xs text-primary font-semibold mb-0.5 flex items-center gap-1.5">
+            <p className="text-xs text-primary font-semibold mb-0.5 flex items-center gap-1.5 flex-wrap">
               {text.label}
               {/* v3.2: if the LLM verdict is "uncertain", surface that
                   subtly so the user knows the System read the context
-                  but isn't certain. "confirmed" is implicit. */}
+                  but isn't certain. "confirmed" is implicit. v4.0:
+                  warmed the language from "context uncertain" to a
+                  more peer-like "I'm not 100% sure." */}
               {active.verdict === "uncertain" && (
                 <span className="text-[9px] uppercase tracking-widest font-mono text-muted">
-                  · context uncertain
+                  · I&apos;m not 100% sure
                 </span>
               )}
             </p>
+            {/* v4.0 — growth-framing tagline on recurrence. When the
+                same pattern has surfaced more than once, render a
+                small affirming tagline that reframes the count from
+                surveillance ("3 times in this thread") to practice
+                ("you've noticed this 3 times — that awareness IS the
+                practice"). Silent on first occurrence; warm on every
+                recurrence. The third Coach contract — making the
+                writer feel they're growing — lives here. */}
+            {text.recurrenceFrame && (
+              <p className="text-[10px] text-brand/80 italic mb-1">
+                {text.recurrenceFrame}
+              </p>
+            )}
             {/* Trigger excerpt — surfaced prominently in the closed
                 chip state (v3.1) so the user can SEE which words fired
                 the detector without expanding. */}
@@ -571,22 +586,27 @@ export function CoachPanel({
                     verdict landed) vs the regex-only state where the
                     chip uses static principle text. Without this, the
                     expanded view looked identical for every fire. */}
-                {active.verdict && (
-                  <span
-                    className={`text-[9px] px-1.5 py-0.5 rounded normal-case tracking-normal font-sans ${
-                      active.verdict === "confirmed"
-                        ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
-                        : active.verdict === "uncertain"
-                          ? "bg-ember-400/10 text-brand border border-ember-400/30"
-                          : "bg-surface text-muted border border-default"
-                    }`}
-                  >
-                    System read the context · verdict: {active.verdict}
+                {/* v4.0 — warmed up the verdict badges. Old version
+                    said "System read the context · verdict: confirmed"
+                    (clinical) and "Regex-only · LLM didn't read
+                    context" (cold AND surfaced lesser-than). New
+                    badges use peer-like first-person: "I read your
+                    full message" vs "Quick pattern catch." Both are
+                    honest; neither makes the user feel they're
+                    getting the lesser version. */}
+                {active.verdict === "confirmed" && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded normal-case tracking-normal font-sans bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                    I read your full message
+                  </span>
+                )}
+                {active.verdict === "uncertain" && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded normal-case tracking-normal font-sans bg-ember-400/10 text-brand border border-ember-400/30">
+                    I read it — not 100% sure
                   </span>
                 )}
                 {!active.verdict && (
                   <span className="text-[9px] px-1.5 py-0.5 rounded normal-case tracking-normal font-sans bg-surface text-muted border border-default">
-                    Regex-only · LLM didn&apos;t read context
+                    Quick pattern catch
                   </span>
                 )}
               </p>
@@ -597,7 +617,7 @@ export function CoachPanel({
               {active.contextNote && (
                 <div className="rounded-lg bg-ember-400/10 border border-ember-400/30 p-2.5">
                   <p className="text-[10px] uppercase tracking-widest font-mono text-brand mb-1">
-                    System&apos;s read on this draft
+                    Here&apos;s what I&apos;m seeing
                   </p>
                   <p className="text-xs text-primary leading-relaxed">
                     {active.contextNote}
@@ -619,7 +639,7 @@ export function CoachPanel({
               {!active.contextNote && llmAnalyzing && (
                 <div className="flex items-center gap-2 text-[10px] text-muted uppercase tracking-widest font-mono">
                   <Loader2 className="w-3 h-3 text-brand/60 animate-spin" aria-hidden />
-                  System reading this draft…
+                  Sitting with what you wrote…
                 </div>
               )}
               {!active.contextNote && !llmAnalyzing && !llmReadAttempted && (
@@ -630,12 +650,12 @@ export function CoachPanel({
                   }}
                   className="text-[11px] text-brand hover:text-[#EAB308] underline underline-offset-2 self-start"
                 >
-                  Have the System read this draft
+                  Want me to read this draft fully?
                 </button>
               )}
               {!active.contextNote && !llmAnalyzing && llmReadAttempted && (
                 <p className="text-[10px] text-muted leading-relaxed italic">
-                  System read this draft — no concern beyond the pattern itself.
+                  I read it — nothing specific beyond the pattern shape itself.
                 </p>
               )}
               {/* v3.7 (2026-06-12) — actionable revision guidance was
@@ -652,17 +672,27 @@ export function CoachPanel({
                   didn't generate one. The presence of a small badge
                   signals which source is rendering — honesty over
                   uniform polish. */}
+              {/* v4.0 — the demoralizing "Generic template (no LLM
+                  read)" badge is GONE. The previous v3.12 design
+                  surfaced an honest-but-cold distinction between
+                  LLM-generated and template revisions, which made the
+                  template path feel lesser-than. The static citation
+                  .suggestion IS genuinely good coaching content; the
+                  user shouldn't be told they're getting a worse
+                  version when they're getting a perfectly fine one.
+                  The text itself signals quality (LLM revisions
+                  reference actual draft words). When LLM did contribute,
+                  a tiny green pulse indicator nods to it — no scolding
+                  label when it didn't. */}
               <div className="rounded-lg bg-surface border border-default p-2.5 mt-1">
                 <p className="text-[10px] uppercase tracking-widest font-mono text-brand mb-1 flex items-center gap-2">
-                  How to revise
-                  {active.revisionSuggestion ? (
-                    <span className="text-[9px] normal-case tracking-normal font-sans bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                      Draft-specific (LLM)
-                    </span>
-                  ) : (
-                    <span className="text-[9px] normal-case tracking-normal font-sans bg-surface text-muted border border-default px-1.5 py-0.5 rounded">
-                      Generic template (no LLM read)
-                    </span>
+                  Want to try this?
+                  {active.revisionSuggestion && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full bg-emerald-400"
+                      aria-label="Tailored to your draft"
+                      title="Tailored to your draft"
+                    />
                   )}
                 </p>
                 <p className="text-xs text-primary leading-relaxed">
@@ -684,12 +714,19 @@ export function CoachPanel({
                   honest layers, no duplication. */}
               <details className="mt-1">
                 <summary className="text-[10px] text-muted uppercase tracking-widest font-mono cursor-pointer hover:text-secondary">
-                  Why this matters (principle)
+                  If you&apos;re curious about the thinking behind this
                 </summary>
                 <p className="text-[11px] text-secondary leading-relaxed italic border-l-2 border-[#FACC15]/40 pl-2 mt-1">
                   {active.citation.principle}
                 </p>
               </details>
+              {/* v4.0 — dismiss button autonomy-affirming. Old text
+                  "Keep as-is — pattern is intentional" implicitly
+                  framed sending the original as a defiant choice
+                  ("you're keeping the pattern even though I flagged
+                  it"). The new "Send as written" is neutral and trusts
+                  the writer's judgment — A11 mirror frame in tone, not
+                  just structure. */}
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
@@ -703,7 +740,7 @@ export function CoachPanel({
                   onClick={dismiss}
                   className="text-[11px] text-muted hover:text-secondary"
                 >
-                  Keep as-is — pattern is intentional
+                  Send as written
                 </button>
               </div>
             </div>

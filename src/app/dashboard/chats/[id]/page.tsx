@@ -48,6 +48,7 @@ import { SummarizeModal } from "@/components/chats/SummarizeModal";
 import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
 import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { CoachAffirmation } from "@/components/chats/CoachAffirmation";
 import { InThreadDecisionDialogue } from "@/components/chats/InThreadDecisionDialogue";
 import { ComposerToolbar } from "@/components/chats/ComposerToolbar";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
@@ -80,6 +81,11 @@ export default function TeamChatTopicPage() {
   const [closingOpen, setClosingOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [formulateOpen, setFormulateOpen] = useState(false);
+  // v4.0 — affirmation surface for the third Coach contract. When the
+  // writer accepts a Sharpen revision, this turns on briefly to
+  // acknowledge the catch. The CoachAffirmation component auto-hides
+  // itself; we just need to flip this back to false when it asks.
+  const [showCoachAffirmation, setShowCoachAffirmation] = useState(false);
   const [summarizeOpen, setSummarizeOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
@@ -720,6 +726,10 @@ export default function TeamChatTopicPage() {
                 onRefine={() => inputRef.current?.focus()}
               />
             )}
+            <CoachAffirmation
+              show={showCoachAffirmation}
+              onHide={() => setShowCoachAffirmation(false)}
+            />
             {/* Reply-to pill — surfaces above the textarea when the
                 user has clicked Reply on a message. Shows the author
                 + a one-line snippet of the parent so context is clear
@@ -859,10 +869,12 @@ export default function TeamChatTopicPage() {
             setAiAssisted(true);
             setGuideOpen(false);
             inputRef.current?.focus();
-            toast.info(
-              "Draft updated",
-              "Your message is marked AI-assisted when you send it."
-            );
+            // v4.0 — drop the generic info-toast and trigger the
+            // CoachAffirmation surface instead. The affirmation IS
+            // the feedback for accepting a Sharpen revision; a toast
+            // saying "draft updated" alongside the warm acknowledgment
+            // would feel contradictory and clinical.
+            setShowCoachAffirmation(true);
           }}
         />
       )}
