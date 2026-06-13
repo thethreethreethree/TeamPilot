@@ -1,6 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
+import { EnableNotificationsBanner } from "@/components/pwa/EnableNotificationsBanner";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import Modal from "@/components/ui/Modal";
@@ -101,6 +102,7 @@ export default function TeamChatListPage() {
       />
 
       <div className="p-3 md:p-6 max-w-6xl mx-auto space-y-6 min-w-0">
+        <EnableNotificationsBanner />
         {mode === "demo-fixtures" && (
           <div className="flex items-start gap-2.5 p-3 rounded-xl bg-gold-400/5 border border-gold-400/20">
             <AlertTriangle
