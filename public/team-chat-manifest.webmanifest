@@ -1,0 +1,27 @@
+{
+  "name": "ELOSTATE Team Chat",
+  "short_name": "Team Chat",
+  "description": "Team conversations + Coach guidance, installed as an app.",
+  "start_url": "/dashboard/chats",
+  "scope": "/dashboard/chats/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#09090B",
+  "theme_color": "#FACC15",
+  "categories": ["business", "productivity", "communication"],
+  "id": "elostate-team-chat",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
