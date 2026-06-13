@@ -20,28 +20,51 @@
 
 ## 1. Interaction Modes
 
-The Coach operates in three modes:
+The Coach operates in five modes:
 
-### 1.1 Auto-Coach (passive)
+### 1.1 Auto-Coach (passive, pre-send)
 
 Triggered when the user has been typing in the composer and pauses (debounce
 ~1.5s). The Coach reads the draft + chat context, classifies the draft, and
 surfaces analysis ONLY when `needs_improvement = true`. If the draft is
 "correct," the Coach is silent (no chip, no notification).
 
-### 1.2 Ask-Coach (active)
+### 1.2 Ask-Coach (active, pre-send)
 
 Triggered by the user explicitly clicking the "Ask Coach" button in the
 composer. The Coach reads the draft + chat context and produces analysis
 regardless of `needs_improvement` — when the user asks, the Coach speaks.
 
-### 1.3 Follow-up (conversational)
+### 1.3 Follow-up (conversational, multi-turn)
 
-After Auto-Coach or Ask-Coach has produced an initial analysis, the user
-can ask follow-up questions ("why this and not that?", "show me another
-version," "what would Voss say?"). Each follow-up turn keeps the same
-context (draft + chat + prior Coach turns) and produces a conversational
-response.
+After any Coach analysis has produced an initial response, the user can ask
+follow-up questions ("why this and not that?", "show me another version,"
+"what would Voss say?"). Each follow-up turn keeps the same context (draft +
+chat + prior Coach turns) and produces a conversational response.
+
+### 1.4 Encouragement System (post-send, automatic)
+
+When a user sends a message, the Coach evaluates it and produces a grade
+that drives the post-send visibility layer (see section 10 for the full
+spec). This is the third Coach contract — *encourage growth* — surfaced
+visibly.
+
+- **Positive / productive message** → 🙌 icon appears on the message, visible to the sender only
+- **Negative / unproductive / unclear message** → "Review with Coach" CTA appears on the message, visible to the sender only (clicking it opens the Coach in retrospective-review mode)
+- **Neutral message** → no indicator surfaces
+- **For executives / admins (leader visibility)** → messages graded as needing improvement display a **"Needs Guidance"** label on the leader's view; positive 🙌 icons are NOT visible to leaders (the user's intrinsic reinforcement stays between system and user; the leader's role is to GUIDE where help is needed, not to track who's doing well)
+- **For peer recipients** → no indicator at all. Privacy + dignity preserved. The grade is between the system, the user, and (where help is needed) the user's leader.
+
+### 1.5 Sent-Message Review (Ask-Coach on already-sent messages)
+
+Triggered by the user clicking "Review with Coach" on one of their own sent
+messages (either from the Encouragement System CTA, or by manually
+requesting review on any past message of theirs). The Coach reads the
+message as it sits in the conversation context — including the messages
+that came AFTER it, which is unique to this mode — and produces a
+teaching-shaped analysis. The user can't accept a rewrite (the message is
+already out), but they get the lesson, which is the growth contract Coach
+exists to serve.
 
 ---
 
@@ -441,44 +464,166 @@ Phrases the Coach NEVER uses (clinical):
 
 ---
 
-## 7. Open Design Questions
+## 7. Design Decisions (Previously Open Questions)
 
-These are not blocking but worth flagging:
+All resolved 2026-06-13:
 
-1. **Latency budget.** Auto-Coach fires on debounce. If the LLM takes 2-4s
-   per analysis, that's tolerable for an interactive coach but slower than
-   the regex-based v4.0. Consider: warm cache for unchanged drafts,
-   streaming the response so the user sees text as it lands.
+1. **Latency budget (2-4s) — ACCEPTED.** The latency is tolerable for an
+   interactive coach. The Encouragement System (section 10) turns the
+   wait into a feature: users who don't want to wait for pre-send Coach
+   can still send, and the post-send evaluation catches them on the back
+   end with a "Review with Coach" CTA if the message needed it. Streaming
+   responses where helpful; warm cache per-draft-hash for re-asks.
 
-2. **Cost per call.** Knowledge Base inline ≈ 12k input tokens per call.
-   For a heavily-used team, this adds up. Mitigations: response caching
-   per-draft-hash, smaller per-call payload (system prompt cached at the
-   API level if supported), or a condensed Knowledge Reference (~3k tokens)
-   with full doc available for follow-ups.
+2. **Cost per call — KNOWLEDGE BASE INLINE.** The full ~9k token
+   Knowledge Base is embedded in every Coach system prompt, every call.
+   No condensed-reference tradeoff. Effective communication is the
+   product; the tokens are the cost of producing it. Cached at the API
+   level where supported.
 
-3. **"Ask Coach" on already-sent messages.** Should the user be able to
-   ask the Coach to review a message AFTER it's been sent (e.g., "did I
-   land that well?")? Probably yes, but it's a follow-on feature, not v5.0
-   day-1.
+3. **Ask-Coach on already-sent messages — v5.0 DAY-1.** Promoted from
+   follow-on to ship-in-v5.0 because it directly serves the growth
+   contract: understanding why a past mistake landed wrong is the first
+   step to not making the same mistake. See section 1.5.
 
-4. **Cross-conversation memory.** The Coach has chat-level context but no
-   memory of how the user typically writes. Future enhancement: track per-
-   user growth (which principles have they accepted? which keep recurring
-   in their drafts?) and surface that — "you've been working on the
-   Observation-vs-Evaluation move; here's another instance to notice."
-   v5.0 ships without this; the Brain layer can pick it up.
+4. **Cross-conversation memory — POST-v5.0 BRAIN LAYER (high priority).**
+   v5.0 ships chat-level context only. The next priority after v5.0
+   ships is wiring the Brain layer to track per-user coaching events
+   (offered/accepted/dismissed by principle) and surface growth-aware
+   prompts ("you've been working on Observation-vs-Evaluation — here's
+   another instance to notice"). This is a Brain feature, not a Coach
+   feature — same data, different surfacing layer.
 
 ---
 
-## 8. Implementation Surface (Not Wired Yet)
+## 8. Implementation Surface
 
 When this design gets approval, the implementation surface is:
 
-- New route: `POST /api/coach/v5/analyze` — handles initial analysis (Auto + Ask modes)
+- New route: `POST /api/coach/v5/analyze` — handles initial analysis (Auto + Ask + Sent-Message-Review modes via `mode` field)
 - New route: `POST /api/coach/v5/followup` — handles conversational turns
+- New route: `POST /api/coach/v5/grade-sent` — handles automatic post-send Encouragement System grading
 - Updated `CoachPanel` component: replaces the chip+expanded-view with a Coach Panel that supports the conversational shape, the accept-gated-by-why flow, and the Ask-Coach trigger
-- New `AskCoachButton` component in the composer footer
+- New `AskCoachButton` component in every composer footer (chat, decision dialogue, task, feedback, smoke test)
+- New `MessageGradeIndicator` component on sent messages — renders 🙌 / "Review with Coach" / nothing based on grade and viewer role
+- New `NeedsGuidanceLabel` component visible only to executives/admins on graded-poor messages
 - Retire (or demote) the regex layer to a cosmetic fast-pass that prepares the LLM call
 
-None of this is built. This document is the design; implementation begins
-when this is approved.
+None of this is built. Section 10 below specifies the Encouragement System
+in detail before implementation begins.
+
+---
+
+## 9. (Reserved for future expansion)
+
+---
+
+## 10. Encouragement System — Post-Send Evaluation Spec
+
+The Encouragement System turns the post-send moment into a teaching surface.
+Every message a user sends is automatically evaluated by the Coach and
+produces one of four grades, each with a different visibility model.
+
+### 10.1 The Four Grades
+
+| Grade | What it means | Sender sees | Leader sees (CEO/exec/admin) | Peers see |
+|---|---|---|---|---|
+| `productive` | Clear, kind, productive communication | 🙌 icon on their message | Nothing | Nothing |
+| `neutral` | Functional message, neither notable nor problematic | Nothing | Nothing | Nothing |
+| `needs_guidance` | Unclear, unproductive, negative, unprofessional, unkind, or otherwise counterproductive | "Review with Coach" CTA on their message | "Needs Guidance" label on the message | Nothing |
+| `withheld` | Coach grader was unavailable / hit error | Nothing | Nothing | Nothing |
+
+### 10.2 Why the labels are framed the way they are
+
+**The leader's label says "Needs Guidance" — not "Warning," not "Negative,"
+not "Poor."** The framing is the structural defense against misuse.
+
+A leader reading "Needs Guidance" is being told: *this team member could
+use your help. Step in as a coach.* A leader reading "Warning" would be
+told: *this team member made a mistake. Step in as an enforcer.* Same
+underlying data, opposite emergent leader behavior. The label is doing the
+structural work.
+
+This is constitutionally explicit: §3.3 (guide-don't-overtake), §3.6
+(make learning visible — but visibility serves growth, not surveillance),
+A17 (multi-contract design — the third contract is encourage growth, never
+punish). A18 (captured to ThinkerThinker) names this generally: *when a
+system surfaces human-behavior data to a leader, the label IS the
+structural defense against misuse.*
+
+**The sender's 🙌 stays between system and sender (never visible to peers
+or leader).** Intrinsic motivation. The system acknowledges the writer's
+growth; the writer doesn't have to broadcast it. Peers don't see it
+because peer-visible reward creates social-currency dynamics that distort
+the genuine relationship to the writing.
+
+**The sender's "Review with Coach" CTA is a call to action, not a
+warning.** No red icon. No "Bad Message" stamp. The visual is a yellow
+"Review with Coach" button — same affordance as inviting them to learn.
+Clicking it opens the Coach in Sent-Message Review mode (section 1.5).
+
+**Peers see nothing in either direction.** A message reads as a message,
+graded or not. Dignity preserved.
+
+### 10.3 The Grading Prompt
+
+The grader is a separate, lighter-weight LLM call than the full Coach
+analysis. It receives:
+
+```typescript
+type GraderRequest = {
+  sentMessage: string;
+  recentThread: Array<{author, body, timestamp}>;
+  contextType: "chat_message" | "decision_dialogue" | "chat_reply" | "task_field" | "feedback" | "smoke_test_note";
+  // Same surface types as the analyze route
+};
+```
+
+And returns:
+
+```typescript
+type GraderResponse = {
+  grade: "productive" | "neutral" | "needs_guidance" | "withheld";
+  // For needs_guidance grade, a short reason that ONLY the Coach sees
+  // when the user clicks "Review with Coach". Never surfaced as a
+  // label — that's "Needs Guidance" universally. The reason is the
+  // hook for the full Coach analysis that comes when clicked.
+  reasonInternal?: string;
+};
+```
+
+The grader system prompt is a focused subset of the Coach Knowledge Base:
+just the classification criteria (productive vs needs_guidance) drawn
+from Crucial Conversations, Rosenberg's Observation-vs-Evaluation, Voss's
+"would the recipient feel attacked," and Zinsser's clarity baseline. Not
+the full curriculum — that comes when the user clicks Review.
+
+### 10.4 Privacy & Audit
+
+- The grade is stored as a chain event: `coach.message_graded` with payload
+  `{message_id, grade, grader_version}`. Append-only per §3.1.
+- The leader's view queries the chain to surface "Needs Guidance" labels.
+- Grades are NOT shown to peers under any circumstance — RLS on the
+  chain query enforces this at the SQL layer.
+- A user can see their own grade history (for self-reflection); a leader
+  can see needs_guidance counts and patterns for their team (for guidance).
+  Neither can see the other's per-message reason text.
+
+### 10.5 The Leader's View
+
+When a CEO / executive / admin views a chat (or any surface with graded
+messages from their team), each message that was graded `needs_guidance`
+shows a small **"Needs Guidance"** label next to the message metadata.
+Clicking the label shows: *"This message could use guidance. Want to start
+a coaching conversation with [user name]?"* — surfacing the leader's role
+as guide, not enforcer. (Whether to build a direct "start coaching
+conversation" action is a v5.1 question; v5.0 just surfaces the label.)
+
+The leader does NOT see:
+- The 🙌 icons on productive messages
+- The internal `reasonInternal` text from the grader (that's for the Coach
+  to use when the sender clicks Review, not for the leader to read about
+  the sender)
+- Any aggregation that ranks team members against each other (no
+  leaderboards, no rankings, no "this user has the most needs_guidance
+  messages this week")
