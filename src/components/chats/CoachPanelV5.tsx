@@ -179,6 +179,17 @@ export function CoachPanelV5({
   };
 
   const acceptRevision = (revision: string) => {
+    // Suppress auto re-analysis on the revision text we just produced.
+    // Without this, accepting the revision flips the parent's draft to
+    // the Coach's own output, the useEffect on `draft` re-fires, and
+    // 1.5s later the Coach gets called on its own text — wasteful and
+    // structurally absurd (the Coach evaluating its own suggestion).
+    //
+    // We mark the trimmed revision as "already analyzed" so the next
+    // draft-change effect sees draft === lastAnalyzedDraftRef and skips.
+    // If the user then edits the revision themselves, the trim will
+    // differ and analysis resumes correctly.
+    lastAnalyzedDraftRef.current = revision.trim();
     onAcceptRevision?.(revision);
     setState({ kind: "idle" });
   };

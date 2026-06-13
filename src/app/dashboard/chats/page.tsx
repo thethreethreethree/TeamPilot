@@ -142,7 +142,7 @@ export default function TeamChatListPage() {
             <button
               onClick={() => setCreating(true)}
               disabled={!supabaseEnabled && mode !== "demo-fixtures"}
-              className="flex items-center gap-2 bg-crimson-500 hover:bg-crimson-600 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               <Plus className="w-3.5 h-3.5" aria-hidden="true" />
               New topic
@@ -159,7 +159,7 @@ export default function TeamChatListPage() {
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1 rounded text-xs font-medium transition-colors capitalize ${
                   filter === f
-                    ? "bg-crimson-500/15 text-brand"
+                    ? "bg-[#FACC15]/15 text-brand"
                     : "text-muted hover:text-primary"
                 }`}
               >
@@ -490,7 +490,7 @@ function CreateTopicModal({
             <button
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-crimson-500 hover:bg-crimson-600 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Creating…" : "Create topic"}
             </button>

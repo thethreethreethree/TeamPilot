@@ -869,7 +869,7 @@ export default function TeamChatTopicPage() {
                   <button
                     type="submit"
                     disabled={!draft.trim() || submitting}
-                    className="flex items-center gap-1.5 bg-crimson-500 hover:bg-crimson-600 disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
+                    className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
                   >
                     Send
                     <CornerDownLeft className="w-3 h-3" aria-hidden="true" />
