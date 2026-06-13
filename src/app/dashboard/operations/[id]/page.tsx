@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -29,6 +29,13 @@ import {
   type TaskParticipant,
 } from "@/lib/data/tasks";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
+import { AskCoachButton } from "@/components/chats/AskCoachButton";
+import type { CoachContextPayload } from "@/lib/coach/v5/types";
+
+// Tasks surface migrates to LLM-primary Coach v5 (matches the chat +
+// Decision Dialogue cutover from Sprints 2 + 4).
+const TASK_COACH_V5_ENABLED = true;
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 
 /**
@@ -89,6 +96,18 @@ export default function TaskDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { enabled: coachEnabled } = useCoachEnabled();
+  // Coach v5 Ask-Coach token for the task composer.
+  const [askCoachToken, setAskCoachToken] = useState(0);
+  // Coach v5 contextPayload for the task surface — the Coach reads the
+  // task title + description as the surface context (different from a
+  // chat where the surface context is recent messages).
+  const coachV5Payload = useMemo<CoachContextPayload>(
+    () => ({
+      taskTitle: task?.title,
+      taskDescription: task?.description ?? undefined,
+    }),
+    [task?.title, task?.description]
+  );
 
   const load = async () => {
     setLoading(true);
@@ -375,10 +394,28 @@ export default function TaskDetailPage() {
               {task.status !== "Completed" && (
                 <form onSubmit={submitMessage} className="mt-4 pt-3 border-t border-default">
                   {coachEnabled && (
-                    <CoachPanel
-                      subject={`task:${task.id}`}
-                      draft={draft}
-                    />
+                    TASK_COACH_V5_ENABLED ? (
+                      <>
+                        <CoachPanelV5
+                          draft={draft}
+                          contextType="task_field"
+                          contextPayload={coachV5Payload}
+                          askCoachToken={askCoachToken}
+                          onAcceptRevision={(revised) => setDraft(revised)}
+                        />
+                        <div className="mb-2 flex justify-end">
+                          <AskCoachButton
+                            disabled={!draft.trim()}
+                            onAsk={() => setAskCoachToken((t) => t + 1)}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <CoachPanel
+                        subject={`task:${task.id}`}
+                        draft={draft}
+                      />
+                    )
                   )}
                   <div className="flex items-end gap-2">
                     <textarea

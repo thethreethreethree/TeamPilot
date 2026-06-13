@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   AlertTriangle,
@@ -21,7 +21,13 @@ import { FeedbackScreenshotEditor } from "./FeedbackScreenshotEditor";
 import { MentionInput, type MentionMember } from "@/components/ui/MentionInput";
 import { fetchTeam } from "@/lib/data/team";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
+import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
+import type { CoachContextPayload } from "@/lib/coach/v5/types";
+
+// Feedback surface migrates to LLM-primary Coach v5.
+const FEEDBACK_COACH_V5_ENABLED = true;
 
 /**
  * FeedbackPanel — slide-out form for submitting feedback.
@@ -84,6 +90,16 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
   const pathname = usePathname() ?? "/";
 
   const [kind, setKind] = useState<FeedbackKind>("bug");
+  // Coach v5 Ask-Coach token for the feedback composer.
+  const [askCoachToken, setAskCoachToken] = useState(0);
+  // Coach v5 contextPayload — the Coach reads feedbackKind so it can
+  // tailor which Knowledge Base layer to apply (friction/bug → NVC;
+  // praise → Crucial Conv. Start with Heart + Cialdini Liking; idea
+  // → Heath Brothers Simplicity; etc.).
+  const coachV5Payload = useMemo<CoachContextPayload>(
+    () => ({ feedbackKind: kind }),
+    [kind]
+  );
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [screenshot, setScreenshot] = useState<{
@@ -393,11 +409,32 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                   teammate
                 </span>
               </label>
-              {/* Coach v1.1 — surfaces in feedback drafts when company-
-                  level coach_enabled is true. Subject is `feedback:draft`
-                  because the row doesn't exist yet at compose time. */}
+              {/* Coach surface — v5 (LLM-primary, conversational) when
+                  the migration flag is on; v4 chip as fallback. The v5
+                  Coach reads the feedbackKind as the surface context so
+                  it knows whether to apply NVC (for friction/bug),
+                  Crucial Conversations (high-stakes), or Heath Brothers
+                  Simplicity (for ideas / questions). */}
               {coachEnabled && (
-                <CoachPanel subject="feedback:draft" draft={body} />
+                FEEDBACK_COACH_V5_ENABLED ? (
+                  <>
+                    <CoachPanelV5
+                      draft={body}
+                      contextType="feedback"
+                      contextPayload={coachV5Payload}
+                      askCoachToken={askCoachToken}
+                      onAcceptRevision={(revised) => setBody(revised)}
+                    />
+                    <div className="mb-2 flex justify-end">
+                      <AskCoachButton
+                        disabled={!body.trim()}
+                        onAsk={() => setAskCoachToken((t) => t + 1)}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <CoachPanel subject="feedback:draft" draft={body} />
+                )
               )}
               <MentionInput
                 value={body}

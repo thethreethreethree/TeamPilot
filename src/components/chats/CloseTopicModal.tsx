@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Lock, ShieldCheck } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Field, Textarea } from "@/components/ui/Field";
 import { closeTopic, type ChatTopic } from "@/lib/data/chats";
 import { CoachPanel } from "@/components/chats/CoachPanel";
+import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
+import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
+import type { CoachContextPayload } from "@/lib/coach/v5/types";
+
+const CLOSE_COACH_V5_ENABLED = true;
 
 /**
  * CloseTopicModal — admin-only action to mark a topic resolved.
@@ -31,6 +36,20 @@ export function CloseTopicModal({
   const [summary, setSummary] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { enabled: coachEnabled } = useCoachEnabled();
+  const [askCoachToken, setAskCoachToken] = useState(0);
+  // The close summary is a reflection — what was decided. Frame it as
+  // chat_message context with the topic as context. The Coach will
+  // help the writer make the summary clearer (Zinsser layer) without
+  // attempting interpersonal moves (no recipient).
+  const coachV5Payload = useMemo<CoachContextPayload>(
+    () => ({
+      topic: {
+        title: topic.title,
+        description: topic.description ?? undefined,
+      },
+    }),
+    [topic.title, topic.description]
+  );
 
   const submit = async () => {
     if (summary.trim().length < 20) return;
@@ -63,10 +82,28 @@ export function CloseTopicModal({
         </div>
         <Field label="What was decided / resolved? (≥20 chars)" required>
           {coachEnabled && (
-            <CoachPanel
-              subject={`chat_topic:${topic.id}:close_summary`}
-              draft={summary}
-            />
+            CLOSE_COACH_V5_ENABLED ? (
+              <>
+                <CoachPanelV5
+                  draft={summary}
+                  contextType="chat_message"
+                  contextPayload={coachV5Payload}
+                  askCoachToken={askCoachToken}
+                  onAcceptRevision={(revised) => setSummary(revised)}
+                />
+                <div className="mb-2 flex justify-end">
+                  <AskCoachButton
+                    disabled={!summary.trim()}
+                    onAsk={() => setAskCoachToken((t) => t + 1)}
+                  />
+                </div>
+              </>
+            ) : (
+              <CoachPanel
+                subject={`chat_topic:${topic.id}:close_summary`}
+                draft={summary}
+              />
+            )
           )}
           <Textarea
             value={summary}
