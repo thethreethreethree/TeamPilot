@@ -4,10 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ClipboardList,
   HelpCircle,
   Loader2,
   ServerCog,
+  Trophy,
   Users,
   XCircle,
 } from "lucide-react";
@@ -182,40 +185,194 @@ export default function SmokeTestPage() {
         )}
 
         {!loading && version && (
-          <>
-            <div className="glass-card p-5">
-              <div className="flex items-center gap-2 mb-1">
-                <ClipboardList className="w-4 h-4 text-brand" aria-hidden />
-                <h2 className="text-sm font-semibold text-primary">
-                  {version.label}
-                </h2>
-              </div>
-              <p className="text-xs text-muted leading-relaxed">
-                Walk each item. Mark pass, fail, or unable. Notes are
-                required when marking fail or unable so the chain captures
-                why (≥5 characters). Type{" "}
-                <kbd className="font-mono text-brand">@</kbd> to tag a
-                teammate inside a note. Your results are private to you;
-                admins see the aggregate.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {version.items.map((item, i) => (
-                <SmokeTestItemCard
-                  key={item.id}
-                  index={i + 1}
-                  item={item}
-                  result={results[item.id] ?? null}
-                  members={members}
-                  onSubmit={(status, notes) => submitResult(item, status, notes)}
-                />
-              ))}
-            </div>
-          </>
+          <SmokeTestList
+            version={version}
+            results={results}
+            members={members}
+            onSubmitResult={submitResult}
+          />
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * SmokeTestList — splits the version's items into two buckets based on
+ * whether the current tester has already submitted a result against
+ * each item.
+ *
+ * Pending list = items the tester hasn't acted on yet. Rendered up top,
+ * the active work surface.
+ *
+ * Completed list = items the tester has already marked pass/fail/unable.
+ * Moved into a collapsed section below so the active list stays focused
+ * on what the tester still needs to do. The completed bucket is still
+ * accessible — clicking the header expands it — so the tester can
+ * revisit and re-submit a result if they need to.
+ *
+ * The split is purely a UI organization layer. The data model is
+ * unchanged: a result row still exists per (item, tester) and the
+ * latest one wins. Resetting a result by re-submitting a different
+ * status moves the item back to the appropriate bucket on next render.
+ */
+function SmokeTestList({
+  version,
+  results,
+  members,
+  onSubmitResult,
+}: {
+  version: SmokeTestVersion;
+  results: Record<string, ItemState>;
+  members: ReadonlyArray<MentionMember>;
+  onSubmitResult: (
+    item: SmokeTestItem,
+    status: "pass" | "fail" | "unable",
+    notes: string
+  ) => Promise<void> | void;
+}) {
+  const [completedExpanded, setCompletedExpanded] = useState(false);
+
+  const { pending, completed } = useMemo(() => {
+    const p: Array<{ item: SmokeTestItem; originalIndex: number }> = [];
+    const c: Array<{ item: SmokeTestItem; originalIndex: number }> = [];
+    version.items.forEach((item, i) => {
+      const r = results[item.id] ?? null;
+      if (r) {
+        c.push({ item, originalIndex: i });
+      } else {
+        p.push({ item, originalIndex: i });
+      }
+    });
+    return { pending: p, completed: c };
+  }, [version.items, results]);
+
+  const totalCount = version.items.length;
+  const completedCount = completed.length;
+  const allDone = completedCount === totalCount && totalCount > 0;
+
+  return (
+    <>
+      <div className="glass-card p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <ClipboardList className="w-4 h-4 text-brand" aria-hidden />
+          <h2 className="text-sm font-semibold text-primary">{version.label}</h2>
+        </div>
+        <p className="text-xs text-muted leading-relaxed">
+          Walk each item. Mark pass, fail, or unable. Notes are required when
+          marking fail or unable so the chain captures why (≥5 characters).
+          Type <kbd className="font-mono text-brand">@</kbd> to tag a teammate
+          inside a note. Your results are private to you; admins see the
+          aggregate.
+        </p>
+        {/* Progress strip — shows the tester their progress at a glance.
+            When everything's done, the strip becomes a small congratulatory
+            note rather than a dry "N of N" — small piece of the third
+            Coach contract (encourage growth) carried into smoke testing. */}
+        <div className="mt-3 flex items-center gap-2 text-[11px]">
+          {allDone ? (
+            <>
+              <Trophy className="w-3.5 h-3.5 text-emerald-300" aria-hidden />
+              <span className="text-emerald-300">
+                All {totalCount} items completed. Nice work.
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-muted">
+                {completedCount} of {totalCount} completed
+              </span>
+              <div
+                className="flex-1 max-w-xs h-1.5 rounded-full bg-surface overflow-hidden"
+                role="progressbar"
+                aria-valuenow={completedCount}
+                aria-valuemin={0}
+                aria-valuemax={totalCount}
+              >
+                <div
+                  className="h-full bg-[#FACC15] transition-all duration-300"
+                  style={{
+                    width: totalCount > 0 ? `${(completedCount / totalCount) * 100}%` : "0%",
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Pending bucket — the active work surface. Renders empty state
+          when the tester has cleared them all. */}
+      {pending.length > 0 ? (
+        <div className="space-y-3">
+          {pending.map(({ item, originalIndex }) => (
+            <SmokeTestItemCard
+              key={item.id}
+              index={originalIndex + 1}
+              item={item}
+              result={null}
+              members={members}
+              onSubmit={(status, notes) => onSubmitResult(item, status, notes)}
+            />
+          ))}
+        </div>
+      ) : completedCount > 0 ? (
+        <div className="glass-card p-6 text-center">
+          <Trophy className="w-6 h-6 text-emerald-300 mx-auto mb-2" aria-hidden />
+          <p className="text-sm text-primary font-medium">
+            You&apos;ve worked through every item in this version.
+          </p>
+          <p className="text-xs text-muted mt-1">
+            Completed tests are tucked into the section below — you can
+            still re-open any of them to revise a result.
+          </p>
+        </div>
+      ) : null}
+
+      {/* Completed bucket — collapsible. Closed by default while there's
+          still pending work so the active list stays uncluttered; opens
+          automatically when the tester finishes everything (no pending
+          left) so they can scan what they did. */}
+      {completed.length > 0 && (
+        <div className="glass-card p-4">
+          <button
+            type="button"
+            onClick={() => setCompletedExpanded((v) => !v)}
+            aria-expanded={completedExpanded || allDone}
+            className="w-full flex items-center justify-between gap-2 text-left"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {completedExpanded || allDone ? (
+                <ChevronDown className="w-4 h-4 text-muted flex-shrink-0" aria-hidden />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" aria-hidden />
+              )}
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" aria-hidden />
+              <h3 className="text-sm font-semibold text-primary truncate">
+                Completed Smoke Tests
+              </h3>
+              <span className="text-[10px] text-muted font-mono flex-shrink-0">
+                ({completedCount})
+              </span>
+            </div>
+          </button>
+          {(completedExpanded || allDone) && (
+            <div className="mt-3 space-y-3">
+              {completed.map(({ item, originalIndex }) => (
+                <SmokeTestItemCard
+                  key={item.id}
+                  index={originalIndex + 1}
+                  item={item}
+                  result={results[item.id] ?? null}
+                  members={members}
+                  onSubmit={(status, notes) => onSubmitResult(item, status, notes)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
