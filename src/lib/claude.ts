@@ -362,3 +362,36 @@ ${args.regexHits && args.regexHits.length > 0
 ${args.recentThread ? `\nRecent thread context (for tone, not blame attribution):\n${args.recentThread}` : ""}`,
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// Coach v5.0 — LLM-primary conversational analysis
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Coach v5.0 analyze — the LLM call for the conversational Coach.
+ *
+ * The system prompt + user message are composed by src/lib/coach/v5/prompt.ts
+ * (see that module for the contract). This function is the thin LLM-call
+ * wrapper that runs through the brain layer's company composer + §3.4
+ * control gate, exactly like proposeCoachPatterns does for v3.
+ *
+ * Returns the raw text — the caller parses JSON and validates the shape.
+ */
+export async function analyzeCoachV5(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    // Generous token budget because the Knowledge Base is in the system
+    // prompt (~9k tokens) and the response includes structured JSON with
+    // multi-sentence whyContext + whySentence. Per the resolved cost
+    // design (COACH_PROMPT_DESIGN.md §7.2), token usage is treated as
+    // an investment in solution quality, not waste.
+    maxTokens: 1200,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+  });
+}
