@@ -135,10 +135,29 @@ export function MessageRow({
           <span className="text-[10px] text-secondary font-mono">
             {formatTime(msg.createdAt)}
           </span>
-          {msg.aiAssisted && (
+          {/* AI-assisted badge — A18 asymmetric visibility (2026-06-13).
+              The badge is the same data the system has always recorded
+              (msg.aiAssisted), but who sees it now matters:
+                - Sender (own message): yes — transparency about what
+                  the system tracks on them; no shame, just honesty
+                - Admins / executives: yes — they need to understand
+                  team communication behavior over time
+                - Peers: no — the user's screenshot annotation captured
+                  the structural issue: "they are afraid that others
+                  might see them incapable of responding without AI
+                  guidance"
+              Same pattern as the Encouragement System grade indicators
+              from Sprint 5: peer visibility breaks the contract; sender
+              + leader visibility serves it. The data unchanged; what
+              we surface to whom is the structural defense. */}
+          {msg.aiAssisted && (isMine || viewerIsLeader) && (
             <span
               className="flex items-center gap-0.5 text-[10px] text-arc-300"
-              title="The author used the System to sharpen this message"
+              title={
+                isMine
+                  ? "You used the System to sharpen this message"
+                  : "This author used the System to sharpen this message"
+              }
             >
               <Sparkles className="w-2.5 h-2.5" aria-hidden="true" />
               AI-assisted
