@@ -51,6 +51,7 @@ import { CoachPanel } from "@/components/chats/CoachPanel";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { CoachAffirmation } from "@/components/chats/CoachAffirmation";
+import { ReviewSentMessageModal } from "@/components/chats/ReviewSentMessageModal";
 import type {
   CoachContextPayload,
   EncouragementGrade,
@@ -111,6 +112,9 @@ export default function TeamChatTopicPage() {
   const [messageGrades, setMessageGrades] = useState<Map<string, EncouragementGrade>>(
     () => new Map()
   );
+  // Sprint 6: when set, the ReviewSentMessageModal opens for this
+  // message. Cleared when the modal closes.
+  const [reviewingMessageId, setReviewingMessageId] = useState<string | null>(null);
   const [summarizeOpen, setSummarizeOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
@@ -740,6 +744,7 @@ export default function TeamChatTopicPage() {
                             onTogglePin={() => void handleTogglePin(msg)}
                             onStartReply={() => startReply(msg)}
                             onJumpToParent={(id) => scrollToMessage(id)}
+                            onReviewWithCoach={(id) => setReviewingMessageId(id)}
                           />
                         );
                       })}
@@ -991,6 +996,39 @@ export default function TeamChatTopicPage() {
           }}
         />
       )}
+
+      {reviewingMessageId && (() => {
+        const target = messages.find((m) => m.id === reviewingMessageId);
+        if (!target || !target.body) {
+          // Defensive: target message vanished from local state.
+          return null;
+        }
+        // Build the surrounding context — same recent-thread payload
+        // we feed the analyze route, but anchored to this message's
+        // position (so the Coach sees what came after it too).
+        const idx = messages.findIndex((m) => m.id === reviewingMessageId);
+        const surrounding = messages
+          .slice(Math.max(0, idx - 5), Math.min(messages.length, idx + 6))
+          .filter((m) => m.kind === "message" && m.body)
+          .map((m) => ({
+            author: m.authorName ?? "Unknown",
+            body: m.body!.slice(0, 2000),
+            timestamp: m.createdAt ?? "",
+          }));
+        return (
+          <ReviewSentMessageModal
+            sentMessage={target.body}
+            contextPayload={{
+              recentThread: surrounding,
+              topic: {
+                title: topic?.title,
+                description: topic?.description ?? undefined,
+              },
+            }}
+            onClose={() => setReviewingMessageId(null)}
+          />
+        );
+      })()}
 
       {reviewOpen && (
         <ReviewOutcomeModal
