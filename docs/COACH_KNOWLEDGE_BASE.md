@@ -1,10 +1,13 @@
 # Coach v5.0 — Knowledge Base
 
-> **Status:** Foundation pass (4 of 10 books verified). The 6 remaining books
-> (Carnegie, Voss, Heath brothers, Gladwell, Rosenberg, Stone/Patton/Heen) are
-> being researched in a second adversarial-verification pass. Until those land,
-> the Coach reasons from this 4-book foundation + the cross-book convergence
-> principles below.
+> **Status:** 7 of 10 books verified across two adversarial-verification passes.
+> Verified: Zinsser, Crucial Conversations, Cialdini, Anderson/TED, Voss, Heath
+> Brothers, Rosenberg. Still unverified: Carnegie, Gladwell, Stone/Patton/Heen.
+> The Coach reasons from the 7-book foundation + cross-book convergence
+> principles. The 3 missing books overlap conceptually with verified ones
+> (Carnegie ≈ Cialdini Liking + Crucial Conv. Start with Heart; Stone/Patton/
+> Heen ≈ Crucial Conversations; Gladwell is unique but diagnostic-not-
+> prescriptive).
 >
 > **Source discipline:** Every principle on this page was verified 3-vote
 > against the named author's own publishing site or a credible primary source.
@@ -468,83 +471,499 @@ can't answer in one sentence, the story isn't ready to send.
 
 ---
 
-## 5. Cross-Book Convergences
+## 5. Never Split the Difference — Chris Voss
+
+**Sources:** Black Swan Group (Voss's own consulting firm):
+- blackswanltd.com/newsletter/how-to-use-fbi-empathy
+- blackswanltd.com/newsletter/bridging-the-gap-using-tactical-empathy-to-neutralize-power-in-negotiations
+- blackswanltd.com/newsletter/5-ways-tactical-empathy-can-assist-you-in-getting-what-you-want
+- blackswanltd.com/newsletter/using-calibrated-questions-to-win-more-deals
+- blog.blackswanltd.com/the-edge/how-to-use-the-key-to-tactical-empathy
+
+This is the **listening / de-escalation layer**. Use when the draft is
+responding to someone resistant, anxious, or guarded, or when the writer
+needs information from a counterpart who's holding back. Voss's tactics are
+verbal-form-specific — the exact phrasings are what produce the effect.
+
+### 5.1 Tactical Empathy (Foundational Concept)
+
+**When it applies:** Whenever the goal of the message is to move a person
+who's emotionally engaged — anxious, defensive, frustrated, or guarded.
+
+**Canonical move:** Voss's verbatim definition: *"Tactical Empathy is the
+process of knowingly and intentionally influencing your counterpart's
+emotions to make deals."* The success signal is when the counterpart says
+**"that's right"** — they feel understood. The failure signal is **"you're
+right"** — they're conceding to make you stop, not because anything landed.
+
+**Language pattern:** Tactical Empathy is delivered through the specific
+tactics below (Mirroring, Labeling, Calibrated Questions, etc.) — there
+isn't one phrasing; there's a discipline of verbalizing what the other
+person is feeling before negotiating what they should do.
+
+**Worked example:**
+- Before: "I really need this approved today."
+- After: "It sounds like you're juggling a lot of priorities right now, and another urgent ask might feel like one more thing on a full plate. — I'm hoping we can find a way that this approval doesn't add to that."
+- Why: The "before" lands as one more demand on an overloaded recipient. The "after" labels the unspoken state (overload, frustration with constant urgency) before introducing the ask, so the recipient feels seen rather than imposed on.
+
+### 5.2 Mirroring
+
+**When it applies:** When the counterpart has just said something and the
+writer wants them to continue, expand, or feel listened to — without
+agreeing or pushing back.
+
+**Canonical move:** Repeat the last 1–3 words (or the key words) the
+counterpart spoke, with a slight upward inflection. Voss's primary source:
+*"Repeat the last 1-3 words spoken or the key words. It signals you're
+dialed in — and gets them talking more."*
+
+**Language pattern:** Verbatim repetition. If they said "I'm worried about
+the timeline," you say *"the timeline?"* — they keep talking.
+
+**Worked example:**
+- Before: "Why are you worried about the timeline?"
+- After: "...the timeline?"
+- Why: The "before" demands an explanation, which often produces a defensive shutdown. The mirror invites the counterpart to keep going on their own terms. Voss's research is that mirrors produce dramatically more information than direct questions in resistant conversations.
+
+### 5.3 Labels
+
+**When it applies:** When the counterpart has an emotion or assumption that
+isn't being named, and naming it would lower the temperature.
+
+**Canonical move:** Voss verbatim: *"Use Labels to verbalize unspoken
+feelings or sentiments. By simply calling out what's unsaid, the other side
+will feel heard."* Critically: labels don't require agreement — you can
+label an emotion you don't share or a position you don't accept.
+
+**Language pattern:** Three canonical forms — *"It seems like…"*, *"It
+sounds like…"*, *"It looks like…"* — plus the extended variant *"I know it
+might seem like [the worry] — but here's [the actual move]."*
+
+**Worked example:**
+- Before: "I'm not trying to push my agenda, just trying to help."
+- After: "I know it might seem like I'm here to push my own agenda — and I'd push back too if I were in your seat. What I'm actually trying to do is figure out where you'd land if the constraint we both have is X."
+- Why: The "before" is a denial the recipient hasn't asked for — denials make the suspicion stronger. The "after" labels the suspicion BEFORE addressing it, which Voss teaches as the Accusation Audit (see 5.6). The recipient feels their suspicion was understood, which lowers it.
+
+### 5.4 Calibrated Questions
+
+**When it applies:** When the writer wants the counterpart to think, reveal
+information, or generate their own path — rather than be told.
+
+**Canonical move:** Voss verbatim: open-ended *"how"* and *"what"* questions
+*"designed to hit the brain differently, force people to think, and
+ultimately have them reveal more information than you would get from a
+simple yes or no."*
+
+**Language pattern:** Voss's nine canonical stems (verbatim from Black Swan):
+- *"What is the core issue here?"*
+- *"What is the biggest challenge you face?"*
+- *"What happens if we fail?"*
+- *"What happens if you do nothing?"*
+- *"How will this deal get implemented?"*
+- *"How is that worthwhile?"*
+- *"How will this look in a year if things don't change?"*
+- *"How would you like to see this move forward?"*
+- *"What matters most to you in this partnership?"*
+
+**Worked example:**
+- Before: "Should we go with option A?"
+- After: "How would you like to see this move forward?"
+- Why: "Before" is a yes/no question that forces a premature commitment. "After" invites the counterpart to construct a path on their own terms — they reveal their constraints, priorities, and the shape of the solution they can actually live with, all in one answer.
+
+### 5.5 No-Oriented Questions and Fairness-Permission Opener
+
+**When it applies:** When the writer wants the counterpart to feel safe
+saying no, or wants the counterpart to engage instead of disengaging.
+
+**Canonical move:** People are more comfortable saying *no* than *yes* —
+"no" preserves autonomy. Frame questions so the safe answer is "no" instead
+of "yes". Open guarded conversations with a fairness-permission frame.
+
+**Language pattern (verbatim from Voss):**
+- Fairness-permission opener: *"If at any point you think I'm being unfair, I want you to stop me."*
+- No-oriented questions: *"Is it out of line to say…?"*, *"Would you disagree that…?"*
+
+**Worked example:**
+- Before: "Do you agree that we should ship Tuesday?"
+- After: "Would you disagree that Tuesday is the earliest we'd both feel good about shipping?"
+- Why: "Before" asks for an agreement, which feels like a commitment. "After" inverts the polarity — the easy answer is "no, I wouldn't disagree" which is functionally agreement but feels like an autonomous statement rather than a concession.
+
+### 5.6 The Accusation Audit
+
+**When it applies:** When the writer suspects the counterpart already has
+negative thoughts about the writer's motives, position, or intent — and
+those thoughts are blocking real engagement.
+
+**Canonical move:** Voss verbatim: *"a preemptive tactic by which you
+speculate what the other side might be thinking and proactively address
+those thoughts before your counterpart has a chance to voice them."* You
+name their worry before they do.
+
+**Language pattern:** *"You probably think I'm here to push my agenda…"* /
+*"You might think I'm here to push a deal that favors me…"* The audit
+voices the negative thing without arguing against it.
+
+**Worked example:**
+- Before: "Trust me, this is a fair proposal."
+- After: "You're probably thinking this is just me pushing the option that makes my team look best. — That's a fair concern, and worth saying out loud before we even look at the numbers."
+- Why: The "before" demands trust without acknowledging the reasons trust would be hard. The "after" voices the suspicion preemptively, which Voss's research shows neutralizes it more reliably than any defense ever could.
+
+### 5.7 Summary (Labels + Paraphrase)
+
+**When it applies:** When the writer wants to confirm they've understood
+the counterpart — the move that elicits the "that's right" success signal.
+
+**Canonical move:** Voss verbatim: *"Labels + Paraphrase = Summary"* —
+paraphrase the facts and label the emotion the counterpart feels about
+those facts. Critically: name the *negative* emotions, not just the
+comfortable ones. *"A critical part of any effective summary is your
+labeling of negatives."*
+
+**Language pattern:** Paraphrase what they said + label the unsaid feeling.
+*"So what's happening is [facts] — and it sounds like that's left you
+feeling [labeled emotion]. Is that right?"*
+
+**Worked example:**
+- Before: "OK so we agreed on the new timeline. Let's move forward."
+- After: "So the timeline went from two weeks to four — and it sounds like that landed for you as 'the team's commitment didn't count.' Is that right?"
+- Why: The "before" claims agreement without confirming what the counterpart heard. The "after" paraphrases the facts AND labels the negative emotion underneath — which gives the counterpart the chance to say "that's right" (success) or correct the read (also valuable). Either way, the writer learns what's actually happening.
+
+---
+
+## 6. Made to Stick — Chip & Dan Heath
+
+**Source:** heathbrothers.com/made-to-stick-introduction/ — the brothers'
+own publishing site, which enumerates the SUCCESs framework in author-given
+operational form.
+
+This is the **memorability / message-shape layer**. Use when the writer
+wants the message to stick — to be remembered, repeated, or acted on later
+rather than scanned and forgotten.
+
+> **Note on the framework name:** The Heath Brothers explicitly use
+> *SUCCESs* (six letters: Simple, Unexpected, Concrete, Credible, Emotional,
+> Stories) on their site. The Coach should cite the framework name as
+> SUCCESs and the individual principles by their verified names below.
+
+### 6.1 Simplicity (Strip to the Core)
+
+**When it applies:** When the draft is trying to communicate more than one
+idea, or when the central idea is buried under qualifiers.
+
+**Canonical move:** Heath Brothers verbatim: *"To strip an idea down to its
+core, we must be masters of exclusion. We must relentlessly prioritize."*
+The ideal form is the **proverb** — short AND profound — not the sound bite,
+which is just short.
+
+**Language pattern:** The diagnostic: *"What is the ONE idea I want them to
+remember a week from now?"* — that's the proverb you're aiming for. Cut
+everything that isn't that or in direct service of it.
+
+**Worked example:**
+- Before: "We should consider possibly looking at the rollout strategy from multiple angles, including timing, audience, technical readiness, and stakeholder alignment — there are a lot of factors."
+- After: "We're not ready to ship Tuesday — the stakeholder sign-off isn't in yet."
+- Why: "Before" is the un-prioritized list of considerations. "After" is the proverb-shaped form: one fact (not ready), one reason (stakeholder sign-off missing), nothing else. The recipient remembers exactly the load-bearing piece.
+
+### 6.2 Unexpectedness (Surprise + Knowledge Gaps)
+
+**When it applies:** When the message risks being ignored or skimmed
+because it sounds like every other message the recipient has already
+received this week.
+
+**Canonical move:** Two mechanisms, used together. **Surprise** grabs
+attention in the moment — break the pattern of expectation. **Knowledge
+gaps** sustain curiosity over time — open a gap in what the reader knows
+and they'll keep reading to close it. Heath Brothers verbatim: *"engage
+people's curiosity over a long period of time by systematically opening
+gaps in their knowledge — and then filling those gaps."*
+
+**Language pattern:** Lead with the unexpected finding, not the setup. Open
+a knowledge gap explicitly: *"Here's the part that surprised me…"* / *"The
+counterintuitive thing is…"* / *"You'd think X, but actually Y."*
+
+**Worked example:**
+- Before: "I looked at the deploy metrics for last quarter and there's a pattern we should discuss."
+- After: "The deploys that broke last quarter all had something we didn't expect: every one of them passed CI. Worth ten minutes to dig into."
+- Why: "Before" is informational and skimmable. "After" surfaces the surprise directly ("all passed CI") which opens an immediate knowledge gap — the reader wants to know what's going on, which buys the ten minutes of attention the writer wanted.
+
+### 6.3 Concreteness (Human Actions and Sensory Information)
+
+**When it applies:** When the message contains abstract concepts that might
+mean different things to different recipients.
+
+**Canonical move:** Heath Brothers verbatim: *"Speaking concretely is the
+only way to ensure that our idea will mean the same thing to everyone in
+our audience."* Operational test: explain ideas *"in terms of human actions,
+in terms of sensory information."*
+
+**Language pattern:** Replace abstract nouns with people doing things.
+Replace generalities with specific examples. Replace "we should improve X"
+with "here's a person doing the improved version of X."
+
+**Worked example:**
+- Before: "We need to improve our developer experience."
+- After: "When a new dev joins, they should be able to clone the repo, run one command, and have the app running locally in under ten minutes. Right now it takes most people two days."
+- Why: "Before" is an abstract goal that means seven different things to seven recipients. "After" describes a specific person (the new dev) doing a specific sensory action (cloning, running, app running) with specific numbers (ten minutes vs two days). The whole team now knows the same thing.
+
+### 6.4 Credibility
+
+**When it applies:** When the writer is making a claim the recipient
+doesn't have prior reason to trust — a recommendation, a forecast, a
+diagnosis.
+
+**Canonical move:** Make the claim self-testable by the recipient where
+possible (the "try it now" test) or anchor it to a source/data the
+recipient can independently verify. Vivid statistics ("more X than Y") are
+more credible than abstract numbers.
+
+**Language pattern:** Anchor claims to data, expert authority, or
+verifiable detail. Where possible, give the recipient a quick test they
+can run to validate the claim themselves.
+
+**Worked example:**
+- Before: "Our error rates have improved significantly."
+- After: "Error rate dropped from 2.3% to 0.4% since the May 12 deploy — you can see it in the Grafana board at /errors-overview."
+- Why: "Before" asks for trust without anchor. "After" gives specific numbers (2.3 → 0.4) and a self-testable link (the Grafana board). The recipient can verify in 30 seconds, which makes the claim land instead of being filed under "marketing."
+
+### 6.5 Emotional (Feel for Individuals, Not Abstractions)
+
+**When it applies:** When the writer is trying to get the recipient to
+*care*, not just understand.
+
+**Canonical move:** Heath Brothers verbatim: *"We are wired to feel things
+for people, not for abstractions."* Frame the stakes around a specific,
+named, identifiable person — not around statistics or categories.
+
+**Language pattern:** Replace "users" with a specific user. Replace "the
+team" with a named person on the team. Make the affected person
+identifiable.
+
+**Worked example:**
+- Before: "This bug affects a small percentage of our users."
+- After: "This bug means Maria — she's a customer who emailed support yesterday — can't access her account on mobile. We're losing her if we don't ship the fix this week."
+- Why: "Before" is a statistic the recipient can rationalize. "After" is Maria, a specific person whose problem the recipient can feel. The Heath Brothers' research is that the identifiable victim moves action where statistics don't.
+
+### 6.6 Stories
+
+**When it applies:** When the writer wants the message to be remembered AND
+repeated by the recipient.
+
+**Canonical move:** Wrap the idea in a story. Stories work because they
+function as mental simulations — the recipient walks through the idea
+rather than receiving it as a claim. Stories also dramatically improve
+repeatability — the recipient can re-tell the story to a third party in a
+way they can't re-tell a list of bullet points.
+
+**Language pattern:** Open with a character in a specific situation.
+Introduce a complication. Show how it resolved. Make the resolution carry
+the idea you want transferred.
+
+**Worked example:**
+- Before: "We should always check rollback procedures before deploying."
+- After: "Last quarter the team shipped at 4pm Friday, the deploy broke, and no one had tested the rollback. We spent the weekend on it. Now every deploy starts with running the rollback procedure in staging — five minutes that has saved us at least three weekends since."
+- Why: "Before" is a rule. "After" is a story the recipient remembers, can repeat to a colleague, and that delivers the rule as the satisfying resolution. Same idea; vastly higher stickiness.
+
+---
+
+## 7. Nonviolent Communication — Marshall Rosenberg
+
+**Source:** nonviolentcommunication.com (PuddleDancer Press — Rosenberg's
+official publisher). *Note: the specific PDF used is labeled "unpublished-
+not-final" — content matches canonical NVC doctrine across multiple
+Rosenberg-affiliated sources, but the specific source URL has that caveat.*
+
+This is the **needs-and-feelings layer**. Use when the draft is about
+conflict, complaint, or any message where the writer's underlying need
+isn't being directly stated.
+
+### 7.1 The OFNR Model (Four-Component Expression)
+
+**When it applies:** Any message about a conflict, complaint, or unmet
+need — especially when the writer is upset and the recipient might
+become defensive.
+
+**Canonical move:** Restructure the message around the four components in
+order: **O**bservation (what was sensed — see/hear/touch only, no
+judgment), **F**eeling (the emotion produced), **N**eed (the underlying
+universal need at stake), **R**equest (a specific, actionable, declineable
+ask).
+
+**Language pattern:** *"When I [observe X], I feel [Y], because I need
+[Z]. Would you be willing to [specific request]?"* Each component must be
+the named one — not collapsed (e.g., "I feel you don't care" is not a
+feeling; it's a thought disguised as one).
+
+**Worked example:**
+- Before: "You never respond to my messages — you obviously don't think they matter."
+- After: "When I see my last three messages in this channel without a response (observation), I feel anxious (feeling) because I need to know we're aligned on the launch (need). Would you be willing to react with an emoji or short note when you've read them, even if you don't have the full answer yet (request)?"
+- Why: The "before" is judgment-as-fact ("never," "obviously"). The "after" walks each component: a specific observable (last three messages), a real feeling (anxious, not "you don't care"), the underlying need (alignment on the launch), and a declineable specific request (react with an emoji). The recipient can engage with any of the four — they have a path.
+
+### 7.2 Observation vs. Evaluation
+
+**When it applies:** Whenever the draft contains language that *sounds*
+like a fact but is actually a judgment. Rosenberg's verbatim: NVC observation
+*"aims to identify to the best of our abilities the sensory input only…
+to sort our sensory experience from opinions, beliefs, and any framework
+or language that implies moralistic judgments."*
+
+**Canonical move:** Strip the evaluation. State only what was seen, heard,
+touched, tasted, or smelled. Words like "always," "never," "lazy,"
+"professional," "good," "bad" are evaluations dressed as observations.
+
+**Language pattern:** Replace "you always X" with "I noticed X in the last
+three meetings." Replace "this is broken" with "the form rejected my input
+three times this morning." Replace "she's not professional" with "she came
+in 20 minutes late to two of the last three meetings without sending a
+note."
+
+**Worked example:**
+- Before: "Your code reviews are inconsistent."
+- After: "On the last five PRs, I noticed that three got reviews within four hours and two stayed open for over three days. I'm trying to understand the pattern."
+- Why: "Before" is an evaluation ("inconsistent") presented as a fact. "After" is the observable input (the timing on the last five PRs). The same underlying concern is expressed, but now the recipient has data to engage with rather than a label to defend against.
+
+### 7.3 Feelings vs. Thoughts-Disguised-As-Feelings
+
+**When it applies:** When the writer says "I feel X" but X is actually a
+judgment about the other person ("I feel attacked," "I feel ignored," "I
+feel manipulated").
+
+**Canonical move:** Distinguish real feelings (anxious, hurt, frustrated,
+relieved, sad, angry) from thoughts disguised as feelings ("I feel like
+you…"). A test: if it can be replaced with "I think" without losing
+meaning, it's a thought, not a feeling.
+
+**Language pattern:** Use plain emotion words. *"I feel anxious"* / *"I'm
+frustrated"* / *"That left me feeling hurt"* — not *"I feel like you don't
+respect me"* (which is a judgment of the other person, not a feeling).
+
+**Worked example:**
+- Before: "I feel like you don't take my work seriously."
+- After: "I feel hurt and a little discouraged."
+- Why: "Before" projects a judgment onto the other person ("you don't take") and labels it as a feeling. "After" names the actual emotion the writer is experiencing. The other person can sit with the writer's hurt; they can't sit with being accused of not taking the work seriously. The next sentence in the message can then say *what* produced the hurt (the observation) and what need is at stake.
+
+---
+
+## 8. Cross-Book Convergences
 
 When two or more books teach the same operational move from different
 angles, the Coach should cite ONE principle, not multiple. The convergence
 becomes a higher-confidence single rule.
 
-### 5.1 Pre-Frame Before the Ask
+### 8.1 Pre-Frame Before the Ask
 
 **Books that converge:** Cialdini's *Authority* (third-party credentials
 before the request), Cialdini's *Liking* (shared similarities before
 business), Crucial Conversations' *Start with Heart* (clarify motives before
-speaking).
+speaking), Voss's *Fairness-Permission Opener* (granting the counterpart
+the right to push back before the ask).
 
 **Synthesis principle:** *The move before the move is the move.* Before
 making an ask, sharing a critique, or proposing a change, the writer must
-do the preparatory work — establish credibility, build rapport, or clarify
-intent. Drafts that jump straight to the ask are structurally weaker than
-drafts that pre-frame.
+do the preparatory work — establish credibility, build rapport, clarify
+intent, or grant permission. Drafts that jump straight to the ask are
+structurally weaker than drafts that pre-frame.
 
 **Coach behavior:** When a draft is an ask/proposal/critique with no
-pre-frame, suggest adding ONE pre-frame element (not all three) drawn from
+pre-frame, suggest adding ONE pre-frame element (not all four) drawn from
 whichever book best matches the situation.
 
-### 5.2 Separate Fact from Story
+### 8.2 Separate Fact from Story (Observation from Evaluation)
 
 **Books that converge:** Crucial Conversations' *Path to Action* (emotion
-lives in the story, not the facts) and *Tell Your Story* (in STATE — the
-"T" step).
+lives in the story, not the facts), Crucial Conversations' *Tell Your
+Story* (in STATE — the "T" step), Rosenberg's *Observation vs. Evaluation*
+(NVC's first OFNR component).
 
 **Synthesis principle:** Most high-stakes drafts contain two layers stacked
-on each other: observable facts and the writer's interpretation. The
-interpretation is what's producing the heat. The Coach's job is to help the
-writer pull them apart so the recipient can engage with the facts without
-first having to defend against the interpretation.
+on each other: observable facts and the writer's interpretation/judgment.
+The interpretation is what's producing the heat. The Coach's job is to help
+the writer pull them apart so the recipient can engage with the facts
+without first having to defend against the judgment.
 
-**Coach behavior:** When a draft contains both a fact and an interpretation
-delivered as fact, suggest restructuring: state the fact, name the
-interpretation as interpretation ("the story I'm telling myself is…"), then
-ask.
+**Coach behavior:** When a draft contains both an observation and an
+evaluation delivered as fact, suggest restructuring: state the observable,
+name the interpretation as interpretation ("the story I'm telling myself
+is…" or "what I'm making of that is…"), then ask. This is the highest-
+leverage move for de-escalating any contested message.
 
-### 5.3 Concrete Over Abstract
+### 8.3 Concrete Over Abstract
 
 **Books that converge:** Zinsser's *Anglo-Saxon over Latinate*, Zinsser's
-*Active verbs*, Anderson's *calibrated detail in storytelling*, Crucial
+*Active verbs*, Anderson's *calibrated detail in storytelling*, Heath
+Brothers' *Concreteness* (human actions and sensory information), Crucial
 Conversations' *Move to Action specificity* (Who/What/When, not let's/ASAP).
 
 **Synthesis principle:** Across every layer (word choice, verb choice,
-detail choice, action proposal), prefer the concrete, named, specific over
-the abstract, vague, latinate. The reader processes the concrete; the reader
-has to decode the abstract.
+detail choice, example choice, action proposal), prefer the concrete,
+named, specific over the abstract, vague, latinate. The reader processes
+the concrete; the reader has to decode the abstract. With five books on
+this point, it is the highest-confidence universal rule in the Knowledge
+Base.
 
-**Coach behavior:** This convergence is the universal prose-layer move. The
-Coach can apply it to virtually any draft as a sub-improvement, even when
-the main principle being applied comes from a different book.
+**Coach behavior:** This convergence is the universal prose-layer move.
+The Coach can apply it to virtually any draft as a sub-improvement, even
+when the main principle being applied comes from a different book.
+
+### 8.4 Label What's Unsaid
+
+**Books that converge:** Voss's *Labels* ("It seems like…"), Voss's
+*Accusation Audit* (preemptively voicing the recipient's likely worry),
+Crucial Conversations' *Contrasting Statement* (saying what you don't
+mean), Rosenberg's *Feelings vs. Thoughts-Disguised-As-Feelings* (naming
+the actual emotion).
+
+**Synthesis principle:** Across four books: when there's an unspoken
+worry, judgment, emotion, or potential misread floating in the conversation,
+the writer should NAME it explicitly. Naming lowers the temperature;
+silence amplifies it. The recipient feels seen and the writer demonstrates
+they're not naive about the dynamic.
+
+**Coach behavior:** When a draft is a guarded reply or a sensitive ask,
+suggest adding a label of what's unsaid — drawing from whichever book best
+matches the situation (Voss for negotiation, Crucial Conv for clarifying
+intent, Rosenberg for naming the writer's own emotion).
+
+### 8.5 The Specific, Identifiable Person
+
+**Books that converge:** Heath Brothers' *Emotional* (feel for individuals,
+not abstractions), Anderson's *relatable character* (in four storytelling
+elements), Heath Brothers' *Concreteness* (human actions, not abstract
+nouns).
+
+**Synthesis principle:** When the writer wants the recipient to *care*,
+the stakes must be carried by an identifiable person — not by a statistic,
+a category, or an abstract noun. Three books converge here.
+
+**Coach behavior:** When a draft makes a case for action but frames the
+stakes abstractly ("users will be affected"), suggest replacing with a
+named, specific person whose situation embodies the stake.
 
 ---
 
-## 6. How to Use This Knowledge
+## 9. How to Use This Knowledge
 
 The Coach v5.0 LLM consumes this Knowledge Base as a structured reference,
 not as prose to recite. Operational guidance for the LLM:
 
 **Step 1 — Classify the draft's situation:**
-- *Ask / proposal / persuasion message* → Cialdini layer
-- *High-stakes, emotional, disagreement, or feedback message* → Crucial Conversations layer
-- *Story / anecdote / experience-share* → Anderson layer
-- *All drafts* → Zinsser layer underneath whatever else applies
+- *Ask / proposal / persuasion message* → Cialdini layer (3)
+- *High-stakes, emotional, disagreement, or feedback message* → Crucial Conversations (2) + Rosenberg/NVC (7) layer
+- *Response to a guarded, anxious, or resistant counterpart* → Voss/Tactical Empathy (5) layer
+- *Story / anecdote / experience-share* → Anderson (4) layer
+- *Message intended to be remembered or repeated* → Heath Brothers/SUCCESs (6) layer
+- *All drafts* → Zinsser (1) layer underneath whatever else applies
 
 **Step 2 — Within the matched layer, identify the most-violated principle.**
-For example: an ask with no credential pre-frame → *Authority*; a vague
-action proposal → *Move to Action*; an anecdote with no central idea →
-*Idea-Worth-Spreading*; a passive-voice draft → *Active Verbs*.
+For example: an ask with no credential pre-frame → *Authority* (3.3); a
+vague action proposal → *Move to Action* (2.7); an anecdote with no central
+idea → *Idea-Worth-Spreading* (4.1); a passive-voice draft → *Active Verbs*
+(1.4); a guarded reply that demands explanation → *Mirroring* (5.2) or
+*Labels* (5.3); a message about an unmet need framed as accusation → *OFNR*
+(7.1).
 
 **Step 3 — Combine at most TWO principles per rewrite.** One situational
-(Cialdini / Crucial / Anderson) plus Zinsser as the prose layer beneath.
-More than two becomes a lecture; the user can't absorb three new moves at
-once.
+(from sections 2-7) plus Zinsser as the prose layer beneath. More than two
+becomes a lecture; the user can't absorb three new moves at once.
 
 **Step 4 — Deliver the "why" as a single named principle with its canonical
 move.** Example: *"This is the Contrasting Statement — by saying what you
@@ -552,24 +971,100 @@ don't mean before what you do mean, you pre-empt the misread."* Never as a
 list of principles. The single named move is what the user can take with
 them.
 
+**Step 5 — Watch for cross-book convergences (section 8).** When a principle
+is taught by 2+ books, cite the convergence (e.g., "Observation vs.
+Evaluation — Crucial Conversations and NVC both teach this") rather than
+naming both books separately. Convergences are higher-confidence rules.
+
 **Constitutional grounding:**
 - §3.3 (Guide-don't-overtake) — The Coach proposes, names the move, teaches the why. The user decides whether to use it.
 - A11 (Mirror frame) — The Coach surfaces a pattern + a question + a proposed move drawn from named, sourced authority. The user always renders the verdict on whether to apply it.
 
 **What the Coach must NOT do:**
-- Cite Anderson's "throughline" (verified refuted)
-- Cite any of the 6 books not yet in this Knowledge Base (Carnegie, Voss, Heath brothers, Gladwell, Rosenberg, Stone/Patton/Heen) until their second-pass research lands
+- Cite Anderson's "throughline" (verified refuted — see Refuted section below)
+- Cite Voss's "six trademarked Tactical Empathy tools" as a fixed-six enumeration (verified refuted — name the tactics individually instead)
+- Cite Carnegie, Gladwell, or Stone/Patton/Heen until their primary-source verification lands. Where their conceptual territory overlaps with verified books (Carnegie ≈ Cialdini Liking + Crucial Conv. Start with Heart; Stone/Patton/Heen ≈ Crucial Conversations), the verified equivalents are used.
 
 ---
 
-## Refuted Claims (Do Not Cite)
+## 10. Books Not Yet Verified
+
+Three books from the original 10-book reading list did not produce
+verified primary-source principles across two adversarial-verification
+passes. They are documented here so the Coach prompt is honest about the
+gap, and so a future research pass has a starting point.
+
+### Carnegie — *How to Win Friends and Influence People*
+
+**Status:** Not verified from primary source. Dale Carnegie Training site
+(dalecarnegie.com) pages returned were marketing-shaped and did not
+publish the operational 30 Principles in extractable form. Secondary
+sources (Wikipedia, blog summaries) enumerate the principles but did not
+survive adversarial verification.
+
+**Conceptual coverage in verified books:** Most of Carnegie's core moves
+overlap with: Cialdini's *Liking* (3.5) — shared similarities and genuine
+compliments before business; Crucial Conversations' *Start with Heart*
+(2.1) — clarify intent before speaking; and the Pre-Frame Before the Ask
+convergence (8.1). The Coach can apply these in situations where Carnegie
+would have been the named source.
+
+### Gladwell — *Talking to Strangers*
+
+**Status:** Not verified from primary source. gladwell.com and Pushkin
+(Revisionist History) did not return author-controlled operational
+content for the book's frameworks (default-to-truth, transparency,
+coupling).
+
+**Note:** Gladwell's book is fundamentally diagnostic (it describes
+*why* cross-stranger communication fails), not prescriptive (it does not
+teach *what to do* differently). The Coach can use the absence as a
+flag — when a draft assumes the writer has correctly read a stranger or
+near-stranger, that assumption is exactly the failure mode Gladwell
+diagnoses — but the Coach should not claim Gladwell as a source for any
+specific rewrite tactic.
+
+### Stone, Patton & Heen — *Difficult Conversations* (Harvard Negotiation Project)
+
+**Status:** Not verified from primary source in extractable form. Harvard
+Program on Negotiation (pon.harvard.edu) and Triad Consulting Group pages
+were available but did not publish the Three Conversations framework
+(What Happened / Feelings / Identity) in operationally extractable form
+that survived verification.
+
+**Conceptual coverage in verified books:** Stone/Patton/Heen's territory
+substantially overlaps with Crucial Conversations: their *What Happened
+Conversation* ≈ Crucial Conv's *Path to Action* (2.2) and *STATE* (2.4);
+their *Feelings Conversation* ≈ NVC's OFNR Feelings component (7.1);
+their *Identity Conversation* ≈ Crucial Conv's *Start with Heart* (2.1)
+and *Contrasting Statement* (2.6). The Coach can apply Crucial
+Conversations principles in situations where Difficult Conversations
+would have been the named source.
+
+---
+
+## 11. Refuted Claims (Do Not Cite)
+
+Both passes' refuted claims, with the source attempted and vote.
 
 | Claim | Source attempted | Vote |
 |---|---|---|
 | Anderson defines "throughline" as a named narrative-arc device | ideas.ted.com | 0-3 |
+| Black Swan Group officially names six trademarked Tactical Empathy tools (Mirrors, Labels, Asking Labels, Calibrated Questions, No-Oriented Questions, "That's Right") | blackswanltd.com/newsletter/5-ways-tactical-empathy-can-assist-you-in-getting-what-you-want | 0-3 |
+| heathbrothers.com home page and /books/made-to-stick/ enumerate the SUCCESs framework operationally | heathbrothers.com | 0-3 |
 
-Both the term and the attribution were rejected in adversarial verification.
-The underlying concept (a single transferable idea per talk/message) is
-verified and lives as *The Idea-Worth-Spreading Frame* — but the named term
-"throughline" is not Anderson's verified terminology and must not appear in
-Coach output.
+**Notes:**
+
+- Anderson's "throughline" — the term and attribution were rejected. The
+  underlying concept (a single transferable idea per talk/message) is
+  verified and lives as *The Idea-Worth-Spreading Frame* (4.1). Use the
+  concept; do NOT use the term.
+- Voss's "six trademarked tools" — the individual tactics ARE verified
+  (Mirroring 5.2, Labels 5.3, Calibrated Questions 5.4, No-Oriented
+  Questions 5.5, Accusation Audit 5.6, Summary 5.7), but the enumeration
+  as a fixed-six trademarked set is not. Name the tactics individually,
+  do NOT cite them as "the six tools."
+- Heath Brothers' SUCCESs IS verified — the refutation is specifically
+  that the framework is NOT on the home page or /books/ page. The verified
+  source is /made-to-stick-introduction/. Cite that path if a source is
+  referenced.
