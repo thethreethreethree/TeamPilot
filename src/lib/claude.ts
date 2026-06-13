@@ -395,3 +395,24 @@ export async function analyzeCoachV5(args: {
     userContent: args.userMessage,
   });
 }
+
+/**
+ * Coach v5.0 follow-up — the multi-turn conversational LLM call. Same
+ * shape as analyzeCoachV5 but produces the lighter follow-up response
+ * (reply + optional alternativeRevision + conversationStarters) rather
+ * than the full initial analysis. Token budget is similar because the
+ * Knowledge Base is still in the system prompt.
+ */
+export async function followUpCoachV5(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 1000,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+  });
+}

@@ -168,6 +168,53 @@ export function buildSystemPrompt(args: {
   ].join("");
 }
 
+const FOLLOWUP_RULES = `
+
+You are now in FOLLOW-UP mode — the user has read your initial analysis and is asking a question. Respond conversationally, like a peer they're talking with. Draw on the Knowledge Base when relevant, but don't quote it verbatim — translate principles into peer language.
+
+You CAN:
+- Propose a new revision (set alternativeRevision) if their question implies wanting one ("show me another version", "make it shorter", "what would Voss do here")
+- Compare principles across books when the question asks
+- Explain the thinking behind your initial recommendation in more depth
+- Acknowledge when their pushback has a point and adjust your read
+- Say "I don't know" or "I'd want to think about that more" when honest
+
+You CANNOT:
+- Lecture or list multiple principles in one reply (one named move per turn, max)
+- Switch into corrective tone — stay peer
+- Invent context that's not in the chat history they gave you
+- Cite refuted claims (Anderson's "throughline", Voss's "six-tool" enumeration)
+
+OUTPUT FORMAT (strict JSON, no markdown fences, no preamble):
+
+{
+  "reply": "string — your conversational response. 2-5 sentences usually. Can be longer if the question warrants depth.",
+  "alternativeRevision": "string (OPTIONAL) — present only when the question implies wanting a new revision",
+  "conversationStarters": ["string", "string", "string" — 2-3 follow-ups the user might want next]
+}
+`;
+
+/**
+ * Compose the system prompt for a Coach v5.0 follow-up call.
+ *
+ * Reuses the Identity + Knowledge Base + Behavioral Rules sections but
+ * appends FOLLOW-UP mode instructions instead of the initial-analysis
+ * mode instructions.
+ */
+export function buildFollowUpSystemPrompt(args: {
+  contextType: CoachContextType;
+}): string {
+  const knowledgeBase = getKnowledgeBase();
+  return [
+    IDENTITY_SECTION,
+    KNOWLEDGE_REFERENCE_PREAMBLE,
+    knowledgeBase,
+    KNOWLEDGE_REFERENCE_POSTAMBLE,
+    FOLLOWUP_RULES,
+    `\nSURFACE CONTEXT NOTE:\n${CONTEXT_TYPE_NOTES[args.contextType]}\n`,
+  ].join("");
+}
+
 /**
  * Compose the user-turn payload — the draft + the relevant context for
  * the surface type.
@@ -230,4 +277,36 @@ export function buildUserMessage(args: {
   }
 
   return sections.join("\n\n");
+}
+
+/**
+ * Compose the user-turn payload for a follow-up call. Includes the
+ * original draft + surface context PLUS the prior turns + the user's
+ * new question.
+ */
+export function buildFollowUpUserMessage(args: {
+  draft: string;
+  contextType: CoachContextType;
+  contextPayload: import("./types").CoachContextPayload;
+  priorTurns: Array<{ role: "user" | "coach"; content: string }>;
+  userQuestion: string;
+}): string {
+  const base = buildUserMessage({
+    draft: args.draft,
+    contextType: args.contextType,
+    contextPayload: args.contextPayload,
+  });
+
+  const turnsSection =
+    args.priorTurns.length === 0
+      ? ""
+      : "\n\nCONVERSATION SO FAR:\n" +
+        args.priorTurns
+          .map(
+            (t) =>
+              `  ${t.role === "user" ? "User" : "Coach"}: ${t.content.slice(0, 2000)}`
+          )
+          .join("\n");
+
+  return `${base}${turnsSection}\n\nUSER'S NEW QUESTION:\n${args.userQuestion}`;
 }
