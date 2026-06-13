@@ -186,25 +186,57 @@ WHAT NEVER CHANGES:
 
 ## 3. Input/Output Schemas
 
-### 3.1 Initial Analysis Request (Auto-Coach or Ask-Coach)
+### 3.1 Coach Surfaces (Surface-Agnostic Design)
+
+The Coach is deployed across multiple composer surfaces in the app. Same
+engine, different hosts:
+
+| Surface | `contextType` | What "context" means there |
+|---|---|---|
+| Chat topic main composer | `chat_message` | Recent thread messages |
+| Decision Dialogue "Your read" / "What would you do" fields | `decision_dialogue` | The situation being decided + prior phase entries |
+| Threaded reply composer | `chat_reply` | The parent message being replied to + thread |
+| Task description / blocker fields | `task_field` | The task title + description + status |
+| Feedback panel composer | `feedback` | The feedback type + any prior entries |
+| Smoke test draft notes | `smoke_test_note` | The test item being tracked |
+
+The Coach prompt receives `contextType` and tailors:
+- What it treats as "context" when scoring whether the draft fits
+- What it can pull from when proposing context-aware rewrites
+- What surface conventions to respect (a Decision Dialogue "Your read" is
+  inherently a reflection, not a message-to-someone — the Coach should
+  guide differently than for a chat message)
+
+### 3.2 Initial Analysis Request (Auto-Coach or Ask-Coach)
 
 ```typescript
 type CoachAnalysisRequest = {
   mode: "auto" | "ask";
-  draft: string;          // the user's current composer text
-  recentThread: Array<{   // last ~10 messages for context
-    author: string;
-    body: string;
-    timestamp: string;
-  }>;
-  topic?: {               // optional thread-level context
-    title?: string;
-    description?: string;
+  draft: string;
+  contextType:
+    | "chat_message"
+    | "decision_dialogue"
+    | "chat_reply"
+    | "task_field"
+    | "feedback"
+    | "smoke_test_note";
+  contextPayload: {
+    // The fields vary by contextType. The Coach prompt reads only the
+    // fields relevant to the surface it's on.
+    recentThread?: Array<{ author: string; body: string; timestamp: string }>;
+    topic?: { title?: string; description?: string };
+    decisionSituation?: string;     // for decision_dialogue contextType
+    decisionPriorPhases?: { situation?: string; userRead?: string };
+    parentMessage?: { author: string; body: string };  // for chat_reply
+    taskTitle?: string;             // for task_field
+    taskDescription?: string;
+    feedbackKind?: string;          // for feedback
+    smokeTestItemTitle?: string;    // for smoke_test_note
   };
 };
 ```
 
-### 3.2 Initial Analysis Response
+### 3.3 Initial Analysis Response
 
 ```typescript
 type CoachAnalysisResponse = {
@@ -235,7 +267,7 @@ type CoachAnalysisResponse = {
 };
 ```
 
-### 3.3 Follow-Up Request
+### 3.4 Follow-Up Request
 
 ```typescript
 type CoachFollowUpRequest = {
@@ -249,7 +281,7 @@ type CoachFollowUpRequest = {
 };
 ```
 
-### 3.4 Follow-Up Response
+### 3.5 Follow-Up Response
 
 ```typescript
 type CoachFollowUpResponse = {
