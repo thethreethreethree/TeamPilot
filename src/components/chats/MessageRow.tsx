@@ -9,6 +9,7 @@ import {
   avatarTextColorFor,
 } from "@/lib/brand/avatar";
 import { renderMessageBody } from "@/lib/chat/markdown";
+import { MessageGradeIndicator } from "./MessageGradeIndicator";
 
 /**
  * MessageRow — renders a single message in the chat stream.
@@ -36,18 +37,31 @@ export function MessageRow({
   msg,
   parent,
   currentUserId,
+  coachGrade,
+  viewerIsLeader,
   onTogglePin,
   onStartReply,
   onJumpToParent,
+  onReviewWithCoach,
 }: {
   msg: ChatMessage;
   /** Parent message this row replies to. Null when not a reply, or
    *  when the parent is outside the loaded window. */
   parent?: ChatMessage | null;
   currentUserId: string | null;
+  /** Coach v5 Encouragement System grade for this message, or null
+   *  if it hasn't been graded yet (or grading isn't applicable). */
+  coachGrade?: import("@/lib/coach/v5/types").EncouragementGrade | null;
+  /** Does the viewing user have leader/admin authority over the
+   *  sender? Drives the "Needs Guidance" label visibility per A18. */
+  viewerIsLeader?: boolean;
   onTogglePin: () => void;
   onStartReply?: () => void;
   onJumpToParent?: (parentId: string) => void;
+  /** Fired when sender clicks the "Review with Coach" CTA on their
+   *  own needs_guidance-graded message. Sprint 6 wires the actual
+   *  retrospective review flow. */
+  onReviewWithCoach?: (messageId: string) => void;
 }) {
   const isSummary = msg.kind === "summary";
   const isSystem = msg.kind === "system";
@@ -184,6 +198,21 @@ export function MessageRow({
           >
             {renderMessageBody(msg.body)}
           </div>
+          {/* Coach v5 Encouragement System indicator — renders 🙌 /
+              Review-with-Coach / Needs Guidance with strict visibility
+              rules (sender sees own grade; leader sees others'
+              needs_guidance; peers see nothing). Spec: COACH_PROMPT_
+              DESIGN.md §10. */}
+          {coachGrade && (
+            <div className="mt-1.5">
+              <MessageGradeIndicator
+                grade={coachGrade}
+                isOwnMessage={isMine}
+                viewerIsLeader={viewerIsLeader ?? false}
+                onReviewClick={() => onReviewWithCoach?.(msg.id)}
+              />
+            </div>
+          )}
           <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             {onStartReply && (
               <button

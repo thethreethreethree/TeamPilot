@@ -129,3 +129,39 @@ export type CoachFollowUpResponse = {
   alternativeRevision?: string;
   conversationStarters: string[];
 };
+
+// ─── Encouragement System (post-send grading) — §10 of design doc ───
+
+/** The four grades the Encouragement System grader can return.
+ *  Drives the asymmetric visibility layer:
+ *   - productive → 🙌 (sender sees only)
+ *   - neutral → no indicator
+ *   - needs_guidance → "Review with Coach" (sender) +
+ *     "Needs Guidance" label (admins/execs/CEO)
+ *   - withheld → grader unavailable; no indicator shown
+ */
+export type EncouragementGrade =
+  | "productive"
+  | "neutral"
+  | "needs_guidance"
+  | "withheld";
+
+export type GradeRequest = {
+  sentMessage: string;
+  contextType: CoachContextType;
+  recentThread?: Array<{
+    author: string;
+    body: string;
+    timestamp: string;
+  }>;
+  parentMessage?: { author: string; body: string };
+};
+
+export type GradeResponse = {
+  grade: EncouragementGrade;
+  /** Internal-only reason text — shown to the Coach when the user
+   *  clicks "Review with Coach" so it can pick up the grader's
+   *  diagnosis. NEVER surfaced as the leader-visible label. NEVER
+   *  shown to peers. */
+  reasonInternal?: string;
+};

@@ -51,7 +51,14 @@ import { CoachPanel } from "@/components/chats/CoachPanel";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { CoachAffirmation } from "@/components/chats/CoachAffirmation";
-import type { CoachContextPayload } from "@/lib/coach/v5/types";
+import type {
+  CoachContextPayload,
+  EncouragementGrade,
+} from "@/lib/coach/v5/types";
+import {
+  fetchTopicMessageGrades,
+  gradeSentMessage,
+} from "@/lib/coach/v5/gradeClient";
 
 // Coach v5.0 cutover — chat composer renders the conversational
 // LLM-primary panel. The v4 regex chip remains imported for fallback /
@@ -97,6 +104,13 @@ export default function TeamChatTopicPage() {
   const [showCoachAffirmation, setShowCoachAffirmation] = useState(false);
   // Coach v5 Ask-Coach token — incremented to trigger an active analysis.
   const [askCoachToken, setAskCoachToken] = useState(0);
+  // Coach v5 Encouragement System — map of message_id → grade. Loaded
+  // from the chain on mount + updated when new grades come back from
+  // gradeSentMessage(). Drives the MessageGradeIndicator next to each
+  // user's own messages.
+  const [messageGrades, setMessageGrades] = useState<Map<string, EncouragementGrade>>(
+    () => new Map()
+  );
   const [summarizeOpen, setSummarizeOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
@@ -116,16 +130,18 @@ export default function TeamChatTopicPage() {
 
   const refresh = async () => {
     setLoading(true);
-    const [t, m, p, d] = await Promise.all([
+    const [t, m, p, d, grades] = await Promise.all([
       fetchTopic(topicId),
       fetchMessages(topicId),
       fetchParticipants(topicId),
       fetchTopicDecision(topicId),
+      fetchTopicMessageGrades(topicId),
     ]);
     setTopic(t);
     setMessages(m);
     setParticipants(p);
     setTopicDecision(d);
+    setMessageGrades(grades);
     setLoading(false);
   };
 
@@ -267,6 +283,30 @@ export default function TeamChatTopicPage() {
         replyToId: replyToSnapshot?.id ?? null,
       });
       setMessages((prev) => [...prev, msg]);
+      // Coach v5 — fire the Encouragement System grader. Non-blocking;
+      // updates messageGrades when the grade comes back. The message
+      // already landed — the grade just drives the indicator next to
+      // it (🙌 / Review-with-Coach / nothing).
+      void gradeSentMessage({
+        sentMessage: trimmed,
+        contextType: replyToSnapshot ? "chat_reply" : "chat_message",
+        subject: `chat_topic:${topicId}`,
+        messageId: msg.id,
+        recentThread: coachV5ContextPayload.recentThread,
+        parentMessage: replyToSnapshot
+          ? {
+              author: replyToSnapshot.authorName ?? "Unknown",
+              body: replyToSnapshot.body ?? "",
+            }
+          : undefined,
+        onGraded: (grade) => {
+          setMessageGrades((prev) => {
+            const next = new Map(prev);
+            next.set(msg.id, grade);
+            return next;
+          });
+        },
+      });
     } catch (err) {
       // Rollback the input so the user can retry without re-typing.
       setDraft(trimmed);
@@ -695,6 +735,8 @@ export default function TeamChatTopicPage() {
                             msg={msg}
                             parent={parent}
                             currentUserId={currentUserId}
+                            coachGrade={messageGrades.get(msg.id) ?? null}
+                            viewerIsLeader={iAmAdmin}
                             onTogglePin={() => void handleTogglePin(msg)}
                             onStartReply={() => startReply(msg)}
                             onJumpToParent={(id) => scrollToMessage(id)}

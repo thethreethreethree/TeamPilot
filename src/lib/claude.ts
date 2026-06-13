@@ -416,3 +416,23 @@ export async function followUpCoachV5(args: {
     userContent: args.userMessage,
   });
 }
+
+/**
+ * Coach v5.0 — Encouragement System grader. Lighter-weight LLM call
+ * than the full analyze — just produces a classification + optional
+ * internal reason. See docs/COACH_PROMPT_DESIGN.md §10.
+ */
+export async function gradeCoachV5(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    // Small response: { grade, reasonInternal? } — usually under 200 tokens.
+    maxTokens: 400,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+  });
+}
