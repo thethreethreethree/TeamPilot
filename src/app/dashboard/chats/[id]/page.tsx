@@ -581,8 +581,16 @@ export default function TeamChatTopicPage() {
               uses overflow-x-auto + flex-nowrap; the inner buttons all
               already have flex-shrink-0 via px-2.5 sizing so they don't
               collapse. min-w-0 lets this group shrink below content
-              width when the left group needs the room. */}
-          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto md:overflow-visible md:flex-none md:flex-nowrap justify-end -mx-1 px-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+              width when the left group needs the room.
+
+              touch-action: pan-x + overscroll-behavior: contain — both
+              required so the horizontal swipe stays inside this
+              element on iOS PWA. Without them, the swipe propagates
+              to the system and accidentally triggers the home /
+              app-switcher gesture. The top row is far from the home
+              indicator so this is mostly a defensive measure here;
+              the composer scroll below is where it really matters. */}
+          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto md:overflow-visible md:flex-none md:flex-nowrap justify-end -mx-1 px-1 [touch-action:pan-x] [overscroll-behavior:contain] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <button
               onClick={() => setShowParticipants((v) => !v)}
               className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
@@ -959,9 +967,20 @@ export default function TeamChatTopicPage() {
         )}
       </div>
 
-      {/* Composer */}
+      {/* Composer — pb-[safe] keeps the bottom scrollable row above
+          the iOS home-indicator gesture zone. Without this, the
+          horizontal swipe on the action row sits in the gesture-
+          intercept area and accidentally triggers the system app-
+          switcher / home gesture, exiting the PWA. The padding picks
+          up env(safe-area-inset-bottom) which Next.js exposes via
+          viewport-fit=cover (see layout.tsx viewport export). */}
       {!isClosed && (
-        <div className="border-t border-default bg-surface/50 px-3 md:px-6 py-2 md:py-4 overflow-x-hidden min-w-0">
+        <div
+          className="border-t border-default bg-surface/50 px-3 md:px-6 py-2 md:py-4 overflow-x-hidden min-w-0"
+          style={{
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.5rem)",
+          }}
+        >
           <form
             onSubmit={handleSubmit}
             className="max-w-5xl mx-auto min-w-0"
@@ -1094,7 +1113,7 @@ export default function TeamChatTopicPage() {
                     RIGHT: Send. Anchored, never scrolls. */}
               <div className="flex items-center gap-2 px-2 py-1.5 border-t border-default min-w-0">
                 <div
-                  className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto -mx-1 px-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
+                  className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto -mx-1 px-1 [touch-action:pan-x] [overscroll-behavior:contain] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
                 >
                   <button
                     type="button"

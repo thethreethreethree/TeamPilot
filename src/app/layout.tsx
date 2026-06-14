@@ -106,6 +106,13 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  // viewport-fit=cover lets the PWA render edge-to-edge on iOS so the
+  // env(safe-area-inset-*) CSS variables become available. We use the
+  // bottom inset to keep horizontal-scroll touch targets above the
+  // home indicator gesture zone — otherwise iOS's system swipe
+  // (which lives just above the bottom edge) intercepts horizontal
+  // pans on scrollable rows and the user accidentally exits the PWA.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#FAFAFA" },
     { media: "(prefers-color-scheme: dark)", color: "#09090B" },
