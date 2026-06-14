@@ -867,7 +867,14 @@ export default function TeamChatTopicPage() {
                     handleSubmit(e);
                   }
                 }}
-                className="w-full min-w-0 bg-transparent text-sm text-primary placeholder:text-muted px-4 py-3 focus:outline-none resize-none"
+                /* text-base (16px) on mobile, text-sm on md+:
+                   iOS Safari auto-zooms into any focused input/textarea
+                   whose font-size is < 16px. After the auto-zoom the
+                   page becomes wider than the viewport and the user
+                   has to manually pinch-out to navigate. Setting 16px
+                   on mobile prevents the zoom entirely. Desktop keeps
+                   the original 14px density. */
+                className="w-full min-w-0 bg-transparent text-base md:text-sm text-primary placeholder:text-muted px-4 py-3 focus:outline-none resize-none"
               />
               {/* Composer footer — Guide/Formulate/AI-assisted on the
                   left, char-count + Send on the right. flex-wrap is
