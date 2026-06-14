@@ -81,11 +81,29 @@ export async function POST(req: NextRequest) {
       { status: 403 }
     );
   }
+  // Admin gate — accept EITHER per-topic admin OR company-level
+  // admin (CEO / COO / admin). Matches the client-side iAmAdmin
+  // logic in the chat detail page so John (company CEO) can open a
+  // dialogue on any topic in his company without needing an
+  // explicit chat_participants.role = 'admin' flip. Per-topic admin
+  // still works as the finer-grained promotion path for non-
+  // company-admins in a specific topic.
   if (participant.role !== "admin") {
-    return NextResponse.json(
-      { error: "Only topic admins can open a Decision Dialogue." },
-      { status: 403 }
-    );
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", auth.user.id)
+      .maybeSingle();
+    const isCompanyAdmin =
+      profile?.role === "CEO" ||
+      profile?.role === "COO" ||
+      profile?.role === "admin";
+    if (!isCompanyAdmin) {
+      return NextResponse.json(
+        { error: "Only topic admins or company admins can open a Decision Dialogue." },
+        { status: 403 }
+      );
+    }
   }
 
   // Refuse to open a second dialogue while one is already in progress.
