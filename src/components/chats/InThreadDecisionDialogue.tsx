@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Brain,
   CheckCircle2,
@@ -10,6 +10,7 @@ import {
   Lightbulb,
   MessageCircleQuestion,
   RotateCcw,
+  X,
 } from "lucide-react";
 import {
   decideTopicDecision,
@@ -52,6 +53,7 @@ export function InThreadDecisionDialogue({
   iAmAdmin,
   onChange,
   onOpenNew,
+  onDismissFolded,
 }: {
   decision: TopicDecision;
   /** Either company-wide or per-topic Coach flag — same logic the
@@ -64,6 +66,10 @@ export function InThreadDecisionDialogue({
   onChange: (next: TopicDecision) => void;
   /** Folded-decided view "Open new dialogue" handler. */
   onOpenNew: () => void;
+  /** Folded-decided view dismiss handler — hides the card client-side
+   *  for this session. The decision row itself stays on the chain;
+   *  this is a UI-only "I've seen it" affordance. */
+  onDismissFolded?: () => void;
 }) {
   // ─── Local draft state — mirrors the row, debounce-saved ────
   const [situation, setSituation] = useState(decision.situation);
@@ -235,6 +241,7 @@ export function InThreadDecisionDialogue({
         decision={decision}
         iAmAdmin={iAmAdmin}
         onOpenNew={onOpenNew}
+        onDismiss={onDismissFolded}
       />
     );
   }
@@ -514,10 +521,12 @@ function FoldedDecided({
   decision,
   iAmAdmin,
   onOpenNew,
+  onDismiss,
 }: {
   decision: TopicDecision;
   iAmAdmin: boolean;
   onOpenNew: () => void;
+  onDismiss?: () => void;
 }) {
   const pathLabel: Record<TopicDecisionChosenPath, string> = {
     user: "Went with the proposal",
@@ -533,8 +542,72 @@ function FoldedDecided({
       ? `${decision.chosenNote.slice(0, 120)}…`
       : decision.chosenNote
     : null;
+
+  // Swipe-to-dismiss state. The card sits directly above the
+  // composer on mobile, where a horizontal swipe is the natural
+  // gesture for "I'm done looking at this." We use a damped drag
+  // model — past 80px the release commits to dismiss; below it,
+  // we snap back. Only enabled when onDismiss is supplied.
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const dirRef = useRef<"horizontal" | "vertical" | null>(null);
+  const [dragX, setDragX] = useState(0);
+  const THRESHOLD = 80;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (!onDismiss) return;
+    const t = e.touches[0];
+    if (!t) return;
+    startX.current = t.clientX;
+    startY.current = t.clientY;
+    dirRef.current = null;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!onDismiss || startX.current == null || startY.current == null) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const dx = t.clientX - startX.current;
+    const dy = t.clientY - startY.current;
+    if (dirRef.current == null) {
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      if (absX < 8 && absY < 8) return;
+      dirRef.current = absX > absY ? "horizontal" : "vertical";
+    }
+    if (dirRef.current === "vertical") return;
+    setDragX(dx);
+  };
+  const onTouchEnd = () => {
+    if (!onDismiss) return;
+    if (Math.abs(dragX) >= THRESHOLD) {
+      // Slide the card the rest of the way before unmounting so it
+      // doesn't pop out of existence under the finger.
+      setDragX(dragX > 0 ? 600 : -600);
+      window.setTimeout(() => {
+        onDismiss();
+      }, 180);
+    } else {
+      setDragX(0);
+    }
+    startX.current = null;
+    startY.current = null;
+    dirRef.current = null;
+  };
+
   return (
-    <div className="mb-3 flex items-start gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+    <div
+      className="mb-3 flex items-start gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20"
+      style={{
+        transform: dragX !== 0 ? `translateX(${dragX}px)` : undefined,
+        opacity:
+          dragX !== 0 ? Math.max(0, 1 - Math.abs(dragX) / 300) : undefined,
+        transition: dragX === 0 ? "transform 180ms ease-out" : undefined,
+      }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
+    >
       <CheckCircle2
         className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"
         aria-hidden
@@ -557,6 +630,21 @@ function FoldedDecided({
         >
           <RotateCcw className="w-3 h-3" aria-hidden />
           New dialogue
+        </button>
+      )}
+      {/* Dismiss — UI-only "I've seen this" affordance. The decision
+          row stays on the §3.1 chain; this just hides the in-thread
+          summary so the composer area isn't permanently consumed.
+          Also reachable via horizontal swipe on mobile. */}
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss decision summary"
+          title="Dismiss (swipe left/right on mobile). The decision stays on the record."
+          className="flex-shrink-0 -mr-1 p-1 text-muted hover:text-primary transition-colors"
+        >
+          <X className="w-3.5 h-3.5" aria-hidden />
         </button>
       )}
     </div>

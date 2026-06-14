@@ -31,22 +31,26 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
   };
 
   return (
-    <header className="h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 gap-3">
+    <header className="h-11 md:h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-3 md:px-6 sticky top-0 z-30 gap-2 md:gap-3">
       <div className="flex items-center gap-2 min-w-0">
         <button
           type="button"
           onClick={openMenu}
           aria-label="Open menu"
-          className="md:hidden p-2 -ml-1 rounded-lg text-muted hover:text-primary hover:bg-surface-raised flex-shrink-0"
+          className="md:hidden p-1.5 -ml-1 rounded-lg text-muted hover:text-primary hover:bg-surface-raised flex-shrink-0"
         >
           <Menu className="w-5 h-5" aria-hidden />
         </button>
         <div className="min-w-0">
-          <h1 className="text-base md:text-lg font-semibold text-primary truncate">
+          <h1 className="text-sm md:text-lg font-semibold text-primary truncate leading-tight">
             {title}
           </h1>
+          {/* Subtitle hidden on mobile — every dashboard page has its
+              own context bar directly below the TopBar, so the
+              subtitle was duplicating information at the cost of ~20px
+              of vertical real estate on every screen. */}
           {subtitle && (
-            <p className="text-[11px] md:text-xs text-muted truncate">
+            <p className="hidden md:block text-xs text-muted truncate">
               {subtitle}
             </p>
           )}

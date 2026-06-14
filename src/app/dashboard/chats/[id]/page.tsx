@@ -128,6 +128,21 @@ export default function TeamChatTopicPage() {
     () => new Set()
   );
   const [spawnPanelOpen, setSpawnPanelOpen] = useState(false);
+  // UI-only dismiss for the folded "Decision Dialogue closed" card.
+  // We track the decision id so the dismissal applies to THIS dialogue
+  // — when an admin opens a fresh dialogue, the new one shows again.
+  // Persisted to sessionStorage so it survives a refresh during the
+  // same browsing session but doesn't bleed across sessions.
+  const [dismissedDecisionId, setDismissedDecisionId] = useState<string | null>(
+    null
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.sessionStorage.getItem(
+      `dismissed-decision:${topicId}`
+    );
+    if (stored) setDismissedDecisionId(stored);
+  }, [topicId]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -522,11 +537,15 @@ export default function TeamChatTopicPage() {
     <div className="h-screen w-full bg-base flex flex-col overflow-hidden">
       <TopBar title={topic.title} subtitle={topic.description ?? ""} />
 
-      {/* Topic header bar — uses px-3 on mobile to give chips/buttons
-          room before falling back to px-6 on larger screens. */}
-      <div className="border-b border-default bg-surface/50 px-3 md:px-6 py-3 overflow-x-hidden">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2 md:gap-4 flex-wrap min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
+      {/* Topic header bar — on mobile, the right-side chip group is
+          horizontally scrollable so chips like 'Coach: on (company)'
+          and 'Open as Decision Dialogue' don't get clipped or push
+          the page wider than the viewport. Desktop keeps the wrap
+          behavior since horizontal space is plenty. py-2 on mobile
+          recovers ~8px of vertical space. */}
+      <div className="border-b border-default bg-surface/50 px-3 md:px-6 py-2 md:py-3 overflow-x-hidden">
+        <div className="max-w-5xl mx-auto flex items-center gap-2 md:gap-4 flex-nowrap md:flex-wrap min-w-0">
+          <div className="flex items-center gap-2 md:gap-3 flex-wrap flex-shrink-0">
             <Link
               href="/dashboard/chats"
               className="text-xs text-muted hover:text-primary flex items-center gap-1"
@@ -550,10 +569,17 @@ export default function TeamChatTopicPage() {
               </span>
             ))}
           </div>
-          <div className="flex items-center gap-2">
+          {/* Right-side chip group — horizontally scrollable on mobile
+              so 'Coach: on (company)' / 'Open as Decision Dialogue' /
+              'Close topic' stay reachable without clipping. The wrapper
+              uses overflow-x-auto + flex-nowrap; the inner buttons all
+              already have flex-shrink-0 via px-2.5 sizing so they don't
+              collapse. min-w-0 lets this group shrink below content
+              width when the left group needs the room. */}
+          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto md:overflow-visible md:flex-none md:flex-nowrap justify-end -mx-1 px-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <button
               onClick={() => setShowParticipants((v) => !v)}
-              className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
             >
               <Users className="w-3 h-3" aria-hidden="true" />
               {participants.length}
@@ -568,7 +594,7 @@ export default function TeamChatTopicPage() {
               type="button"
               onClick={() => setAddingParticipants(true)}
               title="Add a team member to this topic"
-              className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
             >
               <UserPlus className="w-3 h-3" aria-hidden="true" />
               Add member
@@ -580,7 +606,7 @@ export default function TeamChatTopicPage() {
             {messages.filter((m) => m.kind === "message").length >= 2 && (
               <button
                 onClick={() => setSummarizeOpen(true)}
-                className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
               >
                 <Sparkles className="w-3 h-3" aria-hidden="true" />
                 Summarize
@@ -622,7 +648,7 @@ export default function TeamChatTopicPage() {
                       ? "Coach is on for this topic. Click to turn off."
                       : "Coach is off for this topic. Click to turn on. Default OFF per §4 readout discipline."
                 }
-                className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors border ${
+                className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors border flex-shrink-0 whitespace-nowrap ${
                   companyCoachOn || topic.coachEnabled
                     ? "text-brand border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5"
                     : "text-secondary border-default hover:border-strong"
@@ -648,7 +674,7 @@ export default function TeamChatTopicPage() {
                   onClick={() => void handleOpenDecisionDialogue()}
                   disabled={openingDialogue}
                   title="Open the structured 4-phase Decision Dialogue inline in this thread"
-                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/40 hover:border-[#FACC15]/70 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/40 hover:border-[#FACC15]/70 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
                 >
                   <Brain className="w-3 h-3" aria-hidden="true" />
                   {openingDialogue ? "Opening…" : "Open as Decision Dialogue"}
@@ -658,7 +684,7 @@ export default function TeamChatTopicPage() {
               <button
                 onClick={() => setSpawnSelectMode(true)}
                 title="Select messages to convert into a structured task with steps"
-                className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
               >
                 <ListPlus className="w-3 h-3" aria-hidden="true" />
                 Spawn task
@@ -667,7 +693,7 @@ export default function TeamChatTopicPage() {
             {iAmAdmin && !isClosed && (
               <button
                 onClick={() => setClosingOpen(true)}
-                className="flex items-center gap-1.5 text-xs text-accent-text hover:text-accent-text border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 text-xs text-accent-text hover:text-accent-text border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
               >
                 <Lock className="w-3 h-3" aria-hidden="true" />
                 Close topic
@@ -925,7 +951,7 @@ export default function TeamChatTopicPage() {
 
       {/* Composer */}
       {!isClosed && (
-        <div className="border-t border-default bg-surface/50 px-3 md:px-6 py-4 overflow-x-hidden min-w-0">
+        <div className="border-t border-default bg-surface/50 px-3 md:px-6 py-2 md:py-4 overflow-x-hidden min-w-0">
           <form
             onSubmit={handleSubmit}
             className="max-w-5xl mx-auto min-w-0"
@@ -935,15 +961,28 @@ export default function TeamChatTopicPage() {
                 continues to flow above it and the dialogue stays
                 anchored. The card folds to a one-line summary once
                 decided. */}
-            {topicDecision && (
-              <InThreadDecisionDialogue
-                decision={topicDecision}
-                coachOn={companyCoachOn || topic.coachEnabled}
-                iAmAdmin={iAmAdmin}
-                onChange={(next) => void handleDecisionChange(next)}
-                onOpenNew={() => void handleOpenDecisionDialogue()}
-              />
-            )}
+            {topicDecision &&
+              !(
+                topicDecision.phase === "decided" &&
+                dismissedDecisionId === topicDecision.id
+              ) && (
+                <InThreadDecisionDialogue
+                  decision={topicDecision}
+                  coachOn={companyCoachOn || topic.coachEnabled}
+                  iAmAdmin={iAmAdmin}
+                  onChange={(next) => void handleDecisionChange(next)}
+                  onOpenNew={() => void handleOpenDecisionDialogue()}
+                  onDismissFolded={() => {
+                    setDismissedDecisionId(topicDecision.id);
+                    if (typeof window !== "undefined") {
+                      window.sessionStorage.setItem(
+                        `dismissed-decision:${topicId}`,
+                        topicDecision.id
+                      );
+                    }
+                  }}
+                />
+              )}
             {/* Conversational Coach v1 — only rendered when the topic
                 has opted in (coach_enabled = true). A3 default-OFF so
                 the §4 readout has a clean A/B between coached and
@@ -1030,19 +1069,21 @@ export default function TeamChatTopicPage() {
                    the original 14px density. */
                 className="w-full min-w-0 bg-transparent text-base md:text-sm text-primary placeholder:text-muted px-4 py-3 focus:outline-none resize-none"
               />
-              {/* Composer footer — Guide/Formulate/AI-assisted on the
-                  left, char-count + Send on the right. flex-wrap is
-                  load-bearing: on mobile (≤ 400px) the right group
-                  drops to a second line instead of pushing the page
-                  wider than the viewport. min-w-0 on the left group
-                  lets it shrink below content width when needed. */}
-              <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-default flex-wrap">
-                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+              {/* Composer footer — action buttons in a single
+                  horizontally-scrollable row on the left, Send always
+                  visible on the right. Designed so future tools (Spawn
+                  task from draft, Decision Dialogue, etc.) can be added
+                  without consuming chat space or wrapping to a second
+                  row. Send is anchored right and never scrolls. */}
+              <div className="flex items-center gap-2 px-2 py-1.5 border-t border-default min-w-0">
+                <div
+                  className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto -mx-1 px-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
+                >
                   <button
                     type="button"
                     onClick={() => setGuideOpen(true)}
                     disabled={!draft.trim()}
-                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary disabled:opacity-30 border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary disabled:opacity-30 border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 whitespace-nowrap"
                     title="Have the System sharpen your draft before you send it"
                   >
                     <Wand2 className="w-3 h-3" aria-hidden="true" />
@@ -1051,7 +1092,7 @@ export default function TeamChatTopicPage() {
                   <button
                     type="button"
                     onClick={() => setFormulateOpen(true)}
-                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 whitespace-nowrap"
                     title="Get help formulating a fuller response by answering questions first"
                   >
                     <Lightbulb className="w-3 h-3" aria-hidden="true" />
@@ -1064,42 +1105,25 @@ export default function TeamChatTopicPage() {
                     />
                   )}
                   {aiAssisted && (
-                    <span className="flex items-center gap-1 text-[10px] text-arc-300 flex-shrink-0">
+                    <span className="flex items-center gap-1 text-[10px] text-arc-300 flex-shrink-0 whitespace-nowrap">
                       <Sparkles className="w-3 h-3" aria-hidden="true" />
                       AI-assisted
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-                  <span className="text-[10px] text-secondary font-mono">
-                    {draft.length > 0 ? `${draft.length} chars` : ""}
-                  </span>
-                  <button
-                    type="submit"
-                    disabled={!draft.trim() || submitting}
-                    onPointerDown={() => {
-                      // Tap haptic the moment the press lands — gives
-                      // the user a tactile "I felt that" before the
-                      // network round-trip starts. Light vibration
-                      // (Phase 5.3); silent no-op on platforms without
-                      // navigator.vibrate.
-                      if (draft.trim() && !submitting) hapticSend();
-                    }}
-                    className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] active:scale-95 disabled:opacity-40 disabled:active:scale-100 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-all duration-150 text-xs"
-                  >
-                    Send
-                    <CornerDownLeft className="w-3 h-3" aria-hidden="true" />
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={!draft.trim() || submitting}
+                  onPointerDown={() => {
+                    if (draft.trim() && !submitting) hapticSend();
+                  }}
+                  className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] active:scale-95 disabled:opacity-40 disabled:active:scale-100 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-all duration-150 text-xs flex-shrink-0"
+                >
+                  Send
+                  <CornerDownLeft className="w-3 h-3" aria-hidden="true" />
+                </button>
               </div>
             </div>
-            <p
-              className="text-[10px] text-secondary mt-2 px-1 break-words"
-              style={{ overflowWrap: "anywhere" }}
-            >
-              Enter to send · Shift+Enter for new line · Pin important messages
-              to make them priority data the brain learns from
-            </p>
           </form>
         </div>
       )}
