@@ -70,6 +70,9 @@ import {
   openTopicDecision,
   type TopicDecision,
 } from "@/lib/data/topicDecisions";
+import TaskRefinementPanel from "@/components/tasks/TaskRefinementPanel";
+import type { SpawnContextPayload } from "@/lib/taskSpawn/types";
+import { ListChecks, ListPlus } from "lucide-react";
 
 export default function TeamChatTopicPage() {
   const params = useParams<{ id: string }>();
@@ -117,6 +120,14 @@ export default function TeamChatTopicPage() {
   // Reply state — when set, the composer shows a "Replying to X" pill
   // above the textarea and the next post carries reply_to_id.
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  // Chat→Task selection mode — admin-only. When on, message rows
+  // become click-to-select and a sticky bar shows the selection count
+  // + "Spawn task" / "Cancel" actions.
+  const [spawnSelectMode, setSpawnSelectMode] = useState(false);
+  const [spawnSelectedIds, setSpawnSelectedIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [spawnPanelOpen, setSpawnPanelOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -218,6 +229,64 @@ export default function TeamChatTopicPage() {
   const isClosed = topic?.status === "closed";
 
   const grouped = useMemo(() => groupMessages(messages), [messages]);
+
+  // Build the Spawn Engine context payload from the current
+  // selection. Selected messages are the focus; the surrounding ~5
+  // messages on either side give the LLM the conversational reality
+  // (§1.5 holistic — read the WHOLE context, not just the selection).
+  const spawnContextPayload = useMemo<SpawnContextPayload | null>(() => {
+    if (!topic || spawnSelectedIds.size === 0) return null;
+    const chatMessages = messages.filter((m) => m.kind === "message");
+    const selected = chatMessages.filter((m) => spawnSelectedIds.has(m.id));
+    if (selected.length === 0) return null;
+    // Surrounding window — take the earliest and latest selected
+    // indices in the chronological message stream and grab ~5 before
+    // the earliest and ~5 after the latest, excluding the selected
+    // ones themselves (the LLM already has those as the focus).
+    const indices = selected
+      .map((m) => chatMessages.findIndex((cm) => cm.id === m.id))
+      .filter((i) => i >= 0)
+      .sort((a, b) => a - b);
+    const first = indices[0] ?? 0;
+    const last = indices[indices.length - 1] ?? 0;
+    const before = chatMessages.slice(Math.max(0, first - 5), first);
+    const after = chatMessages.slice(
+      last + 1,
+      Math.min(chatMessages.length, last + 6)
+    );
+    const selectedSet = new Set(selected.map((m) => m.id));
+    const surrounding = [...before, ...after].filter(
+      (m) => !selectedSet.has(m.id)
+    );
+    return {
+      chatTopicId: topic.id,
+      chatTopicTitle: topic.title,
+      chatTopicDescription: topic.description ?? undefined,
+      selectedMessageIds: selected.map((m) => m.id),
+      selectedMessages: selected.map((m) => ({
+        author: m.authorName ?? "Unknown",
+        body: (m.body ?? "").slice(0, 4000),
+      })),
+      surroundingThread: surrounding.map((m) => ({
+        author: m.authorName ?? "Unknown",
+        body: (m.body ?? "").slice(0, 4000),
+      })),
+    };
+  }, [topic, messages, spawnSelectedIds]);
+
+  const exitSpawnSelectMode = () => {
+    setSpawnSelectMode(false);
+    setSpawnSelectedIds(new Set());
+  };
+
+  const toggleSpawnSelected = (id: string) => {
+    setSpawnSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Recent thread context for Coach v3.1 — last 5 user-authored
   // Coach v5 context payload — structured form the v5 prompt consumes
@@ -585,6 +654,16 @@ export default function TeamChatTopicPage() {
                   {openingDialogue ? "Opening…" : "Open as Decision Dialogue"}
                 </button>
               )}
+            {iAmAdmin && !isClosed && !spawnSelectMode && (
+              <button
+                onClick={() => setSpawnSelectMode(true)}
+                title="Select messages to convert into a structured task with steps"
+                className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors"
+              >
+                <ListPlus className="w-3 h-3" aria-hidden="true" />
+                Spawn task
+              </button>
+            )}
             {iAmAdmin && !isClosed && (
               <button
                 onClick={() => setClosingOpen(true)}
@@ -732,19 +811,60 @@ export default function TeamChatTopicPage() {
                         const parent = msg.replyToId
                           ? messages.find((m) => m.id === msg.replyToId) ?? null
                           : null;
+                        const isSelectable =
+                          spawnSelectMode && msg.kind === "message";
+                        const isSelected = spawnSelectedIds.has(msg.id);
                         return (
-                          <MessageRow
+                          <div
                             key={msg.id}
-                            msg={msg}
-                            parent={parent}
-                            currentUserId={currentUserId}
-                            coachGrade={messageGrades.get(msg.id) ?? null}
-                            viewerIsLeader={iAmAdmin}
-                            onTogglePin={() => void handleTogglePin(msg)}
-                            onStartReply={() => startReply(msg)}
-                            onJumpToParent={(id) => scrollToMessage(id)}
-                            onReviewWithCoach={(id) => setReviewingMessageId(id)}
-                          />
+                            className={
+                              isSelectable
+                                ? `relative rounded-xl transition-colors cursor-pointer ${
+                                    isSelected
+                                      ? "ring-2 ring-arc-400/70 bg-arc-400/5"
+                                      : "hover:bg-white/[0.02]"
+                                  }`
+                                : undefined
+                            }
+                            onClick={
+                              isSelectable
+                                ? (e) => {
+                                    // Don't hijack clicks on the row's
+                                    // own buttons (Reply, Pin, reply
+                                    // quote jump). Selection toggles
+                                    // only when the click lands on the
+                                    // wrapper itself or the message body.
+                                    const t = e.target as HTMLElement;
+                                    if (t.closest("button")) return;
+                                    toggleSpawnSelected(msg.id);
+                                  }
+                                : undefined
+                            }
+                          >
+                            {isSelectable && (
+                              <div
+                                aria-hidden
+                                className={`absolute -left-1 top-3 w-4 h-4 rounded-full border-2 transition-colors ${
+                                  isSelected
+                                    ? "bg-arc-400 border-arc-400"
+                                    : "border-arc-400/40 bg-base"
+                                }`}
+                              />
+                            )}
+                            <MessageRow
+                              msg={msg}
+                              parent={parent}
+                              currentUserId={currentUserId}
+                              coachGrade={messageGrades.get(msg.id) ?? null}
+                              viewerIsLeader={iAmAdmin}
+                              onTogglePin={() => void handleTogglePin(msg)}
+                              onStartReply={() => startReply(msg)}
+                              onJumpToParent={(id) => scrollToMessage(id)}
+                              onReviewWithCoach={(id) =>
+                                setReviewingMessageId(id)
+                              }
+                            />
+                          </div>
                         );
                       })}
                     </div>
@@ -757,7 +877,7 @@ export default function TeamChatTopicPage() {
         {/* Jump-to-latest pill — surfaces only when a new message
             arrives while the user is scrolled up in history. Pattern
             from Slack/WhatsApp: never yank you out of reading. */}
-        {hasNewBelow && (
+        {hasNewBelow && !spawnSelectMode && (
           <button
             type="button"
             onClick={jumpToLatest}
@@ -766,6 +886,40 @@ export default function TeamChatTopicPage() {
             <ArrowDown className="w-3.5 h-3.5" aria-hidden />
             Jump to latest
           </button>
+        )}
+        {/* Chat→Task selection bar — surfaces when an admin enters
+            spawn-select mode. Floats over the composer so the user
+            can see and toggle the selection without losing context.
+            "Spawn" is disabled until at least one message is picked. */}
+        {spawnSelectMode && (
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-2 bg-base/95 border border-arc-400/50 shadow-lg backdrop-blur-sm px-3 py-2 rounded-full">
+            <ListChecks
+              className="w-3.5 h-3.5 text-arc-300"
+              aria-hidden="true"
+            />
+            <span className="text-xs text-primary font-medium">
+              {spawnSelectedIds.size} selected
+            </span>
+            <span className="text-[10px] text-muted">
+              tap messages to include
+            </span>
+            <button
+              type="button"
+              onClick={exitSpawnSelectMode}
+              className="text-xs text-muted hover:text-primary px-2 py-0.5"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => setSpawnPanelOpen(true)}
+              disabled={spawnSelectedIds.size === 0}
+              className="inline-flex items-center gap-1 text-xs font-semibold bg-arc-400 hover:bg-arc-300 disabled:opacity-40 disabled:cursor-not-allowed text-base/100 text-[#09090B] px-3 py-1.5 rounded-full"
+            >
+              <Sparkles className="w-3 h-3" aria-hidden="true" />
+              Spawn task
+            </button>
+          </div>
         )}
       </div>
 
@@ -1098,6 +1252,26 @@ export default function TeamChatTopicPage() {
           setParticipants(next);
         }}
       />
+
+      {/* Chat→Task refinement panel — mounts only when the user has
+          selected at least one message and pressed Spawn. The panel
+          itself owns the LLM call + draft review; on save it stays
+          on this page so the admin can spawn more tasks from the
+          same conversation if the thread implied several. */}
+      {spawnContextPayload && (
+        <TaskRefinementPanel
+          open={spawnPanelOpen}
+          onClose={() => setSpawnPanelOpen(false)}
+          contextType="chat_messages"
+          contextPayload={spawnContextPayload}
+          onSaved={() => {
+            // Clear selection so the admin starts clean for the next
+            // spawn. They can stay in spawn-select mode by leaving
+            // the toggle on, or exit via the Cancel pill.
+            setSpawnSelectedIds(new Set());
+          }}
+        />
+      )}
     </div>
   );
 }
