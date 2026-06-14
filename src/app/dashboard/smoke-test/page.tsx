@@ -51,6 +51,13 @@ type SmokeTestItem = {
    *  UI / functional / observable behavior testers can verify end-to-end
    *  without backend access. Defaults to "partners" when unset. */
   assignee?: SmokeTestAssignee;
+  /** Structural priority flag. When true, this item verifies a load-
+   *  bearing structural component of the system (chain integrity,
+   *  Understanding Gate, guide-don't-overtake enforcement, append-
+   *  only invariants, the Task Spawn lineage, etc.). The page renders
+   *  the anvil badge next to the title so testers can scan which
+   *  items the §1.7 audit considers foundational. */
+  structural?: boolean;
 };
 
 type SmokeTestVersion = {
@@ -464,6 +471,23 @@ function SmokeTestItemCard({
                 title="Partners run this verification end-to-end"
               >
                 <Users className="w-3 h-3" aria-hidden /> Partners
+              </span>
+            )}
+            {item.structural && (
+              <span
+                className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-[#FACC15] bg-[#FACC15]/10 border border-[#FACC15]/30 px-1.5 py-0.5 rounded-full"
+                title="Structural-priority test — foundational. A failure here propagates upward through every layer above it."
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/anvil-structural.png"
+                  srcSet="/anvil-structural.png 1x, /anvil-structural@2x.png 2x"
+                  alt=""
+                  width={10}
+                  height={10}
+                  aria-hidden
+                />
+                Structural
               </span>
             )}
           </div>
