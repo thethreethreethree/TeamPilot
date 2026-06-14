@@ -49,7 +49,7 @@ import { GuideMyResponseModal } from "@/components/chats/GuideMyResponseModal";
 import { FormulateResponseModal } from "@/components/chats/FormulateResponseModal";
 import { ReviewOutcomeModal } from "@/components/chats/ReviewOutcomeModal";
 import { SummarizeModal } from "@/components/chats/SummarizeModal";
-import { groupMessages, STATUS_BADGE } from "@/components/chats/utils";
+import { groupMessages } from "@/components/chats/utils";
 import { AddParticipantsDialog } from "@/components/chats/AddParticipantsDialog";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
@@ -567,21 +567,13 @@ export default function TeamChatTopicPage() {
               <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
               All topics
             </Link>
-            <span
-              className={`text-[10px] uppercase tracking-widest font-medium px-2 py-0.5 rounded-full ${
-                STATUS_BADGE[topic.status]
-              }`}
-            >
-              {topic.status}
-            </span>
-            {topic.tags.map((tag) => (
-              <span
-                key={tag}
-                className="text-[10px] text-muted bg-surface-raised px-1.5 py-0.5 rounded"
-              >
-                #{tag}
-              </span>
-            ))}
+            {/* Status badge + tag chips removed from the topic header
+                per Darren's verification pass — both were visual noise
+                competing with the action chip row to the right. Topic
+                status remains tracked on the row (drives whether
+                composer / Close topic surface), it just doesn't need
+                to be re-asserted in the header. Tags stay queryable on
+                /dashboard/chats (topic list). */}
           </div>
           {/* Right-side chip group — horizontally scrollable on mobile
               so 'Coach: on (company)' / 'Open as Decision Dialogue' /
