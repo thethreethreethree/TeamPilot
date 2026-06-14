@@ -436,3 +436,29 @@ export async function gradeCoachV5(args: {
     userContent: args.userMessage,
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// Task Spawn Engine
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Task Spawn Engine — generates a structured task (title + description
+ * + step-by-step plan) from a Decision Dialogue or chat-message
+ * selection. See src/lib/taskSpawn/prompt.ts for the contract.
+ */
+export async function spawnTask(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    // Generous budget — the response includes 3-7 step strings plus
+    // a multi-paragraph description. ~600 tokens typical, up to 1200
+    // for complex sources.
+    maxTokens: 1500,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+  });
+}
