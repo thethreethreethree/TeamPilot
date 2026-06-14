@@ -206,6 +206,58 @@ const NEW_SPAWN_ITEMS = [
     assignee: "partners",
     structural: true,
   },
+
+  // ─── §3.4 month-cycle automation (migration 0031) ──────────────
+  {
+    id: "cycle-banner-shows-phase",
+    title: "Settings shows the §3.4 cycle phase + day count",
+    instructions:
+      "As admin, open /dashboard/settings and find the Conversational Coach panel.",
+    expected:
+      "A phase banner is present with Hourglass icon: 'Month 1 — Control' (arc-cyan) OR 'Month 2 — Single-variable intervention' (emerald) OR 'Post-checkpoint — Compounding'. Banner shows day N of 30/60 and days remaining. Copy explains WHY (honest baseline, single-variable intervention).",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "cycle-coach-locked-in-control",
+    title: "Coach toggle is locked OFF during Month 1 control",
+    instructions:
+      "On a company whose cycle_started_at is within the last 30 days AND cycle_control_skipped_at is null, view the Coach toggle.",
+    expected:
+      "The 'Turn on' button is disabled (opacity 40%) with a tooltip 'Locked during §3.4 control — N days remaining'. Clicking it does NOT round-trip; a toast surfaces immediately explaining §3.4. Even if a service-role caller tries directly, the DB trigger raises P0001 with the §3.4 message.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "cycle-db-trigger-blocks-update",
+    title: "DB trigger blocks coach_enabled=true during control",
+    instructions:
+      "(JOHN) In Supabase SQL editor, run: update companies set coach_enabled = true where id = '<company-in-control>';",
+    expected:
+      "Returns a P0001 error with the §3.4 control window message. The row stays coach_enabled = false. The trigger is the structural defense — §5 'builder under pressure' can't compromise the measurement even with direct DB access.",
+    assignee: "john",
+    structural: true,
+  },
+  {
+    id: "cycle-skip-override-records",
+    title: "Skip-control override leaves a permanent on-record mark",
+    instructions:
+      "On a company in control, click 'Override (records a permanent skip mark)' in the cycle banner. Enter a ≥20-char reason. Click 'Record skip'.",
+    expected:
+      "Toast 'Control window skipped'. The banner re-renders showing the new 'intervention' phase with a 'skipped control' chip. cycle_control_skipped_at, cycle_control_skipped_by, cycle_control_skip_reason all populated on the row. A coach.control_skipped event lands on the §3.1 chain with the reason in the payload. The skip is NEVER cleared on the row (§3.1 immutability).",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "cycle-phase-attribution-on-toggles",
+    title: "coach.enabled / coach.disabled events carry the current cycle phase",
+    instructions:
+      "(JOHN) After flipping the coach company-wide toggle (intervention phase or post-skip), query: select kind, payload from events where kind in ('coach.enabled', 'coach.disabled') order by created_at desc limit 3.",
+    expected:
+      "Payload includes cycle_phase: 'intervention' (or 'ongoing'). This is what the §4 readout reads to attribute every Coach-on/off window to the right phase honestly.",
+    assignee: "john",
+    structural: true,
+  },
 ];
 
 // ─── Run the patch ────────────────────────────────────────────────

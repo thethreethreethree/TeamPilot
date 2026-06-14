@@ -1,28 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, BookOpenCheck, Loader2 } from "lucide-react";
+import { BookOpen, BookOpenCheck, Loader2, Hourglass, ShieldAlert } from "lucide-react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
+import {
+  resolveCyclePhase,
+  canEnableCoach,
+  phaseLabel,
+  type CyclePhaseDetails,
+} from "@/lib/cycle/phase";
 
 /**
  * CoachTogglePanel — admin-only company-level switch for the
- * Conversational Coach.
+ * Conversational Coach, gated by the §3.4 month-cycle.
  *
- * Behavior:
- *   - Reads `companies.coach_enabled` on mount.
- *   - Toggle PATCHes the row and emits a coach.{enabled,disabled}
- *     event on the §3.1 chain (subject = company:<id>) so the
- *     readout can attribute outcomes to "Coach was active during
- *     this window."
- *   - Per asset A3 — default OFF. Even with this toggle, a clean
- *     OFF→ON flip is the §4 readout's before/after baseline.
+ * §3.4 cycle (enforced by migration 0031 trigger):
+ *   - Month 1 (control): Coach LOCKED OFF. Captures an honest
+ *     baseline of the team operating as themselves.
+ *   - Month 2 (intervention): Coach can be flipped on. Single-
+ *     variable intervention — Coach is the only thing that changed.
+ *   - Ongoing: Coach available, measurement continues.
  *
- * Surfaces it affects (when ON): Tasks · Decision Dialogue (when the
- * Coach mount lands there) · Feedback drafts · Smoke test notes · all
- * Chat topics regardless of per-topic flag. Per-topic chat
- * `coach_enabled` stays as the finer-grained override when the
- * company-level switch is OFF.
+ * The DB trigger enforces the lock; this panel mirrors it in the
+ * UI so the toggle is disabled with a clear reason instead of
+ * round-tripping and surfacing a generic "update failed" error.
+ *
+ * Override path: an admin can record an explicit "skip control"
+ * which jumps phase to intervention. The skip leaves a permanent
+ * on-record mark (cycle_control_skipped_at + by + reason) and emits
+ * a coach.control_skipped event so the §4 readout can flag the
+ * company as "skipped control."
  */
 export function CoachTogglePanel() {
   const toast = useToast();
@@ -30,6 +38,10 @@ export function CoachTogglePanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [cycle, setCycle] = useState<CyclePhaseDetails | null>(null);
+  const [showSkipForm, setShowSkipForm] = useState(false);
+  const [skipReason, setSkipReason] = useState("");
+  const [skipSaving, setSkipSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,11 +64,21 @@ export function CoachTogglePanel() {
         setCompanyId(profile.company_id);
         const { data: company } = await supabase
           .from("companies")
-          .select("coach_enabled")
+          .select(
+            "coach_enabled, cycle_started_at, cycle_control_skipped_at"
+          )
           .eq("id", profile.company_id)
           .maybeSingle();
         if (!cancelled && company) {
           setEnabled(Boolean(company.coach_enabled));
+          if (company.cycle_started_at) {
+            setCycle(
+              resolveCyclePhase({
+                cycleStartedAt: company.cycle_started_at,
+                cycleControlSkippedAt: company.cycle_control_skipped_at,
+              })
+            );
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -70,6 +92,16 @@ export function CoachTogglePanel() {
   const flip = async () => {
     if (!companyId || enabled == null || saving) return;
     const next = !enabled;
+    // Mirror the DB trigger client-side so we don't even try the
+    // round trip during control. The DB is authoritative — this is
+    // a UX optimization, not the security boundary.
+    if (next && cycle && !canEnableCoach(cycle)) {
+      toast.warn(
+        "§3.4 control window",
+        `Day ${cycle.daysIntoCycle} of Month 1. The Coach unlocks automatically in ${cycle.daysRemainingInPhase} day${cycle.daysRemainingInPhase === 1 ? "" : "s"}. This is how the honest baseline is captured.`
+      );
+      return;
+    }
     setSaving(true);
     const supabase = createClient();
     const { error } = await supabase
@@ -82,8 +114,6 @@ export function CoachTogglePanel() {
       return;
     }
     setEnabled(next);
-    // Audit event so the §4 readout can attribute later outcomes to
-    // "Coach was active during this window." Non-fatal on failure.
     void (async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) return;
@@ -92,7 +122,7 @@ export function CoachTogglePanel() {
         actor: auth.user.id,
         kind: next ? "coach.enabled" : "coach.disabled",
         subject: `company:${companyId}`,
-        payload: { enabled: next, scope: "company" },
+        payload: { enabled: next, scope: "company", cycle_phase: cycle?.phase },
       });
     })();
     toast.success(
@@ -104,7 +134,72 @@ export function CoachTogglePanel() {
     setSaving(false);
   };
 
+  const recordSkip = async () => {
+    if (!companyId || skipSaving) return;
+    if (skipReason.trim().length < 20) {
+      toast.warn(
+        "Reason required",
+        "≥20 chars so the readout has substance to attribute the override."
+      );
+      return;
+    }
+    setSkipSaving(true);
+    const supabase = createClient();
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) {
+      setSkipSaving(false);
+      return;
+    }
+    const skippedAt = new Date().toISOString();
+    const { error } = await supabase
+      .from("companies")
+      .update({
+        cycle_control_skipped_at: skippedAt,
+        cycle_control_skipped_by: auth.user.id,
+        cycle_control_skip_reason: skipReason.trim(),
+      })
+      .eq("id", companyId);
+    if (error) {
+      toast.error("Couldn't record skip", error.message);
+      setSkipSaving(false);
+      return;
+    }
+    // On-record audit event so the §4 readout can flag this
+    // company as "skipped control" forever. Permanent by §3.1
+    // append-only — never cleared.
+    await supabase.from("events").insert({
+      company_id: companyId,
+      actor: auth.user.id,
+      kind: "coach.control_skipped",
+      subject: `company:${companyId}`,
+      payload: {
+        skipped_at: skippedAt,
+        reason: skipReason.trim(),
+        days_into_cycle: cycle?.daysIntoCycle ?? null,
+      },
+    });
+    if (cycle) {
+      setCycle(
+        resolveCyclePhase({
+          cycleStartedAt: new Date(
+            new Date().getTime() - cycle.daysIntoCycle * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          cycleControlSkippedAt: skippedAt,
+        })
+      );
+    }
+    setShowSkipForm(false);
+    setSkipReason("");
+    setSkipSaving(false);
+    toast.success(
+      "Control window skipped",
+      "Recorded on the §3.1 chain. Coach unlocked — readout will flag this company."
+    );
+  };
+
   if (!supabaseEnabled) return null;
+
+  const inControl = cycle?.phase === "control";
 
   return (
     <div className="glass-card p-5">
@@ -128,6 +223,130 @@ export function CoachTogglePanel() {
           </p>
         </div>
       </div>
+
+      {/* §3.4 cycle banner — present whenever we know the phase. */}
+      {cycle && (
+        <div
+          className={`mb-3 rounded-lg border p-3 ${
+            inControl
+              ? "border-arc-400/40 bg-arc-400/5"
+              : "border-emerald-500/30 bg-emerald-500/5"
+          }`}
+        >
+          <div className="flex items-start gap-2">
+            <Hourglass
+              className={`w-4 h-4 mt-0.5 shrink-0 ${
+                inControl ? "text-arc-300" : "text-emerald-300"
+              }`}
+              aria-hidden
+            />
+            <div className="flex-1 min-w-0">
+              <p
+                className={`text-xs font-semibold ${
+                  inControl ? "text-arc-300" : "text-emerald-300"
+                }`}
+              >
+                {phaseLabel(cycle.phase)}
+                {cycle.skippedControl && (
+                  <span className="ml-2 text-[10px] text-accent-text uppercase tracking-widest">
+                    · skipped control
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-[11px] text-secondary leading-relaxed">
+                {inControl ? (
+                  <>
+                    Day {cycle.daysIntoCycle} of 30. The Coach is locked
+                    OFF for the first month so the §4 readout has an
+                    honest baseline of the team operating as themselves.
+                    The Coach unlocks automatically in{" "}
+                    <span className="text-primary font-semibold">
+                      {cycle.daysRemainingInPhase} day
+                      {cycle.daysRemainingInPhase === 1 ? "" : "s"}
+                    </span>
+                    .
+                  </>
+                ) : cycle.phase === "intervention" ? (
+                  <>
+                    Day {cycle.daysIntoCycle} of 60. Single-variable
+                    intervention period — the Coach is the only thing
+                    that changed from Month 1. {cycle.daysRemainingInPhase}{" "}
+                    day{cycle.daysRemainingInPhase === 1 ? "" : "s"} until
+                    the proof-checkpoint window closes; data continues
+                    to accumulate after.
+                  </>
+                ) : (
+                  <>
+                    Day {cycle.daysIntoCycle} from cycle start. Past the
+                    proof checkpoint — compounding upside. The readout
+                    continues to attribute outcomes to Coach-on vs
+                    Coach-off windows.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {inControl && !showSkipForm && (
+            <button
+              type="button"
+              onClick={() => setShowSkipForm(true)}
+              className="mt-2 ml-6 inline-flex items-center gap-1 text-[10px] text-muted hover:text-accent-text underline"
+            >
+              <ShieldAlert className="w-3 h-3" aria-hidden />
+              Override (records a permanent skip mark)
+            </button>
+          )}
+
+          {inControl && showSkipForm && (
+            <div className="mt-3 ml-6 border-l-2 border-accent-text/30 pl-3">
+              <p className="text-[11px] text-accent-text font-semibold mb-1">
+                You&apos;re about to skip the §3.4 control window.
+              </p>
+              <p className="text-[10px] text-secondary leading-relaxed mb-2">
+                This is allowed but permanent. The skip stamp and your
+                reason land on the chain forever. The §4 readout will
+                flag this company so anyone reading the outcomes knows
+                Month 1 did NOT capture a clean baseline. Use this only
+                when you genuinely have a reason — e.g. you&apos;re running
+                a parallel measurement, not because the toggle feels
+                tempting today.
+              </p>
+              <textarea
+                value={skipReason}
+                onChange={(e) => setSkipReason(e.target.value)}
+                rows={2}
+                maxLength={400}
+                placeholder="Why are you skipping? (≥20 chars)"
+                className="w-full rounded-md bg-black/30 border border-white/10 px-2 py-1.5 text-[11px] text-primary focus:outline-none focus:border-accent-text/50"
+              />
+              <div className="mt-1.5 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSkipForm(false);
+                    setSkipReason("");
+                  }}
+                  disabled={skipSaving}
+                  className="text-[10px] text-muted hover:text-primary disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={recordSkip}
+                  disabled={skipSaving || skipReason.trim().length < 20}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-accent-text border border-accent-text/40 hover:border-accent-text/70 disabled:opacity-40 px-2 py-1 rounded"
+                >
+                  {skipSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                  Record skip
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between pt-3 border-t border-default">
         <div className="text-xs">
           {loading ? (
@@ -148,12 +367,22 @@ export function CoachTogglePanel() {
         <button
           type="button"
           onClick={flip}
-          disabled={loading || saving || enabled == null}
+          disabled={
+            loading ||
+            saving ||
+            enabled == null ||
+            (inControl && !enabled) // can't turn ON in control
+          }
+          title={
+            inControl && !enabled
+              ? `Locked during §3.4 control — ${cycle?.daysRemainingInPhase ?? "?"} day${cycle?.daysRemainingInPhase === 1 ? "" : "s"} remaining`
+              : undefined
+          }
           className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border ${
             enabled
               ? "border-[#FACC15]/40 hover:border-[#FACC15]/70 text-brand bg-[#FACC15]/5"
               : "border-default hover:border-strong text-secondary"
-          } disabled:opacity-40`}
+          } disabled:opacity-40 disabled:cursor-not-allowed`}
         >
           {saving ? "Saving…" : enabled ? "Turn off" : "Turn on"}
         </button>
