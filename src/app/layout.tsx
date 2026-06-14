@@ -92,9 +92,20 @@ export const metadata: Metadata = {
 
 // Viewport themeColor reacts per-mode so the mobile chrome (Android URL bar,
 // PWA shell) matches the active surface.
+//
+// PWA scale lock: maximumScale=1 + userScalable=false. iOS PWA standalone
+// mode honors these — pinch-zoom is disabled, and tapping into an input
+// no longer auto-zooms the viewport. This is the expected feel for a
+// PWA (native apps don't pinch-zoom). The textarea text-base (16px) fix
+// in the composer prevents iOS's input auto-zoom on the SAFARI browser
+// tab side, where Apple ignores userScalable=no for accessibility.
+// Together: PWA = locked; browser tab = inputs sized so no auto-zoom
+// fires, but the user can still pinch-zoom for a11y if they need to.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#FAFAFA" },
     { media: "(prefers-color-scheme: dark)", color: "#09090B" },
