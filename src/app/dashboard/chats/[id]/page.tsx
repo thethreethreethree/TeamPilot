@@ -16,6 +16,10 @@ import {
 } from "@/lib/data/chats";
 import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
 import {
+  useCurrentUserRole,
+  isCompanyAdminRole,
+} from "@/lib/hooks/useCurrentUserRole";
+import {
   ArrowLeft,
   ChevronDown,
   CheckCircle2,
@@ -233,6 +237,7 @@ export default function TeamChatTopicPage() {
   };
 
   const currentUserId = useCurrentUserId();
+  const currentUserRole = useCurrentUserRole();
   const me = useMemo(
     () =>
       currentUserId
@@ -240,7 +245,16 @@ export default function TeamChatTopicPage() {
         : undefined,
     [participants, currentUserId]
   );
-  const iAmAdmin = me?.role === "admin";
+  // iAmAdmin is true when the viewer is EITHER:
+  //   - a per-topic admin (chat_participants.role === 'admin'), OR
+  //   - a company-level admin (profiles.role in CEO/COO/admin).
+  // The second branch fixes the Dev LAB regression Darren flagged:
+  // company admins should have admin powers on every topic in their
+  // company without needing an explicit chat_participants.role flip.
+  // Per-topic admin remains meaningful for non-company-admins who get
+  // promoted in a specific topic.
+  const iAmAdmin =
+    me?.role === "admin" || isCompanyAdminRole(currentUserRole);
   const isClosed = topic?.status === "closed";
 
   const grouped = useMemo(() => groupMessages(messages), [messages]);

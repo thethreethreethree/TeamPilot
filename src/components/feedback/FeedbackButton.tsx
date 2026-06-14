@@ -60,6 +60,17 @@ export function FeedbackButton() {
     router.push(`/login?from=${from}&intent=feedback`);
   };
 
+  // On chat detail pages the bottom-right floats over the composer's
+  // Send button area, blocking "Help me formulate" and the send
+  // affordance on mobile. Reposition to top-right (just below the
+  // TopBar) so the composer stays unobstructed. Detection is path-
+  // based so this is purely a chat-detail tweak — every other surface
+  // keeps the standard bottom-right placement.
+  const isChatDetailPage = /^\/dashboard\/chats\/[^/]+$/.test(pathname);
+  const positionClass = isChatDetailPage
+    ? "fixed top-2 right-3 md:top-4 md:right-4"
+    : "fixed bottom-4 right-4";
+
   return (
     <>
       <button
@@ -68,7 +79,7 @@ export function FeedbackButton() {
         aria-label="Send feedback"
         title="Send feedback"
         data-feedback-ignore
-        className="fixed bottom-4 right-4 z-[60] flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-white text-xs font-semibold px-3 py-2.5 rounded-full shadow-glow transition-colors"
+        className={`${positionClass} z-[60] flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-white text-xs font-semibold px-3 py-2 md:py-2.5 rounded-full shadow-glow transition-colors`}
       >
         <MessageSquarePlus className="w-4 h-4" aria-hidden />
         Feedback
