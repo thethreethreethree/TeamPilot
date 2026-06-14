@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircleQuestion } from "lucide-react";
+import { Brain } from "lucide-react";
 import { hapticTap } from "@/lib/pwa/haptics";
 
 /**
@@ -16,6 +16,12 @@ import { hapticTap } from "@/lib/pwa/haptics";
  * passive Auto-Coach speaks when it has something to say; the active
  * Ask-Coach gives the user the affordance to invite the Coach to read
  * any draft, even one Auto-Coach judged "correct."
+ *
+ * Visual rank — promoted to a primary chip (brand-yellow tint, Brain
+ * icon, always-visible position) per Darren's verification pass. The
+ * Coach is the constitutional product; the other composer buttons
+ * (Guide my response, Help me formulate) are secondary tools. Hiding
+ * Ask Coach inside a scrollable row alongside them was undersell.
  *
  * Spec: docs/COACH_PROMPT_DESIGN.md §1.2
  *
@@ -51,15 +57,13 @@ export function AskCoachButton({
       type="button"
       onClick={handleClick}
       disabled={disabled}
-      className={`flex items-center gap-1.5 text-[10px] text-secondary hover:text-primary border border-default hover:border-[#FACC15]/40 rounded-md px-2 py-1 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+      title="Coach reads your draft and offers a teaching-shaped suggestion (§3.3 — guide, don't overtake)"
+      className={`flex items-center gap-1.5 text-xs font-semibold text-brand bg-[#FACC15]/10 border border-[#FACC15]/50 hover:border-[#FACC15]/80 hover:bg-[#FACC15]/15 rounded-lg px-3 py-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0 ${
         pulse ? "scale-95" : ""
       }`}
       aria-label={label}
     >
-      <MessageCircleQuestion
-        className="w-3 h-3 text-brand"
-        aria-hidden
-      />
+      <Brain className="w-3.5 h-3.5" aria-hidden />
       {label}
     </button>
   );

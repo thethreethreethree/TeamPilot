@@ -1079,12 +1079,19 @@ export default function TeamChatTopicPage() {
                    the original 14px density. */
                 className="w-full min-w-0 bg-transparent text-base md:text-sm text-primary placeholder:text-muted px-4 py-3 focus:outline-none resize-none"
               />
-              {/* Composer footer — action buttons in a single
-                  horizontally-scrollable row on the left, Send always
-                  visible on the right. Designed so future tools (Spawn
-                  task from draft, Decision Dialogue, etc.) can be added
-                  without consuming chat space or wrapping to a second
-                  row. Send is anchored right and never scrolls. */}
+              {/* Composer footer — three lanes:
+                    LEFT: horizontally-scrollable secondary tools
+                          (Guide my response, Help me formulate).
+                          Designed so future composer tools can be
+                          added without consuming chat space.
+                    MIDDLE: Ask Coach — the constitutional product.
+                          Pulled out of the scrollable row and pinned
+                          always-visible per Darren's verification
+                          pass. Coach v5 is THE feature; treating it
+                          as a peer of Guide/Formulate underrated it.
+                          Yellow-tinted chip with Brain icon makes it
+                          unmistakably the primary action.
+                    RIGHT: Send. Anchored, never scrolls. */}
               <div className="flex items-center gap-2 px-2 py-1.5 border-t border-default min-w-0">
                 <div
                   className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto -mx-1 px-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
@@ -1108,12 +1115,6 @@ export default function TeamChatTopicPage() {
                     <Lightbulb className="w-3 h-3" aria-hidden="true" />
                     Help me formulate
                   </button>
-                  {(companyCoachOn || topic.coachEnabled) && (
-                    <AskCoachButton
-                      disabled={!draft.trim()}
-                      onAsk={() => setAskCoachToken((t) => t + 1)}
-                    />
-                  )}
                   {aiAssisted && (
                     <span className="flex items-center gap-1 text-[10px] text-arc-300 flex-shrink-0 whitespace-nowrap">
                       <Sparkles className="w-3 h-3" aria-hidden="true" />
@@ -1121,6 +1122,12 @@ export default function TeamChatTopicPage() {
                     </span>
                   )}
                 </div>
+                {(companyCoachOn || topic.coachEnabled) && (
+                  <AskCoachButton
+                    disabled={!draft.trim()}
+                    onAsk={() => setAskCoachToken((t) => t + 1)}
+                  />
+                )}
                 <button
                   type="submit"
                   disabled={!draft.trim() || submitting}
