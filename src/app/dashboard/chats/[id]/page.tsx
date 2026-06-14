@@ -931,41 +931,52 @@ export default function TeamChatTopicPage() {
             Jump to latest
           </button>
         )}
-        {/* Chat→Task selection bar — surfaces when an admin enters
-            spawn-select mode. Floats over the composer so the user
-            can see and toggle the selection without losing context.
-            "Spawn" is disabled until at least one message is picked. */}
-        {spawnSelectMode && (
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-2 bg-base/95 border border-arc-400/50 shadow-lg backdrop-blur-sm px-3 py-2 rounded-full">
-            <ListChecks
-              className="w-3.5 h-3.5 text-arc-300"
-              aria-hidden="true"
-            />
-            <span className="text-xs text-primary font-medium">
-              {spawnSelectedIds.size} selected
-            </span>
-            <span className="text-[10px] text-muted">
-              tap messages to include
-            </span>
-            <button
-              type="button"
-              onClick={exitSpawnSelectMode}
-              className="text-xs text-muted hover:text-primary px-2 py-0.5"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => setSpawnPanelOpen(true)}
-              disabled={spawnSelectedIds.size === 0}
-              className="inline-flex items-center gap-1 text-xs font-semibold bg-arc-400 hover:bg-arc-300 disabled:opacity-40 disabled:cursor-not-allowed text-base/100 text-[#09090B] px-3 py-1.5 rounded-full"
-            >
-              <Sparkles className="w-3 h-3" aria-hidden="true" />
-              Spawn task
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* Chat→Task selection bar — fixed positioning at viewport
+          bottom so it's ALWAYS visible above the composer when in
+          spawn-select mode. Previously was absolute inside the
+          messages region (bottom-4) which, after the composer's
+          safe-area-bottom padding grew on iOS PWA, sat behind the
+          composer and was effectively hidden — Darren reported the
+          select mode worked but the action buttons never showed. The
+          fixed positioning + safe-area-bottom + z-50 makes the pill
+          guaranteed-visible across composer heights. */}
+      {spawnSelectMode && (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-base/95 border border-arc-400/50 shadow-lg backdrop-blur-sm px-3 py-2 rounded-full"
+          style={{
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 14rem)",
+          }}
+        >
+          <ListChecks
+            className="w-3.5 h-3.5 text-arc-300"
+            aria-hidden="true"
+          />
+          <span className="text-xs text-primary font-medium">
+            {spawnSelectedIds.size} selected
+          </span>
+          <span className="text-[10px] text-muted hidden sm:inline">
+            tap messages to include
+          </span>
+          <button
+            type="button"
+            onClick={exitSpawnSelectMode}
+            className="text-xs text-muted hover:text-primary px-2 py-0.5"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => setSpawnPanelOpen(true)}
+            disabled={spawnSelectedIds.size === 0}
+            className="inline-flex items-center gap-1 text-xs font-semibold bg-arc-400 hover:bg-arc-300 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] px-3 py-1.5 rounded-full"
+          >
+            <Sparkles className="w-3 h-3" aria-hidden="true" />
+            Spawn task
+          </button>
+        </div>
+      )}
 
       {/* Composer — pb-[safe] keeps the bottom scrollable row above
           the iOS home-indicator gesture zone. Without this, the
