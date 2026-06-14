@@ -18,12 +18,15 @@ import {
   Lightbulb,
   MessageCircleQuestion,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
+import TaskRefinementPanel from "@/components/tasks/TaskRefinementPanel";
+import type { SpawnContextPayload } from "@/lib/taskSpawn/types";
 
 interface DialogueResponse {
   engagement: string;
@@ -98,6 +101,14 @@ export default function DecisionsPage() {
   // their diagnosis as to a message they send someone else.
   const { enabled: coachEnabled } = useCoachEnabled();
   const [restoredFrom, setRestoredFrom] = useState<string | null>(null);
+  // Task Spawn Engine — set when the user persists the dialogue.
+  // Required to wire the spawn panel to the source decision row so
+  // the resulting task gets linked_decision_id and the §3.1 chain
+  // records lineage from dialogue → action.
+  const [persistedDecisionId, setPersistedDecisionId] = useState<string | null>(
+    null
+  );
+  const [spawnPanelOpen, setSpawnPanelOpen] = useState(false);
 
   // Restore in-progress dialogue from localStorage on mount.
   useEffect(() => {
@@ -146,6 +157,8 @@ export default function DecisionsPage() {
     setError("");
     setPersistMsg("");
     setRestoredFrom(null);
+    setPersistedDecisionId(null);
+    setSpawnPanelOpen(false);
     clearDialogue("decision");
   };
 
@@ -175,6 +188,9 @@ export default function DecisionsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not persist.");
       setPersistMsg(`Persisted (id ${String(data.decisionId).slice(0, 8)}…).`);
+      if (typeof data.decisionId === "string") {
+        setPersistedDecisionId(data.decisionId);
+      }
       const refreshed = await fetchDecisions();
       setDecisions(refreshed.decisions);
       setDecisionsAreMock(refreshed.isMock);
@@ -494,6 +510,17 @@ export default function DecisionsPage() {
                       <RotateCcw className="w-3 h-3" />
                       Start a new dialogue
                     </button>
+                    {persistedDecisionId &&
+                      decision.kind !== "defer" &&
+                      response && (
+                        <button
+                          onClick={() => setSpawnPanelOpen(true)}
+                          className="flex items-center gap-2 text-xs font-semibold text-primary bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-lg"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          Spawn task from this decision
+                        </button>
+                      )}
                   </div>
                   {persistMsg && (
                     <p className="mt-2 text-xs text-secondary">{persistMsg}</p>
@@ -549,6 +576,34 @@ export default function DecisionsPage() {
           </div>
         </div>
       </div>
+
+      {persistedDecisionId && decision && response && decision.kind !== "defer" && (
+        <TaskRefinementPanel
+          open={spawnPanelOpen}
+          onClose={() => setSpawnPanelOpen(false)}
+          contextType="decision"
+          contextPayload={
+            {
+              decisionId: persistedDecisionId,
+              decisionSituation: situation,
+              decisionDiagnosis: userDiagnosis,
+              decisionProposal: userProposal,
+              decisionSystemResponse: response as unknown as Record<
+                string,
+                unknown
+              >,
+              decisionChosenPath: decision.kind,
+              decisionChosenNote: decision.note,
+            } satisfies SpawnContextPayload
+          }
+          onSaved={() => {
+            // Stay on the decisions page; the toast inside the panel
+            // confirms the save. Closing the panel returns the user
+            // to the dialogue summary where they can spawn additional
+            // tasks if the decision implied several work threads.
+          }}
+        />
+      )}
     </div>
   );
 }
