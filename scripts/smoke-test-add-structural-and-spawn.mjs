@@ -174,6 +174,38 @@ const NEW_SPAWN_ITEMS = [
     assignee: "john",
     structural: true,
   },
+
+  // ─── Cross-conversation memory for Coach v5 ────────────────────
+  {
+    id: "coach-memory-event-emitted",
+    title: "coach.analyze_returned events land on the §3.1 chain",
+    instructions:
+      "(JOHN) Trigger several Ask Coach / auto-Coach analyses across different topics. Query Supabase: select kind, subject, payload->>'classification', payload->>'principle', created_at from events where kind = 'coach.analyze_returned' order by created_at desc limit 10.",
+    expected:
+      "One row per analyze call, actor = the user who ran Coach. Payload includes classification, needs_improvement, principle (when needsImprovement was true), book, section_ref, context_type, had_memory_block, memory_pattern_count. These rows are the new memory substrate.",
+    assignee: "john",
+    structural: true,
+  },
+  {
+    id: "coach-memory-injected-into-prompt",
+    title: "Memory block appears in the prompt once the user has 3+ analyses",
+    instructions:
+      "(JOHN) After ≥3 coach.analyze_returned events exist for your user in the last 30 days, run a fresh Ask Coach. Tail the dev server logs OR inspect the prompt build by adding a temporary log of systemPrompt.length before-vs-after at the route.",
+    expected:
+      "The system prompt is longer than baseline by ~300-800 chars when memory exists. The injected block starts with 'USER PATTERN HISTORY (last 30 days …)' and lists recurring patterns + grade mix. With <3 analyses, the block is null and the prompt is unchanged — sparse data correctly stays silent.",
+    assignee: "john",
+    structural: true,
+  },
+  {
+    id: "coach-memory-references-prior-coachings",
+    title: "Coach names recurring patterns when they recur in a new draft",
+    instructions:
+      "After being coached on the same principle 3+ times (e.g. 'evaluation-not-observation' triggered repeatedly), draft another message that hits the same pattern in a different topic. Click Ask Coach.",
+    expected:
+      "The Coach's response acknowledges the recurrence — it does NOT pretend this is the first time. Example phrasing: 'This is the third time we've landed here…' or 'I notice this pattern keeps coming up under deadlines.' It does NOT reveal raw counts (no '7 times in 14 days' surveillance language).",
+    assignee: "partners",
+    structural: true,
+  },
 ];
 
 // ─── Run the patch ────────────────────────────────────────────────

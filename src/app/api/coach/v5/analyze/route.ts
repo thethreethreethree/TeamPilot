@@ -6,6 +6,8 @@ import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
 import { buildSystemPrompt, buildUserMessage } from "@/lib/coach/v5/prompt";
+import { loadCoachMemory, renderMemoryForPrompt } from "@/lib/coach/v5/memory";
+import { createClient } from "@/lib/supabase/server";
 import type {
   CoachAnalysisResponse,
   CoachClassification,
@@ -197,9 +199,20 @@ export async function POST(req: NextRequest) {
   try {
     const companyId = (await getCurrentCompanyId()) ?? undefined;
 
+    // Cross-conversation memory — the Coach reads its own prior
+    // coachings on THIS user across topics (§1.6 close-the-loop
+    // applied to itself). renderMemoryForPrompt returns null when
+    // history is too thin to be useful; the prompt builder omits
+    // the section in that case. Always safe — falls back to the
+    // empty snapshot on auth/network failure so the analyze flow
+    // never blocks on memory unavailability.
+    const memory = await loadCoachMemory();
+    const memoryBlock = renderMemoryForPrompt(memory);
+
     const systemPrompt = buildSystemPrompt({
       mode: body.mode,
       contextType: body.contextType,
+      memoryBlock,
     });
     const userMessage = buildUserMessage({
       draft: body.draft,
@@ -254,6 +267,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Emit the analyze event so future cross-conversation memory
+    // calls have data to read. Best-effort — never blocks the
+    // response. Captures the principle cited (when needsImprovement
+    // is true) so the memory loader can recognize recurring
+    // patterns by name. Subject convention matches emit.ts:
+    // chat_topic | task | decision | feedback | smoke_test_result.
+    try {
+      const supabase = await createClient();
+      const { data: auth } = await supabase.auth.getUser();
+      if (auth.user && companyId) {
+        await supabase.from("events").insert({
+          company_id: companyId,
+          actor: auth.user.id,
+          kind: "coach.analyze_returned",
+          subject: subjectFor(body.contextType),
+          payload: {
+            mode: body.mode,
+            context_type: body.contextType,
+            classification: validated.classification,
+            needs_improvement: validated.needsImprovement,
+            principle: validated.improvement?.principleCited.name ?? null,
+            book: validated.improvement?.principleCited.book ?? null,
+            section_ref: validated.improvement?.principleCited.sectionRef ?? null,
+            secondary_principle:
+              validated.improvement?.secondaryPrinciple?.name ?? null,
+            had_memory_block: !!memoryBlock,
+            memory_pattern_count: memory.patterns.length,
+            coach_version: "v5.0",
+          },
+        });
+      }
+    } catch (emitErr) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[coach/v5/analyze] event emit failed (non-fatal)", emitErr);
+      }
+    }
+
     return NextResponse.json({
       response: validated,
       provider: r.provider,
@@ -270,5 +320,31 @@ export async function POST(req: NextRequest) {
       { error: err instanceof Error ? err.message : "Unknown error" },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Map the analyze context type to a chain subject prefix matching
+ * the existing emit.ts convention. The analyze route doesn't know
+ * the concrete topic/task id (the prompt body doesn't carry them),
+ * so we use the surface prefix with ':analyze' as the suffix. The
+ * §4 readout buckets by prefix so this still attributes cleanly,
+ * and the actor+payload+timestamp identify the specific call.
+ */
+function subjectFor(contextType: string): string {
+  switch (contextType) {
+    case "chat_message":
+    case "chat_reply":
+      return "chat_topic:analyze";
+    case "decision_dialogue":
+      return "decision:analyze";
+    case "task_field":
+      return "task:analyze";
+    case "feedback":
+      return "feedback:analyze";
+    case "smoke_test_note":
+      return "smoke_test_result:analyze";
+    default:
+      return `${contextType}:analyze`;
   }
 }

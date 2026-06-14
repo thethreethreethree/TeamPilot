@@ -155,6 +155,11 @@ const CONTEXT_TYPE_NOTES: Record<CoachContextType, string> = {
 export function buildSystemPrompt(args: {
   mode: CoachAnalysisMode;
   contextType: CoachContextType;
+  /** Optional rendered cross-conversation memory block. When present,
+   *  the Coach reads its prior coachings on THIS user across all
+   *  conversations (§1.6 close-the-loop applied to itself). Null
+   *  when the user has insufficient history — see memory.ts. */
+  memoryBlock?: string | null;
 }): string {
   const knowledgeBase = getKnowledgeBase();
   return [
@@ -165,6 +170,7 @@ export function buildSystemPrompt(args: {
     BEHAVIORAL_RULES,
     MODE_INSTRUCTIONS[args.mode],
     `\nSURFACE CONTEXT NOTE:\n${CONTEXT_TYPE_NOTES[args.contextType]}\n`,
+    args.memoryBlock ? `\n${args.memoryBlock}\n` : "",
   ].join("");
 }
 
@@ -203,6 +209,7 @@ OUTPUT FORMAT (strict JSON, no markdown fences, no preamble):
  */
 export function buildFollowUpSystemPrompt(args: {
   contextType: CoachContextType;
+  memoryBlock?: string | null;
 }): string {
   const knowledgeBase = getKnowledgeBase();
   return [
@@ -212,6 +219,7 @@ export function buildFollowUpSystemPrompt(args: {
     KNOWLEDGE_REFERENCE_POSTAMBLE,
     FOLLOWUP_RULES,
     `\nSURFACE CONTEXT NOTE:\n${CONTEXT_TYPE_NOTES[args.contextType]}\n`,
+    args.memoryBlock ? `\n${args.memoryBlock}\n` : "",
   ].join("");
 }
 
