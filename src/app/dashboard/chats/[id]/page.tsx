@@ -548,7 +548,7 @@ export default function TeamChatTopicPage() {
           <div className="flex items-center gap-2 md:gap-3 flex-wrap flex-shrink-0">
             <Link
               href="/dashboard/chats"
-              className="text-xs text-muted hover:text-primary flex items-center gap-1"
+              className="flex items-center gap-1.5 text-xs font-medium text-primary bg-surface-raised hover:bg-white/10 border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
               All topics
@@ -821,9 +821,13 @@ export default function TeamChatTopicPage() {
                   <div key={group.dateKey}>
                     {/* Sticky date divider — Slack-style. Floats at top
                         of the visible viewport as the user scrolls past
-                        a day. Negative margin is mobile-safe via
-                        -mx-3 md:-mx-6 (matches parent padding). */}
-                    <div className="sticky top-0 z-10 -mx-3 md:-mx-6 px-3 md:px-6 py-2 mb-4 bg-base/85 backdrop-blur-sm">
+                        a day. Fully opaque bg-base (was 85% before) so
+                        message text behind the divider doesn't bleed
+                        through — it was reading as "cut off" on mobile
+                        where the pill sat directly over message lines.
+                        Negative margin is mobile-safe via -mx-3 md:-mx-6
+                        (matches parent padding). */}
+                    <div className="sticky top-0 z-10 -mx-3 md:-mx-6 px-3 md:px-6 py-2 mb-4 bg-base">
                       <div className="flex items-center gap-3 max-w-5xl mx-auto min-w-0">
                         <div className="flex-1 h-px bg-surface-raised" />
                         <span className="text-[10px] uppercase tracking-widest text-muted font-mono bg-surface border border-default rounded-full px-2.5 py-1 flex-shrink-0">
