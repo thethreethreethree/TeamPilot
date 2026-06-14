@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Loader2, TriangleAlert } from "lucide-react";
+import {
+  BookOpen,
+  Hourglass,
+  Loader2,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { phaseLabel, type CompanyCyclePhase } from "@/lib/cycle/phase";
 
 /**
  * /dashboard/admin/coach-readout
@@ -58,11 +65,57 @@ type SurfaceStats = {
   topHeuristic: string | null;
 };
 
+type CycleBlock = {
+  phase: CompanyCyclePhase;
+  daysIntoCycle: number;
+  daysRemainingInPhase: number;
+  skippedControl: boolean;
+  skippedAt: string | null;
+  skipReason: string | null;
+  cycleStartedAt: string | null;
+};
+
+type TaskOutcomeStats = {
+  total: number;
+  completed: number;
+  completionRate: number | null;
+};
+
+type SpawnBlock = {
+  fromDecision: TaskOutcomeStats;
+  fromChat: TaskOutcomeStats;
+  direct: TaskOutcomeStats;
+  total: number;
+};
+
+type GradeBlock = {
+  productive: number;
+  neutral: number;
+  needsGuidance: number;
+  total: number;
+};
+
+type AnalyzePrinciple = {
+  principle: string;
+  book: string | null;
+  count: number;
+  needsImprovementCount: number;
+};
+
+type AnalyzeBlock = {
+  total: number;
+  topPrinciples: AnalyzePrinciple[];
+};
+
 type Readout = {
   coached: TopicStats;
   uncoached: TopicStats;
   heuristics: HeuristicStats[];
   surfaces: SurfaceStats[];
+  cycle: CycleBlock | null;
+  tasksSpawn: SpawnBlock;
+  grades: GradeBlock;
+  analyze: AnalyzeBlock;
   generatedAt: string;
 };
 
@@ -178,6 +231,64 @@ export default function CoachReadoutPage() {
 
         {data && (
           <>
+            {/* §3.4 cycle context — frames every metric below. The reader
+                interprets a coach-on metric differently in 'intervention'
+                (legitimate single-variable comparison) than in 'ongoing'
+                (post-checkpoint, compounding). Skipped-control flags the
+                company as one whose Month 1 was NOT a clean baseline. */}
+            {data.cycle && (
+              <div
+                className={`glass-card p-4 border ${
+                  data.cycle.phase === "control"
+                    ? "border-arc-400/40 bg-arc-400/5"
+                    : "border-emerald-500/30 bg-emerald-500/5"
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <Hourglass
+                    className={`w-4 h-4 mt-0.5 shrink-0 ${
+                      data.cycle.phase === "control"
+                        ? "text-arc-300"
+                        : "text-emerald-300"
+                    }`}
+                    aria-hidden
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`text-xs font-semibold ${
+                        data.cycle.phase === "control"
+                          ? "text-arc-300"
+                          : "text-emerald-300"
+                      }`}
+                    >
+                      {phaseLabel(data.cycle.phase)}
+                      {data.cycle.skippedControl && (
+                        <span className="ml-2 text-[10px] text-accent-text uppercase tracking-widest">
+                          · skipped control
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-1 text-[11px] text-secondary leading-relaxed">
+                      Day {data.cycle.daysIntoCycle} from anchor.{" "}
+                      {data.cycle.phase === "control"
+                        ? `Coach is locked OFF for ${data.cycle.daysRemainingInPhase} more day${data.cycle.daysRemainingInPhase === 1 ? "" : "s"}. Every Coach-on metric below should be zero — if it isn't, the §3.4 trigger has a hole.`
+                        : data.cycle.phase === "intervention"
+                          ? `Single-variable intervention window — Coach activity below is attributable to the method. ${data.cycle.daysRemainingInPhase} day${data.cycle.daysRemainingInPhase === 1 ? "" : "s"} until the proof checkpoint; data continues to accumulate after.`
+                          : "Post-checkpoint compounding period. Trends below are read against the intervention-window slope, not against zero."}
+                    </p>
+                    {data.cycle.skippedControl && data.cycle.skipReason && (
+                      <p className="mt-2 text-[10px] text-secondary leading-relaxed italic">
+                        <span className="text-accent-text font-semibold">
+                          Skip reason on record:
+                        </span>{" "}
+                        “{data.cycle.skipReason}”
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* N-too-small caveat */}
             {!enoughCoached && (
               <div className="glass-card p-3 border border-gold-400/40 bg-gold-400/5 flex items-start gap-2">
@@ -269,6 +380,184 @@ export default function CoachReadoutPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Task Spawn lineage — closes §1.6 on the measurement side.
+                Are tasks spawned from structured sources (decisions, chats)
+                completing more reliably than direct-created tasks? This
+                is the MECHANISM check — better diagnosis upstream produces
+                better action downstream. */}
+            <div className="glass-card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-brand" aria-hidden />
+                <h2 className="text-sm font-semibold text-primary">
+                  Task Spawn lineage — does structured upstream produce
+                  better action?
+                </h2>
+              </div>
+              <p className="text-[11px] text-muted leading-relaxed mb-4">
+                Tasks split by their source: spawned from a finalized
+                Decision Dialogue, spawned from a chat message selection,
+                or created directly. The §1.6 mechanism claim is that
+                structured upstream produces more reliable downstream —
+                this table is the honest test. Low N still surfaces;
+                interpret with the same caution as above.
+              </p>
+              {data.tasksSpawn.total === 0 ? (
+                <p className="text-xs text-muted text-center py-6">
+                  No tasks recorded yet.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-[10px] uppercase tracking-widest text-muted border-b border-default">
+                        <th className="py-2 pr-4">Source</th>
+                        <th className="py-2 pr-4">Total</th>
+                        <th className="py-2 pr-4">Completed</th>
+                        <th className="py-2 pr-4">Completion rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-default">
+                      <SpawnRow
+                        label="From Decision Dialogue"
+                        s={data.tasksSpawn.fromDecision}
+                      />
+                      <SpawnRow
+                        label="From chat messages"
+                        s={data.tasksSpawn.fromChat}
+                      />
+                      <SpawnRow
+                        label="Direct-created"
+                        s={data.tasksSpawn.direct}
+                      />
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Coach v5 — communication baseline (grade mix). The §3.5
+                differentiated metric: BETTER communication is the
+                MECHANISM. Productive grade = a message that read as
+                clear, productive, well-suited; needs-guidance = a
+                message that read as evaluation/identity/unproductive.
+                Trend over time is what matters, not the snapshot. */}
+            <div className="glass-card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="w-4 h-4 text-brand" aria-hidden />
+                <h2 className="text-sm font-semibold text-primary">
+                  Communication baseline (last 30 days)
+                </h2>
+              </div>
+              <p className="text-[11px] text-muted leading-relaxed mb-4">
+                §3.5 anchors the differentiated metric to{" "}
+                <em>downstream consequence</em>, not adoption. This row
+                reads the Encouragement System grade on every sent
+                message: productive (clear + suited to context),
+                neutral (no signal), needs-guidance (likely defensive-
+                shutdown / evaluation-as-fact / identity-attack). A
+                Coach that&apos;s working should bend the mix toward
+                productive AND drop needs-guidance over the cycle.
+              </p>
+              {data.grades.total === 0 ? (
+                <p className="text-xs text-muted text-center py-6">
+                  No graded messages in the last 30 days. The grader
+                  fires on sent messages; either the chain hasn&apos;t
+                  accumulated enough data yet, or the cycle is still in
+                  control.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  <GradeStat
+                    label="Productive"
+                    count={data.grades.productive}
+                    total={data.grades.total}
+                    tone="emerald"
+                  />
+                  <GradeStat
+                    label="Neutral"
+                    count={data.grades.neutral}
+                    total={data.grades.total}
+                    tone="muted"
+                  />
+                  <GradeStat
+                    label="Needs guidance"
+                    count={data.grades.needsGuidance}
+                    total={data.grades.total}
+                    tone="amber"
+                  />
+                </div>
+              )}
+              <p className="mt-3 text-[10px] text-muted">
+                n = {data.grades.total} graded messages (withheld grades
+                excluded — those are grader-unavailable, not a real
+                signal).
+              </p>
+            </div>
+
+            {/* Coach v5 analyze patterns — what the Coach has been
+                TEACHING, not what users accepted. Different question
+                than acceptance rate: are we naming the same principles
+                over and over (in which case the team isn't internalizing
+                them), or is the spread widening (in which case the
+                Coach is teaching across the surface area). */}
+            <div className="glass-card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="w-4 h-4 text-brand" aria-hidden />
+                <h2 className="text-sm font-semibold text-primary">
+                  Top principles cited (last 30 days)
+                </h2>
+              </div>
+              <p className="text-[11px] text-muted leading-relaxed mb-4">
+                What the Coach has been NAMING when it surfaces. Heavily
+                concentrated on one principle = the team has a recurring
+                pattern there; the Coach should be varying its framing,
+                not repeating the lesson (see cross-conversation memory).
+                Spread across many principles = the Coach is teaching
+                breadth.
+              </p>
+              {data.analyze.total === 0 ? (
+                <p className="text-xs text-muted text-center py-6">
+                  No analyze events recorded yet. coach.analyze_returned
+                  is emitted from this commit forward, so this section
+                  populates as the team uses Coach.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-[10px] uppercase tracking-widest text-muted border-b border-default">
+                        <th className="py-2 pr-4">Principle</th>
+                        <th className="py-2 pr-4">Book</th>
+                        <th className="py-2 pr-4">Cited</th>
+                        <th className="py-2 pr-4">Of which: needs-improvement</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-default">
+                      {data.analyze.topPrinciples.map((p) => (
+                        <tr key={p.principle}>
+                          <td className="py-2 pr-4 text-primary">
+                            {p.principle}
+                          </td>
+                          <td className="py-2 pr-4 text-secondary">
+                            {p.book ?? "—"}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-primary">
+                            {p.count}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-secondary">
+                            {p.needsImprovementCount}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="mt-3 text-[10px] text-muted">
+                n = {data.analyze.total} analyze calls in window.
+              </p>
             </div>
 
             {/* Per-surface — Coach reach across communication surfaces */}
@@ -426,5 +715,57 @@ function Row({
       <td className="py-2 pr-4 font-mono text-primary">{left}</td>
       <td className="py-2 pr-4 font-mono text-primary">{right}</td>
     </tr>
+  );
+}
+
+function SpawnRow({
+  label,
+  s,
+}: {
+  label: string;
+  s: TaskOutcomeStats;
+}) {
+  return (
+    <tr>
+      <td className="py-2 pr-4 text-secondary">{label}</td>
+      <td className="py-2 pr-4 font-mono text-primary">{s.total}</td>
+      <td className="py-2 pr-4 font-mono text-primary">{s.completed}</td>
+      <td className="py-2 pr-4 font-mono text-primary">
+        {s.completionRate == null
+          ? "—"
+          : `${Math.round(s.completionRate * 100)}%`}
+      </td>
+    </tr>
+  );
+}
+
+function GradeStat({
+  label,
+  count,
+  total,
+  tone,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  tone: "emerald" | "muted" | "amber";
+}) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const toneClass =
+    tone === "emerald"
+      ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
+      : tone === "amber"
+        ? "border-accent-text/30 bg-accent-text/5 text-accent-text"
+        : "border-default bg-surface/40 text-secondary";
+  return (
+    <div className={`rounded-lg border p-3 ${toneClass}`}>
+      <p className="text-[10px] uppercase tracking-widest font-bold">
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-bold text-primary">{pct}%</p>
+      <p className="text-[10px] text-muted font-mono">
+        {count} of {total}
+      </p>
+    </div>
   );
 }

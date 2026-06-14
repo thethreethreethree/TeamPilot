@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { resolveCyclePhase } from "@/lib/cycle/phase";
 
 /**
  * GET /api/admin/coach-readout
@@ -264,11 +265,162 @@ export async function GET() {
     })
     .sort((a, b) => b.offered - a.offered);
 
+  // ─── §3.4 cycle context ──────────────────────────────────────
+  // The cycle phase frames every metric below. Outcomes during
+  // 'control' belong to a Coach-OFF baseline; outcomes during
+  // 'intervention' or 'ongoing' are post-Coach. The readout
+  // surfaces this so the reader interprets the comparison
+  // honestly (§3.5).
+  const { data: company } = await supabase
+    .from("companies")
+    .select(
+      "cycle_started_at, cycle_control_skipped_at, cycle_control_skip_reason"
+    )
+    .eq("id", companyId)
+    .maybeSingle();
+  const cycleDetails =
+    company?.cycle_started_at
+      ? resolveCyclePhase({
+          cycleStartedAt: company.cycle_started_at,
+          cycleControlSkippedAt: company.cycle_control_skipped_at,
+        })
+      : null;
+  const cycleBlock = cycleDetails && {
+    phase: cycleDetails.phase,
+    daysIntoCycle: cycleDetails.daysIntoCycle,
+    daysRemainingInPhase: cycleDetails.daysRemainingInPhase,
+    skippedControl: cycleDetails.skippedControl,
+    skippedAt: cycleDetails.skippedAt,
+    skipReason: company?.cycle_control_skip_reason ?? null,
+    cycleStartedAt: company?.cycle_started_at ?? null,
+  };
+
+  // ─── Task Spawn lineage ─────────────────────────────────────
+  // Closes §1.6 on the measurement side: are tasks spawned from
+  // structured sources (decisions, chats) actually producing
+  // better outcomes than directly-created tasks? This is the
+  // mechanism check — better diagnosis → better action.
+  const { data: tasksRows } = await supabase
+    .from("tasks")
+    .select(
+      "id, status, linked_decision_id, linked_chat_topic_id, created_at, updated_at"
+    )
+    .is("deleted_at", null);
+  const tasksAll = tasksRows ?? [];
+  function summarizeTasks(
+    rows: typeof tasksAll
+  ): { total: number; completed: number; completionRate: number | null } {
+    const total = rows.length;
+    const completed = rows.filter((t) => t.status === "Done").length;
+    return {
+      total,
+      completed,
+      completionRate: total > 0 ? completed / total : null,
+    };
+  }
+  const tasksSpawn = {
+    fromDecision: summarizeTasks(
+      tasksAll.filter((t) => t.linked_decision_id)
+    ),
+    fromChat: summarizeTasks(
+      tasksAll.filter((t) => t.linked_chat_topic_id)
+    ),
+    direct: summarizeTasks(
+      tasksAll.filter((t) => !t.linked_decision_id && !t.linked_chat_topic_id)
+    ),
+    total: tasksAll.length,
+  };
+
+  // ─── Coach v5 baseline & analyze patterns ───────────────────
+  // The Encouragement System grade mix is the user's communication
+  // baseline. §3.5 differentiated metric — "better" is downstream
+  // consequence (productive grades + held resolutions), NEVER
+  // "the AI's suggestion was adopted."
+  const last30 = new Date(
+    Date.now() - 30 * 24 * 60 * 60 * 1000
+  ).toISOString();
+  const { data: gradeEvents } = await supabase
+    .from("events")
+    .select("payload, created_at")
+    .eq("kind", "coach.message_graded")
+    .gte("created_at", last30)
+    .limit(2000);
+  const gradeMix = { productive: 0, neutral: 0, needsGuidance: 0 };
+  let gradeTotal = 0;
+  for (const e of gradeEvents ?? []) {
+    const grade = (e.payload ?? ({} as Record<string, unknown>)).grade;
+    if (grade === "productive") {
+      gradeMix.productive++;
+      gradeTotal++;
+    } else if (grade === "neutral") {
+      gradeMix.neutral++;
+      gradeTotal++;
+    } else if (grade === "needs_guidance") {
+      gradeMix.needsGuidance++;
+      gradeTotal++;
+    }
+  }
+  const grades = {
+    ...gradeMix,
+    total: gradeTotal,
+  };
+
+  // Analyze patterns — top principles cited across the company in
+  // the last 30 days. Surfaces what the Coach has been TEACHING,
+  // not whether the team is accepting.
+  const { data: analyzeEvents } = await supabase
+    .from("events")
+    .select("payload, created_at")
+    .eq("kind", "coach.analyze_returned")
+    .gte("created_at", last30)
+    .limit(2000);
+  const principleAgg = new Map<
+    string,
+    {
+      principle: string;
+      book: string | null;
+      count: number;
+      needsImprovementCount: number;
+    }
+  >();
+  let analyzeTotal = 0;
+  for (const e of analyzeEvents ?? []) {
+    analyzeTotal++;
+    const p = (e.payload ?? ({} as Record<string, unknown>));
+    const principle = typeof p.principle === "string" ? p.principle : null;
+    if (!principle) continue;
+    const book = typeof p.book === "string" ? p.book : null;
+    const needs = p.needs_improvement === true;
+    const existing = principleAgg.get(principle);
+    if (existing) {
+      existing.count += 1;
+      if (needs) existing.needsImprovementCount += 1;
+    } else {
+      principleAgg.set(principle, {
+        principle,
+        book,
+        count: 1,
+        needsImprovementCount: needs ? 1 : 0,
+      });
+    }
+  }
+  const topPrinciples = Array.from(principleAgg.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+  const analyzeBlock = {
+    total: analyzeTotal,
+    topPrinciples,
+  };
+
   return NextResponse.json({
     coached,
     uncoached,
     heuristics,
     surfaces,
+    cycle: cycleBlock,
+    tasksSpawn,
+    grades,
+    analyze: analyzeBlock,
     generatedAt: new Date().toISOString(),
   });
 }

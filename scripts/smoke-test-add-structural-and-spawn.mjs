@@ -258,6 +258,58 @@ const NEW_SPAWN_ITEMS = [
     assignee: "john",
     structural: true,
   },
+
+  // ─── §3.5 consolidated readout extension ──────────────────────
+  {
+    id: "readout-cycle-banner-frames-page",
+    title: "Coach readout opens with the §3.4 cycle banner",
+    instructions:
+      "As admin, open /dashboard/admin/coach-readout.",
+    expected:
+      "The cycle banner is the FIRST block under the discipline preamble. It names the phase (Month 1/2/post-checkpoint), day count, and either 'Coach is locked OFF' messaging or 'single-variable intervention' or 'compounding'. If the company has skipped control, a 'skipped control' chip + the reason on record appears below.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "readout-spawn-lineage-table",
+    title: "Readout shows tasks split by spawn source",
+    instructions:
+      "On the readout, scroll to 'Task Spawn lineage'. After spawning a few tasks from decisions, chats, and creating one directly, refresh.",
+    expected:
+      "Table shows three rows — 'From Decision Dialogue', 'From chat messages', 'Direct-created' — each with total, completed, completion rate. The §1.6 mechanism question (does structured upstream produce better action?) is now readable.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "readout-grade-baseline-mix",
+    title: "Communication baseline shows productive / neutral / needs-guidance",
+    instructions:
+      "On the readout, scroll to 'Communication baseline (last 30 days)'.",
+    expected:
+      "Three colored cards (emerald productive / muted neutral / amber needs-guidance) each showing percentage + raw count. The n = X graded messages caption is present. If n = 0, an honest empty state explains why (chain hasn't accumulated yet, or cycle in control).",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "readout-top-principles-from-analyze",
+    title: "Top principles table reads coach.analyze_returned events",
+    instructions:
+      "After several Ask Coach / auto-Coach analyses across surfaces, open the readout and scroll to 'Top principles cited'.",
+    expected:
+      "Table lists up to 8 principles by frequency (e.g. 'OFNR Model — Nonviolent Communication', 'Contrasting Statement — Crucial Conversations'). Each row shows total cited count and the 'of which: needs-improvement' subcount. The n = X caption is present.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "readout-no-verdict-anywhere",
+    title: "Readout deliberately presents NO verdict — only raw counts",
+    instructions:
+      "Read every section of /dashboard/admin/coach-readout. Look for any UI element that asserts 'Coach is working' or 'this feature is succeeding' or a green checkmark next to an outcome.",
+    expected:
+      "Zero verdicts surfaced. The page shows raw counts, side-by-side comparisons, low-N caveats, and cycle context — but never claims the Coach is working. §3.5 + asset A3: measuring agreement vs measuring consequence requires the reader to interpret.",
+    assignee: "partners",
+    structural: true,
+  },
 ];
 
 // ─── Run the patch ────────────────────────────────────────────────
