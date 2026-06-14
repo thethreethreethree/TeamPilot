@@ -320,6 +320,18 @@
       "namedRegex": "^/api/notifications(?:/)?$"
     },
     {
+      "page": "/api/notifications/notify-message",
+      "regex": "^/api/notifications/notify\\-message(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/notifications/notify\\-message(?:/)?$"
+    },
+    {
+      "page": "/api/notifications/subscribe",
+      "regex": "^/api/notifications/subscribe(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/notifications/subscribe(?:/)?$"
+    },
+    {
       "page": "/api/problems",
       "regex": "^/api/problems(?:/)?$",
       "routeKeys": {},

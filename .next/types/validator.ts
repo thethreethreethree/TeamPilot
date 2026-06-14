@@ -605,10 +605,28 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/notifications/notify-message/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/notifications/notify-message">> = Specific
+  const handler = {} as typeof import("../../src/app/api/notifications/notify-message/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/notifications/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/notifications">> = Specific
   const handler = {} as typeof import("../../src/app/api/notifications/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/notifications/subscribe/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/notifications/subscribe">> = Specific
+  const handler = {} as typeof import("../../src/app/api/notifications/subscribe/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
@@ -698,6 +716,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 
 
 
+
+// Validate ../../src/app/dashboard/chats/layout.tsx
+{
+  type __IsExpected<Specific extends LayoutConfig<"/dashboard/chats">> = Specific
+  const handler = {} as typeof import("../../src/app/dashboard/chats/layout.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
 
 // Validate ../../src/app/dashboard/layout.tsx
 {
