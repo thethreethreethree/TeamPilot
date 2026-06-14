@@ -234,7 +234,14 @@ export function MessageRow({
               />
             </div>
           )}
-          <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Action buttons (Reply / Pin) — visible by default on
+              touch devices, hover-revealed on devices with a real
+              cursor. The hover-only pattern silently fails on touch
+              (no hover event), which is why these were effectively
+              invisible on phones. The `(hover: hover)` media query
+              targets pointer-capable devices; everywhere else they
+              stay at opacity-100. */}
+          <div className="absolute top-2 right-2 flex items-center gap-1 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
             {onStartReply && (
               <button
                 type="button"
