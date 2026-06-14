@@ -13,7 +13,6 @@ import {
 import Modal from "@/components/ui/Modal";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import {
-  AlertTriangle,
   CheckCircle2,
   Loader2,
   Plus,
@@ -85,17 +84,6 @@ export default function ProblemsPage() {
             New problem hypothesis
           </button>
         </div>
-
-        {mode === "demo-fixtures" && (
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
-            <AlertTriangle className="w-4 h-4 text-yellow-300 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-primary">
-              <span className="font-medium">Demo fixtures.</span> The two problems below
-              illustrate the production surface. Creating, surfacing, and dismissing
-              require live mode (Supabase + DB Understanding Gate trigger).
-            </p>
-          </div>
-        )}
 
         {loading && (
           <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">

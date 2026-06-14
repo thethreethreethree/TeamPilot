@@ -15,7 +15,6 @@ import {
   type ChatsMode,
 } from "@/lib/data/chats";
 import {
-  AlertTriangle,
   CheckCircle2,
   ExternalLink,
   Loader2,
@@ -105,21 +104,6 @@ export default function TeamChatListPage() {
 
       <div className="p-3 md:p-6 max-w-6xl mx-auto space-y-6 min-w-0">
         <EnableNotificationsBanner />
-        {mode === "demo-fixtures" && (
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-gold-400/5 border border-gold-400/20">
-            <AlertTriangle
-              className="w-4 h-4 text-accent-text mt-0.5 flex-shrink-0"
-              aria-hidden="true"
-            />
-            <p className="text-xs text-accent-text">
-              <span className="font-medium">Demo mode.</span> Three example topics
-              are loaded — including one closed conversation showing what a
-              resolved topic looks like. Try opening one, sending a message, and
-              pinning a useful exchange. Messages persist locally so you can
-              come back and continue.
-            </p>
-          </div>
-        )}
 
         {/* Stats + actions */}
         <div className="flex items-end justify-between flex-wrap gap-4">

@@ -9,7 +9,6 @@ import Modal from "@/components/ui/Modal";
 import { Field, Input, Textarea, Select } from "@/components/ui/Field";
 import ExportMenu from "@/components/ui/ExportMenu";
 import {
-  AlertTriangle,
   CheckCircle2,
   Filter,
   Loader2,
@@ -474,24 +473,11 @@ export default function OperationsPage() {
 // Subcomponents
 // ─────────────────────────────────────────────────────────────
 
-function ModeBanner({ mode }: { mode: FetchTasksMode }) {
-  if (mode === "live-data") return null;
-  if (mode === "demo-fixtures") {
-    return (
-      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
-        <AlertTriangle className="w-4 h-4 text-yellow-300 mt-0.5 flex-shrink-0" />
-        <div className="text-xs text-primary">
-          <p className="font-medium mb-1">Demo fixtures · Supabase not configured.</p>
-          <p className="text-primary/70">
-            You&apos;re viewing read-only sample data so the UI is browsable. Tasks created here
-            do nothing. Configure Supabase keys in <code>.env.local</code> and re-run the
-            migrations to use the production task system.
-          </p>
-        </div>
-      </div>
-    );
-  }
-  // live-empty — no banner; the empty state handles it.
+function ModeBanner(_: { mode: FetchTasksMode }): React.ReactElement | null {
+  // User-facing demo-mode banner removed (sweep). The mode prop is
+  // still threaded in case future surfaces (e.g. an empty-state hint)
+  // want to switch on it without re-introducing the banner flash that
+  // auth'd users were seeing on initial load.
   return null;
 }
 

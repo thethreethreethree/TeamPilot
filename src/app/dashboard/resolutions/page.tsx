@@ -96,17 +96,6 @@ export default function ResolutionsPage() {
           </p>
         </div>
 
-        {mode === "demo-fixtures" && (
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
-            <AlertTriangle className="w-4 h-4 text-yellow-300 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-primary">
-              <span className="font-medium">Demo fixtures.</span> Two resolutions are
-              shown — one held, one awaiting review. Recording new outcomes requires
-              live mode.
-            </p>
-          </div>
-        )}
-
         {/* Summary + export */}
         <div className="flex items-start justify-between gap-4">
           <div className="grid grid-cols-3 gap-4 flex-1">
