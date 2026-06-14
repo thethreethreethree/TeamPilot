@@ -57,6 +57,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Spawn-engine linkage fields. The xor constraint in 0030 enforces
+  // that linked_decision_id and linked_chat_topic_id can't both be
+  // set, so we just pass through whatever the caller sent and let
+  // the DB reject contradictions.
+  const linkedDecisionId =
+    typeof body.linkedDecisionId === "string" ? body.linkedDecisionId : null;
+  const linkedChatTopicId =
+    typeof body.linkedChatTopicId === "string" ? body.linkedChatTopicId : null;
+  const linkedMessageIds = Array.isArray(body.linkedMessageIds)
+    ? body.linkedMessageIds.filter((v: unknown) => typeof v === "string")
+    : null;
+  const spawnSteps = Array.isArray(body.spawnSteps)
+    ? body.spawnSteps.filter((v: unknown) => typeof v === "string")
+    : null;
+
   const { data, error } = await ctx.supabase
     .from("tasks")
     .insert({
@@ -71,6 +86,10 @@ export async function POST(req: NextRequest) {
       impact_level: body.impactLevel ?? "Medium",
       blocker_reason: body.blockerReason ?? null,
       due_date: body.dueDate ?? null,
+      linked_decision_id: linkedDecisionId,
+      linked_chat_topic_id: linkedChatTopicId,
+      linked_message_ids: linkedMessageIds,
+      spawn_steps: spawnSteps,
     })
     .select("id")
     .single();
