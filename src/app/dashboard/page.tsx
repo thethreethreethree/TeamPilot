@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { InstallTeamChatBanner } from "@/components/pwa/InstallTeamChatBanner";
 
 interface DailyQuestions {
   todaysQuestions: string[];
@@ -168,6 +169,7 @@ export default function CommandDashboard() {
       <TopBar title="Command Center" subtitle={companyName} />
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        <InstallTeamChatBanner />
         {/* The §3.1 chain at a glance — real numbers only */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <ChainStat

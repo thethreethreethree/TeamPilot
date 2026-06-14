@@ -1,9 +1,33 @@
+import type { Metadata } from "next";
 import Sidebar from "@/components/layout/Sidebar";
 import CommandPalette from "@/components/layout/CommandPalette";
 import { ToastProvider } from "@/components/ui/toast";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
+
+/**
+ * Team Chat PWA install affordance — dashboard-wide.
+ *
+ * The dashboard layout overrides the root manifest with the team-chat
+ * variant. This means every /dashboard/* page tells the browser the
+ * installable app is "Team Chat" (focused chat-only PWA) rather than
+ * the broader "ELOSTATE" PWA.
+ *
+ * Conscious tradeoff: pages like /dashboard/team, /dashboard/settings
+ * also surface "Install Team Chat" in their browser install affordance.
+ * This is aligned with the user's explicit decision that the focused
+ * team-chat PWA is the primary install target. The root manifest still
+ * applies to non-dashboard surfaces (/login, /onboarding, /pitch).
+ *
+ * The Apple PWA meta tags previously set on /dashboard/chats/layout.tsx
+ * remain there — they apply to the chat subtree only, which is fine
+ * because iOS reads them on the page where the user actually triggers
+ * "Add to Home Screen".
+ */
+export const metadata: Metadata = {
+  manifest: "/team-chat-manifest.webmanifest",
+};
 
 /**
  * Dashboard layout — server-side auth + onboarding gate.
