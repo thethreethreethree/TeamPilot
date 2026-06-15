@@ -44,6 +44,10 @@ const productionNav = [
   { label: "Resolutions", href: "/dashboard/resolutions", icon: Sparkles },
   { label: "Company Brain", href: "/dashboard/brain", icon: Brain },
   { label: "Decision Dialogue", href: "/dashboard/decisions", icon: Brain },
+  // §3.6 make-learning-visible — user-facing perception surface for
+  // cross-conversation memory. Each member sees their own; admin
+  // readout stays separate (different audience, different framing).
+  { label: "My growth", href: "/dashboard/my-growth", icon: Heart },
 ];
 
 const testingNav = [

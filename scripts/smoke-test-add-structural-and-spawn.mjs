@@ -404,6 +404,58 @@ const NEW_SPAWN_ITEMS = [
     assignee: "partners",
     structural: true,
   },
+
+  // ─── §3.6 make-learning-visible ──────────────────────────────
+  {
+    id: "growth-page-mounts",
+    title: "/dashboard/my-growth renders with §A10 preamble",
+    instructions:
+      "Sign in as any member. Click 'My growth' in the sidebar.",
+    expected:
+      "Page mounts. Opens with the §A10 preamble: 'You see what the System sees about you. Everything on this page is the same data the Coach uses internally…' Even on a brand-new account with no data, the preamble is visible.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "growth-sparse-data-silence",
+    title: "Sparse data renders silence, not hallucinated patterns",
+    instructions:
+      "On an account with <3 Coach analyses AND <5 graded messages on the chain.",
+    expected:
+      "Page shows the Hourglass empty state: 'We don't have enough yet.' Names the exact counts (N analyses, N graded). Cites §A3 anti-game default. NO fake patterns shown to fill the page. NO 'getting started, try writing a message' nag.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "growth-pattern-with-next-step",
+    title: "Each recurring pattern includes an A7-compliant next step",
+    instructions:
+      "On an account where the Coach has cited the same principle 2+ times.",
+    expected:
+      "Each pattern row shows the principle name, book citation, count, last-surfaced timestamp, AND a 'Worth a look:' invitation that varies by count (≥4 = recurring; 2-3 = pattern starting question; 1 = too early). The invitation is a question, never a verdict.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "growth-grade-mix-a18-labels",
+    title: "Grade mix uses A18 invitation labels, not ratings",
+    instructions:
+      "On an account with ≥1 graded message: scroll to 'How your messages have been landing'.",
+    expected:
+      "Three cards: Productive (emerald) / Neutral (muted) / Needs guidance (amber). Section copy explicitly says 'downstream consequence — not a rating on you.' n=N caption present. Withheld grades excluded with the honest explanation.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "growth-a10-data-symmetric-with-coach",
+    title: "Growth page data matches what the Coach prompt sees (§A10)",
+    instructions:
+      "(JOHN) Compare /api/me/coach-memory response with the loadCoachMemory() output the analyze route injects into the system prompt. They should be identical (same loader, same scoping).",
+    expected:
+      "Same totalAnalyses, same patterns array (top 5), same recentGradeMix counts. §A10 means there is no separate 'what we show the user' vs 'what we use internally' — same data, same window, same scoping.",
+    assignee: "john",
+    structural: true,
+  },
 ];
 
 // ─── Run the patch ────────────────────────────────────────────────
