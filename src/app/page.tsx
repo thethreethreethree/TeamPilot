@@ -62,46 +62,46 @@ const teamProblems = [
 const differentiators = [
   {
     icon: Brain,
-    title: "Understanding precedes solving.",
-    body: "Before any action, ELOSTATE asks your team to name the actual problem — not the symptom. The discipline is structural, not advisory. Tasks can't be acted on until the gate is cleared. Decisions can't be asserted until the team states their own read first.",
+    title: "It makes your team slow down — at the right moments.",
+    body: "Most software optimizes for speed. ELOSTATE optimizes for accuracy. At the moments that actually matter — a hard decision, a recurring issue, a missed call — the System slows the team down just enough to name what's really going on. The hours saved are downstream.",
   },
   {
     icon: Sparkles,
-    title: "The AI teaches. It doesn't take over.",
-    body: "Our Coach reads your team's drafts and surfaces patterns — never verdicts. It asks the question; your team renders the call. Over time, the Coach learns each individual's communication patterns and helps them grow, instead of doing the work for them.",
+    title: "The AI is a participant, not an autopilot.",
+    body: "Other AI tools draft for you. ELOSTATE's Coach reads what your team is writing, notices patterns, and surfaces a perspective with the reasoning behind it. Your team renders every verdict. Over time the Coach learns each individual and helps them grow as a communicator — instead of doing the communicating for them.",
   },
   {
     icon: GitMerge,
-    title: "Every decision has a paper trail. Permanently.",
-    body: "Every meaningful call your team makes — situation, diagnosis, reasoning, outcome — lands on an append-only record. Six months later, anyone can read the WHY. The record is the institutional memory most companies don't realize they're losing.",
+    title: "Reasoning, captured. Decisions, durable.",
+    body: "Every meaningful call your team makes — and the reasoning behind it — gets captured and preserved. Six months later, anyone reading the record can understand the WHY, not just the WHAT. This is the institutional memory most companies don't realize they're losing every week.",
   },
   {
     icon: Eye,
-    title: "Whatever the System sees about you, you can see.",
-    body: "There is no shadow read. The data ELOSTATE forms about a person — their engagement patterns, their communication grades, the principles the Coach has cited to them — is visible to that person at the same level of detail. Transparency is structural, not policy.",
+    title: "Your data is yours. Visible to you.",
+    body: "Anything the System forms an opinion about — patterns in how you work, how the Coach reads your communication — is visible to you in-product. No backstage profile, no scoring panel you can't see. Your data is yours, and the System's read on you is a conversation, not a verdict.",
   },
 ];
 
 const method = [
   {
     step: "1",
-    title: "Understand",
-    body: "The team names what's actually happening. Patterns from past incidents surface as evidence. Half-understood problems can't reach action — the schema itself enforces it.",
+    title: "Diagnose",
+    body: "The team names what's actually happening — not the symptom in front of them, but the underlying pattern. The System surfaces evidence from past incidents so the diagnosis is earned, not guessed.",
   },
   {
     step: "2",
     title: "Engage",
-    body: "Decisions get a structured space to live. The 4-phase Decision Dialogue surfaces the situation, the team's read, the System's perspective, and the choice — with reasoning preserved for whoever reads it next.",
+    body: "Hard decisions get a structured place to live. The team's read, the System's perspective, and the choice all sit in the same record — with reasoning preserved for whoever reads it next.",
   },
   {
     step: "3",
-    title: "Resolve",
-    body: "Actions land as tasks with explicit gates: what we're accomplishing, what we have, who's involved. Step-by-step progress is tracked transparently, with the Coach available at each step.",
+    title: "Act",
+    body: "Action lands with the context attached. Every step is visible, the Coach is available when someone is stuck, and progress is transparent across the team without anyone needing to chase it.",
   },
   {
     step: "4",
-    title: "Learn",
-    body: "Outcomes feed back into the record. The System gets sharper about your specific team over time. Patterns you would have missed surface earlier. The loop closes, and the next problem starts with everything you've already learned.",
+    title: "Compound",
+    body: "Outcomes feed back into the record. The System gets sharper about your specific team every month. The next problem starts with everything you already learned — and the loop tightens.",
   },
 ];
 
@@ -236,16 +236,16 @@ export default function Landing() {
           What ELOSTATE actually is
         </p>
         <h2 className="text-2xl md:text-4xl font-bold text-primary text-center mb-6 max-w-3xl mx-auto leading-tight">
-          A discipline, made executable.
+          A different category.
         </h2>
         <p className="text-sm md:text-base text-secondary leading-relaxed max-w-3xl mx-auto text-center mb-10">
           ELOSTATE is not productivity software with AI features bolted
-          on. It is a problem-solving discipline encoded as runtime —
-          a participant in your team&apos;s thinking that notices,
-          surfaces, suggests, and remembers. The constitution that
-          governs how it behaves is the same constitution governing
-          how we built it. Competitors can copy features. They cannot
-          easily copy a discipline.
+          on. It is a participant in your team&apos;s thinking — one
+          that notices, surfaces, and remembers across people and
+          time. The way it behaves is shaped by a strict internal
+          discipline. That discipline shows up in every interaction,
+          which is why the product feels different the moment you
+          start using it.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
@@ -318,37 +318,35 @@ export default function Landing() {
             <Hourglass className="w-5 h-5 text-brand shrink-0 mt-1" aria-hidden />
             <div>
               <p className="text-[10px] uppercase tracking-widest text-brand font-semibold mb-1">
-                Our refusal is the proof
+                The honesty IS the moat
               </p>
               <h2 className="text-xl md:text-3xl font-bold text-primary leading-tight">
-                We refuse to deliver instant results.<br className="hidden md:inline" />
-                {" "}<span className="text-brand">And that&apos;s the point.</span>
+                We don&apos;t promise day-one results.<br className="hidden md:inline" />
+                {" "}<span className="text-brand">We prove them against your baseline.</span>
               </h2>
             </div>
           </div>
           <div className="text-sm md:text-base text-secondary leading-relaxed space-y-3 mt-6">
             <p>
-              Your first 30 days on ELOSTATE, the AI guidance is OFF
-              by default — intentionally. We&apos;re capturing an
-              honest baseline of how your team operates before any AI
-              guidance touches the work.
+              Most software promises improvement on day one. To do
+              that honestly, you&apos;d need to know what the team
+              looked like BEFORE the software touched the work — and
+              nobody who claims instant results actually does.
             </p>
             <p>
-              On Day 30, the guidance unlocks. The next 30 days are a
-              single-variable intervention — the only thing that
-              changed is the System. Any improvement is attributable
-              to the method, not to luck or circumstance.
+              ELOSTATE takes the slower, more honest path: a short
+              measurement window with the AI guidance held back, so
+              we can show you what changed against your own
+              baseline. Not against a benchmark. Not against a
+              promise. Against the team you brought in.
             </p>
             <p>
-              On Day 60, you have actual evidence. Most software
-              promises results on day one — which means most software
-              is claiming understanding it cannot possibly have.
-              We&apos;d rather lose the impatient customer than ship a
-              lie.
+              We&apos;d rather lose the impatient customer than ship
+              a flattering lie. The way we measure is the way we
+              earn the trust.
             </p>
             <p className="text-primary font-semibold pt-2">
-              The discipline that built the product is the discipline
-              that demonstrates it works.
+              The honesty IS the moat.
             </p>
           </div>
         </div>
@@ -404,11 +402,11 @@ export default function Landing() {
             faster. Different category, different moat.
           </Question>
           <Question q="Won't the AI just tell my team what to do?">
-            No — by constitutional rule. The System asks your team
-            what they think first, surfaces patterns it has noticed,
-            and offers a perspective with explicit reasoning. Your
-            team renders every verdict. The AI is a participant in
-            thinking, not a substitute for it.
+            No. The System asks your team what they think first and
+            offers a perspective with the reasoning behind it. Your
+            team makes every call. The AI is there to make sure
+            you&apos;re looking at the right things first — not to
+            decide for you.
           </Question>
           <Question q="Will my team actually use this?">
             ELOSTATE sits in the moments your team is already pausing —
@@ -419,14 +417,14 @@ export default function Landing() {
             something worth saying.
           </Question>
           <Question q="What about data and privacy?">
-            Whatever ELOSTATE sees about a person, that person can
-            see. There is no shadow read. Your team&apos;s data is
-            yours — not shared, not used to train models for anyone
-            else. Read the full{" "}
+            Your team&apos;s data is yours. We don&apos;t share it,
+            we don&apos;t train external models on it, and anything
+            we form an opinion about a person is visible to that
+            person in-product. Read the full{" "}
             <Link href="/privacy" className="text-brand underline">
               Privacy Policy
             </Link>{" "}
-            for the structural details.
+            for the specifics.
           </Question>
         </div>
       </section>
