@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /**
  * Next.js configuration.
@@ -75,4 +76,29 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Sentry wrapper. Only kicks in when SENTRY_AUTH_TOKEN is set
+ * (Vercel production / preview env). Local dev without a token
+ * skips source-map upload and behaves like an un-wrapped config.
+ * The runtime SDK still respects NEXT_PUBLIC_SENTRY_DSN being
+ * present-or-absent — see sentry.*.config.ts.
+ */
+const HAS_SENTRY_AUTH = !!process.env.SENTRY_AUTH_TOKEN;
+
+export default HAS_SENTRY_AUTH
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      // Silent CI logs unless something goes wrong.
+      silent: true,
+      // Source-map upload is the value-add of the wrapper. Hide
+      // them from the client bundle so customers don't get them
+      // in DevTools.
+      widenClientFileUpload: true,
+      hideSourceMaps: true,
+      disableLogger: true,
+      // Tunneling routes Sentry traffic through our domain so ad
+      // blockers don't drop error events. Cheap defense.
+      tunnelRoute: "/monitoring",
+    })
+  : nextConfig;

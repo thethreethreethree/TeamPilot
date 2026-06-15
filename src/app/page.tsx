@@ -360,15 +360,26 @@ export default function Landing() {
       </section>
 
       {/* Footer — the discipline is named, but its source document is
-          the user's private IP and not linked. */}
+          the user's private IP and not linked. Terms + Privacy are
+          required for pilot onboarding (legal table stakes); the
+          constitution itself stays internal. */}
       <footer className="border-t border-default mt-10 px-6 py-8 text-center">
         <p className="text-[10px] text-muted mb-1">
           ELOSTATE is built on a strict discipline we call our constitution —
           the rules of the System are encoded as runtime, not advisory.
         </p>
-        <p className="text-[10px] text-muted">
+        <p className="text-[10px] text-muted mb-2">
           © {new Date().getFullYear()} ELOSTATE · Constitution v1.4 · 4 amendments ratified
         </p>
+        <div className="flex items-center justify-center gap-3 text-[10px] text-muted">
+          <Link href="/terms" className="hover:text-primary underline">
+            Terms
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href="/privacy" className="hover:text-primary underline">
+            Privacy
+          </Link>
+        </div>
       </footer>
       <InstallPrompt />
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
@@ -175,6 +176,21 @@ export default function LoginPage() {
             >
               {mode === "signin" ? "Set up ELOSTATE" : "Sign in"}
             </button>
+          </p>
+          {/* Legal footer — Terms + Privacy linked from the
+              auth surface so the pilot acceptance moment is
+              one click away from reading what they're agreeing
+              to. */}
+          <p className="mt-6 text-[10px] text-muted text-center">
+            By continuing you agree to our{" "}
+            <Link href="/terms" className="text-brand hover:underline">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="text-brand hover:underline">
+              Privacy Policy
+            </Link>
+            .
           </p>
         </div>
       </div>
