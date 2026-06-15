@@ -76,7 +76,8 @@ import {
 } from "@/lib/data/topicDecisions";
 import TaskRefinementPanel from "@/components/tasks/TaskRefinementPanel";
 import type { SpawnContextPayload } from "@/lib/taskSpawn/types";
-import { ListChecks, ListPlus } from "lucide-react";
+import { ListChecks, ListPlus, MessageSquarePlus } from "lucide-react";
+import { FeedbackPanel } from "@/components/feedback/FeedbackPanel";
 
 export default function TeamChatTopicPage() {
   const params = useParams<{ id: string }>();
@@ -132,6 +133,11 @@ export default function TeamChatTopicPage() {
     () => new Set()
   );
   const [spawnPanelOpen, setSpawnPanelOpen] = useState(false);
+  // Inline Feedback panel state — replaces the floating button on
+  // chat detail pages per §A8 (Feedback is the user talking to the
+  // System; it belongs with the other System chips, not floating
+  // over content that it kept collidng with).
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   // UI-only dismiss for the folded "Decision Dialogue closed" card.
   // We track the decision id so the dismissal applies to THIS dialogue
   // — when an admin opens a fresh dialogue, the new one shows again.
@@ -713,6 +719,22 @@ export default function TeamChatTopicPage() {
                 Close topic
               </button>
             )}
+            {/* Inline Feedback chip — replaces the floating button on
+                chat detail pages. Feedback IS the user talking to
+                the System (§A8), so it belongs with the other System
+                affordances in this row, not floating over content
+                where it kept colliding with whichever surface I'd
+                moved it to last. The chip scrolls with the row and
+                never overlaps anything. */}
+            <button
+              type="button"
+              onClick={() => setFeedbackOpen(true)}
+              title="Send feedback"
+              className="flex items-center gap-1.5 text-xs font-semibold text-brand border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/10 hover:bg-[#FACC15]/15 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+            >
+              <MessageSquarePlus className="w-3 h-3" aria-hidden="true" />
+              Feedback
+            </button>
           </div>
         </div>
         {showParticipants && (
@@ -1323,6 +1345,12 @@ export default function TeamChatTopicPage() {
           setParticipants(next);
         }}
       />
+
+      {/* Inline Feedback panel (replaces the global floating button
+          on this page; see header chip above). Same FeedbackPanel
+          component every other surface uses, just mounted from the
+          page-local state. */}
+      {feedbackOpen && <FeedbackPanel onClose={() => setFeedbackOpen(false)} />}
 
       {/* Chat→Task refinement panel — mounts only when the user has
           selected at least one message and pressed Spawn. The panel
