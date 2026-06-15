@@ -1,7 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
-import StatusBadge from "@/components/ui/StatusBadge";
+import { taskDisplayLabel } from "@/lib/tasks/statusLabels";
 import { fetchTasks, type FetchTasksMode, type Task } from "@/lib/data/tasks";
 import { fetchTeam, type TeamMember } from "@/lib/data/team";
 import { supabaseEnabled } from "@/lib/supabase/client";
@@ -295,7 +295,24 @@ export default function OperationsPage() {
                       </div>
                     </td>
                     <td className="py-3 pr-4">
-                      <StatusBadge status={t.status} />
+                      {/* §A18 — invitation labels instead of state
+                          words. Same chain status, different reader
+                          response. Tooltip carries the "what this
+                          invites" so the leader knows what move
+                          comes next. */}
+                      {(() => {
+                        const dl = taskDisplayLabel(t.status);
+                        const Icon = dl.icon;
+                        return (
+                          <span
+                            title={dl.invites}
+                            className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded border ${dl.tone.border} ${dl.tone.bg} ${dl.tone.text}`}
+                          >
+                            <Icon className="w-3 h-3" aria-hidden />
+                            {dl.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-3 pr-4">
                       <span className="text-xs text-muted font-mono">{t.dueDate ?? "—"}</span>

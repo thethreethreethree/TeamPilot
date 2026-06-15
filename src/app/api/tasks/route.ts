@@ -94,6 +94,28 @@ export async function POST(req: NextRequest) {
     .select("id")
     .single();
 
+  // Seed working task_steps from the spawned steps (Pillar 2). The
+  // spawn_steps jsonb is preserved on the task row as the IMMUTABLE
+  // original plan; this seed creates the editable / checkable
+  // working list. If no steps were spawned (direct-created task),
+  // the checklist UI shows its A7-compliant empty state.
+  if (data && spawnSteps && spawnSteps.length > 0) {
+    const stepRows = spawnSteps.map((body: string, idx: number) => ({
+      task_id: data.id,
+      step_order: idx,
+      body,
+    }));
+    const { error: stepsErr } = await ctx.supabase
+      .from("task_steps")
+      .insert(stepRows);
+    if (stepsErr && process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[tasks] task_steps seed failed; task created without working steps",
+        stepsErr
+      );
+    }
+  }
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ taskId: data.id });
 }

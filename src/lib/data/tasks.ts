@@ -7,6 +7,9 @@ export type Task = {
   description: string | null;
   department: string | null;
   assignee: string | null;
+  /** FK on profiles (post-0032). Prefer over the legacy `assignee`
+   *  text field for any new code that needs to identify the person. */
+  assigneeUserId: string | null;
   status: string;
   priority: string;
   aiPriorityScore: number;
@@ -19,6 +22,24 @@ export type Task = {
   gateWhat: string | null;
   gateResources: string | null;
   gateRoles: string | null;
+  /** When the gate answers were last edited. The §A11 mirror
+   *  surface reads this; UI shows "edited N times" as a count,
+   *  never as a verdict. */
+  gateLastEditedAt: string | null;
+};
+
+/** A working step on a task. Mutable text + completion. Spawned
+ *  steps land here from the Task Spawn Engine (Sprint 1 of the
+ *  spawn build); manually-added steps are also welcome. Completion
+ *  events emit to the §3.1 chain via the 0032 trigger. */
+export type TaskStep = {
+  id: string;
+  taskId: string;
+  stepOrder: number;
+  body: string;
+  completedAt: string | null;
+  completedBy: string | null;
+  createdAt: string;
 };
 
 export type TaskParticipant = {
@@ -62,6 +83,8 @@ const fromMock = (): Task[] =>
     gateWhat: t.description,
     gateResources: null,
     gateRoles: null,
+    gateLastEditedAt: null,
+    assigneeUserId: null,
   }));
 
 export type FetchTasksMode = "demo-fixtures" | "live-empty" | "live-data";
@@ -85,7 +108,7 @@ export async function fetchTasks(): Promise<{ tasks: Task[]; mode: FetchTasksMod
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, title, description, department, assignee, status, priority, ai_priority_score, impact_level, blocker_reason, due_date, gate_cleared, gate_mode, gate_what, gate_resources, gate_roles"
+      "id, title, description, department, assignee, assignee_user_id, status, priority, ai_priority_score, impact_level, blocker_reason, due_date, gate_cleared, gate_mode, gate_what, gate_resources, gate_roles, gate_last_edited_at"
     )
     .is("deleted_at", null)
     .order("ai_priority_score", { ascending: false });
@@ -100,6 +123,7 @@ export async function fetchTasks(): Promise<{ tasks: Task[]; mode: FetchTasksMod
     description: row.description,
     department: row.department,
     assignee: row.assignee,
+    assigneeUserId: row.assignee_user_id,
     status: row.status,
     priority: row.priority,
     aiPriorityScore: row.ai_priority_score,
@@ -111,6 +135,7 @@ export async function fetchTasks(): Promise<{ tasks: Task[]; mode: FetchTasksMod
     gateWhat: row.gate_what,
     gateResources: row.gate_resources,
     gateRoles: row.gate_roles,
+    gateLastEditedAt: row.gate_last_edited_at,
   }));
 
   return {
@@ -130,7 +155,7 @@ export async function fetchTask(id: string): Promise<Task | null> {
   const { data } = await supabase
     .from("tasks")
     .select(
-      "id, title, description, department, assignee, status, priority, ai_priority_score, impact_level, blocker_reason, due_date, gate_cleared, gate_mode, gate_what, gate_resources, gate_roles"
+      "id, title, description, department, assignee, assignee_user_id, status, priority, ai_priority_score, impact_level, blocker_reason, due_date, gate_cleared, gate_mode, gate_what, gate_resources, gate_roles, gate_last_edited_at"
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -142,6 +167,7 @@ export async function fetchTask(id: string): Promise<Task | null> {
     description: data.description,
     department: data.department,
     assignee: data.assignee,
+    assigneeUserId: data.assignee_user_id,
     status: data.status,
     priority: data.priority,
     aiPriorityScore: data.ai_priority_score,
@@ -153,6 +179,7 @@ export async function fetchTask(id: string): Promise<Task | null> {
     gateWhat: data.gate_what,
     gateResources: data.gate_resources,
     gateRoles: data.gate_roles,
+    gateLastEditedAt: data.gate_last_edited_at,
   };
 }
 
@@ -417,4 +444,124 @@ export async function recordEngagement(taskId: string): Promise<void> {
   if (!supabaseEnabled) return;
   const supabase = createClient();
   await supabase.rpc("record_task_engagement", { p_task_id: taskId });
+}
+
+
+// ─── Task steps (Pillar 2: Accountability) ────────────────────────
+
+/**
+ * Fetch the working step list for a task. Ordered by step_order.
+ * Steps are seeded from the Spawn Engine when a task is created via
+ * /api/tasks/spawn; manually-added steps are appended at the end.
+ */
+export async function fetchTaskSteps(taskId: string): Promise<TaskStep[]> {
+  if (!supabaseEnabled) return [];
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("task_steps")
+    .select("id, task_id, step_order, body, completed_at, completed_by, created_at")
+    .eq("task_id", taskId)
+    .order("step_order", { ascending: true });
+  if (!data) return [];
+  return data.map((r) => ({
+    id: r.id,
+    taskId: r.task_id,
+    stepOrder: r.step_order,
+    body: r.body,
+    completedAt: r.completed_at,
+    completedBy: r.completed_by,
+    createdAt: r.created_at,
+  }));
+}
+
+/**
+ * Toggle a step's completion. The trigger in 0032 emits the
+ * task.step_completed / task.step_reopened event to the §3.1 chain
+ * automatically — we just flip the row.
+ */
+export async function toggleTaskStep(args: {
+  stepId: string;
+  completed: boolean;
+}): Promise<void> {
+  if (!supabaseEnabled) return;
+  const supabase = createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  await supabase
+    .from("task_steps")
+    .update({
+      completed_at: args.completed ? new Date().toISOString() : null,
+      completed_by: args.completed ? auth.user?.id ?? null : null,
+    })
+    .eq("id", args.stepId);
+}
+
+/**
+ * Add a new step to the bottom of a task's step list. Returns the
+ * new step's row so the caller can append optimistically.
+ */
+export async function addTaskStep(args: {
+  taskId: string;
+  body: string;
+}): Promise<TaskStep | null> {
+  if (!supabaseEnabled) return null;
+  const supabase = createClient();
+  const { data: existing } = await supabase
+    .from("task_steps")
+    .select("step_order")
+    .eq("task_id", args.taskId)
+    .order("step_order", { ascending: false })
+    .limit(1);
+  const nextOrder = ((existing?.[0]?.step_order as number) ?? -1) + 1;
+  const { data, error } = await supabase
+    .from("task_steps")
+    .insert({
+      task_id: args.taskId,
+      step_order: nextOrder,
+      body: args.body,
+    })
+    .select("id, task_id, step_order, body, completed_at, completed_by, created_at")
+    .single();
+  if (error || !data) return null;
+  return {
+    id: data.id,
+    taskId: data.task_id,
+    stepOrder: data.step_order,
+    body: data.body,
+    completedAt: data.completed_at,
+    completedBy: data.completed_by,
+    createdAt: data.created_at,
+  };
+}
+
+/**
+ * Edit a step's body text. Body edits do NOT emit a chain event —
+ * only completion toggles do (per the 0032 trigger). Editable
+ * by any participant of the task per RLS.
+ */
+export async function editTaskStepBody(args: {
+  stepId: string;
+  body: string;
+}): Promise<void> {
+  if (!supabaseEnabled) return;
+  const supabase = createClient();
+  await supabase
+    .from("task_steps")
+    .update({ body: args.body })
+    .eq("id", args.stepId);
+}
+
+/**
+ * Delete a step. Tightening: only allowed when the step is NOT
+ * completed (we don't lose completion history that way; the row
+ * stays as the on-record evidence). Returns true on success.
+ */
+export async function deleteTaskStep(stepId: string): Promise<boolean> {
+  if (!supabaseEnabled) return false;
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("task_steps")
+    .delete()
+    .eq("id", stepId)
+    .is("completed_at", null);
+  return !error;
 }

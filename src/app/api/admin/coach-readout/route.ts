@@ -311,7 +311,13 @@ export async function GET() {
     rows: typeof tasksAll
   ): { total: number; completed: number; completionRate: number | null } {
     const total = rows.length;
-    const completed = rows.filter((t) => t.status === "Done").length;
+    // Status name fix (2026-06-15): the readout previously checked
+    // for "Done" but the UI status enum is "Completed" (see
+    // STATUS_TRANSITIONS in operations/[id]/page.tsx). With the
+    // wrong literal, the spawn-lineage completion rate read zero
+    // regardless of actual data. §3.5 honest measurement requires
+    // the literal to match the chain.
+    const completed = rows.filter((t) => t.status === "Completed").length;
     return {
       total,
       completed,

@@ -32,6 +32,8 @@ import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
+import { TaskStepChecklist } from "@/components/tasks/TaskStepChecklist";
+import { taskDisplayLabel } from "@/lib/tasks/statusLabels";
 
 /**
  * /dashboard/operations/[id] — task detail.
@@ -68,13 +70,9 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   Completed: [],
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  "To Do": "border-default bg-surface text-secondary",
-  "In Progress": "border-[#FACC15]/40 bg-[#FACC15]/10 text-brand",
-  Blocked: "border-red-500/40 bg-red-500/10 text-red-300",
-  "Needs Review": "border-arc-400/40 bg-arc-400/10 text-arc-300",
-  Completed: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
-};
+// STATUS_COLOR removed — taskDisplayLabel() in
+// src/lib/tasks/statusLabels.ts is the single source for status
+// presentation now. §A18 labels carry their own tone tokens.
 
 const STALE_DAYS = 4; // threshold for the constructive nudge per A7
 
@@ -279,11 +277,25 @@ export default function TaskDetailPage() {
                     Cleared via {task.gateMode} mode.
                   </p>
                 </div>
-                <span
-                  className={`text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded border ${STATUS_COLOR[task.status] ?? STATUS_COLOR["To Do"]}`}
-                >
-                  {task.status}
-                </span>
+                {/* §A18 — display label invites the right next
+                    behavior, not just describe state. Chain still
+                    stores the canonical task.status; we just relabel
+                    for the human reader. Icon + tone are pulled
+                    from the shared resolver so every task surface
+                    speaks the same invitation. */}
+                {(() => {
+                  const dl = taskDisplayLabel(task.status);
+                  const Icon = dl.icon;
+                  return (
+                    <span
+                      title={dl.invites}
+                      className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded border ${dl.tone.border} ${dl.tone.bg} ${dl.tone.text}`}
+                    >
+                      <Icon className="w-3 h-3" aria-hidden />
+                      {dl.label}
+                    </span>
+                  );
+                })()}
               </div>
 
               <div className="space-y-2 text-xs">
@@ -318,6 +330,22 @@ export default function TaskDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* Pillar 2 (Accountability) + Pillar 3 (Guidance) — the
+                interactive step checklist. Steps are seeded from the
+                Spawn Engine (when the task came from a Decision or
+                a chat selection); manual additions land at the
+                bottom. Per-step Coach is rendered inline so the
+                signal is A11-focused (this step, not the whole
+                task) and A16-composed (Coach reads the gate
+                answers + the step body together). */}
+            <TaskStepChecklist
+              taskId={task.id}
+              taskTitle={task.title}
+              gateWhat={task.gateWhat}
+              gateResources={task.gateResources}
+              gateRoles={task.gateRoles}
+            />
 
             {/* Participants + engagement (Pillar 2). Per A10, anyone
                 can see this; per A7, when we surface signals about
