@@ -31,17 +31,20 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
   };
 
   return (
-    // paddingTop = env(safe-area-inset-top) pushes the bar's content
-    // BELOW the iOS status bar zone when the PWA runs in standalone
-    // with viewport-fit=cover. On Android/desktop where the inset is
-    // 0px, there's no visual change. Without this, the title sat
-    // behind the system clock/battery on iOS PWA. The min-h ensures
-    // the bar grows tall enough to contain BOTH the safe-area buffer
-    // AND the h-11/h-16 content area; using h- alone would clip the
-    // padded content.
+    // pt-[env(...)] pushes the bar's content BELOW the iOS status
+    // bar zone when the PWA runs in standalone with viewport-fit=
+    // cover. On Android/desktop where the inset is 0px, no visual
+    // change. Tailwind arbitrary syntax is more reliable than a
+    // React inline style for env() CSS functions — the JIT compiler
+    // emits a real CSS rule with the env() function, where inline
+    // styles can sometimes get string-sanitized in transit.
+    //
+    // min-h-* (instead of h-*) so the bar grows tall enough to
+    // contain BOTH the safe-area buffer AND the original h-11/h-16
+    // content area. With box-sizing: border-box (the default) and
+    // a fixed height, the padded-down content would have squeezed.
     <header
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-      className="min-h-11 md:min-h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-3 md:px-6 sticky top-0 z-30 gap-2 md:gap-3"
+      className="pt-[env(safe-area-inset-top)] min-h-11 md:min-h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-3 md:px-6 sticky top-0 z-30 gap-2 md:gap-3"
     >
       <div className="flex items-center gap-2 min-w-0">
         <button
