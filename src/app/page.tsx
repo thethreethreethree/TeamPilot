@@ -6,91 +6,117 @@ import {
   BookOpen,
   Brain,
   CircleHelp,
-  Lightbulb,
+  Eye,
+  GitMerge,
+  Hourglass,
   MessageSquare,
   Repeat,
+  ShieldCheck,
   Sparkles,
-  UserMinus,
-  Users,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { BrandLogo, LightbulbMark } from "@/components/brand/Logo";
 
 /**
- * Landing page — rewritten 2026-06-02 for a non-technical business owner.
+ * Landing page — rewritten 2026-06-15 to surface the actual category
+ * claim, not a softer productivity-tool framing.
  *
- * Audience: founder / CEO / COO of a 20–500 person business. Uses Slack and a
- * task tracker, has heard of ChatGPT but isn't an AI expert. Lives in customers,
- * cash flow, hiring, and decisions — not in compliance frameworks.
+ * The product is not a better Notion. It is a problem-solving engine
+ * that runs the §1 Living Diagnosis loop against your team's actual
+ * work. Visitors must leave understanding that we are a different
+ * category — not a comparison shop against Asana, Linear, or
+ * ChatGPT-for-work.
  *
- * Voice rules in this rewrite:
- *  - No jargon. Words that need translation are banned: auditable, defensible,
- *    compliance, regulatory, structural, AI category, schema, framework.
- *  - Lead with the team problem they recognize, in plain English.
- *  - Translate every feature to a concrete business outcome.
- *  - Constitutional discipline is the backbone but it's almost invisible —
- *    one footer line. The product is the deliverable, not the philosophy.
+ * Voice rules:
+ *  - Lead with the category claim. Repeat it. Don't soften it.
+ *  - Plain English; the discipline is the moat, not the jargon.
+ *  - Every section earns the next click — confident but honest.
+ *  - Pilot-stage realism is in the copy (no fake "join 10,000
+ *    companies" social proof). The §A9 submission IS the credibility.
  */
 
 const teamProblems = [
   {
-    icon: BookOpen,
-    title: "Decisions disappear",
-    body: "Your team makes good decisions in meetings. A month later, nobody remembers why. The same problems get rediscussed. The same workarounds get reinvented.",
+    icon: Repeat,
+    title: "The same problems keep coming back.",
+    body: "Your team fixes the symptom. The root cause survives. Three months later, someone hits the same wall — and the team starts the diagnosis from scratch, because nobody recorded what was actually understood the first time.",
   },
   {
-    icon: UserMinus,
-    title: "When people leave, knowledge leaves with them",
-    body: "Your best people carry years of context in their heads. When they go, the next person starts from scratch — and makes the same mistakes the company already learned from.",
+    icon: BookOpen,
+    title: "Decisions evaporate the moment the meeting ends.",
+    body: "The reasoning behind a hard call lives in three people's heads. One leaves. One forgets. One was never in the room. The decision gets rediscussed in six months, with worse context than the first time.",
   },
   {
     icon: MessageSquare,
-    title: "Half the team is quietly using AI",
-    body: "People are using ChatGPT or other tools to draft messages, write plans, and shape decisions. You don't see what advice they're getting, whether it's right, or how to learn from it as a team.",
+    title: "AI is helping your team — silently.",
+    body: "Half your team is drafting messages through ChatGPT. You can't see what advice they're getting, whether it's right, or whether it's training them to think — or to skip thinking.",
   },
   {
-    icon: Repeat,
-    title: "The same issues keep coming back",
-    body: "If something has gone wrong three times this quarter, you'd want to know. But nobody on your team is connecting the dots — they're too busy solving each instance one at a time.",
+    icon: GitMerge,
+    title: "Knowledge leaves when people leave.",
+    body: "Your senior people carry the company's actual reasoning in their heads. When they go, the next person rebuilds it from instinct — and the team relives lessons it already paid for.",
   },
 ];
 
-const benefits = [
+const differentiators = [
   {
     icon: Brain,
-    title: "Every decision has a paper trail",
-    body: "Your team walks through a structured conversation for any meaningful decision. What's happening, what they think is going on, what they'd do. The reasoning is saved. Six months later, anyone can read it and understand the call.",
+    title: "Understanding precedes solving.",
+    body: "Before any action, ELOSTATE asks your team to name the actual problem — not the symptom. The discipline is structural, not advisory. Tasks can't be acted on until the gate is cleared. Decisions can't be asserted until the team states their own read first.",
   },
   {
     icon: Sparkles,
-    title: "Patterns get caught early",
-    body: "ELOSTATE watches what's happening across your team — tasks, status changes, recurring issues. When something is showing up over and over, it flags it. Before it flags it, it shows you the evidence.",
+    title: "The AI teaches. It doesn't take over.",
+    body: "Our Coach reads your team's drafts and surfaces patterns — never verdicts. It asks the question; your team renders the call. Over time, the Coach learns each individual's communication patterns and helps them grow, instead of doing the work for them.",
   },
   {
-    icon: Users,
-    title: "Knowledge survives turnover",
-    body: "Every decision your team makes — and the reasoning behind it — becomes part of your team's memory. When someone leaves, the next person starts with the actual history of how things get decided here, not a blank page.",
+    icon: GitMerge,
+    title: "Every decision has a paper trail. Permanently.",
+    body: "Every meaningful call your team makes — situation, diagnosis, reasoning, outcome — lands on an append-only record. Six months later, anyone can read the WHY. The record is the institutional memory most companies don't realize they're losing.",
   },
   {
-    icon: Lightbulb,
-    title: "AI that helps the team think, not skip thinking",
-    body: "The AI never tells you what to do. It asks what you think first, then offers its own perspective with the reasoning behind it. You stay in charge of every call. The AI just makes sure you're looking at the right things before you make it.",
+    icon: Eye,
+    title: "Whatever the System sees about you, you can see.",
+    body: "There is no shadow read. The data ELOSTATE forms about a person — their engagement patterns, their communication grades, the principles the Coach has cited to them — is visible to that person at the same level of detail. Transparency is structural, not policy.",
+  },
+];
+
+const method = [
+  {
+    step: "1",
+    title: "Understand",
+    body: "The team names what's actually happening. Patterns from past incidents surface as evidence. Half-understood problems can't reach action — the schema itself enforces it.",
+  },
+  {
+    step: "2",
+    title: "Engage",
+    body: "Decisions get a structured space to live. The 4-phase Decision Dialogue surfaces the situation, the team's read, the System's perspective, and the choice — with reasoning preserved for whoever reads it next.",
+  },
+  {
+    step: "3",
+    title: "Resolve",
+    body: "Actions land as tasks with explicit gates: what we're accomplishing, what we have, who's involved. Step-by-step progress is tracked transparently, with the Coach available at each step.",
+  },
+  {
+    step: "4",
+    title: "Learn",
+    body: "Outcomes feed back into the record. The System gets sharper about your specific team over time. Patterns you would have missed surface earlier. The loop closes, and the next problem starts with everything you've already learned.",
   },
 ];
 
 const outcomes = [
-  ["Fewer repeated mistakes.", "Your team stops solving the same problem twice."],
-  ["Faster onboarding.", "New hires can read the real history of how decisions get made here."],
-  ["Shorter, better meetings.", "Hard decisions get a structured place to live, so the weekly leadership meeting stops being a rerun."],
-  ["Confidence in AI without losing control.", "Instead of people quietly using ChatGPT and you wondering what they're getting back, AI is built into the workflow with full transparency."],
-  ["Real institutional memory.", "Six months in, ELOSTATE knows how your team makes calls. Two years in, it's a record competitors will never have."],
+  ["Recurring problems stop recurring.", "When the team understands the actual cause — and records it — the next instance gets caught earlier or doesn't happen at all."],
+  ["New hires arrive into a real history.", "Instead of starting from a blank page, they read how decisions actually get made here. Onboarding stops being institutional re-archaeology."],
+  ["Hard meetings get shorter.", "When the structured surface holds the reasoning, the weekly leadership meeting stops being a recap of last week's recap."],
+  ["AI is on the record, not in the shadows.", "Every Coach interaction is captured, scoped, and visible to the person it's about. Your team gains from the AI without losing the audit trail."],
+  ["The System knows your team better every month.", "Six months in, ELOSTATE has internalized how your team thinks. Two years in, it's organizational knowledge a competitor cannot replicate."],
 ];
 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-base text-primary">
-      {/* Header — theme-aware surface so the page chrome flips with the rest. */}
+      {/* Header */}
       <header className="border-b border-default bg-base/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5" aria-label="ELOSTATE — home">
@@ -109,42 +135,49 @@ export default function Landing() {
               href="/login"
               className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors"
             >
-              Get started <ArrowRight className="w-3 h-3" aria-hidden="true" />
+              Request access <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero — plain-English headline, team-problem framing */}
-      <section className="relative px-6 py-24 max-w-4xl mx-auto text-center">
-        {/* Bulb-glow ambient behind the hero — the brand's signature */}
+      {/* Hero — sharp category claim. Visitor leaves the first 5
+          seconds knowing what we are and what we are NOT. */}
+      <section className="relative px-6 py-20 md:py-28 max-w-5xl mx-auto text-center">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 flex items-start justify-center -z-10"
         >
           <div className="w-[600px] h-[600px] bulb-glow" />
         </div>
-        {/* Hero — canonical brand logo (bulb + wordmark stacked) */}
-        <div className="flex justify-center mb-8">
-          <BrandLogo width={200} height={200} priority className="shadow-glow-ember" />
+
+        <div className="flex justify-center mb-6">
+          <BrandLogo width={160} height={160} priority className="shadow-glow-ember" />
         </div>
-        <h1 className="text-4xl md:text-5xl font-bold text-primary leading-tight tracking-tight mb-5">
-          Your team makes big decisions every week.
-          <br className="hidden md:inline" />
-          {" "}Will you remember why six months from now?
-        </h1>
-        <p className="text-base text-secondary leading-relaxed max-w-2xl mx-auto mb-8">
-          ELOSTATE is software that helps your team think clearly together, write
-          down the reasoning behind every decision, and learn from what
-          actually worked. It uses AI — but the AI is built to help your team
-          think, not replace their thinking.
+
+        {/* The category claim. Direct. Repeated downstream so it
+            sticks even with a fast scroll. */}
+        <p className="text-[11px] uppercase tracking-[0.2em] text-brand font-semibold mb-4">
+          Not a productivity tool
         </p>
+        <h1 className="text-4xl md:text-6xl font-bold text-primary leading-[1.05] tracking-tight mb-6">
+          The team-based <br className="hidden md:inline" />
+          <span className="text-brand">problem-solving engine.</span>
+        </h1>
+        <p className="text-base md:text-lg text-secondary leading-relaxed max-w-2xl mx-auto mb-8">
+          Productivity tools optimize how fast your team works. ELOSTATE
+          optimizes <em className="text-primary not-italic font-semibold">
+          how well your team thinks together</em> — turning recurring
+          problems into resolved, recorded, structural knowledge that
+          compounds every month.
+        </p>
+
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
             href="/login"
             className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
-            Try ELOSTATE <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            Request pilot access <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
           <Link
             href="/pitch"
@@ -152,47 +185,37 @@ export default function Landing() {
           >
             Watch the pitch →
           </Link>
-          <Link
-            href="/dashboard"
-            className="text-xs text-brand hover:text-primary px-5 py-3"
-          >
-            See it in action →
-          </Link>
         </div>
-        <p className="text-[10px] text-muted mt-4 font-mono">
-          Free preview · no setup needed
+
+        <p className="text-[11px] text-muted mt-5 font-mono">
+          Pilot-stage · invite-friendly companies welcome
         </p>
       </section>
 
-      {/* The problem the team recognizes */}
+      {/* The problem — sharpen the existing framing */}
       <section className="px-6 py-16 max-w-5xl mx-auto">
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
           The problem most growing teams have
         </p>
-        <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-5 max-w-3xl mx-auto leading-tight">
-          It&apos;s not that your team isn&apos;t smart. <br className="hidden md:inline" />
-          {" "}It&apos;s that nobody&apos;s writing down what they figured out.
+        <h2 className="text-2xl md:text-4xl font-bold text-primary text-center mb-5 max-w-3xl mx-auto leading-tight">
+          Your team isn&apos;t failing to work.<br className="hidden md:inline" />
+          {" "}<span className="text-brand">It&apos;s failing to learn.</span>
         </h2>
-        <p className="text-sm text-secondary leading-relaxed max-w-3xl mx-auto text-center mb-12">
-          Most teams under 500 people run on the memory of a handful of key
-          people. That works — right up until those people get pulled in too
-          many directions, or leave. The decisions that should compound into
-          institutional knowledge are evaporating instead.
+        <p className="text-sm md:text-base text-secondary leading-relaxed max-w-3xl mx-auto text-center mb-12">
+          Most growing teams run on the memory of three or four key
+          people. It works — until those people get pulled in too many
+          directions, or leave. The decisions that should compound into
+          institutional intelligence evaporate instead. The same
+          conversations keep happening. The same mistakes keep landing.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {teamProblems.map((item) => {
             const Icon = item.icon;
             return (
-              <div
-                key={item.title}
-                className="glass-card p-5"
-              >
+              <div key={item.title} className="glass-card p-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <Icon
-                    className="w-4 h-4 text-brand"
-                    aria-hidden="true"
-                  />
+                  <Icon className="w-4 h-4 text-brand" aria-hidden="true" />
                   <h3 className="text-sm font-semibold">{item.title}</h3>
                 </div>
                 <p className="text-xs text-secondary leading-relaxed">
@@ -202,39 +225,39 @@ export default function Landing() {
             );
           })}
         </div>
-
-        <p className="text-xs text-muted italic text-center mt-8 max-w-2xl mx-auto">
-          You feel these every week. ELOSTATE exists to close them — one team
-          decision at a time.
-        </p>
       </section>
 
-      {/* What ELOSTATE actually does — plain English */}
-      <section className="px-6 py-16 max-w-5xl mx-auto">
+      {/* What ELOSTATE actually IS — the category claim, expanded.
+          This is the section the user explicitly asked for: visitor
+          leaves understanding we are not just another productivity
+          tool, we are a different category. */}
+      <section className="px-6 py-20 max-w-5xl mx-auto">
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
-          What ELOSTATE actually does
+          What ELOSTATE actually is
         </p>
-        <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-3 max-w-3xl mx-auto leading-tight">
-          A second brain for how your team makes calls.
+        <h2 className="text-2xl md:text-4xl font-bold text-primary text-center mb-6 max-w-3xl mx-auto leading-tight">
+          A discipline, made executable.
         </h2>
-        <p className="text-sm text-secondary leading-relaxed max-w-2xl mx-auto text-center mb-12">
-          ELOSTATE lives next to the tools your team already uses. It doesn&apos;t
-          replace your task tracker or your chat app — it captures the
-          reasoning that those tools throw away.
+        <p className="text-sm md:text-base text-secondary leading-relaxed max-w-3xl mx-auto text-center mb-10">
+          ELOSTATE is not productivity software with AI features bolted
+          on. It is a problem-solving discipline encoded as runtime —
+          a participant in your team&apos;s thinking that notices,
+          surfaces, suggests, and remembers. The constitution that
+          governs how it behaves is the same constitution governing
+          how we built it. Competitors can copy features. They cannot
+          easily copy a discipline.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {benefits.map((b) => {
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+          {differentiators.map((b) => {
             const Icon = b.icon;
             return (
               <div key={b.title} className="glass-card p-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <Icon
-                    className="w-4 h-4 text-brand"
-                    aria-hidden="true"
-                  />
+                  <Icon className="w-4 h-4 text-brand" aria-hidden="true" />
                   <h3 className="text-sm font-semibold">{b.title}</h3>
                 </div>
-                <p className="text-xs text-secondary leading-relaxed">
+                <p className="text-xs md:text-sm text-secondary leading-relaxed">
                   {b.body}
                 </p>
               </div>
@@ -243,13 +266,102 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* What this means for the business — outcome-led */}
+      {/* The Method — translation of §1 Living Diagnosis loop into
+          plain English so the visitor sees the actual engine, not a
+          feature list. */}
+      <section className="px-6 py-20 max-w-5xl mx-auto">
+        <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
+          How the engine runs
+        </p>
+        <h2 className="text-2xl md:text-4xl font-bold text-primary text-center mb-6 max-w-3xl mx-auto leading-tight">
+          One loop. Every problem. Sharper every cycle.
+        </h2>
+        <p className="text-sm md:text-base text-secondary leading-relaxed max-w-2xl mx-auto text-center mb-12">
+          Every meaningful problem your team faces runs through the same
+          four-phase loop. Skipping a phase isn&apos;t an option — the
+          schema enforces it. The same loop is how the System itself
+          gets sharper about your team over time.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {method.map((m) => (
+            <div key={m.step} className="glass-card p-5 relative">
+              <div className="flex items-center gap-2 mb-3">
+                <div
+                  aria-hidden
+                  className="w-8 h-8 rounded-lg bg-[#FACC15]/10 border border-[#FACC15]/30 text-brand text-sm font-bold flex items-center justify-center"
+                >
+                  {m.step}
+                </div>
+                <h3 className="text-sm font-semibold text-primary">{m.title}</h3>
+              </div>
+              <p className="text-xs text-secondary leading-relaxed">
+                {m.body}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-xs text-muted italic text-center mt-8 max-w-2xl mx-auto">
+          Understand → Engage → Resolve → Learn. Then again, with
+          everything you just learned baked in.
+        </p>
+      </section>
+
+      {/* The honesty section — the §3.4 commitment as feature. This
+          is the radical move: we don't promise instant results, and
+          that refusal IS the moat. Most landing pages would hide
+          this. We lead with it. */}
+      <section className="px-6 py-20 max-w-4xl mx-auto">
+        <div className="glass-card p-8 md:p-10 border border-[#FACC15]/30 bg-[#FACC15]/[0.03]">
+          <div className="flex items-start gap-3 mb-4">
+            <Hourglass className="w-5 h-5 text-brand shrink-0 mt-1" aria-hidden />
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-brand font-semibold mb-1">
+                Our refusal is the proof
+              </p>
+              <h2 className="text-xl md:text-3xl font-bold text-primary leading-tight">
+                We refuse to deliver instant results.<br className="hidden md:inline" />
+                {" "}<span className="text-brand">And that&apos;s the point.</span>
+              </h2>
+            </div>
+          </div>
+          <div className="text-sm md:text-base text-secondary leading-relaxed space-y-3 mt-6">
+            <p>
+              Your first 30 days on ELOSTATE, the AI guidance is OFF
+              by default — intentionally. We&apos;re capturing an
+              honest baseline of how your team operates before any AI
+              guidance touches the work.
+            </p>
+            <p>
+              On Day 30, the guidance unlocks. The next 30 days are a
+              single-variable intervention — the only thing that
+              changed is the System. Any improvement is attributable
+              to the method, not to luck or circumstance.
+            </p>
+            <p>
+              On Day 60, you have actual evidence. Most software
+              promises results on day one — which means most software
+              is claiming understanding it cannot possibly have.
+              We&apos;d rather lose the impatient customer than ship a
+              lie.
+            </p>
+            <p className="text-primary font-semibold pt-2">
+              The discipline that built the product is the discipline
+              that demonstrates it works.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Outcomes — what changes for the business */}
       <section className="px-6 py-16 max-w-4xl mx-auto">
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
-          What this means for your business
+          What changes for your business
         </p>
-        <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-10 leading-tight">
-          The boring version: your team gets better at deciding.
+        <h2 className="text-2xl md:text-4xl font-bold text-primary text-center mb-10 leading-tight">
+          The boring version:<br className="hidden md:inline" />
+          {" "}<span className="text-brand">your team gets sharper at thinking together.</span>
         </h2>
         <div className="space-y-3">
           {outcomes.map(([headline, body], i) => (
@@ -269,85 +381,75 @@ export default function Landing() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted italic text-center mt-8 max-w-2xl mx-auto">
-          Not flashier dashboards. Not faster output. Just clearer thinking,
-          captured — every week, getting better at your specific team.
-        </p>
       </section>
 
-      {/* Skeptic catcher */}
+      {/* Skeptic catcher — the four hard questions, answered
+          honestly. Includes the category-collision questions
+          (ChatGPT, Notion AI, etc.) because that's what the visitor
+          is actually thinking. */}
       <section className="px-6 py-16 max-w-3xl mx-auto">
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
-          A few honest questions you might be having
+          The honest questions
         </p>
         <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-10 leading-tight">
-          Is this actually different from the other AI tools?
+          What you&apos;re probably wondering.
         </h2>
-        <div className="space-y-5 text-sm text-secondary leading-relaxed">
-          <div>
-            <p className="text-primary font-semibold mb-1">
-              &quot;Will my team actually use this?&quot;
-            </p>
-            <p>
-              ELOSTATE sits in the moments your team is already pausing — the
-              hard decision, the messy meeting, the recurring problem. It
-              doesn&apos;t add work; it gives the work you already do a place
-              to live where it stops getting lost.
-            </p>
-          </div>
-          <div>
-            <p className="text-primary font-semibold mb-1">
-              &quot;We already use ChatGPT. Why this?&quot;
-            </p>
-            <p>
-              ChatGPT is a smart assistant for one person. ELOSTATE is a memory
-              system for the whole team. ChatGPT forgets the conversation as
-              soon as you close the tab. ELOSTATE remembers — and learns from
-              what actually worked here over months.
-            </p>
-          </div>
-          <div>
-            <p className="text-primary font-semibold mb-1">
-              &quot;Won&apos;t the AI just tell my team what to do?&quot;
-            </p>
-            <p>
-              No — and on purpose. The AI is built to ask your team what they
-              think first, then offer perspective. Your team stays in charge
-              of every decision. The AI just makes sure they&apos;re looking
-              at the right things first.
-            </p>
-          </div>
-          <div>
-            <p className="text-primary font-semibold mb-1">
-              &quot;Is my data safe?&quot;
-            </p>
-            <p>
-              Your data is yours. It lives in your own account. You can
-              export everything at any time. The AI that learns from your team
-              learns only about your team — never shared, never used to train
-              models for someone else.
-            </p>
-          </div>
+        <div className="space-y-6 text-sm text-secondary leading-relaxed">
+          <Question q="Isn't this just ChatGPT or Notion AI?">
+            ChatGPT is a smart assistant for one person; it forgets you
+            the moment you close the tab. Notion AI auto-completes
+            your prose. ELOSTATE is a team-level participant that
+            captures reasoning, surfaces patterns across people and
+            time, and teaches your team to think more clearly — not
+            faster. Different category, different moat.
+          </Question>
+          <Question q="Won't the AI just tell my team what to do?">
+            No — by constitutional rule. The System asks your team
+            what they think first, surfaces patterns it has noticed,
+            and offers a perspective with explicit reasoning. Your
+            team renders every verdict. The AI is a participant in
+            thinking, not a substitute for it.
+          </Question>
+          <Question q="Will my team actually use this?">
+            ELOSTATE sits in the moments your team is already pausing —
+            the hard decision, the recurring problem, the messy
+            meeting. It doesn&apos;t add work; it gives the work
+            you&apos;re already doing a place to live where it stops
+            getting lost. The Coach surfaces only when there&apos;s
+            something worth saying.
+          </Question>
+          <Question q="What about data and privacy?">
+            Whatever ELOSTATE sees about a person, that person can
+            see. There is no shadow read. Your team&apos;s data is
+            yours — not shared, not used to train models for anyone
+            else. Read the full{" "}
+            <Link href="/privacy" className="text-brand underline">
+              Privacy Policy
+            </Link>{" "}
+            for the structural details.
+          </Question>
         </div>
       </section>
 
-      {/* Closing CTA */}
+      {/* Closing CTA — pilot-stage realism, confident in scope */}
       <section className="px-6 py-20 max-w-4xl mx-auto text-center">
-        <h2 className="text-3xl md:text-4xl font-bold text-primary leading-tight mb-4">
-          Start with one decision this week.
+        <h2 className="text-3xl md:text-5xl font-bold text-primary leading-tight mb-4">
+          One problem.<br className="hidden md:inline" />
+          {" "}<span className="text-brand">One real walk-through.</span>
         </h2>
-        <p className="text-sm text-secondary mb-8 max-w-xl mx-auto leading-relaxed">
-          You don&apos;t have to roll this out across the whole team to see
-          whether it works. Take one real decision your team is wrestling with
-          right now, walk it through ELOSTATE, and see if the conversation that
-          comes out is one you&apos;d want preserved.
+        <p className="text-sm md:text-base text-secondary mb-8 max-w-xl mx-auto leading-relaxed">
+          Take one real problem your team is wrestling with this week.
+          Walk it through ELOSTATE end-to-end. Read the captured
+          reasoning at the end. Decide for yourself whether that
+          conversation is one you&apos;d want preserved as part of
+          how your team thinks.
         </p>
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
             href="/login"
-            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
+            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
-            Get started — free preview{" "}
+            Request pilot access{" "}
             <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
           <Link
@@ -357,19 +459,20 @@ export default function Landing() {
             <CircleHelp className="w-4 h-4" aria-hidden="true" /> See it in action
           </Link>
         </div>
+        <p className="text-[11px] text-muted mt-4 font-mono">
+          Pilot-stage · 1-3 friendly companies at a time
+        </p>
       </section>
 
-      {/* Footer — the discipline is named, but its source document is
-          the user's private IP and not linked. Terms + Privacy are
-          required for pilot onboarding (legal table stakes); the
-          constitution itself stays internal. */}
+      {/* Footer */}
       <footer className="border-t border-default mt-10 px-6 py-8 text-center">
         <p className="text-[10px] text-muted mb-1">
-          ELOSTATE is built on a strict discipline we call our constitution —
-          the rules of the System are encoded as runtime, not advisory.
+          ELOSTATE is built on a strict discipline we call our
+          constitution — the rules of the System are encoded as
+          runtime, not advisory.
         </p>
         <p className="text-[10px] text-muted mb-2">
-          © {new Date().getFullYear()} ELOSTATE · Constitution v1.4 · 4 amendments ratified
+          © {new Date().getFullYear()} ELOSTATE
         </p>
         <div className="flex items-center justify-center gap-3 text-[10px] text-muted">
           <Link href="/terms" className="hover:text-primary underline">
@@ -386,6 +489,24 @@ export default function Landing() {
         </div>
       </footer>
       <InstallPrompt />
+    </div>
+  );
+}
+
+function Question({
+  q,
+  children,
+}: {
+  q: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-primary font-semibold mb-1.5 flex items-start gap-2">
+        <ShieldCheck className="w-4 h-4 text-brand mt-0.5 shrink-0" aria-hidden />
+        {q}
+      </p>
+      <div className="pl-6">{children}</div>
     </div>
   );
 }
