@@ -310,6 +310,100 @@ const NEW_SPAWN_ITEMS = [
     assignee: "partners",
     structural: true,
   },
+
+  // ─── Multi-tenant isolation (State A pilot-readiness) ────────
+  {
+    id: "tenant-topics-cross-company-block",
+    title: "Topics from another company are unreachable",
+    instructions:
+      "(JOHN) On a test setup with two companies (A and B), sign in as a member of A. Try to fetch /api/chats/list and inspect for any topic_id belonging to company B. Also try GET /dashboard/chats/<id-of-B-topic> directly via URL.",
+    expected:
+      "Company A's listing contains zero rows from company B. Direct navigation to B's topic id returns 'Topic not found' (RLS filters the row from chat_topics SELECT). No row leakage; the company isolation is enforced at the database, not the UI.",
+    assignee: "john",
+    structural: true,
+  },
+  {
+    id: "tenant-tasks-cross-company-block",
+    title: "Tasks from another company are unreachable",
+    instructions:
+      "(JOHN) Same two-company setup. From company A's session, query SELECT * FROM tasks via the Supabase SQL editor (with the user's JWT, NOT service role). Verify only company A's tasks return.",
+    expected:
+      "Query returns 0 rows from company B. RLS on tasks scopes by company_id via auth_company_id(). Same for task_steps, task_messages, task_participants — every table tied to tasks should isolate cleanly.",
+    assignee: "john",
+    structural: true,
+  },
+  {
+    id: "tenant-rls-helper-is-topic-admin",
+    title: "is_topic_admin() correctly scopes to company",
+    instructions:
+      "(JOHN) After migration 0033 is applied: as a CEO of company A, call SELECT is_topic_admin('<topic-id-of-company-B>'). Should return false. Then call with a topic id from company A where you're NOT a participant. Should still return true (CEO of the company gives admin parity).",
+    expected:
+      "is_topic_admin returns FALSE for cross-company topics regardless of caller role. Returns TRUE for any same-company topic when the caller has profile.role in (CEO/COO/admin). Returns TRUE for any topic where caller has chat_participants.role='admin'.",
+    assignee: "john",
+    structural: true,
+  },
+  {
+    id: "tenant-events-chain-scoped",
+    title: "Chain events are company-scoped",
+    instructions:
+      "(JOHN) Verify the events table SELECT policy. From company A's session: SELECT count(*) FROM events. Should return only events with company_id matching A. Service-role calls bypass this — that's correct, only user-level calls should be scoped.",
+    expected:
+      "User-level SELECT returns 0 events from any other company. The §3.1 chain isolation is a hard requirement — cross-tenant event leakage would undermine every measurement claim.",
+    assignee: "john",
+    structural: true,
+  },
+  {
+    id: "tenant-rls-update-blocked-direct",
+    title: "Direct curl can't bypass RLS admin gates",
+    instructions:
+      "(JOHN) As a regular Member (not CEO/COO/admin, not topic admin), try to PATCH /rest/v1/chat_topics?id=eq.<topic-id> with body {\"title\":\"hacked\"} using the user's anon-key + JWT.",
+    expected:
+      "Supabase returns 0 affected rows or a permission error. Post-0033, only is_topic_admin() callers can UPDATE chat_topics. The UI's iAmAdmin check is no longer the only defense — the database enforces it too.",
+    assignee: "john",
+    structural: true,
+  },
+
+  // ─── Pilot-readiness scaffolding ─────────────────────────────
+  {
+    id: "pilot-terms-page-renders",
+    title: "/terms page exists and reads constitutionally",
+    instructions:
+      "Open /terms (no auth required). Read top to bottom.",
+    expected:
+      "Page renders. Names §3.4 as 'the honesty window' and explains the 60-day cycle in plain English. Does NOT read as boilerplate ToS. Footer is marked v0.1 — pilot ready, not yet attorney-reviewed for commercial sale. Linked from landing footer and /login.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "pilot-privacy-page-a10",
+    title: "/privacy page foregrounds §A10 — no shadow read",
+    instructions:
+      "Open /privacy. Read the top section.",
+    expected:
+      "The 'core promise' section opens with 'Whatever ELOSTATE records about you, you can see.' Explains who-sees-what concretely. Names the third-party services (Supabase, Vercel, Anthropic). Retention section explains §3.1 append-only honestly — redaction not deletion. v0.1 flag at the bottom.",
+    assignee: "partners",
+    structural: true,
+  },
+  {
+    id: "pilot-sentry-dsn-gating",
+    title: "Sentry is a no-op without NEXT_PUBLIC_SENTRY_DSN",
+    instructions:
+      "(JOHN) On local dev without NEXT_PUBLIC_SENTRY_DSN set, throw an error in the browser console. Then check Sentry.io to confirm nothing was sent.",
+    expected:
+      "Sentry SDK initializes but doesn't send (DSN guard in sentry.*.config.ts). No 'Sentry not configured' warnings in console; no network requests to ingest.sentry.io. Production build with DSN set DOES capture (verify after Vercel env is configured).",
+    assignee: "john",
+    structural: true,
+  },
+  {
+    id: "pilot-sidebar-cycle-badge",
+    title: "Sidebar shows §3.4 cycle phase badge",
+    instructions:
+      "Sign in. Look at the Company pill at the top of the sidebar.",
+    expected:
+      "Under the company name, a small badge with Hourglass icon: 'M1 · Day N' (arc-cyan during control), 'M2 · Day N' (emerald during intervention), or 'Day N · compounding' (emerald after). Hover tooltip explains what the phase invites. If the company skipped control, '· skipped' chip stays forever per §3.1.",
+    assignee: "partners",
+    structural: true,
+  },
 ];
 
 // ─── Run the patch ────────────────────────────────────────────────

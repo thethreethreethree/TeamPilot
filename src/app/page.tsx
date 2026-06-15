@@ -379,6 +379,10 @@ export default function Landing() {
           <Link href="/privacy" className="hover:text-primary underline">
             Privacy
           </Link>
+          <span aria-hidden>·</span>
+          <Link href="/help" className="hover:text-primary underline">
+            Help
+          </Link>
         </div>
       </footer>
       <InstallPrompt />

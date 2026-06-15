@@ -23,8 +23,10 @@ import {
   Beaker,
   Bell,
   Heart,
+  Hourglass,
   X,
 } from "lucide-react";
+import { resolveCyclePhase } from "@/lib/cycle/phase";
 import { cn } from "@/lib/utils";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { CONSTITUTION } from "@/lib/constitution";
@@ -79,6 +81,15 @@ export default function Sidebar() {
   const [companyName, setCompanyName] = useState("—");
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
+  // §3.4 cycle phase for the sidebar badge — so the founder /
+  // admin always sees where they are in the 60-day proof window
+  // without navigating to settings.
+  const [cyclePhase, setCyclePhase] = useState<{
+    phase: "control" | "intervention" | "ongoing";
+    daysIntoCycle: number;
+    daysRemainingInPhase: number;
+    skippedControl: boolean;
+  } | null>(null);
   const unread = useUnreadNotifications();
   // Mobile drawer state — controlled via a custom event the TopBar
   // hamburger dispatches. Closes when the user navigates (effect on
@@ -111,14 +122,32 @@ export default function Sidebar() {
       if (!auth.user) return;
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, role, companies(name)")
+        .select(
+          "full_name, role, companies(name, cycle_started_at, cycle_control_skipped_at)"
+        )
         .eq("id", auth.user.id)
         .maybeSingle();
       if (profile) {
         setUserName(profile.full_name ?? auth.user.email ?? "");
         setUserRole(profile.role ?? "");
-        const company = profile.companies as { name?: string } | null;
+        const company = profile.companies as {
+          name?: string;
+          cycle_started_at?: string;
+          cycle_control_skipped_at?: string | null;
+        } | null;
         if (company?.name) setCompanyName(company.name);
+        if (company?.cycle_started_at) {
+          const details = resolveCyclePhase({
+            cycleStartedAt: company.cycle_started_at,
+            cycleControlSkippedAt: company.cycle_control_skipped_at ?? null,
+          });
+          setCyclePhase({
+            phase: details.phase,
+            daysIntoCycle: details.daysIntoCycle,
+            daysRemainingInPhase: details.daysRemainingInPhase,
+            skippedControl: details.skippedControl,
+          });
+        }
       }
     })();
   }, []);
@@ -199,9 +228,39 @@ export default function Sidebar() {
           title="Edit company profile"
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-surface-raised transition-colors group"
         >
-          <div className="text-left">
+          <div className="text-left min-w-0 flex-1">
             <p className="text-xs text-muted uppercase tracking-widest mb-0.5">Company</p>
-            <p className="text-sm font-medium text-primary">{companyName}</p>
+            <p className="text-sm font-medium text-primary truncate">{companyName}</p>
+            {/* §3.4 cycle phase badge — always-visible orientation
+                for the admin so they know where in the 60-day proof
+                window their company is. Uses the same tone vocabulary
+                as the Settings panel: arc-cyan during control,
+                emerald after. Skipped-control stays flagged forever
+                per the §3.1 append-only contract. */}
+            {cyclePhase && (
+              <p
+                title={
+                  cyclePhase.phase === "control"
+                    ? `Month 1 control · Coach unlocks in ${cyclePhase.daysRemainingInPhase} day${cyclePhase.daysRemainingInPhase === 1 ? "" : "s"}`
+                    : cyclePhase.phase === "intervention"
+                      ? `Month 2 single-variable intervention · ${cyclePhase.daysRemainingInPhase} days until proof checkpoint`
+                      : "Past the §3.4 proof checkpoint — compounding window"
+                }
+                className={`inline-flex items-center gap-1 text-[10px] font-mono mt-0.5 ${
+                  cyclePhase.phase === "control"
+                    ? "text-arc-300"
+                    : "text-emerald-300"
+                }`}
+              >
+                <Hourglass className="w-2.5 h-2.5" aria-hidden />
+                {cyclePhase.phase === "control" && `M1 · Day ${cyclePhase.daysIntoCycle}`}
+                {cyclePhase.phase === "intervention" && `M2 · Day ${cyclePhase.daysIntoCycle}`}
+                {cyclePhase.phase === "ongoing" && `Day ${cyclePhase.daysIntoCycle} · compounding`}
+                {cyclePhase.skippedControl && (
+                  <span className="text-accent-text">· skipped</span>
+                )}
+              </p>
+            )}
           </div>
           <ChevronRight className="w-3.5 h-3.5 text-muted group-hover:text-secondary transition-colors" />
         </Link>
