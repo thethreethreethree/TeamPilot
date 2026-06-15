@@ -31,7 +31,18 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
   };
 
   return (
-    <header className="h-11 md:h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-3 md:px-6 sticky top-0 z-30 gap-2 md:gap-3">
+    // paddingTop = env(safe-area-inset-top) pushes the bar's content
+    // BELOW the iOS status bar zone when the PWA runs in standalone
+    // with viewport-fit=cover. On Android/desktop where the inset is
+    // 0px, there's no visual change. Without this, the title sat
+    // behind the system clock/battery on iOS PWA. The min-h ensures
+    // the bar grows tall enough to contain BOTH the safe-area buffer
+    // AND the h-11/h-16 content area; using h- alone would clip the
+    // padded content.
+    <header
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      className="min-h-11 md:min-h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-3 md:px-6 sticky top-0 z-30 gap-2 md:gap-3"
+    >
       <div className="flex items-center gap-2 min-w-0">
         <button
           type="button"
