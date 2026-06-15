@@ -88,6 +88,12 @@ type SpawnBlock = {
   total: number;
 };
 
+type StepsBlock = {
+  completed: number;
+  reopened: number;
+  net: number;
+};
+
 type GradeBlock = {
   productive: number;
   neutral: number;
@@ -114,6 +120,7 @@ type Readout = {
   surfaces: SurfaceStats[];
   cycle: CycleBlock | null;
   tasksSpawn: SpawnBlock;
+  tasksSteps30d: StepsBlock;
   grades: GradeBlock;
   analyze: AnalyzeBlock;
   generatedAt: string;
@@ -433,6 +440,73 @@ export default function CoachReadoutPage() {
                       />
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+
+            {/* Step completion velocity — reads the new
+                task.step_completed / task.step_reopened chain
+                events from migration 0032. Answers "are the
+                spawned steps actually getting done?" Both counts
+                shown side-by-side per §A11 — a reopened step is
+                data, not a verdict (sometimes the diagnosis was
+                wrong and the reopen is correct). */}
+            <div className="glass-card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-brand" aria-hidden />
+                <h2 className="text-sm font-semibold text-primary">
+                  Step completion velocity (last 30 days)
+                </h2>
+              </div>
+              <p className="text-[11px] text-muted leading-relaxed mb-4">
+                The §1.6-on-tasks question: are spawned plans
+                actually getting executed step by step? Both
+                completed and reopened counts surface together —
+                reopen is data, not failure. A high net positive
+                with a low reopen rate is the momentum signal;
+                high reopen with low net means the gate diagnoses
+                aren&apos;t holding under contact with reality.
+              </p>
+              {data.tasksSteps30d.completed === 0 &&
+              data.tasksSteps30d.reopened === 0 ? (
+                <p className="text-xs text-muted text-center py-6">
+                  No step events in the last 30 days. Either no
+                  tasks have spawned steps yet, or no steps have
+                  been checked. The chain populates as the team uses
+                  the interactive checklist.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  <GradeStat
+                    label="Steps completed"
+                    count={data.tasksSteps30d.completed}
+                    total={
+                      data.tasksSteps30d.completed +
+                      data.tasksSteps30d.reopened
+                    }
+                    tone="emerald"
+                  />
+                  <GradeStat
+                    label="Steps reopened"
+                    count={data.tasksSteps30d.reopened}
+                    total={
+                      data.tasksSteps30d.completed +
+                      data.tasksSteps30d.reopened
+                    }
+                    tone="amber"
+                  />
+                  <div className="rounded-lg border border-default bg-surface/40 p-3">
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-secondary">
+                      Net momentum
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-primary">
+                      {data.tasksSteps30d.net > 0 ? "+" : ""}
+                      {data.tasksSteps30d.net}
+                    </p>
+                    <p className="text-[10px] text-muted font-mono">
+                      completed − reopened
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

@@ -132,17 +132,26 @@ export async function PATCH(req: NextRequest) {
 
   // Whitelist mutable fields so a caller can't sneak in `company_id`, `deleted_at`,
   // `created_at`, etc. via the API.
+  // Gate answer fields included so the persistent gate editor (S3)
+  // can save inline. gate_last_edited_at is stamped automatically by
+  // the trg_stamp_task_gate_edited trigger from 0032 — callers don't
+  // need to set it. assignee_user_id surfaces here so the future
+  // assignee-FK UI can land without a route change.
   const allowed = [
     "title",
     "description",
     "department",
     "assignee",
+    "assignee_user_id",
     "status",
     "priority",
     "ai_priority_score",
     "impact_level",
     "blocker_reason",
     "due_date",
+    "gate_what",
+    "gate_resources",
+    "gate_roles",
   ];
   const safePatch: Record<string, unknown> = {};
   for (const k of Object.keys(patch)) {

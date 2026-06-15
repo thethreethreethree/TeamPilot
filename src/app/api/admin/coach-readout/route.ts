@@ -337,6 +337,37 @@ export async function GET() {
     total: tasksAll.length,
   };
 
+  // Step completion velocity — reads the new task.step_completed
+  // chain events from migration 0032. Answers the §1.6-on-tasks
+  // question: are spawned-from-structured-source tasks executing
+  // their steps at a different rate than direct-created tasks?
+  // Honest measurement requires the new schema; falls back to zero
+  // until 0032's chain events accumulate.
+  const stepWindowStart = new Date(
+    Date.now() - 30 * 24 * 60 * 60 * 1000
+  ).toISOString();
+  const { data: stepEvents } = await supabase
+    .from("events")
+    .select("kind, subject, created_at")
+    .in("kind", ["task.step_completed", "task.step_reopened"])
+    .gte("created_at", stepWindowStart)
+    .limit(2000);
+  let stepsCompleted30d = 0;
+  let stepsReopened30d = 0;
+  for (const e of stepEvents ?? []) {
+    if (e.kind === "task.step_completed") stepsCompleted30d += 1;
+    else if (e.kind === "task.step_reopened") stepsReopened30d += 1;
+  }
+  const tasksSteps30d = {
+    completed: stepsCompleted30d,
+    reopened: stepsReopened30d,
+    /** Net completion = completed - reopened. The §A11 framing: a
+     *  step that re-opens is data, not a verdict; sometimes the
+     *  diagnosis was wrong and the re-open is correct. The readout
+     *  shows both counts side-by-side so the reader interprets. */
+    net: stepsCompleted30d - stepsReopened30d,
+  };
+
   // ─── Coach v5 baseline & analyze patterns ───────────────────
   // The Encouragement System grade mix is the user's communication
   // baseline. §3.5 differentiated metric — "better" is downstream
@@ -425,6 +456,7 @@ export async function GET() {
     surfaces,
     cycle: cycleBlock,
     tasksSpawn,
+    tasksSteps30d,
     grades,
     analyze: analyzeBlock,
     generatedAt: new Date().toISOString(),

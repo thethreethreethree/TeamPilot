@@ -33,6 +33,7 @@ import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import { TaskStepChecklist } from "@/components/tasks/TaskStepChecklist";
+import { TaskGateEditor } from "@/components/tasks/TaskGateEditor";
 import { taskDisplayLabel } from "@/lib/tasks/statusLabels";
 
 /**
@@ -298,18 +299,27 @@ export default function TaskDetailPage() {
                 })()}
               </div>
 
-              <div className="space-y-2 text-xs">
-                <Row label="What we're accomplishing" value={task.gateWhat} />
-                {task.gateMode === "real" && (
-                  <>
-                    <Row label="Resources we have" value={task.gateResources} />
-                    <Row label="Who's involved + their roles" value={task.gateRoles} />
-                  </>
-                )}
-                {task.dueDate && (
+              {/* Persistent gate editor — per user's design choice:
+                  gate answers stay editable on the task forever; the
+                  trigger from 0032 stamps gate_last_edited_at on every
+                  edit so we can surface "Last edited N ago" as a
+                  count (§A11 — fact, not verdict). */}
+              <TaskGateEditor
+                taskId={task.id}
+                gateMode={task.gateMode}
+                gateWhat={task.gateWhat}
+                gateResources={task.gateResources}
+                gateRoles={task.gateRoles}
+                gateLastEditedAt={task.gateLastEditedAt}
+                onSaved={() => {
+                  void load();
+                }}
+              />
+              {task.dueDate && (
+                <div className="text-xs pt-2 border-t border-default">
                   <Row label="Deadline" value={task.dueDate} />
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Status transitions */}
               {(STATUS_TRANSITIONS[task.status] ?? []).length > 0 && (
