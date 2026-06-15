@@ -35,7 +35,17 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Team Chat",
-    statusBarStyle: "black-translucent",
+    // statusBarStyle "default" → iOS renders the status bar ABOVE
+    // the app content (the page starts BELOW the clock/battery
+    // strip). Was "black-translucent" before, which extends the
+    // page behind the status bar for an "immersive" feel — but
+    // that mode requires every top-pinned element to manually
+    // apply env(safe-area-inset-top) padding to avoid overlap,
+    // and PWA caching made the padding flaky in practice. Default
+    // is the reliable native-app-feel pattern: iOS handles the
+    // safe-area buffer for us, content never sits behind system
+    // UI, no padding gymnastics required.
+    statusBarStyle: "default",
     startupImage: [
       // Apple touch-startup-image hints — iOS uses these as splash
       // when launching the standalone app. SVG works on iOS 16+;
@@ -49,7 +59,7 @@ export const metadata: Metadata = {
     // appleWebApp fields. These mirror the modern fields but as
     // raw meta tags for maximum compatibility.
     "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-status-bar-style": "default",
     "apple-mobile-web-app-title": "Team Chat",
     // The apple-touch-icon meta tag tells iOS which icon to use when
     // the user adds the page to their home screen. SVG works on iOS
