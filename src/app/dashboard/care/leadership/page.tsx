@@ -47,6 +47,16 @@ import Link from "next/link";
  * surface ships only on top of that.
  */
 
+type TeamPresence = {
+  totalAgents: number;
+  onlineCount: number;
+  awayCount: number;
+  offlineCount: number;
+  atCapacityCount: number;
+  totalCurrentLoad: number;
+  channelCoverage: Record<string, number>;
+};
+
 type TeamSnapshot = {
   companyId: string;
   windowDays: number;
@@ -79,6 +89,7 @@ type TeamSnapshot = {
 
 export default function CareLeadershipPage() {
   const [snap, setSnap] = useState<TeamSnapshot | null>(null);
+  const [presence, setPresence] = useState<TeamPresence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +107,7 @@ export default function CareLeadershipPage() {
         }
         const data = await res.json();
         setSnap(data.snapshot ?? null);
+        setPresence(data.presence ?? null);
       } catch {
         setError("Couldn't reach the server.");
       } finally {
@@ -171,6 +183,91 @@ export default function CareLeadershipPage() {
                 team this window.
               </p>
             </div>
+
+            {/* §A6 + §A18 — team presence right now. Aggregate
+                counts only; no per-agent breakdown by design.
+                Surfaces coverage ("do we have humans on this
+                channel?") not surveillance ("who's idle?"). */}
+            {presence && (
+              <div className="bg-white/[0.02] border border-default rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="w-4 h-4 text-brand" aria-hidden />
+                  <h2 className="text-sm font-semibold text-primary">
+                    Right now
+                  </h2>
+                </div>
+                <p className="text-[11px] text-secondary leading-relaxed mb-4">
+                  Live team presence. The labels are descriptive,
+                  never evaluative — per §A18 there&apos;s no
+                  &quot;most active&quot; or &quot;idle&quot; framing
+                  here. Coverage tells you whether the team can take
+                  a conversation right now; per-agent state is each
+                  agent&apos;s to control and see.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <PresenceCountCell
+                    label="Online"
+                    count={presence.onlineCount}
+                    total={presence.totalAgents}
+                    tone="emerald"
+                  />
+                  <PresenceCountCell
+                    label="Away"
+                    count={presence.awayCount}
+                    total={presence.totalAgents}
+                    tone="amber"
+                  />
+                  <PresenceCountCell
+                    label="Offline"
+                    count={presence.offlineCount}
+                    total={presence.totalAgents}
+                    tone="muted"
+                  />
+                  <PresenceCountCell
+                    label="At capacity"
+                    count={presence.atCapacityCount}
+                    total={presence.onlineCount}
+                    tone={
+                      presence.atCapacityCount > 0 &&
+                      presence.atCapacityCount >= presence.onlineCount
+                        ? "amber"
+                        : "muted"
+                    }
+                  />
+                </div>
+                <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-2">
+                  Channel coverage right now
+                </p>
+                {Object.keys(presence.channelCoverage).length === 0 ? (
+                  <p className="text-[11px] text-muted italic">
+                    No online agents covering any channels.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(presence.channelCoverage).map(
+                      ([channel, count]) => (
+                        <span
+                          key={channel}
+                          className="inline-flex items-center gap-1 text-[10px] font-medium text-secondary bg-surface/40 border border-default px-2 py-0.5 rounded"
+                        >
+                          {channel}
+                          <span className="font-mono text-primary">
+                            {count}
+                          </span>
+                        </span>
+                      )
+                    )}
+                  </div>
+                )}
+                <p className="text-[10px] text-muted italic mt-3">
+                  Currently carrying {presence.totalCurrentLoad}{" "}
+                  conversations across the team. Each agent sets their
+                  own status (§A6 Pillar 2). Capacity + channels are
+                  org settings; adjust per agent in{" "}
+                  Settings &rsaquo; Agents.
+                </p>
+              </div>
+            )}
 
             {/* §A17 experiential FIRST — what the team's work landed. */}
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
@@ -508,6 +605,43 @@ function EditCell({
       </p>
       <p className="text-lg font-bold text-primary">{count}</p>
       <p className="text-[10px] text-muted font-mono">{pct}%</p>
+    </div>
+  );
+}
+
+/**
+ * Render a presence count as "N of total". Same shape as
+ * PresenceCell from the agent self-view (§A10 symmetry) — leader
+ * reads the same count form the agent reads about themselves.
+ */
+function PresenceCountCell({
+  label,
+  count,
+  total,
+  tone,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  tone: "emerald" | "amber" | "muted";
+}) {
+  const toneCls =
+    tone === "emerald"
+      ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
+      : tone === "amber"
+        ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+        : "border-default bg-surface/40 text-secondary";
+  return (
+    <div className={`rounded-lg border p-3 ${toneCls}`}>
+      <p className="text-[10px] uppercase tracking-widest font-bold mb-1">
+        {label}
+      </p>
+      <p className="text-lg font-bold text-primary">
+        {count}
+        {total > 0 && (
+          <span className="text-xs font-mono text-muted"> of {total}</span>
+        )}
+      </p>
     </div>
   );
 }

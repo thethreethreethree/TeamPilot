@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchTeamGrowth } from "@/lib/data/care";
+import { fetchTeamGrowth, fetchTeamPresence } from "@/lib/data/care";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -43,6 +43,9 @@ export async function GET() {
       { status: 403 }
     );
   }
-  const snapshot = await fetchTeamGrowth(profile.company_id);
-  return NextResponse.json({ snapshot });
+  const [snapshot, presence] = await Promise.all([
+    fetchTeamGrowth(profile.company_id),
+    fetchTeamPresence(profile.company_id),
+  ]);
+  return NextResponse.json({ snapshot, presence });
 }
