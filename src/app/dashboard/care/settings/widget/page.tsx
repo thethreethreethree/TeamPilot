@@ -72,6 +72,12 @@ export default function CareWidgetSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [originsRaw, setOriginsRaw] = useState("");
+  // Phase 4 email channel — surfaced from the tenant config
+  // endpoint. Null when the deployment doesn't have
+  // CARE_EMAIL_HOST_DOMAIN configured (the channel is off).
+  const [inboundEmailAddress, setInboundEmailAddress] = useState<string | null>(
+    null
+  );
 
   const load = useCallback(async () => {
     try {
@@ -81,6 +87,7 @@ export default function CareWidgetSettingsPage() {
         setConfig(data.config);
         setDraft(data.config);
         setOriginsRaw((data.config.allowed_origins ?? []).join("\n"));
+        setInboundEmailAddress(data.inboundEmailAddress ?? null);
       }
     } finally {
       setLoading(false);
@@ -266,6 +273,55 @@ export default function CareWidgetSettingsPage() {
             Origin mismatch attempts are logged. Visible to you at
             /dashboard/care/settings/widget &gt; load events (Sprint 7).
           </p>
+        </Section>
+
+        {/* Email channel — Phase 4 */}
+        <Section
+          title="Email channel"
+          subtitle="Customers can email your support address; replies thread back into the same conversation here."
+        >
+          {inboundEmailAddress ? (
+            <>
+              <div className="bg-base border border-default rounded-md px-3 py-2.5 flex items-center justify-between gap-2">
+                <code className="text-sm text-primary font-mono truncate">
+                  {inboundEmailAddress}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(inboundEmailAddress);
+                    toast.success("Copied.");
+                  }}
+                  className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-[#FACC15] border border-default hover:border-strong px-2 py-1 rounded"
+                >
+                  <Copy className="w-3 h-3" aria-hidden />
+                  Copy
+                </button>
+              </div>
+              <p className="text-[11px] text-muted mt-2 leading-relaxed">
+                Forward <code className="font-mono">support@yourcompany.com</code>{" "}
+                to the address above. Every incoming email becomes a new
+                conversation in C.A.R.E with the AI first responder
+                running the same shape as the widget. Agent replies in
+                this dashboard get dispatched as outbound email,
+                threaded back to the customer&apos;s original message.
+              </p>
+              <p className="text-[10px] text-muted mt-2 italic">
+                §3.1 — each email is an immutable event in the chain.
+                §A16 — Coach + Co-Pilot grade and draft email replies
+                on the same rubric as widget replies.
+              </p>
+            </>
+          ) : (
+            <div className="bg-amber-500/5 border border-amber-500/30 rounded-md px-3 py-2.5">
+              <p className="text-xs text-amber-200">
+                Email channel not configured on this deployment yet.
+                Set <code className="font-mono">CARE_EMAIL_HOST_DOMAIN</code>{" "}
+                and <code className="font-mono">CARE_INBOUND_EMAIL_SECRET</code>{" "}
+                env vars to enable it.
+              </p>
+            </div>
+          )}
         </Section>
 
         {/* Appearance */}

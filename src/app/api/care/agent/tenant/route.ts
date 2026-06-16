@@ -63,7 +63,20 @@ export async function GET() {
     .select("*")
     .eq("company_id", ctx.companyId)
     .single();
-  return NextResponse.json({ config: data });
+  // Derive the full inbound email address from the tenant's
+  // local part + the deployment-level host domain. The host
+  // domain isn't a tenant-config column because it's the same
+  // for every tenant on this deployment (set once in env).
+  const emailHostDomain = process.env.CARE_EMAIL_HOST_DOMAIN ?? null;
+  const inboundEmailAddress =
+    data?.inbound_email_local_part && emailHostDomain
+      ? `${data.inbound_email_local_part}@${emailHostDomain}`
+      : null;
+  return NextResponse.json({
+    config: data,
+    inboundEmailAddress,
+    emailHostDomain,
+  });
 }
 
 const PatchBody = z.object({

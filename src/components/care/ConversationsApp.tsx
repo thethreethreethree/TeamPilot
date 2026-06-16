@@ -10,6 +10,7 @@ import {
   ListChecks,
   Loader2,
   Lock,
+  Mail,
   MessageSquare,
   Search,
   Send,
@@ -69,6 +70,10 @@ type Conversation = {
   firstResponseAt: string | null;
   resolvedAt: string | null;
   createdAt: string;
+  /** Channel the conversation arrived through. Used to render
+   *  a per-conversation channel badge + (for email) signal to
+   *  the agent that their reply will dispatch as outbound email. */
+  source?: "web_widget" | "embedded_widget" | "email" | string | null;
   tags: Array<{ id: string; name: string; color: string }>;
   customer: {
     id: string;
@@ -851,6 +856,7 @@ export function ConversationsApp({
                   composerRef={composerRef}
                   conversationId={selected.id}
                   onSpawnTask={() => setSpawnTaskOpen(true)}
+                  isEmailChannel={selected.source === "email"}
                 />
               )}
             </>
@@ -1051,6 +1057,18 @@ function DetailHeader({
               <Icon className="w-3 h-3" aria-hidden />
               {dl.label}
             </span>
+            {/* Channel badge — Phase 4. Email surfaces with a
+                distinct chip so the agent knows their reply will
+                dispatch as outbound email. */}
+            {conversation.source === "email" && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full border border-arc-400/40 bg-arc-400/10 text-arc-300"
+                title="This conversation arrived via email. Replies will be dispatched as outbound email."
+              >
+                <Mail className="w-3 h-3" aria-hidden />
+                Email
+              </span>
+            )}
             {conversation.aiResponding && (
               <span className="inline-flex items-center gap-1 text-[10px] text-arc-300">
                 <Sparkles className="w-3 h-3" aria-hidden />
@@ -1464,6 +1482,7 @@ function Composer({
   aiReasoning,
   composerRef,
   onSpawnTask,
+  isEmailChannel,
 }: {
   draft: string;
   onDraftChange: (v: string) => void;
@@ -1477,6 +1496,7 @@ function Composer({
   composerRef: React.RefObject<HTMLTextAreaElement | null>;
   conversationId: string;
   onSpawnTask: () => void;
+  isEmailChannel?: boolean;
 }) {
   return (
     <div className="border-t border-default bg-white/[0.02] px-6 py-3">
@@ -1578,7 +1598,12 @@ function Composer({
         </button>
       </div>
       <p className="text-[10px] text-muted mt-1.5">
-        Cmd/Ctrl+Enter to send · {isInternalNote ? "Note stays internal." : "Customer sees this on the widget."}
+        Cmd/Ctrl+Enter to send ·{" "}
+        {isInternalNote
+          ? "Note stays internal."
+          : isEmailChannel
+            ? "Dispatches as outbound email to the customer."
+            : "Customer sees this on the widget."}
       </p>
     </div>
   );
