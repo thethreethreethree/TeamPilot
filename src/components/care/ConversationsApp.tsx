@@ -22,6 +22,8 @@ import { priorityDisplay, tagTone } from "@/lib/care/tagColors";
 import { useToast } from "@/components/ui/toast";
 import { ReadPhasePanel } from "./ReadPhasePanel";
 import { ResolutionCaptureModal } from "./ResolutionCaptureModal";
+import TaskRefinementPanel from "@/components/tasks/TaskRefinementPanel";
+import type { SpawnContextPayload } from "@/lib/taskSpawn/types";
 
 /**
  * ConversationsApp — the Zendesk-shaped master-detail centerpiece.
@@ -86,6 +88,8 @@ type Message = {
   body: string;
   isInternalNote: boolean;
   createdAt: string;
+  coachGrade?: "productive" | "neutral" | "needs_guidance" | "withheld" | null;
+  coachReasonInternal?: string | null;
 };
 
 type ConversationEvent = {
@@ -148,6 +152,7 @@ export function ConversationsApp({
   // corpus on send.
   const [aiOriginalDraft, setAiOriginalDraft] = useState<string | null>(null);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [spawnTaskOpen, setSpawnTaskOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -671,6 +676,7 @@ export function ConversationsApp({
                   aiReasoning={aiReasoning}
                   composerRef={composerRef}
                   conversationId={selected.id}
+                  onSpawnTask={() => setSpawnTaskOpen(true)}
                 />
               )}
             </>
@@ -697,6 +703,50 @@ export function ConversationsApp({
           onCaptured={() => {
             void loadInbox();
             void loadDetail(selected.id);
+          }}
+        />
+      )}
+
+      {/* Task spawn — wires to the existing Task Spawn Engine that
+          already powers Decision → Task and Chat → Task. Care
+          conversations map cleanly onto the chat_messages shape:
+          subject as title, all customer + agent messages as the
+          selected message thread. The §1.6 close-the-loop move
+          from support: a customer asking for something becomes a
+          structured internal task with steps, not an item lost in
+          a sea of tickets. */}
+      {selected && spawnTaskOpen && (
+        <TaskRefinementPanel
+          open={spawnTaskOpen}
+          onClose={() => setSpawnTaskOpen(false)}
+          contextType="chat_messages"
+          contextPayload={
+            {
+              chatTopicId: selected.id,
+              chatTopicTitle: selected.subject ?? "Customer conversation",
+              chatTopicDescription:
+                selected.customer?.email
+                  ? `Customer: ${selected.customer.name ?? selected.customer.email}`
+                  : "Anonymous customer",
+              selectedMessageIds: messages.map((m) => m.id),
+              selectedMessages: messages
+                .filter((m) => !m.isInternalNote && m.authorType !== "system")
+                .map((m) => ({
+                  author:
+                    m.authorType === "customer"
+                      ? "Customer"
+                      : m.authorType === "agent"
+                        ? "Agent"
+                        : "AI",
+                  body: m.body,
+                })),
+            } satisfies SpawnContextPayload
+          }
+          onSaved={() => {
+            toast.success(
+              "Task created",
+              "Spawned from this conversation — find it in Tasks."
+            );
           }}
         />
       )}
@@ -975,19 +1025,53 @@ function MessageRow({ message }: { message: Message }) {
       <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
         {message.body}
       </p>
-      {/* Coach grade badge — only on agent replies; visible only to
-          agent + leader per §A18 visibility contract. Sprint 4 wires
-          this to a real grader endpoint; for now we show a static
-          placeholder when the message is an agent reply. */}
+      {/* Coach grade — only on agent public replies; visible to
+          agent + leader, never to the customer. Until the async
+          grader returns we show "grading..."; after that the real
+          grade and short internal reason render. §A18: labels
+          invite reflection (Productive / Neutral / Needs guidance),
+          never blame. */}
       {isAgent && !isNote && (
-        <div className="mt-2 pt-2 border-t border-[#FACC15]/20 flex items-center gap-2">
-          <Sparkles
-            className="w-3 h-3 text-brand"
-            aria-hidden
-          />
-          <span className="text-[10px] text-brand font-mono">
-            Coach: productive
-          </span>
+        <div className="mt-2 pt-2 border-t border-[#FACC15]/20 flex items-start gap-2">
+          {message.coachGrade ? (
+            <>
+              <Sparkles
+                className={`w-3 h-3 shrink-0 mt-0.5 ${
+                  message.coachGrade === "productive"
+                    ? "text-emerald-300"
+                    : message.coachGrade === "needs_guidance"
+                      ? "text-amber-300"
+                      : "text-secondary"
+                }`}
+                aria-hidden
+              />
+              <div className="flex-1">
+                <span
+                  className={`text-[10px] uppercase tracking-widest font-bold ${
+                    message.coachGrade === "productive"
+                      ? "text-emerald-300"
+                      : message.coachGrade === "needs_guidance"
+                        ? "text-amber-300"
+                        : "text-muted"
+                  }`}
+                >
+                  Coach:{" "}
+                  {message.coachGrade === "needs_guidance"
+                    ? "needs guidance"
+                    : message.coachGrade}
+                </span>
+                {message.coachReasonInternal && (
+                  <p className="text-[10px] text-secondary leading-relaxed mt-0.5 italic">
+                    {message.coachReasonInternal}
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <span className="text-[10px] text-muted italic">
+              Coach is reading…
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -1005,7 +1089,7 @@ function Composer({
   aiDrafting,
   aiReasoning,
   composerRef,
-  conversationId,
+  onSpawnTask,
 }: {
   draft: string;
   onDraftChange: (v: string) => void;
@@ -1018,6 +1102,7 @@ function Composer({
   aiReasoning: string | null;
   composerRef: React.RefObject<HTMLTextAreaElement | null>;
   conversationId: string;
+  onSpawnTask: () => void;
 }) {
   return (
     <div className="border-t border-default bg-white/[0.02] px-6 py-3">
@@ -1052,7 +1137,7 @@ function Composer({
               type="button"
               onClick={onAiCoPilot}
               disabled={aiDrafting}
-              title="Draft a reply using the Coach's communication discipline"
+              title="Draft a reply using the Coach's communication discipline + the company's past resolutions"
               className="text-[11px] font-semibold text-brand border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 disabled:opacity-50 inline-flex items-center gap-1 px-2 py-0.5 rounded"
             >
               {aiDrafting ? (
@@ -1062,7 +1147,15 @@ function Composer({
               )}
               AI Co-pilot
             </button>
-            <SpawnTaskButton conversationId={conversationId} />
+            <button
+              type="button"
+              onClick={onSpawnTask}
+              title="Turn this conversation into a structured task — uses the same Task Spawn Engine as Decision Dialogue"
+              className="text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 inline-flex items-center gap-1 px-2 py-0.5 rounded"
+            >
+              <ListChecks className="w-3 h-3" aria-hidden />
+              Spawn task
+            </button>
           </>
         )}
       </div>
@@ -1114,29 +1207,6 @@ function Composer({
         Cmd/Ctrl+Enter to send · {isInternalNote ? "Note stays internal." : "Customer sees this on the widget."}
       </p>
     </div>
-  );
-}
-
-function SpawnTaskButton({ conversationId }: { conversationId: string }) {
-  // Placeholder action — Sprint 3d wires this to the existing Task
-  // Spawn Engine. For now it surfaces the affordance so the
-  // pattern is visible in the demo.
-  const toast = useToast();
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        toast.info(
-          "Spawn Task",
-          `Task spawn from conversation ${conversationId.slice(0, 8)}… coming next. The same Task Spawn Engine that powers Decision → Task will handle this.`
-        )
-      }
-      title="Turn this conversation into a structured task"
-      className="text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 inline-flex items-center gap-1 px-2 py-0.5 rounded"
-    >
-      <ListChecks className="w-3 h-3" aria-hidden />
-      Spawn task
-    </button>
   );
 }
 

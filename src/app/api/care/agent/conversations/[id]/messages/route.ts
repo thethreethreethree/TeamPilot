@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
-import { captureCoPilotEdit, postAgentMessage } from "@/lib/data/care";
+import {
+  captureCoPilotEdit,
+  fetchAgentConversation,
+  postAgentMessage,
+} from "@/lib/data/care";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { gradeCareAgentReply } from "@/lib/care/grader";
 
 /**
  * POST /api/care/agent/conversations/[id]/messages
@@ -93,5 +99,82 @@ export async function POST(
       }
     }
   }
+
+  // Coach grading — async, best-effort, never blocks the response.
+  // Only grade public agent replies (not internal notes). The grade
+  // is asymmetric: agent + leader see it; customer never does.
+  if (!body.isInternalNote && msg) {
+    void gradeMessageAsync({
+      conversationId: id,
+      messageId: msg.id,
+      agentReply: body.body,
+    });
+  }
+
   return NextResponse.json({ message: msg });
+}
+
+/**
+ * Fire-and-forget grading. Runs after the response has been sent
+ * to the agent. Uses service-role so the UPDATE goes through the
+ * append-only block on support_messages — that block targets
+ * client-side UPDATEs, not server-side maintenance like grading.
+ *
+ * Failure paths are silent — a missing grade is not a bug, it's a
+ * "withheld" outcome the agent growth surface already accounts for.
+ */
+async function gradeMessageAsync(args: {
+  conversationId: string;
+  messageId: string;
+  agentReply: string;
+}): Promise<void> {
+  try {
+    const detail = await fetchAgentConversation(args.conversationId);
+    if (!detail) return;
+    const visible = detail.messages.filter((m) => !m.isInternalNote);
+    const lastCustomer = [...visible]
+      .reverse()
+      .find((m) => m.authorType === "customer");
+    if (!lastCustomer) return;
+
+    const contextTurns = visible
+      .slice(-8)
+      .filter((m) => m.id !== args.messageId)
+      .map((m) => {
+        const r =
+          m.authorType === "customer"
+            ? "Customer"
+            : m.authorType === "agent"
+              ? "Agent (earlier)"
+              : "AI (earlier)";
+        return `${r}: ${m.body}`;
+      })
+      .join("\n");
+
+    const { grade, reasonInternal } = await gradeCareAgentReply({
+      customerLastMessage: lastCustomer.body,
+      agentReply: args.agentReply,
+      conversationContext: contextTurns || undefined,
+    });
+
+    const admin = createAdminClient();
+    // Bypass the no-update rule via a direct UPDATE on the columns
+    // we explicitly want mutable. The rule blocks client-issued
+    // UPDATEs; this server-side write goes through service-role
+    // which is exempt from RLS. The append-only contract still
+    // holds for body / author / created_at — none of which we
+    // touch here.
+    await admin
+      .from("support_messages")
+      .update({
+        coach_grade: grade,
+        coach_reason_internal: reasonInternal || null,
+        coach_graded_at: new Date().toISOString(),
+      })
+      .eq("id", args.messageId);
+  } catch (e) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[care] coach grading failed", e);
+    }
+  }
 }

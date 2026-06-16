@@ -14,6 +14,7 @@ import {
   LifeBuoy,
   MessageCircle,
   Settings,
+  Sparkles,
   Tag,
   Users,
   Zap,
@@ -50,6 +51,10 @@ const PRIMARY_NAV: NavItem[] = [
   { label: "Home", href: "/dashboard/care", icon: Home },
   { label: "Conversations", href: "/dashboard/care/conversations", icon: Inbox },
   { label: "Customers", href: "/dashboard/care/customers", icon: Users },
+  // §3.2 Understanding Gate for support — recurring categories
+  // surface as patterns once N>=3. The earliest warning system the
+  // company has for product/process/messaging gaps.
+  { label: "Patterns", href: "/dashboard/care/patterns", icon: Sparkles },
   { label: "Analytics", href: "/dashboard/care/analytics", icon: BarChart3 },
   { label: "Monitor", href: "/dashboard/care/monitor", icon: LayoutGrid },
   // §3.6 — agent sees their own growth. Per A10 nobody else sees

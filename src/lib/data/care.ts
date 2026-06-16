@@ -52,6 +52,9 @@ export type SupportMessage = {
   body: string;
   isInternalNote: boolean;
   createdAt: string;
+  coachGrade: "productive" | "neutral" | "needs_guidance" | "withheld" | null;
+  coachReasonInternal: string | null;
+  coachGradedAt: string | null;
 };
 
 function mapConversation(row: Record<string, unknown>): SupportConversation {
@@ -85,6 +88,10 @@ function mapMessage(row: Record<string, unknown>): SupportMessage {
     body: row.body as string,
     isInternalNote: row.is_internal_note as boolean,
     createdAt: row.created_at as string,
+    coachGrade: (row.coach_grade as SupportMessage["coachGrade"]) ?? null,
+    coachReasonInternal:
+      (row.coach_reason_internal as string | null) ?? null,
+    coachGradedAt: (row.coach_graded_at as string | null) ?? null,
   };
 }
 
@@ -847,6 +854,91 @@ export type AgentGrowthSnapshot = {
   copilotMajor: number;
   copilotRewrite: number;
 };
+
+// ─── Pattern detection (post-0036) ────────────────────────────
+
+export type SupportPattern = {
+  category: string;
+  count: number;
+  firstSeen: string;
+  lastSeen: string;
+  sampleConversationIds: string[];
+};
+
+/**
+ * Aggregate recently-captured resolutions by category. A pattern
+ * is born when 3+ resolutions share the same category in the
+ * window. The §3.2 Understanding Gate for support — a recurring
+ * problem can't reach the team that fixes root causes until the
+ * pattern is real (3+ instances).
+ *
+ * Sprint 6 will replace the exact-string aggregation with
+ * embeddings cluster so "refund won't process" and "couldn't
+ * refund" land in the same pattern.
+ */
+export async function detectSupportPatterns(args: {
+  windowDays?: number;
+  minCount?: number;
+}): Promise<SupportPattern[]> {
+  const sb = await createServerClient();
+  const windowDays = args.windowDays ?? 30;
+  const minCount = args.minCount ?? 3;
+  const since = new Date(
+    Date.now() - windowDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data } = await sb
+    .from("support_resolutions")
+    .select("category, conversation_id, created_at")
+    .not("category", "is", null)
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(2000);
+
+  const byCategory = new Map<
+    string,
+    {
+      count: number;
+      firstSeen: string;
+      lastSeen: string;
+      conversationIds: string[];
+    }
+  >();
+  for (const r of data ?? []) {
+    const cat = (r.category as string).trim();
+    if (!cat) continue;
+    const entry = byCategory.get(cat);
+    if (entry) {
+      entry.count += 1;
+      entry.firstSeen = r.created_at as string;
+      if (entry.conversationIds.length < 5) {
+        entry.conversationIds.push(r.conversation_id as string);
+      }
+    } else {
+      byCategory.set(cat, {
+        count: 1,
+        firstSeen: r.created_at as string,
+        lastSeen: r.created_at as string,
+        conversationIds: [r.conversation_id as string],
+      });
+    }
+  }
+
+  const patterns: SupportPattern[] = [];
+  for (const [category, e] of byCategory) {
+    if (e.count >= minCount) {
+      patterns.push({
+        category,
+        count: e.count,
+        firstSeen: e.firstSeen,
+        lastSeen: e.lastSeen,
+        sampleConversationIds: e.conversationIds,
+      });
+    }
+  }
+  patterns.sort((a, b) => b.count - a.count);
+  return patterns;
+}
 
 export async function fetchAgentGrowth(
   agentId: string

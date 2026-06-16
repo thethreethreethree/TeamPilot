@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   fetchAgentConversation,
   fetchEnrichedConversation,
+  findSimilarResolutions,
 } from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
@@ -79,6 +80,23 @@ export async function POST(
 
   const productContext = getProductContextForTenant(enriched.companyId);
 
+  // Pull similar past resolutions so the Co-Pilot can draw on the
+  // company's institutional memory. The reasoning surface will cite
+  // which precedent it leaned on, so the agent can see whether the
+  // System is generalizing from real prior work or guessing.
+  const customerLastMessages = detail.messages
+    .filter((m) => m.authorType === "customer")
+    .slice(-3)
+    .map((m) => m.body)
+    .join(" ");
+  const searchTerms = extractKeywords(customerLastMessages);
+  const precedents = await findSimilarResolutions({
+    companyId: enriched.companyId,
+    searchTerms,
+    excludeConversationId: id,
+    limit: 3,
+  });
+
   // Two-pass: ask for draft + reasoning in a single call but
   // separated by an explicit marker we split on.
   const SYSTEM = `You are the AI Co-Pilot for a support agent. Draft the agent's NEXT REPLY to a customer.
@@ -91,9 +109,11 @@ Draft the reply the way a calm, attentive human agent would write it:
   - 1-4 sentences typical
   - End with a clear next step OR a warm hand-off if you can't help
 
-After the draft, on a separate line starting with "===REASONING===", write 1-2 sentences explaining (for the agent, NOT the customer) which communication move you used and why. Examples:
-  - "Led with acknowledgment because the customer explicitly named frustration."
-  - "Stayed concise and direct because the customer's last message was terse."
+If the PRIOR RESOLUTIONS below describe what worked for similar past customers, lean on them — your draft should apply the same approach unless this customer's situation is meaningfully different. The reasoning line should name which precedent you used.
+
+After the draft, on a separate line starting with "===REASONING===", write 1-2 sentences explaining (for the agent, NOT the customer) which communication move you used and which precedent (if any) you drew on. Examples:
+  - "Applied the [refund within 7 days] precedent — same shape as the prior case from 4 days ago."
+  - "No close precedent. Led with acknowledgment because the customer named frustration."
   - "Offered a hand-off because the question requires account-specific data I don't have."
 
 Format strictly:
@@ -104,8 +124,18 @@ Format strictly:
 Product context the customer is reaching out about:
 ${productContext}`;
 
+  const precedentBlock =
+    precedents.length > 0
+      ? `\n\nPRIOR RESOLUTIONS from similar past customers (each starts with "what worked"):\n${precedents
+          .map(
+            (p, i) =>
+              `${i + 1}. [${p.category ?? "uncategorized"}] Issue: ${p.issueSummary}\n   Worked: ${p.whatWorked}`
+          )
+          .join("\n")}`
+      : "";
+
   const userMessage = `Conversation so far:
-${turns}
+${turns}${precedentBlock}
 
 Draft the next reply.`;
 
@@ -131,5 +161,31 @@ Draft the next reply.`;
   const draft = (idx >= 0 ? raw.slice(0, idx) : raw).trim();
   const reasoning = idx >= 0 ? raw.slice(idx + marker.length).trim() : "";
 
-  return NextResponse.json({ draft, reasoning });
+  return NextResponse.json({
+    draft,
+    reasoning,
+    precedentsUsed: precedents.length,
+  });
+}
+
+// Local keyword extraction — mirrors the Read Phase logic. Sprint 6
+// swaps both for embeddings.
+const STOP = new Set([
+  "the", "a", "an", "and", "or", "but", "for", "on", "in", "of",
+  "to", "with", "without", "have", "has", "had", "is", "are", "was",
+  "were", "be", "been", "being", "do", "does", "did", "this", "that",
+  "these", "those", "i", "me", "my", "you", "your", "we", "us", "our",
+  "they", "them", "their", "it", "its", "as", "at", "from", "by",
+  "about", "what", "when", "where", "why", "how", "if", "so", "just",
+  "can", "could", "would", "should", "will", "shall", "may", "might",
+  "must", "any", "all", "some", "no", "not", "than", "then", "now",
+]);
+
+function extractKeywords(text: string): string[] {
+  const tokens = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 3 && !STOP.has(w));
+  return Array.from(new Set(tokens)).slice(0, 8);
 }
