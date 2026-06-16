@@ -98,6 +98,29 @@ function mapMessage(row: Record<string, unknown>): SupportMessage {
 // ─── Customer-side (service-role; no auth) ────────────────────
 
 /**
+ * Count conversations a tenant has created in the current calendar
+ * month (UTC). Used for monthly quota enforcement on white-label
+ * tenants. Calendar-month boundary (not rolling 30d) is the honest
+ * shape for "you bought N conversations / month" — the bucket
+ * resets at midnight UTC on the 1st.
+ */
+export async function countCareConversationsThisMonth(
+  companyId: string
+): Promise<number> {
+  const sb = createServiceRoleClient();
+  const now = new Date();
+  const monthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+  ).toISOString();
+  const { count } = await sb
+    .from("support_conversations")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .gte("created_at", monthStart);
+  return count ?? 0;
+}
+
+/**
  * Create a new customer support conversation for a given tenant.
  * Returns the new row including the session_token the widget
  * persists for subsequent requests.

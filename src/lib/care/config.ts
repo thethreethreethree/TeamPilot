@@ -159,6 +159,29 @@ export async function resolveCareTenantByEmbedToken(args: {
   return { ok: true, companyId: config.companyId, config };
 }
 
+/**
+ * Public log helper for quota-exceeded events. Called from the
+ * conversations create route AFTER a successful tenant resolution
+ * when the usage count blows past the configured quota. Same
+ * shape as the bootstrap load events so the admin sees one
+ * coherent stream of "what happened on the widget" rather than
+ * two parallel logs.
+ */
+export async function logCareQuotaExceeded(args: {
+  companyId: string;
+  embedToken: string | null;
+  origin: string | null;
+  userAgent: string | null;
+}): Promise<void> {
+  await logLoadEvent(createAdminClient(), {
+    companyId: args.companyId,
+    embedToken: args.embedToken ?? "(internal)",
+    origin: args.origin,
+    userAgent: args.userAgent,
+    result: "quota_exceeded",
+  });
+}
+
 async function logLoadEvent(
   admin: ReturnType<typeof createAdminClient>,
   args: {

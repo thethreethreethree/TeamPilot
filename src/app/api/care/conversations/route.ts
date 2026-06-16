@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
-import { createCareConversation } from "@/lib/data/care";
 import {
+  countCareConversationsThisMonth,
+  createCareConversation,
+} from "@/lib/data/care";
+import {
+  getCareTenantConfigByCompanyId,
+  logCareQuotaExceeded,
   resolveCareTenant,
   resolveCareTenantByEmbedToken,
 } from "@/lib/care/config";
@@ -83,6 +88,39 @@ export async function POST(req: NextRequest) {
     configOrigin = origin;
   } else {
     tenantId = resolveCareTenant({ origin: origin ?? undefined });
+  }
+
+  // Monthly conversation quota — enforced for embed-token traffic
+  // (the white-label SaaS case). Internal-tenant traffic (no embed
+  // token, dashboard's own widget) bypasses; the operator of the
+  // ELOSTATE tenant is the same person paying for it, so capping
+  // them at the schema default makes no sense.
+  //
+  // Quota = 0 means "unlimited" (escape hatch for unlimited plans).
+  // Calendar-month UTC counting; bucket resets on the 1st. Over-
+  // quota is logged to care_widget_load_events so the admin sees
+  // the ceiling-hit moment, not just the angry customer email.
+  const tenantConfig = body.embedToken
+    ? await getCareTenantConfigByCompanyId(tenantId)
+    : null;
+  if (tenantConfig && tenantConfig.monthlyConversationQuota > 0) {
+    const used = await countCareConversationsThisMonth(tenantId);
+    if (used >= tenantConfig.monthlyConversationQuota) {
+      await logCareQuotaExceeded({
+        companyId: tenantId,
+        embedToken: body.embedToken ?? null,
+        origin,
+        userAgent,
+      });
+      return NextResponse.json(
+        {
+          error:
+            "Monthly conversation quota reached. Please contact the site owner.",
+          reason: "quota_exceeded",
+        },
+        { status: 429 }
+      );
+    }
   }
 
   const conversation = await createCareConversation({
