@@ -19,4 +19,10 @@ export async function register() {
   }
 }
 
-export { onRequestError } from "@sentry/nextjs";
+// Next.js 16 / Sentry SDK v10+ renamed the request-error capture
+// export from `onRequestError` to `captureRequestError`. Next.js
+// still looks up the same instrumentation hook by either name in
+// recent versions, but the import has to match what the SDK
+// actually exports. Re-export aliased so Next.js sees the
+// `onRequestError` symbol it expects.
+export { captureRequestError as onRequestError } from "@sentry/nextjs";

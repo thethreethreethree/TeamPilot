@@ -31,13 +31,20 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
   };
 
   return (
-    // pt-[env(...)] pushes the bar's content BELOW the iOS status
-    // bar zone when the PWA runs in standalone with viewport-fit=
-    // cover. On Android/desktop where the inset is 0px, no visual
-    // change. Tailwind arbitrary syntax is more reliable than a
-    // React inline style for env() CSS functions — the JIT compiler
-    // emits a real CSS rule with the env() function, where inline
-    // styles can sometimes get string-sanitized in transit.
+    // The pt-[env(safe-area-inset-top)] class below pushes the bar's
+    // content BELOW the iOS status bar zone when the PWA runs in
+    // standalone with viewport-fit=cover. On Android/desktop where
+    // the inset is 0px, no visual change. Tailwind arbitrary value
+    // syntax is more reliable than a React inline style for env()
+    // CSS functions — the JIT compiler emits a real CSS rule with
+    // the env() function, where inline styles can sometimes get
+    // string-sanitized in transit.
+    //
+    // The Tailwind JIT scans source files including comments for
+    // arbitrary-value class names, so DO NOT write the bracketed
+    // class with literal "..." placeholders here — that gets
+    // compiled into a broken CSS rule (padding-top: env(...);) and
+    // fails Turbopack's CSS parse. Spell the env() arg out in full.
     //
     // min-h-* (instead of h-*) so the bar grows tall enough to
     // contain BOTH the safe-area buffer AND the original h-11/h-16
