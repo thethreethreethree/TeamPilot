@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
+import { strictMutate } from "@/lib/supabase/strictUpdate";
 
 /**
  * ELOSTATE Care — data layer.
@@ -297,18 +298,18 @@ export async function claimConversation(args: {
   agentId: string;
 }): Promise<void> {
   const sb = await createServerClient();
-  const { data, error } = await sb
-    .from("support_conversations")
-    .update({
-      assigned_agent_id: args.agentId,
-      ai_responding: false,
-      status: "in_conversation",
-    })
-    .eq("id", args.conversationId)
-    .select("id");
-  if (error) throw new Error(`claimConversation failed: ${error.message}`);
-  if (!data || data.length === 0)
-    throw new Error("claimConversation changed zero rows.");
+  await strictMutate(
+    sb
+      .from("support_conversations")
+      .update({
+        assigned_agent_id: args.agentId,
+        ai_responding: false,
+        status: "in_conversation",
+      })
+      .eq("id", args.conversationId)
+      .select("id"),
+    { context: "claimConversation" }
+  );
 }
 
 /**
@@ -353,27 +354,16 @@ export async function setConversationStatus(args: {
   conversationId: string;
   status: SupportConversation["status"];
 }): Promise<{ id: string; status: string }> {
-  // RLS-honest write: chain .select() so we get rows-affected.
-  // Without this an RLS rejection (or a missing row) returns
-  // success with zero rows changed — the API reports ok=true and
-  // the dashboard happily refreshes to the same unchanged state.
-  // That's the silent-failure path the user caught in the wild:
-  // clicked Close, status badge stayed "Needs first response".
   const sb = await createServerClient();
-  const { data, error } = await sb
-    .from("support_conversations")
-    .update({ status: args.status })
-    .eq("id", args.conversationId)
-    .select("id, status");
-  if (error) {
-    throw new Error(`setConversationStatus failed: ${error.message}`);
-  }
-  if (!data || data.length === 0) {
-    throw new Error(
-      "setConversationStatus changed zero rows. RLS may be rejecting the write or the conversation no longer exists."
-    );
-  }
-  return data[0] as { id: string; status: string };
+  const rows = await strictMutate(
+    sb
+      .from("support_conversations")
+      .update({ status: args.status })
+      .eq("id", args.conversationId)
+      .select("id, status"),
+    { context: `setConversationStatus(${args.status})` }
+  );
+  return rows[0] as { id: string; status: string };
 }
 
 // ─── Operational depth (post-0035) ─────────────────────────────
@@ -595,14 +585,14 @@ export async function setConversationPriority(args: {
   priority: "urgent" | "high" | "normal" | "low";
 }): Promise<void> {
   const sb = await createServerClient();
-  const { data, error } = await sb
-    .from("support_conversations")
-    .update({ priority: args.priority })
-    .eq("id", args.conversationId)
-    .select("id");
-  if (error) throw new Error(`setConversationPriority failed: ${error.message}`);
-  if (!data || data.length === 0)
-    throw new Error("setConversationPriority changed zero rows.");
+  await strictMutate(
+    sb
+      .from("support_conversations")
+      .update({ priority: args.priority })
+      .eq("id", args.conversationId)
+      .select("id"),
+    { context: `setConversationPriority(${args.priority})` }
+  );
 }
 
 export async function snoozeConversation(args: {
@@ -610,28 +600,28 @@ export async function snoozeConversation(args: {
   until: string;
 }): Promise<void> {
   const sb = await createServerClient();
-  const { data, error } = await sb
-    .from("support_conversations")
-    .update({ snoozed_until: args.until })
-    .eq("id", args.conversationId)
-    .select("id");
-  if (error) throw new Error(`snoozeConversation failed: ${error.message}`);
-  if (!data || data.length === 0)
-    throw new Error("snoozeConversation changed zero rows.");
+  await strictMutate(
+    sb
+      .from("support_conversations")
+      .update({ snoozed_until: args.until })
+      .eq("id", args.conversationId)
+      .select("id"),
+    { context: "snoozeConversation" }
+  );
 }
 
 export async function unsnoozeConversation(
   conversationId: string
 ): Promise<void> {
   const sb = await createServerClient();
-  const { data, error } = await sb
-    .from("support_conversations")
-    .update({ snoozed_until: null })
-    .eq("id", conversationId)
-    .select("id");
-  if (error) throw new Error(`unsnoozeConversation failed: ${error.message}`);
-  if (!data || data.length === 0)
-    throw new Error("unsnoozeConversation changed zero rows.");
+  await strictMutate(
+    sb
+      .from("support_conversations")
+      .update({ snoozed_until: null })
+      .eq("id", conversationId)
+      .select("id"),
+    { context: "unsnoozeConversation" }
+  );
 }
 
 export async function listCannedResponses(): Promise<CannedResponse[]> {
