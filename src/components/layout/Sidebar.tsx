@@ -48,6 +48,10 @@ const productionNav = [
   // cross-conversation memory. Each member sees their own; admin
   // readout stays separate (different audience, different framing).
   { label: "My growth", href: "/dashboard/my-growth", icon: Heart },
+  // ELOSTATE Care — customer support inbox. Agent-only; route
+  // returns 403 to non-agents. Sidebar entry is visible to
+  // everyone (cheap), the page itself enforces access.
+  { label: "Care inbox", href: "/dashboard/care", icon: MessageSquarePlus },
 ];
 
 const testingNav = [
