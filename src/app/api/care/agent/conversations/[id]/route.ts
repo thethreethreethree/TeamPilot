@@ -5,6 +5,9 @@ import {
   fetchAgentConversation,
   claimConversation,
   setConversationStatus,
+  setConversationPriority,
+  snoozeConversation,
+  unsnoozeConversation,
   type SupportConversation,
 } from "@/lib/data/care";
 import { createClient } from "@/lib/supabase/server";
@@ -24,10 +27,12 @@ import { createClient } from "@/lib/supabase/server";
  */
 
 const PatchBody = z.object({
-  action: z.enum(["claim", "status"]),
+  action: z.enum(["claim", "status", "priority", "snooze", "unsnooze"]),
   status: z
     .enum(["open", "in_conversation", "awaiting_customer", "resolved", "closed"])
     .optional(),
+  priority: z.enum(["urgent", "high", "normal", "low"]).optional(),
+  snoozedUntil: z.string().datetime().optional(),
 });
 
 async function requireAgent() {
@@ -89,6 +94,30 @@ export async function PATCH(
       conversationId: id,
       status: body.status as SupportConversation["status"],
     });
+  } else if (body.action === "priority") {
+    if (!body.priority) {
+      return NextResponse.json(
+        { error: "priority action requires a priority field." },
+        { status: 400 }
+      );
+    }
+    await setConversationPriority({
+      conversationId: id,
+      priority: body.priority,
+    });
+  } else if (body.action === "snooze") {
+    if (!body.snoozedUntil) {
+      return NextResponse.json(
+        { error: "snooze action requires snoozedUntil." },
+        { status: 400 }
+      );
+    }
+    await snoozeConversation({
+      conversationId: id,
+      until: body.snoozedUntil,
+    });
+  } else if (body.action === "unsnooze") {
+    await unsnoozeConversation(id);
   }
   return NextResponse.json({ ok: true });
 }

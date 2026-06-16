@@ -317,3 +317,281 @@ export async function setConversationStatus(args: {
     .update({ status: args.status })
     .eq("id", args.conversationId);
 }
+
+// ─── Operational depth (post-0035) ─────────────────────────────
+
+export type SupportTag = {
+  id: string;
+  companyId: string;
+  name: string;
+  color: string;
+};
+
+export type SupportCustomer = {
+  id: string;
+  companyId: string;
+  email: string | null;
+  name: string | null;
+  phone: string | null;
+  lifetimeValue: number | null;
+  signupDate: string | null;
+  lastSeenAt: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type ConversationEvent = {
+  id: string;
+  conversationId: string;
+  actorId: string | null;
+  actorType: "system" | "agent" | "customer" | "ai";
+  eventType: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type CannedResponse = {
+  id: string;
+  companyId: string;
+  shortcut: string;
+  title: string;
+  body: string;
+  createdBy: string | null;
+  createdAt: string;
+};
+
+export type EnrichedConversation = SupportConversation & {
+  priority: "urgent" | "high" | "normal" | "low";
+  snoozedUntil: string | null;
+  slaFirstResponseMinutes: number;
+  tags: SupportTag[];
+  customer: SupportCustomer | null;
+};
+
+function mapTag(row: Record<string, unknown>): SupportTag {
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    name: row.name as string,
+    color: row.color as string,
+  };
+}
+
+function mapCustomer(row: Record<string, unknown>): SupportCustomer {
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    email: (row.email as string | null) ?? null,
+    name: (row.name as string | null) ?? null,
+    phone: (row.phone as string | null) ?? null,
+    lifetimeValue: (row.lifetime_value as number | null) ?? null,
+    signupDate: (row.signup_date as string | null) ?? null,
+    lastSeenAt: (row.last_seen_at as string | null) ?? null,
+    metadata: (row.metadata as Record<string, unknown>) ?? {},
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapEvent(row: Record<string, unknown>): ConversationEvent {
+  return {
+    id: row.id as string,
+    conversationId: row.conversation_id as string,
+    actorId: (row.actor_id as string | null) ?? null,
+    actorType: row.actor_type as ConversationEvent["actorType"],
+    eventType: row.event_type as string,
+    metadata: (row.metadata as Record<string, unknown>) ?? {},
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapCanned(row: Record<string, unknown>): CannedResponse {
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    shortcut: row.shortcut as string,
+    title: row.title as string,
+    body: row.body as string,
+    createdBy: (row.created_by as string | null) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapEnrichedConversation(
+  row: Record<string, unknown>
+): EnrichedConversation {
+  const base = mapConversation(row);
+  const tagsRaw = (row.support_conversation_tags ?? []) as Array<{
+    support_tags: Record<string, unknown> | null;
+  }>;
+  const tags = tagsRaw
+    .map((t) => (t.support_tags ? mapTag(t.support_tags) : null))
+    .filter((t): t is SupportTag => t !== null);
+  const customer = row.support_customers
+    ? mapCustomer(row.support_customers as Record<string, unknown>)
+    : null;
+  return {
+    ...base,
+    priority: (row.priority as EnrichedConversation["priority"]) ?? "normal",
+    snoozedUntil: (row.snoozed_until as string | null) ?? null,
+    slaFirstResponseMinutes:
+      (row.sla_first_response_minutes as number) ?? 30,
+    tags,
+    customer,
+  };
+}
+
+export async function fetchEnrichedInbox(): Promise<EnrichedConversation[]> {
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("support_conversations")
+    .select(
+      `*, support_conversation_tags ( tag_id, support_tags ( id, company_id, name, color ) ), support_customers ( id, company_id, email, name, phone, lifetime_value, signup_date, last_seen_at, metadata, created_at )`
+    )
+    .order("last_message_at", { ascending: false, nullsFirst: false })
+    .limit(500);
+  if (!data) return [];
+  return data.map(mapEnrichedConversation);
+}
+
+export async function fetchEnrichedConversation(
+  id: string
+): Promise<EnrichedConversation | null> {
+  const sb = await createServerClient();
+  const { data: row } = await sb
+    .from("support_conversations")
+    .select(
+      `*, support_conversation_tags ( tag_id, support_tags ( id, company_id, name, color ) ), support_customers ( id, company_id, email, name, phone, lifetime_value, signup_date, last_seen_at, metadata, created_at )`
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (!row) return null;
+  return mapEnrichedConversation(row);
+}
+
+export async function fetchConversationEvents(
+  conversationId: string
+): Promise<ConversationEvent[]> {
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("support_conversation_events")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true });
+  return (data ?? []).map(mapEvent);
+}
+
+export async function listTags(): Promise<SupportTag[]> {
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("support_tags")
+    .select("*")
+    .order("name", { ascending: true });
+  return (data ?? []).map(mapTag);
+}
+
+export async function createTag(args: {
+  name: string;
+  color: string;
+  companyId: string;
+}): Promise<SupportTag | null> {
+  const sb = await createServerClient();
+  const { data, error } = await sb
+    .from("support_tags")
+    .insert({ name: args.name, color: args.color, company_id: args.companyId })
+    .select("*")
+    .single();
+  if (error || !data) return null;
+  return mapTag(data);
+}
+
+export async function addTagToConversation(args: {
+  conversationId: string;
+  tagId: string;
+  agentId: string;
+}): Promise<void> {
+  const sb = await createServerClient();
+  await sb.from("support_conversation_tags").upsert(
+    {
+      conversation_id: args.conversationId,
+      tag_id: args.tagId,
+      added_by: args.agentId,
+    },
+    { onConflict: "conversation_id,tag_id" }
+  );
+}
+
+export async function removeTagFromConversation(args: {
+  conversationId: string;
+  tagId: string;
+}): Promise<void> {
+  const sb = await createServerClient();
+  await sb
+    .from("support_conversation_tags")
+    .delete()
+    .eq("conversation_id", args.conversationId)
+    .eq("tag_id", args.tagId);
+}
+
+export async function setConversationPriority(args: {
+  conversationId: string;
+  priority: "urgent" | "high" | "normal" | "low";
+}): Promise<void> {
+  const sb = await createServerClient();
+  await sb
+    .from("support_conversations")
+    .update({ priority: args.priority })
+    .eq("id", args.conversationId);
+}
+
+export async function snoozeConversation(args: {
+  conversationId: string;
+  until: string;
+}): Promise<void> {
+  const sb = await createServerClient();
+  await sb
+    .from("support_conversations")
+    .update({ snoozed_until: args.until })
+    .eq("id", args.conversationId);
+}
+
+export async function unsnoozeConversation(
+  conversationId: string
+): Promise<void> {
+  const sb = await createServerClient();
+  await sb
+    .from("support_conversations")
+    .update({ snoozed_until: null })
+    .eq("id", conversationId);
+}
+
+export async function listCannedResponses(): Promise<CannedResponse[]> {
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("support_canned_responses")
+    .select("*")
+    .order("shortcut", { ascending: true });
+  return (data ?? []).map(mapCanned);
+}
+
+export async function createCannedResponse(args: {
+  shortcut: string;
+  title: string;
+  body: string;
+  companyId: string;
+  createdBy: string;
+}): Promise<CannedResponse | null> {
+  const sb = await createServerClient();
+  const { data, error } = await sb
+    .from("support_canned_responses")
+    .insert({
+      shortcut: args.shortcut,
+      title: args.title,
+      body: args.body,
+      company_id: args.companyId,
+      created_by: args.createdBy,
+    })
+    .select("*")
+    .single();
+  if (error || !data) return null;
+  return mapCanned(data);
+}

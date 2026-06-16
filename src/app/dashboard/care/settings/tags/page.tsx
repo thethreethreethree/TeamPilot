@@ -1,0 +1,160 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Loader2, Plus, Tag as TagIcon } from "lucide-react";
+import { SettingsTabs } from "@/components/care/SettingsTabs";
+import { ALL_TAG_COLORS, tagTone } from "@/lib/care/tagColors";
+
+type Tag = {
+  id: string;
+  name: string;
+  color: string;
+};
+
+export default function CareTagsPage() {
+  const [tags, setTags] = useState<Tag[] | null>(null);
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState("gray");
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  const refresh = async () => {
+    const res = await fetch("/api/care/agent/tags");
+    if (res.ok) {
+      const data = await res.json();
+      setTags(data.tags ?? []);
+    }
+  };
+
+  const create = async () => {
+    if (!newName.trim() || creating) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/care/agent/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim(), color: newColor }),
+      });
+      if (res.ok) {
+        setNewName("");
+        await refresh();
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <>
+      <header className="px-8 py-4 border-b border-default bg-base/60">
+        <h1 className="text-lg font-semibold text-primary">Settings</h1>
+        <p className="text-[11px] text-muted">Tags</p>
+      </header>
+      <SettingsTabs />
+      <div className="flex-1 overflow-y-auto px-8 py-6 max-w-3xl w-full mx-auto space-y-5">
+        {/* Create */}
+        <div className="bg-white/[0.02] border border-default rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-primary mb-3">
+            New tag
+          </h2>
+          <div className="flex items-end gap-2 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                Name
+              </label>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. billing"
+                className="w-full bg-base border border-default rounded-md px-2.5 py-1.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                Color
+              </label>
+              <div className="flex items-center gap-1.5">
+                {ALL_TAG_COLORS.map((c) => {
+                  const tone = tagTone(c);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setNewColor(c)}
+                      title={c}
+                      aria-label={c}
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${
+                        newColor === c
+                          ? "border-primary scale-110"
+                          : "border-transparent hover:scale-105"
+                      }`}
+                    >
+                      <span
+                        className={`block w-full h-full rounded-full ${tone.dot}`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={create}
+              disabled={creating || !newName.trim()}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] px-3 py-1.5 rounded-md"
+            >
+              {creating ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" aria-hidden />
+              )}
+              Create
+            </button>
+          </div>
+        </div>
+
+        {/* List */}
+        <div className="bg-white/[0.02] border border-default rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-primary mb-3">All tags</h2>
+          {tags == null ? (
+            <div className="flex items-center gap-2 text-xs text-muted py-4 justify-center">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+              Loading…
+            </div>
+          ) : tags.length === 0 ? (
+            <div className="text-center py-6">
+              <TagIcon
+                className="w-6 h-6 text-muted mx-auto mb-2"
+                aria-hidden
+              />
+              <p className="text-xs text-muted">
+                No tags yet. Create your first one above.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((t) => {
+                const tone = tagTone(t.color);
+                return (
+                  <span
+                    key={t.id}
+                    className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded border ${tone.chip}`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${tone.dot}`}
+                    />
+                    {t.name}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
