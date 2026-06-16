@@ -628,6 +628,8 @@ export type SupportResolution = {
 export type SupportDurabilityCheck = {
   id: string;
   conversationId: string;
+  companyId: string;
+  resolutionId: string | null;
   scheduledFor: string;
   checkedAt: string | null;
   outcome: "held" | "reopened" | "inconclusive" | null;
@@ -653,6 +655,8 @@ function mapDurability(row: Record<string, unknown>): SupportDurabilityCheck {
   return {
     id: row.id as string,
     conversationId: row.conversation_id as string,
+    companyId: row.company_id as string,
+    resolutionId: (row.resolution_id as string | null) ?? null,
     scheduledFor: row.scheduled_for as string,
     checkedAt: (row.checked_at as string | null) ?? null,
     outcome: (row.outcome as SupportDurabilityCheck["outcome"]) ?? null,

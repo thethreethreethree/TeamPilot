@@ -10,7 +10,10 @@ import {
   markConversationHandedOff,
   type SupportMessage,
 } from "@/lib/data/care";
-import { getProductContextForTenant } from "@/lib/care/config";
+import {
+  getCareTenantConfigByCompanyId,
+  getProductContextForTenant,
+} from "@/lib/care/config";
 import {
   buildCareSystemPrompt,
   buildCareUserMessage,
@@ -111,6 +114,23 @@ export async function POST(
       {
         error:
           "This conversation has been closed. Open a new one if you have another question.",
+      },
+      { status: 410 }
+    );
+  }
+
+  // Honor the tenant's "paused" state even on existing
+  // conversations. Without this, flipping active=false only
+  // blocked NEW conversations — customers already mid-thread
+  // could keep chatting indefinitely. "Paused" should mean
+  // paused. 410 (Gone) is the right shape: same as a closed
+  // conversation from the widget's perspective.
+  const tenant = await getCareTenantConfigByCompanyId(conversation.companyId);
+  if (tenant && !tenant.active) {
+    return NextResponse.json(
+      {
+        error: "Support is temporarily paused. We'll be back soon.",
+        reason: "tenant_inactive",
       },
       { status: 410 }
     );

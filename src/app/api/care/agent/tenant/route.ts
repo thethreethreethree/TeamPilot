@@ -47,22 +47,22 @@ export async function GET() {
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
   }
   const admin = createAdminClient();
+  // Upsert-then-read so two concurrent first-loads (e.g. CEO and
+  // COO opening the settings page at the same moment) can't race
+  // into a unique-constraint 500. ignoreDuplicates means the
+  // existing row wins; the follow-up select returns whichever
+  // landed first.
+  await admin
+    .from("care_tenant_config")
+    .upsert(
+      { company_id: ctx.companyId },
+      { onConflict: "company_id", ignoreDuplicates: true }
+    );
   const { data } = await admin
     .from("care_tenant_config")
     .select("*")
     .eq("company_id", ctx.companyId)
-    .maybeSingle();
-  if (!data) {
-    // Create on first read so the admin can configure without a
-    // separate "set up tenant" step. The embed_token + defaults
-    // come from the schema.
-    const { data: created } = await admin
-      .from("care_tenant_config")
-      .insert({ company_id: ctx.companyId })
-      .select("*")
-      .single();
-    return NextResponse.json({ config: created });
-  }
+    .single();
   return NextResponse.json({ config: data });
 }
 

@@ -1,9 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Copy, Loader2, Save, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Copy, Loader2, Save, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
+
+// Normalize an origin entry the way Origin headers actually appear:
+//   "  https://Foo.com/  " → "https://foo.com"
+//   "foo.com"              → "foo.com"  (kept as-is, flagged in UI)
+//   "*"                    → "*"
+// We don't auto-prepend a protocol — that would mask the user's
+// intent. Instead the settings UI surfaces a yellow warning row
+// for any entry without a scheme so they can decide.
+function normalizeOrigin(raw: string): string {
+  const t = raw.trim().replace(/\/+$/, "");
+  if (!t) return "";
+  if (t === "*") return "*";
+  try {
+    const u = new URL(t);
+    return `${u.protocol}//${u.host}`.toLowerCase();
+  } catch {
+    return t.toLowerCase();
+  }
+}
+
+function originIsValid(o: string): boolean {
+  if (o === "*") return true;
+  return /^https?:\/\/[^/\s]+$/.test(o);
+}
 
 /**
  * /dashboard/care/settings/widget
@@ -71,9 +95,13 @@ export default function CareWidgetSettingsPage() {
     if (!draft) return;
     setSaving(true);
     try {
+      // Normalize each origin: trim, drop trailing slashes, lowercase
+      // the host. Browser Origin headers are exact-match so user-
+      // typed entries like "ElO state.com /" or "https://X.com/" must
+      // collapse to a canonical form before they hit the DB.
       const allowedOrigins = originsRaw
         .split("\n")
-        .map((s) => s.trim())
+        .map((s) => normalizeOrigin(s))
         .filter(Boolean);
       const res = await fetch("/api/care/agent/tenant", {
         method: "PATCH",
@@ -131,7 +159,16 @@ export default function CareWidgetSettingsPage() {
     );
   }
 
-  const snippet = `<script src="https://elostate.com/care-widget.js" data-token="${config.embed_token}"></script>`;
+  // Derive the script src from the dashboard's own origin so the
+  // snippet works whether we're on elostate.com, a staging URL, a
+  // localhost dev port, or a white-label custom domain. Falls back
+  // to the production host for SSR safety (window is undefined
+  // briefly on first render).
+  const scriptOrigin =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "https://elostate.com";
+  const snippet = `<script src="${scriptOrigin}/care-widget.js" data-token="${config.embed_token}"></script>`;
 
   return (
     <>
@@ -223,6 +260,7 @@ export default function CareWidgetSettingsPage() {
             placeholder={"https://yourbusiness.com\nhttps://www.yourbusiness.com"}
             className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y font-mono"
           />
+          <OriginsValidation raw={originsRaw} />
           <p className="text-[11px] text-muted mt-2 flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-brand" aria-hidden />
             Origin mismatch attempts are logged. Visible to you at
@@ -428,6 +466,52 @@ function Field({
           mono ? "font-mono" : ""
         }`}
       />
+    </div>
+  );
+}
+
+// Live validation of the allowed_origins textarea. Surfaces entries
+// that look wrong before the admin saves and discovers their widget
+// is silently broken on real customer traffic. Doesn't block save —
+// surface, don't overtake.
+function OriginsValidation({ raw }: { raw: string }) {
+  const issues = useMemo(() => {
+    const lines = raw
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return lines
+      .map((line) => {
+        const normalized = normalizeOrigin(line);
+        if (!originIsValid(normalized)) {
+          return {
+            line,
+            normalized,
+            reason:
+              normalized && !normalized.startsWith("http")
+                ? "Missing https:// — Origin headers are exact-match, so this won't match real traffic."
+                : "Doesn't look like a valid origin.",
+          };
+        }
+        return null;
+      })
+      .filter((x): x is { line: string; normalized: string; reason: string } => x !== null);
+  }, [raw]);
+
+  if (issues.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1">
+      {issues.map((iss, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-1.5 text-[11px] text-amber-300/90 bg-amber-500/5 border border-amber-500/30 rounded px-2 py-1"
+        >
+          <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" aria-hidden />
+          <span>
+            <span className="font-mono">{iss.line}</span> — {iss.reason}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

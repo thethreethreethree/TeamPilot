@@ -162,6 +162,26 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     if (open && session) void loadMessages();
   }, [open, session, loadMessages]);
 
+  // Polling — until S7 wires Supabase realtime, this is what makes
+  // an agent reply land in the customer's open widget without a
+  // refresh. 4s while the panel is open and the customer isn't
+  // mid-send. Pauses when the tab is hidden. loadMessages already
+  // handles 404/410 (deleted-server-side) by clearing local state.
+  const sendingRef = useRef(false);
+  useEffect(() => {
+    sendingRef.current = sending;
+  }, [sending]);
+  useEffect(() => {
+    if (!open || !session) return;
+    const tick = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (sendingRef.current) return;
+      void loadMessages();
+    };
+    const id = window.setInterval(tick, 4000);
+    return () => window.clearInterval(id);
+  }, [open, session, loadMessages]);
+
   const ensureSession = useCallback(async (): Promise<StoredSession | null> => {
     if (session) return session;
     try {
