@@ -1188,6 +1188,226 @@ function rank(b: "v6" | "v5" | "ungraded"): number {
   return b === "v6" ? 2 : b === "v5" ? 1 : 0;
 }
 
+/**
+ * §4 Co-Pilot value readout — do Co-Pilot-assisted replies
+ * produce more durable resolutions than unassisted?
+ *
+ * The co_pilot_invoked column on support_messages was added in
+ * migration 0040 specifically so this comparison would be
+ * possible without retrospective inference. The readout splits
+ * conversations by whether ANY of their agent replies were
+ * Co-Pilot-assisted.
+ *
+ * Same §A2/§A3/§A4 disciplines as the Coach rubric readout.
+ * Same caveats: not controlled, not significant, signal not
+ * causation.
+ */
+export type CoPilotValueReadout = {
+  windowDays: number;
+  companyId: string;
+  cohorts: {
+    coPilotUsed: ReadoutCohort;
+    coPilotNotUsed: ReadoutCohort;
+  };
+};
+
+export async function fetchCoPilotValueReadout(args: {
+  companyId: string;
+  windowDays?: number;
+}): Promise<CoPilotValueReadout> {
+  const sb = await createServerClient();
+  const windowDays = args.windowDays ?? 60;
+  const since = new Date(
+    Date.now() - windowDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data: checks } = await sb
+    .from("support_durability_checks")
+    .select("conversation_id, outcome")
+    .eq("company_id", args.companyId)
+    .not("outcome", "is", null)
+    .gte("checked_at", since)
+    .limit(5000);
+
+  type CheckRow = {
+    conversation_id: string;
+    outcome: "held" | "reopened" | "inconclusive";
+  };
+  const checkRows = (checks ?? []) as CheckRow[];
+
+  const init = (): ReadoutCohort => ({
+    conversationCount: 0,
+    durabilityHeld: 0,
+    durabilityReopened: 0,
+    durabilityInconclusive: 0,
+    durabilityHeldRate: null,
+  });
+  if (checkRows.length === 0) {
+    return {
+      windowDays,
+      companyId: args.companyId,
+      cohorts: { coPilotUsed: init(), coPilotNotUsed: init() },
+    };
+  }
+
+  const conversationIds = Array.from(
+    new Set(checkRows.map((c) => c.conversation_id))
+  );
+
+  // Classify by ANY agent reply with co_pilot_invoked=true.
+  const { data: msgs } = await sb
+    .from("support_messages")
+    .select("conversation_id, co_pilot_invoked")
+    .in("conversation_id", conversationIds)
+    .eq("author_type", "agent")
+    .eq("is_internal_note", false);
+
+  type MsgRow = {
+    conversation_id: string;
+    co_pilot_invoked: boolean | null;
+  };
+  const coPilotByConv = new Set<string>();
+  for (const m of (msgs ?? []) as MsgRow[]) {
+    if (m.co_pilot_invoked) coPilotByConv.add(m.conversation_id);
+  }
+
+  const cohorts = {
+    coPilotUsed: init(),
+    coPilotNotUsed: init(),
+  };
+  const counted = new Set<string>();
+  for (const c of checkRows) {
+    const bucket = coPilotByConv.has(c.conversation_id)
+      ? cohorts.coPilotUsed
+      : cohorts.coPilotNotUsed;
+    if (!counted.has(c.conversation_id)) {
+      bucket.conversationCount += 1;
+      counted.add(c.conversation_id);
+    }
+    if (c.outcome === "held") bucket.durabilityHeld += 1;
+    else if (c.outcome === "reopened") bucket.durabilityReopened += 1;
+    else if (c.outcome === "inconclusive") bucket.durabilityInconclusive += 1;
+  }
+  for (const b of [cohorts.coPilotUsed, cohorts.coPilotNotUsed]) {
+    const total =
+      b.durabilityHeld + b.durabilityReopened + b.durabilityInconclusive;
+    b.durabilityHeldRate = total > 0 ? b.durabilityHeld / total : null;
+  }
+
+  return { windowDays, companyId: args.companyId, cohorts };
+}
+
+/**
+ * §4 Routing readout — do auto-routed conversations resolve
+ * with comparable durability to manually-claimed ones?
+ *
+ * The routing_method column on support_conversations (added in
+ * migration 0042) makes this comparison possible. Per §A18 we
+ * are NOT comparing per-agent — we're comparing routing METHOD.
+ */
+export type RoutingReadout = {
+  windowDays: number;
+  companyId: string;
+  cohorts: {
+    autoRouted: ReadoutCohort;
+    manualClaim: ReadoutCohort;
+    unrouted: ReadoutCohort;
+  };
+};
+
+export async function fetchRoutingReadout(args: {
+  companyId: string;
+  windowDays?: number;
+}): Promise<RoutingReadout> {
+  const sb = await createServerClient();
+  const windowDays = args.windowDays ?? 60;
+  const since = new Date(
+    Date.now() - windowDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data: checks } = await sb
+    .from("support_durability_checks")
+    .select("conversation_id, outcome")
+    .eq("company_id", args.companyId)
+    .not("outcome", "is", null)
+    .gte("checked_at", since)
+    .limit(5000);
+
+  type CheckRow = {
+    conversation_id: string;
+    outcome: "held" | "reopened" | "inconclusive";
+  };
+  const checkRows = (checks ?? []) as CheckRow[];
+
+  const init = (): ReadoutCohort => ({
+    conversationCount: 0,
+    durabilityHeld: 0,
+    durabilityReopened: 0,
+    durabilityInconclusive: 0,
+    durabilityHeldRate: null,
+  });
+  if (checkRows.length === 0) {
+    return {
+      windowDays,
+      companyId: args.companyId,
+      cohorts: {
+        autoRouted: init(),
+        manualClaim: init(),
+        unrouted: init(),
+      },
+    };
+  }
+
+  const conversationIds = Array.from(
+    new Set(checkRows.map((c) => c.conversation_id))
+  );
+
+  const { data: convs } = await sb
+    .from("support_conversations")
+    .select("id, routing_method")
+    .in("id", conversationIds);
+
+  type ConvRow = { id: string; routing_method: string | null };
+  const methodByConv = new Map<string, string | null>();
+  for (const c of (convs ?? []) as ConvRow[]) {
+    methodByConv.set(c.id, c.routing_method);
+  }
+
+  const cohorts = {
+    autoRouted: init(),
+    manualClaim: init(),
+    unrouted: init(),
+  };
+  const counted = new Set<string>();
+  for (const c of checkRows) {
+    const method = methodByConv.get(c.conversation_id) ?? null;
+    const bucket =
+      method === "auto_least_loaded"
+        ? cohorts.autoRouted
+        : method === "manual_claim" || method === "manual_assign"
+          ? cohorts.manualClaim
+          : cohorts.unrouted;
+    if (!counted.has(c.conversation_id)) {
+      bucket.conversationCount += 1;
+      counted.add(c.conversation_id);
+    }
+    if (c.outcome === "held") bucket.durabilityHeld += 1;
+    else if (c.outcome === "reopened") bucket.durabilityReopened += 1;
+    else if (c.outcome === "inconclusive") bucket.durabilityInconclusive += 1;
+  }
+  for (const b of [
+    cohorts.autoRouted,
+    cohorts.manualClaim,
+    cohorts.unrouted,
+  ]) {
+    const total =
+      b.durabilityHeld + b.durabilityReopened + b.durabilityInconclusive;
+    b.durabilityHeldRate = total > 0 ? b.durabilityHeld / total : null;
+  }
+
+  return { windowDays, companyId: args.companyId, cohorts };
+}
+
 // ─── Phase 5 routing — agent presence + auto-routing ─────────
 
 /**

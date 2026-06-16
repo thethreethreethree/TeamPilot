@@ -54,6 +54,25 @@ type CoachRubricReadout = {
   };
 };
 
+type CoPilotValueReadout = {
+  windowDays: number;
+  companyId: string;
+  cohorts: {
+    coPilotUsed: ReadoutCohort;
+    coPilotNotUsed: ReadoutCohort;
+  };
+};
+
+type RoutingReadout = {
+  windowDays: number;
+  companyId: string;
+  cohorts: {
+    autoRouted: ReadoutCohort;
+    manualClaim: ReadoutCohort;
+    unrouted: ReadoutCohort;
+  };
+};
+
 /** §A4 confidence tier — surfaces sample-size uncertainty
  *  directly in the UI. Thresholds are themselves uncertainties
  *  (5/20/50 is a starting point; refine when §4 evidence
@@ -72,6 +91,8 @@ function tier(c: ReadoutCohort): ConfidenceTier {
 
 export default function CareReadoutsPage() {
   const [readout, setReadout] = useState<CoachRubricReadout | null>(null);
+  const [coPilot, setCoPilot] = useState<CoPilotValueReadout | null>(null);
+  const [routing, setRouting] = useState<RoutingReadout | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +110,8 @@ export default function CareReadoutsPage() {
         }
         const data = await res.json();
         setReadout(data.coachRubric ?? null);
+        setCoPilot(data.coPilotValue ?? null);
+        setRouting(data.routing ?? null);
       } catch {
         setError("Couldn't reach the server.");
       } finally {
@@ -170,9 +193,74 @@ export default function CareReadoutsPage() {
               </div>
             </section>
 
+            {coPilot && (
+              <section>
+                <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
+                  Co-Pilot value · durability comparison
+                </h2>
+                <p className="text-[11px] text-secondary leading-relaxed mb-3">
+                  Last {coPilot.windowDays} days. Conversations are
+                  split by whether AT LEAST one of their agent
+                  replies was Co-Pilot-assisted. Same caveats as the
+                  Coach rubric readout apply — not controlled, not
+                  causal, signal not proof.
+                </p>
+                <div className="space-y-3">
+                  <CohortCard
+                    label="Co-Pilot-assisted"
+                    hint="Agent invoked Co-Pilot for at least one reply."
+                    cohort={coPilot.cohorts.coPilotUsed}
+                    tone="emerald"
+                  />
+                  <CohortCard
+                    label="Unassisted"
+                    hint="Agent typed every reply without Co-Pilot."
+                    cohort={coPilot.cohorts.coPilotNotUsed}
+                    tone="muted"
+                  />
+                </div>
+              </section>
+            )}
+
+            {routing && (
+              <section>
+                <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
+                  Routing · durability comparison
+                </h2>
+                <p className="text-[11px] text-secondary leading-relaxed mb-3">
+                  Last {routing.windowDays} days. Conversations are
+                  split by how they reached an agent. Per §A18 this
+                  comparison is across routing METHODS, not agents —
+                  the read is "does the routing function produce
+                  comparable outcomes to manual claim?", not "which
+                  agent is best."
+                </p>
+                <div className="space-y-3">
+                  <CohortCard
+                    label="Auto-routed (least-loaded)"
+                    hint="Routing function picked an agent at create."
+                    cohort={routing.cohorts.autoRouted}
+                    tone="emerald"
+                  />
+                  <CohortCard
+                    label="Manually claimed"
+                    hint="Agent pulled from inbox OR admin assigned."
+                    cohort={routing.cohorts.manualClaim}
+                    tone="amber"
+                  />
+                  <CohortCard
+                    label="Unrouted at create"
+                    hint="No eligible agent online; AI handled first response, conversation waited."
+                    cohort={routing.cohorts.unrouted}
+                    tone="muted"
+                  />
+                </div>
+              </section>
+            )}
+
             <section className="bg-white/[0.02] border border-default rounded-xl p-4">
               <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-2">
-                What this readout intentionally does NOT claim
+                What these readouts intentionally do NOT claim
               </p>
               <ul className="text-[11px] text-secondary leading-relaxed space-y-1 list-disc pl-4">
                 <li>
