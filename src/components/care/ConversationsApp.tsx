@@ -804,7 +804,12 @@ export function ConversationsApp({
                   </div>
                 )}
                 {messages.map((m) => (
-                  <MessageRow key={m.id} message={m} />
+                  <MessageRow
+                    key={m.id}
+                    message={m}
+                    onAskCoPilot={askAiCoPilot}
+                    composerRef={composerRef}
+                  />
                 ))}
               </div>
 
@@ -1136,7 +1141,15 @@ function PriorityDropdown({
   );
 }
 
-function MessageRow({ message }: { message: Message }) {
+function MessageRow({
+  message,
+  onAskCoPilot,
+  composerRef,
+}: {
+  message: Message;
+  onAskCoPilot?: () => void;
+  composerRef?: React.RefObject<HTMLTextAreaElement | null>;
+}) {
   const isCustomer = message.authorType === "customer";
   const isAi = message.authorType === "ai";
   const isAgent = message.authorType === "agent";
@@ -1224,6 +1237,28 @@ function MessageRow({ message }: { message: Message }) {
                     {message.coachReasonInternal}
                   </p>
                 )}
+                {/* §A7 next-step affordance — needs_guidance carries
+                    an invitation, not a verdict. The button asks
+                    Co-Pilot for a follow-up draft that incorporates
+                    this Coach reason. §A16 composition: the Co-Pilot
+                    route reads the most recent Coach grade
+                    automatically, so this button just opens the
+                    composer and triggers the existing askAiCoPilot
+                    flow — the composition happens server-side. */}
+                {message.coachGrade === "needs_guidance" &&
+                  onAskCoPilot && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        composerRef?.current?.focus();
+                        onAskCoPilot();
+                      }}
+                      className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2 py-0.5 rounded transition-colors"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" aria-hidden />
+                      Want a follow-up draft with this in mind?
+                    </button>
+                  )}
               </div>
             </>
           ) : (

@@ -78,6 +78,29 @@ export async function POST(
     })
     .join("\n");
 
+  // §A16 composition — read the most recent Coach grade on an
+  // agent message in this thread. If Coach flagged the prior
+  // reply as needs_guidance, the Co-Pilot's next draft MUST
+  // incorporate that feedback. Without this read, two AI tools
+  // operate on the same conversation surface and contradict each
+  // other — Coach says "your last reply read as dismissive,"
+  // Co-Pilot drafts a new reply with the same shape because it
+  // never saw Coach's finding. A16 names this failure exactly.
+  const mostRecentGradedAgentReply = detail.messages
+    .filter((m) => m.authorType === "agent" && !m.isInternalNote)
+    .reverse()
+    .find((m) => m.coachGrade && m.coachGrade !== "withheld");
+  const coachContext =
+    mostRecentGradedAgentReply &&
+    mostRecentGradedAgentReply.coachGrade === "needs_guidance" &&
+    mostRecentGradedAgentReply.coachReasonInternal
+      ? {
+          grade: mostRecentGradedAgentReply.coachGrade,
+          reason: mostRecentGradedAgentReply.coachReasonInternal,
+          flaggedReplyBody: mostRecentGradedAgentReply.body,
+        }
+      : null;
+
   const productContext = await getProductContextForTenant(enriched.companyId);
 
   // Pull similar past resolutions so the Co-Pilot can draw on the
@@ -122,7 +145,16 @@ Format strictly:
 <one or two sentences>
 
 Product context the customer is reaching out about:
-${productContext}`;
+${productContext}${
+    coachContext
+      ? `
+
+COACH FEEDBACK ON THE AGENT'S PRIOR REPLY (internal — do NOT mention this to the customer in any form):
+The agent's previous reply was flagged needs_guidance by the Coach surface. Reason: "${coachContext.reason}"
+
+When drafting this next reply, incorporate the Coach feedback. The reasoning line at the bottom should briefly name how you addressed it (e.g., "Addressed the dismissive read by acknowledging the customer's frustration first"). Do not write the Coach reason or the word "Coach" anywhere in the draft itself — only the agent sees the reasoning line.`
+      : ""
+  }`;
 
   const precedentBlock =
     precedents.length > 0
