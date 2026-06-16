@@ -1275,6 +1275,156 @@ export async function detectSupportPatterns(args: {
   return patterns;
 }
 
+/**
+ * Coach v6 risk patterns — team-level only per §A18.
+ *
+ * Scans support_messages.coach_counts for the company in the
+ * window. When a specific risk category (unsupported_absolutes,
+ * fabricated_specifics, empty_filler) accumulates above the §3.2
+ * Understanding Gate threshold, it surfaces as a team pattern.
+ *
+ * §A18 STRUCTURAL: this function intentionally NEVER groups by
+ * agent. The aggregate is across the team's messages. A leader
+ * cannot accidentally see a per-agent breakdown from this code
+ * path because the data layer never produces one. Same
+ * structural defense the team-aggregate growth view uses.
+ *
+ * §A11: the surfaced pattern is a COUNT — "12 unsupported
+ * absolutes accumulated this week" — never a verdict. The team
+ * decides whether the pattern is fair (sometimes the product
+ * context simply lacks the grounding the team needs; the fix
+ * is upstream of the agent).
+ *
+ * sampleConversationIds for each risk category come from the
+ * conversations where the risk was actually counted, so the
+ * pattern row can drill into the §3.1 events that support it
+ * (§A14 multi-state render verification: the user can verify
+ * the pattern is real, not trust the System's read).
+ */
+export type CoachRiskPattern = {
+  riskCategory: "unsupported_absolutes" | "fabricated_specifics" | "empty_filler";
+  totalInstances: number;
+  repliesScanned: number;
+  windowDays: number;
+  firstSeen: string;
+  lastSeen: string;
+  sampleConversationIds: string[];
+};
+
+export async function detectCoachRiskPatterns(args: {
+  companyId: string;
+  windowDays?: number;
+  minInstances?: number;
+}): Promise<CoachRiskPattern[]> {
+  const sb = await createServerClient();
+  const windowDays = args.windowDays ?? 30;
+  // §3.2 + §A4 — 5 is the initial threshold. The §4 readout in
+  // Phase 7 should refine this. Per A4 we surface the uncertainty
+  // rather than pre-deciding it's the right number.
+  const minInstances = args.minInstances ?? 5;
+  const since = new Date(
+    Date.now() - windowDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  // Pull all v6-graded agent replies in the window for this
+  // company. The query joins through support_conversations so
+  // we can scope by company_id (support_messages itself doesn't
+  // have a company_id column).
+  const { data: rows } = await sb
+    .from("support_messages")
+    .select(
+      "conversation_id, coach_counts, created_at, support_conversations!inner(company_id)"
+    )
+    .eq("author_type", "agent")
+    .eq("is_internal_note", false)
+    .eq("support_conversations.company_id", args.companyId)
+    .not("coach_counts", "is", null)
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(5000);
+
+  type Row = {
+    conversation_id: string;
+    coach_counts: {
+      risks?: {
+        unsupported_absolutes?: number;
+        fabricated_specifics?: number;
+        empty_filler?: number;
+      };
+    } | null;
+    created_at: string;
+  };
+  const messageRows = (rows ?? []) as unknown as Row[];
+
+  type Acc = {
+    totalInstances: number;
+    firstSeen: string;
+    lastSeen: string;
+    conversationIds: string[];
+  };
+  const initAcc = (createdAt: string): Acc => ({
+    totalInstances: 0,
+    firstSeen: createdAt,
+    lastSeen: createdAt,
+    conversationIds: [],
+  });
+  const buckets: Record<CoachRiskPattern["riskCategory"], Acc> = {
+    unsupported_absolutes: initAcc(""),
+    fabricated_specifics: initAcc(""),
+    empty_filler: initAcc(""),
+  };
+
+  for (const row of messageRows) {
+    const r = row.coach_counts?.risks;
+    if (!r) continue;
+    const consider = (
+      key: CoachRiskPattern["riskCategory"],
+      val: number | undefined
+    ) => {
+      if (!val || val <= 0) return;
+      const b = buckets[key];
+      b.totalInstances += val;
+      if (!b.firstSeen || row.created_at < b.firstSeen) {
+        b.firstSeen = row.created_at;
+      }
+      if (!b.lastSeen || row.created_at > b.lastSeen) {
+        b.lastSeen = row.created_at;
+      }
+      if (
+        b.conversationIds.length < 5 &&
+        !b.conversationIds.includes(row.conversation_id)
+      ) {
+        b.conversationIds.push(row.conversation_id);
+      }
+    };
+    consider("unsupported_absolutes", r.unsupported_absolutes);
+    consider("fabricated_specifics", r.fabricated_specifics);
+    consider("empty_filler", r.empty_filler);
+  }
+
+  const out: CoachRiskPattern[] = [];
+  for (const key of [
+    "unsupported_absolutes",
+    "fabricated_specifics",
+    "empty_filler",
+  ] as const) {
+    const b = buckets[key];
+    if (b.totalInstances >= minInstances) {
+      out.push({
+        riskCategory: key,
+        totalInstances: b.totalInstances,
+        repliesScanned: messageRows.length,
+        windowDays,
+        firstSeen: b.firstSeen,
+        lastSeen: b.lastSeen,
+        sampleConversationIds: b.conversationIds,
+      });
+    }
+  }
+  out.sort((a, b) => b.totalInstances - a.totalInstances);
+  return out;
+}
+
 export async function fetchAgentGrowth(
   agentId: string
 ): Promise<AgentGrowthSnapshot> {
