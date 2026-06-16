@@ -86,7 +86,14 @@ export function CareShell({ children }: { children: React.ReactNode }) {
             <div className="w-7 h-7 rounded-md bg-[#FACC15] flex items-center justify-center">
               <LifeBuoy className="w-4 h-4 text-[#09090B]" aria-hidden />
             </div>
-            <p className="text-sm font-bold tracking-tight">Care</p>
+            <div>
+              <p className="text-sm font-bold tracking-tight leading-none">
+                C.A.R.E
+              </p>
+              <p className="text-[9px] uppercase tracking-widest text-white/40 mt-0.5">
+                Assist · Respond · Engine
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-300">
             <span

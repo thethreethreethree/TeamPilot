@@ -1,0 +1,392 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, MessageCircle, Send, X } from "lucide-react";
+
+/**
+ * Embedded C.A.R.E widget — runs inside the iframe served at
+ * /widget/care/[embedToken]. Different from the dashboard-side
+ * CareChatWidget in two ways:
+ *
+ *   1. Loads tenant config (color, greeting, position) from
+ *      /api/care/widget/bootstrap on mount. Falls back to ELOSTATE
+ *      defaults if bootstrap fails so the visitor isn't left
+ *      with a broken white square.
+ *
+ *   2. Communicates with the host page via postMessage so the
+ *      host can resize the iframe when the widget expands or
+ *      collapses. Without this, the iframe stays 60x60 forever
+ *      and the chat panel is invisible.
+ *
+ * The embed token is captured at SSR time so we can pass it on
+ * every API call without trusting URL parsing on the client.
+ */
+
+const STORAGE_KEY_BASE = "care-widget-session";
+
+type WidgetConfig = {
+  color: string;
+  greeting: string;
+  subtitle: string;
+  position: "bottom-right" | "bottom-left";
+  logoUrl: string | null;
+  displayName: string | null;
+};
+
+type StoredSession = {
+  conversationId: string;
+  sessionToken: string;
+};
+
+type Message = {
+  id: string;
+  authorType: "customer" | "ai" | "agent" | "system";
+  body: string;
+  createdAt: string;
+};
+
+const DEFAULT_CONFIG: WidgetConfig = {
+  color: "#FACC15",
+  greeting: "We're here to help",
+  subtitle: "Typical reply: a few seconds",
+  position: "bottom-right",
+  logoUrl: null,
+  displayName: null,
+};
+
+export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
+  const [config, setConfig] = useState<WidgetConfig>(DEFAULT_CONFIG);
+  const [bootstrapped, setBootstrapped] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+
+  const [open, setOpen] = useState(false);
+  const [session, setSession] = useState<StoredSession | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const storageKey = `${STORAGE_KEY_BASE}:${embedToken}`;
+
+  // Tell the host page to resize the iframe when our open state
+  // changes. Host script listens for these messages and adjusts.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.parent?.postMessage(
+      { type: "care:widget:size", open },
+      "*"
+    );
+  }, [open]);
+
+  // Bootstrap config from the server.
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/care/widget/bootstrap?token=${encodeURIComponent(embedToken)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.widget) {
+            setConfig({ ...DEFAULT_CONFIG, ...data.widget });
+          }
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setBootstrapError(
+            data.reason === "origin_rejected"
+              ? "This domain isn't authorized for this widget."
+              : data.reason === "tenant_unknown"
+                ? "Widget config not found."
+                : "Couldn't load the widget."
+          );
+        }
+      } catch {
+        setBootstrapError("Couldn't reach the server.");
+      } finally {
+        setBootstrapped(true);
+      }
+    })();
+  }, [embedToken]);
+
+  // Restore session from localStorage.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as StoredSession;
+        if (parsed.conversationId && parsed.sessionToken) {
+          setSession(parsed);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (open) requestAnimationFrame(() => inputRef.current?.focus());
+  }, [open]);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages.length, aiThinking]);
+
+  const loadMessages = useCallback(async () => {
+    if (!session) return;
+    try {
+      const res = await fetch(
+        `/api/care/conversations/${session.conversationId}/messages`,
+        { headers: { "x-care-session": session.sessionToken } }
+      );
+      if (!res.ok) {
+        if (res.status === 404 || res.status === 410) {
+          window.localStorage.removeItem(storageKey);
+          setSession(null);
+          setMessages([]);
+        }
+        return;
+      }
+      const data = await res.json();
+      setMessages(data.messages ?? []);
+    } catch {
+      /* ignore */
+    }
+  }, [session, storageKey]);
+
+  useEffect(() => {
+    if (open && session) void loadMessages();
+  }, [open, session, loadMessages]);
+
+  const ensureSession = useCallback(async (): Promise<StoredSession | null> => {
+    if (session) return session;
+    try {
+      const res = await fetch("/api/care/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ embedToken }),
+      });
+      if (!res.ok) {
+        setError("Couldn't start a conversation.");
+        return null;
+      }
+      const data = (await res.json()) as StoredSession;
+      window.localStorage.setItem(storageKey, JSON.stringify(data));
+      setSession(data);
+      return data;
+    } catch {
+      setError("Couldn't reach the server.");
+      return null;
+    }
+  }, [session, embedToken, storageKey]);
+
+  const send = async () => {
+    const body = draft.trim();
+    if (!body || sending) return;
+    setError(null);
+    const active = await ensureSession();
+    if (!active) return;
+    setDraft("");
+    setSending(true);
+    setAiThinking(true);
+    const tempId = `temp-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        authorType: "customer",
+        body,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    try {
+      const res = await fetch(
+        `/api/care/conversations/${active.conversationId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-care-session": active.sessionToken,
+          },
+          body: JSON.stringify({ body }),
+        }
+      );
+      if (!res.ok) {
+        setError("Couldn't send. Please try again.");
+        setMessages((p) => p.filter((m) => m.id !== tempId));
+        return;
+      }
+      const data = await res.json();
+      setMessages(data.messages ?? []);
+    } catch {
+      setError("Couldn't reach the server.");
+      setMessages((p) => p.filter((m) => m.id !== tempId));
+    } finally {
+      setSending(false);
+      setAiThinking(false);
+    }
+  };
+
+  if (!bootstrapped) {
+    return (
+      <div className="fixed bottom-4 right-4 w-14 h-14 rounded-full bg-surface flex items-center justify-center">
+        <Loader2 className="w-4 h-4 animate-spin text-muted" aria-hidden />
+      </div>
+    );
+  }
+
+  if (bootstrapError) {
+    return (
+      <div className="fixed bottom-4 right-4 w-72 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-300">
+        {bootstrapError}
+      </div>
+    );
+  }
+
+  const posClass =
+    config.position === "bottom-left" ? "bottom-4 left-4" : "bottom-4 right-4";
+
+  return (
+    <>
+      {!open && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Open support chat"
+          style={{ backgroundColor: config.color }}
+          className={`fixed ${posClass} w-14 h-14 rounded-full text-[#09090B] shadow-lg hover:scale-105 transition-transform flex items-center justify-center`}
+        >
+          <MessageCircle className="w-6 h-6" aria-hidden />
+        </button>
+      )}
+
+      {open && (
+        <div
+          className={`fixed ${posClass} w-[min(380px,calc(100vw-2rem))] h-[min(560px,calc(100vh-2rem))] bg-base border border-default rounded-2xl shadow-2xl flex flex-col overflow-hidden`}
+        >
+          {/* Header */}
+          <div
+            className="px-4 py-3 border-b border-default flex items-center justify-between"
+            style={{ backgroundColor: `${config.color}1A` }}
+          >
+            <div>
+              <p className="text-sm font-semibold text-primary">
+                {config.greeting}
+              </p>
+              <p className="text-[11px] text-muted">{config.subtitle}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+              className="text-muted hover:text-primary p-1.5 rounded-lg hover:bg-surface-raised"
+            >
+              <X className="w-4 h-4" aria-hidden />
+            </button>
+          </div>
+
+          {/* Stream */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            {messages.length === 0 && (
+              <div className="text-center px-4 py-8">
+                <p className="text-sm font-medium text-primary mb-1">
+                  Hi there.
+                </p>
+                <p className="text-xs text-secondary leading-relaxed max-w-[260px] mx-auto">
+                  Ask anything — a real person sees these too.
+                </p>
+              </div>
+            )}
+            {messages.map((m) => (
+              <Bubble key={m.id} message={m} accent={config.color} />
+            ))}
+            {aiThinking && (
+              <div className="flex items-center gap-2 text-xs text-muted">
+                <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
+                Thinking…
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="px-4 py-2 text-[11px] text-red-400 border-t border-red-500/30 bg-red-500/5">
+              {error}
+            </div>
+          )}
+
+          <div className="border-t border-default p-3 flex items-end gap-2 bg-surface/40">
+            <textarea
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              rows={1}
+              placeholder="Type a message…"
+              className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"
+            />
+            <button
+              type="button"
+              onClick={() => void send()}
+              disabled={sending || !draft.trim()}
+              aria-label="Send"
+              style={{ backgroundColor: config.color }}
+              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg text-[#09090B] disabled:opacity-40"
+            >
+              {sending ? (
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+              ) : (
+                <Send className="w-4 h-4" aria-hidden />
+              )}
+            </button>
+          </div>
+
+          {config.displayName && (
+            <div className="text-center text-[10px] text-muted py-1 border-t border-default">
+              Powered by C.A.R.E
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+function Bubble({
+  message,
+  accent,
+}: {
+  message: Message;
+  accent: string;
+}) {
+  const isCustomer = message.authorType === "customer";
+  if (message.authorType === "system") {
+    return (
+      <div className="text-center text-[10px] text-muted italic py-1">
+        {message.body}
+      </div>
+    );
+  }
+  return (
+    <div className={`flex ${isCustomer ? "justify-end" : "justify-start"}`}>
+      <div
+        style={
+          isCustomer ? { backgroundColor: accent, color: "#09090B" } : undefined
+        }
+        className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+          isCustomer ? "rounded-br-sm" : "bg-surface text-primary border border-default rounded-bl-sm"
+        }`}
+      >
+        {message.body}
+      </div>
+    </div>
+  );
+}

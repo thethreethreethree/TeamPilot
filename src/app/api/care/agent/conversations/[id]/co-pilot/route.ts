@@ -78,7 +78,7 @@ export async function POST(
     })
     .join("\n");
 
-  const productContext = getProductContextForTenant(enriched.companyId);
+  const productContext = await getProductContextForTenant(enriched.companyId);
 
   // Pull similar past resolutions so the Co-Pilot can draw on the
   // company's institutional memory. The reasoning surface will cite

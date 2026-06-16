@@ -162,7 +162,7 @@ export async function POST(
       body: m.body,
     }));
 
-  const productContext = getProductContextForTenant(conversation.companyId);
+  const productContext = await getProductContextForTenant(conversation.companyId);
   const systemPrompt = buildCareSystemPrompt({ productContext });
   const userMessage = buildCareUserMessage({
     newMessage: body.body,
