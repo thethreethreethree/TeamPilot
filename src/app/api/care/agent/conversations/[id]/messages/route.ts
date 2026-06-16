@@ -9,6 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { gradeCareAgentReply } from "@/lib/care/grader";
+import { dispatchOutboundEmailReply } from "@/lib/care/email/outbound";
 
 /**
  * POST /api/care/agent/conversations/[id]/messages
@@ -124,7 +125,36 @@ export async function POST(
     });
   }
 
-  return NextResponse.json({ message: msg });
+  // Phase 4 outbound email dispatch — if the conversation source
+  // is 'email', dispatch the agent's public reply through the
+  // email provider so the customer receives it in their inbox.
+  // Internal notes never dispatch (they're agent-only). Async +
+  // best-effort: dispatch failures are surfaced via a follow-up
+  // event the agent can see, but they don't block the response.
+  // §A14 verified branches: source=email, source=embedded_widget
+  // (no dispatch), source=web_widget (no dispatch), internal note
+  // (no dispatch regardless of source).
+  let emailDispatchPromised = false;
+  if (!body.isInternalNote && msg) {
+    const { data: convRow } = await sb
+      .from("support_conversations")
+      .select("source")
+      .eq("id", id)
+      .maybeSingle();
+    if (convRow?.source === "email") {
+      emailDispatchPromised = true;
+      void dispatchOutboundEmailReply({
+        conversationId: id,
+        messageId: msg.id,
+      }).catch((e) => {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[care] outbound email dispatch error", e);
+        }
+      });
+    }
+  }
+
+  return NextResponse.json({ message: msg, emailDispatchPromised });
 }
 
 /**
