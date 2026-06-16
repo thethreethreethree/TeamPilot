@@ -156,6 +156,37 @@ export function ConversationsApp({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // Resizable pane widths — list (between views nav and detail)
+  // and customer panel (between detail and right edge). Defaults
+  // mirror the original Tailwind w-80 (320px). Persisted per-user
+  // in localStorage so the layout sticks across sessions, the
+  // same way Zendesk / Intercom remember their column widths.
+  const [listWidth, setListWidth] = useState<number>(320);
+  const [customerWidth, setCustomerWidth] = useState<number>(320);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("care-pane-widths");
+      if (raw) {
+        const v = JSON.parse(raw) as { list?: number; customer?: number };
+        if (typeof v.list === "number") setListWidth(clampPane(v.list, 240, 520));
+        if (typeof v.customer === "number")
+          setCustomerWidth(clampPane(v.customer, 240, 520));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "care-pane-widths",
+        JSON.stringify({ list: listWidth, customer: customerWidth })
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [listWidth, customerWidth]);
+
   // Load identity (so "Mine" filter works) + inbox
   const loadInbox = useCallback(async () => {
     try {
@@ -185,6 +216,68 @@ export function ConversationsApp({
   useEffect(() => {
     void loadInbox();
   }, [loadInbox]);
+
+  // Lightweight polling so new customer messages + inbox state
+  // arrive without a manual refresh. Until S7 wires Supabase
+  // realtime channels, a 5s tick is the honest tradeoff: keeps
+  // the agent surface live without hammering the API. Pauses when
+  // the tab is hidden so background tabs don't burn cycles, and
+  // skips refresh while the agent is mid-action so we never
+  // clobber the optimistic UI mid-send.
+  const actingRef = useRef(false);
+  const sendingRef = useRef(false);
+  useEffect(() => {
+    actingRef.current = acting;
+  }, [acting]);
+  useEffect(() => {
+    sendingRef.current = sending;
+  }, [sending]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (actingRef.current || sendingRef.current) return;
+      await loadInbox();
+      if (selectedId && !cancelled) {
+        try {
+          const res = await fetch(
+            `/api/care/agent/conversations/${selectedId}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            // Only update if message count actually changed or last
+            // message id moved — avoids re-render churn.
+            setMessages((prev) => {
+              const next: Message[] = data.messages ?? [];
+              if (
+                prev.length === next.length &&
+                prev[prev.length - 1]?.id === next[next.length - 1]?.id
+              ) {
+                return prev;
+              }
+              return next;
+            });
+          }
+          const evRes = await fetch(
+            `/api/care/agent/conversations/${selectedId}/events`
+          );
+          if (evRes.ok) {
+            const data = await evRes.json();
+            setEvents(data.events ?? []);
+          }
+        } catch {
+          /* poll failures are best-effort */
+        }
+      }
+    };
+    const id = window.setInterval(tick, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [loadInbox, selectedId]);
 
   // Apply view + search filters
   const filtered = useMemo(() => {
@@ -566,7 +659,10 @@ export function ConversationsApp({
       {/* CENTER — List + detail */}
       <div className="flex flex-1 min-w-0 min-h-0">
         {/* List pane */}
-        <div className="w-80 flex-shrink-0 border-r border-default flex flex-col">
+        <div
+          style={{ width: listWidth }}
+          className="flex-shrink-0 border-r border-default flex flex-col"
+        >
           {/* Search */}
           <div className="px-3 py-2 border-b border-default">
             <div className="relative">
@@ -611,6 +707,13 @@ export function ConversationsApp({
           )}
         </div>
 
+        <PaneSplitter
+          onDrag={(dx) =>
+            setListWidth((w) => clampPane(w + dx, 240, 520))
+          }
+          ariaLabel="Resize conversation list"
+        />
+
         {/* Detail pane */}
         <div className="flex-1 min-w-0 flex flex-col">
           {!selected ? (
@@ -636,7 +739,20 @@ export function ConversationsApp({
                 acting={acting}
                 onClaim={claim}
                 onResolve={() => setResolveModalOpen(true)}
-                onClose={() => changeStatus("closed")}
+                onClose={() => {
+                  // Close = terminal state without a resolution
+                  // capture. Confirmable because §1.6 prefers
+                  // Resolve (which captures learning); Close is
+                  // for the "this isn't actually a conversation"
+                  // path (spam, accidental click, dup).
+                  if (
+                    window.confirm(
+                      "Close this conversation without capturing a resolution? Use Resolve instead if there's a learning to record."
+                    )
+                  ) {
+                    void changeStatus("closed");
+                  }
+                }}
                 onPriorityChange={setPriority}
               />
 
@@ -685,7 +801,19 @@ export function ConversationsApp({
 
         {/* RIGHT — Customer panel + timeline */}
         {selected && (
-          <CustomerPanel conversation={selected} events={events} />
+          <>
+            <PaneSplitter
+              onDrag={(dx) =>
+                setCustomerWidth((w) => clampPane(w - dx, 240, 520))
+              }
+              ariaLabel="Resize customer panel"
+            />
+            <CustomerPanel
+              conversation={selected}
+              events={events}
+              width={customerWidth}
+            />
+          </>
         )}
       </div>
 
@@ -918,7 +1046,8 @@ function DetailHeader({
               type="button"
               onClick={onClose}
               disabled={acting}
-              className="inline-flex items-center gap-1.5 text-xs text-muted border border-default hover:border-strong disabled:opacity-50 px-3 py-1.5 rounded-md"
+              title="Close without capturing a resolution"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary border border-default hover:text-red-300 hover:border-red-500/50 hover:bg-red-500/5 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
             >
               <Lock className="w-3.5 h-3.5" aria-hidden />
               Close
@@ -1213,13 +1342,18 @@ function Composer({
 function CustomerPanel({
   conversation,
   events,
+  width,
 }: {
   conversation: Conversation;
   events: ConversationEvent[];
+  width: number;
 }) {
   const customer = conversation.customer;
   return (
-    <aside className="w-80 flex-shrink-0 border-l border-default bg-white/[0.01] flex flex-col">
+    <aside
+      style={{ width }}
+      className="flex-shrink-0 border-l border-default bg-white/[0.01] flex flex-col"
+    >
       <div className="px-5 py-4 border-b border-default">
         <p className="text-[10px] uppercase tracking-widest text-muted mb-1.5">
           Customer
@@ -1361,4 +1495,60 @@ function computeSlaPct(c: Conversation): number | null {
   const elapsed = Date.now() - new Date(c.firstMessageAt).getTime();
   const target = c.slaFirstResponseMinutes * 60_000;
   return Math.round((elapsed / target) * 100);
+}
+
+// ─── Layout helpers ─────────────────────────────────────────────
+
+function clampPane(value: number, min: number, max: number): number {
+  if (Number.isNaN(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+// A 4px draggable splitter. Reports drag delta (px) to the parent
+// which decides which adjacent pane shrinks/grows. Keeping the
+// split-direction policy in the parent means the same component
+// works for both the left split (list → grow right) and the
+// right split (customer → grow left, hence the inverted dx).
+function PaneSplitter({
+  onDrag,
+  ariaLabel,
+}: {
+  onDrag: (deltaX: number) => void;
+  ariaLabel: string;
+}) {
+  const dragging = useRef(false);
+  const lastX = useRef(0);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    dragging.current = true;
+    lastX.current = e.clientX;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      const dx = ev.clientX - lastX.current;
+      lastX.current = ev.clientX;
+      if (dx !== 0) onDrag(dx);
+    };
+    const onUp = () => {
+      dragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={ariaLabel}
+      onMouseDown={onMouseDown}
+      className="w-1 flex-shrink-0 bg-default/40 hover:bg-[#FACC15]/40 active:bg-[#FACC15]/60 cursor-col-resize transition-colors"
+    />
+  );
 }
