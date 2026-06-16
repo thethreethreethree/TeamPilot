@@ -133,12 +133,20 @@ export default function CareLeadershipPage() {
 
   return (
     <>
-      <header className="px-8 py-4 border-b border-default bg-base/60">
-        <h1 className="text-lg font-semibold text-primary">Team</h1>
-        <p className="text-[11px] text-muted">
-          The team&apos;s work · last 30 days · aggregate only · no
-          per-agent breakdown by design (§A18)
-        </p>
+      <header className="px-8 py-4 border-b border-default bg-base/60 flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-primary">Team</h1>
+          <p className="text-[11px] text-muted">
+            The team&apos;s work · last 30 days · aggregate only · no
+            per-agent breakdown by design (§A18)
+          </p>
+        </div>
+        <Link
+          href="/dashboard/care/leadership/readouts"
+          className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2.5 py-1 rounded transition-colors"
+        >
+          §4 readouts
+        </Link>
       </header>
       <div className="flex-1 overflow-y-auto px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
         {loading && (

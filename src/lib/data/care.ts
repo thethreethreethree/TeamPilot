@@ -990,6 +990,204 @@ export type AgentGrowthSnapshot = {
   };
 };
 
+// ─── Phase 7 §4 readouts — outcome-gated method evolution ────
+
+/**
+ * §4 Coach rubric readout — does Coach v6 (count-based) produce
+ * more durable resolutions than the prior v5 (verdict-shaped) or
+ * ungraded baseline?
+ *
+ * Constitutional sources (ThinkerThinker.md):
+ *   - §A2 — design backwards from the §4 readout. This function
+ *     IS the readout the Coach v6 reframe was supposed to be
+ *     measured against. Ship-before-readout is the §A2 failure
+ *     mode this closes.
+ *   - §A3 — anti-game-your-own-evaluation defaults. The
+ *     comparison is durability_held rate (downstream consequence),
+ *     not "did agents accept the Coach v6 grade" (System
+ *     agreement). The latter is forbidden per §A3.
+ *   - §A4 — surface uncertainties. The function returns sample
+ *     sizes so the user can judge whether the difference is
+ *     meaningful. No "Coach v6 wins" claim baked into the data.
+ *   - §A11 — counts and rates, never verdicts.
+ *   - §A18 — labels in the consumer UI (Phase 7 commit 2)
+ *     describe the cohorts ("v6-graded" / "pre-v6") rather than
+ *     evaluating them ("better" / "worse").
+ *
+ * Method:
+ *   1. Pull all support_conversations for the company that
+ *      have AT LEAST ONE completed durability check in the window
+ *   2. For each, look at the agent messages — does any have
+ *      coach_counts set? Yes → v6 cohort. Else if any has
+ *      coach_grade set (and no v6) → v5 cohort. Else → ungraded.
+ *   3. For each cohort: count durability_held vs reopened vs
+ *      inconclusive.
+ *   4. Return cohort counts + held rates. Confidence tier is the
+ *      consumer's call.
+ *
+ * What this readout does NOT claim
+ * ────────────────────────────────
+ *   - Controlled comparison. The cohorts aren't randomized;
+ *     they reflect when each rubric was active. Confounds
+ *     (issue category mix shifts, agent skill drift) are NOT
+ *     controlled for. Per §A4 the user sees this caveat.
+ *   - Statistical significance. We surface N; the user judges.
+ *     The §A4 uncertainty about what threshold counts as
+ *     "meaningful" is deferred to the user's outside-view read.
+ *   - Forward causation. If v6 cohorts hold durably more, it's
+ *     a SIGNAL worth investigating, not proof v6 caused the
+ *     improvement.
+ */
+export type CoachRubricReadout = {
+  windowDays: number;
+  companyId: string;
+  cohorts: {
+    v6: ReadoutCohort;
+    v5: ReadoutCohort;
+    ungraded: ReadoutCohort;
+  };
+};
+
+export type ReadoutCohort = {
+  conversationCount: number;
+  durabilityHeld: number;
+  durabilityReopened: number;
+  durabilityInconclusive: number;
+  durabilityHeldRate: number | null; // null when n=0
+};
+
+export async function fetchCoachRubricReadout(args: {
+  companyId: string;
+  windowDays?: number;
+}): Promise<CoachRubricReadout> {
+  const sb = await createServerClient();
+  const windowDays = args.windowDays ?? 60;
+  const since = new Date(
+    Date.now() - windowDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  // 1. Conversations with a completed durability check in the window.
+  const { data: checks } = await sb
+    .from("support_durability_checks")
+    .select("conversation_id, outcome")
+    .eq("company_id", args.companyId)
+    .not("outcome", "is", null)
+    .gte("checked_at", since)
+    .limit(5000);
+
+  type CheckRow = {
+    conversation_id: string;
+    outcome: "held" | "reopened" | "inconclusive";
+  };
+  const checkRows = (checks ?? []) as CheckRow[];
+
+  if (checkRows.length === 0) {
+    const empty: ReadoutCohort = {
+      conversationCount: 0,
+      durabilityHeld: 0,
+      durabilityReopened: 0,
+      durabilityInconclusive: 0,
+      durabilityHeldRate: null,
+    };
+    return {
+      windowDays,
+      companyId: args.companyId,
+      cohorts: { v6: empty, v5: { ...empty }, ungraded: { ...empty } },
+    };
+  }
+
+  const conversationIds = Array.from(
+    new Set(checkRows.map((c) => c.conversation_id))
+  );
+
+  // 2. Look at agent messages on those conversations to classify
+  // each conversation's rubric version.
+  const { data: msgs } = await sb
+    .from("support_messages")
+    .select("conversation_id, coach_counts, coach_grade")
+    .in("conversation_id", conversationIds)
+    .eq("author_type", "agent")
+    .eq("is_internal_note", false);
+
+  type MsgRow = {
+    conversation_id: string;
+    coach_counts: unknown | null;
+    coach_grade: string | null;
+  };
+  const msgRows = (msgs ?? []) as MsgRow[];
+
+  type Bucket = "v6" | "v5" | "ungraded";
+  const cohortByConv = new Map<string, Bucket>();
+  for (const m of msgRows) {
+    const current = cohortByConv.get(m.conversation_id) ?? "ungraded";
+    let next: Bucket = current;
+    if (m.coach_counts !== null && m.coach_counts !== undefined) {
+      next = "v6"; // v6 wins regardless
+    } else if (
+      m.coach_grade !== null &&
+      m.coach_grade !== undefined &&
+      current === "ungraded"
+    ) {
+      next = "v5";
+    }
+    if (rank(next) > rank(current)) {
+      cohortByConv.set(m.conversation_id, next);
+    } else if (!cohortByConv.has(m.conversation_id)) {
+      cohortByConv.set(m.conversation_id, current);
+    }
+  }
+  // Conversations with no agent messages at all also count as
+  // ungraded — they show up in checks but never had a rubric
+  // applied (rare; defensive).
+  for (const id of conversationIds) {
+    if (!cohortByConv.has(id)) cohortByConv.set(id, "ungraded");
+  }
+
+  // 3. Aggregate.
+  const init = (): ReadoutCohort => ({
+    conversationCount: 0,
+    durabilityHeld: 0,
+    durabilityReopened: 0,
+    durabilityInconclusive: 0,
+    durabilityHeldRate: null,
+  });
+  const cohorts: Record<Bucket, ReadoutCohort> = {
+    v6: init(),
+    v5: init(),
+    ungraded: init(),
+  };
+
+  const counted = new Set<string>();
+  for (const c of checkRows) {
+    const b = cohortByConv.get(c.conversation_id) ?? "ungraded";
+    if (!counted.has(c.conversation_id)) {
+      cohorts[b].conversationCount += 1;
+      counted.add(c.conversation_id);
+    }
+    if (c.outcome === "held") cohorts[b].durabilityHeld += 1;
+    else if (c.outcome === "reopened") cohorts[b].durabilityReopened += 1;
+    else if (c.outcome === "inconclusive")
+      cohorts[b].durabilityInconclusive += 1;
+  }
+  for (const b of ["v6", "v5", "ungraded"] as const) {
+    const k = cohorts[b];
+    const totalChecks =
+      k.durabilityHeld + k.durabilityReopened + k.durabilityInconclusive;
+    k.durabilityHeldRate =
+      totalChecks > 0 ? k.durabilityHeld / totalChecks : null;
+  }
+
+  return {
+    windowDays,
+    companyId: args.companyId,
+    cohorts,
+  };
+}
+
+function rank(b: "v6" | "v5" | "ungraded"): number {
+  return b === "v6" ? 2 : b === "v5" ? 1 : 0;
+}
+
 // ─── Phase 5 routing — agent presence + auto-routing ─────────
 
 /**
