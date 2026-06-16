@@ -990,6 +990,206 @@ export type AgentGrowthSnapshot = {
   };
 };
 
+/**
+ * TeamGrowthSnapshot — the leader-aggregate view per §A6 + §A10.
+ *
+ * Shape mirrors AgentGrowthSnapshot fields aggregated across the
+ * team. Per §A18 there is NO individual breakdown here — the
+ * leader sees team-aggregate only. Per §A10 every field below
+ * IS already visible to each agent on their own self-view; the
+ * leader view aggregates, doesn't reveal anything individual
+ * the agent doesn't already see.
+ *
+ * The agent self-view (src/app/dashboard/care/growth) shipped
+ * before this surface per the §A10 pre-merge gate. No field
+ * lives on this team view that isn't on the agent self-view.
+ */
+export type TeamGrowthSnapshot = {
+  companyId: string;
+  windowDays: number;
+  agentCount: number;
+
+  // §1.6 close-the-loop — team aggregate
+  resolutions: number;
+  durabilityHeld: number;
+  durabilityReopened: number;
+  durabilityInconclusive: number;
+
+  // §A16 Co-Pilot — team aggregate
+  copilotMinor: number;
+  copilotModerate: number;
+  copilotMajor: number;
+  copilotRewrite: number;
+
+  // §A6 Pillar 2 — team load aggregate
+  presence: {
+    conversationsClaimed: number;
+    repliesSent: number;
+    awaitingResponse: number;
+  };
+
+  // §A11 Coach v6 — team-aggregate counts
+  coachAggregate: {
+    repliesGraded: number;
+    acknowledgedCount: number;
+    answeredCount: number;
+    nextStepCount: number;
+    risks: {
+      unsupportedAbsolutes: number;
+      fabricatedSpecifics: number;
+      emptyFiller: number;
+    };
+  };
+};
+
+/**
+ * Aggregate the team's growth snapshot across all agents in the
+ * company. Per §A18 the leader sees this aggregate ONLY — no
+ * per-agent breakdown, no stack-rank, no comparison.
+ *
+ * Implementation note: we sum at the query layer (single roundtrip
+ * with company_id filters) rather than fetching each agent's
+ * snapshot individually. This is also the §A18 structural
+ * defense: the data layer never produces per-agent rows for the
+ * leader view, so it's impossible to accidentally surface one.
+ */
+export async function fetchTeamGrowth(
+  companyId: string
+): Promise<TeamGrowthSnapshot> {
+  const sb = await createServerClient();
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [
+    agents,
+    resolutions,
+    durability,
+    edits,
+    claimedConvs,
+    awaitingConvs,
+    agentReplies,
+    coachCountsRows,
+  ] = await Promise.all([
+    sb
+      .from("profiles")
+      .select("id")
+      .eq("company_id", companyId)
+      .or("is_support_agent.eq.true,role.in.(CEO,COO,admin)"),
+    sb
+      .from("support_resolutions")
+      .select("id")
+      .eq("company_id", companyId)
+      .gte("created_at", since),
+    sb
+      .from("support_durability_checks")
+      .select("outcome")
+      .eq("company_id", companyId)
+      .not("outcome", "is", null)
+      .gte("checked_at", since),
+    sb
+      .from("support_ai_co_pilot_edits")
+      .select("edit_magnitude")
+      .eq("company_id", companyId)
+      .gte("created_at", since),
+    sb
+      .from("support_conversations")
+      .select("id")
+      .eq("company_id", companyId)
+      .not("assigned_agent_id", "is", null)
+      .gte("created_at", since),
+    sb
+      .from("support_conversations")
+      .select("id")
+      .eq("company_id", companyId)
+      .not("assigned_agent_id", "is", null)
+      .in("status", ["open", "in_conversation"]),
+    sb
+      .from("support_messages")
+      .select("id, support_conversations!inner(company_id)")
+      .eq("author_type", "agent")
+      .eq("is_internal_note", false)
+      .eq("support_conversations.company_id", companyId)
+      .gte("created_at", since),
+    sb
+      .from("support_messages")
+      .select("coach_counts, support_conversations!inner(company_id)")
+      .eq("author_type", "agent")
+      .eq("is_internal_note", false)
+      .eq("support_conversations.company_id", companyId)
+      .not("coach_counts", "is", null)
+      .gte("created_at", since),
+  ]);
+
+  const durRows = (durability.data ?? []) as Array<{ outcome: string | null }>;
+  const editRows = (edits.data ?? []) as Array<{
+    edit_magnitude: string | null;
+  }>;
+  type CoachRow = {
+    coach_counts: {
+      positive?: {
+        acknowledged?: number;
+        answered?: number;
+        next_step?: number;
+      };
+      risks?: {
+        unsupported_absolutes?: number;
+        fabricated_specifics?: number;
+        empty_filler?: number;
+      };
+    } | null;
+  };
+  const coachRows = (coachCountsRows.data ?? []) as unknown as CoachRow[];
+
+  let acknowledgedCount = 0;
+  let answeredCount = 0;
+  let nextStepCount = 0;
+  let unsupportedAbsolutes = 0;
+  let fabricatedSpecifics = 0;
+  let emptyFiller = 0;
+  for (const row of coachRows) {
+    const c = row.coach_counts;
+    if (!c) continue;
+    acknowledgedCount += c.positive?.acknowledged ?? 0;
+    answeredCount += c.positive?.answered ?? 0;
+    nextStepCount += c.positive?.next_step ?? 0;
+    unsupportedAbsolutes += c.risks?.unsupported_absolutes ?? 0;
+    fabricatedSpecifics += c.risks?.fabricated_specifics ?? 0;
+    emptyFiller += c.risks?.empty_filler ?? 0;
+  }
+
+  return {
+    companyId,
+    windowDays: 30,
+    agentCount: agents.data?.length ?? 0,
+    resolutions: resolutions.data?.length ?? 0,
+    durabilityHeld: durRows.filter((r) => r.outcome === "held").length,
+    durabilityReopened: durRows.filter((r) => r.outcome === "reopened").length,
+    durabilityInconclusive: durRows.filter((r) => r.outcome === "inconclusive")
+      .length,
+    copilotMinor: editRows.filter((r) => r.edit_magnitude === "minor").length,
+    copilotModerate: editRows.filter((r) => r.edit_magnitude === "moderate")
+      .length,
+    copilotMajor: editRows.filter((r) => r.edit_magnitude === "major").length,
+    copilotRewrite: editRows.filter((r) => r.edit_magnitude === "rewrite")
+      .length,
+    presence: {
+      conversationsClaimed: claimedConvs.data?.length ?? 0,
+      repliesSent: agentReplies.data?.length ?? 0,
+      awaitingResponse: awaitingConvs.data?.length ?? 0,
+    },
+    coachAggregate: {
+      repliesGraded: coachRows.length,
+      acknowledgedCount,
+      answeredCount,
+      nextStepCount,
+      risks: {
+        unsupportedAbsolutes,
+        fabricatedSpecifics,
+        emptyFiller,
+      },
+    },
+  };
+}
+
 // ─── Pattern detection (post-0036) ────────────────────────────
 
 export type SupportPattern = {

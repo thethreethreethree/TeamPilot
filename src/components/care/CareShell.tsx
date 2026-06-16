@@ -58,8 +58,14 @@ const PRIMARY_NAV: NavItem[] = [
   { label: "Analytics", href: "/dashboard/care/analytics", icon: BarChart3 },
   { label: "Monitor", href: "/dashboard/care/monitor", icon: LayoutGrid },
   // §3.6 — agent sees their own growth. Per A10 nobody else sees
-  // this individual data; the leader gets aggregate elsewhere.
+  // this individual data; the leader gets aggregate at the Team
+  // entry below.
   { label: "My growth", href: "/dashboard/care/growth", icon: Heart },
+  // §A6 + §A18 — team-aggregate view. Per A10 every field here
+  // mirrors a field on the agent self-view; per A18 there is no
+  // per-agent breakdown. Visible only to CEO / COO / admin
+  // (gated server-side by /api/care/leadership/team).
+  { label: "Team", href: "/dashboard/care/leadership", icon: Users },
 ];
 
 const SETTINGS_NAV: NavItem[] = [
