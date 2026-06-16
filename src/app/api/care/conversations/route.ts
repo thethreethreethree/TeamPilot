@@ -5,6 +5,7 @@ import { readBody } from "@/lib/api/validate";
 import {
   countCareConversationsThisMonth,
   createCareConversation,
+  routeNewConversation,
 } from "@/lib/data/care";
 import {
   getCareTenantConfigByCompanyId,
@@ -123,9 +124,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const conversationSource: "web_widget" | "embedded_widget" = body.embedToken
+    ? "embedded_widget"
+    : "web_widget";
   const conversation = await createCareConversation({
     companyId: tenantId,
-    source: body.embedToken ? "embedded_widget" : "web_widget",
+    source: conversationSource,
     subject: body.subject,
   });
   if (!conversation) {
@@ -134,6 +138,19 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  // Phase 5 routing — try to assign an online agent for this
+  // channel. If we route successfully, ai_responding flips off
+  // (the agent takes the conversation); otherwise the AI handles
+  // first-response and the conversation waits in the unassigned
+  // queue. Best-effort: routing failures don't break the create.
+  void routeNewConversation({
+    conversationId: conversation.id,
+    companyId: tenantId,
+    source: conversationSource,
+  }).catch(() => {
+    /* routing best-effort */
+  });
 
   return NextResponse.json({
     conversationId: conversation.id,

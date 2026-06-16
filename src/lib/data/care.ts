@@ -990,6 +990,316 @@ export type AgentGrowthSnapshot = {
   };
 };
 
+// ─── Phase 5 routing — agent presence + auto-routing ─────────
+
+/**
+ * Phase 5: route a freshly-created conversation to the best
+ * available agent OR mark it as unrouted.
+ *
+ * Picks an agent where:
+ *   - status = 'online' (per §A6 Pillar 2 transparent presence)
+ *   - the channel is in their settings.channels list
+ *   - their currently-open conversation count < max_concurrent
+ *
+ * Among eligible, picks the least-loaded (fewest open
+ * conversations). Ties broken by oldest last_seen_at (oldest
+ * waited longest — fair distribution).
+ *
+ * Per §A18 the routing decision is recorded as a routing_method
+ * (auto_least_loaded vs unrouted), never as a verdict on which
+ * agent is "best." The least-loaded heuristic surfaces capacity,
+ * not performance.
+ *
+ * When auto-routed:
+ *   - assigned_agent_id is set
+ *   - ai_responding is flipped off (agent takes the conversation)
+ *   - status moves to in_conversation
+ *
+ * When unrouted (no eligible agent):
+ *   - assigned_agent_id stays null
+ *   - ai_responding stays true (AI handles first-response while
+ *     the conversation waits in the Unassigned inbox view)
+ */
+export async function routeNewConversation(args: {
+  conversationId: string;
+  companyId: string;
+  source: string;
+}): Promise<{
+  assignedAgentId: string | null;
+  routingMethod: "auto_least_loaded" | "unrouted";
+}> {
+  const sb = createServiceRoleClient();
+
+  // 1. Find eligible online agents who handle this channel.
+  const { data: candidates } = await sb
+    .from("care_agent_state")
+    .select("agent_id, max_concurrent, channels, last_seen_at")
+    .eq("company_id", args.companyId)
+    .eq("status", "online")
+    .contains("channels", [args.source]);
+
+  if (!candidates || candidates.length === 0) {
+    await sb
+      .from("support_conversations")
+      .update({ routing_method: "unrouted" })
+      .eq("id", args.conversationId);
+    return { assignedAgentId: null, routingMethod: "unrouted" };
+  }
+
+  // 2. Compute current load per candidate.
+  const agentIds = candidates.map(
+    (c) => c.agent_id as string
+  );
+  const { data: openConvs } = await sb
+    .from("support_conversations")
+    .select("assigned_agent_id")
+    .eq("company_id", args.companyId)
+    .in("assigned_agent_id", agentIds)
+    .in("status", ["open", "in_conversation", "awaiting_customer"]);
+
+  const loadByAgent = new Map<string, number>();
+  for (const c of openConvs ?? []) {
+    const id = c.assigned_agent_id as string | null;
+    if (!id) continue;
+    loadByAgent.set(id, (loadByAgent.get(id) ?? 0) + 1);
+  }
+
+  // 3. Filter to under-capacity, sort by (load asc, last_seen_at asc).
+  const eligible = candidates
+    .map((c) => ({
+      agentId: c.agent_id as string,
+      load: loadByAgent.get(c.agent_id as string) ?? 0,
+      maxConcurrent: c.max_concurrent as number,
+      lastSeenAt: c.last_seen_at as string,
+    }))
+    .filter((c) => c.load < c.maxConcurrent)
+    .sort((a, b) => {
+      if (a.load !== b.load) return a.load - b.load;
+      return (a.lastSeenAt ?? "").localeCompare(b.lastSeenAt ?? "");
+    });
+
+  if (eligible.length === 0) {
+    await sb
+      .from("support_conversations")
+      .update({ routing_method: "unrouted" })
+      .eq("id", args.conversationId);
+    return { assignedAgentId: null, routingMethod: "unrouted" };
+  }
+
+  const winner = eligible[0]!;
+
+  // 4. Assign. Use strictMutate so a silent RLS rejection
+  // surfaces honestly (A13).
+  await strictMutate(
+    sb
+      .from("support_conversations")
+      .update({
+        assigned_agent_id: winner.agentId,
+        routed_at: new Date().toISOString(),
+        routing_method: "auto_least_loaded",
+        ai_responding: false,
+        status: "in_conversation",
+      })
+      .eq("id", args.conversationId)
+      .select("id"),
+    { context: "routeNewConversation.assign" }
+  );
+
+  return {
+    assignedAgentId: winner.agentId,
+    routingMethod: "auto_least_loaded",
+  };
+}
+
+/**
+ * Agent presence — read own state.
+ */
+export type AgentPresence = {
+  agentId: string;
+  companyId: string;
+  status: "online" | "away" | "offline";
+  lastSeenAt: string;
+  maxConcurrent: number;
+  channels: string[];
+  currentLoad: number;
+};
+
+export async function fetchAgentPresence(
+  agentId: string
+): Promise<AgentPresence | null> {
+  const sb = await createServerClient();
+  const { data: state } = await sb
+    .from("care_agent_state")
+    .select("*")
+    .eq("agent_id", agentId)
+    .maybeSingle();
+  if (!state) return null;
+
+  const { count } = await sb
+    .from("support_conversations")
+    .select("id", { count: "exact", head: true })
+    .eq("assigned_agent_id", agentId)
+    .in("status", ["open", "in_conversation", "awaiting_customer"]);
+
+  return {
+    agentId: state.agent_id as string,
+    companyId: state.company_id as string,
+    status: state.status as AgentPresence["status"],
+    lastSeenAt: state.last_seen_at as string,
+    maxConcurrent: state.max_concurrent as number,
+    channels: (state.channels as string[]) ?? [],
+    currentLoad: count ?? 0,
+  };
+}
+
+/**
+ * Team presence aggregate for the leader view. Per §A18 this
+ * does NOT include per-agent performance metrics; it surfaces
+ * presence counts (how many are online, how many are at
+ * capacity) so the leader can answer "do we have coverage" —
+ * not "who's slacking."
+ */
+export type TeamPresenceSnapshot = {
+  companyId: string;
+  totalAgents: number;
+  onlineCount: number;
+  awayCount: number;
+  offlineCount: number;
+  atCapacityCount: number;
+  totalCurrentLoad: number;
+  channelCoverage: Record<string, number>;
+};
+
+export async function fetchTeamPresence(
+  companyId: string
+): Promise<TeamPresenceSnapshot> {
+  const sb = await createServerClient();
+  const { data: states } = await sb
+    .from("care_agent_state")
+    .select("agent_id, status, max_concurrent, channels")
+    .eq("company_id", companyId);
+
+  type StateRow = {
+    agent_id: string;
+    status: string;
+    max_concurrent: number;
+    channels: string[];
+  };
+  const rows = (states ?? []) as StateRow[];
+
+  let onlineCount = 0;
+  let awayCount = 0;
+  let offlineCount = 0;
+  const channelCoverage: Record<string, number> = {};
+  for (const s of rows) {
+    if (s.status === "online") onlineCount += 1;
+    else if (s.status === "away") awayCount += 1;
+    else offlineCount += 1;
+    if (s.status === "online") {
+      for (const ch of s.channels ?? []) {
+        channelCoverage[ch] = (channelCoverage[ch] ?? 0) + 1;
+      }
+    }
+  }
+
+  // Load per agent (only those with assignments).
+  const agentIds = rows.map((s) => s.agent_id);
+  let totalCurrentLoad = 0;
+  let atCapacityCount = 0;
+  if (agentIds.length > 0) {
+    const { data: openConvs } = await sb
+      .from("support_conversations")
+      .select("assigned_agent_id")
+      .in("assigned_agent_id", agentIds)
+      .in("status", ["open", "in_conversation", "awaiting_customer"]);
+    const loadByAgent = new Map<string, number>();
+    for (const c of openConvs ?? []) {
+      const id = c.assigned_agent_id as string | null;
+      if (!id) continue;
+      loadByAgent.set(id, (loadByAgent.get(id) ?? 0) + 1);
+    }
+    for (const s of rows) {
+      const load = loadByAgent.get(s.agent_id) ?? 0;
+      totalCurrentLoad += load;
+      if (load >= s.max_concurrent) atCapacityCount += 1;
+    }
+  }
+
+  return {
+    companyId,
+    totalAgents: rows.length,
+    onlineCount,
+    awayCount,
+    offlineCount,
+    atCapacityCount,
+    totalCurrentLoad,
+    channelCoverage,
+  };
+}
+
+/**
+ * Touch the heartbeat — called on agent activity so 'online'
+ * status reflects real presence. App-managed.
+ */
+export async function touchAgentHeartbeat(agentId: string): Promise<void> {
+  const sb = await createServerClient();
+  await sb
+    .from("care_agent_state")
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq("agent_id", agentId);
+}
+
+/**
+ * Agent updates their own status. Only status (and last_seen_at
+ * implicitly via touch) — capacity/channels are admin-controlled.
+ */
+export async function setAgentStatus(args: {
+  agentId: string;
+  status: "online" | "away" | "offline";
+}): Promise<void> {
+  const sb = await createServerClient();
+  await strictMutate(
+    sb
+      .from("care_agent_state")
+      .update({
+        status: args.status,
+        last_seen_at: new Date().toISOString(),
+      })
+      .eq("agent_id", args.agentId)
+      .select("agent_id"),
+    { context: `setAgentStatus(${args.status})` }
+  );
+}
+
+/**
+ * Admin updates agent capacity + channels for an agent in their
+ * company. RLS validates the admin's authority; this function
+ * trusts the caller resolved that already.
+ */
+export async function setAgentRoutingSettings(args: {
+  agentId: string;
+  maxConcurrent?: number;
+  channels?: string[];
+}): Promise<void> {
+  const sb = await createServerClient();
+  const patch: Record<string, unknown> = {};
+  if (typeof args.maxConcurrent === "number") {
+    patch.max_concurrent = args.maxConcurrent;
+  }
+  if (Array.isArray(args.channels)) {
+    patch.channels = args.channels;
+  }
+  if (Object.keys(patch).length === 0) return;
+  await strictMutate(
+    sb
+      .from("care_agent_state")
+      .update(patch)
+      .eq("agent_id", args.agentId)
+      .select("agent_id"),
+    { context: "setAgentRoutingSettings" }
+  );
+}
+
 /**
  * TeamGrowthSnapshot — the leader-aggregate view per §A6 + §A10.
  *

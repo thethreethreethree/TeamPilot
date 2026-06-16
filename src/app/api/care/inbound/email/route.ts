@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { routeNewConversation } from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import {
   buildCareSystemPrompt,
@@ -252,6 +253,19 @@ export async function POST(req: NextRequest) {
       );
     }
     conversationId = newConv.id;
+    const freshConversationId: string = newConv.id;
+
+    // Phase 5 routing — only for FRESH email threads. Existing
+    // threads (the alternative branch above) stay with whichever
+    // agent had been working them — re-routing mid-thread would
+    // confuse the customer and lose conversation continuity.
+    void routeNewConversation({
+      conversationId: freshConversationId,
+      companyId: tenant.company_id,
+      source: "email",
+    }).catch(() => {
+      /* routing best-effort */
+    });
   }
 
   // ─── 7. Insert the customer message ──────────────────────────
