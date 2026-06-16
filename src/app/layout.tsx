@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { FeedbackButton } from "@/components/feedback/FeedbackButton";
+import { CareChatWidget } from "@/components/care/CareChatWidget";
 import { ToastProvider } from "@/components/ui/toast";
 
 /**
@@ -142,9 +143,15 @@ export default function RootLayout({
               the dashboard one will be its own context within. */}
           <ToastProvider>
             {children}
+            {/* ELOSTATE Care chat — primary bottom-right affordance.
+                Visible on every page. Customer-facing AI first
+                responder; agent picks up from /dashboard/care inbox. */}
+            <CareChatWidget />
             {/* Floating feedback button — visible on every page per
                 the user's directive. Auth-aware: routes to /login on
-                public pages, opens the slide-out panel on authed pages. */}
+                public pages, opens the slide-out panel on authed pages.
+                Positioned offset so Care widget sits next to it as
+                the user requested (Care primary, Feedback secondary). */}
             <FeedbackButton />
           </ToastProvider>
         </ThemeProvider>

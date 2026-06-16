@@ -462,3 +462,30 @@ export async function spawnTask(args: {
     userContent: args.userMessage,
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// ELOSTATE Care — customer-facing AI support
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Care AI response — generates the next AI reply in a customer
+ * support conversation. expectJson=false because the response is
+ * plain conversational text the customer reads directly. See
+ * src/lib/care/prompt.ts for the discipline embedded in the prompt.
+ */
+export async function generateCareReply(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: false,
+    // Replies should be short — 1-4 sentences typical. 600 tokens
+    // is generous for that; gives room for the occasional longer
+    // reply when the customer asked something complex.
+    maxTokens: 600,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+  });
+}

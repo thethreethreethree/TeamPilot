@@ -80,7 +80,11 @@ export function FeedbackButton() {
         aria-label="Send feedback"
         title="Send feedback"
         data-feedback-ignore
-        className="fixed bottom-4 right-4 z-[60] flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-white text-xs font-semibold px-3 py-2 md:py-2.5 rounded-full shadow-glow transition-colors"
+        /* right-20 (80px from edge) leaves room for the Care chat
+           widget at right-4 (16px + 56px bubble = ends at 72px, plus
+           an 8px gap = right-20). Keeps both visible per the
+           user's "Care next to Feedback" placement. */
+        className="fixed bottom-4 right-20 z-[60] flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-white text-xs font-semibold px-3 py-2 md:py-2.5 rounded-full shadow-glow transition-colors"
       >
         <MessageSquarePlus className="w-4 h-4" aria-hidden />
         Feedback
