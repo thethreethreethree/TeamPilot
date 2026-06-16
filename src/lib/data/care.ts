@@ -45,6 +45,26 @@ export type SupportConversation = {
   createdAt: string;
 };
 
+/**
+ * Coach v6 count-based output. Per A11 the System counts facts;
+ * the agent/leader render the verdict. Shape mirrors
+ * src/lib/care/grader.ts CoachCounts; kept local to the data
+ * layer to avoid cross-importing server-only code.
+ */
+export type CoachCountsValue = {
+  positive: {
+    acknowledged: 0 | 1;
+    answered: 0 | 1;
+    next_step: 0 | 1;
+  };
+  risks: {
+    unsupported_absolutes: number;
+    fabricated_specifics: number;
+    empty_filler: number;
+  };
+  reason_internal: string;
+};
+
 export type SupportMessage = {
   id: string;
   conversationId: string;
@@ -53,9 +73,22 @@ export type SupportMessage = {
   body: string;
   isInternalNote: boolean;
   createdAt: string;
+  /** v5 enum, kept for back-compat. New UI reads coachCounts. */
   coachGrade: "productive" | "neutral" | "needs_guidance" | "withheld" | null;
   coachReasonInternal: string | null;
   coachGradedAt: string | null;
+  /** Coach v6 count-based rubric. Null when the grader withheld
+   *  or the message was graded before migration 0040. */
+  coachCounts: CoachCountsValue | null;
+  /** A16 direction 2 — Co-Pilot reasoning persisted on the
+   *  message when the agent invoked Co-Pilot to draft it. The
+   *  grader reads this when scoring to honor deliberate shape
+   *  choices. NULL when the agent typed without Co-Pilot. */
+  coPilotReasoning: string | null;
+  /** Analytics flag — did the agent invoke Co-Pilot during
+   *  drafting? Independent of coPilotReasoning (which can be
+   *  null even if invoked, if the LLM call failed). */
+  coPilotInvoked: boolean;
 };
 
 function mapConversation(row: Record<string, unknown>): SupportConversation {
@@ -93,6 +126,9 @@ function mapMessage(row: Record<string, unknown>): SupportMessage {
     coachReasonInternal:
       (row.coach_reason_internal as string | null) ?? null,
     coachGradedAt: (row.coach_graded_at as string | null) ?? null,
+    coachCounts: (row.coach_counts as CoachCountsValue | null) ?? null,
+    coPilotReasoning: (row.co_pilot_reasoning as string | null) ?? null,
+    coPilotInvoked: (row.co_pilot_invoked as boolean | null) ?? false,
   };
 }
 
@@ -321,6 +357,11 @@ export async function postAgentMessage(args: {
   body: string;
   agentId: string;
   isInternalNote?: boolean;
+  /** A16 direction 2 — set when the agent invoked Co-Pilot to
+   *  draft this message. Persists alongside the message so the
+   *  Coach grader can read it when scoring. */
+  coPilotReasoning?: string | null;
+  coPilotInvoked?: boolean;
 }): Promise<SupportMessage | null> {
   const sb = await createServerClient();
   const { data, error } = await sb
@@ -331,6 +372,8 @@ export async function postAgentMessage(args: {
       author_id: args.agentId,
       body: args.body,
       is_internal_note: !!args.isInternalNote,
+      co_pilot_reasoning: args.coPilotReasoning ?? null,
+      co_pilot_invoked: !!args.coPilotInvoked,
     })
     .select("*")
     .single();

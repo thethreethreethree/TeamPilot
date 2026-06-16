@@ -60,11 +60,20 @@ export async function POST(
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 
+  // §A16 direction 2 plumbing — when the agent's reply was
+  // drafted via Co-Pilot, persist the Co-Pilot reasoning on the
+  // message row so the Coach grader can read it. coPilotInvoked
+  // is independent: it's set whenever the agent invoked Co-Pilot,
+  // even if reasoning came back empty.
+  const coPilotInvoked = !body.isInternalNote && !!body.aiDraft;
   const msg = await postAgentMessage({
     conversationId: id,
     body: body.body,
     agentId: auth.user.id,
     isInternalNote: !!body.isInternalNote,
+    coPilotReasoning:
+      coPilotInvoked && body.aiReasoning ? body.aiReasoning : null,
+    coPilotInvoked,
   });
   if (!msg) {
     return NextResponse.json(
@@ -103,11 +112,15 @@ export async function POST(
   // Coach grading — async, best-effort, never blocks the response.
   // Only grade public agent replies (not internal notes). The grade
   // is asymmetric: agent + leader see it; customer never does.
+  // §A16 direction 2: the grader receives co_pilot_reasoning from
+  // the message row (which we just persisted) so deliberate shape
+  // choices are honored.
   if (!body.isInternalNote && msg) {
     void gradeMessageAsync({
       conversationId: id,
       messageId: msg.id,
       agentReply: body.body,
+      coPilotReasoning: msg.coPilotReasoning,
     });
   }
 
@@ -127,6 +140,7 @@ async function gradeMessageAsync(args: {
   conversationId: string;
   messageId: string;
   agentReply: string;
+  coPilotReasoning: string | null;
 }): Promise<void> {
   try {
     const detail = await fetchAgentConversation(args.conversationId);
@@ -151,25 +165,32 @@ async function gradeMessageAsync(args: {
       })
       .join("\n");
 
-    const { grade, reasonInternal } = await gradeCareAgentReply({
+    // Coach v6 — count-based rubric (A11). The grader returns
+    // both the structured counts AND a back-compat derived enum
+    // so existing UI/aggregations keep working during the
+    // transition. §A16 direction 2: pass coPilotReasoning when
+    // present so deliberate shape choices aren't penalized.
+    const result = await gradeCareAgentReply({
       customerLastMessage: lastCustomer.body,
       agentReply: args.agentReply,
       conversationContext: contextTurns || undefined,
+      coPilotReasoning: args.coPilotReasoning,
     });
 
     const admin = createAdminClient();
-    // Bypass the no-update rule via a direct UPDATE on the columns
-    // we explicitly want mutable. The rule blocks client-issued
-    // UPDATEs; this server-side write goes through service-role
-    // which is exempt from RLS. The append-only contract still
-    // holds for body / author / created_at — none of which we
-    // touch here.
+    // The preserve_support_message_content trigger (refreshed in
+    // migration 0040) allows updates to coach_grade /
+    // coach_reason_internal / coach_graded_at / coach_counts.
+    // All other columns get silently reverted by the trigger,
+    // preserving the §3.1 append-only contract on author/content
+    // while still letting the System emit observations.
     await admin
       .from("support_messages")
       .update({
-        coach_grade: grade,
-        coach_reason_internal: reasonInternal || null,
+        coach_grade: result.derivedGrade,
+        coach_reason_internal: result.reasonInternal || null,
         coach_graded_at: new Date().toISOString(),
+        coach_counts: result.counts,
       })
       .eq("id", args.messageId);
   } catch (e) {

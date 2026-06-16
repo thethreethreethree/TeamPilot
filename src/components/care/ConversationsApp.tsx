@@ -81,6 +81,20 @@ type Conversation = {
   } | null;
 };
 
+type CoachCounts = {
+  positive: {
+    acknowledged: 0 | 1;
+    answered: 0 | 1;
+    next_step: 0 | 1;
+  };
+  risks: {
+    unsupported_absolutes: number;
+    fabricated_specifics: number;
+    empty_filler: number;
+  };
+  reason_internal: string;
+};
+
 type Message = {
   id: string;
   authorType: "customer" | "ai" | "agent" | "system";
@@ -88,8 +102,17 @@ type Message = {
   body: string;
   isInternalNote: boolean;
   createdAt: string;
+  /** v5 back-compat enum. */
   coachGrade?: "productive" | "neutral" | "needs_guidance" | "withheld" | null;
   coachReasonInternal?: string | null;
+  /** Coach v6 count-based output. New UI reads this; v5 enum
+   *  is fallback for messages graded before migration 0040. */
+  coachCounts?: CoachCounts | null;
+  /** A16 direction 2 — the Co-Pilot's reasoning when this
+   *  message was Co-Pilot-drafted. Shown in the timeline as
+   *  "AI drafted; reasoning: ..." for agent visibility. */
+  coPilotReasoning?: string | null;
+  coPilotInvoked?: boolean;
 };
 
 type ConversationEvent = {
@@ -1197,77 +1220,234 @@ function MessageRow({
       <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
         {message.body}
       </p>
-      {/* Coach grade — only on agent public replies; visible to
-          agent + leader, never to the customer. Until the async
-          grader returns we show "grading..."; after that the real
-          grade and short internal reason render. §A18: labels
-          invite reflection (Productive / Neutral / Needs guidance),
-          never blame. */}
+      {/* Coach v6 — count-based render. §A11: the System counts;
+          the agent renders the verdict. §A17: three contracts —
+          positive counts (what's present, surfaced FIRST per the
+          experiential contract), risk counts (what's flagged for
+          consideration), reason (internal context). §A18: the
+          label IS the counts — no verdict adjective for a leader
+          to stack-rank by.
+          When coach_counts is absent (messages graded before
+          migration 0040) the v5 enum is the fallback render. */}
       {isAgent && !isNote && (
-        <div className="mt-2 pt-2 border-t border-[#FACC15]/20 flex items-start gap-2">
-          {message.coachGrade ? (
-            <>
-              <Sparkles
-                className={`w-3 h-3 shrink-0 mt-0.5 ${
-                  message.coachGrade === "productive"
-                    ? "text-emerald-300"
-                    : message.coachGrade === "needs_guidance"
-                      ? "text-amber-300"
-                      : "text-secondary"
-                }`}
-                aria-hidden
-              />
-              <div className="flex-1">
-                <span
-                  className={`text-[10px] uppercase tracking-widest font-bold ${
-                    message.coachGrade === "productive"
-                      ? "text-emerald-300"
-                      : message.coachGrade === "needs_guidance"
-                        ? "text-amber-300"
-                        : "text-muted"
-                  }`}
-                >
-                  Coach:{" "}
-                  {message.coachGrade === "needs_guidance"
-                    ? "needs guidance"
-                    : message.coachGrade}
-                </span>
-                {message.coachReasonInternal && (
-                  <p className="text-[10px] text-secondary leading-relaxed mt-0.5 italic">
-                    {message.coachReasonInternal}
-                  </p>
-                )}
-                {/* §A7 next-step affordance — needs_guidance carries
-                    an invitation, not a verdict. The button asks
-                    Co-Pilot for a follow-up draft that incorporates
-                    this Coach reason. §A16 composition: the Co-Pilot
-                    route reads the most recent Coach grade
-                    automatically, so this button just opens the
-                    composer and triggers the existing askAiCoPilot
-                    flow — the composition happens server-side. */}
-                {message.coachGrade === "needs_guidance" &&
-                  onAskCoPilot && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        composerRef?.current?.focus();
-                        onAskCoPilot();
-                      }}
-                      className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2 py-0.5 rounded transition-colors"
-                    >
-                      <Sparkles className="w-2.5 h-2.5" aria-hidden />
-                      Want a follow-up draft with this in mind?
-                    </button>
-                  )}
-              </div>
-            </>
+        <div className="mt-2 pt-2 border-t border-[#FACC15]/20">
+          {message.coachCounts ? (
+            <CoachCountsRow
+              counts={message.coachCounts}
+              onAskCoPilot={onAskCoPilot}
+              composerRef={composerRef}
+            />
+          ) : message.coachGrade ? (
+            <CoachLegacyRow
+              grade={message.coachGrade}
+              reason={message.coachReasonInternal ?? null}
+              onAskCoPilot={onAskCoPilot}
+              composerRef={composerRef}
+            />
           ) : (
-            <span className="text-[10px] text-muted italic">
+            <span className="text-[10px] text-muted italic flex items-center gap-2">
+              <Sparkles className="w-3 h-3" aria-hidden />
               Coach is reading…
             </span>
           )}
+          {message.coPilotInvoked && (
+            <p className="mt-1.5 text-[10px] text-muted italic">
+              AI Co-Pilot helped draft this reply.
+              {message.coPilotReasoning ? (
+                <>
+                  {" "}
+                  Move: <span className="not-italic">{message.coPilotReasoning}</span>
+                </>
+              ) : null}
+            </p>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * §A11 count-display. The chip surfaces what's present in the
+ * reply (positive counts FIRST per §A17 experiential contract)
+ * and what's flagged (risk counts) — no verdict adjective. The
+ * agent reads the pattern and decides whether it's fair. The
+ * leader-of-6-months test passes because there's nothing to
+ * stack-rank against.
+ *
+ * Display rules:
+ *   - Positives shown as ✓ chips (green) — what the reply did.
+ *   - Risk counts shown with the count and category (amber).
+ *   - reason_internal printed as italic context.
+ *   - When totalRisks > 0 OR < 2 positives, the §A7 next-step
+ *     button surfaces ("Want a follow-up draft").
+ */
+function CoachCountsRow({
+  counts,
+  onAskCoPilot,
+  composerRef,
+}: {
+  counts: CoachCounts;
+  onAskCoPilot?: () => void;
+  composerRef?: React.RefObject<HTMLTextAreaElement | null>;
+}) {
+  const positiveTotal =
+    counts.positive.acknowledged +
+    counts.positive.answered +
+    counts.positive.next_step;
+  const riskTotal =
+    counts.risks.unsupported_absolutes +
+    counts.risks.fabricated_specifics +
+    counts.risks.empty_filler;
+  const showFollowUp = riskTotal > 0 || positiveTotal < 2;
+
+  return (
+    <div className="flex items-start gap-2">
+      <Sparkles className="w-3 h-3 shrink-0 mt-0.5 text-brand" aria-hidden />
+      <div className="flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-[10px] uppercase tracking-widest text-muted font-bold mr-1">
+            Coach:
+          </span>
+          {counts.positive.acknowledged === 1 && (
+            <PresenceChip label="acknowledged" />
+          )}
+          {counts.positive.answered === 1 && <PresenceChip label="answered" />}
+          {counts.positive.next_step === 1 && (
+            <PresenceChip label="next step" />
+          )}
+          {counts.positive.acknowledged === 0 && (
+            <GapChip label="0 acknowledgment" />
+          )}
+          {counts.positive.answered === 0 && <GapChip label="0 answer" />}
+          {counts.positive.next_step === 0 && (
+            <GapChip label="0 next step" />
+          )}
+          {counts.risks.unsupported_absolutes > 0 && (
+            <RiskChip
+              label={`${counts.risks.unsupported_absolutes} unsupported absolute${counts.risks.unsupported_absolutes > 1 ? "s" : ""}`}
+            />
+          )}
+          {counts.risks.fabricated_specifics > 0 && (
+            <RiskChip
+              label={`${counts.risks.fabricated_specifics} fabricated specific${counts.risks.fabricated_specifics > 1 ? "s" : ""}`}
+            />
+          )}
+          {counts.risks.empty_filler > 0 && (
+            <RiskChip
+              label={`${counts.risks.empty_filler} empty filler${counts.risks.empty_filler > 1 ? "s" : ""}`}
+            />
+          )}
+        </div>
+        {counts.reason_internal && (
+          <p className="text-[10px] text-secondary leading-relaxed italic">
+            {counts.reason_internal}
+          </p>
+        )}
+        {showFollowUp && onAskCoPilot && (
+          <button
+            type="button"
+            onClick={() => {
+              composerRef?.current?.focus();
+              onAskCoPilot();
+            }}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2 py-0.5 rounded transition-colors"
+          >
+            <Sparkles className="w-2.5 h-2.5" aria-hidden />
+            Want a follow-up draft with this in mind?
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PresenceChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+      <span aria-hidden>✓</span>
+      {label}
+    </span>
+  );
+}
+
+function GapChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted bg-surface border border-default px-1.5 py-0.5 rounded">
+      {label}
+    </span>
+  );
+}
+
+function RiskChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+      {label}
+    </span>
+  );
+}
+
+/**
+ * v5 back-compat — render the legacy enum for messages graded
+ * before migration 0040. Same shape as the prior implementation;
+ * kept verbatim so existing data continues to display through
+ * the transition. Deleted in a later commit once v5 data has
+ * aged out per the §4 readout.
+ */
+function CoachLegacyRow({
+  grade,
+  reason,
+  onAskCoPilot,
+  composerRef,
+}: {
+  grade: "productive" | "neutral" | "needs_guidance" | "withheld";
+  reason: string | null;
+  onAskCoPilot?: () => void;
+  composerRef?: React.RefObject<HTMLTextAreaElement | null>;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <Sparkles
+        className={`w-3 h-3 shrink-0 mt-0.5 ${
+          grade === "productive"
+            ? "text-emerald-300"
+            : grade === "needs_guidance"
+              ? "text-amber-300"
+              : "text-secondary"
+        }`}
+        aria-hidden
+      />
+      <div className="flex-1">
+        <span
+          className={`text-[10px] uppercase tracking-widest font-bold ${
+            grade === "productive"
+              ? "text-emerald-300"
+              : grade === "needs_guidance"
+                ? "text-amber-300"
+                : "text-muted"
+          }`}
+        >
+          Coach: {grade === "needs_guidance" ? "needs guidance" : grade}
+        </span>
+        {reason && (
+          <p className="text-[10px] text-secondary leading-relaxed mt-0.5 italic">
+            {reason}
+          </p>
+        )}
+        {grade === "needs_guidance" && onAskCoPilot && (
+          <button
+            type="button"
+            onClick={() => {
+              composerRef?.current?.focus();
+              onAskCoPilot();
+            }}
+            className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2 py-0.5 rounded transition-colors"
+          >
+            <Sparkles className="w-2.5 h-2.5" aria-hidden />
+            Want a follow-up draft with this in mind?
+          </button>
+        )}
+      </div>
     </div>
   );
 }
