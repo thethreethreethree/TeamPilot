@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BarChart3,
   ChevronDown,
@@ -101,13 +101,7 @@ export function CareShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-300">
-            <span
-              aria-hidden
-              className="w-2 h-2 rounded-full bg-emerald-400"
-            />
-            Online
-          </div>
+          <PresenceControl />
         </div>
 
         {/* Primary navigation */}
@@ -196,5 +190,212 @@ function NavLink({
       <Icon className="w-4 h-4 shrink-0" aria-hidden />
       {item.label}
     </Link>
+  );
+}
+
+/**
+ * Agent presence control — Phase 5 commit 3.
+ *
+ * Replaces the static "Online" indicator that was previously
+ * hardcoded in the sidebar header. Per §A6 Pillar 2 the agent
+ * controls their own status; per §A11 the load count surfaces
+ * as a count (not a "performance score"); per §A18 the labels
+ * are descriptive (online / away / offline), never evaluative.
+ *
+ * A14 render branches:
+ *   - loading (initial fetch hasn't returned)
+ *   - status=online (emerald)
+ *   - status=away (amber)
+ *   - status=offline (muted)
+ *   - menuOpen vs closed (status switcher dropdown)
+ *   - currentLoad shown when status !== offline
+ *
+ * Polls /api/care/agent/presence every 45s so the heartbeat
+ * stays warm + the load count stays current. Tab-hidden pauses
+ * the poll.
+ */
+type AgentPresenceState = {
+  status: "online" | "away" | "offline";
+  currentLoad: number;
+  maxConcurrent: number;
+};
+
+const PRESENCE_POLL_MS = 45_000;
+
+function PresenceControl() {
+  const [state, setState] = useState<AgentPresenceState | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const inflightRef = useRef(false);
+
+  const fetchPresence = useCallback(async () => {
+    if (inflightRef.current) return;
+    inflightRef.current = true;
+    try {
+      const res = await fetch("/api/care/agent/presence");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.self) {
+          setState({
+            status: data.self.status,
+            currentLoad: data.self.currentLoad,
+            maxConcurrent: data.self.maxConcurrent,
+          });
+        }
+      }
+    } catch {
+      /* best-effort */
+    } finally {
+      inflightRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchPresence();
+    const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      void fetchPresence();
+    }, PRESENCE_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [fetchPresence]);
+
+  const setStatus = async (next: "online" | "away" | "offline") => {
+    try {
+      const res = await fetch("/api/care/agent/presence", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.self) {
+          setState({
+            status: data.self.status,
+            currentLoad: data.self.currentLoad,
+            maxConcurrent: data.self.maxConcurrent,
+          });
+        }
+      }
+    } finally {
+      setMenuOpen(false);
+    }
+  };
+
+  if (!state) {
+    return (
+      <div className="flex items-center gap-1.5 text-[11px] text-white/40">
+        <span aria-hidden className="w-2 h-2 rounded-full bg-white/20" />
+        Loading…
+      </div>
+    );
+  }
+
+  const dotCls =
+    state.status === "online"
+      ? "bg-emerald-400"
+      : state.status === "away"
+        ? "bg-amber-400"
+        : "bg-white/30";
+  const textCls =
+    state.status === "online"
+      ? "text-emerald-300"
+      : state.status === "away"
+        ? "text-amber-300"
+        : "text-white/40";
+  const label =
+    state.status === "online"
+      ? "Online"
+      : state.status === "away"
+        ? "Away"
+        : "Offline";
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setMenuOpen((v) => !v)}
+        className={`w-full flex items-center justify-between gap-2 text-[11px] font-medium ${textCls} hover:text-white transition-colors`}
+        aria-haspopup="true"
+        aria-expanded={menuOpen}
+      >
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden className={`w-2 h-2 rounded-full ${dotCls}`} />
+          {label}
+        </span>
+        {state.status !== "offline" && (
+          <span
+            className="text-[10px] text-white/40 font-mono"
+            title={`Currently carrying ${state.currentLoad} of ${state.maxConcurrent} (capacity)`}
+          >
+            {state.currentLoad}/{state.maxConcurrent}
+          </span>
+        )}
+      </button>
+      {menuOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-[#0B1620] border border-white/[0.08] rounded-md shadow-lg py-1">
+          <StatusOption
+            current={state.status}
+            value="online"
+            label="Online"
+            hint="Receiving auto-routed conversations"
+            onClick={setStatus}
+          />
+          <StatusOption
+            current={state.status}
+            value="away"
+            label="Away"
+            hint="Visible to team, no auto-routing"
+            onClick={setStatus}
+          />
+          <StatusOption
+            current={state.status}
+            value="offline"
+            label="Offline"
+            hint="Signed out of routing"
+            onClick={setStatus}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusOption({
+  current,
+  value,
+  label,
+  hint,
+  onClick,
+}: {
+  current: "online" | "away" | "offline";
+  value: "online" | "away" | "offline";
+  label: string;
+  hint: string;
+  onClick: (next: "online" | "away" | "offline") => void;
+}) {
+  const isCurrent = current === value;
+  const dotCls =
+    value === "online"
+      ? "bg-emerald-400"
+      : value === "away"
+        ? "bg-amber-400"
+        : "bg-white/30";
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(value)}
+      disabled={isCurrent}
+      className={`w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-white/[0.05] disabled:opacity-60 disabled:cursor-default flex items-start gap-2`}
+    >
+      <span aria-hidden className={`w-2 h-2 rounded-full mt-1 ${dotCls}`} />
+      <span className="flex-1">
+        <span className="block font-semibold text-white/90">{label}</span>
+        <span className="block text-[10px] text-white/40">{hint}</span>
+      </span>
+      {isCurrent && (
+        <span className="text-[9px] uppercase tracking-widest text-white/40 font-mono mt-1">
+          current
+        </span>
+      )}
+    </button>
   );
 }
