@@ -786,6 +786,134 @@ export async function captureResolution(args: {
 }
 
 /**
+ * Phase 7 commit 3 — list resolutions for the knowledge-base
+ * surface. §1.1 data-as-asset operationalized as a browsable
+ * corpus.
+ *
+ * Filters: category, capturedBy (agent), outcome (held / reopened
+ * / inconclusive). Returns recent first; corpus is small enough
+ * today to filter rather than full-text search (§A4 — defer
+ * embeddings-based search until the §4 readout shows when the
+ * gain is real).
+ */
+export type KnowledgeResolution = {
+  id: string;
+  conversationId: string;
+  companyId: string;
+  capturedBy: string | null;
+  capturedByName: string | null;
+  issueSummary: string;
+  whatWorked: string;
+  category: string | null;
+  precedentResolutionId: string | null;
+  createdAt: string;
+  durability: {
+    scheduledFor: string;
+    checkedAt: string | null;
+    outcome: "held" | "reopened" | "inconclusive" | null;
+  } | null;
+};
+
+export async function listKnowledgeResolutions(args: {
+  companyId: string;
+  category?: string | null;
+  capturedBy?: string | null;
+  outcome?: "held" | "reopened" | "inconclusive" | null;
+  limit?: number;
+}): Promise<{ resolutions: KnowledgeResolution[]; categories: string[] }> {
+  const sb = await createServerClient();
+  const limit = args.limit ?? 50;
+
+  let query = sb
+    .from("support_resolutions")
+    .select("*, profiles(full_name)")
+    .eq("company_id", args.companyId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (args.category) query = query.eq("category", args.category);
+  if (args.capturedBy) query = query.eq("captured_by", args.capturedBy);
+
+  const { data: rows } = await query;
+  type Row = {
+    id: string;
+    conversation_id: string;
+    company_id: string;
+    captured_by: string | null;
+    issue_summary: string;
+    what_worked: string;
+    category: string | null;
+    precedent_resolution_id: string | null;
+    created_at: string;
+    profiles: { full_name: string | null } | null;
+  };
+  const resolutionRows = (rows ?? []) as Row[];
+  const resolutionIds = resolutionRows.map((r) => r.id);
+
+  // Join durability outcomes — each resolution may have a
+  // scheduled check that's still pending or has resolved.
+  const { data: durs } = await sb
+    .from("support_durability_checks")
+    .select("resolution_id, scheduled_for, checked_at, outcome")
+    .in("resolution_id", resolutionIds.length > 0 ? resolutionIds : ["00000000-0000-0000-0000-000000000000"]);
+
+  type DurRow = {
+    resolution_id: string;
+    scheduled_for: string;
+    checked_at: string | null;
+    outcome: "held" | "reopened" | "inconclusive" | null;
+  };
+  const durByResolution = new Map<string, DurRow>();
+  for (const d of (durs ?? []) as DurRow[]) {
+    durByResolution.set(d.resolution_id, d);
+  }
+
+  const resolutions: KnowledgeResolution[] = resolutionRows
+    .map((r) => {
+      const d = durByResolution.get(r.id);
+      return {
+        id: r.id,
+        conversationId: r.conversation_id,
+        companyId: r.company_id,
+        capturedBy: r.captured_by,
+        capturedByName: r.profiles?.full_name ?? null,
+        issueSummary: r.issue_summary,
+        whatWorked: r.what_worked,
+        category: r.category,
+        precedentResolutionId: r.precedent_resolution_id,
+        createdAt: r.created_at,
+        durability: d
+          ? {
+              scheduledFor: d.scheduled_for,
+              checkedAt: d.checked_at,
+              outcome: d.outcome,
+            }
+          : null,
+      };
+    })
+    .filter((r) => {
+      if (!args.outcome) return true;
+      return r.durability?.outcome === args.outcome;
+    });
+
+  // Categories for the filter dropdown — all distinct
+  // categories the company has used. Separate cheap query.
+  const { data: catRows } = await sb
+    .from("support_resolutions")
+    .select("category")
+    .eq("company_id", args.companyId)
+    .not("category", "is", null);
+  type CatRow = { category: string };
+  const categories = Array.from(
+    new Set(
+      ((catRows ?? []) as CatRow[]).map((c) => c.category).filter(Boolean)
+    )
+  ).sort();
+
+  return { resolutions, categories };
+}
+
+/**
  * Find similar resolutions to a given conversation's recent message
  * content. Sprint 5 will swap the LIKE-based search for embeddings;
  * v1 is a keyword match on category + issue summary. Even simple

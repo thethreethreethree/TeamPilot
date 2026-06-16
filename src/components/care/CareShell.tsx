@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BarChart3,
+  BookOpen,
   ChevronDown,
   ChevronRight,
   Heart,
@@ -57,6 +58,10 @@ const PRIMARY_NAV: NavItem[] = [
   { label: "Patterns", href: "/dashboard/care/patterns", icon: Sparkles },
   { label: "Analytics", href: "/dashboard/care/analytics", icon: BarChart3 },
   { label: "Monitor", href: "/dashboard/care/monitor", icon: LayoutGrid },
+  // §1.1 — past resolutions ARE the knowledge base. The
+  // Co-Pilot uses this corpus to draft new replies; this nav
+  // entry lets agents browse the team's playbook directly.
+  { label: "Knowledge", href: "/dashboard/care/knowledge", icon: BookOpen },
   // §3.6 — agent sees their own growth. Per A10 nobody else sees
   // this individual data; the leader gets aggregate at the Team
   // entry below.
