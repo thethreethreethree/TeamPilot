@@ -7,6 +7,7 @@ import {
   BarChart3,
   ChevronDown,
   ChevronRight,
+  Heart,
   Home,
   Inbox,
   LayoutGrid,
@@ -51,6 +52,9 @@ const PRIMARY_NAV: NavItem[] = [
   { label: "Customers", href: "/dashboard/care/customers", icon: Users },
   { label: "Analytics", href: "/dashboard/care/analytics", icon: BarChart3 },
   { label: "Monitor", href: "/dashboard/care/monitor", icon: LayoutGrid },
+  // §3.6 — agent sees their own growth. Per A10 nobody else sees
+  // this individual data; the leader gets aggregate elsewhere.
+  { label: "My growth", href: "/dashboard/care/growth", icon: Heart },
 ];
 
 const SETTINGS_NAV: NavItem[] = [

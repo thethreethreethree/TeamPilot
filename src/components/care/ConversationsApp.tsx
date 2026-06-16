@@ -20,6 +20,8 @@ import {
 import { careStatusDisplay } from "@/lib/care/statusLabels";
 import { priorityDisplay, tagTone } from "@/lib/care/tagColors";
 import { useToast } from "@/components/ui/toast";
+import { ReadPhasePanel } from "./ReadPhasePanel";
+import { ResolutionCaptureModal } from "./ResolutionCaptureModal";
 
 /**
  * ConversationsApp — the Zendesk-shaped master-detail centerpiece.
@@ -141,6 +143,11 @@ export function ConversationsApp({
   const [acting, setActing] = useState(false);
   const [aiDrafting, setAiDrafting] = useState(false);
   const [aiReasoning, setAiReasoning] = useState<string | null>(null);
+  // When the agent invokes the Co-Pilot we capture the original
+  // draft so we can later record (draft, sent) into the learning
+  // corpus on send.
+  const [aiOriginalDraft, setAiOriginalDraft] = useState<string | null>(null);
+  const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -364,7 +371,9 @@ export function ConversationsApp({
         composerRef.current?.focus();
       } else if (e.key === "e" && selected) {
         e.preventDefault();
-        void changeStatus("resolved");
+        // E opens the capture modal — §1.1 discipline routes the
+        // resolve action through the learning capture.
+        setResolveModalOpen(true);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -442,18 +451,31 @@ export function ConversationsApp({
   const send = async () => {
     if (!selected || !draft.trim() || sending) return;
     setSending(true);
-    setAiReasoning(null);
     try {
       const res = await fetch(
         `/api/care/agent/conversations/${selected.id}/messages`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body: draft, isInternalNote }),
+          body: JSON.stringify({
+            body: draft,
+            isInternalNote,
+            // Pass the Co-Pilot context if this reply originated
+            // from a Co-Pilot draft. Server captures the diff into
+            // the learning corpus.
+            aiDraft:
+              !isInternalNote && aiOriginalDraft ? aiOriginalDraft : undefined,
+            aiReasoning:
+              !isInternalNote && aiOriginalDraft ? aiReasoning : undefined,
+          }),
         }
       );
       if (res.ok) {
         setDraft("");
+        // Clear the Co-Pilot context once sent so the next reply
+        // captures fresh.
+        setAiOriginalDraft(null);
+        setAiReasoning(null);
         await loadDetail(selected.id);
         await loadInbox();
       } else {
@@ -468,6 +490,7 @@ export function ConversationsApp({
     if (!selected || aiDrafting) return;
     setAiDrafting(true);
     setAiReasoning(null);
+    setAiOriginalDraft(null);
     try {
       const res = await fetch(
         `/api/care/agent/conversations/${selected.id}/co-pilot`,
@@ -475,7 +498,9 @@ export function ConversationsApp({
       );
       if (res.ok) {
         const data = await res.json();
-        setDraft(data.draft ?? "");
+        const draftText = data.draft ?? "";
+        setDraft(draftText);
+        setAiOriginalDraft(draftText);
         setIsInternalNote(false);
         if (data.reasoning) setAiReasoning(data.reasoning);
         composerRef.current?.focus();
@@ -605,9 +630,15 @@ export function ConversationsApp({
                 conversation={selected}
                 acting={acting}
                 onClaim={claim}
-                onResolve={() => changeStatus("resolved")}
+                onResolve={() => setResolveModalOpen(true)}
                 onClose={() => changeStatus("closed")}
                 onPriorityChange={setPriority}
+              />
+
+              {/* The Read Phase — §0 Understanding Gate */}
+              <ReadPhasePanel
+                conversationId={selected.id}
+                onReadComplete={() => void loadInbox()}
               />
 
               {/* Message stream */}
@@ -651,6 +682,24 @@ export function ConversationsApp({
           <CustomerPanel conversation={selected} events={events} />
         )}
       </div>
+
+      {/* Resolution capture modal — opens when the agent hits
+          "Resolve". Captures the §1.1 learning before the status
+          actually flips. The modal's "Capture & resolve" button
+          handles both: insert resolution + mark conversation
+          resolved (the trigger from 0036 then schedules the
+          7-day durability check). */}
+      {selected && (
+        <ResolutionCaptureModal
+          conversationId={selected.id}
+          open={resolveModalOpen}
+          onClose={() => setResolveModalOpen(false)}
+          onCaptured={() => {
+            void loadInbox();
+            void loadDetail(selected.id);
+          }}
+        />
+      )}
     </div>
   );
 }

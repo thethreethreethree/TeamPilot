@@ -36,6 +36,11 @@ export type SupportConversation = {
   lastMessageAt: string | null;
   firstResponseAt: string | null;
   resolvedAt: string | null;
+  // §0 Understanding Gate moment for support (0036). Null until
+  // the agent has reviewed the Read Phase panel.
+  readingCompleteAt: string | null;
+  // §1.1 captured outcome category (0036) for pattern detection.
+  resolutionOutcomeCategory: string | null;
   createdAt: string;
 };
 
@@ -64,6 +69,9 @@ function mapConversation(row: Record<string, unknown>): SupportConversation {
     lastMessageAt: (row.last_message_at as string | null) ?? null,
     firstResponseAt: (row.first_response_at as string | null) ?? null,
     resolvedAt: (row.resolved_at as string | null) ?? null,
+    readingCompleteAt: (row.reading_complete_at as string | null) ?? null,
+    resolutionOutcomeCategory:
+      (row.resolution_outcome_category as string | null) ?? null,
     createdAt: row.created_at as string,
   };
 }
@@ -594,4 +602,298 @@ export async function createCannedResponse(args: {
     .single();
   if (error || !data) return null;
   return mapCanned(data);
+}
+
+// ─── Learning engine (post-0036) ───────────────────────────────
+
+export type SupportResolution = {
+  id: string;
+  conversationId: string;
+  companyId: string;
+  capturedBy: string | null;
+  issueSummary: string;
+  whatWorked: string;
+  category: string | null;
+  precedentResolutionId: string | null;
+  createdAt: string;
+};
+
+export type SupportDurabilityCheck = {
+  id: string;
+  conversationId: string;
+  scheduledFor: string;
+  checkedAt: string | null;
+  outcome: "held" | "reopened" | "inconclusive" | null;
+  notes: string | null;
+};
+
+function mapResolution(row: Record<string, unknown>): SupportResolution {
+  return {
+    id: row.id as string,
+    conversationId: row.conversation_id as string,
+    companyId: row.company_id as string,
+    capturedBy: (row.captured_by as string | null) ?? null,
+    issueSummary: row.issue_summary as string,
+    whatWorked: row.what_worked as string,
+    category: (row.category as string | null) ?? null,
+    precedentResolutionId:
+      (row.precedent_resolution_id as string | null) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapDurability(row: Record<string, unknown>): SupportDurabilityCheck {
+  return {
+    id: row.id as string,
+    conversationId: row.conversation_id as string,
+    scheduledFor: row.scheduled_for as string,
+    checkedAt: (row.checked_at as string | null) ?? null,
+    outcome: (row.outcome as SupportDurabilityCheck["outcome"]) ?? null,
+    notes: (row.notes as string | null) ?? null,
+  };
+}
+
+/**
+ * Capture the resolution learning for a conversation. Called from
+ * the resolution-capture form when an agent marks a conversation
+ * resolved. Stores the issue summary + what worked so future
+ * conversations can read it.
+ */
+export async function captureResolution(args: {
+  conversationId: string;
+  companyId: string;
+  capturedBy: string;
+  issueSummary: string;
+  whatWorked: string;
+  category?: string | null;
+  precedentResolutionId?: string | null;
+}): Promise<SupportResolution | null> {
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("support_resolutions")
+    .insert({
+      conversation_id: args.conversationId,
+      company_id: args.companyId,
+      captured_by: args.capturedBy,
+      issue_summary: args.issueSummary,
+      what_worked: args.whatWorked,
+      category: args.category ?? null,
+      precedent_resolution_id: args.precedentResolutionId ?? null,
+    })
+    .select("*")
+    .single();
+  if (!data) return null;
+  return mapResolution(data);
+}
+
+/**
+ * Find similar resolutions to a given conversation's recent message
+ * content. Sprint 5 will swap the LIKE-based search for embeddings;
+ * v1 is a keyword match on category + issue summary. Even simple
+ * matching surfaces the institutional memory.
+ */
+export async function findSimilarResolutions(args: {
+  companyId: string;
+  searchTerms: string[];
+  excludeConversationId?: string;
+  limit?: number;
+}): Promise<SupportResolution[]> {
+  const sb = await createServerClient();
+  let query = sb
+    .from("support_resolutions")
+    .select("*")
+    .eq("company_id", args.companyId);
+  if (args.excludeConversationId) {
+    query = query.neq("conversation_id", args.excludeConversationId);
+  }
+  // Build an OR filter against the issue_summary + category for any
+  // of the supplied terms.
+  if (args.searchTerms.length > 0) {
+    const ors = args.searchTerms
+      .filter((t) => t.length > 2)
+      .slice(0, 6)
+      .flatMap((t) => [
+        `issue_summary.ilike.%${t}%`,
+        `category.ilike.%${t}%`,
+      ])
+      .join(",");
+    if (ors) query = query.or(ors);
+  }
+  const { data } = await query
+    .order("created_at", { ascending: false })
+    .limit(args.limit ?? 5);
+  return (data ?? []).map(mapResolution);
+}
+
+/**
+ * Past conversations for the same customer — used in the Read
+ * Phase panel to show "this person has been here before."
+ */
+export async function fetchCustomerPriorConversations(args: {
+  customerId: string;
+  excludeConversationId: string;
+  limit?: number;
+}): Promise<
+  Array<{
+    id: string;
+    subject: string | null;
+    status: string;
+    createdAt: string;
+  }>
+> {
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("support_conversations")
+    .select("id, subject, status, created_at")
+    .eq("customer_id", args.customerId)
+    .neq("id", args.excludeConversationId)
+    .order("created_at", { ascending: false })
+    .limit(args.limit ?? 5);
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    subject: (r.subject as string | null) ?? null,
+    status: r.status as string,
+    createdAt: r.created_at as string,
+  }));
+}
+
+/**
+ * Mark the Read Phase complete for a conversation. The agent
+ * pressed "I've read the context, drafting now" — the §0
+ * Understanding Gate has been honored.
+ */
+export async function markReadingComplete(conversationId: string): Promise<void> {
+  const sb = await createServerClient();
+  await sb
+    .from("support_conversations")
+    .update({ reading_complete_at: new Date().toISOString() })
+    .eq("id", conversationId)
+    .is("reading_complete_at", null);
+}
+
+/**
+ * Durability checks: list due (scheduled_for <= now, checked_at
+ * null) so the inbox can show them.
+ */
+export async function listDueDurabilityChecks(
+  companyId: string
+): Promise<SupportDurabilityCheck[]> {
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("support_durability_checks")
+    .select("*")
+    .eq("company_id", companyId)
+    .is("checked_at", null)
+    .lte("scheduled_for", new Date().toISOString())
+    .order("scheduled_for", { ascending: true });
+  return (data ?? []).map(mapDurability);
+}
+
+export async function recordDurabilityOutcome(args: {
+  checkId: string;
+  outcome: "held" | "reopened" | "inconclusive";
+  notes?: string;
+}): Promise<void> {
+  const sb = await createServerClient();
+  await sb
+    .from("support_durability_checks")
+    .update({
+      checked_at: new Date().toISOString(),
+      outcome: args.outcome,
+      notes: args.notes ?? null,
+    })
+    .eq("id", args.checkId);
+}
+
+/**
+ * Capture the agent's edit of an AI Co-Pilot draft. Called server-
+ * side from the agent reply endpoint when the reply was preceded by
+ * a Co-Pilot generation. The accumulated corpus teaches the Co-Pilot
+ * the company's voice over time.
+ */
+export async function captureCoPilotEdit(args: {
+  conversationId: string;
+  companyId: string;
+  agentId: string;
+  aiDraft: string;
+  aiReasoning: string | null;
+  agentSent: string;
+}): Promise<void> {
+  const sb = await createServerClient();
+  await sb.from("support_ai_co_pilot_edits").insert({
+    conversation_id: args.conversationId,
+    company_id: args.companyId,
+    agent_id: args.agentId,
+    ai_draft: args.aiDraft,
+    ai_reasoning: args.aiReasoning,
+    agent_sent: args.agentSent,
+  });
+}
+
+/**
+ * Agent growth snapshot — durability + edit-magnitude breakdown
+ * over the last 30 days. Visible only to the agent themselves
+ * (and their leader, in aggregate).
+ */
+export type AgentGrowthSnapshot = {
+  agentId: string;
+  windowDays: number;
+  resolutions: number;
+  durabilityHeld: number;
+  durabilityReopened: number;
+  durabilityInconclusive: number;
+  copilotMinor: number;
+  copilotModerate: number;
+  copilotMajor: number;
+  copilotRewrite: number;
+};
+
+export async function fetchAgentGrowth(
+  agentId: string
+): Promise<AgentGrowthSnapshot> {
+  const sb = await createServerClient();
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [resolutions, durability, edits] = await Promise.all([
+    sb
+      .from("support_resolutions")
+      .select("id")
+      .eq("captured_by", agentId)
+      .gte("created_at", since),
+    sb
+      .from("support_durability_checks")
+      .select("outcome, support_resolutions!inner(captured_by)")
+      .eq("support_resolutions.captured_by", agentId)
+      .not("outcome", "is", null)
+      .gte("checked_at", since),
+    sb
+      .from("support_ai_co_pilot_edits")
+      .select("edit_magnitude")
+      .eq("agent_id", agentId)
+      .gte("created_at", since),
+  ]);
+
+  const durRows = (durability.data ?? []) as Array<{ outcome: string | null }>;
+  const editRows = (edits.data ?? []) as Array<{
+    edit_magnitude: string | null;
+  }>;
+
+  return {
+    agentId,
+    windowDays: 30,
+    resolutions: resolutions.data?.length ?? 0,
+    durabilityHeld: durRows.filter((r) => r.outcome === "held").length,
+    durabilityReopened: durRows.filter((r) => r.outcome === "reopened").length,
+    durabilityInconclusive: durRows.filter(
+      (r) => r.outcome === "inconclusive"
+    ).length,
+    copilotMinor: editRows.filter((r) => r.edit_magnitude === "minor").length,
+    copilotModerate: editRows.filter(
+      (r) => r.edit_magnitude === "moderate"
+    ).length,
+    copilotMajor: editRows.filter((r) => r.edit_magnitude === "major").length,
+    copilotRewrite: editRows.filter(
+      (r) => r.edit_magnitude === "rewrite"
+    ).length,
+  };
 }
