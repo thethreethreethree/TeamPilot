@@ -479,8 +479,18 @@ export function ConversationsApp({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, selectedId, selected]);
 
-  const claim = async () => {
-    if (!selected) return;
+  // Shared action runner. Sends the PATCH, surfaces failure to
+  // the agent (no more silent "ok=true but nothing changed"), and
+  // verifies the returned conversation state matches what we
+  // asked for. The verification is the §1.6 close-the-loop move
+  // in code: a confirmed action means the DB row IS in the
+  // expected state, not just that the API returned 200.
+  const runAction = async (
+    body: Record<string, unknown>,
+    expect: { status?: string; priority?: string; claimed?: boolean } | null,
+    successMsg: string
+  ): Promise<boolean> => {
+    if (!selected) return false;
     setActing(true);
     try {
       const res = await fetch(
@@ -488,62 +498,82 @@ export function ConversationsApp({
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "claim" }),
+          body: JSON.stringify(body),
         }
       );
-      if (res.ok) {
-        toast.success("Claimed.");
-        await loadInbox();
-        await loadDetail(selected.id);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(
+          data?.error
+            ? `Couldn't apply change — ${data.error}`
+            : "Couldn't apply change. Please try again."
+        );
+        return false;
       }
+      // Divergence detection. The API gives us the post-action
+      // conversation row; if the state doesn't match expectation,
+      // the action SAID it worked but the DB disagrees. Surface
+      // it instead of silently moving on.
+      const fresh = data?.conversation as Conversation | undefined;
+      if (fresh && expect) {
+        if (expect.status && fresh.status !== expect.status) {
+          toast.error(
+            `Action reported success but conversation is still "${fresh.status}". This usually means a permission or trigger rejected the write — check RLS for support_conversations.`
+          );
+          await loadInbox();
+          await loadDetail(selected.id);
+          return false;
+        }
+        if (expect.priority && fresh.priority !== expect.priority) {
+          toast.error(
+            `Priority change didn't stick — DB still reads "${fresh.priority}".`
+          );
+          await loadInbox();
+          await loadDetail(selected.id);
+          return false;
+        }
+        if (
+          expect.claimed &&
+          fresh.assignedAgentId !== currentUserId
+        ) {
+          toast.error("Claim didn't stick — conversation is still unassigned.");
+          await loadInbox();
+          await loadDetail(selected.id);
+          return false;
+        }
+      }
+      toast.success(successMsg);
+      await loadInbox();
+      await loadDetail(selected.id);
+      return true;
+    } catch {
+      toast.error("Couldn't reach the server.");
+      return false;
     } finally {
       setActing(false);
     }
+  };
+
+  const claim = async () => {
+    await runAction({ action: "claim" }, { claimed: true }, "Claimed.");
   };
 
   const changeStatus = async (
     next: "in_conversation" | "awaiting_customer" | "resolved" | "closed"
   ) => {
-    if (!selected) return;
-    setActing(true);
-    try {
-      const res = await fetch(
-        `/api/care/agent/conversations/${selected.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "status", status: next }),
-        }
-      );
-      if (res.ok) {
-        toast.success(`Marked as ${careStatusDisplay(next).label}`);
-        await loadInbox();
-        await loadDetail(selected.id);
-      }
-    } finally {
-      setActing(false);
-    }
+    await runAction(
+      { action: "status", status: next },
+      { status: next },
+      `Marked as ${careStatusDisplay(next).label}`
+    );
   };
 
   const setPriority = async (priority: string) => {
-    if (!selected) return;
-    setActing(true);
-    try {
-      const res = await fetch(
-        `/api/care/agent/conversations/${selected.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "priority", priority }),
-        }
-      );
-      if (res.ok) {
-        await loadInbox();
-        await loadDetail(selected.id);
-      }
-    } finally {
-      setActing(false);
-    }
+    await runAction(
+      { action: "priority", priority },
+      { priority },
+      `Priority set to ${priority}.`
+    );
   };
 
   const send = async () => {

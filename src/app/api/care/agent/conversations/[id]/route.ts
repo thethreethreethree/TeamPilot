@@ -81,43 +81,64 @@ export async function PATCH(
   const body = await readBody(req, PatchBody);
   if (body instanceof NextResponse) return body;
 
-  if (body.action === "claim") {
-    await claimConversation({ conversationId: id, agentId: auth.agentId });
-  } else if (body.action === "status") {
-    if (!body.status) {
-      return NextResponse.json(
-        { error: "status action requires a status field." },
-        { status: 400 }
-      );
+  try {
+    if (body.action === "claim") {
+      await claimConversation({ conversationId: id, agentId: auth.agentId });
+    } else if (body.action === "status") {
+      if (!body.status) {
+        return NextResponse.json(
+          { error: "status action requires a status field." },
+          { status: 400 }
+        );
+      }
+      await setConversationStatus({
+        conversationId: id,
+        status: body.status as SupportConversation["status"],
+      });
+    } else if (body.action === "priority") {
+      if (!body.priority) {
+        return NextResponse.json(
+          { error: "priority action requires a priority field." },
+          { status: 400 }
+        );
+      }
+      await setConversationPriority({
+        conversationId: id,
+        priority: body.priority,
+      });
+    } else if (body.action === "snooze") {
+      if (!body.snoozedUntil) {
+        return NextResponse.json(
+          { error: "snooze action requires snoozedUntil." },
+          { status: 400 }
+        );
+      }
+      await snoozeConversation({
+        conversationId: id,
+        until: body.snoozedUntil,
+      });
+    } else if (body.action === "unsnooze") {
+      await unsnoozeConversation(id);
     }
-    await setConversationStatus({
-      conversationId: id,
-      status: body.status as SupportConversation["status"],
-    });
-  } else if (body.action === "priority") {
-    if (!body.priority) {
-      return NextResponse.json(
-        { error: "priority action requires a priority field." },
-        { status: 400 }
-      );
-    }
-    await setConversationPriority({
-      conversationId: id,
-      priority: body.priority,
-    });
-  } else if (body.action === "snooze") {
-    if (!body.snoozedUntil) {
-      return NextResponse.json(
-        { error: "snooze action requires snoozedUntil." },
-        { status: 400 }
-      );
-    }
-    await snoozeConversation({
-      conversationId: id,
-      until: body.snoozedUntil,
-    });
-  } else if (body.action === "unsnooze") {
-    await unsnoozeConversation(id);
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error ? err.message : "Action failed.",
+        action: body.action,
+      },
+      { status: 409 }
+    );
   }
-  return NextResponse.json({ ok: true });
+
+  // Read-back: return the post-action conversation row so the
+  // caller can verify the state actually changed (§1.6 close the
+  // loop). The frontend uses this as the source of truth — never
+  // assume an action succeeded just because the HTTP status was
+  // 2xx.
+  const fresh = await fetchAgentConversation(id);
+  return NextResponse.json({
+    ok: true,
+    conversation: fresh?.conversation ?? null,
+  });
 }
