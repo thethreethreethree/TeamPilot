@@ -934,17 +934,60 @@ export async function captureCoPilotEdit(args: {
  * over the last 30 days. Visible only to the agent themselves
  * (and their leader, in aggregate).
  */
+/**
+ * AgentGrowthSnapshot — the §A10 self-view shape. Per A10 the
+ * agent sees what the leader sees about them, exactly. The
+ * leader-aggregate view (Phase 2 commit 2) reads the SAME fields
+ * aggregated across the team. No field exists on the leader view
+ * that isn't also visible to the agent here.
+ *
+ * Per §A11 every field below is a COUNT, not a score. Per §A17
+ * positive counts (acknowledgments, answers, next steps,
+ * durability held) surface FIRST in the UI so the agent reads
+ * what they did well before what they're missing. Per §A18 no
+ * field is labeled with a verdict adjective ("productive",
+ * "poor", "needs improvement") — the agent renders the verdict
+ * on whether the pattern is fair.
+ */
 export type AgentGrowthSnapshot = {
   agentId: string;
   windowDays: number;
+
+  // §1.6 close-the-loop — what landed
   resolutions: number;
   durabilityHeld: number;
   durabilityReopened: number;
   durabilityInconclusive: number;
+
+  // §A16 Co-Pilot interactions
   copilotMinor: number;
   copilotModerate: number;
   copilotMajor: number;
   copilotRewrite: number;
+
+  // §A6 Pillar 2 — transparent presence. The agent reads their
+  // own load; the System never sends this to a leader without
+  // also showing it to the agent first.
+  presence: {
+    conversationsClaimed: number;
+    repliesSent: number;
+    awaitingResponse: number;
+  };
+
+  // §A11 Coach v6 aggregates. Counts across all the agent's
+  // graded replies in the window. The agent reads the pattern;
+  // verdict is theirs.
+  coachAggregate: {
+    repliesGraded: number;
+    acknowledgedCount: number;
+    answeredCount: number;
+    nextStepCount: number;
+    risks: {
+      unsupportedAbsolutes: number;
+      fabricatedSpecifics: number;
+      emptyFiller: number;
+    };
+  };
 };
 
 // ─── Pattern detection (post-0036) ────────────────────────────
@@ -1038,7 +1081,15 @@ export async function fetchAgentGrowth(
   const sb = await createServerClient();
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [resolutions, durability, edits] = await Promise.all([
+  const [
+    resolutions,
+    durability,
+    edits,
+    claimedConvs,
+    awaitingConvs,
+    agentReplies,
+    coachCountsRows,
+  ] = await Promise.all([
     sb
       .from("support_resolutions")
       .select("id")
@@ -1055,12 +1106,86 @@ export async function fetchAgentGrowth(
       .select("edit_magnitude")
       .eq("agent_id", agentId)
       .gte("created_at", since),
+    // §A6 Pillar 2 — conversations the agent claimed in the
+    // window. Includes already-resolved and still-open.
+    sb
+      .from("support_conversations")
+      .select("id")
+      .eq("assigned_agent_id", agentId)
+      .gte("created_at", since),
+    // §A6 Pillar 2 — current load — conversations claimed by
+    // the agent that are not yet closed/resolved. Open and
+    // in_conversation count; awaiting_customer means the ball
+    // is with the customer, not the agent.
+    sb
+      .from("support_conversations")
+      .select("id, status")
+      .eq("assigned_agent_id", agentId)
+      .in("status", ["open", "in_conversation"]),
+    // §A6 — public replies sent by this agent in the window.
+    sb
+      .from("support_messages")
+      .select("id")
+      .eq("author_id", agentId)
+      .eq("author_type", "agent")
+      .eq("is_internal_note", false)
+      .gte("created_at", since),
+    // §A11 — Coach v6 count aggregates over the window. Only
+    // messages graded under v6 (coach_counts not null) are
+    // counted; v5-graded messages are excluded so the aggregate
+    // is honest about which rubric produced it.
+    sb
+      .from("support_messages")
+      .select("coach_counts")
+      .eq("author_id", agentId)
+      .eq("author_type", "agent")
+      .eq("is_internal_note", false)
+      .not("coach_counts", "is", null)
+      .gte("created_at", since),
   ]);
 
   const durRows = (durability.data ?? []) as Array<{ outcome: string | null }>;
   const editRows = (edits.data ?? []) as Array<{
     edit_magnitude: string | null;
   }>;
+
+  // §A11 — accumulate Coach v6 counts honestly. Each graded
+  // reply contributes its positive presences (0 or 1 per
+  // category) and risk counts. The aggregate is the SUM, not an
+  // average — the agent reads "acknowledged in N of M replies"
+  // not "acknowledgment score: X%" per A18.
+  type CoachRow = {
+    coach_counts: {
+      positive?: {
+        acknowledged?: number;
+        answered?: number;
+        next_step?: number;
+      };
+      risks?: {
+        unsupported_absolutes?: number;
+        fabricated_specifics?: number;
+        empty_filler?: number;
+      };
+    } | null;
+  };
+  const coachRows = (coachCountsRows.data ?? []) as CoachRow[];
+  const repliesGraded = coachRows.length;
+  let acknowledgedCount = 0;
+  let answeredCount = 0;
+  let nextStepCount = 0;
+  let unsupportedAbsolutes = 0;
+  let fabricatedSpecifics = 0;
+  let emptyFiller = 0;
+  for (const row of coachRows) {
+    const c = row.coach_counts;
+    if (!c) continue;
+    acknowledgedCount += c.positive?.acknowledged ?? 0;
+    answeredCount += c.positive?.answered ?? 0;
+    nextStepCount += c.positive?.next_step ?? 0;
+    unsupportedAbsolutes += c.risks?.unsupported_absolutes ?? 0;
+    fabricatedSpecifics += c.risks?.fabricated_specifics ?? 0;
+    emptyFiller += c.risks?.empty_filler ?? 0;
+  }
 
   return {
     agentId,
@@ -1079,5 +1204,21 @@ export async function fetchAgentGrowth(
     copilotRewrite: editRows.filter(
       (r) => r.edit_magnitude === "rewrite"
     ).length,
+    presence: {
+      conversationsClaimed: claimedConvs.data?.length ?? 0,
+      repliesSent: agentReplies.data?.length ?? 0,
+      awaitingResponse: awaitingConvs.data?.length ?? 0,
+    },
+    coachAggregate: {
+      repliesGraded,
+      acknowledgedCount,
+      answeredCount,
+      nextStepCount,
+      risks: {
+        unsupportedAbsolutes,
+        fabricatedSpecifics,
+        emptyFiller,
+      },
+    },
   };
 }
