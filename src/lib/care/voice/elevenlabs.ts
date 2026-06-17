@@ -87,10 +87,12 @@ export async function synthesizeSpeech(args: {
     },
     body: JSON.stringify({
       text: args.text,
-      // eleven_turbo_v2_5 is the lowest-latency model for English
-      // conversational use cases per ElevenLabs' own guidance.
-      // Worth revisiting per §A4 once we have voice usage data.
-      model_id: "eleven_turbo_v2_5",
+      // 2026-06-17 — switched turbo_v2_5 → flash_v2_5 after user
+      // reported Jeff feels slow. Flash is ElevenLabs' ultra-low-
+      // latency model (~75ms first-byte vs turbo's ~250-400ms).
+      // Quality drop is barely perceptible for conversational
+      // support use; latency win is large.
+      model_id: "eleven_flash_v2_5",
       voice_settings: {
         stability: 0.55,
         similarity_boost: 0.75,

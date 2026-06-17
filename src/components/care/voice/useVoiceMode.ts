@@ -56,10 +56,19 @@ export type ReturnedMessage = {
 // defaults; the §4 readout on voice will tell us whether they
 // produce premature cutoffs or held-too-long lag. Adjust based
 // on observed customer behavior.
+//
+// 2026-06-17 — tightened from 1500/400 to 700/250 after user
+// reported "a lot of pause" between turns. The 1500ms silence
+// threshold was the single biggest source of dead air after the
+// customer stopped talking: pure wait before STT even started.
+// 700ms is still long enough to ride past mid-sentence breaths
+// for most speakers; if we see premature cutoffs in the wild we
+// can nudge back up. MIN_SPEECH 250ms lets short replies ("yes",
+// "ok") register faster without admitting clicks/breath puffs.
 const VAD_POLL_MS = 100;
 const VAD_ENERGY_THRESHOLD = 18; // average byte frequency
-const VAD_SILENCE_AFTER_SPEECH_MS = 1500;
-const VAD_MIN_SPEECH_MS = 400; // ignore tiny clicks/breaths
+const VAD_SILENCE_AFTER_SPEECH_MS = 700;
+const VAD_MIN_SPEECH_MS = 250; // ignore tiny clicks/breaths
 
 export function useVoiceMode(args: {
   ensureSession: () => Promise<StoredSession | null>;
