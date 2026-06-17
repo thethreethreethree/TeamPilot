@@ -213,57 +213,157 @@ export function useVoiceMode(args: {
           },
           body: JSON.stringify({ text }),
         });
-        if (!res.ok) {
+        if (!res.ok || !res.body) {
           args.onError(
             "Couldn't play Jeff's reply. You can still read it above."
           );
           return;
         }
-        const audioBlob = await res.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
 
         // Reuse the gesture-unlocked element from startCall so iOS
-        // Safari allows playback. Fall back to a fresh element if
-        // somehow the ref was cleared (defensive — shouldn't
-        // happen mid-call).
+        // Safari allows playback.
         const audio = currentAudioRef.current ?? new Audio();
-        // If somehow there's still audio playing on this element
-        // (shouldn't happen with the turn-lock, but defense in
-        // depth), stop it cleanly before swapping src. A naked
-        // src reassignment during playback was the proximate cause
-        // of Jeff interrupting himself in the user's 5-repetition
-        // bug report.
+        // Defense-in-depth: stop any lingering playback before
+        // swapping the source. With the turn-lock this shouldn't
+        // be possible but the cost is one ref read.
         if (!audio.paused) {
           audio.pause();
           audio.currentTime = 0;
         }
-        audio.src = audioUrl;
-        audio.load();
         currentAudioRef.current = audio;
-        await new Promise<void>((resolve) => {
-          audio.onended = () => {
-            URL.revokeObjectURL(audioUrl);
-            resolve();
-          };
-          audio.onerror = () => {
-            URL.revokeObjectURL(audioUrl);
-            resolve();
-          };
-          void audio.play().catch((err) => {
-            // Log so we can see autoplay rejections in production
-            // devtools. Without this we lose the diagnostic trail
-            // for "the call connected but I heard nothing" reports.
-            if (typeof console !== "undefined") {
-              const name = err instanceof Error ? err.name : "unknown";
-              const message = err instanceof Error ? err.message : "";
-              console.error(
-                `[care/voice] audio.play() rejected: name=${name} message="${message}"`
-              );
-            }
-            URL.revokeObjectURL(audioUrl);
-            resolve();
+
+        // ─── Streaming playback via MediaSource Extensions ───
+        // 2026-06-17 — switched from "fetch full blob then play"
+        // to "feed mp3 chunks into MediaSource as they arrive
+        // from the server stream." Combined with the server-side
+        // /stream endpoint, playback starts at ~first-byte
+        // latency (~75-200ms with flash) instead of waiting for
+        // the full reply to synthesize + download.
+        //
+        // Compatibility:
+        //   - Chrome/Edge/Firefox (desktop + Android): support
+        //     MediaSource for audio/mpeg → progressive path.
+        //   - iOS Safari: support is version-dependent. We
+        //     probe with MediaSource.isTypeSupported and fall
+        //     back to a blob-based playback for unsupported
+        //     devices. The fallback still benefits from the
+        //     server-side /stream endpoint because ElevenLabs
+        //     starts sending bytes sooner, so the blob completes
+        //     sooner.
+        const mseAvailable =
+          typeof MediaSource !== "undefined" &&
+          MediaSource.isTypeSupported("audio/mpeg");
+
+        if (mseAvailable) {
+          const mediaSource = new MediaSource();
+          const audioUrl = URL.createObjectURL(mediaSource);
+          audio.src = audioUrl;
+          await new Promise<void>((resolve) => {
+            let resolved = false;
+            const finish = () => {
+              if (resolved) return;
+              resolved = true;
+              URL.revokeObjectURL(audioUrl);
+              resolve();
+            };
+            audio.onended = finish;
+            audio.onerror = finish;
+            mediaSource.addEventListener(
+              "sourceopen",
+              async () => {
+                try {
+                  const sourceBuffer =
+                    mediaSource.addSourceBuffer("audio/mpeg");
+                  const reader = res.body!.getReader();
+                  // Pump chunks into the SourceBuffer one at a
+                  // time. SourceBuffer.appendBuffer is async via
+                  // its updateend event — we await each before
+                  // pushing the next so we don't overflow.
+                  const pump = async () => {
+                    while (true) {
+                      const { done, value } = await reader.read();
+                      if (done) {
+                        try {
+                          mediaSource.endOfStream();
+                        } catch {
+                          /* mediaSource may already be closed */
+                        }
+                        return;
+                      }
+                      await new Promise<void>((appendDone) => {
+                        const onUpdate = () => {
+                          sourceBuffer.removeEventListener(
+                            "updateend",
+                            onUpdate
+                          );
+                          appendDone();
+                        };
+                        sourceBuffer.addEventListener(
+                          "updateend",
+                          onUpdate
+                        );
+                        sourceBuffer.appendBuffer(value);
+                      });
+                    }
+                  };
+                  // Start playback alongside the pump — audio will
+                  // begin as soon as enough buffer accumulates.
+                  void audio.play().catch((err) => {
+                    if (typeof console !== "undefined") {
+                      const name =
+                        err instanceof Error ? err.name : "unknown";
+                      const message =
+                        err instanceof Error ? err.message : "";
+                      console.error(
+                        `[care/voice] audio.play() rejected (MSE): name=${name} message="${message}"`
+                      );
+                    }
+                    finish();
+                  });
+                  await pump();
+                } catch (err) {
+                  if (typeof console !== "undefined") {
+                    console.error("[care/voice] MSE pump failed:", err);
+                  }
+                  finish();
+                }
+              },
+              { once: true }
+            );
           });
-        });
+        } else {
+          // ─── Fallback: blob-based playback ───
+          // For browsers that can't decode mp3 via MSE. Same
+          // shape as the pre-streaming version. Loses the
+          // first-byte playback win but still benefits from the
+          // server-side /stream endpoint (the blob completes
+          // sooner than the old buffered route did).
+          const audioBlob = await res.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          audio.src = audioUrl;
+          audio.load();
+          await new Promise<void>((resolve) => {
+            let resolved = false;
+            const finish = () => {
+              if (resolved) return;
+              resolved = true;
+              URL.revokeObjectURL(audioUrl);
+              resolve();
+            };
+            audio.onended = finish;
+            audio.onerror = finish;
+            void audio.play().catch((err) => {
+              if (typeof console !== "undefined") {
+                const name = err instanceof Error ? err.name : "unknown";
+                const message = err instanceof Error ? err.message : "";
+                console.error(
+                  `[care/voice] audio.play() rejected (blob): name=${name} message="${message}"`
+                );
+              }
+              finish();
+            });
+          });
+        }
       } catch {
         args.onError("Audio playback failed. You can still read above.");
       } finally {
@@ -344,7 +444,7 @@ export function useVoiceMode(args: {
       // audio. Active grace (await sleep) means R2 doesn't even
       // exist during decay, can't capture phantom audio.
       const releaseAndRearm = async () => {
-        await new Promise<void>((r) => setTimeout(r, 500));
+        await new Promise<void>((r) => setTimeout(r, 300));
         turnInFlightRef.current = false;
         if (callActiveRef.current) armRecorder();
       };
@@ -359,7 +459,7 @@ export function useVoiceMode(args: {
         // Empty chunk — rearm and keep listening. Lock was never
         // taken; no release needed but we still want the grace.
         console.log(`[care/voice][${turnId}] empty blob, grace then arm`);
-        await new Promise<void>((r) => setTimeout(r, 500));
+        await new Promise<void>((r) => setTimeout(r, 300));
         if (callActiveRef.current) armRecorder();
         return;
       }
@@ -480,7 +580,7 @@ export function useVoiceMode(args: {
       // customer message — Jeff responded to his own audio
       // → loop. Active sleep means R2 doesn't exist during
       // the decay window, can't capture phantom audio.
-      await new Promise<void>((r) => setTimeout(r, 500));
+      await new Promise<void>((r) => setTimeout(r, 300));
       turnInFlightRef.current = false;
 
       // 5. Re-arm if call is still active.

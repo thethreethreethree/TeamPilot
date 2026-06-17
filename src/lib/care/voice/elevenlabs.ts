@@ -60,25 +60,28 @@ function getDefaultVoiceId(): string {
 }
 
 /**
- * Synthesize Jeff's text reply into audio (mp3 bytes).
+ * Synthesize Jeff's text reply into a STREAMING audio response.
  *
- * Caller picks the voice via voiceId override; falls back to
- * the deployment-level default if none provided. Per §A4 the
- * per-tenant voice picker UI surfaces voiceId from the tenant
- * config (Phase 9 commit 2).
+ * 2026-06-17 — switched from buffered synthesizeSpeech (returned
+ * full Buffer) to the streaming variant. ElevenLabs' /stream
+ * endpoint starts sending mp3 bytes the moment the first
+ * syllable is synthesized (~75ms with flash model) instead of
+ * waiting for the full reply (~500-1500ms). Combined with the
+ * client-side MediaSource decoder, customers hear Jeff start
+ * talking before his whole reply has been generated.
  *
- * Returns the raw audio buffer so the API route can stream
- * straight to the client without round-tripping through a
- * temporary file.
+ * Returns the raw ReadableStream of mp3 chunks. The API route
+ * pipes this directly to the client as a chunked response —
+ * no server-side buffering.
  */
-export async function synthesizeSpeech(args: {
+export async function synthesizeSpeechStream(args: {
   text: string;
   voiceId?: string | null;
-}): Promise<Buffer> {
+}): Promise<ReadableStream<Uint8Array>> {
   const apiKey = getApiKey();
   const voiceId = args.voiceId ?? getDefaultVoiceId();
 
-  const response = await fetch(`${TTS_ENDPOINT}/${voiceId}`, {
+  const response = await fetch(`${TTS_ENDPOINT}/${voiceId}/stream`, {
     method: "POST",
     headers: {
       "xi-api-key": apiKey,
@@ -118,8 +121,10 @@ export async function synthesizeSpeech(args: {
       `ElevenLabs TTS failed: ${response.status} ${err.slice(0, 300)}`
     );
   }
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+  if (!response.body) {
+    throw new Error("ElevenLabs TTS returned no response body.");
+  }
+  return response.body;
 }
 
 /**

@@ -4,7 +4,7 @@ import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getCareConversationByToken } from "@/lib/data/care";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { synthesizeSpeech } from "@/lib/care/voice/elevenlabs";
+import { synthesizeSpeechStream } from "@/lib/care/voice/elevenlabs";
 
 /**
  * POST /api/care/tts
@@ -70,11 +70,16 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   const voiceId = (tenant?.voice_id as string | null) ?? null;
 
-  // Synthesize. Errors propagate as 502 with the provider's
-  // message; the widget surfaces them per §A14.
-  let audio: Buffer;
+  // Synthesize as a stream. The /stream endpoint on ElevenLabs
+  // starts sending bytes the moment the first syllable is
+  // synthesized (~75ms with flash). We pipe the body straight
+  // through to the client with no server-side buffering — the
+  // client (useVoiceMode.speakReply) decodes progressively via
+  // MediaSource so playback starts at first byte rather than
+  // waiting for the full reply to download.
+  let stream: ReadableStream<Uint8Array>;
   try {
-    audio = await synthesizeSpeech({ text: body.text, voiceId });
+    stream = await synthesizeSpeechStream({ text: body.text, voiceId });
   } catch (e) {
     return NextResponse.json(
       {
@@ -84,14 +89,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Stream mp3 bytes back. Browser plays via Audio API in the
-  // widget — see CareEmbeddedWidget voice mode handlers.
-  return new NextResponse(new Uint8Array(audio), {
+  return new NextResponse(stream, {
     status: 200,
     headers: {
       "Content-Type": "audio/mpeg",
-      "Content-Length": audio.byteLength.toString(),
       "Cache-Control": "no-store",
+      // No Content-Length — this is chunked. Browsers handle it
+      // fine; some intermediaries get confused if both are set.
     },
   });
 }

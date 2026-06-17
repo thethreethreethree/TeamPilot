@@ -482,15 +482,19 @@ export async function generateCareReply(args: {
    *  is dead air. Defaults to "text". */
   medium?: "text" | "voice";
 }): Promise<CallResult> {
-  // Voice replies should be 1-2 sentences — see VOICE_ADDENDUM in
-  // src/lib/care/prompt.ts. 120 tokens caps generation at ~80
-  // words / ~25 seconds of speech in the worst case; the system
+  // Voice replies should be 1 sentence — see VOICE_ADDENDUM in
+  // src/lib/care/prompt.ts. 80 tokens caps generation at ~55
+  // words / ~15 seconds of speech in the worst case; the system
   // prompt drives most replies much shorter than that. The token
   // cap is the hard ceiling that protects against runaway
   // long-form replies even if the model ignores the prompt.
   //
+  // 2026-06-17 — tightened from 120 → 80 after user flagged
+  // ElevenLabs cost. Less text = less synthesis chars billed AND
+  // shorter playback time, so this is a speed + cost double win.
+  //
   // Text replies stay at 600 (1-4 sentences with headroom).
-  const maxTokens = args.medium === "voice" ? 120 : 600;
+  const maxTokens = args.medium === "voice" ? 80 : 600;
   return call({
     companyId: args.companyId,
     expectJson: false,
