@@ -263,6 +263,32 @@ export default function CareWidgetSettingsPage() {
           title="Allowed origins"
           subtitle="One per line. Only these origins are allowed to load and chat through your widget."
         >
+          {/* First-run warning — fires when the saved config has
+              no allowed origins yet. New tenants get
+              allowed_origins=[] by default (fail-safe — no
+              embedding until explicitly authorized), but
+              without this banner they'd paste the embed
+              snippet, get nothing, and not know why. */}
+          {(!config?.allowed_origins ||
+            config.allowed_origins.length === 0) &&
+            originsRaw.trim().length === 0 && (
+              <div className="mb-3 p-3 rounded-md bg-amber-400/10 border border-amber-400/40 text-xs text-amber-200 leading-relaxed">
+                <p className="font-semibold text-amber-100 mb-1 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden />
+                  Your widget won&apos;t load anywhere yet
+                </p>
+                <p>
+                  We start with this list empty as a safety default —
+                  nobody can embed your widget on a random site without
+                  your permission. Add at least one origin below (the
+                  domain where your widget will live, e.g.{" "}
+                  <code className="font-mono text-amber-100">
+                    https://yourbusiness.com
+                  </code>
+                  ) and save to enable it.
+                </p>
+              </div>
+            )}
           <textarea
             value={originsRaw}
             onChange={(e) => setOriginsRaw(e.target.value)}
@@ -271,11 +297,20 @@ export default function CareWidgetSettingsPage() {
             className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y font-mono"
           />
           <OriginsValidation raw={originsRaw} />
-          <p className="text-[11px] text-muted mt-2 flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3 text-brand" aria-hidden />
-            Origin mismatch attempts are logged. Visible to you at
-            /dashboard/care/settings/widget &gt; load events (Sprint 7).
-          </p>
+          <div className="text-[11px] text-muted mt-2 space-y-1">
+            <p className="flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 text-brand" aria-hidden />
+              Origin mismatch attempts are logged. Visible to you at
+              /dashboard/care/settings/widget &gt; load events (Sprint 7).
+            </p>
+            <p className="leading-relaxed">
+              <strong className="text-secondary">Format:</strong> include
+              the protocol (<code className="font-mono">https://</code>)
+              and the exact host. No trailing slash, no path. Subdomains
+              are separate (e.g. <code className="font-mono">www</code>{" "}
+              and the bare domain are two entries if you serve from both).
+            </p>
+          </div>
         </Section>
 
         {/* Email channel — Phase 4 */}
