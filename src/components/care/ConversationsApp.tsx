@@ -9,6 +9,8 @@ import {
   Clock,
   Filter,
   Archive,
+  ChevronLeft,
+  ChevronRight,
   Inbox,
   Lightbulb,
   ListChecks,
@@ -222,14 +224,36 @@ export function ConversationsApp({
   // same way Zendesk / Intercom remember their column widths.
   const [listWidth, setListWidth] = useState<number>(320);
   const [customerWidth, setCustomerWidth] = useState<number>(320);
+  // 2026-06-17 — collapsible state per AMD-006 §1.5.1 layer 3
+  // (synergetic composition). Each non-middle panel can collapse
+  // to a thin rail so the agent can reclaim screen space for the
+  // conversation pane. The middle conversation pane is never
+  // collapsible (per user spec — that's the active workspace).
+  // Persisted alongside widths so the workspace shape survives
+  // sessions.
+  const [viewsCollapsed, setViewsCollapsed] = useState(false);
+  const [listCollapsed, setListCollapsed] = useState(false);
+  const [customerCollapsed, setCustomerCollapsed] = useState(false);
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem("care-pane-widths");
       if (raw) {
-        const v = JSON.parse(raw) as { list?: number; customer?: number };
+        const v = JSON.parse(raw) as {
+          list?: number;
+          customer?: number;
+          viewsCollapsed?: boolean;
+          listCollapsed?: boolean;
+          customerCollapsed?: boolean;
+        };
         if (typeof v.list === "number") setListWidth(clampPane(v.list, 240, 520));
         if (typeof v.customer === "number")
           setCustomerWidth(clampPane(v.customer, 240, 520));
+        if (typeof v.viewsCollapsed === "boolean")
+          setViewsCollapsed(v.viewsCollapsed);
+        if (typeof v.listCollapsed === "boolean")
+          setListCollapsed(v.listCollapsed);
+        if (typeof v.customerCollapsed === "boolean")
+          setCustomerCollapsed(v.customerCollapsed);
       }
     } catch {
       /* ignore */
@@ -239,12 +263,24 @@ export function ConversationsApp({
     try {
       window.localStorage.setItem(
         "care-pane-widths",
-        JSON.stringify({ list: listWidth, customer: customerWidth })
+        JSON.stringify({
+          list: listWidth,
+          customer: customerWidth,
+          viewsCollapsed,
+          listCollapsed,
+          customerCollapsed,
+        })
       );
     } catch {
       /* ignore */
     }
-  }, [listWidth, customerWidth]);
+  }, [
+    listWidth,
+    customerWidth,
+    viewsCollapsed,
+    listCollapsed,
+    customerCollapsed,
+  ]);
 
   // Load identity (so "Mine" filter works) + inbox
   const loadInbox = useCallback(async () => {
@@ -761,9 +797,24 @@ export function ConversationsApp({
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* LEFT — Views + search + tag filters */}
-      <aside className="w-60 flex-shrink-0 border-r border-default bg-white/[0.01] flex flex-col">
-        <div className="px-4 py-3 border-b border-default">
+      {viewsCollapsed ? (
+        <CollapsedRail
+          ariaLabel="Expand Conversations views"
+          onExpand={() => setViewsCollapsed(false)}
+        />
+      ) : (
+        <aside className="w-60 flex-shrink-0 border-r border-default bg-white/[0.01] flex flex-col">
+        <div className="px-4 py-3 border-b border-default flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-primary">Conversations</h2>
+          <button
+            type="button"
+            onClick={() => setViewsCollapsed(true)}
+            aria-label="Collapse Conversations views"
+            title="Collapse"
+            className="text-muted hover:text-primary p-1 rounded hover:bg-white/[0.04]"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
+          </button>
         </div>
         <div className="px-3 py-3 space-y-0.5">
           {VIEWS.map((v) => {
@@ -801,17 +852,24 @@ export function ConversationsApp({
           </p>
         </div>
       </aside>
+      )}
 
       {/* CENTER — List + detail */}
       <div className="flex flex-1 min-w-0 min-h-0">
         {/* List pane */}
+        {listCollapsed ? (
+          <CollapsedRail
+            ariaLabel="Expand conversation list"
+            onExpand={() => setListCollapsed(false)}
+          />
+        ) : (
         <div
           style={{ width: listWidth }}
           className="flex-shrink-0 border-r border-default flex flex-col"
         >
-          {/* Search */}
-          <div className="px-3 py-2 border-b border-default">
-            <div className="relative">
+          {/* Search + collapse */}
+          <div className="px-3 py-2 border-b border-default flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
               <Search
                 className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2"
                 aria-hidden
@@ -824,6 +882,15 @@ export function ConversationsApp({
                 className="w-full bg-base border border-default rounded-md pl-7 pr-2 py-1.5 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-strong"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => setListCollapsed(true)}
+              aria-label="Collapse conversation list"
+              title="Collapse"
+              className="text-muted hover:text-primary p-1 rounded hover:bg-white/[0.04] shrink-0"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
+            </button>
           </div>
 
           {error ? (
@@ -852,13 +919,16 @@ export function ConversationsApp({
             </ul>
           )}
         </div>
+        )}
 
-        <PaneSplitter
-          onDrag={(dx) =>
-            setListWidth((w) => clampPane(w + dx, 240, 520))
-          }
-          ariaLabel="Resize conversation list"
-        />
+        {!listCollapsed && (
+          <PaneSplitter
+            onDrag={(dx) =>
+              setListWidth((w) => clampPane(w + dx, 240, 520))
+            }
+            ariaLabel="Resize conversation list"
+          />
+        )}
 
         {/* Detail pane */}
         <div className="flex-1 min-w-0 flex flex-col">
@@ -980,19 +1050,28 @@ export function ConversationsApp({
 
         {/* RIGHT — Customer panel + timeline */}
         {selected && (
-          <>
-            <PaneSplitter
-              onDrag={(dx) =>
-                setCustomerWidth((w) => clampPane(w - dx, 240, 520))
-              }
-              ariaLabel="Resize customer panel"
+          customerCollapsed ? (
+            <CollapsedRail
+              ariaLabel="Expand customer panel"
+              onExpand={() => setCustomerCollapsed(false)}
+              chevronDir="left"
             />
-            <CustomerPanel
-              conversation={selected}
-              events={events}
-              width={customerWidth}
-            />
-          </>
+          ) : (
+            <>
+              <PaneSplitter
+                onDrag={(dx) =>
+                  setCustomerWidth((w) => clampPane(w - dx, 240, 520))
+                }
+                ariaLabel="Resize customer panel"
+              />
+              <CustomerPanel
+                conversation={selected}
+                events={events}
+                width={customerWidth}
+                onCollapse={() => setCustomerCollapsed(true)}
+              />
+            </>
+          )
         )}
       </div>
 
@@ -1957,14 +2036,58 @@ function Composer({
   );
 }
 
+/**
+ * Thin vertical rail shown in place of a collapsed panel. Single
+ * job: be tappable so the panel comes back. Width is kept tight
+ * (24px) to maximize the conversation pane the agent just freed.
+ *
+ * chevronDir: "right" (default) for left-side panels collapsing
+ * leftward — the rail's chevron points right ("expand outward").
+ * "left" for the right-side customer panel — chevron points left.
+ *
+ * Per AMD-006 §1.5.1 layer 3 (composition): the rail is the
+ * affordance that keeps "collapsed" reversible. Without it the
+ * panel would feel gone, not hidden.
+ */
+function CollapsedRail({
+  ariaLabel,
+  onExpand,
+  chevronDir = "right",
+}: {
+  ariaLabel: string;
+  onExpand: () => void;
+  chevronDir?: "left" | "right";
+}) {
+  const Chevron = chevronDir === "left" ? ChevronLeft : ChevronRight;
+  // chevronDir="right" = collapsed panel on the LEFT side → rail
+  // needs its border on the RIGHT (separating from neighbor pane).
+  // chevronDir="left"  = collapsed panel on the RIGHT side → rail
+  // needs its border on the LEFT.
+  const borderClass =
+    chevronDir === "left" ? "border-l border-default" : "border-r border-default";
+  return (
+    <button
+      type="button"
+      onClick={onExpand}
+      aria-label={ariaLabel}
+      title={ariaLabel}
+      className={`w-6 flex-shrink-0 ${borderClass} bg-white/[0.01] hover:bg-white/[0.04] flex items-center justify-center text-muted hover:text-primary transition-colors`}
+    >
+      <Chevron className="w-3.5 h-3.5" aria-hidden />
+    </button>
+  );
+}
+
 function CustomerPanel({
   conversation,
   events,
   width,
+  onCollapse,
 }: {
   conversation: Conversation;
   events: ConversationEvent[];
   width: number;
+  onCollapse: () => void;
 }) {
   const customer = conversation.customer;
   return (
@@ -1973,9 +2096,20 @@ function CustomerPanel({
       className="flex-shrink-0 border-l border-default bg-white/[0.01] flex flex-col"
     >
       <div className="px-5 py-4 border-b border-default">
-        <p className="text-[10px] uppercase tracking-widest text-muted mb-1.5">
-          Customer
-        </p>
+        <div className="flex items-start justify-between gap-2 mb-1.5">
+          <p className="text-[10px] uppercase tracking-widest text-muted">
+            Customer
+          </p>
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label="Collapse customer panel"
+            title="Collapse"
+            className="text-muted hover:text-primary p-1 -mt-1 -mr-1 rounded hover:bg-white/[0.04] shrink-0"
+          >
+            <ChevronRight className="w-3.5 h-3.5" aria-hidden />
+          </button>
+        </div>
         <p className="text-sm font-semibold text-primary mb-0.5">
           {customer?.name ?? customer?.email ?? "Anonymous visitor"}
         </p>

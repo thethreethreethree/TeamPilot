@@ -7,6 +7,7 @@ import {
   BarChart3,
   BookOpen,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Heart,
   Home,
@@ -86,18 +87,52 @@ export function CareShell({ children }: { children: React.ReactNode }) {
   const [settingsOpen, setSettingsOpen] = useState(
     pathname.startsWith("/dashboard/care/settings")
   );
+  // Collapse state for the C.A.R.E left nav. Per AMD-006 §1.5.1
+  // layer 3 — agent can reclaim ~224px of horizontal real estate
+  // for the inbox surface. Persisted in localStorage so the
+  // workspace shape survives sessions.
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("care-shell-collapsed");
+      if (raw === "1") setNavCollapsed(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "care-shell-collapsed",
+        navCollapsed ? "1" : "0"
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [navCollapsed]);
 
   return (
     <div className="flex h-screen w-full bg-base overflow-hidden">
       {/* Care left sidebar — dark navy, Zendesk-shaped */}
+      {navCollapsed ? (
+        <button
+          type="button"
+          onClick={() => setNavCollapsed(false)}
+          aria-label="Expand C.A.R.E navigation"
+          title="Expand navigation"
+          className="w-6 flex-shrink-0 bg-[#0B1620] border-r border-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/90 hover:bg-white/5 transition-colors"
+        >
+          <ChevronRight className="w-3.5 h-3.5" aria-hidden />
+        </button>
+      ) : (
       <aside className="w-56 flex-shrink-0 bg-[#0B1620] text-white/90 border-r border-white/[0.06] flex flex-col">
         {/* Header: brand + agent status */}
         <div className="px-4 pt-4 pb-3">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-md bg-[#FACC15] flex items-center justify-center">
+          <div className="flex items-start gap-2 mb-3">
+            <div className="w-7 h-7 rounded-md bg-[#FACC15] flex items-center justify-center shrink-0">
               <LifeBuoy className="w-4 h-4 text-[#09090B]" aria-hidden />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-bold tracking-tight leading-none">
                 C.A.R.E
               </p>
@@ -105,6 +140,15 @@ export function CareShell({ children }: { children: React.ReactNode }) {
                 Customer · Assist · Respond · Engine
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setNavCollapsed(true)}
+              aria-label="Collapse C.A.R.E navigation"
+              title="Collapse navigation"
+              className="text-white/40 hover:text-white/90 p-1 -mt-0.5 -mr-1 rounded hover:bg-white/5 shrink-0"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
+            </button>
           </div>
           <PresenceControl />
         </div>
@@ -158,6 +202,7 @@ export function CareShell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
       </aside>
+      )}
 
       {/* Main content area */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
