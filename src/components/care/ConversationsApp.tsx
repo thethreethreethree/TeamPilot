@@ -11,6 +11,7 @@ import {
   Archive,
   ChevronLeft,
   ChevronRight,
+  HandHelping,
   Inbox,
   Lightbulb,
   ListChecks,
@@ -72,6 +73,7 @@ type Conversation = {
   assignedAgentId: string | null;
   aiResponding: boolean;
   snoozedUntil: string | null;
+  supervisorGuidanceRequestedAt: string | null;
   slaFirstResponseMinutes: number;
   firstMessageAt: string | null;
   lastMessageAt: string | null;
@@ -140,6 +142,7 @@ type ConversationEvent = {
 type ViewKey =
   | "mine"
   | "unassigned"
+  | "needs_guidance"
   | "all_open"
   | "snoozed"
   | "resolved"
@@ -149,6 +152,12 @@ type ViewKey =
 const VIEWS: Array<{ key: ViewKey; label: string; icon: typeof Inbox }> = [
   { key: "mine", label: "Mine", icon: UserCheck },
   { key: "unassigned", label: "Unassigned", icon: Inbox },
+  // 2026-06-17 — Needs guidance: conversations where an agent
+  // has flagged a request for supervisor input. Distinct from
+  // assignment routing — orthogonal axis per AMD-006 §1.5.1
+  // layer 1 (structure: customer-flow status vs internal
+  // escalation are separate fields).
+  { key: "needs_guidance", label: "Needs guidance", icon: HandHelping },
   { key: "all_open", label: "All open", icon: MessageSquare },
   { key: "snoozed", label: "Snoozed", icon: Clock },
   { key: "resolved", label: "Resolved", icon: CheckCircle2 },
@@ -449,6 +458,9 @@ export function ConversationsApp({
       case "closed":
         list = list.filter((c) => c.status === "closed");
         break;
+      case "needs_guidance":
+        list = list.filter((c) => c.supervisorGuidanceRequestedAt !== null);
+        break;
       case "all":
         // no filter
         break;
@@ -484,6 +496,7 @@ export function ConversationsApp({
       return {
         mine: 0,
         unassigned: 0,
+        needs_guidance: 0,
         all_open: 0,
         snoozed: 0,
         resolved: 0,
@@ -515,6 +528,9 @@ export function ConversationsApp({
       ).length,
       resolved: conversations.filter((c) => c.status === "resolved").length,
       closed: conversations.filter((c) => c.status === "closed").length,
+      needs_guidance: conversations.filter(
+        (c) => c.supervisorGuidanceRequestedAt !== null
+      ).length,
       all: conversations.length,
     } as Record<ViewKey, number>;
   }, [conversations, currentUserId]);
@@ -775,6 +791,22 @@ export function ConversationsApp({
       { action: "assign", targetAgentId },
       null,
       targetAgentId ? "Assigned." : "Unassigned."
+    );
+  };
+
+  const toggleSupervisorGuidance = async () => {
+    if (!selected) return;
+    const isRequested = selected.supervisorGuidanceRequestedAt !== null;
+    await runAction(
+      {
+        action: isRequested
+          ? "clear_supervisor_guidance"
+          : "request_supervisor_guidance",
+      },
+      null,
+      isRequested
+        ? "Cleared supervisor guidance request."
+        : "Flagged for supervisor guidance."
     );
   };
 
@@ -1082,6 +1114,7 @@ export function ConversationsApp({
                 }
                 onClaim={claim}
                 onAssign={assignTo}
+                onToggleGuidance={toggleSupervisorGuidance}
                 onSummarize={() => setSummarizeOpen(true)}
                 onResolve={() => setResolveModalOpen(true)}
                 onClose={() => {
@@ -1372,6 +1405,15 @@ function ConversationListRow({
           <p className="text-xs text-secondary truncate leading-tight">
             {c.subject ?? "Untitled"}
           </p>
+          {c.supervisorGuidanceRequestedAt && (
+            <span
+              title="Supervisor guidance has been requested on this conversation"
+              className="mt-1 inline-flex items-center gap-1 text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-400/10 text-amber-300"
+            >
+              <HandHelping className="w-2.5 h-2.5" aria-hidden />
+              Needs guidance
+            </span>
+          )}
           {c.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {c.tags.slice(0, 3).map((t) => {
@@ -1415,6 +1457,7 @@ function DetailHeader({
   isAdmin,
   onClaim,
   onAssign,
+  onToggleGuidance,
   onResolve,
   onClose,
   onPriorityChange,
@@ -1432,6 +1475,7 @@ function DetailHeader({
   isAdmin: boolean;
   onClaim: () => void;
   onAssign: (targetAgentId: string | null) => void;
+  onToggleGuidance: () => void;
   onResolve: () => void;
   onClose: () => void;
   onPriorityChange: (priority: string) => void;
@@ -1555,6 +1599,34 @@ function DetailHeader({
               acting={acting}
               onAssign={onAssign}
             />
+          )}
+          {/* Supervisor guidance toggle — flag-ON (need help) or
+              flag-OFF (resolved). Visible on every conversation
+              regardless of status; a supervisor reading the Needs
+              guidance inbox filter can clear it from here too.
+              Per AMD-006 §1.5.1 layer 1 (structure): guidance is
+              orthogonal to status, surfaces independently. */}
+          {conversation.status !== "closed" && (
+            <button
+              type="button"
+              onClick={onToggleGuidance}
+              disabled={acting}
+              title={
+                conversation.supervisorGuidanceRequestedAt
+                  ? "Clear the supervisor guidance request"
+                  : "Flag this conversation for supervisor guidance"
+              }
+              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md disabled:opacity-50 transition-colors ${
+                conversation.supervisorGuidanceRequestedAt
+                  ? "text-amber-300 bg-amber-400/10 border border-amber-400/50 hover:bg-amber-400/15"
+                  : "text-secondary border border-default hover:text-amber-300 hover:border-amber-400/50"
+              }`}
+            >
+              <HandHelping className="w-3.5 h-3.5" aria-hidden />
+              {conversation.supervisorGuidanceRequestedAt
+                ? "Guidance requested"
+                : "Request guidance"}
+            </button>
           )}
           {conversation.status !== "resolved" &&
             conversation.status !== "closed" && (
