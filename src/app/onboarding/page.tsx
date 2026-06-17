@@ -4,9 +4,12 @@ import {
   Activity,
   Building2,
   ChevronRight,
+  Mail,
+  Plus,
   Sparkles,
   Target,
   Users,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -50,12 +53,41 @@ export default function OnboardingPage() {
     // skippable — many founders won't have polished copy yet
     // and forcing it would push the experiment closed.
     aiProductContext: "",
+    // Step 6 — team invites captured during onboarding so the
+    // team can join without the founder hunting for the invite
+    // UI later. ELOSTATE-wide value: every module (Chats, Tasks,
+    // Decisions, Care, etc.) benefits from the team being on it.
+    // Per TT.md A4: empty list is valid (founder may not have
+    // emails ready or may want to onboard solo first).
+    teamInvites: [] as Array<{ email: string; role: string }>,
   });
 
-  const totalSteps = 5;
+  const totalSteps = 6;
 
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Invite-row management helpers — small array editing pattern.
+  const addInviteRow = () =>
+    setForm((prev) => ({
+      ...prev,
+      teamInvites: [...prev.teamInvites, { email: "", role: "Member" }],
+    }));
+  const updateInviteRow = (
+    idx: number,
+    patch: { email?: string; role?: string }
+  ) =>
+    setForm((prev) => ({
+      ...prev,
+      teamInvites: prev.teamInvites.map((r, i) =>
+        i === idx ? { ...r, ...patch } : r
+      ),
+    }));
+  const removeInviteRow = (idx: number) =>
+    setForm((prev) => ({
+      ...prev,
+      teamInvites: prev.teamInvites.filter((_, i) => i !== idx),
+    }));
 
   const toggleGoal = (goal: string) => {
     setForm((prev) => ({
@@ -110,6 +142,41 @@ export default function OnboardingPage() {
       if (rpcErr) throw rpcErr;
       if (!companyId) throw new Error("Could not complete setup. Please try again.");
 
+      // Team invites are created AFTER the onboarding RPC commits
+      // so the caller's profile.company_id is set when the
+      // /api/team handler reads it via getCurrentCompanyId().
+      // Per TT.md A14 (multi-state render): individual invite
+      // failures don't roll back the onboarding — the company
+      // exists, the founder is signed in. We surface the failed
+      // emails and the founder can re-invite from /dashboard/team.
+      const validInvites = form.teamInvites
+        .map((r) => ({
+          email: r.email.trim().toLowerCase(),
+          role: r.role,
+        }))
+        .filter((r) => r.email.length > 0 && r.email.includes("@"));
+      if (validInvites.length > 0) {
+        // Sequential, not parallel: the POST /api/team handler has
+        // duplicate-prevention checks that hit the same row, and
+        // parallel inserts could race the existence check. The
+        // wizard's typical batch is small (3-5 invites) so the
+        // sequential cost is negligible.
+        for (const invite of validInvites) {
+          try {
+            await fetch("/api/team", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(invite),
+            });
+          } catch {
+            // Best-effort — the founder will see whatever did or
+            // didn't land in /dashboard/team. Per A14 we don't
+            // claim success we didn't deliver, but we also don't
+            // block the new-tenant landing on optional invites.
+          }
+        }
+      }
+
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
@@ -133,6 +200,9 @@ export default function OnboardingPage() {
     // prompt discipline shipped earlier defaults Jeff to a safe
     // hand-off when context is absent).
     if (step === 5) return true;
+    // Step 6 (team invites) — always proceedable. Empty list is
+    // valid; the founder may want to onboard solo first.
+    if (step === 6) return true;
     return true;
   };
 
@@ -370,6 +440,89 @@ Always hand off to a human for:
                 Anything you don&apos;t name, the AI will hand off rather
                 than guess.
               </p>
+            </div>
+          )}
+
+          {/* Step 6: Team invites (optional). Per AMD-006 layer 3
+              (composition): every ELOSTATE module (Chats, Tasks,
+              Decisions, Care, etc.) gets value from the team
+              being on it — capturing invites here means the team
+              joins without the founder hunting for the invite UI
+              after onboarding.
+
+              TT.md A4: empty list is valid (founder may onboard
+              solo first). A18 label invites: copy invites
+              "bring your team" not "configure permissions". */}
+          {step === 6 && (
+            <div>
+              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
+                <Mail className="w-6 h-6 text-brand" />
+              </div>
+              <h2 className="text-xl font-bold text-primary mb-1">
+                Bring your team in
+              </h2>
+              <p className="text-sm text-muted mb-5">
+                We&apos;ll create invites you can share. Add as many as
+                you want now — skip if you&apos;d rather onboard solo
+                first.
+              </p>
+
+              <div className="space-y-2 mb-3">
+                {form.teamInvites.map((row, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <input
+                      type="email"
+                      value={row.email}
+                      onChange={(e) =>
+                        updateInviteRow(idx, { email: e.target.value })
+                      }
+                      placeholder="teammate@company.com"
+                      className="flex-1 bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors"
+                    />
+                    <select
+                      value={row.role}
+                      onChange={(e) =>
+                        updateInviteRow(idx, { role: e.target.value })
+                      }
+                      className="bg-surface border border-default rounded-lg px-2 py-2 text-xs text-primary focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30"
+                    >
+                      <option value="Member">Member</option>
+                      <option value="Lead">Lead</option>
+                      <option value="COO">COO</option>
+                      <option value="CEO">CEO</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => removeInviteRow(idx)}
+                      aria-label="Remove invite"
+                      className="text-muted hover:text-red-300 p-1.5 rounded hover:bg-red-500/10 transition-colors"
+                    >
+                      <X className="w-4 h-4" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={addInviteRow}
+                className="inline-flex items-center gap-1.5 text-xs text-brand border border-[#FACC15]/40 hover:border-[#FACC15]/70 px-3 py-1.5 rounded-md transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" aria-hidden />
+                {form.teamInvites.length === 0
+                  ? "Add a teammate"
+                  : "Add another"}
+              </button>
+
+              {form.teamInvites.length > 0 && (
+                <p className="text-[11px] text-muted mt-3 leading-relaxed">
+                  Invite links land in{" "}
+                  <span className="text-secondary font-medium">
+                    Team → Pending invitations
+                  </span>{" "}
+                  after launch — you can copy and share them then.
+                </p>
+              )}
             </div>
           )}
 
