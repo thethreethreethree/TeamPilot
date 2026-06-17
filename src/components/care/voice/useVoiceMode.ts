@@ -108,6 +108,30 @@ export function useVoiceMode(args: {
   const callActiveRef = useRef(false); // tracks "are we in a call" without going through render
   const speechStartedAtRef = useRef<number | null>(null);
   const lastEnergyAboveAtRef = useRef<number | null>(null);
+  // 2026-06-17 — bug fix refs (user reported Jeff said the same
+  // reply 5 times and interrupted himself mid-sentence):
+  //  - turnInFlightRef: hard lock. While a turn is processing (STT
+  //    → /messages → speakReply), VAD end-of-turn triggers are
+  //    ignored. One reply per customer utterance, no concurrency.
+  //  - graceUntilMsRef: after a turn completes, ignore VAD until
+  //    Date.now() passes this timestamp. Lets the speaker's audio
+  //    tail decay before we listen again, so the residual echo
+  //    doesn't get chopped into a phantom "customer turn."
+  //  - phaseRef: mirrors voicePhase state so the VAD tick reads
+  //    the LIVE value instead of the stale closure (the prior
+  //    tick captured voicePhase from useCallback deps, and never
+  //    saw phase transitions — the speaking-phase guard was a
+  //    no-op until this fix).
+  const turnInFlightRef = useRef(false);
+  const graceUntilMsRef = useRef(0);
+  const phaseRef = useRef<VoicePhase>("idle");
+
+  // Keep phaseRef in lock-step with voicePhase. The VAD tick uses
+  // phaseRef.current to make decisions in real time — voicePhase
+  // alone is closed-over and goes stale between renders.
+  useEffect(() => {
+    phaseRef.current = voicePhase;
+  }, [voicePhase]);
 
   /**
    * Tear down everything — mic, audio context, polling interval,
@@ -115,6 +139,8 @@ export function useVoiceMode(args: {
    */
   const teardown = useCallback(() => {
     callActiveRef.current = false;
+    turnInFlightRef.current = false;
+    graceUntilMsRef.current = 0;
     if (vadIntervalRef.current !== null) {
       window.clearInterval(vadIntervalRef.current);
       vadIntervalRef.current = null;
@@ -147,11 +173,25 @@ export function useVoiceMode(args: {
   }, []);
 
   /**
-   * Play Jeff's reply, with the mic muted while audio plays so
-   * we don't feedback-loop. Returns when audio finishes.
+   * Play Jeff's reply, with the mic stream muted while audio
+   * plays so we don't feedback-loop. Returns when audio finishes.
+   *
+   * 2026-06-17 — substantially rewritten after the "Jeff says
+   * the same answer 5 times and interrupts himself" report:
+   *  - Track-level mute (not just recorder.pause()) so the
+   *    analyser sees silence too — kills the speaker→mic loop
+   *    that was triggering phantom turns.
+   *  - Pre-clear any in-flight playback before swapping src. The
+   *    iOS audio-element reuse trick (one shared element) made
+   *    src swaps possible mid-play; we now pause + wait one tick
+   *    before assigning the new src.
+   *  - Re-enable the mic track in a finally block so a TTS
+   *    failure can't leave the call permanently deaf.
    */
   const speakReply = useCallback(
     async (text: string, sessionToken: string) => {
+      const stream = streamRef.current;
+      const audioTrack = stream?.getAudioTracks()[0] ?? null;
       try {
         setVoicePhase("speaking");
         // Mute the mic recorder while Jeff speaks.
@@ -159,6 +199,11 @@ export function useVoiceMode(args: {
         if (recorder && recorder.state === "recording") {
           recorder.pause();
         }
+        // Track-level mute — analyser will read silence so the
+        // VAD can't see Jeff's voice bleeding back through the
+        // speaker. This is the defense-in-depth that kills the
+        // echo-loop even if echoCancellation isn't enough.
+        if (audioTrack) audioTrack.enabled = false;
 
         const res = await fetch(`/api/care/tts`, {
           method: "POST",
@@ -182,6 +227,16 @@ export function useVoiceMode(args: {
         // somehow the ref was cleared (defensive — shouldn't
         // happen mid-call).
         const audio = currentAudioRef.current ?? new Audio();
+        // If somehow there's still audio playing on this element
+        // (shouldn't happen with the turn-lock, but defense in
+        // depth), stop it cleanly before swapping src. A naked
+        // src reassignment during playback was the proximate cause
+        // of Jeff interrupting himself in the user's 5-repetition
+        // bug report.
+        if (!audio.paused) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
         audio.src = audioUrl;
         audio.load();
         currentAudioRef.current = audio;
@@ -211,6 +266,11 @@ export function useVoiceMode(args: {
         });
       } catch {
         args.onError("Audio playback failed. You can still read above.");
+      } finally {
+        // Always re-enable the mic, even on error. A TTS failure
+        // must not leave the customer permanently unable to be
+        // heard for the rest of the call.
+        if (audioTrack) audioTrack.enabled = true;
       }
     },
     [args]
@@ -260,20 +320,39 @@ export function useVoiceMode(args: {
     recorder.onstop = async () => {
       if (!callActiveRef.current) return;
 
+      // Every failure / early-exit path needs to release the
+      // turn-lock so the next customer utterance can fire a
+      // fresh turn. Forgetting one would freeze the call: VAD
+      // detects speech, handleEndOfTurn stops the recorder, but
+      // the lock is still held and no new processing starts.
+      const releaseAndRearm = () => {
+        graceUntilMsRef.current = Date.now() + 500;
+        turnInFlightRef.current = false;
+        if (callActiveRef.current) armRecorder();
+      };
+
       const audioBlob = new Blob(audioChunksRef.current, {
         type: recorder.mimeType || "audio/webm",
       });
       if (audioBlob.size === 0) {
-        // Empty chunk — rearm and keep listening.
+        // Empty chunk — rearm and keep listening. Lock was never
+        // taken; no release needed but we still want the grace.
+        graceUntilMsRef.current = Date.now() + 500;
         armRecorder();
         return;
       }
 
+      // Hard turn-lock — see turnInFlightRef declaration. From
+      // here through the end of this handler (post-speakReply),
+      // any VAD end-of-turn is a no-op. Prevents the 5-repetition
+      // failure mode where continuous customer chatter chunks
+      // into parallel turns that each fire their own Jeff reply.
+      turnInFlightRef.current = true;
       setVoicePhase("processing");
 
       const active = await args.ensureSession();
       if (!active) {
-        if (callActiveRef.current) armRecorder();
+        releaseAndRearm();
         return;
       }
 
@@ -291,21 +370,21 @@ export function useVoiceMode(args: {
         if (!sttRes.ok) {
           const data = await sttRes.json().catch(() => ({}));
           args.onError(data.error || "Couldn't transcribe. Try again.");
-          if (callActiveRef.current) armRecorder();
+          releaseAndRearm();
           return;
         }
         const data = await sttRes.json();
         transcript = (data.transcript as string) ?? "";
       } catch {
         args.onError("Couldn't reach the server.");
-        if (callActiveRef.current) armRecorder();
+        releaseAndRearm();
         return;
       }
 
       if (!transcript.trim()) {
         // STT returned empty — likely just noise. Skip the
         // /messages call and re-arm.
-        if (callActiveRef.current) armRecorder();
+        releaseAndRearm();
         return;
       }
 
@@ -330,7 +409,7 @@ export function useVoiceMode(args: {
         if (!msgRes.ok) {
           args.onError("Couldn't send to Jeff. Try again.");
           args.onRemoveOptimistic(tempId);
-          if (callActiveRef.current) armRecorder();
+          releaseAndRearm();
           return;
         }
         const data = await msgRes.json();
@@ -343,7 +422,7 @@ export function useVoiceMode(args: {
       } catch {
         args.onError("Couldn't reach the server.");
         args.onRemoveOptimistic(tempId);
-        if (callActiveRef.current) armRecorder();
+        releaseAndRearm();
         return;
       }
 
@@ -352,7 +431,15 @@ export function useVoiceMode(args: {
         await speakReply(aiReplyText, active.sessionToken);
       }
 
-      // 4. Re-arm if call is still active.
+      // 4. Release the turn-lock with a grace period. The 500ms
+      // post-playback window lets any speaker tail / echo decay
+      // before the VAD starts listening again — without it the
+      // VAD could see residual energy as the customer "starting
+      // to talk" and trigger a phantom turn immediately.
+      graceUntilMsRef.current = Date.now() + 500;
+      turnInFlightRef.current = false;
+
+      // 5. Re-arm if call is still active.
       if (callActiveRef.current) {
         setVoicePhase("listening");
         armRecorder();
@@ -453,7 +540,25 @@ export function useVoiceMode(args: {
     // an intervening render.
     let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Explicit constraints — defense against the speaker → mic
+      // echo loop that caused Jeff to hear himself and repeat
+      // his own reply on iPhone (2026-06-17 bug report). Browser
+      // defaults are usually ON but not guaranteed; setting them
+      // explicitly removes the guess.
+      //
+      //   echoCancellation: subtract the speaker's output from
+      //     the mic input (the OS-level echo canceller).
+      //   noiseSuppression: drop steady-state background noise
+      //     (fans, road noise, car horn in the user's test).
+      //   autoGainControl: prevent the customer from being too
+      //     quiet or too loud for the VAD threshold.
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
     } catch (e) {
       const name = e instanceof Error ? e.name : "unknown";
       const message = e instanceof Error ? e.message : "";
@@ -531,12 +636,28 @@ export function useVoiceMode(args: {
     const buffer = new Uint8Array(analyser.frequencyBinCount);
     const tick = () => {
       if (!callActiveRef.current) return;
-      if (voicePhase === "speaking" || voicePhase === "processing") return;
+      // Live phase check via ref (previously this read `voicePhase`
+      // from closure, which captured a stale value and never saw
+      // the listening → speaking → processing transitions — the
+      // guard was effectively a no-op for the whole call).
+      if (
+        phaseRef.current === "speaking" ||
+        phaseRef.current === "processing"
+      ) {
+        return;
+      }
+      // Hard turn-lock: if a turn is being processed, ignore VAD
+      // entirely. One reply per utterance.
+      if (turnInFlightRef.current) return;
+      const now = Date.now();
+      // Grace period: skip ticks until the post-playback echo /
+      // gain settling window expires.
+      if (now < graceUntilMsRef.current) return;
+
       analyser.getByteFrequencyData(buffer);
       let total = 0;
       for (let i = 0; i < buffer.length; i++) total += buffer[i]!;
       const energy = total / buffer.length;
-      const now = Date.now();
 
       if (energy >= VAD_ENERGY_THRESHOLD) {
         lastEnergyAboveAtRef.current = now;
@@ -563,7 +684,12 @@ export function useVoiceMode(args: {
       }
     };
     vadIntervalRef.current = window.setInterval(tick, VAD_POLL_MS);
-  }, [args, armRecorder, handleEndOfTurn, voicePhase]);
+    // voicePhase removed from deps — tick now reads phaseRef.current
+    // (live), so the closure no longer needs to be re-created on
+    // each phase transition. This also stops startCall from being
+    // reconstructed every render, which previously caused
+    // armRecorder + handleEndOfTurn deps to churn.
+  }, [args, armRecorder, handleEndOfTurn]);
 
   /**
    * Hang up. Tears down everything. The hook contract: after
