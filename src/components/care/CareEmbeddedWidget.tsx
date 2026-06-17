@@ -314,7 +314,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
             {messages.length === 0 && (
               <div className="text-center px-4 py-8">
                 <p className="text-sm font-medium text-primary mb-1">
-                  Hi, I&apos;m Jeff.
+                  Hi, my name is Jeff.
                 </p>
                 <p className="text-xs text-secondary leading-relaxed max-w-[260px] mx-auto">
                   Ask anything — a real person sees these too.
