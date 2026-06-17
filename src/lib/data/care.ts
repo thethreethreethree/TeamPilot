@@ -351,6 +351,60 @@ export async function claimConversation(args: {
 }
 
 /**
+ * Bulk status change — apply the same status to N conversations
+ * in a single UPDATE. Used by the inbox bulk-action bar (e.g.,
+ * "Archive 5 selected" maps to bulk status='closed').
+ *
+ * Soft-archive only: the "delete" bulk operation maps to
+ * status='closed' so the row + its event chain stay intact for
+ * audit / reopening. Hard deletion isn't exposed at the data
+ * layer.
+ *
+ * Returns the number of rows actually updated so the caller can
+ * surface "5 archived" vs "3 of 5 archived" (the difference is
+ * usually RLS, which silently drops rows the caller can't write
+ * to — better to surface that honestly than to lie).
+ */
+export async function bulkSetConversationStatus(args: {
+  ids: string[];
+  status: SupportConversation["status"];
+}): Promise<number> {
+  if (args.ids.length === 0) return 0;
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("support_conversations")
+    .update({ status: args.status })
+    .in("id", args.ids)
+    .select("id");
+  return (data ?? []).length;
+}
+
+/**
+ * Bulk assign — apply the same targetAgentId (or null to bulk
+ * unassign) to N conversations. Same pattern as
+ * bulkSetConversationStatus. The route layer is responsible for
+ * filtering `ids` to only the conversations the caller is
+ * allowed to reassign per the existing permission matrix:
+ *   - admin: anything
+ *   - agent: own + unclaimed only
+ * This function does not enforce that — passing it disallowed
+ * ids would still update them. Auth lives at the route.
+ */
+export async function bulkAssignConversations(args: {
+  ids: string[];
+  targetAgentId: string | null;
+}): Promise<number> {
+  if (args.ids.length === 0) return 0;
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("support_conversations")
+    .update({ assigned_agent_id: args.targetAgentId })
+    .in("id", args.ids)
+    .select("id");
+  return (data ?? []).length;
+}
+
+/**
  * Reassign an already-claimed conversation to a different agent.
  * Differs from claimConversation in three ways:
  *   1. Does NOT touch status — caller picks an already-claimed
