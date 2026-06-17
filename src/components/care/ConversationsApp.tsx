@@ -459,7 +459,17 @@ export function ConversationsApp({
         list = list.filter((c) => c.status === "closed");
         break;
       case "needs_guidance":
-        list = list.filter((c) => c.supervisorGuidanceRequestedAt !== null);
+        // Exclude closed conversations from the Needs guidance
+        // view — a closed conversation with a lingering flag is
+        // not actionable; the supervisor would just see noise.
+        // (Bug fix: this filter previously included closed,
+        // creating permanent zombie entries that compounded the
+        // "no clearing path on closed" header bug.)
+        list = list.filter(
+          (c) =>
+            c.supervisorGuidanceRequestedAt !== null &&
+            c.status !== "closed"
+        );
         break;
       case "all":
         // no filter
@@ -529,7 +539,9 @@ export function ConversationsApp({
       resolved: conversations.filter((c) => c.status === "resolved").length,
       closed: conversations.filter((c) => c.status === "closed").length,
       needs_guidance: conversations.filter(
-        (c) => c.supervisorGuidanceRequestedAt !== null
+        (c) =>
+          c.supervisorGuidanceRequestedAt !== null &&
+          c.status !== "closed"
       ).length,
       all: conversations.length,
     } as Record<ViewKey, number>;
@@ -1601,12 +1613,16 @@ function DetailHeader({
             />
           )}
           {/* Supervisor guidance toggle — flag-ON (need help) or
-              flag-OFF (resolved). Visible on every conversation
-              regardless of status; a supervisor reading the Needs
-              guidance inbox filter can clear it from here too.
-              Per AMD-006 §1.5.1 layer 1 (structure): guidance is
-              orthogonal to status, surfaces independently. */}
-          {conversation.status !== "closed" && (
+              flag-OFF (resolved). Visible:
+                - On any non-closed conversation (the normal flag
+                  / clear workflow).
+                - On closed conversations ONLY IF a flag is
+                  currently set, so it can be cleared. Without
+                  this exception, a closed conversation with a
+                  lingering flag would sit in the "Needs guidance"
+                  view forever with no clearing path. */}
+          {(conversation.status !== "closed" ||
+            conversation.supervisorGuidanceRequestedAt) && (
             <button
               type="button"
               onClick={onToggleGuidance}
@@ -2289,9 +2305,15 @@ function BulkActionBar({
   onReopen: () => void;
   onAssign: (targetAgentId: string | null) => void;
 }) {
-  // When viewing Closed, swap Archive → Reopen since archiving
-  // an already-closed conversation is a no-op.
-  const isClosedView = viewKey === "closed";
+  // Swap Archive → Reopen for any terminal view (closed OR
+  // resolved). Bug fix: previously only `closed` triggered the
+  // swap, so bulk-archive on the Resolved view silently
+  // transitioned resolved → closed for every selected item,
+  // burying the captured resolution semantics. Resolved + Closed
+  // are both "terminal — no further action expected from this
+  // surface"; the only sensible bulk action is the reverse
+  // direction (Reopen).
+  const isTerminalView = viewKey === "closed" || viewKey === "resolved";
   return (
     <div className="px-3 py-2 border-b border-default bg-[#FACC15]/[0.06] flex items-center gap-2 sticky top-0 z-10">
       <span className="text-xs font-semibold text-brand">
@@ -2307,7 +2329,7 @@ function BulkActionBar({
           onAssign={onAssign}
         />
       )}
-      {isClosedView ? (
+      {isTerminalView ? (
         <button
           type="button"
           onClick={onReopen}
