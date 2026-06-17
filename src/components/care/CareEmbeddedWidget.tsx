@@ -380,7 +380,13 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
               )}
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  // L2.2 fix: end voice call on widget close
+                  // (privacy — mic should not stay live after
+                  // the customer dismisses the panel).
+                  if (voiceMode) endCall();
+                  setOpen(false);
+                }}
                 aria-label="Close"
                 className="text-muted hover:text-primary p-1.5 rounded-lg hover:bg-surface-raised"
               >

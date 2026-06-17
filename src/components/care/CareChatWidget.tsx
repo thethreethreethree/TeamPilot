@@ -336,7 +336,15 @@ export function CareChatWidget() {
               )}
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  // L2.2 fix: ending any active voice call when
+                  // the widget closes. Without this, the mic stays
+                  // live until the page unloads — a real privacy
+                  // gap (customer thinks they closed the chat, but
+                  // their mic is still streaming).
+                  if (voiceMode) endCall();
+                  setOpen(false);
+                }}
                 aria-label="Close chat"
                 className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-surface-raised"
               >
