@@ -4,9 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Loader2,
   MessageCircle,
+  Mic,
   Send,
   X,
 } from "lucide-react";
+import { VoiceSurface } from "./voice/VoiceSurface";
+import { useVoiceMode } from "./voice/useVoiceMode";
 
 /**
  * Customer-facing Care chat widget. Floats bottom-right; expands to
@@ -148,6 +151,46 @@ export function CareChatWidget() {
       return null;
     }
   }, [session]);
+
+  // ─── Phase 9 voice mode (shared hook) ──────────────────────
+  // Per §A13 the voice loop lives in src/components/care/voice/
+  // so this widget consumes the same logic as CareEmbeddedWidget.
+  const {
+    voiceMode,
+    setVoiceMode,
+    voicePhase,
+    voiceTranscript,
+    startRecording,
+    stopRecording,
+    exitVoiceMode,
+  } = useVoiceMode({
+    ensureSession,
+    onCustomerMessageOptimistic: ({ tempId, body }) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          authorType: "customer",
+          body,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    },
+    onMessagesReturned: (msgs) => {
+      setMessages(
+        msgs.map((m, i) => ({
+          id: m.id ?? `msg-${i}`,
+          authorType: m.authorType,
+          body: m.body,
+          createdAt: m.createdAt ?? new Date().toISOString(),
+        }))
+      );
+    },
+    onRemoveOptimistic: (tempId) => {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    },
+    onError: setError,
+  });
 
   const handleSend = async () => {
     const body = draft.trim();
@@ -320,34 +363,54 @@ export function CareChatWidget() {
             </div>
           )}
 
-          {/* Composer */}
-          {!conversationClosed && (
-            <div className="border-t border-default p-3 flex items-end gap-2 bg-surface/40">
-              <textarea
-                ref={inputRef}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={handleKey}
-                placeholder="Type a message…"
-                rows={1}
-                disabled={sending}
-                className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"
+          {/* Composer — text mode OR voice mode (Phase 9). */}
+          {!conversationClosed &&
+            (voiceMode ? (
+              <VoiceSurface
+                phase={voicePhase}
+                accent="#FACC15"
+                transcript={voiceTranscript}
+                onPress={() => void startRecording()}
+                onRelease={stopRecording}
+                onExit={exitVoiceMode}
               />
-              <button
-                type="button"
-                onClick={() => void handleSend()}
-                disabled={sending || !draft.trim()}
-                aria-label="Send message"
-                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] transition-colors"
-              >
-                {sending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-                ) : (
-                  <Send className="w-4 h-4" aria-hidden />
-                )}
-              </button>
-            </div>
-          )}
+            ) : (
+              <div className="border-t border-default p-3 flex items-end gap-2 bg-surface/40">
+                <textarea
+                  ref={inputRef}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={handleKey}
+                  placeholder="Type a message…"
+                  rows={1}
+                  disabled={sending}
+                  className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"
+                />
+                {/* "Talk to Jeff" — customer opt-in to voice mode. */}
+                <button
+                  type="button"
+                  onClick={() => setVoiceMode(true)}
+                  aria-label="Talk to Jeff"
+                  title="Talk to Jeff — real-time voice conversation"
+                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-default hover:border-strong text-muted hover:text-primary"
+                >
+                  <Mic className="w-4 h-4" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSend()}
+                  disabled={sending || !draft.trim()}
+                  aria-label="Send message"
+                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] transition-colors"
+                >
+                  {sending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Send className="w-4 h-4" aria-hidden />
+                  )}
+                </button>
+              </div>
+            ))}
         </div>
       )}
     </>
