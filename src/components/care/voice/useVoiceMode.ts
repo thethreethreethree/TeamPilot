@@ -199,12 +199,19 @@ export function useVoiceMode(args: {
 
   /**
    * Re-arm the recorder for the next customer turn. Called
-   * after Jeff's TTS finishes.
+   * after Jeff's TTS finishes OR after any failure in the
+   * STT/messages/TTS chain — the call stays alive, we just
+   * keep listening.
+   *
+   * Always sets phase back to "listening" so the UI doesn't
+   * stay stuck on "processing" or "speaking" after a failure
+   * (user-reported bug 2026-06-17).
    */
   const armRecorder = useCallback(() => {
     if (!callActiveRef.current) return;
     const stream = streamRef.current;
     if (!stream) return;
+    setVoicePhase("listening");
 
     audioChunksRef.current = [];
     speechStartedAtRef.current = null;

@@ -39,9 +39,16 @@ const DEFAULT_VOICE_ID = "ErXwobaYiN019PkySvjV";
 function getApiKey(): string {
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) {
-    throw new Error(
-      "Voice not configured (ELEVENLABS_API_KEY env var missing)."
-    );
+    // Customer-facing message stays human (no env var name leak)
+    // but the server-side console gets the operator clue so
+    // production debugging is fast.
+    if (typeof console !== "undefined") {
+      console.error(
+        "[care/voice] ELEVENLABS_API_KEY env var is missing. " +
+          "Set it in Vercel project settings (Production + Preview) to enable Jeff's voice."
+      );
+    }
+    throw new Error("Voice isn't available right now.");
   }
   return key;
 }
