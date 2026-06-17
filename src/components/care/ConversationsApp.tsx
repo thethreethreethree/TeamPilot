@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock,
   Filter,
+  Archive,
   Inbox,
   Lightbulb,
   ListChecks,
@@ -140,6 +141,7 @@ type ViewKey =
   | "all_open"
   | "snoozed"
   | "resolved"
+  | "closed"
   | "all";
 
 const VIEWS: Array<{ key: ViewKey; label: string; icon: typeof Inbox }> = [
@@ -148,6 +150,14 @@ const VIEWS: Array<{ key: ViewKey; label: string; icon: typeof Inbox }> = [
   { key: "all_open", label: "All open", icon: MessageSquare },
   { key: "snoozed", label: "Snoozed", icon: Clock },
   { key: "resolved", label: "Resolved", icon: CheckCircle2 },
+  // 2026-06-17 — Closed folder added per user request. Schema
+  // already supports status='closed' (migration 0034). Closed
+  // conversations are archived: no further activity expected,
+  // distinct from 'resolved' which is "agent marked done but
+  // could still reopen." Closed lives outside All open / Resolved
+  // so an inbox that scrolls forever doesn't drown the active
+  // work.
+  { key: "closed", label: "Closed", icon: Archive },
   { key: "all", label: "All", icon: Filter },
 ];
 
@@ -357,6 +367,9 @@ export function ConversationsApp({
       case "resolved":
         list = list.filter((c) => c.status === "resolved");
         break;
+      case "closed":
+        list = list.filter((c) => c.status === "closed");
+        break;
       case "all":
         // no filter
         break;
@@ -395,6 +408,7 @@ export function ConversationsApp({
         all_open: 0,
         snoozed: 0,
         resolved: 0,
+        closed: 0,
         all: 0,
       };
     }
@@ -421,6 +435,7 @@ export function ConversationsApp({
         (c) => c.snoozedUntil && new Date(c.snoozedUntil).getTime() > Date.now()
       ).length,
       resolved: conversations.filter((c) => c.status === "resolved").length,
+      closed: conversations.filter((c) => c.status === "closed").length,
       all: conversations.length,
     } as Record<ViewKey, number>;
   }, [conversations, currentUserId]);
