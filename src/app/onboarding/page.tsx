@@ -64,34 +64,31 @@ export default function OnboardingPage() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("Your session expired. Please sign in again.");
 
-      // Insert the company. The 0007 trigger auto-creates a company_brain
-      // row, which starts the §3.4 30-day control window from this
-      // moment forward. The selected goals are persisted as jsonb so
-      // the brain has them as context from day one (the brain layer
-      // reads company.goals when composing system prompts).
-      const { data: company, error: companyErr } = await supabase
-        .from("companies")
-        .insert({
-          name: form.companyName,
-          industry: form.industry,
-          size: form.size,
-          stage: form.stage,
-          goals: form.selectedGoals,
-        })
-        .select("id")
-        .single();
-      if (companyErr) throw companyErr;
-
-      // Upsert (not insert) because handle_new_user trigger may have
-      // already inserted a placeholder profile on signup. Use 'admin' so
-      // the user can perform admin actions (close topic, etc.) immediately.
-      const { error: profileErr } = await supabase.from("profiles").upsert({
-        id: auth.user.id,
-        company_id: company.id,
-        full_name: form.ceoName,
-        role: "admin",
-      });
-      if (profileErr) throw profileErr;
+      // 2026-06-17 — switched from two sequential client-side
+      // writes (INSERT companies + UPSERT profiles) to one
+      // server-side RPC (complete_company_onboarding from 0046).
+      // The RPC wraps both writes in a single transaction, so a
+      // network blip mid-onboarding rolls back cleanly instead
+      // of orphaning a half-created company the user can't
+      // access. Also fires the trigger pair from 0045 inside the
+      // same transaction:
+      //   - companies INSERT → care_tenant_config row
+      //   - companies INSERT → company_brain row (trigger 0007)
+      //   - profiles UPSERT → care_agent_state row
+      // If any of these fail, the whole transaction rolls back.
+      const { data: companyId, error: rpcErr } = await supabase.rpc(
+        "complete_company_onboarding",
+        {
+          p_company_name: form.companyName,
+          p_industry: form.industry,
+          p_size: form.size,
+          p_stage: form.stage,
+          p_goals: form.selectedGoals,
+          p_user_full_name: form.ceoName,
+        }
+      );
+      if (rpcErr) throw rpcErr;
+      if (!companyId) throw new Error("Could not complete setup. Please try again.");
 
       router.push("/dashboard");
       router.refresh();
