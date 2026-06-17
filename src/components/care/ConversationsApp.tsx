@@ -305,6 +305,37 @@ export function ConversationsApp({
     listCollapsed,
     customerCollapsed,
   ]);
+  // Cross-tab sync. Bug fix: previously the pane state was only
+  // written to localStorage on changes here. Another C.A.R.E tab
+  // would write its own values to the same key but this tab never
+  // observed those writes — so collapsing in one tab left the
+  // other tab visually stale. The 'storage' event fires in OTHER
+  // tabs when localStorage changes; we listen and re-hydrate the
+  // collapse state (not the widths, since drag-resizing one tab
+  // shouldn't yank the other tab's pane around mid-interaction —
+  // user-facing toggles are the lower-noise sync target).
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== "care-pane-widths" || !e.newValue) return;
+      try {
+        const v = JSON.parse(e.newValue) as {
+          viewsCollapsed?: boolean;
+          listCollapsed?: boolean;
+          customerCollapsed?: boolean;
+        };
+        if (typeof v.viewsCollapsed === "boolean")
+          setViewsCollapsed(v.viewsCollapsed);
+        if (typeof v.listCollapsed === "boolean")
+          setListCollapsed(v.listCollapsed);
+        if (typeof v.customerCollapsed === "boolean")
+          setCustomerCollapsed(v.customerCollapsed);
+      } catch {
+        /* ignore malformed payload */
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   // Load identity (so "Mine" filter works) + inbox
   const loadInbox = useCallback(async () => {
@@ -337,23 +368,40 @@ export function ConversationsApp({
     void loadInbox();
   }, [loadInbox]);
 
-  // One-time team roster fetch — drives the Assign dropdown.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch("/api/care/agent/team");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) setTeam(data.agents ?? []);
-      } catch {
-        /* non-fatal — assign dropdown just won't have options */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  // Team roster — drives the Assign dropdown. Refreshed in three
+  // situations beyond the initial mount:
+  //   - When the tab regains focus (user came back from another
+  //     window where they may have added/removed teammates)
+  //   - Every 5 minutes while the tab is foregrounded (catches
+  //     adds made by another admin in another browser session)
+  //   - Manually via loadTeam() after assign actions if we ever
+  //     need it; not wired today (assign doesn't change team
+  //     membership)
+  // Previously fetched once on mount and never refreshed — bug
+  // surface: a teammate added by another admin wouldn't appear
+  // in the AssignDropdown until the agent reloaded the page.
+  const loadTeam = useCallback(async () => {
+    try {
+      const res = await fetch("/api/care/agent/team");
+      if (!res.ok) return;
+      const data = await res.json();
+      setTeam(data.agents ?? []);
+    } catch {
+      /* non-fatal — assign dropdown just won't have options */
+    }
   }, []);
+  useEffect(() => {
+    void loadTeam();
+    const onFocus = () => {
+      void loadTeam();
+    };
+    window.addEventListener("focus", onFocus);
+    const interval = window.setInterval(loadTeam, 5 * 60 * 1000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(interval);
+    };
+  }, [loadTeam]);
 
   // Lightweight polling so new customer messages + inbox state
   // arrive without a manual refresh. Until S7 wires Supabase

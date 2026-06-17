@@ -110,6 +110,17 @@ export function CareShell({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
   }, [navCollapsed]);
+  // Cross-tab sync — see the matching block in ConversationsApp
+  // for the rationale. The C.A.R.E nav collapse is one boolean;
+  // sync it directly to whatever another tab just wrote.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== "care-shell-collapsed" || e.newValue == null) return;
+      setNavCollapsed(e.newValue === "1");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   return (
     <div className="flex h-screen w-full bg-base overflow-hidden">
