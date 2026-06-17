@@ -264,6 +264,8 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     voiceTranscript,
     startCall,
     endCall,
+    retryCall,
+    permissionDeniedSteps,
   } = useVoiceMode({
     ensureSession,
     onCustomerMessageOptimistic: ({ tempId, body }) => {
@@ -387,6 +389,8 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
               phase={voicePhase}
               accent={config.color}
               transcript={voiceTranscript}
+              permissionDeniedSteps={permissionDeniedSteps}
+              onRetry={() => void retryCall()}
               onEnd={endCall}
             />
           ) : (

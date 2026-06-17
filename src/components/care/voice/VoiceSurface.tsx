@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Mic, PhoneOff, Volume2 } from "lucide-react";
+import { Loader2, Mic, MicOff, PhoneOff, RefreshCw, Volume2 } from "lucide-react";
 
 /**
  * VoiceSurface — phone-call shape. Phase 9 rewrite per user
@@ -44,20 +44,77 @@ export function VoiceSurface({
   phase,
   accent,
   transcript,
+  permissionDeniedSteps,
+  onRetry,
   onEnd,
 }: {
   phase: VoicePhase;
   accent: string;
   transcript: string | null;
+  /** When set, the surface renders the mic-permission help panel
+   *  instead of the call status. Each string is a step. */
+  permissionDeniedSteps?: string[] | null;
+  /** Customer clicked "Try again" inside the help panel. */
+  onRetry?: () => void;
   /** Customer ended the call. */
   onEnd: () => void;
-  // Back-compat props from the push-to-talk surface. Ignored
-  // in the call-shape implementation but kept so existing
-  // callers don't break during the migration.
-  onPress?: () => void;
-  onRelease?: () => void;
-  onExit?: () => void;
 }) {
+  // ─── Permission-denied help panel ───────────────────────────
+  // Highest priority — when permission is denied we don't render
+  // call states at all; we render the recovery instructions so
+  // the customer knows what to do.
+  if (permissionDeniedSteps && permissionDeniedSteps.length > 0) {
+    return (
+      <div className="border-t border-default px-4 py-4 bg-surface/40 max-h-[70vh] overflow-y-auto">
+        <div className="flex items-start gap-2 mb-3">
+          <MicOff className="w-5 h-5 text-red-400 shrink-0 mt-0.5" aria-hidden />
+          <div>
+            <p className="text-sm font-semibold text-primary mb-1">
+              Microphone is blocked
+            </p>
+            <p className="text-[11px] text-secondary leading-relaxed">
+              Your browser is blocking mic access for this site. Here&apos;s
+              how to enable it in your browser:
+            </p>
+          </div>
+        </div>
+        <ol className="space-y-1.5 text-[11px] text-secondary leading-relaxed pl-1 mb-3">
+          {permissionDeniedSteps.map((step, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="font-semibold text-primary shrink-0">
+                {i + 1}.
+              </span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+        <div className="flex items-center gap-2">
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] px-3 py-1.5 rounded-md"
+            >
+              <RefreshCw className="w-3.5 h-3.5" aria-hidden />
+              Try again
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onEnd}
+            className="inline-flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-3 py-1.5 rounded-md"
+          >
+            <PhoneOff className="w-3.5 h-3.5" aria-hidden />
+            Back to typing
+          </button>
+        </div>
+        <p className="text-[10px] text-muted italic mt-3">
+          You can keep typing instead — Jeff will still hear you that way.
+        </p>
+      </div>
+    );
+  }
+
   // Map legacy push-to-talk phases onto the call shape so old
   // consumer code that hasn't been refactored yet still renders
   // sensibly.

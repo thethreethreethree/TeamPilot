@@ -161,6 +161,8 @@ export function CareChatWidget() {
     voiceTranscript,
     startCall,
     endCall,
+    retryCall,
+    permissionDeniedSteps,
   } = useVoiceMode({
     ensureSession,
     onCustomerMessageOptimistic: ({ tempId, body }) => {
@@ -368,6 +370,8 @@ export function CareChatWidget() {
                 phase={voicePhase}
                 accent="#FACC15"
                 transcript={voiceTranscript}
+                permissionDeniedSteps={permissionDeniedSteps}
+                onRetry={() => void retryCall()}
                 onEnd={endCall}
               />
             ) : (

@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoicePhase } from "./VoiceSurface";
+import {
+  checkMicPermission,
+  detectBrowser,
+  getRecoverySteps,
+} from "./micPermission";
 
 /**
  * Voice call hook — Phase 9, rewritten to "phone call" shape
@@ -69,6 +74,9 @@ export function useVoiceMode(args: {
   const [voiceMode, setVoiceMode] = useState(false);
   const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [permissionDeniedSteps, setPermissionDeniedSteps] = useState<
+    string[] | null
+  >(null);
 
   // Refs hold the live media + audio analysis objects. They
   // need to be refs (not state) because the VAD polling loop
@@ -355,6 +363,21 @@ export function useVoiceMode(args: {
       return;
     }
 
+    // ─── Permissions API pre-check ─────────────────────────
+    // If the browser has 'denied' cached, getUserMedia would
+    // throw NotAllowedError silently (no prompt). Catch that
+    // BEFORE the call so we can show the help panel with
+    // browser-specific recovery steps instead of a generic
+    // error.
+    const cachedState = await checkMicPermission();
+    if (cachedState === "denied") {
+      const browser = detectBrowser();
+      setPermissionDeniedSteps(getRecoverySteps(browser));
+      setVoicePhase("error");
+      setVoiceMode(true); // Open the surface so the help panel renders
+      return;
+    }
+
     // ─── Request mic IMMEDIATELY (user-gesture context) ─────
     // No React state updates before this line. iOS Safari and
     // Android Chrome both lose the gesture context if there's
@@ -365,9 +388,15 @@ export function useVoiceMode(args: {
     } catch (e) {
       const name = e instanceof Error ? e.name : "";
       if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-        args.onError(
-          "Microphone permission was denied. Click the lock icon in your browser's address bar to allow microphone access, then try again."
-        );
+        // Permission denied via the prompt OR by a Permissions-
+        // Policy block. Either way, the customer needs to enable
+        // it. Show the help panel inside the surface, not just
+        // the thin error bar.
+        const browser = detectBrowser();
+        setPermissionDeniedSteps(getRecoverySteps(browser));
+        setVoicePhase("error");
+        setVoiceMode(true); // Open the surface so the help panel renders
+        return;
       } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
         args.onError(
           "No microphone detected. Make sure your device has a microphone enabled and try again."
@@ -465,7 +494,25 @@ export function useVoiceMode(args: {
     setVoiceMode(false);
     setVoicePhase("idle");
     setVoiceTranscript(null);
+    setPermissionDeniedSteps(null);
   }, [teardown]);
+
+  /**
+   * Used by the help panel's "Try again" affordance after the
+   * customer has (presumably) re-enabled mic permission in the
+   * browser. Clears the denial state and re-attempts startCall.
+   */
+  const retryCall = useCallback(async () => {
+    setPermissionDeniedSteps(null);
+    setVoicePhase("idle");
+    setVoiceMode(false);
+    // Defer to the next tick so the surface unmounts/remounts
+    // cleanly before we try again — some browsers won't show a
+    // fresh prompt if we call getUserMedia immediately after a
+    // denial.
+    await new Promise((r) => setTimeout(r, 50));
+    await startCall();
+  }, [startCall]);
 
   // Cleanup on unmount — make sure we don't leak the mic.
   useEffect(() => {
@@ -483,13 +530,11 @@ export function useVoiceMode(args: {
     startCall,
     /** Hang up. Replaces the old exitVoiceMode + stopRecording. */
     endCall,
-    // Back-compat aliases for consumers still on the old shape
-    // (will be removed after both widgets are updated).
-    startRecording: startCall,
-    stopRecording: () => {
-      // No-op in continuous mode — VAD handles turn ends.
-      // Kept as a stub so existing consumers don't break.
-    },
-    exitVoiceMode: endCall,
+    /** Re-attempt after the customer manually re-enabled mic. */
+    retryCall,
+    /** Browser-specific recovery steps when permission is
+     *  denied. Null when permission hasn't been denied or
+     *  hasn't been checked yet. */
+    permissionDeniedSteps,
   };
 }
