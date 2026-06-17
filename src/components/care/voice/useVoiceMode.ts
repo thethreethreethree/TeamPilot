@@ -315,27 +315,86 @@ export function useVoiceMode(args: {
   }, [args, speakReply]);
 
   /**
-   * Start the call. Requests mic permission, sets up
-   * AudioContext + analyser for VAD, arms the recorder, starts
-   * the polling loop.
+   * Start the call. Requests mic permission FIRST (before any
+   * React state updates) so the user-gesture context is preserved
+   * on iOS Safari — re-renders between the click and the
+   * getUserMedia call cause some browsers to suppress the
+   * permission prompt entirely.
+   *
+   * Cross-platform notes:
+   *   - HTTPS required everywhere except localhost. On HTTP
+   *     production URLs, navigator.mediaDevices is undefined.
+   *   - iOS Safari: must be called inside the synchronous tail
+   *     of the click handler. Async-then-await pattern is fine
+   *     as long as nothing re-renders between click and await.
+   *   - Android Chrome: same as iOS Safari.
+   *   - Iframes: the iframe element on the host page needs
+   *     allow="microphone" (handled in public/care-widget.js).
    */
   const startCall = useCallback(async () => {
     if (callActiveRef.current) return;
-    setVoiceMode(true);
-    setVoicePhase("connecting");
-    setVoiceTranscript(null);
 
+    // ─── Capability detection — surface real errors ─────────
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices ||
+      typeof navigator.mediaDevices.getUserMedia !== "function"
+    ) {
+      // Most common cause: not on HTTPS in production. The
+      // mediaDevices API is gated to secure contexts.
+      const insecure =
+        typeof window !== "undefined" &&
+        window.location.protocol !== "https:" &&
+        window.location.hostname !== "localhost" &&
+        window.location.hostname !== "127.0.0.1";
+      args.onError(
+        insecure
+          ? "Voice calls require HTTPS. Reload the page on an https:// URL and try again."
+          : "Your browser doesn't support voice calls. Try a recent version of Safari, Chrome, or Firefox."
+      );
+      return;
+    }
+
+    // ─── Request mic IMMEDIATELY (user-gesture context) ─────
+    // No React state updates before this line. iOS Safari and
+    // Android Chrome both lose the gesture context if there's
+    // an intervening render.
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      args.onError(
-        "Couldn't access your microphone. Check your browser permissions and try again."
-      );
-      setVoicePhase("error");
-      setVoiceMode(false);
+    } catch (e) {
+      const name = e instanceof Error ? e.name : "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        args.onError(
+          "Microphone permission was denied. Click the lock icon in your browser's address bar to allow microphone access, then try again."
+        );
+      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        args.onError(
+          "No microphone detected. Make sure your device has a microphone enabled and try again."
+        );
+      } else if (
+        name === "NotReadableError" ||
+        name === "TrackStartError"
+      ) {
+        args.onError(
+          "Your microphone is in use by another app. Close other apps using the mic and try again."
+        );
+      } else if (name === "OverconstrainedError") {
+        args.onError(
+          "Your microphone doesn't support the required audio format."
+        );
+      } else {
+        args.onError(
+          "Couldn't access your microphone. Check your browser permissions and try again."
+        );
+      }
       return;
     }
+
+    // Now safe to update state — mic permission already resolved.
+    setVoiceMode(true);
+    setVoicePhase("connecting");
+    setVoiceTranscript(null);
     streamRef.current = stream;
 
     // AudioContext for VAD energy polling.

@@ -76,7 +76,12 @@
   var iframe = document.createElement("iframe");
   iframe.src = widgetUrl;
   iframe.title = "Customer support";
-  iframe.allow = "clipboard-write";
+  // microphone — required for Jeff's voice call mode. Without
+  // this, the parent page's mic permission doesn't propagate to
+  // the iframe and getUserMedia rejects with NotAllowedError.
+  // Per browser spec the host page itself must also have mic
+  // permission granted (or no Permissions-Policy block).
+  iframe.allow = "clipboard-write; microphone; autoplay";
   iframe.setAttribute("aria-label", "Customer support widget");
   iframe.setAttribute("data-care-widget", "1");
   iframe.style.cssText = [
