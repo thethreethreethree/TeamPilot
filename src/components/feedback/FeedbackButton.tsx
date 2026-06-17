@@ -72,6 +72,17 @@ export function FeedbackButton() {
   const isChatDetailPage = /^\/dashboard\/chats\/[^/]+$/.test(pathname);
   if (isChatDetailPage) return null;
 
+  // On any other authed dashboard route the Sidebar's Testing
+  // section already renders an inline "Send feedback" entry — the
+  // floating button would be a duplicate covering page content.
+  // Per the user's direct request: "move the feedback button to
+  // the testing field." Suppress the floating button on
+  // /dashboard/* routes; the Sidebar entry IS the access point.
+  // Public pages (landing, login, etc.) keep the floating button
+  // because those have no Sidebar.
+  const isDashboardRoute = pathname.startsWith("/dashboard");
+  if (isDashboardRoute) return null;
+
   return (
     <>
       <button

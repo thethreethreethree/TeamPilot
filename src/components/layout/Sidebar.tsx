@@ -33,6 +33,7 @@ import { CONSTITUTION } from "@/lib/constitution";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useUnreadNotifications } from "@/lib/notifications/useUnread";
 import { LightbulbMark } from "@/components/brand/Logo";
+import { FeedbackPanel } from "@/components/feedback/FeedbackPanel";
 
 const productionNav = [
   { label: "Command Center", href: "/dashboard", icon: LayoutDashboard },
@@ -103,6 +104,10 @@ export default function Sidebar() {
   // hamburger dispatches. Closes when the user navigates (effect on
   // pathname) and on backdrop tap.
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Feedback panel state — the "Send feedback" entry in the Testing
+  // section opens this. Replaces the floating bottom-right button
+  // on dashboard routes per user request.
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   useEffect(() => {
     const onToggle = () => setMobileOpen((v) => !v);
     const onClose = () => setMobileOpen(false);
@@ -348,6 +353,26 @@ export default function Sidebar() {
               </Link>
             );
           })}
+          {/* "Send feedback" — replaces the floating bottom-right
+              FeedbackButton on dashboard routes. Opens the same
+              FeedbackPanel slide-out, sits with the rest of the
+              Testing entries so it's no longer floating over page
+              content. Public pages (landing / login) still see the
+              floating button since they have no sidebar. */}
+          <button
+            type="button"
+            onClick={() => setFeedbackOpen(true)}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+              "text-secondary hover:text-primary hover:bg-surface-raised"
+            )}
+          >
+            <MessageSquarePlus
+              className="w-4 h-4 flex-shrink-0 text-muted"
+              aria-hidden
+            />
+            Send feedback
+          </button>
           {(userRole === "admin" || userRole === "CEO" || userRole === "COO") &&
             adminNav.map((item) => {
               const Icon = item.icon;
@@ -470,6 +495,7 @@ export default function Sidebar() {
         </button>
       )}
     </aside>
+    {feedbackOpen && <FeedbackPanel onClose={() => setFeedbackOpen(false)} />}
     </>
   );
 }
