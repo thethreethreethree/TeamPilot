@@ -234,6 +234,21 @@ export function ConversationsApp({
   const [viewsCollapsed, setViewsCollapsed] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [customerCollapsed, setCustomerCollapsed] = useState(false);
+  // Bulk selection — set of conversation ids the agent has
+  // checkbox-marked for a bulk action. Cleared after each bulk
+  // operation OR when the agent switches view (different filter
+  // = different visible set, stale selections would be
+  // confusing).
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [bulkActing, setBulkActing] = useState(false);
+  // Clear bulk selection when the view changes — different filter
+  // shows different conversations, stale selections are confusing
+  // and may not even be visible to act on.
+  useEffect(() => {
+    setBulkSelectedIds(new Set());
+  }, [view]);
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem("care-pane-widths");
@@ -677,6 +692,84 @@ export function ConversationsApp({
     await runAction({ action: "claim" }, { claimed: true }, "Claimed.");
   };
 
+  // Bulk actions — single endpoint POST with action discriminator.
+  // After success: refresh inbox, clear selection. If the currently
+  // selected detail conversation was part of the bulk and the
+  // action moves it out of the current view, auto-advance (same
+  // pattern as the single-action terminal auto-advance from
+  // d9523a0).
+  const runBulk = async (
+    body: Record<string, unknown>,
+    successMsgFn: (affected: number, requested: number) => string
+  ): Promise<boolean> => {
+    const ids = Array.from(bulkSelectedIds);
+    if (ids.length === 0) return false;
+    setBulkActing(true);
+    // Snapshot the next conversation NOW if the currently-selected
+    // detail is in the bulk — it'll drop out of the view after
+    // the action and we want to advance into the gap.
+    const selectedInBulk = selected && bulkSelectedIds.has(selected.id);
+    const nextAfterBulk = selectedInBulk && selected
+      ? computeNextAfterTerminal(selected.id)
+      : null;
+    try {
+      const res = await fetch("/api/care/agent/conversations/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body, ids }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(
+          data?.error
+            ? `Bulk action failed — ${data.error}`
+            : "Bulk action failed. Please try again."
+        );
+        return false;
+      }
+      const affected = (data?.affectedCount as number) ?? 0;
+      const requested = (data?.requestedCount as number) ?? ids.length;
+      toast.success(successMsgFn(affected, requested));
+      setBulkSelectedIds(new Set());
+      await loadInbox();
+      if (nextAfterBulk) setSelectedId(nextAfterBulk);
+      return true;
+    } catch {
+      toast.error("Couldn't reach the server.");
+      return false;
+    } finally {
+      setBulkActing(false);
+    }
+  };
+
+  const bulkArchive = async () => {
+    await runBulk(
+      { action: "status", status: "closed" },
+      (n) => `Archived ${n} conversation${n === 1 ? "" : "s"}.`
+    );
+  };
+  const bulkReopen = async () => {
+    await runBulk(
+      { action: "status", status: "open" },
+      (n) => `Reopened ${n} conversation${n === 1 ? "" : "s"}.`
+    );
+  };
+  const bulkAssignTo = async (targetAgentId: string | null) => {
+    await runBulk(
+      { action: "assign", targetAgentId },
+      (affected, requested) => {
+        if (affected < requested) {
+          return targetAgentId
+            ? `Assigned ${affected} of ${requested} (${requested - affected} couldn't be reassigned).`
+            : `Unassigned ${affected} of ${requested}.`;
+        }
+        return targetAgentId
+          ? `Assigned ${affected} conversation${affected === 1 ? "" : "s"}.`
+          : `Unassigned ${affected} conversation${affected === 1 ? "" : "s"}.`;
+      }
+    );
+  };
+
   const assignTo = async (targetAgentId: string | null) => {
     await runAction(
       { action: "assign", targetAgentId },
@@ -893,6 +986,24 @@ export function ConversationsApp({
             </button>
           </div>
 
+          {/* Bulk action bar — sticky above the list when N≥1
+              conversations are selected. Per AMD-006 layer 4:
+              uses the same vocabulary as the per-row actions
+              (Assign / Archive / Reopen / Clear) so the agent
+              doesn't have to learn two patterns. */}
+          {bulkSelectedIds.size > 0 && (
+            <BulkActionBar
+              count={bulkSelectedIds.size}
+              team={team}
+              currentUserId={currentUserId}
+              viewKey={view}
+              acting={bulkActing}
+              onClear={() => setBulkSelectedIds(new Set())}
+              onArchive={bulkArchive}
+              onReopen={bulkReopen}
+              onAssign={bulkAssignTo}
+            />
+          )}
           {error ? (
             <div className="p-4 text-xs text-red-300">{error}</div>
           ) : !conversations ? (
@@ -913,7 +1024,16 @@ export function ConversationsApp({
                   key={c.id}
                   conversation={c}
                   selected={c.id === selectedId}
+                  bulkSelected={bulkSelectedIds.has(c.id)}
                   onClick={() => setSelectedId(c.id)}
+                  onBulkToggle={() => {
+                    setBulkSelectedIds((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(c.id)) next.delete(c.id);
+                      else next.add(c.id);
+                      return next;
+                    });
+                  }}
                 />
               ))}
             </ul>
@@ -1187,25 +1307,50 @@ export function ConversationsApp({
 function ConversationListRow({
   conversation: c,
   selected,
+  bulkSelected,
   onClick,
+  onBulkToggle,
 }: {
   conversation: Conversation;
   selected: boolean;
+  bulkSelected: boolean;
   onClick: () => void;
+  onBulkToggle: () => void;
 }) {
   const dl = careStatusDisplay(c.status);
   const pri = priorityDisplay(c.priority);
   const Icon = dl.icon;
   const slaPct = computeSlaPct(c);
   return (
-    <li>
+    <li className="flex items-stretch">
+      {/* Bulk select checkbox — sits OUTSIDE the row button so
+          clicking the checkbox doesn't also trigger row-select.
+          Per AMD-006 layer 3 (composition): the two actions
+          (open conversation vs add to selection) must not
+          collide. */}
+      <label
+        className={`pl-3 pr-1 py-2.5 flex items-start cursor-pointer ${
+          bulkSelected ? "bg-[#FACC15]/[0.04]" : ""
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <input
+          type="checkbox"
+          checked={bulkSelected}
+          onChange={onBulkToggle}
+          aria-label="Select conversation for bulk action"
+          className="mt-0.5 w-3.5 h-3.5 accent-[#FACC15] cursor-pointer"
+        />
+      </label>
       <button
         type="button"
         onClick={onClick}
-        className={`w-full text-left px-3 py-2.5 transition-colors flex items-start gap-2.5 ${
+        className={`flex-1 text-left pl-1 pr-3 py-2.5 transition-colors flex items-start gap-2.5 ${
           selected
             ? "bg-[#FACC15]/[0.06] border-l-2 border-[#FACC15]"
-            : "hover:bg-white/[0.02] border-l-2 border-transparent"
+            : bulkSelected
+              ? "bg-[#FACC15]/[0.04] border-l-2 border-transparent"
+              : "hover:bg-white/[0.02] border-l-2 border-transparent"
         }`}
       >
         <div className="flex flex-col items-center gap-1 pt-0.5 shrink-0">
@@ -2032,6 +2177,93 @@ function Composer({
             ? "Dispatches as outbound email to the customer."
             : "Customer sees this on the widget."}
       </p>
+    </div>
+  );
+}
+
+/**
+ * Sticky bulk-action bar — appears above the conversation list
+ * when the agent has checkbox-selected ≥1 row. Three actions
+ * mirror the single-conversation header (Assign / Archive (or
+ * Reopen if viewing Closed) / Clear).
+ *
+ * Per AMD-006 §1.5.1 layer 4: same vocabulary as per-row
+ * actions, so the agent doesn't switch mental models when
+ * scaling from one to many.
+ */
+function BulkActionBar({
+  count,
+  team,
+  currentUserId,
+  viewKey,
+  acting,
+  onClear,
+  onArchive,
+  onReopen,
+  onAssign,
+}: {
+  count: number;
+  team: Array<{
+    id: string;
+    fullName: string | null;
+    role: string | null;
+    isSupportAgent: boolean;
+  }>;
+  currentUserId: string | null;
+  viewKey: ViewKey;
+  acting: boolean;
+  onClear: () => void;
+  onArchive: () => void;
+  onReopen: () => void;
+  onAssign: (targetAgentId: string | null) => void;
+}) {
+  // When viewing Closed, swap Archive → Reopen since archiving
+  // an already-closed conversation is a no-op.
+  const isClosedView = viewKey === "closed";
+  return (
+    <div className="px-3 py-2 border-b border-default bg-[#FACC15]/[0.06] flex items-center gap-2 sticky top-0 z-10">
+      <span className="text-xs font-semibold text-brand">
+        {count} selected
+      </span>
+      <span className="text-muted text-xs">·</span>
+      {team.length > 0 && (
+        <AssignDropdown
+          team={team}
+          currentAssignedId={null}
+          currentUserId={currentUserId}
+          acting={acting}
+          onAssign={onAssign}
+        />
+      )}
+      {isClosedView ? (
+        <button
+          type="button"
+          onClick={onReopen}
+          disabled={acting}
+          className="inline-flex items-center gap-1.5 text-xs text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/70 disabled:opacity-50 px-2.5 py-1 rounded-md"
+        >
+          Reopen
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onArchive}
+          disabled={acting}
+          title="Archive (set status to closed) — soft archive, not deletion"
+          className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-red-300 hover:border-red-500/50 disabled:opacity-50 px-2.5 py-1 rounded-md"
+        >
+          <Archive className="w-3.5 h-3.5" aria-hidden />
+          Archive
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onClear}
+        disabled={acting}
+        className="ml-auto text-[11px] text-muted hover:text-primary px-2 py-1 rounded"
+      >
+        Clear
+      </button>
     </div>
   );
 }
