@@ -332,6 +332,25 @@ html {
 }
 
 /**
+ * Sidebar collapse — main content reclaims space when the
+ * primary ELOSTATE sidebar is in rail mode. The Sidebar client
+ * component sets/removes data-sidebar-collapsed on <body>; the
+ * dashboard layout's <main> uses Tailwind md:ml-64 by default,
+ * this rule overrides to ml-12 (3rem) when collapsed so the
+ * page content slides left to fill the freed space.
+ *
+ * Per AMD-006 §1.5.1 layer 3 (composition): the collapse state
+ * has to communicate cross-component because <main> and the
+ * Sidebar are server-rendered siblings vs the client-side
+ * Sidebar. Body data-attribute is the cheapest cross-cut.
+ */
+@media (min-width: 768px) {
+  body[data-sidebar-collapsed="true"] main {
+    margin-left: 3rem !important;
+  }
+}
+
+/**
  * Respect reduced-motion preference (a11y).
  */
 @media (prefers-reduced-motion: reduce) {

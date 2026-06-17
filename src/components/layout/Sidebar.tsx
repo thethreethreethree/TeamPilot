@@ -22,6 +22,7 @@ import {
   Sparkles,
   Beaker,
   Bell,
+  ChevronLeft,
   Heart,
   Hourglass,
   X,
@@ -104,6 +105,38 @@ export default function Sidebar() {
   // hamburger dispatches. Closes when the user navigates (effect on
   // pathname) and on backdrop tap.
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Desktop collapse state (rail mode). Persisted in localStorage
+  // so the workspace shape sticks across sessions. Writes a body
+  // data-attribute so the dashboard layout's <main> can react via
+  // a global CSS rule (see globals.css — the layout is server-
+  // rendered, the sidebar is client; data-attribute is the
+  // cheapest cross-cut).
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("elostate-sidebar-collapsed");
+      if (raw === "1") setDesktopCollapsed(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "elostate-sidebar-collapsed",
+        desktopCollapsed ? "1" : "0"
+      );
+      if (typeof document !== "undefined") {
+        if (desktopCollapsed) {
+          document.body.dataset.sidebarCollapsed = "true";
+        } else {
+          delete document.body.dataset.sidebarCollapsed;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [desktopCollapsed]);
   // Feedback panel state — the "Send feedback" entry in the Testing
   // section opens this. Replaces the floating bottom-right button
   // on dashboard routes per user request.
@@ -188,11 +221,30 @@ export default function Sidebar() {
         aria-hidden
       />
     )}
+    {/* When collapsed on desktop: render the 48px rail with a
+        single expand button. Mobile drawer still uses the full
+        sidebar — collapse is desktop-only because mobile UX is
+        already drawer-based. */}
+    {desktopCollapsed && (
+      <button
+        type="button"
+        onClick={() => setDesktopCollapsed(false)}
+        aria-label="Expand sidebar"
+        title="Expand sidebar"
+        className="hidden md:flex fixed left-0 top-0 h-screen w-12 bg-surface border-r border-default z-40 items-center justify-center text-muted hover:text-primary hover:bg-white/[0.03]"
+      >
+        <ChevronRight className="w-4 h-4" aria-hidden />
+      </button>
+    )}
     <aside
       className={cn(
         "fixed left-0 top-0 h-screen w-64 bg-surface border-r border-default flex flex-col z-40 transition-transform duration-200",
         "md:translate-x-0",
-        mobileOpen ? "translate-x-0" : "-translate-x-full"
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        // Hide the full sidebar on desktop when collapsed — the
+        // 48px rail above takes over. Mobile drawer behavior is
+        // unchanged (it ignores desktopCollapsed entirely).
+        desktopCollapsed && "md:-translate-x-full"
       )}
       aria-label="Primary navigation"
     >
@@ -201,7 +253,19 @@ export default function Sidebar() {
           The bulb image's native aspect is 255×354 (taller than wide),
           so width/height match the actual asset proportions to avoid
           stretching. */}
-      <div className="px-6 py-6 border-b border-default">
+      <div className="px-6 py-6 border-b border-default relative">
+        {/* Desktop-only collapse trigger. Mobile keeps the drawer
+            pattern (the X button at top-right of the drawer
+            already exists for that). */}
+        <button
+          type="button"
+          onClick={() => setDesktopCollapsed(true)}
+          aria-label="Collapse sidebar"
+          title="Collapse sidebar"
+          className="hidden md:flex absolute top-2 right-2 text-muted hover:text-primary p-1 rounded hover:bg-white/[0.04] items-center justify-center"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
+        </button>
         <Link
           href="/"
           aria-label="ELOSTATE — landing page"
