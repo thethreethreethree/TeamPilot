@@ -404,10 +404,16 @@ export async function fetchTopics(): Promise<{
     return { topics: readDemoState().topics, mode: "demo-fixtures" };
   }
   const supabase = createClient();
+  // Audit finding (system-wide): previously selected from
+  // chat_topics directly and hardcoded participantCount/
+  // messageCount/lastMessageAt to 0/0/null in the mapper.
+  // Migration 0048 added the chat_topic_with_counts view that
+  // joins the aggregate columns. Selecting from the view gives
+  // every topic its actual counts in a single round-trip.
   const { data, error } = await supabase
-    .from("chat_topics")
+    .from("chat_topic_with_counts")
     .select(
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled"
+      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, participant_count, message_count, last_message_at"
     )
     .order("created_at", { ascending: false });
   if (error || !data) return { topics: [], mode: "live-empty" };
@@ -425,9 +431,9 @@ export async function fetchTopics(): Promise<{
     closeSummary: row.close_summary,
     closeDurability: row.close_durability,
     tags: row.tags ?? [],
-    participantCount: 0,
-    messageCount: 0,
-    lastMessageAt: null,
+    participantCount: Number(row.participant_count ?? 0),
+    messageCount: Number(row.message_count ?? 0),
+    lastMessageAt: row.last_message_at ?? null,
     coachEnabled: row.coach_enabled ?? false,
   }));
   return {
@@ -486,10 +492,11 @@ export async function fetchTopic(id: string): Promise<ChatTopic | null> {
     return readDemoState().topics.find((t) => t.id === id) ?? null;
   }
   const supabase = createClient();
+  // Same view migration (0048) — single-row variant.
   const { data } = await supabase
-    .from("chat_topics")
+    .from("chat_topic_with_counts")
     .select(
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled"
+      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, participant_count, message_count, last_message_at"
     )
     .eq("id", id)
     .maybeSingle();
@@ -507,9 +514,9 @@ export async function fetchTopic(id: string): Promise<ChatTopic | null> {
     closeSummary: data.close_summary,
     closeDurability: data.close_durability,
     tags: data.tags ?? [],
-    participantCount: 0,
-    messageCount: 0,
-    lastMessageAt: null,
+    participantCount: Number(data.participant_count ?? 0),
+    messageCount: Number(data.message_count ?? 0),
+    lastMessageAt: data.last_message_at ?? null,
     coachEnabled: data.coach_enabled ?? false,
   };
 }
