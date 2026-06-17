@@ -97,17 +97,21 @@ export async function PATCH(
     if (body.action === "claim") {
       await claimConversation({ conversationId: id, agentId: auth.agentId });
     } else if (body.action === "assign") {
-      // Permission: an admin (CEO/COO/admin) can reassign any
-      // conversation. A regular support agent can only reassign
-      // a conversation they currently own (hand-off pattern). They
-      // can't yank work from a peer — that needs admin.
+      // Permission matrix:
+      //   - admin (CEO / COO / admin): can assign any conversation
+      //     to anyone, including reassigning peer's work.
+      //   - regular agent: can assign UNCLAIMED conversations
+      //     (assignedAgentId is null — same as picking from the
+      //     unassigned queue) and can hand off conversations
+      //     they currently OWN.
+      //   - regular agent attempting to reassign a peer's
+      //     claimed work → 403 (suggests Claim if they want it).
       if (body.targetAgentId === undefined) {
         return NextResponse.json(
           { error: "assign action requires targetAgentId (or null to unassign)." },
           { status: 400 }
         );
       }
-      // Check current assignment so we can gate by role+ownership.
       const current = await fetchAgentConversation(id);
       if (!current) {
         return NextResponse.json(
@@ -125,9 +129,10 @@ export async function PATCH(
         profile?.role === "CEO" ||
         profile?.role === "COO" ||
         profile?.role === "admin";
-      const ownsIt =
-        current.conversation.assignedAgentId === auth.agentId;
-      if (!isAdmin && !ownsIt) {
+      const currentAssignee = current.conversation.assignedAgentId;
+      const isUnclaimed = currentAssignee === null;
+      const ownsIt = currentAssignee === auth.agentId;
+      if (!isAdmin && !ownsIt && !isUnclaimed) {
         return NextResponse.json(
           {
             error:

@@ -1241,14 +1241,15 @@ function DetailHeader({
               Take over
             </button>
           )}
-          {/* Assign dropdown — visible only on already-claimed
-              conversations (the unclaimed path shows Take over
-              above instead). Lists every teammate; selecting one
-              hands the conversation off, "Unassign" returns it
-              to the Unassigned pool. The route enforces
-              ownership: a regular agent can only hand off their
-              own; admins can reassign anyone's. */}
-          {!conversation.aiResponding && team.length > 0 && (
+          {/* Assign dropdown — always visible when there's a team
+              to assign to. Take over (above) is a shortcut for
+              "claim it myself"; Assign is "specifically hand it
+              to X." Both make sense whether AI is currently
+              responding or already claimed. Permission gate on
+              the route side enforces who can reassign whose
+              conversation (admins anyone's, agents only their
+              own). */}
+          {team.length > 0 && (
             <AssignDropdown
               team={team}
               currentAssignedId={conversation.assignedAgentId}
