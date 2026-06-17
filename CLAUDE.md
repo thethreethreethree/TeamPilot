@@ -77,22 +77,52 @@ All problem-solving — in the codebase and in the System being built — follow
 
 ### 1.5.1 Feature-workflow precondition gate
 
-> Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md), ratified 2026-06-17.
+> Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md), ratified 2026-06-17. Same-day addendum (2026-06-17) appended the four-layer evaluation framework — see AMD-006 Addendum for the full rationale.
 
-Before building any user-facing feature, trace four things:
+Before building any user-facing feature, evaluate it through **four layers, in order
+(foundation up)**:
 
-1. **Why it's built** — the unmet need the feature addresses.
-2. **Where it sits** — its location in the broader system architecture (which layer,
-   which data flow, which adjacent features).
-3. **The user's workflow shape** — what the user does *right before* invoking this
-   feature, and what they intend to do *right after*.
-4. **Continuity** — whether the completed feature leaves the user in a flowing state
-   (next action obvious, system ready for it) or stalls them (empty state, dead end,
-   unnecessary intermediate steps).
+1. **Build structure efficiency** — is the code organized, the data shape sound, the
+   architectural decisions defensible? Will the system this feature lives in remain
+   maintainable after it ships? (The "would I want to read this in six months" layer.)
+
+2. **Operational feature effectivity** — does the feature, when invoked the way a real
+   user / caller / consumer would invoke it, actually deliver the intended result? Not
+   "does the unit test pass" — does it *work*, end-to-end? (The "does it actually
+   work" layer.)
+
+3. **Synergetic composition** — how does this feature compose with the elements, tools,
+   and features around it? Does invoking it leave the surrounding workflow intact,
+   accelerated, or broken? Does it cooperate with what comes before and after? (The
+   workflow-continuity layer — the original §1.5.1 was this layer alone.)
+
+4. **User interface and design** — how is the feature presented to the human (or
+   human-adjacent consumer) who will operate it? Is the surface clear, accessible,
+   consistent with the rest of the product, aligned with the user's mental model?
+   (The "does the surface match the substance" layer.)
+
+**The order matters.** Each layer rests on the previous. Broken structure (1) is not
+survivable by clever interface design (4). Broken effectivity (2) is not survivable by
+composition (3). Broken composition (3) is not survivable by polish (4). The order is a
+sieve: the worse the broken layer, the more structural the failure, the less the layers
+above can compensate.
+
+**What this means in practice.** Trace, in order:
+
+- *Why* it's built (layer 2 — the unmet need) and *where* it sits (layer 1 — its location
+  in the architecture).
+- The user's *workflow shape* — what they do right before invoking this feature, and what
+  they intend to do right after (layer 3).
+- *Continuity* — whether the completed feature leaves the user in a flowing state (next
+  action obvious, system ready for it) or stalls them (empty state, dead end, unnecessary
+  intermediate steps) (layer 3).
+- *Surface* — UI/design alignment (layer 4).
 
 A feature that is technically complete (the code works, the data changes, the API returns
-200) but operationally isolated (works in itself but breaks workflow continuity) is
-incomplete and must not ship.
+200) but fails at layer 3 (works in itself but breaks workflow continuity) is incomplete
+and must not ship. A feature that passes layers 1-3 but fails layer 4 can ship with a
+follow-up polish commit. The reverse — passing layer 4 while failing any of 1-3 — is
+never shippable, regardless of surface quality.
 
 This gate exists because §1.5 alone covers system-level interconnection ("does this break
 other code?") but not workflow-level interconnection ("does this leave the user able to

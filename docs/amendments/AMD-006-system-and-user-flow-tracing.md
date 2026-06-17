@@ -150,3 +150,50 @@ discriminated by content, not number.)
 Ratification: founder directive ("from now on add this as an ammendment rule specicially for web/app developement every system built needs to have a complete understanding of why it is built…"). The §1.5.1 sub-clause and §6 item 5a are applied to CLAUDE.md in the same commit that creates this file, per §7.4 ("any edit must reference its amendment by ID in the commit message").
 
 Per §7.5 distrust-of-evolution remains in effect: if AMD-006, after some period of operation, produces measurably worse outcomes than the rule it replaced (e.g., the feature-workflow gate is invoked falsely often enough to materially slow shipping without correlating to fewer workflow breaks), it is itself eligible for a counter-amendment. The constitution is not a one-way ratchet.
+
+---
+
+## Addendum — 2026-06-17 (appended, not rewritten, per §7.3 append-only)
+
+Founder directive same-day, refining the rule: *"this element needs to be considered every build: build Structure effeciency > operation feature effectivity > synergetic composition for the operating elements/tools/feature involving it > user interface and design."*
+
+The original AMD-006 §1.5.1 named the four traces (why / where / workflow / continuity) but did not order them or assign them to architectural layers. The addendum makes the ordering explicit and ties each trace to the layer of the build it inspects.
+
+### The four-layer build evaluation framework
+
+Every build must be considered through these four layers, **in this order** (foundation up):
+
+1. **Build structure efficiency** — the foundation. Is the code organized, the data shape sound, the architectural decisions defensible? Will the system this feature lives in remain maintainable after it ships? This is the "would I want to read this code in six months" layer.
+
+2. **Operational feature effectivity** — does the feature actually achieve its operational purpose, end-to-end? Not "does the unit test pass" — does the feature, when invoked the way a real user / caller / consumer would invoke it, deliver the intended result? This is the "does it actually work" layer.
+
+3. **Synergetic composition** — how does this feature compose with the elements, tools, and features around it in the operating system it lives in? Does invoking it leave the surrounding workflow intact, accelerated, or broken? Does it cooperate with the features that come before and after, or sit in isolation? This is the §1.5.1 workflow-continuity layer.
+
+4. **User interface and design** — how is the feature presented to the human (or the human-adjacent consumer) who will operate it? Is the surface clear, accessible, consistent with the rest of the product, and aligned with the user's mental model? This is the "does the surface match the substance" layer.
+
+### Why the order matters
+
+Each layer rests on the previous. If structure (1) is broken, no amount of UI polish (4) recovers it. If operational effectivity (2) is wrong, composition (3) cannot rescue a feature that fails its core purpose. If composition (3) breaks workflow continuity, even excellent UI (4) feels disconnected — the customer experiences the gap regardless of how it's painted.
+
+This is the §1.7 ground-up audit principle applied at the per-feature scale: foundation up, evaluate layer by layer, do not advance past a broken layer hoping a later one will mask the issue. Broken structure is not survivable by clever interface design. Broken effectivity is not survivable by polish. Broken composition is not survivable by isolated correctness.
+
+### What this means in practice
+
+When the agent is about to build a feature, the §1.5.1 four traces are now grouped under their respective layers:
+
+- **Layer 1 (structure efficiency):** trace #2 (where it sits) — its location in the broader system architecture.
+- **Layer 2 (operational effectivity):** trace #1 (why it's built) — the unmet need it addresses, AND the test of "does it deliver."
+- **Layer 3 (synergetic composition):** trace #3 (workflow shape) + trace #4 (continuity) — what the user does before/after and whether the feature leaves them flowing.
+- **Layer 4 (UI/design):** the surface presentation. Existing standing principle ("Format" section of §1.5 / ThinkerThinker.md A18 invitation labels) carries this layer.
+
+A build that passes layers 1-3 but fails layer 4 (e.g., the feature works, composes correctly, but the button is mislabeled or buried) is shippable with a follow-up polish commit — the layers below it are sound. A build that passes layer 4 but fails any of 1-3 is NOT shippable, regardless of surface quality. The order is a sieve: the worse the broken layer, the more structural the failure, the less the layers above it can compensate.
+
+### Affects (additional to original AMD-006 ripple-trace)
+
+- **§1.7 Ground-up auditing** — reinforced. The four-layer framework is §1.7's foundation-up audit principle applied at per-feature scale. Coherent; no conflict.
+- **ThinkerThinker.md A18 (invitation labels)** — layer 4 explicitly carries A18's discipline. The addendum makes the connection visible rather than implicit.
+- **§3.6 Make Learning Visible** — adjacent. The four-layer framework is itself a piece of made-visible discipline: an inspectable structure that an outside reviewer can use to grade a build, not a feel-it-out judgment call.
+
+### Ratification of addendum
+
+Same-day refinement of the parent amendment; ratified by the same founder directive that requested it. Status of AMD-006 stays `ratified`. The constitutional edit to CLAUDE.md §1.5.1 is updated in the same commit that adds this addendum, per §7.4 (amendment-ID reference required for any constitutional edit).
