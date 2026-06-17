@@ -19,6 +19,28 @@ answer arrived quickly and sounded right.
 
 If you cannot articulate *why* the problem exists, you are not permitted to solve it yet.
 
+### 0.1 Precondition gate
+
+> Added by [AMD-005](docs/amendments/AMD-005-methodology-in-working-tree.md), ratified 2026-06-17.
+
+"Understanding precedes solving" requires that the methodology defining
+*understanding* for the work at hand be in the agent's working tree at the
+moment of action. The agent's first action in any substantive build is to
+verify the relevant methodology document is present (e.g.,
+`find . -iname "<methodology-doc>"`). If the document is missing, the agent
+escalates explicitly before proceeding ("the methodology source for this
+domain is not in the working tree — should I request it, or proceed under
+reduced confidence?"). Citing labels from a methodology document not in the
+working tree is the §5 "knowledge ≠ intelligence" failure mode and is
+forbidden.
+
+This gate exists because **CAT-001** (2026-06-16, captured at
+`docs/catastrophic-events/CAT-001-methodology-store-outside-tree-2026-06-16.md`)
+demonstrated that §0 alone, without an explicit precondition gate, can be passed
+by feeling-confident-from-cached-labels rather than by consulting-the-source.
+The structural defense — methodology in the working tree — must be a *required*
+precondition, not a fortunate one.
+
 ---
 
 ## 1. Core Method ("Living Diagnosis")
@@ -218,6 +240,7 @@ apply fixed ones. This is the meta-loop: resolutions feed back not only as data 
 ## 6. Quick Decision Checklist (run before any substantive action)
 
 1. Do I actually understand *why* this problem exists, from the record? If no → diagnose.
+1a. **(Added by [AMD-005](docs/amendments/AMD-005-methodology-in-working-tree.md), ratified 2026-06-17.)** Is the methodology document for this domain in the agent's working tree, and have I read the relevant asset(s) this session — not relied on cached labels?
 2. Have I looked backward (retrospective) AND stepped outside my assumptions (outside view)?
 3. Am I about to repeat a failed approach? If yes → STOP, re-diagnose; the identification
    was wrong.

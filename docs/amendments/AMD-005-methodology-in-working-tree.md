@@ -1,9 +1,11 @@
 # AMD-005 — Methodology that governs the build must live in the agent's working tree
 
-- **Status:** proposed
-- **Date:** 2026-06-17
+- **Status:** ratified
+- **Date proposed:** 2026-06-17
+- **Date ratified:** 2026-06-17
 - **Proposed by:** agent (draft for ratification), triggered by CAT-001 catastrophic event 2026-06-16
-- **Affects:** CLAUDE.md §0 (The One Law) — adds a pre-action gate clause; ThinkerThinker.md A19 (the source asset already on record).
+- **Ratified by:** founder directive ("I ratify AMD-005")
+- **Affects:** CLAUDE.md §0 (The One Law) — adds §0.1 precondition gate; CLAUDE.md §6 Quick Decision Checklist — adds item 1a; ThinkerThinker.md A19 (the source asset already on record).
 
 ---
 
@@ -199,7 +201,19 @@ discriminated by content, not number.)
 
 ## Decision
 
-`proposed` — awaiting user ratification per §7.1 default-deny.
+`ratified` 2026-06-17.
+
+Ratification: founder directive "I ratify AMD-005" (2026-06-17). The §0.1
+precondition gate and §6 item 1a were applied to CLAUDE.md in the same commit
+that updated this file's status, per §7.4 ("any edit must reference its
+amendment by ID in the commit message"). Status is appended above; the prior
+`proposed` state remains in git history per §3.1 append-only.
+
+Per §7.5 distrust-of-evolution remains in effect: if AMD-005, after some period
+of operation, produces measurably worse outcomes than the rule it replaced
+(e.g., the precondition gate is invoked falsely often enough to materially slow
+substantive work), it is itself eligible for a counter-amendment. The
+constitution is not a one-way ratchet.
 
 ## Notes for ratification
 
