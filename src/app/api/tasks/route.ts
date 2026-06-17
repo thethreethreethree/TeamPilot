@@ -166,6 +166,72 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
+  // System-wide audit findings 7 + 8: server-side enforcement of
+  // (a) blocker_reason required when status='Blocked'
+  // (b) status transition graph — UI-only validation meant
+  //     mobile / API consumers could drive invalid transitions.
+  if (safePatch.status !== undefined || safePatch.blocker_reason !== undefined) {
+    // Fetch current state to validate the transition. One extra
+    // read per PATCH that touches status; minor cost for honest
+    // state-machine integrity.
+    const { data: current } = await ctx.supabase
+      .from("tasks")
+      .select("status, blocker_reason")
+      .eq("id", id)
+      .maybeSingle();
+    if (!current) {
+      return NextResponse.json(
+        { error: "Task not found." },
+        { status: 404 }
+      );
+    }
+    const nextStatus =
+      (safePatch.status as string | undefined) ??
+      (current.status as string);
+    const nextReason =
+      "blocker_reason" in safePatch
+        ? (safePatch.blocker_reason as string | null)
+        : (current.blocker_reason as string | null);
+    // (a) Blocker reason required when ending in Blocked.
+    if (
+      nextStatus === "Blocked" &&
+      (!nextReason || nextReason.trim().length === 0)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A blocker reason is required when marking a task Blocked.",
+        },
+        { status: 400 }
+      );
+    }
+    // (b) Transition graph. Mirrors the UI's STATUS_TRANSITIONS
+    // map; backend now enforces it.
+    if (
+      safePatch.status !== undefined &&
+      safePatch.status !== current.status
+    ) {
+      const transitions: Record<string, string[]> = {
+        New: ["In Progress", "Blocked", "Cancelled"],
+        "In Progress": ["Blocked", "Completed", "Cancelled"],
+        Blocked: ["In Progress", "Cancelled"],
+        Completed: [],
+        Cancelled: [],
+      };
+      const allowedNext = transitions[current.status as string] ?? [];
+      if (!allowedNext.includes(nextStatus)) {
+        return NextResponse.json(
+          {
+            error: `Invalid status transition: ${current.status} → ${nextStatus}. Allowed: ${
+              allowedNext.length > 0 ? allowedNext.join(", ") : "(terminal — no transitions)"
+            }.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
   const { error } = await ctx.supabase
     .from("tasks")
     .update(safePatch)
