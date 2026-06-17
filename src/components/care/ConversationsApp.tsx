@@ -649,14 +649,39 @@ export function ConversationsApp({
     );
   };
 
+  // Compute the "next" selection BEFORE the current conversation
+  // leaves the view. After a terminal action (close/resolve) the
+  // current conversation drops out of the filtered list, so we
+  // snapshot the neighbor here, then apply it after the action
+  // succeeds. §A8 composition: terminal actions compose with
+  // workflow advancement instead of dropping the agent into an
+  // empty state.
+  const computeNextAfterTerminal = (currentId: string): string | null => {
+    const idx = filtered.findIndex((c) => c.id === currentId);
+    if (idx === -1) return filtered[0]?.id ?? null;
+    return filtered[idx + 1]?.id ?? filtered[idx - 1]?.id ?? null;
+  };
+
   const changeStatus = async (
     next: "in_conversation" | "awaiting_customer" | "resolved" | "closed"
   ) => {
-    await runAction(
+    const isTerminal = next === "closed" || next === "resolved";
+    const nextAfter =
+      isTerminal && selected ? computeNextAfterTerminal(selected.id) : null;
+    const ok = await runAction(
       { action: "status", status: next },
       { status: next },
       `Marked as ${careStatusDisplay(next).label}`
     );
+    // Auto-advance — the inbox flow the user explicitly asked for
+    // ("after closing it should immediately open the next
+    // message"). Only after success; only for terminal states;
+    // only when the next slot exists. Falls back to the current
+    // conversation staying selected (it'll just be filtered out
+    // of the active view, which is fine — agent can re-click).
+    if (ok && isTerminal && nextAfter) {
+      setSelectedId(nextAfter);
+    }
   };
 
   const setPriority = async (priority: string) => {
@@ -983,8 +1008,21 @@ export function ConversationsApp({
           open={resolveModalOpen}
           onClose={() => setResolveModalOpen(false)}
           onCaptured={() => {
+            // Same auto-advance pattern as changeStatus for
+            // terminal actions — the agent finished this
+            // conversation, give them the next one without an
+            // empty-state interrupt. Snapshotting the neighbor
+            // BEFORE the inbox reload because the resolved
+            // conversation will drop out of the active view
+            // (Unassigned / All open / Mine all exclude
+            // resolved).
+            const nextAfter = computeNextAfterTerminal(selected.id);
             void loadInbox();
-            void loadDetail(selected.id);
+            if (nextAfter) {
+              setSelectedId(nextAfter);
+            } else {
+              void loadDetail(selected.id);
+            }
           }}
         />
       )}
