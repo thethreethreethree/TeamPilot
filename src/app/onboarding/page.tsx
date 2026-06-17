@@ -1,6 +1,13 @@
 "use client";
 
-import { Activity, Building2, Users, Target, ChevronRight } from "lucide-react";
+import {
+  Activity,
+  Building2,
+  ChevronRight,
+  Sparkles,
+  Target,
+  Users,
+} from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
@@ -36,9 +43,16 @@ export default function OnboardingPage() {
     stage: "",
     selectedGoals: [] as string[],
     ceoName: "",
+    // Step 5 — captured per AMD-006 §1.5.1 layer 2 (operational
+    // effectivity): empty = Jeff hand-offs every question on day
+    // one. Asking here while the founder is in setup mindset
+    // gives C.A.R.E real day-one value. TT.md A4: keep it
+    // skippable — many founders won't have polished copy yet
+    // and forcing it would push the experiment closed.
+    aiProductContext: "",
   });
 
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -85,6 +99,12 @@ export default function OnboardingPage() {
           p_stage: form.stage,
           p_goals: form.selectedGoals,
           p_user_full_name: form.ceoName,
+          // Migration 0047 — RPC now atomically writes the
+          // product context into care_tenant_config when present.
+          // Empty string short-circuits inside the function so
+          // skipping the step leaves the column NULL (and Jeff
+          // falls back to the AMD-006 safe-hand-off discipline).
+          p_ai_product_context: form.aiProductContext.trim(),
         }
       );
       if (rpcErr) throw rpcErr;
@@ -108,6 +128,11 @@ export default function OnboardingPage() {
     if (step === 2) return form.industry && form.size && form.stage;
     if (step === 3) return form.selectedGoals.length > 0;
     if (step === 4) return form.ceoName.trim().length > 0;
+    // Step 5 (AI product context) — per TT.md A4 always proceedable;
+    // an empty value is a valid intentional choice (the AMD-006
+    // prompt discipline shipped earlier defaults Jeff to a safe
+    // hand-off when context is absent).
+    if (step === 5) return true;
     return true;
   };
 
@@ -266,7 +291,7 @@ export default function OnboardingPage() {
               <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
                 <Users className="w-6 h-6 text-brand" />
               </div>
-              <h2 className="text-xl font-bold text-primary mb-1">Last step — who are you?</h2>
+              <h2 className="text-xl font-bold text-primary mb-1">Who are you?</h2>
               <p className="text-sm text-muted mb-6">
                 ELOSTATE will personalize your executive experience.
               </p>
@@ -282,11 +307,69 @@ export default function OnboardingPage() {
                 <div className="bg-[#FACC15]/10 border border-[#FACC15]/20 rounded-xl p-4 fade-in">
                   <p className="text-sm text-secondary">
                     Welcome, <span className="text-primary font-semibold">{form.ceoName}</span>.
-                    ELOSTATE is ready to activate for{" "}
+                    One last optional step before ELOSTATE activates for{" "}
                     <span className="text-primary font-semibold">{form.companyName}</span>.
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Step 5: AI product context (optional) — captured
+              per AMD-006 layer 2 (operational effectivity).
+              Without it, the customer-facing AI defaults to
+              "let me bring in a teammate" for every question on
+              day one; with it, the AI has the language to
+              respond accurately about the tenant's product.
+
+              TT.md A4 (defer uncertainties): skippable — many
+              founders won't have polished copy at signup, and
+              forcing it would push them to close the tab. Empty
+              = safe default per the AMD-006 prompt discipline.
+
+              TT.md A18 (label invites): copy invites
+              "describe your offering so the AI helps customers
+              accurately," NOT "configure your AI" (which reads
+              as work). */}
+          {step === 5 && (
+            <div>
+              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
+                <Sparkles className="w-6 h-6 text-brand" />
+              </div>
+              <h2 className="text-xl font-bold text-primary mb-1">
+                What does {form.companyName || "your business"} offer?
+              </h2>
+              <p className="text-sm text-muted mb-4">
+                A few sentences your customer-facing AI can ground in. Skip
+                if you&apos;d rather add this later — your AI will hand off
+                to you until you do.
+              </p>
+              <textarea
+                value={form.aiProductContext}
+                onChange={(e) =>
+                  update("aiProductContext", e.target.value)
+                }
+                rows={8}
+                placeholder={`What ${form.companyName || "your business"} actually does:
+[one sentence — the product in plain terms]
+
+Features customers will ask about (use these names when answering):
+- [Feature 1] — [one sentence: what it does]
+- [Feature 2] — [...]
+
+Pricing & access:
+[what plans you offer / how customers sign up]
+
+Always hand off to a human for:
+[account-specific data, billing, refunds, anything sensitive]`}
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-y leading-relaxed font-mono"
+              />
+              <p className="text-[11px] text-muted mt-2 leading-relaxed">
+                Listing features by name makes &quot;yes, we have that&quot;
+                the AI&apos;s safe default for things you actually offer.
+                Anything you don&apos;t name, the AI will hand off rather
+                than guess.
+              </p>
             </div>
           )}
 
