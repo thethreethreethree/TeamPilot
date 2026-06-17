@@ -511,10 +511,11 @@ function EmptyState({ mode, hasFilter }: { mode: FetchTasksMode; hasFilter: bool
       <div className="text-center py-12 px-6">
         <p className="text-sm text-primary mb-2">No tasks yet.</p>
         <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
-          Create your first task above. Every task mutation emits an immutable event into
-          the §3.1 chain — events become signals, signals accumulate into patterns,
-          patterns earn the right to surface as problems. The diagnostic engine has
-          nothing to operate on until events exist.
+          Use the composer above to create your first task. As your team
+          works, ELOSTATE will spot patterns across what gets done, what
+          gets stuck, and where decisions need to happen — and surface
+          them as you accumulate enough activity for the patterns to be
+          real.
         </p>
       </div>
     );

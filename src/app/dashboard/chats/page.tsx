@@ -174,11 +174,13 @@ export default function TeamChatListPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="glass-card p-8 text-center">
-            <p className="text-sm text-primary mb-2">No topics match.</p>
-            <p className="text-xs text-muted max-w-md mx-auto">
+            <p className="text-sm text-primary mb-2">
+              {query ? "No topics match." : "Start your first conversation."}
+            </p>
+            <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
               {query
                 ? "Try a different search or clear the filter."
-                : "Create the first topic above. Topics are the conversation containers for any decision your team needs to talk through."}
+                : "Topics are where your team talks through decisions. Use the composer above to open one — the AI Coach will help shape it into a clear ask, and Co-pilot will suggest next steps as the thread develops."}
             </p>
           </div>
         ) : (

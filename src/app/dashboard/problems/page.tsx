@@ -93,11 +93,13 @@ export default function ProblemsPage() {
 
         {!loading && mode === "live-empty" && (
           <div className="glass-card p-8 text-center">
-            <p className="text-sm text-primary mb-2">No hypotheses yet.</p>
+            <p className="text-sm text-primary mb-2">No problems yet.</p>
             <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
-              Start one above. A hypothesis begins as a draft — you link supporting
-              signals and write the WHY. The gate evaluates the change when you try to
-              transition to <code>surfaceable</code> or <code>surfaced</code>.
+              A problem is a pattern you&apos;ve seen enough times to name.
+              Start one above — write what you&apos;re observing and link
+              the supporting signals. Until you have evidence, your
+              hypothesis stays a draft; the system asks for proof before
+              it tells your team this is real.
             </p>
           </div>
         )}

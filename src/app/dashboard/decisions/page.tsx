@@ -541,6 +541,20 @@ export default function DecisionsPage() {
             </span>
           </div>
           <div className="space-y-3">
+            {decisions.length === 0 && (
+              <div className="text-center py-10 px-6">
+                <p className="text-sm text-primary mb-2">
+                  No decisions captured yet.
+                </p>
+                <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
+                  Use the dialogue above to walk through your first
+                  decision — the situation, the options, your reasoning,
+                  what you chose. The dialogue gets preserved so future
+                  you (or your team) can see why this call was made, not
+                  just what.
+                </p>
+              </div>
+            )}
             {decisions.map((d) => (
               <div
                 key={d.id}
