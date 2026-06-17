@@ -6,7 +6,7 @@ import {
   bulkAssignConversations,
   type SupportConversation,
 } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * POST /api/care/agent/conversations/bulk
@@ -59,33 +59,11 @@ const BulkBody = z.discriminatedUnion("action", [
   }),
 ]);
 
-async function requireAgent() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user)
-    return { error: "Not authenticated.", status: 401 } as const;
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent)
-    return { error: "Care is agent-only.", status: 403 } as const;
-  const isAdmin =
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  return { agentId: auth.user.id, isAdmin };
-}
+// Local requireAgent replaced by shared requireCareAgent helper.
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAgent();
-  if ("error" in auth) {
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const body = await readBody(req, BulkBody);
@@ -107,8 +85,7 @@ export async function POST(req: NextRequest) {
     // route — own + unclaimed only. Disallowed ids are silently
     // dropped from the bulk update (the client gets affectedCount
     // back and can show "3 of 5 assigned" if relevant).
-    const sb = await createClient();
-    const { data: allowed } = await sb
+    const { data: allowed } = await auth.sb
       .from("support_conversations")
       .select("id")
       .in("id", body.ids)

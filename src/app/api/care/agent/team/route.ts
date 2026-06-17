@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET /api/care/agent/team
@@ -21,31 +21,20 @@ import { createClient } from "@/lib/supabase/server";
  * filter further if it wants.
  */
 export async function GET() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { data: caller } = await sb
-    .from("profiles")
-    .select("company_id, is_support_agent, role")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    caller?.is_support_agent ||
-    caller?.role === "CEO" ||
-    caller?.role === "COO" ||
-    caller?.role === "admin";
-  if (!isAgent || !caller?.company_id) {
+  if (!auth.companyId) {
     return NextResponse.json(
-      { error: "Care is agent-only." },
+      { error: "Complete onboarding first." },
       { status: 403 }
     );
   }
-  const { data: profiles } = await sb
+  const { data: profiles } = await auth.sb
     .from("profiles")
     .select("id, full_name, role, is_support_agent")
-    .eq("company_id", caller.company_id)
+    .eq("company_id", auth.companyId)
     .order("full_name", { ascending: true });
   return NextResponse.json({
     agents: (profiles ?? []).map((r) => ({

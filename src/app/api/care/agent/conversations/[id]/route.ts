@@ -13,7 +13,7 @@ import {
   clearSupervisorGuidanceRequest,
   type SupportConversation,
 } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET  /api/care/agent/conversations/[id]
@@ -51,31 +51,17 @@ const PatchBody = z.object({
   targetAgentId: z.string().uuid().nullable().optional(),
 });
 
-async function requireAgent() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) return { error: "Not authenticated.", status: 401 } as const;
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent) return { error: "Care is agent-only.", status: 403 } as const;
-  return { agentId: auth.user.id };
-}
+// Local requireAgent replaced by the shared requireCareAgent
+// helper imported above. See lib/api/careAgentAuth.ts for the
+// rationale (deduplication across 22+ routes).
 
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const auth = await requireAgent();
-  if ("error" in auth) {
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const data = await fetchAgentConversation(id);
@@ -90,8 +76,8 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const auth = await requireAgent();
-  if ("error" in auth) {
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const body = await readBody(req, PatchBody);
@@ -123,20 +109,12 @@ export async function PATCH(
           { status: 404 }
         );
       }
-      const sbCheck = await createClient();
-      const { data: profile } = await sbCheck
-        .from("profiles")
-        .select("role")
-        .eq("id", auth.agentId)
-        .maybeSingle();
-      const isAdmin =
-        profile?.role === "CEO" ||
-        profile?.role === "COO" ||
-        profile?.role === "admin";
+      // isAdmin already resolved by requireCareAgent; no extra
+      // profile fetch needed.
       const currentAssignee = current.conversation.assignedAgentId;
       const isUnclaimed = currentAssignee === null;
       const ownsIt = currentAssignee === auth.agentId;
-      if (!isAdmin && !ownsIt && !isUnclaimed) {
+      if (!auth.isAdmin && !ownsIt && !isUnclaimed) {
         return NextResponse.json(
           {
             error:
