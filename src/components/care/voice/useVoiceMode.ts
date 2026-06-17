@@ -70,6 +70,14 @@ const VAD_ENERGY_THRESHOLD = 18; // average byte frequency
 const VAD_SILENCE_AFTER_SPEECH_MS = 700;
 const VAD_MIN_SPEECH_MS = 250; // ignore tiny clicks/breaths
 
+// 44-byte silent WAV (44.1kHz, 16-bit mono, 0 samples). Used to
+// prime <audio> for iOS Safari's autoplay policy — playing this
+// during the user-gesture from the initial "Call Jeff" tap
+// "unlocks" the element so subsequent .play() calls after async
+// awaits (STT/LLM/TTS) are allowed.
+const SILENT_WAV_DATA_URI =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+
 export function useVoiceMode(args: {
   ensureSession: () => Promise<StoredSession | null>;
   onCustomerMessageOptimistic: (args: {
@@ -168,7 +176,14 @@ export function useVoiceMode(args: {
         }
         const audioBlob = await res.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
+
+        // Reuse the gesture-unlocked element from startCall so iOS
+        // Safari allows playback. Fall back to a fresh element if
+        // somehow the ref was cleared (defensive — shouldn't
+        // happen mid-call).
+        const audio = currentAudioRef.current ?? new Audio();
+        audio.src = audioUrl;
+        audio.load();
         currentAudioRef.current = audio;
         await new Promise<void>((resolve) => {
           audio.onended = () => {
@@ -179,12 +194,21 @@ export function useVoiceMode(args: {
             URL.revokeObjectURL(audioUrl);
             resolve();
           };
-          void audio.play().catch(() => {
+          void audio.play().catch((err) => {
+            // Log so we can see autoplay rejections in production
+            // devtools. Without this we lose the diagnostic trail
+            // for "the call connected but I heard nothing" reports.
+            if (typeof console !== "undefined") {
+              const name = err instanceof Error ? err.name : "unknown";
+              const message = err instanceof Error ? err.message : "";
+              console.error(
+                `[care/voice] audio.play() rejected: name=${name} message="${message}"`
+              );
+            }
             URL.revokeObjectURL(audioUrl);
             resolve();
           });
         });
-        currentAudioRef.current = null;
       } catch {
         args.onError("Audio playback failed. You can still read above.");
       }
@@ -357,6 +381,34 @@ export function useVoiceMode(args: {
    */
   const startCall = useCallback(async () => {
     if (callActiveRef.current) return;
+
+    // ─── iOS Safari audio unlock (gesture-context required) ───
+    // 2026-06-17 — user reported no audio on iPhone after a call
+    // connected on desktop fine. Cause: by the time speakReply()
+    // calls audio.play(), the user-gesture from the original
+    // "Call Jeff" tap is long gone (we've awaited STT + LLM + TTS,
+    // ~3-5 seconds each). iOS Safari treats post-await .play() as
+    // an autoplay attempt and silently rejects it — no error
+    // panel, just dead air.
+    //
+    // Fix: create the Audio element and call .play() on a silent
+    // buffer NOW while the gesture is hot. iOS marks this specific
+    // element as "user-allowed-to-play"; it stays unlocked for the
+    // page lifetime. Every subsequent speakReply reuses this same
+    // element by swapping .src, so iOS plays without complaint.
+    //
+    // No await before .play() — the gesture context dies at the
+    // first await, so this must be the first thing we do.
+    const primedAudio = new Audio();
+    primedAudio.preload = "auto";
+    primedAudio.src = SILENT_WAV_DATA_URI;
+    // Fire-and-forget. Some browsers reject; that's fine, we tried.
+    void primedAudio.play().catch(() => {
+      /* iOS may still reject in edge cases (e.g., insecure
+         context). The .play() invocation itself is what registers
+         the gesture intent on supported devices. */
+    });
+    currentAudioRef.current = primedAudio;
 
     // ─── Capability detection — surface real errors ─────────
     if (
