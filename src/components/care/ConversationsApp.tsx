@@ -741,16 +741,14 @@ export function ConversationsApp({
           toast.error(
             `Action reported success but conversation is still "${fresh.status}". This usually means a permission or trigger rejected the write — check RLS for support_conversations.`
           );
-          await loadInbox();
-          await loadDetail(selected.id);
+          await Promise.all([loadInbox(), loadDetail(selected.id)]);
           return false;
         }
         if (expect.priority && fresh.priority !== expect.priority) {
           toast.error(
             `Priority change didn't stick — DB still reads "${fresh.priority}".`
           );
-          await loadInbox();
-          await loadDetail(selected.id);
+          await Promise.all([loadInbox(), loadDetail(selected.id)]);
           return false;
         }
         if (
@@ -758,8 +756,7 @@ export function ConversationsApp({
           fresh.assignedAgentId !== currentUserId
         ) {
           toast.error("Claim didn't stick — conversation is still unassigned.");
-          await loadInbox();
-          await loadDetail(selected.id);
+          await Promise.all([loadInbox(), loadDetail(selected.id)]);
           return false;
         }
         if (expect.guidanceSet !== undefined) {
@@ -768,15 +765,17 @@ export function ConversationsApp({
             toast.error(
               `Supervisor guidance ${expect.guidanceSet ? "request" : "clear"} didn't stick — DB still reads "${actualSet ? "requested" : "cleared"}".`
             );
-            await loadInbox();
-            await loadDetail(selected.id);
+            await Promise.all([loadInbox(), loadDetail(selected.id)]);
             return false;
           }
         }
       }
       toast.success(successMsg);
-      await loadInbox();
-      await loadDetail(selected.id);
+      // L3.3 fix: parallelize the inbox + detail refreshes.
+      // Previously sequential — every action did two
+      // round-trips serially when one is fine. Promise.all
+      // halves the wall-clock on every action's "after" phase.
+      await Promise.all([loadInbox(), loadDetail(selected.id)]);
       return true;
     } catch {
       toast.error("Couldn't reach the server.");
@@ -1787,8 +1786,18 @@ function AssignDropdown({
     const handle = (e: MouseEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
+    // L4.1 fix: Escape key dismissal — standard a11y
+    // affordance. Click-outside worked already; this adds
+    // keyboard parity.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     window.addEventListener("mousedown", handle);
-    return () => window.removeEventListener("mousedown", handle);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", handle);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
   const current = team.find((t) => t.id === currentAssignedId);
   const label = current?.fullName ?? "Assign";
@@ -1864,9 +1873,30 @@ function PriorityDropdown({
   onChange: (p: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  // L4.1 fix: unify dismissal with AssignDropdown — click-outside
+  // AND Escape key. Replaces the prior onMouseLeave dismissal
+  // which was hostile to both keyboard users (no key dismissal)
+  // and accidental dismissal (mouse drift over the dropdown
+  // boundary would close it mid-selection).
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("mousedown", handle);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", handle);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
   const cur = priorityDisplay(current);
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -1878,7 +1908,6 @@ function PriorityDropdown({
       {open && (
         <div
           className="absolute z-10 mt-1 left-0 bg-base border border-default rounded-md shadow-lg py-1 min-w-[120px]"
-          onMouseLeave={() => setOpen(false)}
         >
           {(["urgent", "high", "normal", "low"] as const).map((p) => {
             const d = priorityDisplay(p);
