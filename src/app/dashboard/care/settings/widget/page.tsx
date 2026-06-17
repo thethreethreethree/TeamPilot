@@ -397,14 +397,38 @@ export default function CareWidgetSettingsPage() {
                 onChange={(e) =>
                   setDraft({ ...draft, ai_product_context: e.target.value || null })
                 }
-                rows={5}
-                placeholder="Explain to the AI what your product is, who the customer is, and the common questions. The AI will refuse to invent features or policies not grounded in this."
-                className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y leading-relaxed"
+                rows={10}
+                placeholder={`What ELOSTATE actually is:
+[one sentence — the product in plain terms]
+
+Features the AI should know about (use these names when customers ask):
+- [Feature 1] — [one sentence: what it does, when to mention it]
+- [Feature 2] — [...]
+- [Feature 3] — [...]
+
+Pricing & access:
+[how customers can buy / what tier they get / what to hand off]
+
+Always hand off to a human for:
+[account-specific data, billing, refunds, anything you don't want the AI deciding]`}
+                className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y leading-relaxed font-mono"
               />
-              <p className="text-[11px] text-muted mt-1.5">
-                The AI is honest about its limits. If you don&apos;t describe a topic here, it
-                will hand off to a human rather than guess.
-              </p>
+              <div className="text-[11px] text-muted mt-1.5 space-y-1">
+                <p>
+                  <strong className="text-secondary">Why this matters:</strong>{" "}
+                  When the AI is uncertain about a feature, it defaults to
+                  &quot;no&quot; — telling the customer your product can&apos;t
+                  do something it actually does. They walk away. Listing
+                  features by name here makes &quot;yes, we have that&quot; the
+                  AI&apos;s safe default for things you actually offer.
+                </p>
+                <p>
+                  Anything you don&apos;t name here, the AI will hand off to a
+                  human rather than guess — that&apos;s the design. Be
+                  explicit about features that exist; the AI is told to never
+                  confidently say &quot;no&quot; when uncertain.
+                </p>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
