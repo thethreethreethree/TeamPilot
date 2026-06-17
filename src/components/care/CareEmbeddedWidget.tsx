@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Mic, MessageCircle, Send, X } from "lucide-react";
+import { Loader2, MessageCircle, Phone, Send, X } from "lucide-react";
 import { VoiceSurface } from "./voice/VoiceSurface";
 import { useVoiceMode } from "./voice/useVoiceMode";
 
@@ -260,12 +260,10 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
 
   const {
     voiceMode,
-    setVoiceMode,
     voicePhase,
     voiceTranscript,
-    startRecording,
-    stopRecording,
-    exitVoiceMode,
+    startCall,
+    endCall,
   } = useVoiceMode({
     ensureSession,
     onCustomerMessageOptimistic: ({ tempId, body }) => {
@@ -382,18 +380,14 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
             </div>
           )}
 
-          {/* Phase 9 voice — when voiceMode is active, the
-              text composer is replaced by the voice surface.
-              The surface IS the §A14 multi-state UI: each
-              voicePhase renders a distinct affordance. */}
+          {/* Phase 9 — call mode replaces the text composer
+              when voiceMode is active. */}
           {voiceMode ? (
             <VoiceSurface
               phase={voicePhase}
               accent={config.color}
               transcript={voiceTranscript}
-              onPress={() => void startRecording()}
-              onRelease={stopRecording}
-              onExit={exitVoiceMode}
+              onEnd={endCall}
             />
           ) : (
             <div className="border-t border-default p-3 flex items-end gap-2 bg-surface/40">
@@ -411,18 +405,17 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
                 placeholder="Type a message…"
                 className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"
               />
-              {/* "Talk to Jeff" — customer opt-in entry into voice
-                  mode per the user's directive. §A18 invitation
-                  label; §A8 frames Jeff as a participant, not a
-                  feature flag. */}
+              {/* "Call Jeff" — customer opt-in to phone-call
+                  mode. §A18 invitation label; §A8 frames Jeff
+                  as a participant, not a feature flag. */}
               <button
                 type="button"
-                onClick={() => setVoiceMode(true)}
-                aria-label="Talk to Jeff"
-                title="Talk to Jeff — real-time voice conversation"
+                onClick={() => void startCall()}
+                aria-label="Call Jeff"
+                title="Call Jeff — real-time voice conversation"
                 className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-default hover:border-strong text-muted hover:text-primary"
               >
-                <Mic className="w-4 h-4" aria-hidden />
+                <Phone className="w-4 h-4" aria-hidden />
               </button>
               <button
                 type="button"

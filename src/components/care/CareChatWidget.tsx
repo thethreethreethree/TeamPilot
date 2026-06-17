@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Loader2,
   MessageCircle,
-  Mic,
+  Phone,
   Send,
   X,
 } from "lucide-react";
@@ -157,12 +157,10 @@ export function CareChatWidget() {
   // so this widget consumes the same logic as CareEmbeddedWidget.
   const {
     voiceMode,
-    setVoiceMode,
     voicePhase,
     voiceTranscript,
-    startRecording,
-    stopRecording,
-    exitVoiceMode,
+    startCall,
+    endCall,
   } = useVoiceMode({
     ensureSession,
     onCustomerMessageOptimistic: ({ tempId, body }) => {
@@ -363,16 +361,14 @@ export function CareChatWidget() {
             </div>
           )}
 
-          {/* Composer — text mode OR voice mode (Phase 9). */}
+          {/* Composer — text mode OR call mode (Phase 9). */}
           {!conversationClosed &&
             (voiceMode ? (
               <VoiceSurface
                 phase={voicePhase}
                 accent="#FACC15"
                 transcript={voiceTranscript}
-                onPress={() => void startRecording()}
-                onRelease={stopRecording}
-                onExit={exitVoiceMode}
+                onEnd={endCall}
               />
             ) : (
               <div className="border-t border-default p-3 flex items-end gap-2 bg-surface/40">
@@ -386,15 +382,17 @@ export function CareChatWidget() {
                   disabled={sending}
                   className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"
                 />
-                {/* "Talk to Jeff" — customer opt-in to voice mode. */}
+                {/* "Call Jeff" — customer opt-in to phone-call
+                    mode. Click starts a continuous conversation
+                    (hands-free, VAD-driven turns). */}
                 <button
                   type="button"
-                  onClick={() => setVoiceMode(true)}
-                  aria-label="Talk to Jeff"
-                  title="Talk to Jeff — real-time voice conversation"
+                  onClick={() => void startCall()}
+                  aria-label="Call Jeff"
+                  title="Call Jeff — real-time voice conversation"
                   className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-default hover:border-strong text-muted hover:text-primary"
                 >
-                  <Mic className="w-4 h-4" aria-hidden />
+                  <Phone className="w-4 h-4" aria-hidden />
                 </button>
                 <button
                   type="button"
