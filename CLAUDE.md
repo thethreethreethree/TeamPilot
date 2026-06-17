@@ -75,6 +75,37 @@ All problem-solving — in the codebase and in the System being built — follow
 6. **Close the Loop.** Every resolution — and its measured outcome — becomes a new asset
    that feeds step 1. The System gets smarter about *this specific team/codebase* over time.
 
+### 1.5.1 Feature-workflow precondition gate
+
+> Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md), ratified 2026-06-17.
+
+Before building any user-facing feature, trace four things:
+
+1. **Why it's built** — the unmet need the feature addresses.
+2. **Where it sits** — its location in the broader system architecture (which layer,
+   which data flow, which adjacent features).
+3. **The user's workflow shape** — what the user does *right before* invoking this
+   feature, and what they intend to do *right after*.
+4. **Continuity** — whether the completed feature leaves the user in a flowing state
+   (next action obvious, system ready for it) or stalls them (empty state, dead end,
+   unnecessary intermediate steps).
+
+A feature that is technically complete (the code works, the data changes, the API returns
+200) but operationally isolated (works in itself but breaks workflow continuity) is
+incomplete and must not ship.
+
+This gate exists because §1.5 alone covers system-level interconnection ("does this break
+other code?") but not workflow-level interconnection ("does this leave the user able to
+continue?"). The Close-without-auto-advance incident (2026-06-17, commit `d9523a0`)
+demonstrated that a feature can pass every system check and still break the operational
+reality it lives inside. The constitutional defense is the precondition: trace the
+workflow before building, not after the user reports the gap.
+
+The principle generalizes beyond web/app — any feature whose operation involves a
+sequence (user, caller, downstream consumer) requires tracing that sequence's continuity,
+not just the feature's internal correctness. For web/app development specifically, this
+means the user's click-by-click workflow.
+
 ### 1.7 Ground-up auditing
 
 > Added by [AMD-004](docs/amendments/AMD-004-ground-up-audit.md), ratified 2026-06-02.
@@ -245,6 +276,7 @@ apply fixed ones. This is the meta-loop: resolutions feed back not only as data 
 3. Am I about to repeat a failed approach? If yes → STOP, re-diagnose; the identification
    was wrong.
 4. Is this constraint real, or incidental? If real → respect it, find a better destination.
+5a. **(Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md), ratified 2026-06-17.)** For user-facing features: have I traced the user's workflow *before AND after* this feature, and does the completed feature leave them in a flowing state? Or does it stall them — empty state, dead end, unnecessary intermediate steps?
 5. Have I traced what else this change affects (holistic), and am I proposing iteratively
    (organic)?
 6. Am I explaining the WHY, not just the WHAT?
