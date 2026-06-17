@@ -274,7 +274,7 @@ export function CareChatWidget() {
                   />
                 </div>
                 <p className="text-sm font-medium text-primary mb-1">
-                  Hi there.
+                  Hi, I&apos;m Jeff.
                 </p>
                 <p className="text-xs text-secondary leading-relaxed max-w-[260px]">
                   Ask anything — pricing, how it works, whether
