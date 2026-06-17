@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { fetchSignals, type SignalsMode } from "@/lib/data/signals";
@@ -128,6 +129,20 @@ export default function DiagnosePage() {
   // Step 6 — Decide
   const [chosenNote, setChosenNote] = useState("");
 
+  // Step 7 — Close the loop (§1.6). Persists the problem +
+  // resolution atomically via the close-loop API. Previously the
+  // close step was visual-only (showed the chosen candidate as
+  // JSON, said "in live mode this calls close_problem()" — but
+  // had no button to actually call it). Audit finding flagged
+  // this as Critical: the §1.6 close-the-loop pathway was
+  // structurally incomplete.
+  const [closingLoop, setClosingLoop] = useState(false);
+  const [closeError, setCloseError] = useState("");
+  const [closedResolutionId, setClosedResolutionId] = useState<string | null>(
+    null
+  );
+  const router = useRouter();
+
   const stepIndex = DIAGNOSIS_STEPS.indexOf(step);
   const advance = canAdvance(run, step);
 
@@ -229,6 +244,114 @@ export default function DiagnosePage() {
 
   const commitChoice = (candidate: CandidateResolution) => {
     setRun((r) => ({ ...r, chosen: candidate }));
+  };
+
+  /**
+   * §1.6 Close the Loop — persists the problem + resolution
+   * atomically. Two-step because the diagnose flow produces a
+   * problem hypothesis (text) rather than a problem row reference,
+   * and close_problem() requires a problem_id:
+   *
+   *   1. POST /api/problems to create the problem row using the
+   *      hypothesis fields. The Understanding Gate (§3.2) is
+   *      enforced server-side; if signals are below threshold,
+   *      this step returns gateHold and we surface the message.
+   *   2. POST /api/diagnosis/close with the returned problem.id
+   *      + the chosen candidate's fields + reasoning (the
+   *      hypothesisDiagnosis joined with chosenNote, ensuring
+   *      ≥40 chars per the API's Rule-2 enforcement).
+   *
+   * On success: capture the resolutionId, surface a success state,
+   * and offer navigation to /dashboard/resolutions where the new
+   * row is now visible.
+   */
+  const closeTheLoop = async () => {
+    if (!liveRun.chosen || !supabaseEnabled) return;
+    setClosingLoop(true);
+    setCloseError("");
+    try {
+      // Compose the reasoning. The API requires ≥40 chars; pad
+      // the operator's chosenNote with the structural diagnosis
+      // so the reasoning carries both the WHY (hypothesis) and
+      // the perspective (operator's note).
+      const reasoning = [hypothesisDiagnosis.trim(), chosenNote.trim()]
+        .filter(Boolean)
+        .join("\n\n— Why this is the right call:\n");
+      if (reasoning.length < 40) {
+        setCloseError(
+          "Reasoning is too short — flesh out the hypothesis or add a note explaining why this is the right call (≥40 chars total)."
+        );
+        setClosingLoop(false);
+        return;
+      }
+
+      // Step 1: create the problem row (Understanding Gate
+      // enforced server-side).
+      const problemRes = await fetch("/api/problems", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: hypothesisTitle.trim(),
+          kind: hypothesisKind,
+          diagnosis: hypothesisDiagnosis.trim(),
+          targetStatus: "surfaced",
+          signalIds: signals.map((s) => s.id),
+        }),
+      });
+      const problemData = await problemRes.json();
+      if (!problemRes.ok) {
+        setCloseError(
+          problemData.gateHold
+            ? `Understanding Gate held: ${problemData.error}`
+            : (problemData.error ?? "Could not surface the problem.")
+        );
+        setClosingLoop(false);
+        return;
+      }
+      const problemId = problemData.problemId ?? problemData.id;
+      if (!problemId) {
+        setCloseError(
+          "Problem was surfaced but no id was returned. Check /dashboard/problems."
+        );
+        setClosingLoop(false);
+        return;
+      }
+
+      // Step 2: atomically close the loop via close_problem().
+      const closeRes = await fetch("/api/diagnosis/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          problemId,
+          action: liveRun.chosen.action,
+          reasoning,
+          expectedOutcome: liveRun.chosen.expectedOutcome,
+        }),
+      });
+      const closeData = await closeRes.json();
+      if (!closeRes.ok) {
+        setCloseError(closeData.error ?? "Close-the-loop failed.");
+        setClosingLoop(false);
+        return;
+      }
+      setClosedResolutionId(closeData.resolutionId ?? null);
+      setRun((r) => ({
+        ...r,
+        chosen: r.chosen
+          ? { ...r.chosen, resolutionId: closeData.resolutionId }
+          : r.chosen,
+      }));
+      // Persistence: clear the local run so the next diagnose
+      // session starts fresh. The resolution + problem are now
+      // canonical in the DB.
+      clearRun();
+    } catch (err) {
+      setCloseError(
+        err instanceof Error ? err.message : "Network error closing the loop."
+      );
+    } finally {
+      setClosingLoop(false);
+    }
   };
 
   return (
@@ -536,20 +659,69 @@ export default function DiagnosePage() {
                 </p>
                 {!liveRun.chosen ? (
                   <EmptyHint text="No commitment yet. Return to Decide and commit to a candidate." />
+                ) : closedResolutionId ? (
+                  // Success state — the loop is closed; the problem
+                  // was surfaced and the resolution recorded. Offer
+                  // navigation to the resolutions page where the new
+                  // row is now visible.
+                  <div className="p-5 rounded-xl bg-emerald-500/10 border border-emerald-500/40">
+                    <p className="text-sm font-semibold text-emerald-300 mb-2">
+                      ✓ Loop closed. Resolution recorded.
+                    </p>
+                    <p className="text-xs text-secondary mb-4 leading-relaxed">
+                      The problem was surfaced through the Understanding
+                      Gate, the resolution was atomically inserted, and a
+                      problem.resolved event landed in the §3.1 chain. The
+                      durability review will be scheduled per the 7-day
+                      window from migration 0036.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push("/dashboard/resolutions")
+                      }
+                      className="bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                    >
+                      View the resolution →
+                    </button>
+                  </div>
                 ) : (
                   <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
                     <p className="text-sm font-medium text-primary mb-2">
                       Ready to persist.
                     </p>
                     <p className="text-xs text-secondary mb-3">
-                      In live mode, this calls the SQL close_problem() function which
-                      atomically inserts the resolution, marks the problem resolved, and
-                      emits a problem.resolved event into the loop. In demo mode, this is
-                      shown for review only.
+                      Closing the loop will atomically: surface the problem
+                      through the Understanding Gate, insert the resolution
+                      record, and emit the problem.resolved event into the
+                      chain.
                     </p>
-                    <pre className="text-[10px] text-muted bg-surface p-3 rounded-lg overflow-x-auto">
+                    <pre className="text-[10px] text-muted bg-surface p-3 rounded-lg overflow-x-auto mb-3">
 {JSON.stringify(liveRun.chosen, null, 2)}
                     </pre>
+                    {closeError && (
+                      <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-3 leading-relaxed">
+                        {closeError}
+                      </p>
+                    )}
+                    {!supabaseEnabled ? (
+                      <p className="text-[11px] text-muted italic">
+                        Demo mode — close-the-loop requires a live Supabase
+                        project (it writes to problems + resolutions +
+                        events).
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={closeTheLoop}
+                        disabled={closingLoop}
+                        className="bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                      >
+                        {closingLoop
+                          ? "Closing the loop…"
+                          : "Close the loop"}
+                      </button>
+                    )}
                   </div>
                 )}
               </StepCard>
