@@ -306,9 +306,16 @@ export function useVoiceMode(args: {
     if (!stream) return;
     setVoicePhase("listening");
 
+    // Defensive: ensure the mic track is enabled. speakReply
+    // normally restores it in its finally{} block but if any
+    // path skipped that we don't want a permanently-deaf call.
+    const audioTrack = stream.getAudioTracks()[0];
+    if (audioTrack && !audioTrack.enabled) audioTrack.enabled = true;
+
     audioChunksRef.current = [];
     speechStartedAtRef.current = null;
     lastEnergyAboveAtRef.current = null;
+    console.log(`[care/voice] armRecorder — fresh recorder, chunks cleared`);
 
     const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
@@ -320,13 +327,24 @@ export function useVoiceMode(args: {
     recorder.onstop = async () => {
       if (!callActiveRef.current) return;
 
+      const turnId = Math.random().toString(36).slice(2, 8);
+      console.log(`[care/voice][${turnId}] onstop fired`);
+
       // Every failure / early-exit path needs to release the
       // turn-lock so the next customer utterance can fire a
       // fresh turn. Forgetting one would freeze the call: VAD
       // detects speech, handleEndOfTurn stops the recorder, but
       // the lock is still held and no new processing starts.
-      const releaseAndRearm = () => {
-        graceUntilMsRef.current = Date.now() + 500;
+      //
+      // 2026-06-17 — armRecorder is now delayed by 500ms inside
+      // releaseAndRearm. The earlier in-tick grace was passive
+      // (VAD skipped ticks for 500ms) but the recorder was
+      // still capturing audio during that window — so the
+      // speaker's audio tail could leak into the next turn's
+      // audio. Active grace (await sleep) means R2 doesn't even
+      // exist during decay, can't capture phantom audio.
+      const releaseAndRearm = async () => {
+        await new Promise<void>((r) => setTimeout(r, 500));
         turnInFlightRef.current = false;
         if (callActiveRef.current) armRecorder();
       };
@@ -334,11 +352,15 @@ export function useVoiceMode(args: {
       const audioBlob = new Blob(audioChunksRef.current, {
         type: recorder.mimeType || "audio/webm",
       });
+      console.log(
+        `[care/voice][${turnId}] audioBlob size=${audioBlob.size} chunks=${audioChunksRef.current.length}`
+      );
       if (audioBlob.size === 0) {
         // Empty chunk — rearm and keep listening. Lock was never
         // taken; no release needed but we still want the grace.
-        graceUntilMsRef.current = Date.now() + 500;
-        armRecorder();
+        console.log(`[care/voice][${turnId}] empty blob, grace then arm`);
+        await new Promise<void>((r) => setTimeout(r, 500));
+        if (callActiveRef.current) armRecorder();
         return;
       }
 
@@ -375,6 +397,9 @@ export function useVoiceMode(args: {
         }
         const data = await sttRes.json();
         transcript = (data.transcript as string) ?? "";
+        console.log(
+          `[care/voice][${turnId}] STT transcript: "${transcript}"`
+        );
       } catch {
         args.onError("Couldn't reach the server.");
         releaseAndRearm();
@@ -419,6 +444,16 @@ export function useVoiceMode(args: {
           .reverse()
           .find((m) => m.authorType === "ai");
         aiReplyText = lastAi?.body ?? "";
+        // Diagnostic — if the user reports Jeff responding to
+        // the previous question rather than the current one,
+        // this log + the STT log above let us see whether the
+        // /messages response truly contains the new reply, or
+        // whether we're picking a stale AI message from the
+        // returned array.
+        console.log(
+          `[care/voice][${turnId}] /messages returned ${updated.length} msgs, ` +
+            `lastAi="${(lastAi?.body ?? "<none>").slice(0, 80)}..."`
+        );
       } catch {
         args.onError("Couldn't reach the server.");
         args.onRemoveOptimistic(tempId);
@@ -428,19 +463,29 @@ export function useVoiceMode(args: {
 
       // 3. Play Jeff's reply.
       if (aiReplyText) {
+        console.log(
+          `[care/voice][${turnId}] speakReply len=${aiReplyText.length}`
+        );
         await speakReply(aiReplyText, active.sessionToken);
+        console.log(`[care/voice][${turnId}] speakReply done`);
       }
 
-      // 4. Release the turn-lock with a grace period. The 500ms
-      // post-playback window lets any speaker tail / echo decay
-      // before the VAD starts listening again — without it the
-      // VAD could see residual energy as the customer "starting
-      // to talk" and trigger a phantom turn immediately.
-      graceUntilMsRef.current = Date.now() + 500;
+      // 4. ACTIVE grace — block here for 500ms before arming
+      // R2. Earlier version released the lock and armed R2
+      // immediately, which meant R2 captured any speaker tail
+      // (iPhone speakers ring out for a few hundred ms after
+      // audio.onended fires, regardless of echoCancellation).
+      // The captured tail transcribed as "Jeff's previous
+      // reply", which /messages then treated as the next
+      // customer message — Jeff responded to his own audio
+      // → loop. Active sleep means R2 doesn't exist during
+      // the decay window, can't capture phantom audio.
+      await new Promise<void>((r) => setTimeout(r, 500));
       turnInFlightRef.current = false;
 
       // 5. Re-arm if call is still active.
       if (callActiveRef.current) {
+        console.log(`[care/voice][${turnId}] rearming after grace`);
         setVoicePhase("listening");
         armRecorder();
       }
