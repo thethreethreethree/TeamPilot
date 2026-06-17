@@ -1227,11 +1227,20 @@ function DetailHeader({
             })}
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 flex-wrap justify-end gap-y-2 relative z-10 max-w-full">
           {/* Summarize — System's read of the thread for an agent
               taking over a long conversation. Always available;
               the endpoint says "no messages yet" if there's
-              nothing to summarize. */}
+              nothing to summarize.
+
+              2026-06-17 — row now wraps and has z-index. User
+              reported "Close button not working" — Customer
+              panel column was overlapping the buttons at
+              certain viewports, and overflow-visible meant
+              buttons spilled into the right panel's stacking
+              context, making them visually present but
+              click-blocked by the panel underneath. Wrap +
+              z-10 keeps every button reachable. */}
           <button
             type="button"
             onClick={onSummarize}
