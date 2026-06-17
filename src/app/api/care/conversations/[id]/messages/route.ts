@@ -188,7 +188,8 @@ export async function POST(
     }));
 
   const productContext = await getProductContextForTenant(conversation.companyId);
-  const systemPrompt = buildCareSystemPrompt({ productContext });
+  const medium = body.medium ?? "text";
+  const systemPrompt = buildCareSystemPrompt({ productContext, medium });
   const userMessage = buildCareUserMessage({
     newMessage: body.body,
     context: { productContext, recentTurns },
@@ -202,6 +203,7 @@ export async function POST(
     const r = await generateCareReply({
       systemPrompt,
       userMessage,
+      medium,
     });
     aiText = r.text.trim();
   } catch (err) {

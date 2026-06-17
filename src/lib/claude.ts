@@ -477,14 +477,24 @@ export async function generateCareReply(args: {
   companyId?: string;
   systemPrompt: string;
   userMessage: string;
+  /** "voice" tightens maxTokens because the customer is sitting
+   *  in silence waiting for synthesis + playback. Every token
+   *  is dead air. Defaults to "text". */
+  medium?: "text" | "voice";
 }): Promise<CallResult> {
+  // Voice replies should be 1-2 sentences — see VOICE_ADDENDUM in
+  // src/lib/care/prompt.ts. 120 tokens caps generation at ~80
+  // words / ~25 seconds of speech in the worst case; the system
+  // prompt drives most replies much shorter than that. The token
+  // cap is the hard ceiling that protects against runaway
+  // long-form replies even if the model ignores the prompt.
+  //
+  // Text replies stay at 600 (1-4 sentences with headroom).
+  const maxTokens = args.medium === "voice" ? 120 : 600;
   return call({
     companyId: args.companyId,
     expectJson: false,
-    // Replies should be short — 1-4 sentences typical. 600 tokens
-    // is generous for that; gives room for the occasional longer
-    // reply when the customer asked something complex.
-    maxTokens: 600,
+    maxTokens,
     systemPrompt: args.systemPrompt,
     userContent: args.userMessage,
   });

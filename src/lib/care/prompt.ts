@@ -83,19 +83,48 @@ Format:
   - End with either a clear next step or a clear handoff. Don't trail off.`;
 
 /**
+ * Voice-mode addendum — appended to the system prompt when the
+ * customer is on a phone call with Jeff (not text). The whole
+ * reply will be spoken aloud and the customer is waiting in
+ * silence while it generates + synthesizes + downloads + plays,
+ * so brevity compounds: shorter text = less LLM generation time
+ * + less TTS synthesis time + less audio = much shorter pause.
+ *
+ * Added 2026-06-17 after user reported "Jeff is taking a lot of
+ * pause" on voice calls. The cheap latency wins (VAD tightening,
+ * flash TTS model) helped at the edges; this is the structural
+ * fix — make the thing being generated shorter.
+ */
+const VOICE_ADDENDUM = `
+
+VOICE MODE — the customer is on a phone call with you. Your reply will be spoken aloud, not read. Three hard rules:
+  1. ONE OR TWO sentences. Not three. If you can answer in eight words, do.
+  2. No lists, no enumeration, no "first... second... third...". Lists sound terrible spoken.
+  3. No URLs, no email addresses, no code snippets, no "click the link". Voice can't render those.
+
+The customer is sitting in silence waiting for you. Every extra sentence is dead air on their end. Match the medium — talk like a person on a call, not write like an email.`;
+
+/**
  * Build the system prompt for a customer-facing AI response.
  * The product context (per-tenant) is injected so the AI knows
  * what product it's representing. The recent conversation gives
  * it continuity. Customer info personalizes when present.
+ *
+ * medium="voice" appends a strict brevity directive — see
+ * VOICE_ADDENDUM above for the reasoning.
  */
 export function buildCareSystemPrompt(args: {
   productContext?: string;
+  medium?: "text" | "voice";
 }): string {
   const sections = [IDENTITY];
   if (args.productContext) {
     sections.push(
       `\n\nPRODUCT CONTEXT — what you're representing:\n${args.productContext}\n\nIf the customer asks about something outside this context, treat it as a hand-off case.`
     );
+  }
+  if (args.medium === "voice") {
+    sections.push(VOICE_ADDENDUM);
   }
   return sections.join("");
 }
