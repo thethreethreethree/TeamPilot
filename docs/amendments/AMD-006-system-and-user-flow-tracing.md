@@ -240,3 +240,15 @@ This is not a license for the agent to:
 Founder directive ratifies. Constitutional edit to CLAUDE.md applies in the same commit per §7.4. Status of AMD-006 stays `ratified`; this is operating-rule expansion, not principle change.
 
 Per §7.5 distrust-of-evolution: if this addendum produces measurably worse outcomes (e.g., agent surfaces overwhelm signal-to-noise, agent refactors without confirmation), it is itself eligible for counter-amendment. The rule is not a one-way ratchet.
+
+### Quote correction — same-session clarification
+
+The original directive transcribed at the top of this addendum read *"…proactively search for ways to improve…"* — the founder clarified the intent same-session as *"…proactively THINK AND SEARCH for ways to improve…"*. The distinction is load-bearing: searching is mechanical (grep, look at code), thinking is generative (form hypotheses about how the system could be better). The rule requires both.
+
+Operating amplification (appended, not rewritten):
+
+- **THINK first, then search.** When the agent is on a task, it forms hypotheses about what could be wrong or could be better in the surrounding system *before* it goes looking. The hypotheses guide the search; the search confirms or denies them.
+- **Search alone is mechanical.** Five greps that find no problem are not the rule satisfied — they're the rule lazily applied. The rule asks: what could go wrong here that we wouldn't see by grepping? Then look for that.
+- **The bar for surfacing.** A finding worth surfacing is one the agent *thought about* and either has evidence for or has a clear path to confirm. Pattern-matching to "things SaaS tools usually have wrong" is not the rule satisfied — that's surface-level checklist work.
+
+This clarification doesn't change the ratification status — the operating intent was always THINK + SEARCH. The original quote captured only half the intent; this addendum corrects it on the record per §3.1 (append-only).

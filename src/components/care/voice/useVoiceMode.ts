@@ -78,6 +78,21 @@ const VAD_MIN_SPEECH_MS = 250; // ignore tiny clicks/breaths
 const SILENT_WAV_DATA_URI =
   "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 
+// Development-only debug logger for the voice loop. Earlier
+// rounds of debugging left raw console.log calls scattered
+// through this file — they fired in production and noised up
+// the customer's devtools console. Gating them behind NODE_ENV
+// keeps them as a developer affordance without leaking. The
+// console.error calls below (provider auth failures,
+// audio.play rejections, etc.) stay unconditional — those are
+// operator-side production diagnostics.
+const voiceDebug = (msg: string) => {
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log(msg);
+  }
+};
+
 export function useVoiceMode(args: {
   ensureSession: () => Promise<StoredSession | null>;
   onCustomerMessageOptimistic: (args: {
@@ -415,7 +430,7 @@ export function useVoiceMode(args: {
     audioChunksRef.current = [];
     speechStartedAtRef.current = null;
     lastEnergyAboveAtRef.current = null;
-    console.log(`[care/voice] armRecorder — fresh recorder, chunks cleared`);
+    voiceDebug(`[care/voice] armRecorder — fresh recorder, chunks cleared`);
 
     const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
@@ -428,7 +443,7 @@ export function useVoiceMode(args: {
       if (!callActiveRef.current) return;
 
       const turnId = Math.random().toString(36).slice(2, 8);
-      console.log(`[care/voice][${turnId}] onstop fired`);
+      voiceDebug(`[care/voice][${turnId}] onstop fired`);
 
       // Every failure / early-exit path needs to release the
       // turn-lock so the next customer utterance can fire a
@@ -452,13 +467,13 @@ export function useVoiceMode(args: {
       const audioBlob = new Blob(audioChunksRef.current, {
         type: recorder.mimeType || "audio/webm",
       });
-      console.log(
+      voiceDebug(
         `[care/voice][${turnId}] audioBlob size=${audioBlob.size} chunks=${audioChunksRef.current.length}`
       );
       if (audioBlob.size === 0) {
         // Empty chunk — rearm and keep listening. Lock was never
         // taken; no release needed but we still want the grace.
-        console.log(`[care/voice][${turnId}] empty blob, grace then arm`);
+        voiceDebug(`[care/voice][${turnId}] empty blob, grace then arm`);
         await new Promise<void>((r) => setTimeout(r, 300));
         if (callActiveRef.current) armRecorder();
         return;
@@ -497,7 +512,7 @@ export function useVoiceMode(args: {
         }
         const data = await sttRes.json();
         transcript = (data.transcript as string) ?? "";
-        console.log(
+        voiceDebug(
           `[care/voice][${turnId}] STT transcript: "${transcript}"`
         );
       } catch {
@@ -550,7 +565,7 @@ export function useVoiceMode(args: {
         // /messages response truly contains the new reply, or
         // whether we're picking a stale AI message from the
         // returned array.
-        console.log(
+        voiceDebug(
           `[care/voice][${turnId}] /messages returned ${updated.length} msgs, ` +
             `lastAi="${(lastAi?.body ?? "<none>").slice(0, 80)}..."`
         );
@@ -563,11 +578,11 @@ export function useVoiceMode(args: {
 
       // 3. Play Jeff's reply.
       if (aiReplyText) {
-        console.log(
+        voiceDebug(
           `[care/voice][${turnId}] speakReply len=${aiReplyText.length}`
         );
         await speakReply(aiReplyText, active.sessionToken);
-        console.log(`[care/voice][${turnId}] speakReply done`);
+        voiceDebug(`[care/voice][${turnId}] speakReply done`);
       }
 
       // 4. ACTIVE grace — block here for 500ms before arming
@@ -585,7 +600,7 @@ export function useVoiceMode(args: {
 
       // 5. Re-arm if call is still active.
       if (callActiveRef.current) {
-        console.log(`[care/voice][${turnId}] rearming after grace`);
+        voiceDebug(`[care/voice][${turnId}] rearming after grace`);
         setVoicePhase("listening");
         armRecorder();
       }
