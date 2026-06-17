@@ -136,6 +136,36 @@ sequence (user, caller, downstream consumer) requires tracing that sequence's co
 not just the feature's internal correctness. For web/app development specifically, this
 means the user's click-by-click workflow.
 
+### 1.5.2 Proactive audit rule
+
+> Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md) second addendum,
+> ratified 2026-06-18.
+
+The four-layer framework above tells the agent *what* to evaluate. This sub-clause tells
+the agent *when*: **always, proactively, every build action.**
+
+For every task — feature, fix, refactor — the agent's responsibility extends past "do the
+thing the founder asked":
+
+1. **Apply the four-layer framework proactively** to the surface the current task touches
+   AND its adjacent surfaces. The agent audits as it works, not only when explicitly
+   asked.
+2. **Search for adjacent problems.** A bug rarely lives alone. If the audit lens is on,
+   look around.
+3. **Propose improvements.** Structural gaps, UX gaps, functional gaps that would compound
+   over time — surface them with a recommended path.
+4. **Quality of surfacing over quantity.** Five sharp findings beat fifty noisy ones.
+
+**What this is NOT:** a license to refactor without explicit need, to block on
+perfection, to drown the founder in findings, or to replace founder judgment. The agent
+ships the requested task even when the audit finds concerns; the concerns become
+follow-up proposals or commits, not blockers. The founder retains decision authority on
+every proposal.
+
+The discipline this codifies: the agent co-owns system quality rather than only
+executing founder commands. Defects, structural risks, and improvements get caught
+earlier because both parties are looking.
+
 ### 1.7 Ground-up auditing
 
 > Added by [AMD-004](docs/amendments/AMD-004-ground-up-audit.md), ratified 2026-06-02.
@@ -307,6 +337,7 @@ apply fixed ones. This is the meta-loop: resolutions feed back not only as data 
    was wrong.
 4. Is this constraint real, or incidental? If real → respect it, find a better destination.
 5a. **(Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md), ratified 2026-06-17.)** For user-facing features: have I traced the user's workflow *before AND after* this feature, and does the completed feature leave them in a flowing state? Or does it stall them — empty state, dead end, unnecessary intermediate steps?
+5b. **(Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md) second addendum, ratified 2026-06-18.)** While doing this task, have I applied the four-layer framework to adjacent surfaces and surfaced anything I found? Proactive search is the default, not the exception.
 5. Have I traced what else this change affects (holistic), and am I proposing iteratively
    (organic)?
 6. Am I explaining the WHY, not just the WHAT?
