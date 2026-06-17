@@ -5,6 +5,7 @@ import {
   Loader2,
   MessageCircle,
   Phone,
+  RotateCcw,
   Send,
   X,
 } from "lucide-react";
@@ -192,6 +193,21 @@ export function CareChatWidget() {
     onError: setError,
   });
 
+  // Reset the conversation. Ends any in-flight voice call, wipes
+  // local state, and clears the stored session — the next message
+  // the customer sends starts a brand-new conversation on the
+  // server. The previous conversation row stays in the agent
+  // inbox; we're just giving the customer a clean slate.
+  const resetConversation = useCallback(() => {
+    if (voiceMode) endCall();
+    clearSession();
+    setSession(null);
+    setMessages([]);
+    setConversationClosed(false);
+    setError(null);
+    setDraft("");
+  }, [voiceMode, endCall]);
+
   const handleSend = async () => {
     const body = draft.trim();
     if (!body || sending) return;
@@ -293,14 +309,40 @@ export function CareChatWidget() {
                 Typical reply: a few seconds
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close chat"
-              className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-surface-raised"
-            >
-              <X className="w-4 h-4" aria-hidden />
-            </button>
+            <div className="flex items-center gap-1">
+              {/* Reset — start a fresh conversation. Only shown
+                  when there's an existing session; nothing to
+                  reset on a brand-new widget open. Confirm-on-
+                  click so the customer doesn't lose their thread
+                  to a fat-finger. */}
+              {session && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Start a new conversation? Your current one will stay with our team but you'll be talking on a fresh thread."
+                      )
+                    ) {
+                      resetConversation();
+                    }
+                  }}
+                  aria-label="Start a new conversation"
+                  title="Start a new conversation"
+                  className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-surface-raised"
+                >
+                  <RotateCcw className="w-4 h-4" aria-hidden />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close chat"
+                className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-surface-raised"
+              >
+                <X className="w-4 h-4" aria-hidden />
+              </button>
+            </div>
           </div>
 
           {/* Message stream */}

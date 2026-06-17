@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, MessageCircle, Phone, Send, X } from "lucide-react";
+import { Loader2, MessageCircle, Phone, RotateCcw, Send, X } from "lucide-react";
 import { VoiceSurface } from "./voice/VoiceSurface";
 import { useVoiceMode } from "./voice/useVoiceMode";
 
@@ -295,6 +295,21 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     onError: setError,
   });
 
+  // Reset: end any voice call, wipe local session, clear messages.
+  // The next message starts a fresh conversation server-side. The
+  // previous one stays in the agent inbox for follow-up; the
+  // customer just gets a clean slate to start a new topic.
+  const resetConversation = useCallback(() => {
+    if (voiceMode) endCall();
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(storageKey);
+    }
+    setSession(null);
+    setMessages([]);
+    setError(null);
+    setDraft("");
+  }, [voiceMode, endCall, storageKey]);
+
   if (!bootstrapped) {
     return (
       <div className="fixed bottom-4 right-4 w-14 h-14 rounded-full bg-surface flex items-center justify-center">
@@ -343,14 +358,35 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
               </p>
               <p className="text-[11px] text-muted">{config.subtitle}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-              className="text-muted hover:text-primary p-1.5 rounded-lg hover:bg-surface-raised"
-            >
-              <X className="w-4 h-4" aria-hidden />
-            </button>
+            <div className="flex items-center gap-1">
+              {session && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Start a new conversation? Your current one will stay with our team but you'll be talking on a fresh thread."
+                      )
+                    ) {
+                      resetConversation();
+                    }
+                  }}
+                  aria-label="Start a new conversation"
+                  title="Start a new conversation"
+                  className="text-muted hover:text-primary p-1.5 rounded-lg hover:bg-surface-raised"
+                >
+                  <RotateCcw className="w-4 h-4" aria-hidden />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="text-muted hover:text-primary p-1.5 rounded-lg hover:bg-surface-raised"
+              >
+                <X className="w-4 h-4" aria-hidden />
+              </button>
+            </div>
           </div>
 
           {/* Stream */}
