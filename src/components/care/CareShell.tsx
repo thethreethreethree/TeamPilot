@@ -102,7 +102,7 @@ export function CareShell({ children }: { children: React.ReactNode }) {
                 C.A.R.E
               </p>
               <p className="text-[9px] uppercase tracking-widest text-white/40 mt-0.5">
-                Assist · Respond · Engine
+                Customer · Assist · Respond · Engine
               </p>
             </div>
           </div>

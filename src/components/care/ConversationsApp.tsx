@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
+  Brain,
   CheckCircle2,
   Clock,
   Filter,
   Inbox,
+  Lightbulb,
   ListChecks,
   Loader2,
   Lock,
@@ -17,6 +20,8 @@ import {
   Sparkles,
   StickyNote,
   UserCheck,
+  Wand2,
+  X,
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
 import { priorityDisplay, tagTone } from "@/lib/care/tagColors";
@@ -181,6 +186,13 @@ export function ConversationsApp({
   const [aiOriginalDraft, setAiOriginalDraft] = useState<string | null>(null);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [spawnTaskOpen, setSpawnTaskOpen] = useState(false);
+  // Phase 8 (chat-tools port) — four agent helpers on the
+  // conversation surface. State lives here so the modals can
+  // render at the top level and the buttons can live in
+  // DetailHeader / Composer via props.
+  const [summarizeOpen, setSummarizeOpen] = useState(false);
+  const [formulateOpen, setFormulateOpen] = useState(false);
+  const [askCoachOpen, setAskCoachOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -796,6 +808,7 @@ export function ConversationsApp({
                 conversation={selected}
                 acting={acting}
                 onClaim={claim}
+                onSummarize={() => setSummarizeOpen(true)}
                 onResolve={() => setResolveModalOpen(true)}
                 onClose={() => {
                   // Close = terminal state without a resolution
@@ -856,6 +869,8 @@ export function ConversationsApp({
                   composerRef={composerRef}
                   conversationId={selected.id}
                   onSpawnTask={() => setSpawnTaskOpen(true)}
+                  onFormulate={() => setFormulateOpen(true)}
+                  onAskCoach={() => setAskCoachOpen(true)}
                   isEmailChannel={selected.source === "email"}
                 />
               )}
@@ -940,6 +955,35 @@ export function ConversationsApp({
               "Spawned from this conversation — find it in Tasks."
             );
           }}
+        />
+      )}
+
+      {/* Phase 8 chat-tools port — three agent helpers as
+          slide-out / modal surfaces. Each renders only when
+          its toggle is open AND a conversation is selected. */}
+      {selected && summarizeOpen && (
+        <SummarizeCarePanel
+          conversationId={selected.id}
+          onClose={() => setSummarizeOpen(false)}
+        />
+      )}
+      {selected && formulateOpen && (
+        <FormulateCarePanel
+          conversationId={selected.id}
+          onClose={() => setFormulateOpen(false)}
+          onApply={(draftText) => {
+            setDraft(draftText);
+            setFormulateOpen(false);
+            composerRef.current?.focus();
+          }}
+        />
+      )}
+      {selected && askCoachOpen && (
+        <AskCoachCarePanel
+          conversationId={selected.id}
+          draft={draft}
+          coPilotReasoning={aiReasoning}
+          onClose={() => setAskCoachOpen(false)}
         />
       )}
     </div>
@@ -1033,6 +1077,7 @@ function DetailHeader({
   onResolve,
   onClose,
   onPriorityChange,
+  onSummarize,
 }: {
   conversation: Conversation;
   acting: boolean;
@@ -1040,6 +1085,7 @@ function DetailHeader({
   onResolve: () => void;
   onClose: () => void;
   onPriorityChange: (priority: string) => void;
+  onSummarize: () => void;
 }) {
   const dl = careStatusDisplay(conversation.status);
   const Icon = dl.icon;
@@ -1094,6 +1140,35 @@ function DetailHeader({
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Summarize — System's read of the thread for an agent
+              taking over a long conversation. Always available;
+              the endpoint says "no messages yet" if there's
+              nothing to summarize. */}
+          <button
+            type="button"
+            onClick={onSummarize}
+            disabled={acting}
+            title="Get the System's read of this conversation so far"
+            className="inline-flex items-center gap-1.5 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+          >
+            <Sparkles className="w-3.5 h-3.5" aria-hidden />
+            Summarize
+          </button>
+          {/* Open as Decision Dialogue — escalates a tough
+              customer case to the §3.1 structured internal call.
+              For v1 routes to /dashboard/decisions/new with the
+              conversation context as the seed; full inline-in-
+              thread integration is queued for a follow-up. */}
+          {conversation.status !== "closed" && (
+            <Link
+              href={`/dashboard/decisions/new?fromCareConversation=${conversation.id}`}
+              title="Open this as a structured internal Decision Dialogue"
+              className="inline-flex items-center gap-1.5 text-xs text-brand border border-[#FACC15]/40 hover:border-[#FACC15]/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+            >
+              <Brain className="w-3.5 h-3.5" aria-hidden />
+              Open as Decision Dialogue
+            </Link>
+          )}
           {conversation.aiResponding && (
             <button
               type="button"
@@ -1482,6 +1557,8 @@ function Composer({
   aiReasoning,
   composerRef,
   onSpawnTask,
+  onFormulate,
+  onAskCoach,
   isEmailChannel,
 }: {
   draft: string;
@@ -1496,6 +1573,8 @@ function Composer({
   composerRef: React.RefObject<HTMLTextAreaElement | null>;
   conversationId: string;
   onSpawnTask: () => void;
+  onFormulate: () => void;
+  onAskCoach: () => void;
   isEmailChannel?: boolean;
 }) {
   return (
@@ -1527,6 +1606,25 @@ function Composer({
         <div className="flex-1" />
         {!isInternalNote && (
           <>
+            <button
+              type="button"
+              onClick={onFormulate}
+              title="Tell the System what you want to say; it shapes your intent into a clear reply"
+              className="text-[11px] font-semibold text-secondary border border-default hover:border-strong hover:text-primary inline-flex items-center gap-1 px-2 py-0.5 rounded"
+            >
+              <Lightbulb className="w-3 h-3" aria-hidden />
+              Help me formulate
+            </button>
+            <button
+              type="button"
+              onClick={onAskCoach}
+              disabled={!draft.trim()}
+              title="Get Coach feedback on your draft BEFORE you send it"
+              className="text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-0.5 rounded"
+            >
+              <Wand2 className="w-3 h-3" aria-hidden />
+              Ask Coach
+            </button>
             <button
               type="button"
               onClick={onAiCoPilot}
@@ -1820,5 +1918,368 @@ function PaneSplitter({
       onMouseDown={onMouseDown}
       className="w-1 flex-shrink-0 bg-default/40 hover:bg-[#FACC15]/40 active:bg-[#FACC15]/60 cursor-col-resize transition-colors"
     />
+  );
+}
+
+// ─── Chat-tools port: Summarize / Formulate / Ask Coach ──────
+
+/**
+ * Slide-out modal showing the System's read of the thread.
+ * Per §A11 the System's read is "confirm-or-correct" — the
+ * agent renders the verdict.
+ */
+function SummarizeCarePanel({
+  conversationId,
+  onClose,
+}: {
+  conversationId: string;
+  onClose: () => void;
+}) {
+  const [summary, setSummary] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/care/agent/conversations/${conversationId}/summarize`,
+          { method: "POST" }
+        );
+        if (!res.ok) {
+          setError("Couldn't generate a summary.");
+          return;
+        }
+        const data = await res.json();
+        setSummary(data.summary ?? "");
+      } catch {
+        setError("Couldn't reach the server.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [conversationId]);
+  return (
+    <ToolPanelShell title="Summary" onClose={onClose}>
+      {loading && (
+        <p className="text-xs text-muted flex items-center gap-2">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+          Reading the thread…
+        </p>
+      )}
+      {error && <p className="text-xs text-red-300">{error}</p>}
+      {summary && (
+        <>
+          <p className="text-xs uppercase tracking-widest text-muted font-bold mb-2">
+            The System&apos;s read
+          </p>
+          <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
+            {summary}
+          </p>
+          <p className="text-[10px] text-muted italic mt-3">
+            §3.3 — this is the System&apos;s read, not a verdict.
+            Confirm or correct it against the conversation itself.
+          </p>
+        </>
+      )}
+    </ToolPanelShell>
+  );
+}
+
+/**
+ * Slide-out modal that asks the agent for their intent, then
+ * shapes it into a draft. Different from AI Co-Pilot — the
+ * agent leads, the System edits.
+ */
+function FormulateCarePanel({
+  conversationId,
+  onClose,
+  onApply,
+}: {
+  conversationId: string;
+  onClose: () => void;
+  onApply: (draft: string) => void;
+}) {
+  const [intent, setIntent] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const [result, setResult] = useState<{
+    draft: string;
+    reasoning: string;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!intent.trim() || drafting) return;
+    setDrafting(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/care/agent/conversations/${conversationId}/formulate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ intent }),
+        }
+      );
+      if (!res.ok) {
+        setError("Couldn't formulate a draft.");
+        return;
+      }
+      const data = await res.json();
+      setResult({ draft: data.draft, reasoning: data.reasoning });
+    } catch {
+      setError("Couldn't reach the server.");
+    } finally {
+      setDrafting(false);
+    }
+  };
+
+  return (
+    <ToolPanelShell title="Help me formulate" onClose={onClose}>
+      {!result ? (
+        <>
+          <p className="text-xs text-secondary leading-relaxed mb-3">
+            Tell the System what you want to communicate. The System
+            shapes your intent into a clear reply in the C.A.R.E
+            voice — you stay in the driver&apos;s seat.
+          </p>
+          <textarea
+            value={intent}
+            onChange={(e) => setIntent(e.target.value)}
+            rows={4}
+            placeholder="e.g. tell them the refund will land in 5-7 business days, acknowledge the wait was longer than usual, offer to follow up if it doesn't arrive"
+            className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y leading-relaxed"
+          />
+          {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
+          <div className="flex justify-end mt-3">
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={!intent.trim() || drafting}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] px-3 py-1.5 rounded-md"
+            >
+              {drafting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Lightbulb className="w-3.5 h-3.5" aria-hidden />
+              )}
+              Shape my draft
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-xs uppercase tracking-widest text-muted font-bold mb-2">
+            Draft
+          </p>
+          <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap bg-surface/40 border border-default rounded-md p-3">
+            {result.draft}
+          </p>
+          {result.reasoning && (
+            <p className="text-[10px] text-muted italic mt-2">
+              Move: {result.reasoning}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => setResult(null)}
+              className="text-xs text-secondary hover:text-primary border border-default hover:border-strong px-3 py-1.5 rounded-md"
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              onClick={() => onApply(result.draft)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] px-3 py-1.5 rounded-md"
+            >
+              Use this draft
+            </button>
+          </div>
+        </>
+      )}
+    </ToolPanelShell>
+  );
+}
+
+/**
+ * Slide-out modal showing pre-send Coach feedback on the
+ * current draft. §A11 counts surfaced; agent renders verdict.
+ * §A16 direction 2 composition — passes Co-Pilot reasoning
+ * when available so deliberate shape choices don't get
+ * penalized.
+ */
+function AskCoachCarePanel({
+  conversationId,
+  draft,
+  coPilotReasoning,
+  onClose,
+}: {
+  conversationId: string;
+  draft: string;
+  coPilotReasoning: string | null;
+  onClose: () => void;
+}) {
+  type Counts = {
+    positive: {
+      acknowledged: 0 | 1;
+      answered: 0 | 1;
+      next_step: 0 | 1;
+    };
+    risks: {
+      unsupported_absolutes: number;
+      fabricated_specifics: number;
+      empty_filler: number;
+    };
+    reason_internal: string;
+  };
+  const [counts, setCounts] = useState<Counts | null>(null);
+  const [reason, setReason] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/care/agent/conversations/${conversationId}/ask-coach`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              draft,
+              coPilotReasoning: coPilotReasoning ?? null,
+            }),
+          }
+        );
+        if (!res.ok) {
+          setError("Couldn't get Coach feedback.");
+          return;
+        }
+        const data = await res.json();
+        setCounts(data.counts ?? null);
+        setReason(data.reasonInternal ?? null);
+      } catch {
+        setError("Couldn't reach the server.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [conversationId, draft, coPilotReasoning]);
+
+  return (
+    <ToolPanelShell title="Ask Coach" onClose={onClose}>
+      <p className="text-xs text-secondary leading-relaxed mb-3">
+        Pre-send feedback on your draft. The Coach counts what&apos;s
+        present and what&apos;s flagged — you decide whether the
+        pattern is fair before you Send.
+      </p>
+      {loading && (
+        <p className="text-xs text-muted flex items-center gap-2">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+          Reading your draft…
+        </p>
+      )}
+      {error && <p className="text-xs text-red-300">{error}</p>}
+      {counts && (
+        <>
+          <div className="flex flex-wrap items-center gap-1 mb-2">
+            {counts.positive.acknowledged === 1 ? (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                ✓ acknowledged
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted bg-surface border border-default px-1.5 py-0.5 rounded">
+                0 acknowledgment
+              </span>
+            )}
+            {counts.positive.answered === 1 ? (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                ✓ answered
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted bg-surface border border-default px-1.5 py-0.5 rounded">
+                0 answer
+              </span>
+            )}
+            {counts.positive.next_step === 1 ? (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                ✓ next step
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted bg-surface border border-default px-1.5 py-0.5 rounded">
+                0 next step
+              </span>
+            )}
+            {counts.risks.unsupported_absolutes > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                {counts.risks.unsupported_absolutes} unsupported absolute
+                {counts.risks.unsupported_absolutes > 1 ? "s" : ""}
+              </span>
+            )}
+            {counts.risks.fabricated_specifics > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                {counts.risks.fabricated_specifics} fabricated specific
+                {counts.risks.fabricated_specifics > 1 ? "s" : ""}
+              </span>
+            )}
+            {counts.risks.empty_filler > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                {counts.risks.empty_filler} empty filler
+                {counts.risks.empty_filler > 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          {(reason || counts.reason_internal) && (
+            <p className="text-[11px] text-secondary leading-relaxed italic">
+              {reason ?? counts.reason_internal}
+            </p>
+          )}
+          <p className="text-[10px] text-muted italic mt-3">
+            §A11 — counts, not verdict. Edit if the pattern reads
+            unfair, then Send.
+          </p>
+        </>
+      )}
+    </ToolPanelShell>
+  );
+}
+
+/**
+ * Shared slide-out shell — right side panel, 400px wide on
+ * desktop. The tool panels share the same chrome so the agent
+ * gets a consistent surface.
+ */
+function ToolPanelShell({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex justify-end"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md bg-base border-l border-default h-full overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-3 border-b border-default flex items-center justify-between sticky top-0 bg-base">
+          <h2 className="text-sm font-semibold text-primary">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-muted hover:text-primary p-1 rounded hover:bg-surface-raised"
+          >
+            <X className="w-4 h-4" aria-hidden />
+          </button>
+        </div>
+        <div className="px-5 py-4">{children}</div>
+      </div>
+    </div>
   );
 }
