@@ -1319,6 +1319,119 @@ function rank(b: "v6" | "v5" | "ungraded"): number {
 }
 
 /**
+ * §4 Voice value readout — Phase 9 commit 2.
+ *
+ * The hypothesis under test: do conversations that used voice
+ * (at least one customer message arrived via STT) reach
+ * resolution durably at comparable or better rates than text-
+ * only?
+ *
+ * Same shape as the Co-Pilot value readout: bucket conversations
+ * by whether ANY of their customer messages had medium='voice',
+ * compute durability_held rate per bucket.
+ *
+ * Constitutional sources (consulted per §0.1):
+ *   - §A2 — this readout closes the §A2 design-backwards loop
+ *     for the voice reframe shipped in commit 1.
+ *   - §A3 — measures downstream consequence (durability), not
+ *     System agreement (e.g., "did the customer use the voice
+ *     feature").
+ *   - §A4 — sample sizes surfaced; UI confidence tier handles
+ *     the threshold judgment.
+ *   - §A11 — counts and rates, never verdicts.
+ *   - §A18 — comparison is across MEDIUMS (voice vs text), not
+ *     agents.
+ */
+export type VoiceValueReadout = {
+  windowDays: number;
+  companyId: string;
+  cohorts: {
+    voiceUsed: ReadoutCohort;
+    voiceNotUsed: ReadoutCohort;
+  };
+};
+
+export async function fetchVoiceValueReadout(args: {
+  companyId: string;
+  windowDays?: number;
+}): Promise<VoiceValueReadout> {
+  const sb = await createServerClient();
+  const windowDays = args.windowDays ?? 60;
+  const since = new Date(
+    Date.now() - windowDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data: checks } = await sb
+    .from("support_durability_checks")
+    .select("conversation_id, outcome")
+    .eq("company_id", args.companyId)
+    .not("outcome", "is", null)
+    .gte("checked_at", since)
+    .limit(5000);
+
+  type CheckRow = {
+    conversation_id: string;
+    outcome: "held" | "reopened" | "inconclusive";
+  };
+  const checkRows = (checks ?? []) as CheckRow[];
+
+  const init = (): ReadoutCohort => ({
+    conversationCount: 0,
+    durabilityHeld: 0,
+    durabilityReopened: 0,
+    durabilityInconclusive: 0,
+    durabilityHeldRate: null,
+  });
+  if (checkRows.length === 0) {
+    return {
+      windowDays,
+      companyId: args.companyId,
+      cohorts: { voiceUsed: init(), voiceNotUsed: init() },
+    };
+  }
+
+  const conversationIds = Array.from(
+    new Set(checkRows.map((c) => c.conversation_id))
+  );
+
+  // Classify each conversation: voiceUsed = ANY customer message
+  // had medium='voice'.
+  const { data: msgs } = await sb
+    .from("support_messages")
+    .select("conversation_id, medium")
+    .in("conversation_id", conversationIds)
+    .eq("author_type", "customer");
+
+  type MsgRow = { conversation_id: string; medium: string | null };
+  const voiceByConv = new Set<string>();
+  for (const m of (msgs ?? []) as MsgRow[]) {
+    if (m.medium === "voice") voiceByConv.add(m.conversation_id);
+  }
+
+  const cohorts = { voiceUsed: init(), voiceNotUsed: init() };
+  const counted = new Set<string>();
+  for (const c of checkRows) {
+    const bucket = voiceByConv.has(c.conversation_id)
+      ? cohorts.voiceUsed
+      : cohorts.voiceNotUsed;
+    if (!counted.has(c.conversation_id)) {
+      bucket.conversationCount += 1;
+      counted.add(c.conversation_id);
+    }
+    if (c.outcome === "held") bucket.durabilityHeld += 1;
+    else if (c.outcome === "reopened") bucket.durabilityReopened += 1;
+    else if (c.outcome === "inconclusive") bucket.durabilityInconclusive += 1;
+  }
+  for (const b of [cohorts.voiceUsed, cohorts.voiceNotUsed]) {
+    const total =
+      b.durabilityHeld + b.durabilityReopened + b.durabilityInconclusive;
+    b.durabilityHeldRate = total > 0 ? b.durabilityHeld / total : null;
+  }
+
+  return { windowDays, companyId: args.companyId, cohorts };
+}
+
+/**
  * §4 Co-Pilot value readout — do Co-Pilot-assisted replies
  * produce more durable resolutions than unassisted?
  *

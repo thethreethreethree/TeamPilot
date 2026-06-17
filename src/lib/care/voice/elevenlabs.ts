@@ -148,3 +148,46 @@ export async function transcribeSpeech(args: {
 }
 
 export { DEFAULT_VOICE_ID };
+
+/**
+ * Curated voice options for the tenant picker. Five ElevenLabs
+ * pre-made voices covering different shapes a support agent
+ * persona might want. Per §A4 the picker is intentionally small
+ * — the full library is hundreds of voices and would overwhelm
+ * the settings page. Tenants who want a different voice can
+ * request it; the field is freeform text in care_tenant_config
+ * so any valid voice ID works even if it's not in this list.
+ */
+export type CuratedVoice = {
+  id: string;
+  name: string;
+  description: string;
+};
+
+export const CURATED_VOICES: CuratedVoice[] = [
+  {
+    id: "ErXwobaYiN019PkySvjV",
+    name: "Antoni",
+    description: "Well-rounded conversational male · default",
+  },
+  {
+    id: "pNInz6obpgDQGcFmaJgB",
+    name: "Adam",
+    description: "Deep authoritative male",
+  },
+  {
+    id: "21m00Tcm4TlvDq8ikWAM",
+    name: "Rachel",
+    description: "Calm professional female",
+  },
+  {
+    id: "EXAVITQu4vr4xnSDxMaL",
+    name: "Bella",
+    description: "Soft friendly female",
+  },
+  {
+    id: "yoZ06aMxZJJ28mfd3POQ",
+    name: "Sam",
+    description: "Warm narrative male",
+  },
+];

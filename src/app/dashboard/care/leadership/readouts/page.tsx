@@ -63,6 +63,15 @@ type CoPilotValueReadout = {
   };
 };
 
+type VoiceValueReadout = {
+  windowDays: number;
+  companyId: string;
+  cohorts: {
+    voiceUsed: ReadoutCohort;
+    voiceNotUsed: ReadoutCohort;
+  };
+};
+
 type RoutingReadout = {
   windowDays: number;
   companyId: string;
@@ -126,6 +135,7 @@ function tier(c: ReadoutCohort): ConfidenceTier {
 export default function CareReadoutsPage() {
   const [readout, setReadout] = useState<CoachRubricReadout | null>(null);
   const [coPilot, setCoPilot] = useState<CoPilotValueReadout | null>(null);
+  const [voice, setVoice] = useState<VoiceValueReadout | null>(null);
   const [routing, setRouting] = useState<RoutingReadout | null>(null);
   const [slaWithDurability, setSlaWithDurability] =
     useState<SlaWithDurabilityReadout | null>(null);
@@ -149,6 +159,7 @@ export default function CareReadoutsPage() {
         const data = await res.json();
         setReadout(data.coachRubric ?? null);
         setCoPilot(data.coPilotValue ?? null);
+        setVoice(data.voiceValue ?? null);
         setRouting(data.routing ?? null);
         setSlaWithDurability(data.slaWithDurability ?? null);
         setPatternResolution(data.patternResolution ?? null);
@@ -256,6 +267,36 @@ export default function CareReadoutsPage() {
                     label="Unassisted"
                     hint="Agent typed every reply without Co-Pilot."
                     cohort={coPilot.cohorts.coPilotNotUsed}
+                    tone="muted"
+                  />
+                </div>
+              </section>
+            )}
+
+            {voice && (
+              <section>
+                <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
+                  Voice · durability comparison
+                </h2>
+                <p className="text-[11px] text-secondary leading-relaxed mb-3">
+                  Last {voice.windowDays} days. Conversations are
+                  split by whether ANY of their customer messages
+                  arrived via voice (STT). Same caveats apply —
+                  customer opt-in is non-random, so this is signal
+                  not proof. Worth tracking whether voice-using
+                  customers resolve as durably as text-only.
+                </p>
+                <div className="space-y-3">
+                  <CohortCard
+                    label="Voice-used"
+                    hint="Customer spoke at least once via the widget mic."
+                    cohort={voice.cohorts.voiceUsed}
+                    tone="emerald"
+                  />
+                  <CohortCard
+                    label="Text-only"
+                    hint="All customer messages were typed."
+                    cohort={voice.cohorts.voiceNotUsed}
                     tone="muted"
                   />
                 </div>

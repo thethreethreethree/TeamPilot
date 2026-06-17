@@ -5,6 +5,7 @@ import {
   fetchPatternResolutionReadout,
   fetchRoutingReadout,
   fetchSlaWithDurabilityReadout,
+  fetchVoiceValueReadout,
 } from "@/lib/data/care";
 import { createClient } from "@/lib/supabase/server";
 
@@ -64,6 +65,7 @@ export async function GET(req: NextRequest) {
     routing,
     slaWithDurability,
     patternResolution,
+    voiceValue,
   ] = await Promise.all([
     fetchCoachRubricReadout({
       companyId: profile.company_id,
@@ -83,11 +85,11 @@ export async function GET(req: NextRequest) {
     }),
     fetchPatternResolutionReadout({
       companyId: profile.company_id,
-      // Pattern-resolution uses a wider window by default
-      // because formation-to-after evidence accumulates slowly.
-      // If the caller passed windowDays, honor it; otherwise the
-      // function's 90-day default kicks in.
       ...(windowDaysParam ? { windowDays } : {}),
+    }),
+    fetchVoiceValueReadout({
+      companyId: profile.company_id,
+      windowDays,
     }),
   ]);
 
@@ -97,5 +99,6 @@ export async function GET(req: NextRequest) {
     routing,
     slaWithDurability,
     patternResolution,
+    voiceValue,
   });
 }

@@ -92,6 +92,11 @@ const PatchBody = z.object({
   aiProductContext: z.string().max(8000).optional().nullable(),
   aiTone: z.enum(["warm", "formal", "casual", "direct"]).optional(),
   aiResponseLength: z.enum(["short", "medium", "long"]).optional(),
+  // Phase 9 voice — ElevenLabs voice ID. Freeform text rather
+  // than enum so tenants can use any voice from the ElevenLabs
+  // library (the settings UI surfaces a curated picker but
+  // accepts overrides). NULL → use deployment default (Antoni).
+  voiceId: z.string().max(64).optional().nullable(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -119,6 +124,7 @@ export async function PATCH(req: NextRequest) {
   if (body.aiTone !== undefined) patch.ai_tone = body.aiTone;
   if (body.aiResponseLength !== undefined)
     patch.ai_response_length = body.aiResponseLength;
+  if (body.voiceId !== undefined) patch.voice_id = body.voiceId;
 
   const admin = createAdminClient();
   // Ensure a row exists (upsert by company_id).

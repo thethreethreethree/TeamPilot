@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Copy, Loader2, Save, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
+import { CURATED_VOICES } from "@/lib/care/voice/curated-client";
 
 // Normalize an origin entry the way Origin headers actually appear:
 //   "  https://Foo.com/  " → "https://foo.com"
@@ -61,6 +62,7 @@ type TenantConfig = {
   ai_product_context: string | null;
   ai_tone: "warm" | "formal" | "casual" | "direct";
   ai_response_length: "short" | "medium" | "long";
+  voice_id: string | null;
   plan: string;
   monthly_conversation_quota: number;
 };
@@ -126,6 +128,7 @@ export default function CareWidgetSettingsPage() {
           aiProductContext: draft.ai_product_context,
           aiTone: draft.ai_tone,
           aiResponseLength: draft.ai_response_length,
+          voiceId: draft.voice_id,
         }),
       });
       if (res.ok) {
@@ -445,6 +448,42 @@ export default function CareWidgetSettingsPage() {
                 </select>
               </div>
             </div>
+          </div>
+        </Section>
+
+        {/* Voice — Phase 9 commit 2. The widget surface itself
+            is customer-opt-in (they click the mic button); this
+            picker only changes which voice Jeff speaks with when
+            they do. */}
+        <Section
+          title="Jeff's voice"
+          subtitle="Which voice plays back Jeff's replies when a customer enters the voice conversation. Customers still have to opt in by clicking the mic button — this just picks the voice."
+        >
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+              Voice
+            </label>
+            <select
+              value={draft.voice_id ?? ""}
+              onChange={(e) =>
+                setDraft({ ...draft, voice_id: e.target.value || null })
+              }
+              className="w-full bg-base border border-default rounded-md px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"
+            >
+              <option value="">Deployment default (Antoni)</option>
+              {CURATED_VOICES.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} — {v.description}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted mt-2 leading-relaxed">
+              The voice plays only when a customer opts into voice
+              conversation in the widget. Need a voice not in this
+              list? Set a custom ElevenLabs voice ID via the API
+              directly; we kept this picker short so it doesn&apos;t
+              overwhelm the page.
+            </p>
           </div>
         </Section>
 
