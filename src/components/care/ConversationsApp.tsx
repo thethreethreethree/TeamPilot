@@ -649,7 +649,18 @@ export function ConversationsApp({
   // expected state, not just that the API returned 200.
   const runAction = async (
     body: Record<string, unknown>,
-    expect: { status?: string; priority?: string; claimed?: boolean } | null,
+    expect:
+      | {
+          status?: string;
+          priority?: string;
+          claimed?: boolean;
+          // null = expect cleared (column is NULL); true = expect set
+          // (column has a timestamp). Per the §1.6 divergence pattern
+          // — a guidance toggle that says success but didn't flip
+          // the column should surface, not silently lie.
+          guidanceSet?: boolean;
+        }
+      | null,
     successMsg: string
   ): Promise<boolean> => {
     if (!selected) return false;
@@ -702,6 +713,17 @@ export function ConversationsApp({
           await loadInbox();
           await loadDetail(selected.id);
           return false;
+        }
+        if (expect.guidanceSet !== undefined) {
+          const actualSet = fresh.supervisorGuidanceRequestedAt !== null;
+          if (actualSet !== expect.guidanceSet) {
+            toast.error(
+              `Supervisor guidance ${expect.guidanceSet ? "request" : "clear"} didn't stick — DB still reads "${actualSet ? "requested" : "cleared"}".`
+            );
+            await loadInbox();
+            await loadDetail(selected.id);
+            return false;
+          }
         }
       }
       toast.success(successMsg);
@@ -815,7 +837,10 @@ export function ConversationsApp({
           ? "clear_supervisor_guidance"
           : "request_supervisor_guidance",
       },
-      null,
+      // Bug fix: previously passed null, bypassing divergence
+      // detection. Now expresses the expected post-action state
+      // so runAction can verify the column actually changed.
+      { guidanceSet: !isRequested },
       isRequested
         ? "Cleared supervisor guidance request."
         : "Flagged for supervisor guidance."
@@ -1265,7 +1290,18 @@ export function ConversationsApp({
             if (nextAfter) {
               setSelectedId(nextAfter);
             } else {
-              void loadDetail(selected.id);
+              // Bug fix: previously fell back to
+              // loadDetail(selected.id) which reloaded the
+              // just-resolved conversation that's no longer in
+              // the current filter view (Mine / Unassigned /
+              // All open exclude resolved). The detail pane
+              // showed a conversation the user couldn't find
+              // in the list, creating a confusing
+              // ghost-selection state. Clearing the selection
+              // is the honest move — the existing
+              // "Select a conversation" empty state then
+              // surfaces correctly.
+              setSelectedId(null);
             }
           }}
         />

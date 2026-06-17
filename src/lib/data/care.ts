@@ -42,6 +42,10 @@ export type SupportConversation = {
   readingCompleteAt: string | null;
   // §1.1 captured outcome category (0036) for pattern detection.
   resolutionOutcomeCategory: string | null;
+  // Supervisor guidance flag (0044). Non-null when an agent has
+  // requested supervisor input on this conversation. Orthogonal
+  // to status — a conversation in any status can carry a flag.
+  supervisorGuidanceRequestedAt: string | null;
   createdAt: string;
 };
 
@@ -109,6 +113,8 @@ function mapConversation(row: Record<string, unknown>): SupportConversation {
     readingCompleteAt: (row.reading_complete_at as string | null) ?? null,
     resolutionOutcomeCategory:
       (row.resolution_outcome_category as string | null) ?? null,
+    supervisorGuidanceRequestedAt:
+      (row.supervisor_guidance_requested_at as string | null) ?? null,
     createdAt: row.created_at as string,
   };
 }
@@ -542,7 +548,9 @@ export type CannedResponse = {
 export type EnrichedConversation = SupportConversation & {
   priority: "urgent" | "high" | "normal" | "low";
   snoozedUntil: string | null;
-  supervisorGuidanceRequestedAt: string | null;
+  // supervisorGuidanceRequestedAt inherited via SupportConversation
+  // (was duplicated here when only EnrichedConversation surfaced
+  // it; now baseline so removed).
   slaFirstResponseMinutes: number;
   tags: SupportTag[];
   customer: SupportCustomer | null;
@@ -610,11 +618,12 @@ function mapEnrichedConversation(
     ? mapCustomer(row.support_customers as Record<string, unknown>)
     : null;
   return {
+    // supervisorGuidanceRequestedAt comes through via the base
+    // mapConversation now that it's a baseline column (was
+    // duplicated here when only EnrichedConversation had it).
     ...base,
     priority: (row.priority as EnrichedConversation["priority"]) ?? "normal",
     snoozedUntil: (row.snoozed_until as string | null) ?? null,
-    supervisorGuidanceRequestedAt:
-      (row.supervisor_guidance_requested_at as string | null) ?? null,
     slaFirstResponseMinutes:
       (row.sla_first_response_minutes as number) ?? 30,
     tags,
