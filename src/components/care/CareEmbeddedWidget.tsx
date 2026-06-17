@@ -88,35 +88,60 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     );
   }, [open]);
 
-  // Bootstrap config from the server.
-  useEffect(() => {
-    void (async () => {
-      try {
-        const res = await fetch(
-          `/api/care/widget/bootstrap?token=${encodeURIComponent(embedToken)}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data.ok && data.widget) {
-            setConfig({ ...DEFAULT_CONFIG, ...data.widget });
-          }
-        } else {
-          const data = await res.json().catch(() => ({}));
-          setBootstrapError(
-            data.reason === "origin_rejected"
-              ? "This domain isn't authorized for this widget."
-              : data.reason === "tenant_unknown"
-                ? "Widget config not found."
-                : "Couldn't load the widget."
-          );
+  // Bootstrap + refresh config from the server.
+  //
+  // L3.1 fix: previously this was a mount-only fetch — if the
+  // tenant operator changed the widget greeting / color / etc
+  // while a customer had the widget open, the customer kept
+  // seeing the OLD config until they reloaded the page.
+  // (The AI personality side updates automatically because
+  // ai_product_context is read server-side at every /messages
+  // call. The widget's visual config was the gap.)
+  //
+  // Three refresh triggers:
+  //   - Initial mount (unchanged)
+  //   - Window focus (customer came back from another tab,
+  //     potentially after the operator changed settings)
+  //   - 5-minute interval as backstop for long-lived sessions
+  //     where the customer never refocuses the tab
+  const loadConfig = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/care/widget/bootstrap?token=${encodeURIComponent(embedToken)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.widget) {
+          setConfig({ ...DEFAULT_CONFIG, ...data.widget });
         }
-      } catch {
-        setBootstrapError("Couldn't reach the server.");
-      } finally {
-        setBootstrapped(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setBootstrapError(
+          data.reason === "origin_rejected"
+            ? "This domain isn't authorized for this widget."
+            : data.reason === "tenant_unknown"
+              ? "Widget config not found."
+              : "Couldn't load the widget."
+        );
       }
-    })();
+    } catch {
+      setBootstrapError("Couldn't reach the server.");
+    } finally {
+      setBootstrapped(true);
+    }
   }, [embedToken]);
+  useEffect(() => {
+    void loadConfig();
+    const onFocus = () => {
+      void loadConfig();
+    };
+    window.addEventListener("focus", onFocus);
+    const interval = window.setInterval(loadConfig, 5 * 60 * 1000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(interval);
+    };
+  }, [loadConfig]);
 
   // Restore session from localStorage.
   useEffect(() => {

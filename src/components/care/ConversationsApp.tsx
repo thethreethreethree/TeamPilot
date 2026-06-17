@@ -840,9 +840,13 @@ export function ConversationsApp({
   };
 
   const bulkArchive = async () => {
+    // Naming: the internal action is "archive" but the user-
+    // facing verb matches the per-conversation header's "Close"
+    // for vocabulary consistency (L4.2 fix). Both set
+    // status='closed'; same operation, single word.
     await runBulk(
       { action: "status", status: "closed" },
-      (n) => `Archived ${n} conversation${n === 1 ? "" : "s"}.`
+      (n) => `Closed ${n} conversation${n === 1 ? "" : "s"}.`
     );
   };
   const bulkReopen = async () => {
@@ -2456,11 +2460,11 @@ function BulkActionBar({
           type="button"
           onClick={onArchive}
           disabled={acting}
-          title="Archive (set status to closed) — soft archive, not deletion"
+          title="Close — soft archive, conversation moves to Closed folder"
           className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-red-300 hover:border-red-500/50 disabled:opacity-50 px-2.5 py-1 rounded-md"
         >
-          <Archive className="w-3.5 h-3.5" aria-hidden />
-          Archive
+          <Lock className="w-3.5 h-3.5" aria-hidden />
+          Close
         </button>
       )}
       <button
