@@ -542,6 +542,7 @@ export type CannedResponse = {
 export type EnrichedConversation = SupportConversation & {
   priority: "urgent" | "high" | "normal" | "low";
   snoozedUntil: string | null;
+  supervisorGuidanceRequestedAt: string | null;
   slaFirstResponseMinutes: number;
   tags: SupportTag[];
   customer: SupportCustomer | null;
@@ -612,6 +613,8 @@ function mapEnrichedConversation(
     ...base,
     priority: (row.priority as EnrichedConversation["priority"]) ?? "normal",
     snoozedUntil: (row.snoozed_until as string | null) ?? null,
+    supervisorGuidanceRequestedAt:
+      (row.supervisor_guidance_requested_at as string | null) ?? null,
     slaFirstResponseMinutes:
       (row.sla_first_response_minutes as number) ?? 30,
     tags,
@@ -752,6 +755,46 @@ export async function unsnoozeConversation(
       .eq("id", conversationId)
       .select("id"),
     { context: "unsnoozeConversation" }
+  );
+}
+
+/**
+ * Flag a conversation as needing supervisor guidance. Sets
+ * supervisor_guidance_requested_at to NOW(). Independent of
+ * status — the conversation stays in its current customer-flow
+ * state (open / awaiting_customer / etc) while the flag is up.
+ *
+ * The agent inbox "Needs guidance" filter surfaces every
+ * conversation with a non-null timestamp. A supervisor reading
+ * the inbox sees the request; once they've responded (typically
+ * via an internal note in the thread), they call
+ * clearSupervisorGuidanceRequest to dismiss it.
+ */
+export async function requestSupervisorGuidance(
+  conversationId: string
+): Promise<void> {
+  const sb = await createServerClient();
+  await strictMutate(
+    sb
+      .from("support_conversations")
+      .update({ supervisor_guidance_requested_at: new Date().toISOString() })
+      .eq("id", conversationId)
+      .select("id"),
+    { context: "requestSupervisorGuidance" }
+  );
+}
+
+export async function clearSupervisorGuidanceRequest(
+  conversationId: string
+): Promise<void> {
+  const sb = await createServerClient();
+  await strictMutate(
+    sb
+      .from("support_conversations")
+      .update({ supervisor_guidance_requested_at: null })
+      .eq("id", conversationId)
+      .select("id"),
+    { context: "clearSupervisorGuidanceRequest" }
   );
 }
 

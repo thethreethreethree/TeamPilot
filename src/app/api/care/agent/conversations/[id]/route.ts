@@ -9,6 +9,8 @@ import {
   setConversationPriority,
   snoozeConversation,
   unsnoozeConversation,
+  requestSupervisorGuidance,
+  clearSupervisorGuidanceRequest,
   type SupportConversation,
 } from "@/lib/data/care";
 import { createClient } from "@/lib/supabase/server";
@@ -35,6 +37,8 @@ const PatchBody = z.object({
     "priority",
     "snooze",
     "unsnooze",
+    "request_supervisor_guidance",
+    "clear_supervisor_guidance",
   ]),
   status: z
     .enum(["open", "in_conversation", "awaiting_customer", "resolved", "closed"])
@@ -180,6 +184,13 @@ export async function PATCH(
       });
     } else if (body.action === "unsnooze") {
       await unsnoozeConversation(id);
+    } else if (body.action === "request_supervisor_guidance") {
+      // No extra permission gate — any agent on the company can
+      // ask for supervisor input on a conversation they have
+      // visibility on. The flag is signal, not authority.
+      await requestSupervisorGuidance(id);
+    } else if (body.action === "clear_supervisor_guidance") {
+      await clearSupervisorGuidanceRequest(id);
     }
   } catch (err) {
     return NextResponse.json(
