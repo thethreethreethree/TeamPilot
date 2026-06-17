@@ -363,20 +363,21 @@ export function useVoiceMode(args: {
       return;
     }
 
-    // ─── Permissions API pre-check ─────────────────────────
-    // If the browser has 'denied' cached, getUserMedia would
-    // throw NotAllowedError silently (no prompt). Catch that
-    // BEFORE the call so we can show the help panel with
-    // browser-specific recovery steps instead of a generic
-    // error.
-    const cachedState = await checkMicPermission();
-    if (cachedState === "denied") {
-      const browser = detectBrowser();
-      setPermissionDeniedSteps(getRecoverySteps(browser));
-      setVoicePhase("error");
-      setVoiceMode(true); // Open the surface so the help panel renders
-      return;
-    }
+    // ─── No Permissions API pre-check ──────────────────────
+    // Earlier versions ran navigator.permissions.query for
+    // microphone before getUserMedia to fast-path the "already
+    // denied" case. That produced false positives: the cached
+    // Permissions API state stays 'denied' for the lifetime of
+    // a tab even after the user manually changes the permission
+    // to 'allow' in chrome://settings. The user reported this
+    // 2026-06-17 with a screenshot showing Microphone=Allow in
+    // Chrome's site settings while our widget still said
+    // "blocked."
+    //
+    // The honest source of truth is getUserMedia itself — it
+    // respects the current permission state, not the cached one.
+    // So: skip the pre-check. Call getUserMedia. Only on its
+    // failure do we decide whether to show the denial panel.
 
     // ─── Request mic IMMEDIATELY (user-gesture context) ─────
     // No React state updates before this line. iOS Safari and
@@ -386,7 +387,19 @@ export function useVoiceMode(args: {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
-      const name = e instanceof Error ? e.name : "";
+      const name = e instanceof Error ? e.name : "unknown";
+      const message = e instanceof Error ? e.message : "";
+      // Always log the real error so we can diagnose production
+      // issues from devtools. The user on 2026-06-17 reported
+      // "Microphone is blocked" while chrome://settings clearly
+      // showed Allow — without the actual error name we can't
+      // tell whether the cause is iframe sandboxing, Permissions-
+      // Policy, OS-level permission, or something else.
+      if (typeof console !== "undefined") {
+        console.error(
+          `[care/voice] getUserMedia failed: name=${name} message="${message}"`
+        );
+      }
       if (name === "NotAllowedError" || name === "PermissionDeniedError") {
         // Permission denied via the prompt OR by a Permissions-
         // Policy block. Either way, the customer needs to enable

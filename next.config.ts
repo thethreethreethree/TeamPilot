@@ -37,9 +37,17 @@ const SECURITY_HEADERS = [
     key: "Permissions-Policy",
     // Disable APIs the product doesn't use. Easier to allow later than to
     // remember we never blocked them.
+    //
+    // 2026-06-17 — microphone changed from () to (self) for Phase 9 voice:
+    // Jeff's real-time call needs getUserMedia. The (self) origin restriction
+    // means same-origin frames can request the mic (the dashboard widget,
+    // the embedded widget served from /widget/care/...), but cross-origin
+    // host pages embedding our widget via care-widget.js still need their
+    // iframe element to declare allow="microphone" (handled in
+    // public/care-widget.js — confirmed there).
     value: [
       "camera=()",
-      "microphone=()",
+      "microphone=(self)",
       "geolocation=()",
       "interest-cohort=()",
       "browsing-topics=()",
