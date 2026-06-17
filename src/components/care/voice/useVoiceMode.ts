@@ -140,6 +140,11 @@ export function useVoiceMode(args: {
   const turnInFlightRef = useRef(false);
   const graceUntilMsRef = useRef(0);
   const phaseRef = useRef<VoicePhase>("idle");
+  // L1.4 concurrency guard for startCall (see startCall body for
+  // rationale). Set true synchronously at the top of startCall,
+  // cleared in teardown or on the getUserMedia error path so
+  // legitimate retries remain possible.
+  const callPendingRef = useRef(false);
 
   // Keep phaseRef in lock-step with voicePhase. The VAD tick uses
   // phaseRef.current to make decisions in real time — voicePhase
@@ -154,6 +159,7 @@ export function useVoiceMode(args: {
    */
   const teardown = useCallback(() => {
     callActiveRef.current = false;
+    callPendingRef.current = false;
     turnInFlightRef.current = false;
     graceUntilMsRef.current = 0;
     if (vadIntervalRef.current !== null) {
@@ -628,6 +634,18 @@ export function useVoiceMode(args: {
    */
   const startCall = useCallback(async () => {
     if (callActiveRef.current) return;
+    // L1.4 fix: callActiveRef is only flipped to true AFTER the
+    // getUserMedia await resolves. A second startCall invocation
+    // within that window (double-click, mobile double-tap, focus
+    // race) would also pass the guard above, then both invocations
+    // would await getUserMedia in parallel, create competing
+    // streams, and collide on recorder + VAD ownership. Pending
+    // ref is the synchronous gate — set NOW, before any await,
+    // cleared in teardown or on getUserMedia failure so retries
+    // remain possible. Pair with callActiveRef so legitimate
+    // restart flows still work.
+    if (callPendingRef.current) return;
+    callPendingRef.current = true;
 
     // ─── iOS Safari audio unlock (gesture-context required) ───
     // 2026-06-17 — user reported no audio on iPhone after a call
@@ -675,6 +693,9 @@ export function useVoiceMode(args: {
           ? "Voice calls require HTTPS. Reload the page on an https:// URL and try again."
           : "Your browser doesn't support voice calls. Try a recent version of Safari, Chrome, or Firefox."
       );
+      // Release the L1.4 concurrency guard so retries are
+      // possible (e.g., user fixes HTTPS or browser update).
+      callPendingRef.current = false;
       return;
     }
 
@@ -733,6 +754,10 @@ export function useVoiceMode(args: {
           `[care/voice] getUserMedia failed: name=${name} message="${message}"`
         );
       }
+      // Release the L1.4 concurrency guard on every error path
+      // below so retries (e.g., retryCall after the help panel)
+      // are possible.
+      callPendingRef.current = false;
       if (name === "NotAllowedError" || name === "PermissionDeniedError") {
         // Permission denied via the prompt OR by a Permissions-
         // Policy block. Either way, the customer needs to enable
