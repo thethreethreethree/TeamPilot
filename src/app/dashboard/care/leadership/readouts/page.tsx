@@ -73,6 +73,20 @@ type RoutingReadout = {
   };
 };
 
+type SlaWithDurabilityReadout = {
+  windowDays: number;
+  companyId: string;
+  totalConversations: number;
+  firstResponseMet: number;
+  firstResponseMetRate: number | null;
+  durabilityHeld: number;
+  durabilityHeldRate: number | null;
+  fullyHonored: number;
+  fullyHonoredRate: number | null;
+  falseSlaSuccesses: number;
+  falseSlaSuccessesRate: number | null;
+};
+
 /** §A4 confidence tier — surfaces sample-size uncertainty
  *  directly in the UI. Thresholds are themselves uncertainties
  *  (5/20/50 is a starting point; refine when §4 evidence
@@ -93,6 +107,8 @@ export default function CareReadoutsPage() {
   const [readout, setReadout] = useState<CoachRubricReadout | null>(null);
   const [coPilot, setCoPilot] = useState<CoPilotValueReadout | null>(null);
   const [routing, setRouting] = useState<RoutingReadout | null>(null);
+  const [slaWithDurability, setSlaWithDurability] =
+    useState<SlaWithDurabilityReadout | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +128,7 @@ export default function CareReadoutsPage() {
         setReadout(data.coachRubric ?? null);
         setCoPilot(data.coPilotValue ?? null);
         setRouting(data.routing ?? null);
+        setSlaWithDurability(data.slaWithDurability ?? null);
       } catch {
         setError("Couldn't reach the server.");
       } finally {
@@ -255,6 +272,30 @@ export default function CareReadoutsPage() {
                     tone="muted"
                   />
                 </div>
+              </section>
+            )}
+
+            {slaWithDurability && (
+              <section>
+                <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
+                  SLA + durability backstop
+                </h2>
+                <p className="text-[11px] text-secondary leading-relaxed mb-3">
+                  Last {slaWithDurability.windowDays} days. The
+                  category claim: meeting a first-response SLA is
+                  incomplete if the resolution reopens. The{" "}
+                  <span className="text-primary font-semibold">
+                    fully honored
+                  </span>{" "}
+                  rate (first-response met AND durability held) is
+                  the honest measure; the standard SLA metric is the
+                  comparison. The{" "}
+                  <span className="text-amber-300 font-semibold">
+                    false SLA successes
+                  </span>{" "}
+                  count is the failure mode the standard SLA hides.
+                </p>
+                <SlaBackstopCard data={slaWithDurability} />
               </section>
             )}
 
@@ -438,6 +479,143 @@ function Stat({
           <span className="text-[10px] font-mono text-muted"> of {total}</span>
         )}
       </p>
+    </div>
+  );
+}
+
+/**
+ * SLA + durability backstop — Phase 8 commit 1.
+ *
+ * Renders four counts side-by-side with the "honest measure"
+ * (fully honored) highlighted and the "blind spot" (false SLA
+ * successes) called out per §A11.
+ *
+ * A14 render branches:
+ *   - data.totalConversations === 0 → "Not enough resolved
+ *     conversations with completed durability checks yet"
+ *   - data.totalConversations > 0 → 4-cell grid
+ *   - data.falseSlaSuccesses === 0 → footer reframes positively
+ *   - data.falseSlaSuccesses > 0 → footer surfaces the blind
+ *     spot directly
+ */
+function SlaBackstopCard({ data }: { data: SlaWithDurabilityReadout }) {
+  const t = tier({
+    conversationCount: data.totalConversations,
+    durabilityHeld: 0,
+    durabilityReopened: 0,
+    durabilityInconclusive: 0,
+    durabilityHeldRate: null,
+  });
+  if (data.totalConversations === 0) {
+    return (
+      <div className="rounded-xl border border-default bg-white/[0.02] p-4">
+        <p className="text-[11px] text-muted italic">
+          Not enough resolved conversations with completed
+          durability checks yet to read a pattern.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-default bg-white/[0.02] p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <p className="text-[11px] text-muted">
+          Across {data.totalConversations}{" "}
+          {data.totalConversations === 1 ? "conversation" : "conversations"}{" "}
+          resolved with a completed 7-day durability check in the
+          window.
+        </p>
+        <ConfidenceTag tier={t} />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+        <BackstopStat
+          label="First-response met"
+          count={data.firstResponseMet}
+          total={data.totalConversations}
+          rate={data.firstResponseMetRate}
+          tone="muted"
+          hint="Standard SLA metric"
+        />
+        <BackstopStat
+          label="Durability held"
+          count={data.durabilityHeld}
+          total={data.totalConversations}
+          rate={data.durabilityHeldRate}
+          tone="muted"
+          hint="§1.6 close-the-loop"
+        />
+        <BackstopStat
+          label="Fully honored"
+          count={data.fullyHonored}
+          total={data.totalConversations}
+          rate={data.fullyHonoredRate}
+          tone="emerald"
+          hint="Both conditions met"
+        />
+        <BackstopStat
+          label="False SLA successes"
+          count={data.falseSlaSuccesses}
+          total={data.totalConversations}
+          rate={data.falseSlaSuccessesRate}
+          tone="amber"
+          hint="Met SLA but reopened"
+        />
+      </div>
+      {data.falseSlaSuccesses > 0 ? (
+        <p className="text-[10px] text-amber-300/90 italic">
+          {data.falseSlaSuccesses} of these conversations met the
+          first-response SLA but reopened anyway — the standard
+          SLA dashboard would mark them "honored." The fully-
+          honored rate is the honest count.
+        </p>
+      ) : (
+        <p className="text-[10px] text-muted italic">
+          No false SLA successes in the window — every
+          first-response-met conversation also held durably (or
+          was inconclusive). Worth tracking whether this holds
+          as volume grows.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BackstopStat({
+  label,
+  count,
+  total,
+  rate,
+  tone,
+  hint,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  rate: number | null;
+  tone: "emerald" | "amber" | "muted";
+  hint: string;
+}) {
+  const toneCls =
+    tone === "emerald"
+      ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
+      : tone === "amber"
+        ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+        : "border-default bg-surface/40 text-secondary";
+  return (
+    <div className={`rounded-lg border p-3 ${toneCls}`}>
+      <p className="text-[10px] uppercase tracking-widest font-bold mb-1">
+        {label}
+      </p>
+      <p className="text-lg font-bold text-primary">
+        {count}{" "}
+        <span className="text-xs font-mono text-muted">of {total}</span>
+      </p>
+      {rate !== null && (
+        <p className="text-[10px] font-mono text-muted">
+          {(rate * 100).toFixed(1)}%
+        </p>
+      )}
+      <p className="text-[10px] text-muted italic mt-1">{hint}</p>
     </div>
   );
 }

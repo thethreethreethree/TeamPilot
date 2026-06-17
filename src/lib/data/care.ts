@@ -1536,6 +1536,162 @@ export async function fetchRoutingReadout(args: {
   return { windowDays, companyId: args.companyId, cohorts };
 }
 
+/**
+ * §4 SLA + durability backstop readout — Phase 8 commit 1.
+ *
+ * The category claim this readout proves: meeting a first-
+ * response SLA is incomplete if the resolution reopens. The
+ * "fully honored" rate (first-response met AND durability held)
+ * is the honest measure of customer success; the standard SLA
+ * metric is the comparison.
+ *
+ * Constitutional sources:
+ *   - §A2 — this readout IS the §4 evidence for the
+ *     "SLA + durability backstop" constitutional reframe.
+ *   - §A3 — measures downstream consequence (durability), not
+ *     System agreement.
+ *   - §A4 — sample sizes surfaced, confidence tier in the UI.
+ *   - §A11 — counts and rates, never verdicts.
+ *   - §A18 — no per-agent breakdown. The comparison is across
+ *     METRICS not agents.
+ *   - §1.6 close-the-loop — the readout connects first response
+ *     (start) to durability (end) into a single honest metric.
+ *
+ * For each conversation that was resolved AND had a completed
+ * durability check in the window:
+ *   - firstResponseMet — first_response_at − first_message_at ≤
+ *     sla_first_response_minutes
+ *   - durabilityHeld — durability_check.outcome === 'held'
+ *   - fullyHonored — both
+ *   - falseSlaSuccesses — firstResponseMet AND durability =
+ *     reopened. THIS is the failure mode the standard SLA hides.
+ */
+export type SlaWithDurabilityReadout = {
+  windowDays: number;
+  companyId: string;
+  totalConversations: number;
+  firstResponseMet: number;
+  firstResponseMetRate: number | null;
+  durabilityHeld: number;
+  durabilityHeldRate: number | null;
+  fullyHonored: number;
+  fullyHonoredRate: number | null;
+  /** First response met but durability reopened — the standard-
+   *  SLA blind spot. THIS is the number that proves the
+   *  constitutional reframe matters. */
+  falseSlaSuccesses: number;
+  falseSlaSuccessesRate: number | null;
+};
+
+export async function fetchSlaWithDurabilityReadout(args: {
+  companyId: string;
+  windowDays?: number;
+}): Promise<SlaWithDurabilityReadout> {
+  const sb = await createServerClient();
+  const windowDays = args.windowDays ?? 60;
+  const since = new Date(
+    Date.now() - windowDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  // Pull resolved-with-durability-checked conversations in the window.
+  const { data: checks } = await sb
+    .from("support_durability_checks")
+    .select("conversation_id, outcome")
+    .eq("company_id", args.companyId)
+    .not("outcome", "is", null)
+    .gte("checked_at", since)
+    .limit(5000);
+
+  type CheckRow = {
+    conversation_id: string;
+    outcome: "held" | "reopened" | "inconclusive";
+  };
+  const checkRows = (checks ?? []) as CheckRow[];
+  if (checkRows.length === 0) {
+    return {
+      windowDays,
+      companyId: args.companyId,
+      totalConversations: 0,
+      firstResponseMet: 0,
+      firstResponseMetRate: null,
+      durabilityHeld: 0,
+      durabilityHeldRate: null,
+      fullyHonored: 0,
+      fullyHonoredRate: null,
+      falseSlaSuccesses: 0,
+      falseSlaSuccessesRate: null,
+    };
+  }
+
+  const conversationIds = Array.from(
+    new Set(checkRows.map((c) => c.conversation_id))
+  );
+
+  const { data: convs } = await sb
+    .from("support_conversations")
+    .select(
+      "id, first_message_at, first_response_at, sla_first_response_minutes"
+    )
+    .in("id", conversationIds);
+
+  type ConvRow = {
+    id: string;
+    first_message_at: string | null;
+    first_response_at: string | null;
+    sla_first_response_minutes: number | null;
+  };
+  const convByConv = new Map<string, ConvRow>();
+  for (const c of (convs ?? []) as ConvRow[]) {
+    convByConv.set(c.id, c);
+  }
+
+  // Dedupe to one row per conversation (a conversation has
+  // exactly one durability check after 0036's auto-schedule).
+  const seen = new Set<string>();
+  let firstResponseMet = 0;
+  let durabilityHeld = 0;
+  let fullyHonored = 0;
+  let falseSlaSuccesses = 0;
+  let totalConversations = 0;
+
+  for (const c of checkRows) {
+    if (seen.has(c.conversation_id)) continue;
+    seen.add(c.conversation_id);
+    totalConversations += 1;
+
+    const conv = convByConv.get(c.conversation_id);
+    const slaMinutes = conv?.sla_first_response_minutes ?? 60;
+    const responseMet =
+      conv?.first_message_at &&
+      conv?.first_response_at &&
+      new Date(conv.first_response_at).getTime() -
+        new Date(conv.first_message_at).getTime() <=
+        slaMinutes * 60_000;
+    const held = c.outcome === "held";
+
+    if (responseMet) firstResponseMet += 1;
+    if (held) durabilityHeld += 1;
+    if (responseMet && held) fullyHonored += 1;
+    if (responseMet && c.outcome === "reopened") falseSlaSuccesses += 1;
+  }
+
+  const rate = (n: number, d: number) => (d > 0 ? n / d : null);
+
+  return {
+    windowDays,
+    companyId: args.companyId,
+    totalConversations,
+    firstResponseMet,
+    firstResponseMetRate: rate(firstResponseMet, totalConversations),
+    durabilityHeld,
+    durabilityHeldRate: rate(durabilityHeld, totalConversations),
+    fullyHonored,
+    fullyHonoredRate: rate(fullyHonored, totalConversations),
+    falseSlaSuccesses,
+    falseSlaSuccessesRate: rate(falseSlaSuccesses, totalConversations),
+  };
+}
+
 // ─── Phase 5 routing — agent presence + auto-routing ─────────
 
 /**

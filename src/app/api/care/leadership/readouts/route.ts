@@ -3,6 +3,7 @@ import {
   fetchCoachRubricReadout,
   fetchCoPilotValueReadout,
   fetchRoutingReadout,
+  fetchSlaWithDurabilityReadout,
 } from "@/lib/data/care";
 import { createClient } from "@/lib/supabase/server";
 
@@ -56,24 +57,30 @@ export async function GET(req: NextRequest) {
   const windowDaysParam = req.nextUrl.searchParams.get("windowDays");
   const windowDays = windowDaysParam ? parseInt(windowDaysParam, 10) : 60;
 
-  const [coachRubric, coPilotValue, routing] = await Promise.all([
-    fetchCoachRubricReadout({
-      companyId: profile.company_id,
-      windowDays,
-    }),
-    fetchCoPilotValueReadout({
-      companyId: profile.company_id,
-      windowDays,
-    }),
-    fetchRoutingReadout({
-      companyId: profile.company_id,
-      windowDays,
-    }),
-  ]);
+  const [coachRubric, coPilotValue, routing, slaWithDurability] =
+    await Promise.all([
+      fetchCoachRubricReadout({
+        companyId: profile.company_id,
+        windowDays,
+      }),
+      fetchCoPilotValueReadout({
+        companyId: profile.company_id,
+        windowDays,
+      }),
+      fetchRoutingReadout({
+        companyId: profile.company_id,
+        windowDays,
+      }),
+      fetchSlaWithDurabilityReadout({
+        companyId: profile.company_id,
+        windowDays,
+      }),
+    ]);
 
   return NextResponse.json({
     coachRubric,
     coPilotValue,
     routing,
+    slaWithDurability,
   });
 }
