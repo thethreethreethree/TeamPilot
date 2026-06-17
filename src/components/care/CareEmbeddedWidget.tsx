@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, MessageCircle, Send, X } from "lucide-react";
+import { Loader2, Mic, MessageCircle, Send, Volume2, X } from "lucide-react";
 
 /**
  * Embedded C.A.R.E widget — runs inside the iframe served at
@@ -68,6 +68,25 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // ─── Phase 9 voice mode state ──────────────────────────────
+  // §A14 explicit states. The widget can be in EITHER text mode
+  // (the original surface) or voice mode (the real-time loop).
+  // Customer opt-in: clicking "Talk to Jeff" enters voice mode;
+  // clicking the close-voice control returns to text.
+  type VoicePhase =
+    | "idle" // voice mode active, awaiting customer to press the mic
+    | "recording" // customer holding the mic button
+    | "transcribing" // audio uploaded, STT in flight
+    | "thinking" // transcript sent to /messages, awaiting Jeff
+    | "speaking" // Jeff's reply received, TTS audio playing
+    | "error";
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const storageKey = `${STORAGE_KEY_BASE}:${embedToken}`;
 
@@ -251,6 +270,224 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     }
   };
 
+  // ─── Voice mode handlers ───────────────────────────────────
+
+  /**
+   * Play Jeff's reply through TTS. Used at the end of the voice
+   * loop. Resolves when audio finishes playing OR when the user
+   * clicks anywhere (interrupting). Per §A14 explicit states:
+   * "speaking" while audio plays, back to "idle" when done.
+   */
+  const speakReply = useCallback(
+    async (text: string, sessionToken: string) => {
+      try {
+        setVoicePhase("speaking");
+        const res = await fetch(`/api/care/tts`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-care-session": sessionToken,
+          },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) {
+          setError("Couldn't play Jeff's reply. You can still read it above.");
+          setVoicePhase("idle");
+          return;
+        }
+        const audioBlob = await res.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        currentAudioRef.current = audio;
+        await new Promise<void>((resolve) => {
+          audio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            resolve();
+          };
+          audio.onerror = () => {
+            URL.revokeObjectURL(audioUrl);
+            resolve();
+          };
+          void audio.play().catch(() => {
+            URL.revokeObjectURL(audioUrl);
+            resolve();
+          });
+        });
+        currentAudioRef.current = null;
+        setVoicePhase("idle");
+      } catch {
+        setError("Audio playback failed. You can still read above.");
+        setVoicePhase("idle");
+      }
+    },
+    []
+  );
+
+  const stopRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state !== "recording") return;
+    recorder.stop();
+  }, []);
+
+  /**
+   * Customer pressed the mic button. Request mic permission (one-
+   * time per session), start recording. The release handler
+   * stops + uploads + transcribes + sends + speaks.
+   */
+  const startRecording = useCallback(async () => {
+    if (voicePhase !== "idle") return;
+    setError(null);
+
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setError(
+        "Couldn't access your microphone. Check your browser permissions and try again."
+      );
+      setVoicePhase("error");
+      return;
+    }
+
+    audioChunksRef.current = [];
+    const recorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = recorder;
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunksRef.current.push(e.data);
+    };
+
+    recorder.onstop = async () => {
+      // Release the mic immediately so the user doesn't see a
+      // lingering recording indicator.
+      stream.getTracks().forEach((t) => t.stop());
+
+      const active = await ensureSession();
+      if (!active) {
+        setVoicePhase("idle");
+        return;
+      }
+
+      const audioBlob = new Blob(audioChunksRef.current, {
+        type: recorder.mimeType || "audio/webm",
+      });
+      if (audioBlob.size === 0) {
+        setVoicePhase("idle");
+        return;
+      }
+
+      setVoicePhase("transcribing");
+
+      // 1. Transcribe via STT.
+      let transcript: string;
+      try {
+        const sttRes = await fetch(`/api/care/stt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": audioBlob.type,
+            "x-care-session": active.sessionToken,
+          },
+          body: audioBlob,
+        });
+        if (!sttRes.ok) {
+          const data = await sttRes.json().catch(() => ({}));
+          setError(data.error || "Couldn't transcribe. Try again.");
+          setVoicePhase("idle");
+          return;
+        }
+        const data = await sttRes.json();
+        transcript = (data.transcript as string) ?? "";
+      } catch {
+        setError("Couldn't reach the server.");
+        setVoicePhase("idle");
+        return;
+      }
+
+      if (!transcript.trim()) {
+        setError("Didn't catch that. Try again.");
+        setVoicePhase("idle");
+        return;
+      }
+
+      setVoiceTranscript(transcript);
+      // Optimistic render in the message stream so the customer
+      // sees what was heard.
+      const tempId = `temp-voice-${Date.now()}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          authorType: "customer",
+          body: transcript,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+
+      // 2. Send transcript through the existing /messages
+      // endpoint so Jeff's brain runs unchanged per §A16. The
+      // medium=voice flag is for the §4 readout.
+      setVoicePhase("thinking");
+      let aiReplyText = "";
+      try {
+        const msgRes = await fetch(
+          `/api/care/conversations/${active.conversationId}/messages`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-care-session": active.sessionToken,
+            },
+            body: JSON.stringify({ body: transcript, medium: "voice" }),
+          }
+        );
+        if (!msgRes.ok) {
+          setError("Couldn't send to Jeff. Try again.");
+          setMessages((p) => p.filter((m) => m.id !== tempId));
+          setVoicePhase("idle");
+          return;
+        }
+        const data = await msgRes.json();
+        const updated = (data.messages ?? []) as Message[];
+        setMessages(updated);
+        // Find Jeff's latest AI reply for TTS playback.
+        const lastAi = [...updated]
+          .reverse()
+          .find((m) => m.authorType === "ai");
+        aiReplyText = lastAi?.body ?? "";
+      } catch {
+        setError("Couldn't reach the server.");
+        setMessages((p) => p.filter((m) => m.id !== tempId));
+        setVoicePhase("idle");
+        return;
+      }
+
+      // 3. Play Jeff's reply via TTS. If the AI didn't reply
+      // (e.g., agent already claimed and ai_responding=false),
+      // we just return to idle — the agent will reply via the
+      // dashboard.
+      if (!aiReplyText) {
+        setVoicePhase("idle");
+        return;
+      }
+      await speakReply(aiReplyText, active.sessionToken);
+    };
+
+    recorder.start();
+    setVoicePhase("recording");
+  }, [ensureSession, speakReply, voicePhase]);
+
+  const exitVoiceMode = () => {
+    // Stop any in-flight recording or playback before leaving.
+    stopRecording();
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    setVoiceMode(false);
+    setVoicePhase("idle");
+    setVoiceTranscript(null);
+  };
+
   if (!bootstrapped) {
     return (
       <div className="fixed bottom-4 right-4 w-14 h-14 rounded-full bg-surface flex items-center justify-center">
@@ -338,36 +575,64 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
             </div>
           )}
 
-          <div className="border-t border-default p-3 flex items-end gap-2 bg-surface/40">
-            <textarea
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-              rows={1}
-              placeholder="Type a message…"
-              className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"
+          {/* Phase 9 voice — when voiceMode is active, the
+              text composer is replaced by the voice surface.
+              The surface IS the §A14 multi-state UI: each
+              voicePhase renders a distinct affordance. */}
+          {voiceMode ? (
+            <VoiceSurface
+              phase={voicePhase}
+              accent={config.color}
+              transcript={voiceTranscript}
+              onPress={() => void startRecording()}
+              onRelease={stopRecording}
+              onExit={exitVoiceMode}
             />
-            <button
-              type="button"
-              onClick={() => void send()}
-              disabled={sending || !draft.trim()}
-              aria-label="Send"
-              style={{ backgroundColor: config.color }}
-              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg text-[#09090B] disabled:opacity-40"
-            >
-              {sending ? (
-                <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-              ) : (
-                <Send className="w-4 h-4" aria-hidden />
-              )}
-            </button>
-          </div>
+          ) : (
+            <div className="border-t border-default p-3 flex items-end gap-2 bg-surface/40">
+              <textarea
+                ref={inputRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void send();
+                  }
+                }}
+                rows={1}
+                placeholder="Type a message…"
+                className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"
+              />
+              {/* "Talk to Jeff" — customer opt-in entry into voice
+                  mode per the user's directive. §A18 invitation
+                  label; §A8 frames Jeff as a participant, not a
+                  feature flag. */}
+              <button
+                type="button"
+                onClick={() => setVoiceMode(true)}
+                aria-label="Talk to Jeff"
+                title="Talk to Jeff — real-time voice conversation"
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-default hover:border-strong text-muted hover:text-primary"
+              >
+                <Mic className="w-4 h-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => void send()}
+                disabled={sending || !draft.trim()}
+                aria-label="Send"
+                style={{ backgroundColor: config.color }}
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg text-[#09090B] disabled:opacity-40"
+              >
+                {sending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                ) : (
+                  <Send className="w-4 h-4" aria-hidden />
+                )}
+              </button>
+            </div>
+          )}
 
           {config.displayName && (
             <div className="text-center text-[10px] text-muted py-1 border-t border-default">
@@ -407,6 +672,107 @@ function Bubble({
       >
         {message.body}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Voice surface — Phase 9 commit 1. §A14 multi-state UI for the
+ * real-time conversation loop. Each phase renders a distinct
+ * affordance:
+ *
+ *   idle         — large mic button. Press-and-hold to record.
+ *   recording    — pulsing red ring + "Release to send"
+ *   transcribing — "Transcribing…"
+ *   thinking     — "Jeff is thinking…"
+ *   speaking     — pulsing speaker icon + "Jeff is speaking"
+ *   error        — fall back to idle visually, error string
+ *                  renders above this surface
+ *
+ * The "Back to typing" affordance exits voice mode entirely.
+ * Per §A18 the label is invitational — "Back to typing" rather
+ * than "Disable voice."
+ */
+function VoiceSurface({
+  phase,
+  accent,
+  transcript,
+  onPress,
+  onRelease,
+  onExit,
+}: {
+  phase:
+    | "idle"
+    | "recording"
+    | "transcribing"
+    | "thinking"
+    | "speaking"
+    | "error";
+  accent: string;
+  transcript: string | null;
+  onPress: () => void;
+  onRelease: () => void;
+  onExit: () => void;
+}) {
+  const labelByPhase: Record<typeof phase, string> = {
+    idle: "Press and hold to speak",
+    recording: "Listening… release to send",
+    transcribing: "Transcribing…",
+    thinking: "Jeff is thinking…",
+    speaking: "Jeff is speaking",
+    error: "Press and hold to try again",
+  };
+
+  const buttonDisabled =
+    phase === "transcribing" || phase === "thinking" || phase === "speaking";
+
+  return (
+    <div className="border-t border-default px-4 py-4 bg-surface/40 flex flex-col items-center gap-3">
+      {transcript && phase !== "idle" && phase !== "recording" && (
+        <p className="text-[11px] text-muted italic text-center max-w-[280px]">
+          You said: &ldquo;{transcript}&rdquo;
+        </p>
+      )}
+      <button
+        type="button"
+        onPointerDown={onPress}
+        onPointerUp={onRelease}
+        onPointerLeave={onRelease}
+        onPointerCancel={onRelease}
+        disabled={buttonDisabled}
+        aria-label="Push to talk"
+        style={{
+          backgroundColor:
+            phase === "recording" ? "#ef4444" : accent,
+        }}
+        className={`relative w-16 h-16 rounded-full text-[#09090B] flex items-center justify-center transition-transform disabled:opacity-50 ${
+          phase === "recording" ? "scale-110" : "scale-100"
+        }`}
+      >
+        {phase === "transcribing" || phase === "thinking" ? (
+          <Loader2 className="w-7 h-7 animate-spin" aria-hidden />
+        ) : phase === "speaking" ? (
+          <Volume2 className="w-7 h-7 animate-pulse" aria-hidden />
+        ) : (
+          <Mic className="w-7 h-7" aria-hidden />
+        )}
+        {phase === "recording" && (
+          <span
+            className="absolute inset-0 rounded-full border-2 border-red-300 animate-ping"
+            aria-hidden
+          />
+        )}
+      </button>
+      <p className="text-xs text-secondary text-center">
+        {labelByPhase[phase]}
+      </p>
+      <button
+        type="button"
+        onClick={onExit}
+        className="text-[10px] text-muted hover:text-primary underline-offset-2 hover:underline"
+      >
+        Back to typing
+      </button>
     </div>
   );
 }

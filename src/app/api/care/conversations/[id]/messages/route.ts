@@ -41,6 +41,10 @@ import { LlmError } from "@/lib/llm/errors";
 
 const Body = z.object({
   body: z.string().min(1).max(4000),
+  /** Phase 9 voice — "voice" when the customer message came
+   *  through the STT pipeline, otherwise omitted (defaults to
+   *  "text" at the DB layer). */
+  medium: z.enum(["text", "voice"]).optional(),
 });
 
 const VISIBLE_TURNS_IN_CONTEXT = 12;
@@ -144,6 +148,7 @@ export async function POST(
   const customerMsg = await postCustomerMessage({
     conversationId: conversation.id,
     body: body.body,
+    medium: body.medium ?? "text",
   });
   if (!customerMsg) {
     return NextResponse.json(

@@ -229,6 +229,7 @@ export async function listCareMessagesForCustomer(
 export async function postCustomerMessage(args: {
   conversationId: string;
   body: string;
+  medium?: "text" | "voice";
 }): Promise<SupportMessage | null> {
   const sb = createServiceRoleClient();
   const { data, error } = await sb
@@ -237,6 +238,7 @@ export async function postCustomerMessage(args: {
       conversation_id: args.conversationId,
       author_type: "customer",
       body: args.body,
+      medium: args.medium ?? "text",
     })
     .select("*")
     .single();
