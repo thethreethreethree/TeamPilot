@@ -37,11 +37,13 @@ const STT_ENDPOINT = "https://api.elevenlabs.io/v1/speech-to-text";
 const DEFAULT_VOICE_ID = "ErXwobaYiN019PkySvjV";
 
 function getApiKey(): string {
-  const key = process.env.ELEVENLABS_API_KEY;
+  // .trim() — defensive against the most common deploy mistake:
+  // pasting the key with a trailing newline or surrounding
+  // whitespace into the Vercel env var UI. ElevenLabs returns
+  // 401 invalid_api_key for any whitespace difference, which
+  // looks indistinguishable from a "wrong key" to the operator.
+  const key = process.env.ELEVENLABS_API_KEY?.trim();
   if (!key) {
-    // Customer-facing message stays human (no env var name leak)
-    // but the server-side console gets the operator clue so
-    // production debugging is fast.
     if (typeof console !== "undefined") {
       console.error(
         "[care/voice] ELEVENLABS_API_KEY env var is missing. " +
@@ -98,6 +100,18 @@ export async function synthesizeSpeech(args: {
 
   if (!response.ok) {
     const err = await response.text().catch(() => "");
+    if (response.status === 401) {
+      if (typeof console !== "undefined") {
+        console.error(
+          "[care/voice] ElevenLabs rejected TTS auth (401). " +
+            "ELEVENLABS_API_KEY is set but invalid. Check: " +
+            "no whitespace, no surrounding quotes, key is active " +
+            "in elevenlabs.io → Profile → API Keys. Provider response: " +
+            err.slice(0, 300)
+        );
+      }
+      throw new Error("Voice isn't available right now.");
+    }
     throw new Error(
       `ElevenLabs TTS failed: ${response.status} ${err.slice(0, 300)}`
     );
@@ -146,6 +160,18 @@ export async function transcribeSpeech(args: {
 
   if (!response.ok) {
     const err = await response.text().catch(() => "");
+    if (response.status === 401) {
+      if (typeof console !== "undefined") {
+        console.error(
+          "[care/voice] ElevenLabs rejected STT auth (401). " +
+            "ELEVENLABS_API_KEY is set but invalid. Check: " +
+            "no whitespace, no surrounding quotes, key is active " +
+            "in elevenlabs.io → Profile → API Keys. Provider response: " +
+            err.slice(0, 300)
+        );
+      }
+      throw new Error("Voice isn't available right now.");
+    }
     throw new Error(
       `ElevenLabs STT failed: ${response.status} ${err.slice(0, 300)}`
     );
