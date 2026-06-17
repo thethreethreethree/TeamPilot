@@ -174,6 +174,9 @@ export function ConversationsApp({
   );
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Caller's role — drives admin-only affordances (frictionless
+  // Close on stale conversations, future admin overrides).
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   // Team roster — loaded once for the Assign dropdown in the
   // conversation header. Refreshing on every conversation switch
   // is wasteful; team membership rarely changes mid-session.
@@ -253,6 +256,7 @@ export function ConversationsApp({
       if (meRes && meRes.ok) {
         const me = await meRes.json();
         setCurrentUserId(me.userId ?? null);
+        setCurrentUserRole(me.role ?? null);
       }
       if (inboxRes.status === 403) {
         setError("Care is agent-only.");
@@ -856,16 +860,37 @@ export function ConversationsApp({
                 acting={acting}
                 team={team}
                 currentUserId={currentUserId}
+                isAdmin={
+                  currentUserRole === "CEO" ||
+                  currentUserRole === "COO" ||
+                  currentUserRole === "admin"
+                }
                 onClaim={claim}
                 onAssign={assignTo}
                 onSummarize={() => setSummarizeOpen(true)}
                 onResolve={() => setResolveModalOpen(true)}
                 onClose={() => {
                   // Close = terminal state without a resolution
-                  // capture. Confirmable because §1.6 prefers
-                  // Resolve (which captures learning); Close is
-                  // for the "this isn't actually a conversation"
-                  // path (spam, accidental click, dup).
+                  // capture. Confirmable for regular agents
+                  // because §1.6 prefers Resolve (which captures
+                  // learning); Close is for the "this isn't
+                  // actually a conversation" path (spam,
+                  // accidental click, dup, anonymous abandon).
+                  //
+                  // 2026-06-17 — admins skip the confirm. User
+                  // flagged the friction on an anonymous
+                  // awaiting_customer conversation that would
+                  // otherwise sit in the inbox forever if the
+                  // visitor never returns. Admins need a clean
+                  // close path; the warning is for agents.
+                  const isAdmin =
+                    currentUserRole === "CEO" ||
+                    currentUserRole === "COO" ||
+                    currentUserRole === "admin";
+                  if (isAdmin) {
+                    void changeStatus("closed");
+                    return;
+                  }
                   if (
                     window.confirm(
                       "Close this conversation without capturing a resolution? Use Resolve instead if there's a learning to record."
@@ -1125,6 +1150,7 @@ function DetailHeader({
   acting,
   team,
   currentUserId,
+  isAdmin,
   onClaim,
   onAssign,
   onResolve,
@@ -1141,6 +1167,7 @@ function DetailHeader({
     isSupportAgent: boolean;
   }>;
   currentUserId: string | null;
+  isAdmin: boolean;
   onClaim: () => void;
   onAssign: (targetAgentId: string | null) => void;
   onResolve: () => void;
@@ -1275,7 +1302,11 @@ function DetailHeader({
               type="button"
               onClick={onClose}
               disabled={acting}
-              title="Close without capturing a resolution"
+              title={
+                isAdmin
+                  ? "Force close — admin override (no confirmation)"
+                  : "Close without capturing a resolution"
+              }
               className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary border border-default hover:text-red-300 hover:border-red-500/50 hover:bg-red-500/5 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
             >
               <Lock className="w-3.5 h-3.5" aria-hidden />
