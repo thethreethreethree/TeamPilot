@@ -10,6 +10,7 @@ import {
   GitMerge,
   Hourglass,
   MessageSquare,
+  MessageSquarePlus,
   Repeat,
   ShieldCheck,
   Sparkles,
@@ -125,6 +126,18 @@ export default function Landing() {
           </Link>
           <div className="flex items-center gap-3 text-xs">
             <ThemeToggle />
+            {/* Feedback — moved from a floating bottom-right
+                button to inline-in-nav per user request. Routes
+                to /login with feedback intent so the existing
+                auth-gated feedback flow takes over once the
+                visitor signs in. */}
+            <Link
+              href="/login?intent=feedback&from=%2F"
+              className="flex items-center gap-1 text-secondary hover:text-primary transition-colors"
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5" aria-hidden="true" />
+              Feedback
+            </Link>
             <Link
               href="/login"
               className="text-secondary hover:text-primary transition-colors"

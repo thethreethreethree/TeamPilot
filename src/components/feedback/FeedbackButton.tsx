@@ -78,10 +78,17 @@ export function FeedbackButton() {
   // Per the user's direct request: "move the feedback button to
   // the testing field." Suppress the floating button on
   // /dashboard/* routes; the Sidebar entry IS the access point.
-  // Public pages (landing, login, etc.) keep the floating button
-  // because those have no Sidebar.
   const isDashboardRoute = pathname.startsWith("/dashboard");
   if (isDashboardRoute) return null;
+
+  // On the landing page the top-right nav now renders an inline
+  // "Feedback" link next to Sign in / Request access per user
+  // request ("please move this button up in here"). The floating
+  // button would duplicate it AND cover content alongside the
+  // Care chat widget. Suppress it; the inline nav link is the
+  // access point.
+  const isLandingPage = pathname === "/";
+  if (isLandingPage) return null;
 
   return (
     <>
