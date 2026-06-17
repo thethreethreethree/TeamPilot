@@ -4,6 +4,7 @@ import { readBody } from "@/lib/api/validate";
 import {
   fetchAgentConversation,
   claimConversation,
+  assignConversationToAgent,
   setConversationStatus,
   setConversationPriority,
   snoozeConversation,
@@ -27,12 +28,23 @@ import { createClient } from "@/lib/supabase/server";
  */
 
 const PatchBody = z.object({
-  action: z.enum(["claim", "status", "priority", "snooze", "unsnooze"]),
+  action: z.enum([
+    "claim",
+    "assign",
+    "status",
+    "priority",
+    "snooze",
+    "unsnooze",
+  ]),
   status: z
     .enum(["open", "in_conversation", "awaiting_customer", "resolved", "closed"])
     .optional(),
   priority: z.enum(["urgent", "high", "normal", "low"]).optional(),
   snoozedUntil: z.string().datetime().optional(),
+  // 2026-06-17 — "assign" action takes targetAgentId. null = unassign
+  // (return to the Unassigned pool). Permission gate on this action
+  // lives in the route handler — see the assign branch below.
+  targetAgentId: z.string().uuid().nullable().optional(),
 });
 
 async function requireAgent() {
@@ -84,6 +96,50 @@ export async function PATCH(
   try {
     if (body.action === "claim") {
       await claimConversation({ conversationId: id, agentId: auth.agentId });
+    } else if (body.action === "assign") {
+      // Permission: an admin (CEO/COO/admin) can reassign any
+      // conversation. A regular support agent can only reassign
+      // a conversation they currently own (hand-off pattern). They
+      // can't yank work from a peer — that needs admin.
+      if (body.targetAgentId === undefined) {
+        return NextResponse.json(
+          { error: "assign action requires targetAgentId (or null to unassign)." },
+          { status: 400 }
+        );
+      }
+      // Check current assignment so we can gate by role+ownership.
+      const current = await fetchAgentConversation(id);
+      if (!current) {
+        return NextResponse.json(
+          { error: "Conversation not found." },
+          { status: 404 }
+        );
+      }
+      const sbCheck = await createClient();
+      const { data: profile } = await sbCheck
+        .from("profiles")
+        .select("role")
+        .eq("id", auth.agentId)
+        .maybeSingle();
+      const isAdmin =
+        profile?.role === "CEO" ||
+        profile?.role === "COO" ||
+        profile?.role === "admin";
+      const ownsIt =
+        current.conversation.assignedAgentId === auth.agentId;
+      if (!isAdmin && !ownsIt) {
+        return NextResponse.json(
+          {
+            error:
+              "Only admins can reassign someone else's conversation. You can claim it instead.",
+          },
+          { status: 403 }
+        );
+      }
+      await assignConversationToAgent({
+        conversationId: id,
+        targetAgentId: body.targetAgentId,
+      });
     } else if (body.action === "status") {
       if (!body.status) {
         return NextResponse.json(

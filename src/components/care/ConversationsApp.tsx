@@ -174,6 +174,12 @@ export function ConversationsApp({
   );
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Team roster — loaded once for the Assign dropdown in the
+  // conversation header. Refreshing on every conversation switch
+  // is wasteful; team membership rarely changes mid-session.
+  const [team, setTeam] = useState<
+    Array<{ id: string; fullName: string | null; role: string | null; isSupportAgent: boolean }>
+  >([]);
   const initialView =
     (searchParams.get("view") as ViewKey | null) ?? "all_open";
   const [view, setView] = useState<ViewKey>(initialView);
@@ -266,6 +272,24 @@ export function ConversationsApp({
   useEffect(() => {
     void loadInbox();
   }, [loadInbox]);
+
+  // One-time team roster fetch — drives the Assign dropdown.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/care/agent/team");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setTeam(data.agents ?? []);
+      } catch {
+        /* non-fatal — assign dropdown just won't have options */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Lightweight polling so new customer messages + inbox state
   // arrive without a manual refresh. Until S7 wires Supabase
@@ -613,6 +637,14 @@ export function ConversationsApp({
     await runAction({ action: "claim" }, { claimed: true }, "Claimed.");
   };
 
+  const assignTo = async (targetAgentId: string | null) => {
+    await runAction(
+      { action: "assign", targetAgentId },
+      null,
+      targetAgentId ? "Assigned." : "Unassigned."
+    );
+  };
+
   const changeStatus = async (
     next: "in_conversation" | "awaiting_customer" | "resolved" | "closed"
   ) => {
@@ -822,7 +854,10 @@ export function ConversationsApp({
               <DetailHeader
                 conversation={selected}
                 acting={acting}
+                team={team}
+                currentUserId={currentUserId}
                 onClaim={claim}
+                onAssign={assignTo}
                 onSummarize={() => setSummarizeOpen(true)}
                 onResolve={() => setResolveModalOpen(true)}
                 onClose={() => {
@@ -1088,7 +1123,10 @@ function ConversationListRow({
 function DetailHeader({
   conversation,
   acting,
+  team,
+  currentUserId,
   onClaim,
+  onAssign,
   onResolve,
   onClose,
   onPriorityChange,
@@ -1096,7 +1134,15 @@ function DetailHeader({
 }: {
   conversation: Conversation;
   acting: boolean;
+  team: Array<{
+    id: string;
+    fullName: string | null;
+    role: string | null;
+    isSupportAgent: boolean;
+  }>;
+  currentUserId: string | null;
   onClaim: () => void;
+  onAssign: (targetAgentId: string | null) => void;
   onResolve: () => void;
   onClose: () => void;
   onPriorityChange: (priority: string) => void;
@@ -1195,6 +1241,22 @@ function DetailHeader({
               Take over
             </button>
           )}
+          {/* Assign dropdown — visible only on already-claimed
+              conversations (the unclaimed path shows Take over
+              above instead). Lists every teammate; selecting one
+              hands the conversation off, "Unassign" returns it
+              to the Unassigned pool. The route enforces
+              ownership: a regular agent can only hand off their
+              own; admins can reassign anyone's. */}
+          {!conversation.aiResponding && team.length > 0 && (
+            <AssignDropdown
+              team={team}
+              currentAssignedId={conversation.assignedAgentId}
+              currentUserId={currentUserId}
+              acting={acting}
+              onAssign={onAssign}
+            />
+          )}
           {conversation.status !== "resolved" &&
             conversation.status !== "closed" && (
               <button
@@ -1221,6 +1283,100 @@ function DetailHeader({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function AssignDropdown({
+  team,
+  currentAssignedId,
+  currentUserId,
+  acting,
+  onAssign,
+}: {
+  team: Array<{
+    id: string;
+    fullName: string | null;
+    role: string | null;
+    isSupportAgent: boolean;
+  }>;
+  currentAssignedId: string | null;
+  currentUserId: string | null;
+  acting: boolean;
+  onAssign: (targetAgentId: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", handle);
+    return () => window.removeEventListener("mousedown", handle);
+  }, [open]);
+  const current = team.find((t) => t.id === currentAssignedId);
+  const label = current?.fullName ?? "Assign";
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={acting}
+        title="Assign or hand off this conversation"
+        className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-arc-300 hover:border-arc-400/50 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
+      >
+        <UserCheck className="w-3.5 h-3.5" aria-hidden />
+        {current ? `Assigned: ${label}` : "Assign"}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 w-64 max-h-80 overflow-y-auto bg-base border border-default rounded-md shadow-lg z-30 py-1">
+          {currentAssignedId && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onAssign(null);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-red-300 hover:bg-red-500/5"
+            >
+              ↶ Unassign (return to Unassigned)
+            </button>
+          )}
+          {team.map((t) => {
+            const isCurrent = t.id === currentAssignedId;
+            const isMe = t.id === currentUserId;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  if (!isCurrent) onAssign(t.id);
+                }}
+                disabled={isCurrent}
+                className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 ${
+                  isCurrent
+                    ? "bg-arc-400/5 text-arc-300 cursor-default"
+                    : "text-primary hover:bg-base/40"
+                }`}
+              >
+                <span className="truncate">
+                  {t.fullName ?? "(unnamed)"}
+                  {isMe && (
+                    <span className="text-muted ml-1.5 text-[10px]">
+                      (you)
+                    </span>
+                  )}
+                </span>
+                <span className="text-[10px] text-muted uppercase tracking-widest shrink-0">
+                  {t.role ?? (t.isSupportAgent ? "agent" : "")}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

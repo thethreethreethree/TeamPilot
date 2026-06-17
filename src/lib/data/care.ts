@@ -351,6 +351,38 @@ export async function claimConversation(args: {
 }
 
 /**
+ * Reassign an already-claimed conversation to a different agent.
+ * Differs from claimConversation in three ways:
+ *   1. Does NOT touch status — caller picks an already-claimed
+ *      conversation that's mid-conversation; reassignment is just
+ *      "different human picks it up from here."
+ *   2. Does NOT touch ai_responding — the AI's role was already
+ *      decided when the original agent claimed.
+ *   3. Accepts targetAgentId=null to UNASSIGN (return to the
+ *      Unassigned pool).
+ *
+ * Auth: route layer must verify the caller is a CEO/COO/admin OR
+ * the agent currently assigned (a regular agent can hand off
+ * their own conversation but can't steal someone else's).
+ */
+export async function assignConversationToAgent(args: {
+  conversationId: string;
+  targetAgentId: string | null;
+}): Promise<void> {
+  const sb = await createServerClient();
+  await strictMutate(
+    sb
+      .from("support_conversations")
+      .update({
+        assigned_agent_id: args.targetAgentId,
+      })
+      .eq("id", args.conversationId)
+      .select("id"),
+    { context: "assignConversationToAgent" }
+  );
+}
+
+/**
  * Agent posts a reply (or internal note). Internal notes are
  * agent-only — the customer widget never sees them.
  */
