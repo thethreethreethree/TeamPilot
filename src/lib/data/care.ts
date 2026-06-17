@@ -1692,6 +1692,231 @@ export async function fetchSlaWithDurabilityReadout(args: {
   };
 }
 
+/**
+ * §4 Pattern-resolution readout — Phase 8 commit 2.
+ *
+ * The constitutional question this answers: does a detected
+ * pattern's existence accelerate resolution AFTER it was
+ * surfaced (vs BEFORE, when the team had no compounding
+ * institutional knowledge for that category)?
+ *
+ * Method (per pattern category):
+ *   1. Sort all resolutions in the category by created_at
+ *   2. The "pattern formed at" cutoff = the 3rd resolution's
+ *      created_at — the moment it crossed the §3.2 threshold
+ *      and the team had three precedents to draw on. Categories
+ *      with < 3 resolutions ever are skipped (no pattern yet).
+ *   3. For all conversations with resolutions in this category:
+ *      - Bucket BEFORE if resolved_at < cutoff
+ *      - Bucket AT/AFTER if resolved_at >= cutoff
+ *   4. For each bucket: count + median time-to-resolve +
+ *      durability_held rate
+ *
+ * §A4 uncertainties surfaced in the UI:
+ *   - Confound: "before" conversations are earlier-in-time
+ *     resolutions and may reflect general team inexperience,
+ *     not just the absence of pattern memory.
+ *   - The 3rd-resolution cutoff is itself an §A4 choice. The §4
+ *     readout will refine.
+ *
+ * §A11 — counts and rates. The user renders the verdict on
+ * whether the difference is meaningful per pattern.
+ * §A18 — no per-agent breakdown. Patterns are team properties.
+ */
+export type PatternResolutionReadout = {
+  windowDays: number;
+  companyId: string;
+  patterns: Array<{
+    category: string;
+    patternFormedAt: string;
+    totalResolutions: number;
+    before: PatternBucket;
+    after: PatternBucket;
+  }>;
+};
+
+export type PatternBucket = {
+  conversationCount: number;
+  medianTimeToResolveMinutes: number | null;
+  durabilityHeld: number;
+  durabilityChecked: number;
+  durabilityHeldRate: number | null;
+};
+
+export async function fetchPatternResolutionReadout(args: {
+  companyId: string;
+  windowDays?: number;
+}): Promise<PatternResolutionReadout> {
+  const sb = await createServerClient();
+  const windowDays = args.windowDays ?? 90;
+  const since = new Date(
+    Date.now() - windowDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  // 1. Pull all resolutions for the company in the window.
+  const { data: resolutionRows } = await sb
+    .from("support_resolutions")
+    .select("id, conversation_id, category, created_at")
+    .eq("company_id", args.companyId)
+    .not("category", "is", null)
+    .gte("created_at", since)
+    .order("created_at", { ascending: true })
+    .limit(5000);
+
+  type ResRow = {
+    id: string;
+    conversation_id: string;
+    category: string;
+    created_at: string;
+  };
+  const resRows = (resolutionRows ?? []) as ResRow[];
+
+  // 2. Group by category, find the 3rd-resolution cutoff.
+  type CategoryGroup = {
+    cutoff: string;
+    resolutions: ResRow[];
+  };
+  const byCategory = new Map<string, CategoryGroup>();
+  const allByCategory = new Map<string, ResRow[]>();
+  for (const r of resRows) {
+    const arr = allByCategory.get(r.category) ?? [];
+    arr.push(r);
+    allByCategory.set(r.category, arr);
+  }
+  for (const [category, arr] of allByCategory) {
+    if (arr.length < 3) continue;
+    // arr is already sorted by created_at asc.
+    byCategory.set(category, {
+      cutoff: arr[2]!.created_at,
+      resolutions: arr,
+    });
+  }
+
+  if (byCategory.size === 0) {
+    return { windowDays, companyId: args.companyId, patterns: [] };
+  }
+
+  // 3. Pull the conversations for all the resolutions we're
+  //    grouping. We need first_message_at + resolved_at to
+  //    compute time-to-resolve.
+  const conversationIds = Array.from(
+    new Set(
+      Array.from(byCategory.values()).flatMap((g) =>
+        g.resolutions.map((r) => r.conversation_id)
+      )
+    )
+  );
+  const { data: convs } = await sb
+    .from("support_conversations")
+    .select("id, first_message_at, resolved_at")
+    .in("id", conversationIds);
+
+  type ConvRow = {
+    id: string;
+    first_message_at: string | null;
+    resolved_at: string | null;
+  };
+  const convById = new Map<string, ConvRow>();
+  for (const c of (convs ?? []) as ConvRow[]) {
+    convById.set(c.id, c);
+  }
+
+  // 4. Pull durability checks for the same conversations.
+  const { data: durs } = await sb
+    .from("support_durability_checks")
+    .select("conversation_id, outcome")
+    .in("conversation_id", conversationIds)
+    .not("outcome", "is", null);
+
+  type DurRow = {
+    conversation_id: string;
+    outcome: "held" | "reopened" | "inconclusive";
+  };
+  const durByConv = new Map<string, DurRow>();
+  for (const d of (durs ?? []) as DurRow[]) {
+    durByConv.set(d.conversation_id, d);
+  }
+
+  // 5. For each category group: bucket before/after by
+  //    resolved_at vs cutoff. Aggregate stats per bucket.
+  const initBucket = (): PatternBucket => ({
+    conversationCount: 0,
+    medianTimeToResolveMinutes: null,
+    durabilityHeld: 0,
+    durabilityChecked: 0,
+    durabilityHeldRate: null,
+  });
+  const computeMedian = (xs: number[]): number | null => {
+    if (xs.length === 0) return null;
+    const sorted = [...xs].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+      return (sorted[mid - 1]! + sorted[mid]!) / 2;
+    }
+    return sorted[mid]!;
+  };
+
+  const patterns: PatternResolutionReadout["patterns"] = [];
+
+  for (const [category, group] of byCategory) {
+    const before = initBucket();
+    const after = initBucket();
+    const beforeTimes: number[] = [];
+    const afterTimes: number[] = [];
+
+    const seen = new Set<string>();
+    for (const r of group.resolutions) {
+      if (seen.has(r.conversation_id)) continue;
+      seen.add(r.conversation_id);
+      const conv = convById.get(r.conversation_id);
+      if (!conv) continue;
+
+      const beforePattern = r.created_at < group.cutoff;
+      const bucket = beforePattern ? before : after;
+      const times = beforePattern ? beforeTimes : afterTimes;
+
+      bucket.conversationCount += 1;
+      if (conv.first_message_at && conv.resolved_at) {
+        const minutes =
+          (new Date(conv.resolved_at).getTime() -
+            new Date(conv.first_message_at).getTime()) /
+          60_000;
+        if (minutes >= 0) times.push(minutes);
+      }
+      const d = durByConv.get(r.conversation_id);
+      if (d) {
+        bucket.durabilityChecked += 1;
+        if (d.outcome === "held") bucket.durabilityHeld += 1;
+      }
+    }
+
+    before.medianTimeToResolveMinutes = computeMedian(beforeTimes);
+    after.medianTimeToResolveMinutes = computeMedian(afterTimes);
+    before.durabilityHeldRate =
+      before.durabilityChecked > 0
+        ? before.durabilityHeld / before.durabilityChecked
+        : null;
+    after.durabilityHeldRate =
+      after.durabilityChecked > 0
+        ? after.durabilityHeld / after.durabilityChecked
+        : null;
+
+    patterns.push({
+      category,
+      patternFormedAt: group.cutoff,
+      totalResolutions: group.resolutions.length,
+      before,
+      after,
+    });
+  }
+
+  // Sort by total resolutions desc — leaders see the biggest
+  // patterns first.
+  patterns.sort((a, b) => b.totalResolutions - a.totalResolutions);
+
+  return { windowDays, companyId: args.companyId, patterns };
+}
+
 // ─── Phase 5 routing — agent presence + auto-routing ─────────
 
 /**

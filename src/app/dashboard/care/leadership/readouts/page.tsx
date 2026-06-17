@@ -87,6 +87,26 @@ type SlaWithDurabilityReadout = {
   falseSlaSuccessesRate: number | null;
 };
 
+type PatternBucket = {
+  conversationCount: number;
+  medianTimeToResolveMinutes: number | null;
+  durabilityHeld: number;
+  durabilityChecked: number;
+  durabilityHeldRate: number | null;
+};
+
+type PatternResolutionReadout = {
+  windowDays: number;
+  companyId: string;
+  patterns: Array<{
+    category: string;
+    patternFormedAt: string;
+    totalResolutions: number;
+    before: PatternBucket;
+    after: PatternBucket;
+  }>;
+};
+
 /** §A4 confidence tier — surfaces sample-size uncertainty
  *  directly in the UI. Thresholds are themselves uncertainties
  *  (5/20/50 is a starting point; refine when §4 evidence
@@ -109,6 +129,8 @@ export default function CareReadoutsPage() {
   const [routing, setRouting] = useState<RoutingReadout | null>(null);
   const [slaWithDurability, setSlaWithDurability] =
     useState<SlaWithDurabilityReadout | null>(null);
+  const [patternResolution, setPatternResolution] =
+    useState<PatternResolutionReadout | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,6 +151,7 @@ export default function CareReadoutsPage() {
         setCoPilot(data.coPilotValue ?? null);
         setRouting(data.routing ?? null);
         setSlaWithDurability(data.slaWithDurability ?? null);
+        setPatternResolution(data.patternResolution ?? null);
       } catch {
         setError("Couldn't reach the server.");
       } finally {
@@ -296,6 +319,35 @@ export default function CareReadoutsPage() {
                   count is the failure mode the standard SLA hides.
                 </p>
                 <SlaBackstopCard data={slaWithDurability} />
+              </section>
+            )}
+
+            {patternResolution && patternResolution.patterns.length > 0 && (
+              <section>
+                <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
+                  Pattern formation · before / after comparison
+                </h2>
+                <p className="text-[11px] text-secondary leading-relaxed mb-3">
+                  Last {patternResolution.windowDays} days. For each
+                  detected pattern, conversations that resolved
+                  BEFORE the category crossed the §3.2 threshold
+                  (3rd resolution) vs AFTER (the team had
+                  compounding institutional knowledge — past
+                  resolutions in the corpus, Co-Pilot finds
+                  precedents).
+                </p>
+                <p className="text-[10px] text-amber-300/80 italic mb-3">
+                  §A4 caveat: BEFORE conversations are earlier-in-
+                  time resolutions and may also reflect general
+                  team inexperience, not only absence of pattern
+                  memory. Read the per-pattern shape, not a
+                  team-wide verdict.
+                </p>
+                <div className="space-y-3">
+                  {patternResolution.patterns.map((p) => (
+                    <PatternComparisonCard key={p.category} pattern={p} />
+                  ))}
+                </div>
               </section>
             )}
 
@@ -618,4 +670,126 @@ function BackstopStat({
       <p className="text-[10px] text-muted italic mt-1">{hint}</p>
     </div>
   );
+}
+
+/**
+ * Pattern before/after card — renders one detected pattern with
+ * its BEFORE bucket vs AFTER bucket side-by-side per §A11.
+ *
+ * A14 render branches enumerated:
+ *   - before.conversationCount === 0 → "No conversations
+ *     resolved before the pattern threshold was crossed"
+ *   - after.conversationCount === 0 → "No conversations
+ *     resolved since the pattern was detected"
+ *   - both populated → side-by-side comparison
+ *   - medianTimeToResolveMinutes === null → "Not enough
+ *     timing data" in the cell
+ *   - durabilityHeldRate === null → no rate, count only
+ *
+ * Per §A11 there's NO "after wins / before wins" verdict.
+ * Counts and rates are surfaced; the user decides whether the
+ * shape is fair.
+ */
+function PatternComparisonCard({
+  pattern,
+}: {
+  pattern: {
+    category: string;
+    patternFormedAt: string;
+    totalResolutions: number;
+    before: PatternBucket;
+    after: PatternBucket;
+  };
+}) {
+  return (
+    <div className="rounded-xl border border-default bg-white/[0.02] p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <p className="text-sm font-semibold text-primary">
+            {pattern.category}
+          </p>
+          <p className="text-[10px] text-muted">
+            {pattern.totalResolutions} total resolutions · §3.2
+            threshold crossed{" "}
+            {pattern.patternFormedAt.slice(0, 10)}
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <PatternBucketCell label="Before pattern formed" bucket={pattern.before} tone="muted" />
+        <PatternBucketCell label="After pattern formed" bucket={pattern.after} tone="emerald" />
+      </div>
+    </div>
+  );
+}
+
+function PatternBucketCell({
+  label,
+  bucket,
+  tone,
+}: {
+  label: string;
+  bucket: PatternBucket;
+  tone: "emerald" | "muted";
+}) {
+  const toneCls =
+    tone === "emerald"
+      ? "border-emerald-500/30 bg-emerald-500/5"
+      : "border-default bg-surface/40";
+  if (bucket.conversationCount === 0) {
+    return (
+      <div className={`rounded-lg border p-3 ${toneCls}`}>
+        <p className="text-[10px] uppercase tracking-widest font-bold text-muted mb-1">
+          {label}
+        </p>
+        <p className="text-[11px] text-muted italic">
+          No conversations in this bucket.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className={`rounded-lg border p-3 ${toneCls}`}>
+      <p className="text-[10px] uppercase tracking-widest font-bold text-secondary mb-2">
+        {label}
+      </p>
+      <p className="text-[11px] text-secondary mb-1">
+        <span className="font-bold text-primary text-base">
+          {bucket.conversationCount}
+        </span>{" "}
+        {bucket.conversationCount === 1 ? "conversation" : "conversations"}
+      </p>
+      <div className="space-y-1 mt-2">
+        <p className="text-[11px] text-secondary">
+          Median time to resolve:{" "}
+          {bucket.medianTimeToResolveMinutes !== null ? (
+            <span className="font-mono font-semibold text-primary">
+              {formatMinutes(bucket.medianTimeToResolveMinutes)}
+            </span>
+          ) : (
+            <span className="text-muted italic">not enough timing data</span>
+          )}
+        </p>
+        <p className="text-[11px] text-secondary">
+          Durability held:{" "}
+          <span className="font-mono font-semibold text-primary">
+            {bucket.durabilityHeld} of {bucket.durabilityChecked}
+          </span>{" "}
+          {bucket.durabilityHeldRate !== null && (
+            <span className="text-muted">
+              ({(bucket.durabilityHeldRate * 100).toFixed(1)}%)
+            </span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function formatMinutes(minutes: number): string {
+  if (minutes < 60) return `${Math.round(minutes)}m`;
+  const hours = minutes / 60;
+  if (hours < 24) return `${hours.toFixed(1)}h`;
+  const days = hours / 24;
+  return `${days.toFixed(1)}d`;
 }

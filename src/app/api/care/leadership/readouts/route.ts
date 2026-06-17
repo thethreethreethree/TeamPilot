@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   fetchCoachRubricReadout,
   fetchCoPilotValueReadout,
+  fetchPatternResolutionReadout,
   fetchRoutingReadout,
   fetchSlaWithDurabilityReadout,
 } from "@/lib/data/care";
@@ -57,30 +58,44 @@ export async function GET(req: NextRequest) {
   const windowDaysParam = req.nextUrl.searchParams.get("windowDays");
   const windowDays = windowDaysParam ? parseInt(windowDaysParam, 10) : 60;
 
-  const [coachRubric, coPilotValue, routing, slaWithDurability] =
-    await Promise.all([
-      fetchCoachRubricReadout({
-        companyId: profile.company_id,
-        windowDays,
-      }),
-      fetchCoPilotValueReadout({
-        companyId: profile.company_id,
-        windowDays,
-      }),
-      fetchRoutingReadout({
-        companyId: profile.company_id,
-        windowDays,
-      }),
-      fetchSlaWithDurabilityReadout({
-        companyId: profile.company_id,
-        windowDays,
-      }),
-    ]);
+  const [
+    coachRubric,
+    coPilotValue,
+    routing,
+    slaWithDurability,
+    patternResolution,
+  ] = await Promise.all([
+    fetchCoachRubricReadout({
+      companyId: profile.company_id,
+      windowDays,
+    }),
+    fetchCoPilotValueReadout({
+      companyId: profile.company_id,
+      windowDays,
+    }),
+    fetchRoutingReadout({
+      companyId: profile.company_id,
+      windowDays,
+    }),
+    fetchSlaWithDurabilityReadout({
+      companyId: profile.company_id,
+      windowDays,
+    }),
+    fetchPatternResolutionReadout({
+      companyId: profile.company_id,
+      // Pattern-resolution uses a wider window by default
+      // because formation-to-after evidence accumulates slowly.
+      // If the caller passed windowDays, honor it; otherwise the
+      // function's 90-day default kicks in.
+      ...(windowDaysParam ? { windowDays } : {}),
+    }),
+  ]);
 
   return NextResponse.json({
     coachRubric,
     coPilotValue,
     routing,
     slaWithDurability,
+    patternResolution,
   });
 }
