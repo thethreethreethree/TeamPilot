@@ -2,6 +2,7 @@
 
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { SkeletonRow } from "@/components/ui/Skeleton";
 import { taskDisplayLabel } from "@/lib/tasks/statusLabels";
 import { fetchTasks, type FetchTasksMode, type Task } from "@/lib/data/tasks";
 import { fetchTeam, type TeamMember } from "@/lib/data/team";
@@ -245,8 +246,12 @@ export default function OperationsPage() {
         {/* List */}
         <div className="glass-card p-5">
           {loading ? (
-            <div className="flex items-center gap-2 text-xs text-muted py-10 justify-center">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading tasks…
+            <div className="-mx-5 -mb-5">
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
             </div>
           ) : filtered.length === 0 ? (
             <EmptyState mode={mode} hasFilter={activeFilter !== "All"} />

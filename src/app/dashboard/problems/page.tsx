@@ -2,6 +2,7 @@
 
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { SkeletonCard } from "@/components/ui/Skeleton";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { fetchProblems, type ProblemRecord, type ProblemsMode } from "@/lib/data/problems";
 import { fetchSignals } from "@/lib/data/signals";
@@ -96,8 +97,10 @@ export default function ProblemsPage() {
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+          <div className="space-y-3">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
           </div>
         )}
 

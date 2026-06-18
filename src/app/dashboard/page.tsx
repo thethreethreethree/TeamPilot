@@ -2,6 +2,7 @@
 
 import TopBar from "@/components/layout/TopBar";
 import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
+import { SkeletonRow } from "@/components/ui/Skeleton";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { fetchTasks, type FetchTasksMode, type Task } from "@/lib/data/tasks";
 import { fetchSignals, type SignalsMode } from "@/lib/data/signals";
@@ -487,6 +488,7 @@ export default function CommandDashboard() {
                   principle="A briefing that tells you what to do is a briefing that has overtaken your judgment. The right briefing surfaces what's worth holding open and trusts you to decide."
                 >
                   <button
+                    type="button"
                     onClick={surfaceQuestions}
                     disabled={loadingBriefing}
                     className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
@@ -556,8 +558,13 @@ export default function CommandDashboard() {
                 </Link>
               </div>
               {loading ? (
-                <div className="flex items-center gap-2 text-xs text-muted py-6 justify-center">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+                // Skeleton rows so the user sees the SHAPE of
+                // what's coming instead of a centered spinner
+                // (which on slow connections reads as 'stuck').
+                <div>
+                  <SkeletonRow />
+                  <SkeletonRow />
+                  <SkeletonRow />
                 </div>
               ) : blockedTasks.length + criticalTasks.length === 0 ? (
                 <p className="text-xs text-muted py-6 text-center">

@@ -230,7 +230,12 @@ export default function CrmAccountsPage() {
 
         {/* Table */}
         <div className="glass-card overflow-hidden">
-          <table className="w-full">
+          {/* Horizontal scroll on small screens — beats hiding
+              columns. Customer-account audits often need to see
+              every column. Add overflow-x-auto so the table can
+              scroll inside the card without breaking the layout. */}
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px]">
             <thead>
               <tr className="border-b border-default">
                 {[
@@ -244,7 +249,7 @@ export default function CrmAccountsPage() {
                 ].map((h) => (
                   <th
                     key={h}
-                    className="text-left text-[10px] uppercase tracking-widest font-bold text-muted py-2.5 px-4"
+                    className="text-left text-[10px] uppercase tracking-widest font-bold text-muted py-2.5 px-4 whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -326,6 +331,7 @@ export default function CrmAccountsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         <p className="text-[10px] text-muted italic">

@@ -15,6 +15,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { SkeletonRow } from "@/components/ui/Skeleton";
 import {
   markNotificationsRead,
   NOTIF_LAST_READ_KEY,
@@ -157,8 +158,11 @@ export default function NotificationsPage() {
       />
       <div className="p-6 max-w-3xl mx-auto space-y-4">
         {loading && (
-          <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> Loading…
+          <div className="glass-card overflow-hidden">
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
           </div>
         )}
 

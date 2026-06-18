@@ -129,6 +129,7 @@ export default function TeamPage() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setInviting(true)}
                 className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
               >
@@ -258,6 +259,7 @@ function MemberRow({
         </div>
       </div>
       <button
+        type="button"
         onClick={remove}
         disabled={busy}
         className="flex items-center gap-1.5 text-xs text-muted hover:text-red-400 disabled:opacity-40"
@@ -321,6 +323,7 @@ function InviteRow({
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={copy}
             className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-2.5 py-1.5 rounded-lg transition-all"
             aria-label={`Copy invite link for ${invitation.email}`}
@@ -330,6 +333,7 @@ function InviteRow({
             {copied ? "Copied" : "Copy link"}
           </button>
           <button
+            type="button"
             onClick={revoke}
             disabled={busy}
             className="text-xs text-muted hover:text-red-400 disabled:opacity-40 p-1.5"

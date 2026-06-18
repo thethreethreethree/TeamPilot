@@ -174,6 +174,7 @@ export default function AdminFeedbackPage() {
             ).map((s) => (
               <button
                 key={s}
+                type="button"
                 onClick={() => setStatusFilter(s)}
                 className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors ${
                   statusFilter === s
@@ -191,6 +192,7 @@ export default function AdminFeedbackPage() {
             ).map((k) => (
               <button
                 key={k}
+                type="button"
                 onClick={() => setKindFilter(k)}
                 className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
                   kindFilter === k
@@ -372,6 +374,7 @@ function FeedbackRowCard({
                 (s) => (
                   <button
                     key={s}
+                    type="button"
                     disabled={row.status === s}
                     onClick={() => void onTransition(row.id, s, note)}
                     className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-default hover:border-strong text-secondary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed"

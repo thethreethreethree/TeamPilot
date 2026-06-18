@@ -598,6 +598,7 @@ export default function TeamChatTopicPage() {
               the composer scroll below is where it really matters. */}
           <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto md:overflow-visible md:flex-none md:flex-nowrap justify-end -mx-1 px-1 [touch-action:pan-x] [overscroll-behavior:contain] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <button
+              type="button"
               onClick={() => setShowParticipants((v) => !v)}
               className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
             >
@@ -625,6 +626,7 @@ export default function TeamChatTopicPage() {
                 offered once there are ≥2 messages to summarize. */}
             {messages.filter((m) => m.kind === "message").length >= 2 && (
               <button
+                type="button"
                 onClick={() => setSummarizeOpen(true)}
                 className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
               >
@@ -634,6 +636,7 @@ export default function TeamChatTopicPage() {
             )}
             {iAmAdmin && !isClosed && (
               <button
+                type="button"
                 onClick={async () => {
                   // No-op when the company-wide switch is on —
                   // toggling per-topic has no effect since the master
@@ -691,6 +694,7 @@ export default function TeamChatTopicPage() {
               !isClosed &&
               (!topicDecision || topicDecision.phase === "decided") && (
                 <button
+                  type="button"
                   onClick={() => void handleOpenDecisionDialogue()}
                   disabled={openingDialogue}
                   title="Open the structured 4-phase Decision Dialogue inline in this thread"
@@ -702,6 +706,7 @@ export default function TeamChatTopicPage() {
               )}
             {iAmAdmin && !isClosed && !spawnSelectMode && (
               <button
+                type="button"
                 onClick={() => setSpawnSelectMode(true)}
                 title="Select messages to convert into a structured task with steps"
                 className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
@@ -712,6 +717,7 @@ export default function TeamChatTopicPage() {
             )}
             {iAmAdmin && !isClosed && (
               <button
+                type="button"
                 onClick={() => setClosingOpen(true)}
                 className="flex items-center gap-1.5 text-xs text-accent-text hover:text-accent-text border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
               >
@@ -799,6 +805,7 @@ export default function TeamChatTopicPage() {
               (topic.closeDurability === null ||
                 topic.closeDurability === "unknown") && (
                 <button
+                  type="button"
                   onClick={() => setReviewOpen(true)}
                   className="flex-shrink-0 self-start flex items-center gap-1.5 text-[11px] text-accent-text hover:text-accent-text border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1 rounded-lg transition-colors"
                 >
@@ -810,6 +817,7 @@ export default function TeamChatTopicPage() {
               topic.closeDurability &&
               topic.closeDurability !== "unknown" && (
                 <button
+                  type="button"
                   onClick={() => setReviewOpen(true)}
                   className="flex-shrink-0 self-start text-[11px] text-accent-text underline underline-offset-2"
                   title="Change the outcome label if new evidence makes the prior judgement wrong. Both judgements stay on the §3.1 record."

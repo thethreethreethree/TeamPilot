@@ -285,7 +285,7 @@ function MyFeedbackRow({
       {expanded && (
         <div className="mt-3 pt-3 border-t border-default space-y-3">
           {row.body && (
-            <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
+            <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap break-words">
               <MentionText text={row.body} />
             </p>
           )}
