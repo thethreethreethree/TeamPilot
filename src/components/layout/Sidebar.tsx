@@ -383,7 +383,10 @@ export default function Sidebar() {
     )}
     <aside
       className={cn(
-        "fixed left-0 top-0 h-screen w-64 bg-surface border-r border-default flex flex-col z-40 transition-transform duration-200",
+        // h-dvh follows the visible viewport on mobile (shrinks when
+        // keyboard opens), avoiding the bottom of the sidebar
+        // disappearing behind the keyboard.
+        "fixed left-0 top-0 h-dvh w-64 bg-surface border-r border-default flex flex-col z-40 transition-transform duration-200",
         "md:translate-x-0",
         mobileOpen ? "translate-x-0" : "-translate-x-full",
         // Hide the full sidebar on desktop when collapsed — the
