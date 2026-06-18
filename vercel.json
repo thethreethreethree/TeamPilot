@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/care/durability-sweep-cron",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

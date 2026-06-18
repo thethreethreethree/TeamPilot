@@ -1,26 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { sweepDurabilityChecks } from "@/lib/care/durabilitySweep";
 
 /**
  * POST /api/care/durability-sweep
  *
- * Periodic sweep that converts due-but-unchecked durability rows into
- * notification events via emit_care_durability_due_event (migration
- * 0050). Idempotent — the SQL function dedups against the events
- * table.
+ * For EXTERNAL cron services (cron-job.org, EasyCron, GitHub Actions,
+ * etc.). Auth via shared CARE_DURABILITY_SWEEP_SECRET env header.
  *
- * Auth: gated by a shared CARE_DURABILITY_SWEEP_SECRET env header so
- * a cron job (Vercel cron / GitHub Action / external pinger) can run
- * it without holding a user session. Not user-facing.
+ * Vercel Cron consumers use /api/care/durability-sweep-cron instead —
+ * it's GET-based and uses Vercel's auto-injected Authorization bearer.
  *
- * Per CLAUDE.md §3.5 — the loop has to actually fire. The trigger
- * inserts the durability check at resolution time; this route is the
- * thing that fires the "you have a re-review due" notification. The
- * agent reads it. The §3.5 measurement gets recorded.
- *
- * Per CLAUDE.md §A11 — no verdict generation here. The route only
- * fires the event; the agent renders the held/reopened/inconclusive
- * verdict via recordDurabilityOutcome.
+ * Both endpoints invoke the same shared sweep function so the dedup +
+ * scan logic stays in one place.
  */
 export async function POST(req: NextRequest) {
   const expected = process.env.CARE_DURABILITY_SWEEP_SECRET;
@@ -41,32 +32,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const admin = createAdminClient();
-  const nowIso = new Date().toISOString();
-  // Pull every durability check that's due AND unchecked. The SQL
-  // function dedups against events, so re-running this is safe.
-  const { data: due, error } = await admin
-    .from("support_durability_checks")
-    .select("id")
-    .is("checked_at", null)
-    .lte("scheduled_for", nowIso)
-    .limit(500);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  const checks = due ?? [];
-  let emitted = 0;
-  for (const c of checks) {
-    const { error: rpcErr } = await admin.rpc(
-      "emit_care_durability_due_event",
-      { p_check_id: c.id as string }
+  try {
+    const result = await sweepDurabilityChecks();
+    return NextResponse.json(result);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Sweep failed." },
+      { status: 500 }
     );
-    if (!rpcErr) emitted++;
   }
-  return NextResponse.json({
-    ok: true,
-    scanned: checks.length,
-    emittedAttempts: emitted,
-    sweptAt: nowIso,
-  });
 }
