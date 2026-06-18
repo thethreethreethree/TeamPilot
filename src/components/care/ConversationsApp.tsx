@@ -1621,7 +1621,7 @@ function DetailHeader({
           </h2>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span
-              className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full border ${dl.tone.border} ${dl.tone.bg} ${dl.tone.text}`}
+              className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${dl.tone.border} ${dl.tone.bg} ${dl.tone.text}`}
             >
               <Icon className="w-3 h-3" aria-hidden />
               {dl.label}
@@ -1996,13 +1996,21 @@ function MessageRow({
         ? "You"
         : "System";
 
+  // Per user feedback 2026-06-18 — agent + customer message bodies
+  // were rendering too dim in dark mode. The 4%-opacity amber/white
+  // tints made the bubble nearly invisible against bg-base, and the
+  // text-primary inside read as faded because the bubble itself had
+  // no visual presence. Switched to bg-surface-raised (the proper
+  // card-on-card surface token) so message bodies have a solid base
+  // and full contrast in both modes. Tone color is preserved via
+  // the border accent only — that's where the speaker semantic lives.
   const tone = isNote
-    ? "border-accent-text/30 bg-accent-text/[0.04]"
+    ? "border-accent-text/40 bg-surface-raised"
     : isCustomer
-      ? "border-default bg-white/[0.02]"
+      ? "border-default bg-surface-raised"
       : isAi
-        ? "border-arc-400/30 bg-arc-400/[0.04]"
-        : "border-ember-400/30 bg-ember-400/[0.04]";
+        ? "border-arc-400/40 bg-surface-raised"
+        : "border-ember-400/40 bg-surface-raised";
 
   return (
     <div className={`rounded-lg border p-3 ${tone}`}>
