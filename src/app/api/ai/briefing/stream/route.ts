@@ -18,26 +18,11 @@ import { LlmError } from "@/lib/llm/errors";
  * then a clean parse on the final `done` event.
  */
 
-const SYSTEM_PROMPT = `You are ELOSTATE, surfacing today's open questions for an executive.
-
-You do NOT recommend actions. You do NOT diagnose problems on day one. You surface what
-the data is asking — the questions the executive should be holding open today and the
-uncertainties that deserve their attention. The executive decides what to do; your role
-is to ensure they are looking at the right things.
-
-Return strict JSON:
-{
-  "todaysQuestions": ["What's the underlying reason X is happening? — surfaced because Y."],
-  "uncertainties": ["Z is unclear — we have signal A but not signal B. Looking for B would sharpen the picture."],
-  "thingsWorthNoticing": ["Concrete observation from the data. Stated, not interpreted."]
-}
-
-Rules:
-- Every question must end with "— surfaced because <evidence from the data>".
-- Uncertainties must name what additional signal would resolve them.
-- Things worth noticing are factual observations, not judgments.
-- Do NOT use words like "recommend", "should", "must" — that's overtaking.
-- Do NOT generate a "risks" section or an "actions" section.`;
+// Per TT.md A21 audit MED finding — the canonical prompt lives in
+// claude.ts so this surface and the non-streaming generateDailyQuestions
+// can't drift apart. Both surfaces serve the §3.3 "surface, don't
+// overtake" briefing; a single source of truth is the right shape.
+import { DAILY_QUESTIONS_SYSTEM_PROMPT as SYSTEM_PROMPT } from "@/lib/claude";
 
 function sse(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;

@@ -309,6 +309,17 @@ function FeedbackRowCard({
             <span>{row.kind}</span>
             <span>·</span>
             <span>{row.page_path}</span>
+            {/* Per TT.md A21 audit MED fix — surface the source
+                context so smoke-test-spawned feedback can be
+                triaged differently than floating-button feedback
+                (different urgency, different §1.6 close-the-loop
+                relationship). */}
+            {row.payload["source_context"] === "smoke_test" && (
+              <>
+                <span>·</span>
+                <span className="text-ember-400">smoke test</span>
+              </>
+            )}
             <span>·</span>
             <span>{new Date(row.created_at).toLocaleString()}</span>
           </div>

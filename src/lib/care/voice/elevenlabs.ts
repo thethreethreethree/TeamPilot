@@ -36,6 +36,12 @@ const STT_ENDPOINT = "https://api.elevenlabs.io/v1/speech-to-text";
 // one, will choose voice later." This is the one.
 const DEFAULT_VOICE_ID = "ErXwobaYiN019PkySvjV";
 
+// Per TT.md A21 audit (2026-06-18) MED finding — the env validator
+// at src/lib/env.ts now parses ELEVENLABS_API_KEY at startup, so a
+// missing key surfaces immediately instead of on first customer call.
+// This local getApiKey still .trim()s defensively (the env validator
+// allows the empty string to keep voice optional in dev).
+
 function getApiKey(): string {
   // .trim() — defensive against the most common deploy mistake:
   // pasting the key with a trailing newline or surrounding

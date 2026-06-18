@@ -44,6 +44,18 @@ const Env = z
       .optional()
       .or(z.literal("")),
 
+    // ElevenLabs voice (C.A.R.E voice mode). Validated here so a
+    // missing/malformed key surfaces at startup, not on first call.
+    // Per TT.md A21 audit (2026-06-18) MED finding — until this,
+    // ELEVENLABS_API_KEY was looked up lazily inside getApiKey() and
+    // a missing/invalid key first showed up when a customer hit the
+    // voice button. Validation at parse-time gives operators a fail-
+    // fast signal. The key is optional in dev (voice mode degrades
+    // gracefully) and not required even in prod (text channel works
+    // without it).
+    ELEVENLABS_API_KEY: z.string().optional().or(z.literal("")),
+    ELEVENLABS_DEFAULT_VOICE_ID: z.string().optional().or(z.literal("")),
+
     // Supabase (client-readable but parsed here for consistency)
     NEXT_PUBLIC_SUPABASE_URL: z
       .string()
@@ -98,3 +110,4 @@ export const hasAnthropic = Boolean(env.ANTHROPIC_API_KEY);
 export const hasSupabase = Boolean(
   env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
+export const hasElevenLabs = Boolean(env.ELEVENLABS_API_KEY);

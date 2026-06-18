@@ -240,6 +240,13 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
           payload.screenshot_annotations = screenshot.annotations;
         }
       }
+      // Per TT.md A21 audit (2026-06-18) MED finding — surface the
+      // origin context in the payload so admin triage can tell
+      // smoke-test-spawned feedback from floating-button feedback.
+      // Closes the §1.6 close-the-loop gap that auditors flagged.
+      const sourceContext = pathname.startsWith("/dashboard/smoke-test")
+        ? "smoke_test"
+        : "floating_button";
       const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -249,7 +256,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
           body: body.trim(),
           page_path: pathname,
           viewport,
-          payload,
+          payload: { ...payload, source_context: sourceContext },
         }),
       });
       if (!res.ok) {

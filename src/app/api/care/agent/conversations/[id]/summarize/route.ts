@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAgentConversation } from "@/lib/data/care";
+import {
+  fetchAgentConversation,
+  findSimilarResolutions,
+} from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
@@ -104,11 +107,63 @@ export async function POST(
         { status: 200 }
       );
     }
-    return NextResponse.json({ summary: r.text.trim() });
+
+    // Per TT.md A21 audit (2026-06-18) MED finding — until this, the
+    // C.A.R.E summary was a standalone read with no §3.6 make-learning-
+    // visible parallel to chat's similar-topics surface. Now we also
+    // surface up to 3 prior held resolutions whose issue_summary
+    // matches the current customer's recent messages. The agent sees
+    // "we've handled this kind of issue 3 times before" alongside
+    // the System's read, so the institutional memory is visible
+    // during summary — not just during drafting.
+    const customerMessages = visible
+      .filter((m) => m.authorType === "customer")
+      .slice(-3)
+      .map((m) => m.body)
+      .join(" ");
+    const keywords = extractKeywords(customerMessages);
+    const priorSimilar =
+      keywords.length > 0
+        ? await findSimilarResolutions({
+            companyId: detail.conversation.companyId,
+            searchTerms: keywords,
+            excludeConversationId: id,
+            limit: 3,
+          })
+        : [];
+    return NextResponse.json({
+      summary: r.text.trim(),
+      priorSimilar: priorSimilar.map((p) => ({
+        id: p.id,
+        issueSummary: p.issueSummary,
+        category: p.category,
+      })),
+    });
   } catch {
     return NextResponse.json(
       { error: "Couldn't generate a summary right now." },
       { status: 502 }
     );
   }
+}
+
+// Minimal keyword extractor — same shape as the Read Phase one.
+// Sprint 6 swaps both for embeddings.
+const STOP = new Set([
+  "the", "a", "an", "and", "or", "but", "for", "on", "in", "of",
+  "to", "with", "without", "have", "has", "had", "is", "are", "was",
+  "were", "be", "been", "being", "do", "does", "did", "this", "that",
+  "these", "those", "i", "me", "my", "you", "your", "we", "us", "our",
+  "they", "them", "their", "it", "its", "as", "at", "from", "by",
+  "about", "what", "when", "where", "why", "how", "if", "so", "just",
+  "can", "could", "would", "should", "will", "shall", "may", "might",
+  "must", "any", "all", "some", "no", "not", "than", "then", "now",
+]);
+function extractKeywords(text: string): string[] {
+  const tokens = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 3 && !STOP.has(w));
+  return Array.from(new Set(tokens)).slice(0, 6);
 }

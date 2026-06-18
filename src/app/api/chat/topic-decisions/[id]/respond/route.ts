@@ -56,6 +56,30 @@ export async function POST(
   if (fetchErr || !row) {
     return NextResponse.json({ error: "Dialogue not found." }, { status: 404 });
   }
+
+  // Per TT.md A21 audit (2026-06-18) MED finding — until this fix,
+  // the route relied on RLS alone to gate cross-topic mutations. The
+  // PATCH and respond handlers checked auth (signed-in user) but did
+  // NOT verify the user is a participant of the parent topic. RLS at
+  // the DB layer catches it for company isolation, but an explicit
+  // route-layer participant check makes the boundary auditable and
+  // returns a clear 403 instead of relying on silent row drop.
+  const { data: participation } = await supabase
+    .from("chat_participants")
+    .select("user_id")
+    .eq("topic_id", row.topic_id)
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  if (!participation) {
+    return NextResponse.json(
+      {
+        error:
+          "Not a participant of this topic. Decision dialogues are scoped to topic participants.",
+      },
+      { status: 403 }
+    );
+  }
+
   if (row.phase === "decided") {
     return NextResponse.json(
       { error: "This dialogue is decided and frozen." },

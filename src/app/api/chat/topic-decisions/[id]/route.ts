@@ -68,6 +68,27 @@ export async function PATCH(
   if (fetchErr || !row) {
     return NextResponse.json({ error: "Dialogue not found." }, { status: 404 });
   }
+
+  // Per TT.md A21 audit (2026-06-18) MED finding — explicit topic-
+  // participant gate. RLS catches it at the DB layer, but route-layer
+  // check returns a clear 403 and makes the auth boundary auditable
+  // instead of silent.
+  const { data: participation } = await supabase
+    .from("chat_participants")
+    .select("user_id")
+    .eq("topic_id", row.topic_id)
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  if (!participation) {
+    return NextResponse.json(
+      {
+        error:
+          "Not a participant of this topic. Decision dialogues are scoped to topic participants.",
+      },
+      { status: 403 }
+    );
+  }
+
   if (row.phase === "decided") {
     return NextResponse.json(
       { error: "This dialogue is decided and frozen." },

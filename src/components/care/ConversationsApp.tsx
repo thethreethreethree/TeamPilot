@@ -2823,7 +2823,13 @@ function SummarizeCarePanel({
   conversationId: string;
   onClose: () => void;
 }) {
+  type PriorSimilar = {
+    id: string;
+    issueSummary: string;
+    category: string | null;
+  };
   const [summary, setSummary] = useState<string | null>(null);
+  const [priorSimilar, setPriorSimilar] = useState<PriorSimilar[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -2848,6 +2854,12 @@ function SummarizeCarePanel({
           return;
         }
         setSummary(data.summary ?? "");
+        // Per TT.md A21 audit MED fix — §3.6 institutional
+        // memory is now visible during summary, parallel to
+        // chat's similar-topics surface.
+        if (Array.isArray(data.priorSimilar)) {
+          setPriorSimilar(data.priorSimilar as PriorSimilar[]);
+        }
       } catch {
         setError("Couldn't reach the server.");
       } finally {
@@ -2876,6 +2888,33 @@ function SummarizeCarePanel({
             §3.3 — this is the System&apos;s read, not a verdict.
             Confirm or correct it against the conversation itself.
           </p>
+          {priorSimilar.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-default">
+              <p className="text-xs uppercase tracking-widest text-muted font-bold mb-2">
+                We&apos;ve handled this kind of issue before
+              </p>
+              <ul className="space-y-1">
+                {priorSimilar.map((p) => (
+                  <li
+                    key={p.id}
+                    className="text-xs text-secondary leading-relaxed"
+                  >
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-muted mr-1.5">
+                      {p.category ?? "uncat"}
+                    </span>
+                    {p.issueSummary.length > 90
+                      ? p.issueSummary.slice(0, 87) + "…"
+                      : p.issueSummary}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10px] text-muted italic mt-2">
+                §3.6 — past resolutions the System matched against
+                this conversation. Read them; they may shape the
+                reply.
+              </p>
+            </div>
+          )}
         </>
       )}
     </ToolPanelShell>

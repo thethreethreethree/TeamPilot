@@ -72,15 +72,15 @@ async function call(args: CallArgs): Promise<CallResult> {
 // Today's Open Questions (§3.3 — surface, don't direct)
 // ─────────────────────────────────────────────────────────────
 
-export async function generateDailyQuestions(
-  companyContext: string,
-  opts?: { companyId?: string }
-): Promise<CallResult> {
-  return call({
-    companyId: opts?.companyId,
-    expectJson: true,
-    maxTokens: 700,
-    systemPrompt: `You are ELOSTATE, surfacing today's open questions for an executive.
+/**
+ * The §3.3 briefing system prompt — the single canonical source.
+ * Per TT.md A21 audit (2026-06-18) MED finding — until this export,
+ * the streaming briefing route at /api/ai/briefing/stream duplicated
+ * this string. Any tightening here (more explicit anti-overtake
+ * rules, sharper output shape constraints) would silently NOT reach
+ * the streaming surface. Now both surfaces import this constant.
+ */
+export const DAILY_QUESTIONS_SYSTEM_PROMPT = `You are ELOSTATE, surfacing today's open questions for an executive.
 
 You do NOT recommend actions. You do NOT diagnose problems on day one. You surface what
 the data is asking — the questions the executive should be holding open today and the
@@ -99,7 +99,17 @@ Rules:
 - Uncertainties must name what additional signal would resolve them.
 - Things worth noticing are factual observations, not judgments.
 - Do NOT use words like "recommend", "should", "must" — that's overtaking.
-- Do NOT generate a "risks" section or an "actions" section.`,
+- Do NOT generate a "risks" section or an "actions" section.`;
+
+export async function generateDailyQuestions(
+  companyContext: string,
+  opts?: { companyId?: string }
+): Promise<CallResult> {
+  return call({
+    companyId: opts?.companyId,
+    expectJson: true,
+    maxTokens: 700,
+    systemPrompt: DAILY_QUESTIONS_SYSTEM_PROMPT,
     userContent: `Surface today's open questions and uncertainties from this company data:\n\n${companyContext}`,
   });
 }

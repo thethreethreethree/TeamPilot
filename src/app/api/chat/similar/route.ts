@@ -137,11 +137,23 @@ export async function POST(req: NextRequest) {
           expectJson: true,
         });
 
-    // If guidance is suppressed (§3.4 Month-1), the brain returns text:""
-    // — preserve the honest empty result.
+    // Per TT.md A21 audit (2026-06-18) MED finding — until this fix,
+    // similar / summarize / topic-decisions each used a different
+    // suppression shape (empty matches array / { suppressed:true,reason } /
+    // SSE gate event), so clients had to handle three patterns. Now
+    // similar matches the standard non-stream shape:
+    //   { suppressed: true, reason: string, matches: [] }
+    // The matches:[] preserves backward-compat with callers that only
+    // check matches; new callers can switch on `suppressed` for an
+    // honest "Coach is in §3.4 control window" message.
     if (!result.text) {
       return new Response(
-        JSON.stringify({ matches: [] }),
+        JSON.stringify({
+          suppressed: true,
+          reason:
+            "Similar-topics analysis is in §3.4 control window — surfaces after the team's baseline is captured.",
+          matches: [],
+        }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
