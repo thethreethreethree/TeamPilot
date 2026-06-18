@@ -84,10 +84,26 @@ export async function POST(
   );
 
   try {
+    // §3.4 + TT.md A21: route through Brain (pass companyId)
+    // so the §3.4 control window applies. During month-1 the
+    // agent reads the thread themselves — same honesty as the
+    // rest of the System.
     const r = await generateCareReply({
+      companyId: detail.conversation.companyId,
       systemPrompt: SYSTEM,
       userMessage: `Product context the agent is grounded in:\n${productContext}\n\nConversation:\n${turns}\n\nWrite the summary.`,
     });
+    if (r.suppressed) {
+      return NextResponse.json(
+        {
+          suppressed: true,
+          reason: r.reason,
+          summary:
+            "Summarize is in §3.4 control window — read the thread directly; the System will learn from the team's reads first.",
+        },
+        { status: 200 }
+      );
+    }
     return NextResponse.json({ summary: r.text.trim() });
   } catch {
     return NextResponse.json(

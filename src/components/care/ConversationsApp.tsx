@@ -991,6 +991,17 @@ export function ConversationsApp({
       );
       if (res.ok) {
         const data = await res.json();
+        // §3.4 control window — surface honestly per A21 fix
+        // rather than silently failing. The agent then types
+        // their own draft and the team's baseline is captured.
+        if (data.suppressed) {
+          toast.info(
+            data.message ??
+              "Co-Pilot is in control window — draft solo for now."
+          );
+          composerRef.current?.focus();
+          return;
+        }
         const draftText = data.draft ?? "";
         setDraft(draftText);
         setAiOriginalDraft(draftText);
@@ -2781,6 +2792,15 @@ function SummarizeCarePanel({
           return;
         }
         const data = await res.json();
+        if (data.suppressed) {
+          // §3.4 control window — surface the suppression
+          // honestly. The summary field carries a guidance
+          // message the agent can read while the System
+          // baselines their reads.
+          setSummary(data.summary ?? null);
+          setError(null);
+          return;
+        }
         setSummary(data.summary ?? "");
       } catch {
         setError("Couldn't reach the server.");
@@ -2856,6 +2876,15 @@ function FormulateCarePanel({
         return;
       }
       const data = await res.json();
+      if (data.suppressed) {
+        // §3.4 control window — agent drafts solo. Honest
+        // surface beats silent failure per TT.md A21.
+        setError(
+          data.message ??
+            "Formulate is in control window — draft solo for now."
+        );
+        return;
+      }
       setResult({ draft: data.draft, reasoning: data.reasoning });
     } catch {
       setError("Couldn't reach the server.");

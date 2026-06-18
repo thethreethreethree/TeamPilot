@@ -117,10 +117,28 @@ export async function POST(
     .join("\n\n");
 
   try {
+    // §3.4 + TT.md A21: route through Brain (pass companyId)
+    // so the §3.4 control window applies — during month-1 the
+    // System refuses to speak so the team's baseline behavior
+    // is captured honestly. Without this, C.A.R.E would always
+    // formulate regardless of control state, breaking the
+    // "honesty is the moat" rule.
     const r = await generateCareReply({
+      companyId: detail.conversation.companyId,
       systemPrompt: SYSTEM,
       userMessage,
     });
+    if (r.suppressed) {
+      return NextResponse.json(
+        {
+          suppressed: true,
+          reason: r.reason,
+          message:
+            "Formulate is in §3.4 control window — type your own draft and the System will learn from it.",
+        },
+        { status: 200 }
+      );
+    }
     let parsed: { draft?: string; reasoning?: string };
     try {
       parsed = JSON.parse(r.text);

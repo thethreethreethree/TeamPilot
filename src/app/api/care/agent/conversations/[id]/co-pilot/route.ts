@@ -166,10 +166,28 @@ Draft the next reply.`;
 
   let raw = "";
   try {
+    // §3.4 + TT.md A21: route through Brain (pass companyId)
+    // so the §3.4 control window applies. Co-Pilot is the
+    // most-AI-active C.A.R.E surface — without this gate it
+    // would always draft from day 1, contradicting the
+    // "no fixed day-one behavior" rule. During month-1 the
+    // agent drafts solo and the team's baseline is captured.
     const r = await generateCareReply({
+      companyId: enriched.companyId,
       systemPrompt: SYSTEM,
       userMessage,
     });
+    if (r.suppressed) {
+      return NextResponse.json(
+        {
+          suppressed: true,
+          reason: r.reason,
+          message:
+            "Co-Pilot is in §3.4 control window — type your own draft and the System will learn from it.",
+        },
+        { status: 200 }
+      );
+    }
     raw = r.text;
   } catch {
     return NextResponse.json(
