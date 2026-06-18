@@ -31,7 +31,16 @@ create index if not exists crm_accounts_is_test_idx
   on crm_accounts (is_test_account);
 
 -- Patch the view to expose the flag so the list can filter.
-create or replace view crm_account_summary as
+--
+-- 2026-06-18 fix: cannot use CREATE OR REPLACE VIEW to insert a new
+-- column in the middle of the SELECT list — Postgres matches existing
+-- view columns by position and would interpret the shift as renaming
+-- columns ("cannot change name of view column created_at to
+-- is_test_account"). The view has no dependent objects (only the
+-- application data layer reads it), so DROP + CREATE is safe. No
+-- CASCADE needed.
+drop view if exists crm_account_summary;
+create view crm_account_summary as
 select
   a.id,
   a.company_id,
