@@ -100,10 +100,16 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "no fields to update" }, { status: 400 });
   }
 
-  const { error } = await ctx.supabase
+  // Per TT.md A21 audit (2026-06-18) HIGH finding — until this fix, the
+  // route returned { ok: true } even when zero rows were updated. RLS
+  // silently dropping a cross-tenant problem-id (or a deleted problem)
+  // was indistinguishable from success. Honest fix: select() the
+  // updated row(s) and verify count > 0; otherwise 404.
+  const { data: updated, error } = await ctx.supabase
     .from("problems")
     .update(patch)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) {
     // Distinguish gate refusals from real errors for the UI.
@@ -111,6 +117,15 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json(
       { error: error.message, gateHold: isGateHold },
       { status: isGateHold ? 422 : 500 }
+    );
+  }
+  if (!updated || updated.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Problem not found, or you don't have permission to modify it.",
+      },
+      { status: 404 }
     );
   }
   return NextResponse.json({ ok: true });

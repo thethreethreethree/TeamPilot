@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { llmStream } from "@/lib/llm";
 import { runBrainStream, type ControlGate } from "@/lib/brain";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -50,7 +49,24 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const context = JSON.stringify(body, null, 2);
-  const companyId = (await getCurrentCompanyId()) ?? undefined;
+  const companyId = await getCurrentCompanyId();
+
+  // Per TT.md A21 audit (2026-06-18) HIGH finding — until this fix, when
+  // companyId was undefined (demo mode, incomplete onboarding, or auth
+  // gap) the route fell through to a direct llmStream call that bypassed
+  // the §3.4 control gate entirely. That made the constitutional gate
+  // skippable by any unauthenticated context. Honest fix: require a
+  // company id. The briefing is per-team; a context-less briefing has
+  // no §3.4 baseline to honor.
+  if (!companyId) {
+    return new Response(
+      JSON.stringify({
+        error:
+          "Briefing requires a signed-in user with a company. The §3.4 control gate is per-team and can't be evaluated without one.",
+      }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -62,48 +78,31 @@ export async function POST(req: NextRequest) {
         let collected = "";
         let gate: ControlGate | undefined;
 
-        if (companyId) {
-          const gen = runBrainStream({
-            companyId,
-            basePrompt: SYSTEM_PROMPT,
-            messages: [
-              {
-                role: "user",
-                content: `Surface today's open questions and uncertainties from this company data:\n\n${context}`,
-              },
-            ],
-            maxTokens: 700,
-            expectJson: true,
-          });
-          let next = await gen.next();
-          while (!next.done) {
-            const delta: string = next.value;
-            collected += delta;
-            send("delta", { text: delta });
-            next = await gen.next();
-          }
-          gate = next.value.gate;
-          if (!gate.guidanceEnabled) {
-            send("gate", { suppressed: true, reason: gate.reason });
-            send("done", { suppressed: true });
-            controller.close();
-            return;
-          }
-        } else {
-          for await (const delta of llmStream({
-            systemPrompt: SYSTEM_PROMPT,
-            messages: [
-              {
-                role: "user",
-                content: `Surface today's open questions and uncertainties from this company data:\n\n${context}`,
-              },
-            ],
-            maxTokens: 700,
-            expectJson: true,
-          })) {
-            collected += delta;
-            send("delta", { text: delta });
-          }
+        const gen = runBrainStream({
+          companyId,
+          basePrompt: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: "user",
+              content: `Surface today's open questions and uncertainties from this company data:\n\n${context}`,
+            },
+          ],
+          maxTokens: 700,
+          expectJson: true,
+        });
+        let next = await gen.next();
+        while (!next.done) {
+          const delta: string = next.value;
+          collected += delta;
+          send("delta", { text: delta });
+          next = await gen.next();
+        }
+        gate = next.value.gate;
+        if (!gate.guidanceEnabled) {
+          send("gate", { suppressed: true, reason: gate.reason });
+          send("done", { suppressed: true });
+          controller.close();
+          return;
         }
 
         let parsed: unknown = null;

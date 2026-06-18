@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { readBody } from "@/lib/api/validate";
 
+// Per TT.md A21 audit (2026-06-18) HIGH finding — until this fix the
+// PATCH handler used a manual `for ... if (body[f] !== undefined)` loop
+// against this ALLOWED_FIELDS list. The check rejected extras but didn't
+// validate types or bounds — a caller could set `name: 42` or
+// `timezone: "..."*10kb` and it would land in companies. Replaced with
+// a zod schema that types AND bounds each field.
 const ALLOWED_FIELDS = [
   "name",
   "industry",
@@ -12,6 +20,20 @@ const ALLOWED_FIELDS = [
   "timezone",
   "llm_provider_preference",
 ] as const;
+
+const SettingsPatchSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    industry: z.string().max(120).optional(),
+    size: z.string().max(40).optional(),
+    stage: z.string().max(80).optional(),
+    goals: z.string().max(4000).optional(),
+    timezone: z.string().max(80).optional(),
+    llm_provider_preference: z
+      .enum(["auto", "deepseek", "anthropic"])
+      .optional(),
+  })
+  .strict();
 
 /**
  * GET  /api/settings — returns the current company's settings + active LLM provider
@@ -101,7 +123,8 @@ export async function PATCH(req: NextRequest) {
       { status: 401 }
     );
   }
-  const body = await req.json().catch(() => ({}));
+  const body = await readBody(req, SettingsPatchSchema);
+  if (body instanceof NextResponse) return body;
   const patch: Record<string, unknown> = {};
   for (const f of ALLOWED_FIELDS) {
     if (body[f] !== undefined) patch[f] = body[f];
