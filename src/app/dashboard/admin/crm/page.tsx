@@ -48,11 +48,13 @@ export default function CrmAccountsPage() {
   const [testVis, setTestVis] = useState<TestVisibility>("production");
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const handle = window.setTimeout(() => {
       setLoading(true);
+      setLoadError(null);
       const params = new URLSearchParams();
       if (stage !== "all") params.set("stage", stage);
       if (search.trim().length > 0) params.set("q", search.trim());
@@ -67,13 +69,21 @@ export default function CrmAccountsPage() {
           }
           if (!res.ok) {
             setAccounts([]);
+            setLoadError(`Could not load accounts (status ${res.status}).`);
             return;
           }
           const data = await res.json();
           setAccounts(data.accounts ?? []);
         })
-        .catch(() => {
-          if (!cancelled) setAccounts([]);
+        .catch((e: unknown) => {
+          if (!cancelled) {
+            setAccounts([]);
+            setLoadError(
+              e instanceof Error
+                ? `Could not load accounts — ${e.message}`
+                : "Could not load accounts (network error)."
+            );
+          }
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -201,6 +211,22 @@ export default function CrmAccountsPage() {
             </span>
           )}
         </div>
+
+        {loadError && (
+          <div className="glass-card p-3 border border-red-500/30 bg-red-500/[0.04] flex items-center gap-3">
+            <p className="flex-1 text-xs text-red-300">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearch((s) => s);
+                setStage((s) => s);
+              }}
+              className="text-xs font-semibold text-ember-300 hover:text-primary border border-ember-400/40 hover:border-ember-400 px-2.5 py-1 rounded-md transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Table */}
         <div className="glass-card overflow-hidden">

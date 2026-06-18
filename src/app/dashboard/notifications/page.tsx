@@ -104,24 +104,50 @@ function describeDecisionPath(chosenPath: string | null): string {
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Notification[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
         const res = await fetch("/api/notifications");
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (!cancelled) {
+            setLoadError(
+              res.status === 401
+                ? "Sign in to view notifications."
+                : `Could not load notifications (status ${res.status}).`
+            );
+          }
+          return;
+        }
         const data = (await res.json()) as { notifications: Notification[] };
+        if (cancelled) return;
         setItems(data.notifications);
         if (data.notifications.length > 0 && data.notifications[0]) {
           markNotificationsRead(data.notifications[0].occurredAt);
         } else {
           markNotificationsRead(new Date().toISOString());
         }
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(
+            e instanceof Error
+              ? `Could not load notifications — ${e.message}`
+              : "Could not load notifications (network error)."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
 
   return (
     <div className="min-h-screen bg-base">
@@ -136,7 +162,20 @@ export default function NotificationsPage() {
           </div>
         )}
 
-        {!loading && items.length === 0 && (
+        {!loading && loadError && (
+          <div className="glass-card p-5 border border-red-500/30 bg-red-500/[0.04]">
+            <p className="text-sm text-red-300 mb-2">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="text-xs font-semibold text-ember-300 hover:text-primary border border-ember-400/40 hover:border-ember-400 px-3 py-1.5 rounded-md transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !loadError && items.length === 0 && (
           <div className="glass-card p-8 text-center">
             <Bell className="w-7 h-7 text-muted mx-auto mb-3" aria-hidden />
             <p className="text-sm text-primary mb-1">No notifications yet.</p>

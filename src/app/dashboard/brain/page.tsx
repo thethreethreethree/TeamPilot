@@ -77,12 +77,33 @@ export default function BrainPage() {
     setLearnMessage("");
     try {
       const res = await fetch("/api/brain/learn", { method: "POST" });
-      const data = await res.json();
-      setLearnMessage(data.summary ?? data.error ?? "Done.");
+      let data: { summary?: string; error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        // JSON parse failure means the route returned non-JSON
+        // (HTML error page, empty body, etc.). Distinguish from
+        // a structured server-side rejection.
+        if (!res.ok) {
+          setLearnMessage(
+            `Learning cycle failed — server returned ${res.status}.`
+          );
+          return;
+        }
+      }
+      if (!res.ok) {
+        setLearnMessage(
+          data.error ?? `Learning cycle failed (status ${res.status}).`
+        );
+        return;
+      }
+      setLearnMessage(data.summary ?? "Done.");
       await refresh();
     } catch (err) {
       setLearnMessage(
-        err instanceof Error ? err.message : "Learning cycle failed."
+        err instanceof Error
+          ? `Learning cycle failed — ${err.message}`
+          : "Learning cycle failed (network error)."
       );
     } finally {
       setLearning(false);

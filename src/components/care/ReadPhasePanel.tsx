@@ -63,9 +63,11 @@ export function ReadPhasePanel({
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
   const [marking, setMarking] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch(
         `/api/care/agent/conversations/${conversationId}/read`
@@ -75,7 +77,19 @@ export function ReadPhasePanel({
         setData(d);
         // Auto-collapse if the agent has already completed the read.
         if (d.readingCompleteAt) setCollapsed(true);
+      } else {
+        setLoadError(
+          res.status === 403
+            ? "You're not authorized to read this conversation."
+            : `Could not load Read Phase context (status ${res.status}).`
+        );
       }
+    } catch (e) {
+      setLoadError(
+        e instanceof Error
+          ? `Could not load Read Phase context — ${e.message}`
+          : "Could not load Read Phase context (network error)."
+      );
     } finally {
       setLoading(false);
     }
@@ -109,6 +123,20 @@ export function ReadPhasePanel({
       <div className="mx-6 mt-4 mb-2 border border-default rounded-lg p-3 text-xs text-muted flex items-center gap-2">
         <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
         Reading the context…
+      </div>
+    );
+  }
+  if (loadError) {
+    return (
+      <div className="mx-6 mt-4 mb-2 border border-red-500/30 bg-red-500/[0.04] rounded-lg p-3 flex items-center gap-3">
+        <p className="flex-1 text-[11px] text-red-300">{loadError}</p>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="text-[11px] font-semibold text-ember-300 hover:text-primary border border-ember-400/40 hover:border-ember-400 px-2.5 py-1 rounded-md transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
