@@ -21,16 +21,25 @@ const ALLOWED_FIELDS = [
   "llm_provider_preference",
 ] as const;
 
+// 2026-06-18 fix: original schema rejected null and used wrong type
+// for goals. The Settings page sends `field || null` for every
+// optional text field, which means cleared inputs hit the API as
+// null — and the schema's `.optional()` only accepts undefined, not
+// null. Also `goals` is stored as a string[] in the DB (jsonb), not
+// a string. Both shapes corrected. .strict() retained so unknown
+// fields still get rejected — that's the security hygiene the
+// original Zod fix was meant to add.
 const SettingsPatchSchema = z
   .object({
-    name: z.string().min(1).max(200).optional(),
-    industry: z.string().max(120).optional(),
-    size: z.string().max(40).optional(),
-    stage: z.string().max(80).optional(),
-    goals: z.string().max(4000).optional(),
+    name: z.string().max(200).nullable().optional(),
+    industry: z.string().max(120).nullable().optional(),
+    size: z.string().max(40).nullable().optional(),
+    stage: z.string().max(80).nullable().optional(),
+    goals: z.array(z.string().max(200)).max(40).nullable().optional(),
     timezone: z.string().max(80).optional(),
     llm_provider_preference: z
-      .enum(["auto", "deepseek", "anthropic"])
+      .enum(["deepseek", "anthropic"])
+      .nullable()
       .optional(),
   })
   .strict();
