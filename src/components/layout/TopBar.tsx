@@ -58,7 +58,10 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
           type="button"
           onClick={openMenu}
           aria-label="Open menu"
-          className="md:hidden p-1.5 -ml-1 rounded-lg text-muted hover:text-primary hover:bg-surface-raised flex-shrink-0"
+          // p-2.5 + 5x5 icon = ~40px tap target (close to WCAG 44).
+          // Previously p-1.5 made the hit area ~28px which fat-finger
+          // hits adjacent elements on touch.
+          className="md:hidden p-2.5 -ml-1 rounded-lg text-muted hover:text-primary hover:bg-surface-raised flex-shrink-0"
         >
           <Menu className="w-5 h-5" aria-hidden />
         </button>

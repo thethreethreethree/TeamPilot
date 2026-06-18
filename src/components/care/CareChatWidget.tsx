@@ -282,7 +282,7 @@ export function CareChatWidget() {
           onClick={() => setOpen(true)}
           aria-label="Open support chat"
           title="Talk to us"
-          className="fixed bottom-4 right-4 z-[55] flex items-center justify-center w-14 h-14 rounded-full bg-ember-400 hover:bg-ember-500 text-[#09090B] shadow-glow-ember transition-all hover:scale-105"
+          className="fixed bottom-4 right-4 z-[55] flex items-center justify-center w-14 h-14 rounded-full bg-ember-400 hover:bg-ember-500 text-[#09090B] shadow-glow-ember transition-all hover:scale-105 mb-[env(safe-area-inset-bottom)]"
         >
           <MessageCircle className="w-6 h-6" aria-hidden />
           {messages.some(
@@ -298,7 +298,11 @@ export function CareChatWidget() {
 
       {/* Expanded chat panel */}
       {open && (
-        <div className="fixed bottom-4 right-4 z-[55] w-[min(380px,calc(100vw-2rem))] h-[min(560px,calc(100vh-2rem))] bg-base border border-default rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        // 100dvh (dynamic viewport height) shrinks when the mobile
+        // keyboard opens — without this, the panel height stayed at
+        // 100vh and pushed the composer off-screen behind the
+        // keyboard.
+        <div className="fixed bottom-4 right-4 z-[55] w-[min(380px,calc(100vw-2rem))] h-[min(560px,calc(100dvh-2rem))] bg-base border border-default rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-[env(safe-area-inset-bottom)]">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-default bg-surface/60">
             <div>

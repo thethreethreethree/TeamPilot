@@ -370,7 +370,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
 
       {open && (
         <div
-          className={`fixed ${posClass} w-[min(380px,calc(100vw-2rem))] h-[min(560px,calc(100vh-2rem))] bg-base border border-default rounded-2xl shadow-2xl flex flex-col overflow-hidden`}
+          className={`fixed ${posClass} w-[min(380px,calc(100vw-2rem))] h-[min(560px,calc(100dvh-2rem))] bg-base border border-default rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-[env(safe-area-inset-bottom)]`}
         >
           {/* Header */}
           <div

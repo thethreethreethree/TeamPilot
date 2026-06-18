@@ -366,6 +366,20 @@ html {
   .cursor-blink::after { opacity: 1 !important; }
 }
 
+/* Wave Y.2 (2026-06-19) — safe-area helper for fixed bottom-anchored
+ * elements (FABs, chat widget, install prompt). On iPhones with home
+ * gesture bars, `bottom: 16px` sits the element directly on the
+ * gesture area, which makes taps feel risky. This class shifts the
+ * element up by the safe-area-inset-bottom while keeping the same
+ * visual gap above the gesture.
+ *
+ * Usage: add the .safe-bottom class on any element with `fixed bottom-X`.
+ * If a component renders via a Tailwind arbitrary-value class, prefer
+ * pb-[env(safe-area-inset-bottom)] directly. */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* Wave T (2026-06-19) — global keyboard-focus baseline.
  *
  * The codebase had ~0 components using focus-visible rings, which

@@ -139,11 +139,16 @@ export default function Modal({
             {title}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-muted hover:text-primary"
+            // p-2 yields a 32px tap zone around the 16px icon — 32+
+            // is the practical minimum on touch (WCAG 2.5.5 says 44+
+            // but our modals are dense; 32 is the right tradeoff
+            // for the in-modal close affordance specifically).
+            className="text-muted hover:text-primary p-2 -m-2 rounded-md"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden />
           </button>
         </div>
         {children}

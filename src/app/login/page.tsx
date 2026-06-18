@@ -138,6 +138,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 autoComplete="email"
+                inputMode="email"
                 required
                 disabled={loading}
                 value={email}

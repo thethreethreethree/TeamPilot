@@ -131,6 +131,7 @@ export default function InviteAcceptPage() {
                 <input
                   type="email"
                   autoComplete="email"
+                  inputMode="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

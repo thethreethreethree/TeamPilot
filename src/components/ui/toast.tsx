@@ -157,7 +157,9 @@ function ToastViewport({
     <div
       role="region"
       aria-label="Notifications"
-      className="fixed top-4 right-4 z-[60] flex flex-col gap-2 max-w-sm pointer-events-none"
+      // top offset includes env(safe-area-inset-top) so toasts on
+      // iPhones with notches don't render UNDER the status bar.
+      className="fixed top-[calc(1rem+env(safe-area-inset-top))] right-4 z-[60] flex flex-col gap-2 max-w-sm pointer-events-none"
     >
       {toasts.map((t) => {
         const Icon = ICON_MAP[t.kind];

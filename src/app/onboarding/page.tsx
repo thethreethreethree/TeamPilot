@@ -497,6 +497,7 @@ Always hand off to a human for:
                     <input
                       type="email"
                       autoComplete="email"
+                      inputMode="email"
                       value={row.email}
                       onChange={(e) =>
                         updateInviteRow(idx, { email: e.target.value })

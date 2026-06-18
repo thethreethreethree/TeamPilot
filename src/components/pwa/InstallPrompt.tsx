@@ -99,7 +99,7 @@ export function InstallPrompt() {
   if (installed || dismissed || !deferred) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:max-w-sm z-50 glass-card p-4 border border-ember-400/40 shadow-glow">
+    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:max-w-sm z-50 glass-card p-4 border border-ember-400/40 shadow-glow mb-[env(safe-area-inset-bottom)]">
       <div className="flex items-start gap-3">
         <Download
           className="w-4 h-4 text-brand mt-0.5 flex-shrink-0"

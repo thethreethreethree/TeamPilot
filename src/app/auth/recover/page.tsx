@@ -186,10 +186,14 @@ export default function RecoverPage() {
                 At least 8 characters. You&apos;ll be signed in automatically
                 after saving.
               </p>
-              <label className="block text-xs font-medium text-secondary mb-1.5">
+              <label
+                htmlFor="recover-new-password"
+                className="block text-xs font-medium text-secondary mb-1.5"
+              >
                 New password
               </label>
               <input
+                id="recover-new-password"
                 type="password"
                 autoComplete="new-password"
                 value={password}
@@ -198,12 +202,15 @@ export default function RecoverPage() {
                 disabled={phase.kind === "submitting"}
                 className="w-full bg-surface border border-default rounded-lg px-4 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors text-base mb-4"
                 placeholder="••••••••"
-                aria-label="New password"
               />
-              <label className="block text-xs font-medium text-secondary mb-1.5">
+              <label
+                htmlFor="recover-confirm-password"
+                className="block text-xs font-medium text-secondary mb-1.5"
+              >
                 Confirm new password
               </label>
               <input
+                id="recover-confirm-password"
                 type="password"
                 autoComplete="new-password"
                 value={confirm}
@@ -211,7 +218,6 @@ export default function RecoverPage() {
                 disabled={phase.kind === "submitting"}
                 className="w-full bg-surface border border-default rounded-lg px-4 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors text-base mb-5"
                 placeholder="••••••••"
-                aria-label="Confirm new password"
               />
               <button
                 type="submit"

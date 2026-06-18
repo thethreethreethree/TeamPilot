@@ -447,6 +447,7 @@ function OverviewTab({
             <FormField label="Health score (0–100)">
               <input
                 type="number"
+                inputMode="numeric"
                 min={0}
                 max={100}
                 value={form.healthScore}
@@ -894,6 +895,7 @@ function SubscriptionTab({
           <FormField label="Seat count">
             <input
               type="number"
+              inputMode="numeric"
               min={0}
               value={seatCount}
               onChange={(e) =>
@@ -905,6 +907,7 @@ function SubscriptionTab({
           <FormField label="MRR (USD)">
             <input
               type="number"
+              inputMode="numeric"
               min={0}
               step={1}
               value={mrr}
@@ -938,6 +941,7 @@ function SubscriptionTab({
           </span>
           <input
             type="number"
+            inputMode="decimal"
             min={0}
             step={0.01}
             value={stubAmount}

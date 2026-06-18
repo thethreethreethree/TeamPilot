@@ -266,6 +266,7 @@ function RoutingControls({
         </label>
         <input
           type="number"
+          inputMode="numeric"
           min={0}
           max={50}
           value={maxConcurrent}
