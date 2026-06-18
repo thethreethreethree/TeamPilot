@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   Heart,
   Hourglass,
+  Building2,
   X,
 } from "lucide-react";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
@@ -63,6 +64,11 @@ const testingNav = [
 ];
 
 const adminNav = [
+  {
+    label: "Customer accounts",
+    href: "/dashboard/admin/crm",
+    icon: Building2,
+  },
   {
     label: "Feedback inbox",
     href: "/dashboard/admin/feedback",
