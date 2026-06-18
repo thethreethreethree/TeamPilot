@@ -658,3 +658,52 @@ If the agent calls a session "complete" while having silently scope-trimmed the 
 **The lesson about the lesson.** A19 caught the meta-failure of methodology-outside-the-tree. A20 catches the meta-failure of the agent's quality bar substituting for the founder's. Together they form a pattern: the agent's most credible failures are the ones where the agent is operating in the language of the discipline (citing §A, framing trade-offs, writing rationale) while violating the discipline at the meta-altitude. The visible work looks like the discipline being applied. The actual failure is the discipline being applied within an unexamined frame — the methodology consulted (A19) or the findings surfaced (A20) — that the agent's own judgment defined unilaterally.
 
 A20 was caught *after-deferral* (the agent shipped the deferrals; the founder caught them). Per A18's catch-during-design vs catch-after-deployment metric: still post-hoc, but earlier than A19's catch (A19 took 6 weeks; A20 took 1 session). The discipline is moving up an altitude faster, but only with the founder still doing the catching. The next test: does the next audit produce zero unilaterally-deferred findings, or does the pattern recur because A20's lesson didn't take either?
+
+---
+
+## A21 · Audits that look WITHIN modules but not ACROSS modules miss "same name, different feature" composition failures
+
+**Tags:** discipline under temptation · proactive audit · cross-module composition · methodology evolution · founder language
+**Captured:** 2026-06-18 (same session as A20, hours later)
+
+**Context.** The agent completed a "C.A.R.E re-audit from scratch" sweep — all 22 agent routes migrated to a shared auth helper, defense-in-depth company scoping, input bounds clamping, full four-layer framework applied. Reported COMPLETE. The founder then pointed at a screenshot of ELOSTATE's chat-side Coach v5 panel — rich UI with "Here's what I'm seeing" + suggested revision with source citations (Zinsser etc.) + "Use this revision / Send as written" CTAs + "You could ask me" follow-up question chips + conversational input — and said *"asked coach does not function as it does ELOSTATE for C.A.R.E, the feature should be available for both C.A.R.E and ELOSTATE system, this is one of the system inconsistency I wanted you to catch."* The founder followed up: *"for the record the asked coached is one the biggest feature a customer management chat system can have, this was a big miss, this also means we need to really to never drift from a full audit."*
+
+The agent verified: ELOSTATE `CoachPanelV5` is 598 lines with the full conversational coach experience backed by `/api/coach/v5/{analyze,followup,grade-sent}`. C.A.R.E's `AskCoachCarePanel` is a counts-only panel (acknowledged ✓ / answered ✓ / risk chips), backed by `/api/care/agent/conversations/[id]/ask-coach`. Same feature name. Completely different feature. The C.A.R.E version is a degraded subset that doesn't surface the coach's actual judgment — the suggested revision, the reasoning, the source citation, the follow-up dialog.
+
+The agent had audited WITHIN C.A.R.E (every C.A.R.E route, every C.A.R.E surface). The agent had NOT audited ACROSS the C.A.R.E ↔ ELOSTATE boundary. The same audit lens would have caught this in minutes; the lens was never pointed there.
+
+**Insight.** Audits naturally scope to one module because that's where the surfaces are. The L3 (synergetic composition) layer of AMD-006 was designed for this — but the agent applied it WITHIN a module ("does this feature compose with adjacent features in the same module?") not ACROSS modules ("does this feature concept compose with its analog in the other module?"). The cross-system composition is the harder and more consequential one because:
+
+- *The user experiences a feature concept, not a module boundary.* "Ask Coach" means "Ask Coach." If the same words produce different behaviors in different parts of the product, the product is broken at a higher altitude than any single module audit can catch.
+- *The drift is invisible from inside either module.* The C.A.R.E audit sees a working `ask-coach` endpoint. The ELOSTATE audit sees a working `/api/coach/v5/analyze` endpoint. Neither audit ever asks: *"is what the C.A.R.E user calls 'Ask Coach' the same thing the ELOSTATE user calls 'Ask Coach'?"*
+- *Same-name-different-feature is more dangerous than different-name-different-feature.* A user who learns Coach in ELOSTATE and then sees "Ask Coach" in C.A.R.E *expects* the same experience. The cognitive dissonance when it's a degraded subset is worse than encountering an entirely separate feature with a different name.
+- *Some features are load-bearing for the entire product positioning.* The founder named this one explicitly: "the asked coached is one the biggest feature a customer management chat system can have." When the centerpiece feature is degraded in the module where it most matters (customer support = the entire C.A.R.E module), the product positioning itself is broken. The miss isn't sized to a single feature — it's sized to whether the system meets its own promise.
+
+**Constitutional bearing.** Direct extension of AMD-006 §1.5.1 layer 3 (synergetic composition). The layer-3 question "does this feature compose with the elements/tools/features around it?" must include features in OTHER modules that share the same concept. A21 makes this explicit: every audit must produce a cross-system feature inventory ("which feature concepts exist in more than one module?") and verify parity for each. Companion to A16 (multiple AI surfaces on the same data must compose, not contradict) — A16 covered multi-surface composition on shared data; A21 covers multi-module composition of shared *concept*.
+
+Also direct application of the founder's stated rule: *"never drift from a full audit."* A21 codifies what a "full audit" requires — not just every surface inside a module, but every surface across modules that shares a feature concept. The "full audit" boundary is the product's *user-visible* boundary, not the codebase's *module* boundary.
+
+**Future-use note.** Before declaring any system audit complete, produce a cross-system feature inventory:
+
+1. Enumerate every feature concept users can name (Coach, Co-pilot, Formulate, Summarize, Guide, Similar, etc.).
+2. For each, list every module that exposes a surface for it.
+3. For each feature with surfaces in 2+ modules, verify behavioral parity: same API shape? same UI affordances? same response data? same vocabulary? same source citations?
+4. Any divergence is an L3 finding that requires a recommended action — either unify to a shared backend + component, or document why the divergence is intentional with the L4 vocabulary explicitly distinguishing them.
+
+A specific pre-flight check the agent must run during ANY audit closure:
+
+> *If a user learns to use feature X in module A, will their muscle memory + mental model work when they use feature X in module B? If no, this is an L3 finding with severity = HIGH because it's a category of confusion, not an instance.*
+
+**Implementation note for ELOSTATE.** The known same-concept-different-implementation pairs as of 2026-06-18:
+
+- **Ask Coach**: ELOSTATE rich v5 panel vs C.A.R.E counts-only panel — HIGH severity; the recommended action is unify on Coach v5 backend + shared `CoachPanelV5` component. The C.A.R.E version's counts can become one section within the v5 panel, not the whole UX.
+- **Formulate**: chat and C.A.R.E both have endpoints — need pairwise diff for completeness.
+- **Summarize**: same.
+- **Guide vs Co-pilot**: probably different names for related "AI-drafts-for-me" concept — either unify the vocabulary or document the legitimate distinction.
+- **Similar past resolutions**: chat surfaces UI; C.A.R.E only uses it internally in Read Phase — should have UI parity per the founder's "feature should be available for both" rule.
+
+Each future feature shipped in either system must have an explicit cross-system parity check before merge.
+
+**The lesson about the lesson.** A19 caught methodology-not-in-the-tree (the agent didn't have access to the discipline). A20 caught the agent applying its own quality bar (the agent had access but used it to silence findings). A21 catches the agent applying the discipline within scope but not across scope (the agent had access AND applied it, but the scope of the audit was too narrow). The pattern across A19/A20/A21: each is a failure of the audit's *boundary* (where the agent stopped looking) rather than of the audit's *content* (what the agent looked at). The next altitude up is the boundary itself — the meta-question *"is the scope of what I'm auditing the right scope, or am I scoping to the easy answer?"* The boundary-honesty question needs to live in every audit closure, alongside the four-layer trace.
+
+A21 was caught after-ship (the founder pointed at a screenshot of the working ELOSTATE feature next to the degraded C.A.R.E feature). Same catch metric as A20: still post-hoc, still the founder doing the catching. The next test: does the next audit produce a cross-system feature inventory before it declares completion, or does it default to per-module sweeping because that's the easier shape?
