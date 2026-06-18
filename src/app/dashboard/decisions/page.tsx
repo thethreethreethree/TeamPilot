@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
+import { LearningHint } from "@/components/learning/LearningHint";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
 import TaskRefinementPanel from "@/components/tasks/TaskRefinementPanel";
 import type { SpawnContextPayload } from "@/lib/taskSpawn/types";
@@ -268,7 +269,15 @@ export default function DecisionsPage() {
         <PhaseStepper current={phase} />
 
         {/* Phase 1 — Situation */}
-        <PhaseCard
+        <LearningHint
+          as="block"
+          category="Decision · Phase 1"
+          title="Situation"
+          whatItIs="The first phase of a Decision Dialogue. Describe the situation in your own words — what's happening, what triggered the need for a decision, what's at stake. The System is silent during this phase by design."
+          why="Most decisions in teams start with the symptom and never name the underlying situation cleanly. The act of writing the situation down — before any analysis, before the System speaks — is the discipline. It forces clarity about what you're actually deciding about. Half of bad decisions are bad because the team was answering the wrong question; the situation phase prevents that failure mode."
+          how="Write 2-5 sentences. Be concrete: dates, names, dollar amounts, specific events. Avoid framing-as-conclusion ('Marcus is overloaded' is a conclusion; 'Marcus has 4 active tasks and 2 overdue' is the situation). When you can describe the situation without using the words you'd use to recommend the answer, you've earned the right to continue."
+          principle="The situation is the question you're actually answering. Get it wrong and every later phase compounds the error."
+        ><PhaseCard
           active={phase === "situation"}
           number="1"
           title="Situation"
@@ -309,11 +318,19 @@ export default function DecisionsPage() {
               </button>
             </div>
           )}
-        </PhaseCard>
+        </PhaseCard></LearningHint>
 
         {/* Phase 2 — Elicit */}
         {phase !== "situation" && (
-          <PhaseCard
+          <LearningHint
+            as="block"
+            category="Decision · Phase 2 · §3.3"
+            title="Your read"
+            whatItIs="The second phase. You state your diagnosis (what you think is actually going on) and your proposal (what you would do, and why). Both required. The System will NOT respond until you've stated both — this is structural, not a UI nudge."
+            why="This is the load-bearing phase of the whole Dialogue. Most products let the AI speak first, which means the human anchors on the AI's framing rather than producing their own. ELOSTATE inverts that: you reason first, the System responds second. The result is that your judgment gets exercised and recorded BEFORE the System influences it. The §3.3 guide-don't-overtake discipline lives here."
+            how="Write your real diagnosis — what you ACTUALLY think the situation is about. Don't pre-shape it for what you think the System will say. Then write your proposal: the action AND the reasoning. 'I would X because Y' is the shape. The System sees both before responding."
+            principle="The System asks first, suggests second, never asserts. The reasoning is transferred to the human, not retained by the machine."
+          ><PhaseCard
             active={phase === "elicit"}
             number="2"
             title="Your read"
@@ -376,12 +393,20 @@ export default function DecisionsPage() {
                 </button>
               </div>
             )}
-          </PhaseCard>
+          </PhaseCard></LearningHint>
         )}
 
         {/* Phase 3 — Respond */}
         {response && (
-          <PhaseCard
+          <LearningHint
+            as="block"
+            category="Decision · Phase 3 · §3.3"
+            title="System response"
+            whatItIs="The third phase. The System responds in four parts: (1) Engages your diagnosis — names what it agrees with from what YOU said. (2) Adds perspective — surfaces something you may not have considered. (3) Offers a suggestion WITH explicit WHY. (4) Compares its suggestion to your proposal directly."
+            why="The structure forbids the System from leading with 'here's what you should do.' It MUST engage your diagnosis first — anchoring the response in your reasoning, not its own. The suggestion comes with the WHY because the reasoning is the transferable asset; the action without reasoning is unrepeatable. The comparison is explicit so you can see where the System's view diverges from yours and judge accordingly."
+            how="Read engagement first. If the System doesn't engage your actual diagnosis (just restates the situation), the response is hollow — push back. The added perspective is the highest-value part; consider it carefully. The suggestion with WHY is what you'll weigh in Phase 4. Don't accept it as a default."
+            principle="The System's response is a perspective offered, not an answer asserted. You still decide."
+          ><PhaseCard
             active={phase === "respond"}
             number="3"
             title="System response"
@@ -438,12 +463,20 @@ export default function DecisionsPage() {
                 </button>
               </div>
             )}
-          </PhaseCard>
+          </PhaseCard></LearningHint>
         )}
 
         {/* Phase 4 — Decide */}
         {phase === "decide" && response && (
-          <PhaseCard
+          <LearningHint
+            as="block"
+            category="Decision · Phase 4 · §3.5"
+            title="Decide and record"
+            whatItIs="The fourth phase. Four options: adopt YOUR proposal, adopt the SYSTEM's suggestion, hybrid (combine both), or defer (not enough understanding yet). The choice + reasoning gets recorded on the chain. Decisions become events; events become signals; the whole Dialogue survives the moment."
+            why="Most decisions in teams evaporate the moment they're made. The reasoning is in someone's head, the choice is in a Slack message, the outcome is in someone else's spreadsheet. None of it connects. Decision Dialogue persists ALL OF IT structurally — your reasoning, the System's perspective, the chosen path, the why. Three months from now when the outcome lands (or doesn't), the audit trail is intact."
+            how="Pick the option that matches what you actually decided — not the one you think looks best. Defer is a first-class option per §0 — an unearned decision is worse than no decision. Add a brief note if your choice needs context. Hit save. The Dialogue gets persisted; the System closes the loop by surfacing this decision when similar ones come back up."
+            principle="A decision without recorded reasoning is a decision without a future. The Dialogue captures the WHY so it can be defended, learned from, and updated — months from now, not just in the moment."
+          ><PhaseCard
             active={true}
             number="4"
             title="Decide and record"
@@ -528,7 +561,7 @@ export default function DecisionsPage() {
                 </div>
               )}
             </div>
-          </PhaseCard>
+          </PhaseCard></LearningHint>
         )}
 
         {/* Decision Memory */}
