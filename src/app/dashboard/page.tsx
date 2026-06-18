@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { InstallTeamChatBanner } from "@/components/pwa/InstallTeamChatBanner";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 interface DailyQuestions {
   todaysQuestions: string[];
@@ -233,54 +234,99 @@ export default function CommandDashboard() {
         )}
         {/* The §3.1 chain at a glance — real numbers only */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <ChainStat
-            label="Open tasks"
-            value={tasks.length}
-            icon={<ListChecks className="w-3.5 h-3.5" />}
-            href="/dashboard/operations"
-            loading={loading}
-            mode={tasksMode === "demo-fixtures" ? "demo" : "live"}
-          />
-          <ChainStat
-            label="Signals (30d)"
-            value={signalCount}
-            icon={<Activity className="w-3.5 h-3.5" />}
-            href="/dashboard/diagnose"
-            loading={loading}
-            mode={signalsMode === "demo-fixtures" ? "demo" : "live"}
-          />
-          <ChainStat
-            label="Open problems"
-            value={draftProblems.length + surfacedProblems.length}
-            sub={`${draftProblems.length} draft · ${surfacedProblems.length} surfaced`}
-            icon={<ShieldCheck className="w-3.5 h-3.5" />}
-            href="/dashboard/problems"
-            loading={loading}
-            mode="live"
-          />
-          <ChainStat
-            label="Resolutions"
-            value={resolutions.length}
-            sub={`${reviewedResolutions.length} reviewed`}
-            icon={<Sparkles className="w-3.5 h-3.5" />}
-            href="/dashboard/resolutions"
-            loading={loading}
-            mode="live"
-          />
-          <ChainStat
-            label="Held rate"
-            value={heldRate === null ? "—" : `${Math.round(heldRate * 100)}%`}
-            sub={
-              heldRate === null
-                ? "no reviews yet"
-                : `${reviewedResolutions.filter((r) => r.durability === "held").length} of ${reviewedResolutions.length}`
-            }
-            icon={<Lightbulb className="w-3.5 h-3.5" />}
-            href="/dashboard/resolutions"
-            loading={loading}
-            mode="live"
-            color={heldRate === null ? "text-muted" : "text-emerald-400"}
-          />
+          <LearningHint
+            category="Chain · Operations"
+            title="Open tasks"
+            whatItIs="The total number of tasks currently in flight — anything not yet completed or deleted. Includes To Do, In Progress, Blocked, and Needs Review."
+            why="A task in ELOSTATE isn't just a ticket. It's a unit of work tied to the reasoning that produced it — the signals it derived from, the problem it might be addressing, the decision that spawned it. The count is the team's active load measured the only way that matters: count of unresolved threads, not count of meetings or messages."
+            how="Click the card to open the Operations board. Use this number to gauge whether the team is over-loaded (more open tasks than the team can credibly close this week) or starving. Spikes deserve a question, not a reaction."
+            principle="Capacity is a count of open threads, not a count of activity. A team with 200 open tasks and no closes isn't busy — it's stuck."
+          >
+            <ChainStat
+              label="Open tasks"
+              value={tasks.length}
+              icon={<ListChecks className="w-3.5 h-3.5" />}
+              href="/dashboard/operations"
+              loading={loading}
+              mode={tasksMode === "demo-fixtures" ? "demo" : "live"}
+            />
+          </LearningHint>
+          <LearningHint
+            category="Chain · §3.1"
+            title="Signals (30d)"
+            whatItIs="Count of signals derived automatically from team events over the last 30 days. Signals are the System's neutral observations — a task slipped, a meeting overran, a customer reopened, a deadline shifted. They are not problems yet; they are the evidence problems get built from."
+            why="The constitutional discipline (§3.2 Understanding Gate) refuses to surface a problem until it has enough signals to be real. Without a healthy signal stream, the System has nothing to reason from and stays silent. The signal count tells you whether the chain has the raw material to do its job."
+            how="A low number on a fresh tenant is normal — signals accumulate as the team works. A persistently low number on an established tenant is a sign the team isn't generating events the System can read; the work is happening invisibly to the chain. Click to open Living Diagnosis and see which signals exist + what they're pointing at."
+            principle="Signals are not problems. They are the raw material problems get earned from. A team without signals has a System that cannot reason."
+          >
+            <ChainStat
+              label="Signals (30d)"
+              value={signalCount}
+              icon={<Activity className="w-3.5 h-3.5" />}
+              href="/dashboard/diagnose"
+              loading={loading}
+              mode={signalsMode === "demo-fixtures" ? "demo" : "live"}
+            />
+          </LearningHint>
+          <LearningHint
+            category="Chain · §3.2"
+            title="Open problems"
+            whatItIs="Count of problems the team has stated, split into 'draft' (still being worked into a diagnosis) and 'surfaced' (passed the §3.2 evidence threshold and ready for action). A problem in ELOSTATE is a named pattern, supported by signals, with an explicit diagnosis — not just a complaint."
+            why="The Understanding Gate (§3.2) is the System's structural refusal to promote a half-understood problem to team attention. Draft problems are problems the team is still earning the right to surface. Surfaced problems are ones that crossed the gate. The split keeps you honest — you see the work-in-progress AND what's actually ready to act on, separately."
+            how="Click to open the Problem board. A high draft count with a low surfaced count means the team is articulating concerns but hasn't yet collected enough evidence to act on them. That's the gate doing its job, not a bug. A surfaced problem deserves your attention — the System only promotes it after the discipline is met."
+            principle="A problem promoted before it has earned the right to be named is the most expensive kind of work. The gate exists because organizations rediscover the same failure shape until they encode it structurally."
+          >
+            <ChainStat
+              label="Open problems"
+              value={draftProblems.length + surfacedProblems.length}
+              sub={`${draftProblems.length} draft · ${surfacedProblems.length} surfaced`}
+              icon={<ShieldCheck className="w-3.5 h-3.5" />}
+              href="/dashboard/problems"
+              loading={loading}
+              mode="live"
+            />
+          </LearningHint>
+          <LearningHint
+            category="Chain · §3.5"
+            title="Resolutions"
+            whatItIs="Count of resolved problems with captured reasoning. The 'reviewed' sub-count is the subset where the §3.5 durability check has been recorded (held / reopened / partial / inconclusive). A resolution without a review is incomplete from the System's perspective — the team claimed it worked but didn't measure."
+            why="Closing a ticket is easy. Knowing whether the closure HELD is hard, and it's the only thing that distinguishes a team that compounds from a team that just gets busier. Resolutions tracked WITHOUT durability metrics are the failure mode every productivity tool ships and never measures."
+            how="Click to open Resolutions. Look at the reviewed ratio — a team with 30 resolutions and 2 reviewed is closing without measuring. Walk through unreviewed resolutions older than 7 days; the §3.5 check is overdue. The act of recording the outcome is more valuable than the closure itself."
+            principle="A resolution that wasn't measured against its alternative is a story, not a result."
+          >
+            <ChainStat
+              label="Resolutions"
+              value={resolutions.length}
+              sub={`${reviewedResolutions.length} reviewed`}
+              icon={<Sparkles className="w-3.5 h-3.5" />}
+              href="/dashboard/resolutions"
+              loading={loading}
+              mode="live"
+            />
+          </LearningHint>
+          <LearningHint
+            category="Chain · §3.5"
+            title="Held rate"
+            whatItIs="Percentage of reviewed resolutions that held (vs reopened / partial / inconclusive). The denominator is always shown — 12 of 18 means 18 reviewed, 12 held. A dash (—) means no resolutions have been reviewed yet."
+            why="This is the SINGLE most consequential metric on the page. Every other number is activity; this one is consequence. A team with high held rate is a team where the reasoning behind resolutions is sound. A team with low held rate is rediscovering the same problem cycle after cycle and treating that as work."
+            how="A first-pass benchmark: above 70% held is healthy, 50-70% is normal during a learning period, below 50% sustained means the team's resolutions aren't addressing root causes. Click to drill into the resolutions and see which ones reopened — patterns there usually reveal a missing diagnosis upstream."
+            principle="Measure consequence, not agreement. A resolution everyone loved that didn't hold is failure. A resolution someone resisted that did hold is success."
+          >
+            <ChainStat
+              label="Held rate"
+              value={heldRate === null ? "—" : `${Math.round(heldRate * 100)}%`}
+              sub={
+                heldRate === null
+                  ? "no reviews yet"
+                  : `${reviewedResolutions.filter((r) => r.durability === "held").length} of ${reviewedResolutions.length}`
+              }
+              icon={<Lightbulb className="w-3.5 h-3.5" />}
+              href="/dashboard/resolutions"
+              loading={loading}
+              mode="live"
+              color={heldRate === null ? "text-muted" : "text-emerald-400"}
+            />
+          </LearningHint>
         </div>
 
         {/* C.A.R.E surface — hidden unless tenant has support
@@ -288,93 +334,134 @@ export default function CommandDashboard() {
             operational hub; support state is operational. */}
         {careStats?.hasActivity && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <ChainStat
-              label="Open conversations"
-              value={careStats.openCount}
-              icon={<MessageCircle className="w-3.5 h-3.5" />}
-              href="/dashboard/care"
-              loading={false}
-              mode="live"
-            />
-            <ChainStat
-              label="Awaiting first reply"
-              value={careStats.awaitingFirstReplyCount}
-              sub={
-                careStats.awaitingFirstReplyCount > 0
-                  ? "most time-sensitive"
-                  : "all touched"
-              }
-              icon={<Activity className="w-3.5 h-3.5" />}
-              href="/dashboard/care?status=new"
-              loading={false}
-              mode="live"
-              color={
-                careStats.awaitingFirstReplyCount > 0
-                  ? "text-amber-400"
-                  : "text-emerald-400"
-              }
-            />
-            <ChainStat
-              label="Needs guidance"
-              value={careStats.needsGuidanceCount}
-              sub={
-                careStats.needsGuidanceCount > 0
-                  ? "supervisor requested"
-                  : "none flagged"
-              }
-              icon={<ShieldCheck className="w-3.5 h-3.5" />}
-              href="/dashboard/care?filter=needs-guidance"
-              loading={false}
-              mode="live"
-              color={
-                careStats.needsGuidanceCount > 0
-                  ? "text-amber-400"
-                  : "text-muted"
-              }
-            />
-            {/* §3.5 durability — surfaced because the §3.5 loop
-                fires automatically at 7 days but the verdict needs
-                a human (§A11). Per TT.md A21 audit MED finding —
-                until this tile, due checks had an endpoint but no
-                UI consumer; the loop fired silently. */}
-            <ChainStat
-              label="Due durability checks"
-              value={careStats.dueDurabilityCount}
-              sub={
-                careStats.dueDurabilityCount > 0
-                  ? "review the §3.5 outcome"
-                  : "all caught up"
-              }
-              icon={<Lightbulb className="w-3.5 h-3.5" />}
-              href="/dashboard/care?filter=due-durability"
-              loading={false}
-              mode="live"
-              color={
-                careStats.dueDurabilityCount > 0
-                  ? "text-amber-400"
-                  : "text-emerald-400"
-              }
-            />
+            <LearningHint
+              category="C.A.R.E"
+              title="Open conversations"
+              whatItIs="Count of customer conversations that aren't yet resolved or closed — status is new, open, assigned, or waiting. Includes every channel: web widget, email, voice."
+              why="Customer support is the most-time-sensitive surface in the company. A growing open conversation count means demand is outpacing the team's resolution rate. The number sits on the Command Center because support state is operational — the founder's daily decisions should include it, not require navigating to a separate module."
+              how="Click to open the C.A.R.E inbox. A rising number across days, without a corresponding rise in resolved count, is the first signal of support being underwatered. Pair this with Awaiting first reply (next tile) to see whether the slowness is at intake or at resolution."
+              principle="Hubs that don't surface support state make support invisible to leadership until it's a crisis. ELOSTATE refuses to let that happen."
+            >
+              <ChainStat
+                label="Open conversations"
+                value={careStats.openCount}
+                icon={<MessageCircle className="w-3.5 h-3.5" />}
+                href="/dashboard/care"
+                loading={false}
+                mode="live"
+              />
+            </LearningHint>
+            <LearningHint
+              category="C.A.R.E"
+              title="Awaiting first reply"
+              whatItIs="Subset of open conversations where status is 'new' — meaning a customer messaged in and no agent has touched it yet. This is the most time-sensitive number in C.A.R.E."
+              why="First-reply time is the dominant predictor of customer satisfaction in support. A conversation that sits in 'new' for hours is silently spending the team's reputation. Highlighted amber when count is above zero specifically because zero is the right state at the end of every working hour."
+              how="Click to open the inbox filtered to status='new'. If this number is above zero during business hours, the operating decision is: who claims it now? Routing through the assignment dropdown beats hoping someone picks it up."
+              principle="Time-to-first-reply is the support equivalent of meeting time — once spent, you don't get it back. The team's discipline shows in whether this number returns to zero each day."
+            >
+              <ChainStat
+                label="Awaiting first reply"
+                value={careStats.awaitingFirstReplyCount}
+                sub={
+                  careStats.awaitingFirstReplyCount > 0
+                    ? "most time-sensitive"
+                    : "all touched"
+                }
+                icon={<Activity className="w-3.5 h-3.5" />}
+                href="/dashboard/care?status=new"
+                loading={false}
+                mode="live"
+                color={
+                  careStats.awaitingFirstReplyCount > 0
+                    ? "text-amber-400"
+                    : "text-emerald-400"
+                }
+              />
+            </LearningHint>
+            <LearningHint
+              category="C.A.R.E · §A18"
+              title="Needs guidance"
+              whatItIs="Count of conversations where an agent has flagged 'supervisor guidance requested' — they need a leader to weigh in on the next move. Visible to CEO / COO / admin only; surfaces in the notifications inbox as well."
+              why="A team that doesn't have a way to flag 'this needs a senior eye' produces two failure modes: agents guess and lose the customer, or agents escalate every hard case to leadership in DMs. The structural request avoids both — it routes the request through the chain so it's audited, attributed, and visible at the leadership level the same way every other operational signal is."
+              how="Click to open the inbox filtered to needs-guidance. Open the conversation, read the thread, and weigh in (or assign it to the right person). The agent asked because the next move wasn't obvious to them — the leadership question is what to model so they recognize the shape next time."
+              principle="Escalation is structural, not tribal. If your team has to know to DM the right person, you don't have a system — you have a dependency on social capital."
+            >
+              <ChainStat
+                label="Needs guidance"
+                value={careStats.needsGuidanceCount}
+                sub={
+                  careStats.needsGuidanceCount > 0
+                    ? "supervisor requested"
+                    : "none flagged"
+                }
+                icon={<ShieldCheck className="w-3.5 h-3.5" />}
+                href="/dashboard/care?filter=needs-guidance"
+                loading={false}
+                mode="live"
+                color={
+                  careStats.needsGuidanceCount > 0
+                    ? "text-amber-400"
+                    : "text-muted"
+                }
+              />
+            </LearningHint>
+            <LearningHint
+              category="C.A.R.E · §3.5"
+              title="Due durability checks"
+              whatItIs="Count of resolutions captured in C.A.R.E that have hit their 7-day re-review mark and haven't been recorded yet. The §3.5 constitutional loop applied to customer support: agents resolve, the System schedules a re-check, the agent records held / reopened / inconclusive when the check comes due."
+              why="The same problem ELOSTATE solves for internal operations applies even more sharply to customer support: 'did the fix hold' is a question every other support tool ignores. C.A.R.E captures resolutions WITH the question structurally enforced. The due-durability count is the System reminding the team that some closures haven't been measured yet."
+              how="Click to open the inbox filtered to due-durability. Open the conversation, look at the customer's activity since you resolved it (did they come back? did they reopen? did they reply with a follow-up?), and record the verdict. The act of recording is more valuable than the closure itself."
+              principle="A resolution declared-and-forgotten is the failure mode every support tool ships. Measuring durability is the discipline that compounds capability instead of just closing tickets."
+            >
+              <ChainStat
+                label="Due durability checks"
+                value={careStats.dueDurabilityCount}
+                sub={
+                  careStats.dueDurabilityCount > 0
+                    ? "review the §3.5 outcome"
+                    : "all caught up"
+                }
+                icon={<Lightbulb className="w-3.5 h-3.5" />}
+                href="/dashboard/care?filter=due-durability"
+                loading={false}
+                mode="live"
+                color={
+                  careStats.dueDurabilityCount > 0
+                    ? "text-amber-400"
+                    : "text-emerald-400"
+                }
+              />
+            </LearningHint>
           </div>
         )}
 
         {/* Quickstart — real, state-derived suggestion */}
         {quickstart && (
-          <div className="glass-card p-5 border-ember-400/30">
-            <p className="text-[10px] text-brand uppercase tracking-widest mb-2">
-              Where to focus next
-            </p>
-            <p className="text-sm text-primary mb-2">{quickstart.title}</p>
-            <p className="text-xs text-secondary leading-relaxed mb-3">
-              {quickstart.body}
-            </p>
-            <Link
-              href={quickstart.href}
-              className="inline-flex items-center gap-1.5 text-xs text-brand hover:text-primary"
-            >
-              {quickstart.cta} <ChevronRight className="w-3 h-3" />
-            </Link>
-          </div>
+          <LearningHint
+            as="block"
+            category="Quickstart"
+            title="Where to focus next"
+            whatItIs="A state-derived suggestion for the most consequential next action — not a recommendation in the §3.3 'overtake' sense, but a navigational hint based on what's actually in the chain right now."
+            why="The blank-state problem for any operating tool is: 'I'm here, what do I do?' Generic 'take a tour' overlays are condescending and don't reflect the team's actual state. This panel reads the live data — how many tasks exist, how many signals, whether problems are in draft, whether resolutions are awaiting review — and points at the next stage in the chain that needs work."
+            how="Treat it as a SIGNAL, not an instruction. The CTA opens the relevant module. If your team's real priority is different (a customer crisis, a meeting in 30 minutes), trust your judgment over the panel's pointer. The panel goes silent once the chain is mature; that's the right behavior."
+            principle="A useful nudge points at where the work is, not at what to do with it. The judgment is yours."
+          >
+            <div className="glass-card p-5 border-ember-400/30">
+              <p className="text-[10px] text-brand uppercase tracking-widest mb-2">
+                Where to focus next
+              </p>
+              <p className="text-sm text-primary mb-2">{quickstart.title}</p>
+              <p className="text-xs text-secondary leading-relaxed mb-3">
+                {quickstart.body}
+              </p>
+              <Link
+                href={quickstart.href}
+                className="inline-flex items-center gap-1.5 text-xs text-brand hover:text-primary"
+              >
+                {quickstart.cta} <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+          </LearningHint>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -391,22 +478,31 @@ export default function CommandDashboard() {
                     Guide, don&apos;t overtake
                   </span>
                 </div>
-                <button
-                  onClick={surfaceQuestions}
-                  disabled={loadingBriefing}
-                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
-                  aria-live="polite"
+                <LearningHint
+                  category="AI · §3.3"
+                  title="Surface questions (daily briefing)"
+                  whatItIs="On-demand briefing that asks the System to surface today's open questions, uncertainties, and things worth noticing — based on the live chain state. The output is structured into three categories and streams in real time as the LLM generates it."
+                  why="Every other 'AI dashboard' product on the market generates verdicts: 'Here's what you should do.' The System refuses that frame structurally. The briefing surfaces what's worth holding open — the questions the executive should be carrying today — and explicitly ends every uncertainty with 'looking for X would sharpen the picture.' The forbidden words are 'recommend,' 'should,' 'must.' If they appeared, the System would be overtaking. They don't."
+                  how="Click when you want a read of today's state from the System. The output streams over ~5-10 seconds. Read it as a SECOND OPINION on what you're already attending to, not as a to-do list. If the surfaced questions match what you'd hold open anyway, the chain is calibrated. If they're way off, the chain has incomplete data — the gap is more interesting than the briefing itself."
+                  principle="A briefing that tells you what to do is a briefing that has overtaken your judgment. The right briefing surfaces what's worth holding open and trusts you to decide."
                 >
-                  <RefreshCw
-                    className={`w-3 h-3 ${loadingBriefing ? "animate-spin" : ""}`}
-                    aria-hidden="true"
-                  />
-                  {loadingBriefing
-                    ? streamProgress > 0
-                      ? `Streaming… ${streamProgress} chars`
-                      : "Connecting…"
-                    : "Surface questions"}
-                </button>
+                  <button
+                    onClick={surfaceQuestions}
+                    disabled={loadingBriefing}
+                    className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                    aria-live="polite"
+                  >
+                    <RefreshCw
+                      className={`w-3 h-3 ${loadingBriefing ? "animate-spin" : ""}`}
+                      aria-hidden="true"
+                    />
+                    {loadingBriefing
+                      ? streamProgress > 0
+                        ? `Streaming… ${streamProgress} chars`
+                        : "Connecting…"
+                      : "Surface questions"}
+                  </button>
+                </LearningHint>
               </div>
 
               {questions ? (
