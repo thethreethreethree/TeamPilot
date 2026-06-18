@@ -173,6 +173,85 @@ const VIEWS: Array<{ key: ViewKey; label: string; icon: typeof Inbox }> = [
   { key: "all", label: "All", icon: Filter },
 ];
 
+/** Learning Mode hints for each inbox filter. Surfaces what the
+ *  filter means + why it exists + how an agent should use it +
+ *  the transferable principle. Per founder direction: hints
+ *  teach, never just label. */
+const VIEW_HINTS: Record<
+  ViewKey,
+  {
+    whatItIs: string;
+    why: string;
+    how: string;
+    principle?: string;
+  }
+> = {
+  mine: {
+    whatItIs:
+      "Conversations currently assigned to you (the signed-in agent). The default landing view because the work you own is the work you can act on.",
+    why: "Inbox views that default to 'all open' produce two failures: the agent loses time scanning for their own work, and the load-distribution signal (who owns what) disappears. 'Mine' is the single-agent operating view — what you owe a reply to right now.",
+    how: "Open the conversation at the top, read the Read Phase, draft the reply. When you finish one, the next one bubbles up. If 'Mine' is empty, you're caught up — claim from Unassigned or check the team via 'All open'.",
+    principle:
+      "The agent's first question on landing is 'what do I owe a reply to?' — the inbox should answer it without scanning.",
+  },
+  unassigned: {
+    whatItIs:
+      "Conversations with no agent assigned yet. New customer messages, conversations the prior agent unclaimed, conversations that came in via channels that don't auto-assign.",
+    why: "An unassigned conversation is a piece of work nobody owns. Without a clear surface for it, the team either over-routes (someone claims everything and burns out) or under-routes (conversations sit until the customer follows up). The view makes it explicit.",
+    how: "Open a conversation, read it, and Claim if you're going to handle it. Or assign to the right agent if it's clearly someone else's. Don't park here — every minute an unassigned conversation sits is silently spending team reputation.",
+    principle:
+      "Unassigned is a queue, not a list. The right state for it is 'empty' at the end of every working hour.",
+  },
+  needs_guidance: {
+    whatItIs:
+      "Conversations where an agent has flagged supervisor guidance via the Request guidance button. Closed conversations are excluded — the flag only matters while the conversation is still in motion.",
+    why: "Tribal escalation (DM the senior agent) is the failure mode every support team eventually pays for. A structural request routes the ask through the chain, makes it visible at the leadership layer, and produces a record. Per §A18 this surface is leadership-facing — agents see their own flags; admins see all of them.",
+    how: "If you're an admin and this number is above zero, open the conversations and weigh in. The agent asked because the next move wasn't obvious to them — model the response so they recognize the shape next time. The teaching matters more than the answer.",
+    principle:
+      "Escalation is structural, not tribal. A team where 'who do I ask' is encoded in software produces fewer mistakes than a team where it lives in social capital.",
+  },
+  all_open: {
+    whatItIs:
+      "Every conversation in a non-resolved, non-closed state — across all agents, all channels, all assignment states. The full team's active work.",
+    why: "Mine + Unassigned cover the operating view; All open covers the team-wide view. Useful for leaders monitoring load, for shift handoffs, and for spotting a conversation that's been forgotten across multiple agents.",
+    how: "Skim periodically (once or twice a day) to see what the team is sitting on collectively. If you see a conversation that's been open for days with no progress, that's worth surfacing — not as a callout, as a question about whether the right agent has it.",
+    principle:
+      "All open is a leadership view, not an agent view. It exists to surface stuck work without singling out who's stuck.",
+  },
+  snoozed: {
+    whatItIs:
+      "Conversations the agent has explicitly parked — waiting for an internal answer, waiting for the customer to come back, waiting on a deploy. Snoozed conversations stay out of Mine and Unassigned until they unsnooze.",
+    why: "Without a snooze affordance, agents either keep conversations in their active queue and lose the signal of 'what actually needs me now' or drop them entirely. Snooze makes the 'I'll come back to this' state structural rather than mental.",
+    how: "Snooze when you're truly blocked on someone or something else and the timing is more than 30 minutes out. Don't snooze just to clear your queue — the customer is still waiting.",
+    principle:
+      "Snooze captures the 'parked' state honestly. Stale snoozes are worse than a full inbox because they hide work that's still owed.",
+  },
+  resolved: {
+    whatItIs:
+      "Conversations the agent marked resolved (with the reasoning captured). Customer can still reply — a reply reopens the conversation automatically. The 7-day durability check is scheduled the moment the resolution lands.",
+    why: "A 'resolved' conversation isn't gone — it's resolved-but-watching. The customer might come back with a follow-up, and if they do, the System reopens the thread so the agent picks up where it stopped. The view exists for the agent who wants to re-read what they resolved (and for the audit trail of what worked).",
+    how: "Browse resolved conversations periodically to see your own pattern of what worked. The team's Knowledge surface aggregates these across everyone, but your own resolved view is the most direct teaching for your own development.",
+    principle:
+      "Resolved is a state, not an end. A conversation reopens if the customer comes back — the System keeps watching even when the agent has moved on.",
+  },
+  closed: {
+    whatItIs:
+      "Conversations that were Closed (not Resolved) — archived without a captured resolution. Customer can still reopen via reply but the conversation no longer surfaces in the active views.",
+    why: "Some conversations end without a 'resolution' in any meaningful sense (customer ghosted, spam, customer answered themselves). Forcing them through the resolution capture would corrupt the resolution corpus. Closed is the honest path.",
+    how: "Browse Closed periodically only when you're auditing for shape (did the team Close conversations that should have been Resolved?). The number that should sit here is the legitimate 'nothing to capture' subset, not a shortcut around the discipline.",
+    principle:
+      "Closed without recording is appropriate when there's nothing to record. It should NEVER be a shortcut around the resolution capture for a real fix.",
+  },
+  all: {
+    whatItIs:
+      "Every conversation in the company across every state — open, resolved, closed, all assignment states, all channels. The complete record.",
+    why: "Useful when searching for a specific customer's prior conversations, when reviewing a teammate's history, or when the other filters are too narrow. Less an operating view than an archival lookup view.",
+    how: "Reach for All when you need to find something specific. Don't operate from it — it doesn't separate active work from history, so the signal-to-noise is too low to use as a default landing.",
+    principle:
+      "All is for search. The operating views are Mine, Unassigned, and Needs guidance — they're filtered for a reason.",
+  },
+};
+
 export function ConversationsApp({
   initialId,
 }: {
@@ -1060,23 +1139,34 @@ export function ConversationsApp({
             const Icon = v.icon;
             const active = view === v.key;
             const count = viewCounts[v.key];
+            const hint = VIEW_HINTS[v.key];
             return (
-              <button
+              <LearningHint
                 key={v.key}
-                type="button"
-                onClick={() => setView(v.key)}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-ember-400/10 text-brand"
-                    : "text-secondary hover:text-primary hover:bg-white/[0.03]"
-                }`}
+                as="block"
+                category="C.A.R.E · Inbox filter"
+                title={v.label}
+                whatItIs={hint.whatItIs}
+                why={hint.why}
+                how={hint.how}
+                principle={hint.principle}
               >
-                <Icon className="w-4 h-4 shrink-0" aria-hidden />
-                <span className="flex-1 text-left">{v.label}</span>
-                <span className="text-[10px] font-mono text-muted">
-                  {count}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setView(v.key)}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-ember-400/10 text-brand"
+                      : "text-secondary hover:text-primary hover:bg-white/[0.03]"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" aria-hidden />
+                  <span className="flex-1 text-left">{v.label}</span>
+                  <span className="text-[10px] font-mono text-muted">
+                    {count}
+                  </span>
+                </button>
+              </LearningHint>
             );
           })}
         </div>
