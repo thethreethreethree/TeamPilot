@@ -96,7 +96,15 @@ export function CareShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem("care-shell-collapsed");
-      if (raw === "1") setNavCollapsed(true);
+      if (raw === "1") {
+        setNavCollapsed(true);
+      } else if (raw === null && typeof window !== "undefined") {
+        // First visit — default to collapsed on mobile so the
+        // inbox surface gets the full viewport. User can expand
+        // explicitly; the choice then persists.
+        const isMobile = window.matchMedia("(max-width: 768px)").matches;
+        if (isMobile) setNavCollapsed(true);
+      }
     } catch {
       /* ignore */
     }

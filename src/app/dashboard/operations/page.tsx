@@ -255,7 +255,8 @@ export default function OperationsPage() {
           ) : filtered.length === 0 ? (
             <EmptyState mode={mode} hasFilter={activeFilter !== "All"} />
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto -mx-5 px-5">
+            <table className="w-full min-w-[680px]">
               <thead>
                 <tr className="border-b border-default">
                   {["Task", "Department", "Assignee", "Priority", "Status", "Due", ""].map((h) => (
@@ -358,6 +359,7 @@ export default function OperationsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

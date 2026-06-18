@@ -131,7 +131,7 @@ export default function CrmAccountsPage() {
       <div className="p-6 max-w-7xl mx-auto space-y-5">
         {/* Search + filter row */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[240px] max-w-md">
+          <div className="relative flex-1 w-full md:min-w-[240px] md:max-w-md">
             <Search
               className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2"
               aria-hidden

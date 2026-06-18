@@ -50,16 +50,18 @@ export default function CareCustomersPage() {
             Every visitor who&apos;s talked to us · §A11 patterns, not verdicts
           </p>
         </div>
-        <div className="relative w-72">
+        <div className="relative w-full md:w-72 md:max-w-md">
           <Search
             className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2"
             aria-hidden
           />
           <input
-            type="text"
+            type="search"
+            autoComplete="off"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or email…"
+            aria-label="Search customers by name or email"
             className="w-full bg-base border border-default rounded-md pl-7 pr-2 py-1.5 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-strong"
           />
         </div>
