@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2, MessageCircle, Send, X } from "lucide-react";
-import { LightbulbMark } from "@/components/brand/Logo";
+import { LearningBulb } from "./LearningBulb";
 import { useLearningMode } from "./LearningModeProvider";
 
 type Turn =
@@ -107,8 +107,8 @@ export function AskJeffPanel() {
       >
         {/* Header — Jeff's identity + the feature being discussed */}
         <div className="px-5 py-3 border-b border-default flex items-start gap-3 sticky top-0 bg-base">
-          <div className="w-9 h-9 rounded-md bg-ember-400/10 border border-ember-400/40 flex items-center justify-center flex-shrink-0">
-            <LightbulbMark width={20} height={28} />
+          <div className="w-10 h-10 rounded-md bg-ember-400/10 border border-ember-400/40 flex items-center justify-center flex-shrink-0">
+            <LearningBulb size={26} glowing priority />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-primary">Ask Jeff</p>
