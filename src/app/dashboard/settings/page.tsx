@@ -362,6 +362,7 @@ export default function SettingsPage() {
                   : "—"}
               </p>
               <button
+                type="button"
                 onClick={save}
                 disabled={saving}
                 className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-5 py-2.5 rounded-lg transition-all text-xs"

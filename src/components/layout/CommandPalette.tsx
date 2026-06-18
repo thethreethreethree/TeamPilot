@@ -252,7 +252,10 @@ export default function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[15vh] px-4"
+      // pt-[15vh] reserves top space on desktop; on mobile we
+      // start higher (pt-[5vh]) so the palette has room to render
+      // its results panel within the visible viewport.
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[5vh] md:pt-[15vh] px-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) close();
       }}
@@ -286,7 +289,7 @@ export default function CommandPalette() {
           ref={listRef}
           id="cmd-list"
           role="listbox"
-          className="max-h-[50vh] overflow-y-auto py-2"
+          className="max-h-[60dvh] md:max-h-[50vh] overflow-y-auto py-2"
         >
           {grouped.length === 0 && (
             <p className="text-center text-xs text-muted py-6">

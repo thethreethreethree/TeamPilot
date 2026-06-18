@@ -78,7 +78,7 @@ export function ResolutionCaptureModal({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-base border border-default rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="bg-base border border-default rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
         {/* Header */}
         <div className="px-5 py-4 border-b border-default flex items-start gap-3">
           <BookOpen className="w-5 h-5 text-brand shrink-0 mt-0.5" aria-hidden />

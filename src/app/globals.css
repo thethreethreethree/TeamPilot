@@ -380,6 +380,20 @@ html {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Wave Z.6 (2026-06-19) — touch-action: manipulation removes the
+ * 300ms tap delay on older WebKit-based browsers (still relevant
+ * for Safari on iOS and some Android WebViews). The cost is
+ * disabling double-tap-to-zoom on interactive elements — which is
+ * the correct tradeoff here since the app uses pinch-zoom for the
+ * cases where zoom is needed (PDFs / images) and double-tap on
+ * buttons is unintentional.
+ *
+ * Applied globally to interactive elements via :where() so the
+ * specificity stays low and components can override if needed. */
+:where(button, a, [role="button"], input[type="checkbox"], input[type="radio"], summary) {
+  touch-action: manipulation;
+}
+
 /* Wave T (2026-06-19) — global keyboard-focus baseline.
  *
  * The codebase had ~0 components using focus-visible rings, which

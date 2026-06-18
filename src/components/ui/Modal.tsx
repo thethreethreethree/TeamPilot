@@ -128,7 +128,7 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className={`glass-card w-full ${widthClass} p-6 max-h-[90vh] overflow-y-auto`}
+        className={`glass-card w-full ${widthClass} p-6 max-h-[90dvh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
