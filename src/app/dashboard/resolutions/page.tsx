@@ -16,7 +16,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Eye,
-  Loader2,
   Sparkles,
   XCircle,
 } from "lucide-react";

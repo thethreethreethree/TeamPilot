@@ -288,6 +288,7 @@ function PresenceControl() {
   const [state, setState] = useState<AgentPresenceState | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const inflightRef = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const fetchPresence = useCallback(async () => {
     if (inflightRef.current) return;
@@ -370,7 +371,6 @@ function PresenceControl() {
         ? "Away"
         : "Offline";
 
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
   return (
     <div className="relative">
       <button

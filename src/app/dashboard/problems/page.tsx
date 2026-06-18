@@ -16,7 +16,6 @@ import Modal from "@/components/ui/Modal";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import {
   CheckCircle2,
-  Loader2,
   Plus,
   ShieldCheck,
 } from "lucide-react";

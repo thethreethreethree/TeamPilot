@@ -16,7 +16,6 @@ import {
   Layers,
   Lightbulb,
   ListChecks,
-  Loader2,
   MessageCircle,
   RefreshCw,
   ShieldCheck,

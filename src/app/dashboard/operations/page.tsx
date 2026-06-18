@@ -13,7 +13,6 @@ import ExportMenu from "@/components/ui/ExportMenu";
 import {
   CheckCircle2,
   Filter,
-  Loader2,
   Pencil,
   Plus,
   Trash2,
