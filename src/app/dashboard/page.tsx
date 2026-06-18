@@ -53,6 +53,11 @@ export default function CommandDashboard() {
   const [resolutions, setResolutions] = useState<ResolutionRecord[]>([]);
   const [careStats, setCareStats] = useState<CareStats | null>(null);
   const [loading, setLoading] = useState(true);
+  /** Per TT.md A21 Command Center audit — honest surfacing of
+   *  loader failures. Without this, a failed query rendered as
+   *  "0 tasks / 0 signals" indistinguishable from a fresh
+   *  tenant, which is §A11 dishonesty. */
+  const [loadError, setLoadError] = useState<string[]>([]);
 
   // AI question generator
   const [questions, setQuestions] = useState<DailyQuestions | null>(null);
@@ -85,6 +90,14 @@ export default function CommandDashboard() {
     setProblems(p.problems);
     setResolutions(r.resolutions);
     setCareStats(careRes);
+    // Honest aggregation of loader errors. A failure becomes
+    // a banner the user can see + retry from, not a silent zero.
+    const errs: string[] = [];
+    if (t.mode === "live-error") errs.push("tasks");
+    if (s.mode === "live-error") errs.push("signals");
+    if (p.mode === "live-error") errs.push("problems");
+    if (r.mode === "live-error") errs.push("resolutions");
+    setLoadError(errs);
     setLoading(false);
   };
 
@@ -194,6 +207,29 @@ export default function CommandDashboard() {
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         <InstallTeamChatBanner />
+        {/* Honest loader-failure banner. Per TT.md A21
+            Command Center audit — silent failures dressed
+            up as live-empty would be the §A11 dishonesty
+            failure mode. */}
+        {loadError.length > 0 && !loading && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 flex items-center gap-3">
+            <Activity
+              className="w-3.5 h-3.5 text-amber-300 shrink-0"
+              aria-hidden
+            />
+            <p className="text-xs text-amber-200 leading-relaxed flex-1">
+              Couldn&apos;t load: {loadError.join(", ")}. The numbers
+              below may be incomplete. Showing what loaded.
+            </p>
+            <button
+              type="button"
+              onClick={refresh}
+              className="text-[11px] text-amber-200 hover:text-amber-100 underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {/* The §3.1 chain at a glance — real numbers only */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <ChainStat

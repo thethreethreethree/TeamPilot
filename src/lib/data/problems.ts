@@ -19,7 +19,13 @@ export type ProblemRecord = {
   signalCount: number;
 };
 
-export type ProblemsMode = "live-data" | "live-empty" | "demo-fixtures";
+/** Per TT.md A21 Command Center audit — distinct "live-error"
+ *  so the UI surfaces "couldn't load" honestly. */
+export type ProblemsMode =
+  | "live-data"
+  | "live-empty"
+  | "demo-fixtures"
+  | "live-error";
 
 const demoFixtures: ProblemRecord[] = [
   {
@@ -63,7 +69,8 @@ export async function fetchProblems(): Promise<{
     )
     .order("created_at", { ascending: false });
 
-  if (error || !data) return { problems: [], mode: "live-empty" };
+  if (error) return { problems: [], mode: "live-error" };
+  if (!data) return { problems: [], mode: "live-empty" };
 
   const problems: ProblemRecord[] = data.map((row) => {
     const signals = row.problem_signals as Array<{ signal_id: string }> | null;

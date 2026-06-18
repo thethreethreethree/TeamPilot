@@ -87,7 +87,16 @@ const fromMock = (): Task[] =>
     assigneeUserId: null,
   }));
 
-export type FetchTasksMode = "demo-fixtures" | "live-empty" | "live-data";
+/** Per TT.md A21 Command Center audit — distinct "live-error"
+ *  so the UI surfaces "couldn't load" honestly instead of
+ *  rendering a fake zero indistinguishable from "no tasks
+ *  yet". §A11 honesty: 0 because the query failed ≠ 0 because
+ *  nothing happened. */
+export type FetchTasksMode =
+  | "demo-fixtures"
+  | "live-empty"
+  | "live-data"
+  | "live-error";
 
 /**
  * Production fetcher. No silent mock fallback.
@@ -113,7 +122,10 @@ export async function fetchTasks(): Promise<{ tasks: Task[]; mode: FetchTasksMod
     .is("deleted_at", null)
     .order("ai_priority_score", { ascending: false });
 
-  if (error || !data) {
+  if (error) {
+    return { tasks: [], mode: "live-error" };
+  }
+  if (!data) {
     return { tasks: [], mode: "live-empty" };
   }
 

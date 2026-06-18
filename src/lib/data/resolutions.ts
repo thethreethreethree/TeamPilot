@@ -13,7 +13,13 @@ export type ResolutionRecord = {
   decidedAt: string;
 };
 
-export type ResolutionsMode = "live-data" | "live-empty" | "demo-fixtures";
+/** Per TT.md A21 Command Center audit — distinct "live-error"
+ *  so the UI surfaces "couldn't load" honestly. */
+export type ResolutionsMode =
+  | "live-data"
+  | "live-empty"
+  | "demo-fixtures"
+  | "live-error";
 
 const demoFixtures: ResolutionRecord[] = [
   {
@@ -63,7 +69,8 @@ export async function fetchResolutions(): Promise<{
     )
     .order("decided_at", { ascending: false });
 
-  if (error || !data) return { resolutions: [], mode: "live-empty" };
+  if (error) return { resolutions: [], mode: "live-error" };
+  if (!data) return { resolutions: [], mode: "live-empty" };
 
   const resolutions: ResolutionRecord[] = data.map((row) => {
     const problem = row.problems as { title?: string } | null;

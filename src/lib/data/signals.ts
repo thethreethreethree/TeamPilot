@@ -2,7 +2,17 @@ import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { mockSignals } from "@/lib/mock-data";
 import type { SignalRef } from "@/lib/diagnosis";
 
-export type SignalsMode = "demo-fixtures" | "live-empty" | "live-data";
+/** Distinct "live-error" mode so the UI can show an honest
+ *  "couldn't load" state instead of silently rendering a fake
+ *  zero. Per the §A11 + §3.4 honesty rule — "0 because we
+ *  failed" is a different fact than "0 because nothing
+ *  happened" and conflating them is a verdict the System
+ *  shouldn't render. Per TT.md A21 Command Center audit. */
+export type SignalsMode =
+  | "demo-fixtures"
+  | "live-empty"
+  | "live-data"
+  | "live-error";
 
 /**
  * Production signals fetcher. Same honesty contract as fetchTasks:
@@ -37,7 +47,8 @@ export async function fetchSignals(args?: {
   }
 
   const { data, error } = await query;
-  if (error || !data) return { signals: [], mode: "live-empty" };
+  if (error) return { signals: [], mode: "live-error" };
+  if (!data) return { signals: [], mode: "live-empty" };
 
   const signals: SignalRef[] = data.map((r) => ({
     id: r.id,
