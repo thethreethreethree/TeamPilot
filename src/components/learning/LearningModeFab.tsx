@@ -30,10 +30,20 @@ import { useLearningMode } from "./LearningModeProvider";
  * the moment the idea lights up.
  */
 
-const STORAGE_KEY = "elostate.learning_fab.position.v1";
+// v2 (2026-06-19) — defaults now stack ABOVE the C.A.R.E chat
+// widget bubble so the two don't collide. v1 stored a bottom-right
+// position which sat directly behind the chat widget at z-[55] for
+// tenants with the widget enabled. The founder had reported this
+// earlier as "behind the chat", we misdiagnosed it as a minimized
+// tab — wrong. Bumping the key forces existing users to re-default.
+const STORAGE_KEY = "elostate.learning_fab.position.v2";
 const FAB_SIZE = 56; // matches w-14 h-14
 const EDGE_PADDING = 16;
 const DRAG_THRESHOLD_PX = 4;
+// Height of the C.A.R.E chat widget bubble + breathing room. The
+// FAB stacks above it by this amount so both surfaces are reachable
+// without the user having to move either one.
+const CHAT_WIDGET_STACK_OFFSET = 72;
 
 type Position = { x: number; y: number };
 
@@ -69,7 +79,15 @@ function defaultPosition(): Position {
   if (typeof window === "undefined") return { x: 100, y: 100 };
   return {
     x: window.innerWidth - FAB_SIZE - EDGE_PADDING - 4,
-    y: window.innerHeight - FAB_SIZE - EDGE_PADDING - 4,
+    // Stack the FAB ABOVE the C.A.R.E chat widget bubble so it's
+    // never hidden behind it. The user can drag to bottom-right
+    // explicitly if they want the FAB to occlude the chat bubble.
+    y:
+      window.innerHeight -
+      FAB_SIZE -
+      EDGE_PADDING -
+      4 -
+      CHAT_WIDGET_STACK_OFFSET,
   };
 }
 
