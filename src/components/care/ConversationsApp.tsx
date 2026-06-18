@@ -1677,30 +1677,46 @@ function DetailHeader({
               context, making them visually present but
               click-blocked by the panel underneath. Wrap +
               z-10 keeps every button reachable. */}
-          <button
-            type="button"
-            onClick={onSummarize}
-            disabled={acting}
-            title="Get the System's read of this conversation so far"
-            className="inline-flex items-center gap-1.5 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+          <LearningHint
+            category="AI · C.A.R.E"
+            title="Summarize"
+            whatItIs="The System's read of this conversation so far — a 3-5 sentence summary covering what the customer is asking for, what's been tried, what's still open, and any tone or urgency cues. Per §A11 it surfaces facts (what was said) not verdicts (what to think about the customer)."
+            why="Long support threads accumulate noise. An agent stepping in (or returning to one they parked) wastes minutes catching up before they can act. Summarize collapses that catch-up cost from minutes to seconds. Just as important: it also surfaces similar prior resolutions, so institutional memory shows up in the moment the agent needs it (§3.6 make-learning-visible)."
+            how="Click when the thread is long or unfamiliar. Read the summary, scan the prior similar resolutions panel that follows, then decide whether the System's read matches yours. Per §3.3 the summary is confirm-or-correct — it's not authoritative, and the agent renders the verdict."
+            principle="A summary is the System's read, not an instruction. Confirm or correct it against the conversation itself — never trust it blindly."
           >
-            <Sparkles className="w-3.5 h-3.5" aria-hidden />
-            Summarize
-          </button>
+            <button
+              type="button"
+              onClick={onSummarize}
+              disabled={acting}
+              className="inline-flex items-center gap-1.5 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+            >
+              <Sparkles className="w-3.5 h-3.5" aria-hidden />
+              Summarize
+            </button>
+          </LearningHint>
           {/* Open as Decision Dialogue — escalates a tough
               customer case to the §3.1 structured internal call.
               For v1 routes to /dashboard/decisions/new with the
               conversation context as the seed; full inline-in-
               thread integration is queued for a follow-up. */}
           {conversation.status !== "closed" && (
-            <Link
-              href={`/dashboard/decisions/new?fromCareConversation=${conversation.id}`}
-              title="Open this as a structured internal Decision Dialogue"
-              className="inline-flex items-center gap-1.5 text-xs text-brand border border-ember-400/40 hover:border-ember-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+            <LearningHint
+              category="C.A.R.E · §3.3"
+              title="Open as Decision Dialogue"
+              whatItIs="Escalates this customer conversation into a structured internal Decision Dialogue with the conversation's context pre-loaded. The Dialogue takes you through Situation → Your Read → System Response → Decide, with reasoning captured at each phase."
+              why="Some customer issues aren't 'reply to this customer' work — they're 'figure out the actual call' work. A refund policy edge case. A bug we don't know whether to fix or document. A request that surfaces a product gap. Decision Dialogue is the structured frame for those — it forces the team to state their diagnosis BEFORE the System weighs in, then captures the reasoning on the record. The dialogue carries the customer's actual words with it so the team's decision stays grounded in what was asked."
+              how="Click when the right next move isn't obvious from inside the support frame. The Dialogue opens with the conversation context as the seed. Walk through the phases with whoever else needs to be in the call. Your reply to the customer comes out of the Dialogue's chosen path — not before it."
+              principle="If you're about to reply to a customer with a decision you haven't actually made, escalate. The Dialogue exists for the calls that deserve more than an in-the-moment response."
             >
-              <Brain className="w-3.5 h-3.5" aria-hidden />
-              Open as Decision Dialogue
-            </Link>
+              <Link
+                href={`/dashboard/decisions/new?fromCareConversation=${conversation.id}`}
+                className="inline-flex items-center gap-1.5 text-xs text-brand border border-ember-400/40 hover:border-ember-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+              >
+                <Brain className="w-3.5 h-3.5" aria-hidden />
+                Open as Decision Dialogue
+              </Link>
+            </LearningHint>
           )}
           {conversation.aiResponding && (
             <button
@@ -1741,54 +1757,71 @@ function DetailHeader({
                   view forever with no clearing path. */}
           {(conversation.status !== "closed" ||
             conversation.supervisorGuidanceRequestedAt) && (
-            <button
-              type="button"
-              onClick={onToggleGuidance}
-              disabled={acting}
-              title={
-                conversation.supervisorGuidanceRequestedAt
-                  ? "Clear the supervisor guidance request"
-                  : "Flag this conversation for supervisor guidance"
-              }
-              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md disabled:opacity-50 transition-colors ${
-                conversation.supervisorGuidanceRequestedAt
-                  ? "text-amber-300 bg-amber-400/10 border border-amber-400/50 hover:bg-amber-400/15"
-                  : "text-secondary border border-default hover:text-amber-300 hover:border-amber-400/50"
-              }`}
+            <LearningHint
+              category="C.A.R.E · §A18"
+              title="Request guidance"
+              whatItIs="Flags this conversation as needing supervisor input. The Needs guidance count on the Command Center increments; admins (CEO / COO / admin) get a notification in the inbox; the conversation surfaces in the Needs guidance filter. Click again to clear the flag once guidance has landed."
+              why="Tribal escalation (DM the senior agent) produces two failures: it depends on social capital, and it leaves no record. A structural request routes the ask through the chain — audited, attributable, visible at the leadership level. The leader can answer in the conversation thread or in person; either way, the flag becomes part of the record. Per §A18 the surface is invitation-shaped: the agent is asking, not failing."
+              how="Click when the next move isn't obvious to you AND it deserves a senior eye before you reply. Internal notes are for context capture; this is for routing attention. Don't use it for every hard case — that defeats the signal. Use it when you're about to send something you don't trust yet."
+              principle="Asking for guidance is a strength signal, not a weakness one. A team where the request is structural produces fewer mistakes than a team where it's tribal."
             >
-              <HandHelping className="w-3.5 h-3.5" aria-hidden />
-              {conversation.supervisorGuidanceRequestedAt
-                ? "Guidance requested"
-                : "Request guidance"}
-            </button>
+              <button
+                type="button"
+                onClick={onToggleGuidance}
+                disabled={acting}
+                className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md disabled:opacity-50 transition-colors ${
+                  conversation.supervisorGuidanceRequestedAt
+                    ? "text-amber-300 bg-amber-400/10 border border-amber-400/50 hover:bg-amber-400/15"
+                    : "text-secondary border border-default hover:text-amber-300 hover:border-amber-400/50"
+                }`}
+              >
+                <HandHelping className="w-3.5 h-3.5" aria-hidden />
+                {conversation.supervisorGuidanceRequestedAt
+                  ? "Guidance requested"
+                  : "Request guidance"}
+              </button>
+            </LearningHint>
           )}
           {conversation.status !== "resolved" &&
             conversation.status !== "closed" && (
-              <button
-                type="button"
-                onClick={onResolve}
-                disabled={acting}
-                className="inline-flex items-center gap-1.5 text-xs text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+              <LearningHint
+                category="C.A.R.E · §3.5"
+                title="Resolve"
+                whatItIs="Marks the conversation as resolved and opens the resolution capture form: 'What was the actual issue?' and 'What worked?' Optional category, optional precedent link. The capture creates a row in support_resolutions and schedules a §3.5 durability check 7 days out."
+                why="Closing a ticket without recording the reasoning is the failure mode every support tool ships. The team loses what worked, the customer's case becomes invisible to the next agent who hits the same shape, and 'durability' becomes an aspirational word in a quarterly review. Resolve captures the institutional memory in the agent's voice, in the moment, before the context evaporates."
+                how="Click when the customer's issue is actually addressed. Write the issue summary in your own words (not the customer's complaint verbatim — your read of what was actually going on). Write what worked, with enough detail that the next agent could apply it. Tag with a category if a pattern fits — those tags drive the Patterns surface."
+                principle="A resolution without a stated WHY is incomplete. The reasoning is the transferable asset; the closure is just its current expression."
               >
-                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
-                Resolve
-              </button>
+                <button
+                  type="button"
+                  onClick={onResolve}
+                  disabled={acting}
+                  className="inline-flex items-center gap-1.5 text-xs text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+                  Resolve
+                </button>
+              </LearningHint>
             )}
           {conversation.status !== "closed" && (
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={acting}
-              title={
-                isAdmin
-                  ? "Force close — admin override (no confirmation)"
-                  : "Close without capturing a resolution"
-              }
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary border border-default hover:text-red-300 hover:border-red-500/50 hover:bg-red-500/5 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
+            <LearningHint
+              category="C.A.R.E"
+              title="Close"
+              whatItIs="Archives the conversation without capturing a resolution. The conversation drops out of active inbox views but remains in the record. Distinct from Resolve — Close does NOT trigger the §3.5 durability check because no resolution was claimed."
+              why="Sometimes a conversation ends without a 'resolution' in any meaningful sense — the customer ghosted, the issue turned out to be on their end, the conversation was spam, the customer found the answer themselves. Forcing every closure through the resolution flow would corrupt the resolution corpus with non-data. Close is the honest path for these."
+              how="Use Close when there's nothing real to capture. Use Resolve when something actually was resolved and the reasoning is worth recording. If you're tempted to Close to skip the resolution form on a real resolution — don't. The Resolve capture is more valuable than the closure itself; that's why it's there."
+              principle="Closing without recording is appropriate when there's nothing to record. It's never appropriate as a shortcut around the discipline."
             >
-              <Lock className="w-3.5 h-3.5" aria-hidden />
-              Close
-            </button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={acting}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary border border-default hover:text-red-300 hover:border-red-500/50 hover:bg-red-500/5 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
+              >
+                <Lock className="w-3.5 h-3.5" aria-hidden />
+                Close
+              </button>
+            </LearningHint>
           )}
         </div>
       </div>
