@@ -211,7 +211,7 @@ export function TaskStepChecklist({
           aria-label={`${completedCount} of ${totalCount} steps complete`}
         >
           <div
-            className="h-full bg-[#FACC15] transition-all duration-300"
+            className="h-full bg-ember-400 transition-all duration-300"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -282,7 +282,7 @@ export function TaskStepChecklist({
                         setAskCoachToken((t) => t + 1);
                       }}
                       title="Open the Coach on this step"
-                      className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold text-brand bg-[#FACC15]/10 border border-[#FACC15]/40 hover:border-[#FACC15]/70 hover:bg-[#FACC15]/15 rounded-md px-1.5 py-0.5"
+                      className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold text-brand bg-ember-400/10 border border-ember-400/40 hover:border-ember-400/70 hover:bg-ember-400/15 rounded-md px-1.5 py-0.5"
                     >
                       <Sparkles className="w-3 h-3" aria-hidden />
                       Coach
@@ -362,7 +362,7 @@ export function TaskStepChecklist({
           type="button"
           onClick={() => void onAdd()}
           disabled={adding || !newBody.trim()}
-          className="shrink-0 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] px-3 py-1.5 rounded-md transition-colors"
+          className="shrink-0 text-xs font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] px-3 py-1.5 rounded-md transition-colors"
         >
           {adding ? "Adding…" : "Add"}
         </button>

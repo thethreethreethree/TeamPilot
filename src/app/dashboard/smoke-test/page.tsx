@@ -298,7 +298,7 @@ function SmokeTestList({
                 aria-valuemax={totalCount}
               >
                 <div
-                  className="h-full bg-[#FACC15] transition-all duration-300"
+                  className="h-full bg-ember-400 transition-all duration-300"
                   style={{
                     width: totalCount > 0 ? `${(completedCount / totalCount) * 100}%` : "0%",
                   }}
@@ -460,7 +460,7 @@ function SmokeTestItemCard({
             {statusBadge}
             {johnOwns ? (
               <span
-                className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-[#FACC15] bg-[#FACC15]/10 border border-[#FACC15]/30 px-1.5 py-0.5 rounded-full"
+                className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-ember-400 bg-ember-400/10 border border-ember-400/30 px-1.5 py-0.5 rounded-full"
                 title="Backend / infra item — John handles this verification personally"
               >
                 <ServerCog className="w-3 h-3" aria-hidden /> John
@@ -475,7 +475,7 @@ function SmokeTestItemCard({
             )}
             {item.structural && (
               <span
-                className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-[#FACC15] bg-[#FACC15]/10 border border-[#FACC15]/30 px-1.5 py-0.5 rounded-full"
+                className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-ember-400 bg-ember-400/10 border border-ember-400/30 px-1.5 py-0.5 rounded-full"
                 title="Structural-priority test — foundational. A failure here propagates upward through every layer above it."
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -499,7 +499,7 @@ function SmokeTestItemCard({
           action, but partners should still SEE them on the record so
           they know coverage is happening across the board. */}
       {johnOwns && (
-        <div className="mb-3 rounded-lg border border-[#FACC15]/25 bg-[#FACC15]/5 px-3 py-2">
+        <div className="mb-3 rounded-lg border border-ember-400/25 bg-ember-400/5 px-3 py-2">
           <p className="text-[11px] text-secondary leading-relaxed">
             <ServerCog
               className="inline w-3 h-3 text-brand mr-1 -mt-0.5"
@@ -551,7 +551,7 @@ function SmokeTestItemCard({
           members={members}
           rows={2}
           placeholder="Notes (required for fail / unable; ≥5 chars) — type @ to tag a teammate"
-          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 resize-none"
+          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 resize-none"
         />
       </div>
       <div className="flex items-center gap-2">

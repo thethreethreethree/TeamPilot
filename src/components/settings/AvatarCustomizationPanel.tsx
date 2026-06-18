@@ -162,7 +162,7 @@ export function AvatarCustomizationPanel() {
           onChange={(e) => setInitials(e.target.value.slice(0, 3))}
           placeholder={avatarInitialsFor(fullName)}
           maxLength={3}
-          className="w-32 bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors"
+          className="w-32 bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors"
         />
         <p className="text-[11px] text-muted">
           Default: <span className="font-mono">{avatarInitialsFor(fullName)}</span>
@@ -198,7 +198,7 @@ export function AvatarCustomizationPanel() {
             value={color}
             onChange={(e) => setColor(e.target.value)}
             placeholder={avatarColorFor(userId, fullName)}
-            className="w-32 bg-surface border border-default rounded-lg px-3 py-1.5 text-xs font-mono text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50"
+            className="w-32 bg-surface border border-default rounded-lg px-3 py-1.5 text-xs font-mono text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
           />
           <p className="text-[11px] text-muted">
             Custom hex (e.g. <span className="font-mono">#FACC15</span>) — or
@@ -231,7 +231,7 @@ export function AvatarCustomizationPanel() {
             type="button"
             onClick={() => void save()}
             disabled={saving}
-            className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold text-xs px-3 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold text-xs px-3 py-2 rounded-lg transition-colors"
           >
             <Save className="w-3.5 h-3.5" aria-hidden />
             {saving ? "Saving…" : "Save"}

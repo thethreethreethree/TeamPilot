@@ -143,7 +143,7 @@ export default function CareLeadershipPage() {
         </div>
         <Link
           href="/dashboard/care/leadership/readouts"
-          className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2.5 py-1 rounded transition-colors"
+          className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-ember-400 border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 px-2.5 py-1 rounded transition-colors"
         >
           §4 readouts
         </Link>
@@ -164,7 +164,7 @@ export default function CareLeadershipPage() {
         {snap && (
           <>
             {/* §A10 + §A18 structural preamble */}
-            <div className="bg-[#FACC15]/5 border border-[#FACC15]/30 rounded-lg p-3 flex items-start gap-2">
+            <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
               <ShieldCheck
                 className="w-4 h-4 text-brand shrink-0 mt-0.5"
                 aria-hidden
@@ -435,7 +435,7 @@ export default function CareLeadershipPage() {
               {snap.presence.awaitingResponse > 0 && (
                 <Link
                   href="/dashboard/care/conversations?view=all_open"
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2.5 py-1 rounded transition-colors"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-ember-400 border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 px-2.5 py-1 rounded transition-colors"
                 >
                   See the {snap.presence.awaitingResponse} open{" "}
                   {snap.presence.awaitingResponse === 1

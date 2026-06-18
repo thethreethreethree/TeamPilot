@@ -77,7 +77,7 @@ export function MessageGradeIndicator({
         <button
           type="button"
           onClick={onReviewClick}
-          className="inline-flex items-center gap-1 text-[10px] text-brand hover:text-[#EAB308] border border-[#FACC15]/30 hover:border-[#FACC15]/60 bg-[#FACC15]/[0.06] hover:bg-[#FACC15]/[0.12] rounded-md px-1.5 py-0.5 transition-colors"
+          className="inline-flex items-center gap-1 text-[10px] text-brand hover:text-ember-500 border border-ember-400/30 hover:border-ember-400/60 bg-ember-400/[0.06] hover:bg-ember-400/[0.12] rounded-md px-1.5 py-0.5 transition-colors"
           title="Coach noticed something. Click to learn together."
         >
           <MessageCircleQuestion className="w-3 h-3" aria-hidden />
@@ -111,7 +111,7 @@ function NeedsGuidanceLabel({ onGuideClick }: { onGuideClick?: () => void }) {
           if (showHint) onGuideClick?.();
         }}
         onBlur={() => setShowHint(false)}
-        className="inline-flex items-center gap-1 text-[10px] text-secondary hover:text-primary border border-default hover:border-[#FACC15]/30 bg-surface rounded-md px-1.5 py-0.5 transition-colors"
+        className="inline-flex items-center gap-1 text-[10px] text-secondary hover:text-primary border border-default hover:border-ember-400/30 bg-surface rounded-md px-1.5 py-0.5 transition-colors"
         aria-label="Needs Guidance — click for guidance options"
       >
         <AlertCircle className="w-3 h-3 text-brand/70" aria-hidden />

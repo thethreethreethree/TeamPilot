@@ -58,7 +58,7 @@ export function AskCoachButton({
       onClick={handleClick}
       disabled={disabled}
       title="Coach reads your draft and offers a teaching-shaped suggestion (§3.3 — guide, don't overtake)"
-      className={`flex items-center gap-1.5 text-xs font-semibold text-brand bg-[#FACC15]/10 border border-[#FACC15]/50 hover:border-[#FACC15]/80 hover:bg-[#FACC15]/15 rounded-lg px-3 py-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0 ${
+      className={`flex items-center gap-1.5 text-xs font-semibold text-brand bg-ember-400/10 border border-ember-400/50 hover:border-ember-400/80 hover:bg-ember-400/15 rounded-lg px-3 py-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0 ${
         pulse ? "scale-95" : ""
       }`}
       aria-label={label}

@@ -60,8 +60,8 @@ const TONES = {
     text: "text-secondary",
   },
   momentum: {
-    border: "border-[#FACC15]/40",
-    bg: "bg-[#FACC15]/10",
+    border: "border-ember-400/40",
+    bg: "bg-ember-400/10",
     text: "text-brand",
   },
   collaboration: {

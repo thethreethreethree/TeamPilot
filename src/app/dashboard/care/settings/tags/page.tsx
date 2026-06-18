@@ -105,7 +105,7 @@ export default function CareTagsPage() {
               type="button"
               onClick={create}
               disabled={creating || !newName.trim()}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] px-3 py-1.5 rounded-md"
             >
               {creating ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />

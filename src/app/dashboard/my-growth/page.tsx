@@ -85,7 +85,7 @@ export default function MyGrowthPage() {
         {/* §A10 transparency preamble. The user needs to know: the
             data on this page is exactly what the Coach reads when
             forming its next response. No backstage read. */}
-        <div className="glass-card p-4 border border-[#FACC15]/30 bg-[#FACC15]/5">
+        <div className="glass-card p-4 border border-ember-400/30 bg-ember-400/5">
           <div className="flex items-start gap-2">
             <ShieldCheck
               className="w-4 h-4 text-brand shrink-0 mt-0.5"
@@ -169,7 +169,7 @@ export default function MyGrowthPage() {
                         return (
                           <li
                             key={p.principle}
-                            className="border-l-2 border-[#FACC15]/40 pl-3"
+                            className="border-l-2 border-ember-400/40 pl-3"
                           >
                             <p className="text-sm font-semibold text-primary">
                               {p.principle}

@@ -139,7 +139,7 @@ export default function CareGrowthPage() {
         {snap && (
           <>
             {/* §A10 preamble — same line on every visit. */}
-            <div className="bg-[#FACC15]/5 border border-[#FACC15]/30 rounded-lg p-3 flex items-start gap-2">
+            <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
               <ShieldCheck
                 className="w-4 h-4 text-brand shrink-0 mt-0.5"
                 aria-hidden
@@ -309,7 +309,7 @@ export default function CareGrowthPage() {
               {snap.presence.awaitingResponse > 0 && (
                 <Link
                   href="/dashboard/care/conversations?view=mine"
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2.5 py-1 rounded transition-colors"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-ember-400 border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 px-2.5 py-1 rounded transition-colors"
                 >
                   <MessageSquare className="w-3 h-3" aria-hidden />
                   Open the {snap.presence.awaitingResponse}{" "}

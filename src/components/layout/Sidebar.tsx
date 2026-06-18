@@ -359,7 +359,7 @@ export default function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                 isActive
-                  ? "bg-[#FACC15]/15 text-brand border border-[#FACC15]/30"
+                  ? "bg-ember-400/15 text-brand border border-ember-400/30"
                   : "text-secondary hover:text-primary hover:bg-surface-raised"
               )}
             >
@@ -371,7 +371,7 @@ export default function Sidebar() {
               />
               {item.label}
               {isActive && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#FACC15]" />
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-ember-400" />
               )}
             </Link>
           );
@@ -395,7 +395,7 @@ export default function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                   isActive
-                    ? "bg-[#FACC15]/15 text-brand border border-[#FACC15]/30"
+                    ? "bg-ember-400/15 text-brand border border-ember-400/30"
                     : "text-secondary hover:text-primary hover:bg-surface-raised"
                 )}
               >
@@ -408,7 +408,7 @@ export default function Sidebar() {
                   />
                   {showUnreadDot && (
                     <span
-                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#FACC15] ring-2 ring-base"
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-ember-400 ring-2 ring-base"
                       aria-label="Unread notifications"
                     />
                   )}
@@ -448,7 +448,7 @@ export default function Sidebar() {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                     isActive
-                      ? "bg-[#FACC15]/15 text-brand border border-[#FACC15]/30"
+                      ? "bg-ember-400/15 text-brand border border-ember-400/30"
                       : "text-secondary hover:text-primary hover:bg-surface-raised"
                   )}
                 >
@@ -528,7 +528,7 @@ export default function Sidebar() {
       {/* User footer */}
       <div className="px-4 py-4 border-t border-default">
         <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ember-400 to-[#FDE047] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
             {initials}
           </div>
           <div className="min-w-0 flex-1">

@@ -312,7 +312,7 @@ export default function CommandPalette() {
                     onMouseEnter={() => setActive(idx)}
                     onClick={() => runAction(a)}
                     className={`flex items-center gap-3 px-4 py-2 cursor-pointer ${
-                      isActive ? "bg-[#FACC15]/15" : "hover:bg-surface-raised"
+                      isActive ? "bg-ember-400/15" : "hover:bg-surface-raised"
                     }`}
                   >
                     <Icon

@@ -94,7 +94,7 @@ export default function MarketingPage() {
                     </div>
                     <div className="w-full h-5 rounded bg-surface-raised overflow-hidden">
                       <div
-                        className="h-full rounded bg-gradient-to-r from-[#FACC15] to-[#FDE047]"
+                        className="h-full rounded bg-gradient-to-r from-ember-400 to-[#FDE047]"
                         style={{ width: `${(stage.count / topFunnel) * 100}%` }}
                       />
                     </div>
@@ -105,7 +105,7 @@ export default function MarketingPage() {
           </div>
 
           {/* AI Diagnosis */}
-          <div className="glass-card p-5 border-[#FACC15]/20">
+          <div className="glass-card p-5 border-ember-400/20">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-brand" />
@@ -139,7 +139,7 @@ export default function MarketingPage() {
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-surface-raised overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-[#FACC15] to-[#FDE047]"
+                      className="h-full rounded-full bg-gradient-to-r from-ember-400 to-[#FDE047]"
                       style={{ width: `${(c.leads / maxChannelLeads) * 100}%` }}
                     />
                   </div>

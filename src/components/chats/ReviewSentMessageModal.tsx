@@ -249,7 +249,7 @@ export function ReviewSentMessageModal({
                   <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
                     {state.analysis.improvement.suggestedRevision}
                   </p>
-                  <p className="text-[11px] text-secondary leading-relaxed border-l-2 border-[#FACC15]/40 pl-2 italic">
+                  <p className="text-[11px] text-secondary leading-relaxed border-l-2 border-ember-400/40 pl-2 italic">
                     {state.analysis.improvement.whySentence}
                   </p>
                   <p className="text-[10px] text-muted font-mono uppercase tracking-wider">
@@ -268,7 +268,7 @@ export function ReviewSentMessageModal({
             )}
 
             {state.turns.length > 0 && (
-              <div className="pt-2 border-t border-[#FACC15]/15 space-y-2">
+              <div className="pt-2 border-t border-ember-400/15 space-y-2">
                 {state.turns.map((turn, i) =>
                   turn.role === "user" ? (
                     <div key={i} className="flex items-start gap-2 pl-4">
@@ -296,7 +296,7 @@ export function ReviewSentMessageModal({
             )}
 
             {!state.followingUp && state.latestStarters.length > 0 && (
-              <div className="pt-2 border-t border-[#FACC15]/15">
+              <div className="pt-2 border-t border-ember-400/15">
                 <p className="text-[10px] uppercase tracking-widest font-mono text-muted mb-1.5">
                   {state.turns.length === 0 ? "You could ask me" : "Or ask"}
                 </p>
@@ -306,7 +306,7 @@ export function ReviewSentMessageModal({
                       key={i}
                       type="button"
                       onClick={() => void sendFollowUp(q)}
-                      className="text-[11px] text-left text-secondary hover:text-primary bg-surface hover:bg-[#FACC15]/[0.08] border border-default rounded-full px-2.5 py-1 transition-colors"
+                      className="text-[11px] text-left text-secondary hover:text-primary bg-surface hover:bg-ember-400/[0.08] border border-default rounded-full px-2.5 py-1 transition-colors"
                     >
                       {q}
                     </button>
@@ -364,14 +364,14 @@ function ReviewInput({
         }}
         disabled={disabled}
         placeholder="Ask me anything about this message…"
-        className="flex-1 min-w-0 text-[11px] text-primary placeholder:text-muted bg-surface border border-default rounded-md px-2 py-1.5 focus:outline-none focus:border-[#FACC15]/40 disabled:opacity-50"
+        className="flex-1 min-w-0 text-[11px] text-primary placeholder:text-muted bg-surface border border-default rounded-md px-2 py-1.5 focus:outline-none focus:border-ember-400/40 disabled:opacity-50"
       />
       <button
         type="button"
         onClick={submit}
         disabled={disabled || !value.trim()}
         aria-label="Send follow-up question"
-        className="flex items-center justify-center w-7 h-7 rounded-md bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-30 disabled:cursor-not-allowed text-[#09090B] transition-colors"
+        className="flex items-center justify-center w-7 h-7 rounded-md bg-ember-400 hover:bg-ember-500 disabled:opacity-30 disabled:cursor-not-allowed text-[#09090B] transition-colors"
       >
         <Send className="w-3 h-3" aria-hidden />
       </button>

@@ -95,7 +95,7 @@ export default function InviteAcceptPage() {
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center shadow-glow">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-ember-400 to-[#FDE047] flex items-center justify-center shadow-glow">
             <Activity className="w-5 h-5 text-primary" />
           </div>
           <span className="text-xl font-bold text-primary">ELOSTATE</span>
@@ -134,7 +134,7 @@ export default function InviteAcceptPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
-                  className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-[#FACC15]/50"
+                  className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-ember-400/50"
                 />
                 <input
                   type="password"
@@ -143,7 +143,7 @@ export default function InviteAcceptPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-[#FACC15]/50"
+                  className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-ember-400/50"
                 />
                 {mode === "signup" && (
                   <input
@@ -151,14 +151,14 @@ export default function InviteAcceptPage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Your name (optional)"
-                    className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-[#FACC15]/50"
+                    className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-ember-400/50"
                   />
                 )}
                 {error && <p className="text-xs text-red-400">{error}</p>}
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full flex items-center justify-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold py-2.5 rounded-lg transition-all text-sm"
+                  className="w-full flex items-center justify-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold py-2.5 rounded-lg transition-all text-sm"
                 >
                   {busy
                     ? "Please wait…"
@@ -197,13 +197,13 @@ export default function InviteAcceptPage() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Your name (optional, used in team views)"
-                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-[#FACC15]/50 mb-3"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-ember-400/50 mb-3"
               />
               {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
               <button
                 onClick={acceptInvitation}
                 disabled={busy}
-                className="w-full flex items-center justify-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold py-2.5 rounded-lg transition-all text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold py-2.5 rounded-lg transition-all text-sm"
               >
                 {busy ? "Accepting…" : "Accept invitation"}
                 {!busy && <ArrowRight className="w-4 h-4" />}

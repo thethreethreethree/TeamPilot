@@ -114,7 +114,7 @@ export default function CareKnowledgePage() {
       </header>
       <div className="flex-1 overflow-y-auto px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
         {/* §A8 preamble — what this surface IS. */}
-        <div className="bg-[#FACC15]/5 border border-[#FACC15]/30 rounded-lg p-3 flex items-start gap-2">
+        <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
           <ShieldCheck
             className="w-4 h-4 text-brand shrink-0 mt-0.5"
             aria-hidden
@@ -255,7 +255,7 @@ function ResolutionCard({
       <div className="mt-3 pt-2 border-t border-default/60">
         <Link
           href={`/dashboard/care/conversations/${resolution.conversationId}`}
-          className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-[#FACC15]"
+          className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-ember-400"
         >
           Open the original conversation
           <ArrowRight className="w-3 h-3" aria-hidden />

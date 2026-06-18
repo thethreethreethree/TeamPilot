@@ -62,7 +62,7 @@ export default function ProblemsPage() {
       />
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#FACC15]/5 border border-[#FACC15]/20">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-ember-400/5 border border-ember-400/20">
           <ShieldCheck className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
           <p className="text-xs text-secondary leading-relaxed">
             A problem may not be surfaced until it links to ≥3 signals from ≥2 distinct
@@ -78,7 +78,7 @@ export default function ProblemsPage() {
           <button
             onClick={() => setCreating(true)}
             disabled={!supabaseEnabled}
-            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             New problem hypothesis
@@ -216,7 +216,7 @@ function ProblemRow({
               <button
                 onClick={surface}
                 disabled={busy}
-                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/30 hover:border-[#FACC15]/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
+                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
               >
                 <ShieldCheck className="w-3 h-3" /> Try to surface
               </button>
@@ -349,7 +349,7 @@ function CreateProblemModal({
                     type="checkbox"
                     checked={selectedSignalIds.has(s.id)}
                     onChange={() => toggleSignal(s.id)}
-                    className="accent-[#FACC15]"
+                    className="accent-ember-400"
                   />
                   <span className="font-mono">
                     <span className="text-brand">{s.kind}</span>{" "}
@@ -428,7 +428,7 @@ function CreateProblemModal({
             <button
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Creating…" : "Create draft"}
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}

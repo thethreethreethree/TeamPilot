@@ -196,7 +196,7 @@ export default function CareReadoutsPage() {
         {readout && (
           <>
             {/* §A2 + §A3 + §A4 preamble — same every visit. */}
-            <div className="bg-[#FACC15]/5 border border-[#FACC15]/30 rounded-lg p-3 flex items-start gap-2">
+            <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
               <ShieldCheck
                 className="w-4 h-4 text-brand shrink-0 mt-0.5"
                 aria-hidden

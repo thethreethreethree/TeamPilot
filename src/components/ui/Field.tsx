@@ -50,7 +50,7 @@ export function Field({
 // the crimson brand (mode-agnostic).
 const inputBase =
   "w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted " +
-  "focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors " +
+  "focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors " +
   "disabled:opacity-60 disabled:cursor-not-allowed";
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(

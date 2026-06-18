@@ -436,9 +436,9 @@ export default function TeamChatTopicPage() {
     const el = document.getElementById(`msg-${messageId}`);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("ring-2", "ring-[#FACC15]", "ring-offset-2", "ring-offset-base");
+    el.classList.add("ring-2", "ring-ember-400", "ring-offset-2", "ring-offset-base");
     window.setTimeout(() => {
-      el.classList.remove("ring-2", "ring-[#FACC15]", "ring-offset-2", "ring-offset-base");
+      el.classList.remove("ring-2", "ring-ember-400", "ring-offset-2", "ring-offset-base");
     }, 1600);
   };
 
@@ -670,7 +670,7 @@ export default function TeamChatTopicPage() {
                 }
                 className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors border flex-shrink-0 whitespace-nowrap ${
                   companyCoachOn || topic.coachEnabled
-                    ? "text-brand border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5"
+                    ? "text-brand border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5"
                     : "text-secondary border-default hover:border-strong"
                 } ${companyCoachOn ? "cursor-default opacity-90" : ""}`}
               >
@@ -694,7 +694,7 @@ export default function TeamChatTopicPage() {
                   onClick={() => void handleOpenDecisionDialogue()}
                   disabled={openingDialogue}
                   title="Open the structured 4-phase Decision Dialogue inline in this thread"
-                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/40 hover:border-[#FACC15]/70 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/40 hover:border-ember-400/70 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
                 >
                   <Brain className="w-3 h-3" aria-hidden="true" />
                   {openingDialogue ? "Opening…" : "Open as Decision Dialogue"}
@@ -730,7 +730,7 @@ export default function TeamChatTopicPage() {
               type="button"
               onClick={() => setFeedbackOpen(true)}
               title="Send feedback"
-              className="flex items-center gap-1.5 text-xs font-semibold text-brand border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/10 hover:bg-[#FACC15]/15 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+              className="flex items-center gap-1.5 text-xs font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/10 hover:bg-ember-400/15 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
             >
               <MessageSquarePlus className="w-3 h-3" aria-hidden="true" />
               Feedback
@@ -947,7 +947,7 @@ export default function TeamChatTopicPage() {
           <button
             type="button"
             onClick={jumpToLatest}
-            className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold text-xs px-3 py-2 rounded-full shadow-glow-ember transition-colors"
+            className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold text-xs px-3 py-2 rounded-full shadow-glow-ember transition-colors"
           >
             <ArrowDown className="w-3.5 h-3.5" aria-hidden />
             Jump to latest
@@ -1186,7 +1186,7 @@ export default function TeamChatTopicPage() {
                   onPointerDown={() => {
                     if (draft.trim() && !submitting) hapticSend();
                   }}
-                  className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] active:scale-95 disabled:opacity-40 disabled:active:scale-100 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-all duration-150 text-xs flex-shrink-0"
+                  className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 active:scale-95 disabled:opacity-40 disabled:active:scale-100 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-all duration-150 text-xs flex-shrink-0"
                 >
                   Send
                   <CornerDownLeft className="w-3 h-3" aria-hidden="true" />

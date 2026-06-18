@@ -158,7 +158,7 @@ export function InstallTeamChatBanner() {
 
   return (
     <div
-      className="flex items-start gap-3 rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/[0.05] px-4 py-3"
+      className="flex items-start gap-3 rounded-xl border border-ember-400/30 bg-ember-400/[0.05] px-4 py-3"
       role="region"
       aria-label="Install Team Chat as an app"
     >
@@ -169,7 +169,7 @@ export function InstallTeamChatBanner() {
         aria-hidden
         className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#09090B] flex-shrink-0"
       >
-        <Smartphone className="w-5 h-5 text-[#FACC15]" />
+        <Smartphone className="w-5 h-5 text-ember-400" />
       </div>
 
       <div className="flex-1 min-w-0">
@@ -186,7 +186,7 @@ export function InstallTeamChatBanner() {
             <button
               type="button"
               onClick={() => void install()}
-              className="flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-[#FACC15] hover:bg-[#EAB308] px-3 py-1.5 rounded-md transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-3 py-1.5 rounded-md transition-colors"
             >
               <Download className="w-3.5 h-3.5" aria-hidden />
               Install
@@ -206,7 +206,7 @@ export function InstallTeamChatBanner() {
             <button
               type="button"
               onClick={() => setIosExpanded((v) => !v)}
-              className="text-xs font-semibold text-brand hover:text-[#EAB308]"
+              className="text-xs font-semibold text-brand hover:text-ember-500"
             >
               {iosExpanded ? "Hide instructions" : "How to install on iPhone"}
             </button>

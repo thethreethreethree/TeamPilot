@@ -158,7 +158,7 @@ export function TaskGateEditor({
               type="button"
               onClick={() => void save()}
               disabled={saving}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#09090B] bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 px-2 py-1 rounded-md transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-2 py-1 rounded-md transition-colors"
             >
               {saving ? (
                 <Loader2 className="w-3 h-3 animate-spin" aria-hidden />

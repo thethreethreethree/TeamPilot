@@ -88,7 +88,7 @@ const STATUS_LABELS: Record<FeedbackStatus, string> = {
 const STATUS_COLORS: Record<FeedbackStatus, string> = {
   open: "border-default bg-surface text-secondary",
   triaged: "border-arc-400/40 bg-arc-400/10 text-arc-300",
-  in_progress: "border-[#FACC15]/40 bg-[#FACC15]/10 text-brand",
+  in_progress: "border-ember-400/40 bg-ember-400/10 text-brand",
   resolved: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
   declined: "border-default bg-surface-raised text-muted",
   duplicate: "border-default bg-surface-raised text-muted",
@@ -145,7 +145,7 @@ export default function MyFeedbackPage() {
       <div className="p-6 max-w-3xl mx-auto space-y-5">
         {/* Why this page exists, in one line — answers the user's
             silent question "did my submission go anywhere?" */}
-        <div className="glass-card p-4 border border-[#FACC15]/30 bg-[#FACC15]/5">
+        <div className="glass-card p-4 border border-ember-400/30 bg-ember-400/5">
           <p className="text-xs text-secondary leading-relaxed">
             Each report you file lands on the §3.1 chain as a permanent
             event. Admins triage from{" "}
@@ -175,7 +175,7 @@ export default function MyFeedbackPage() {
               onClick={() => setStatusFilter(s)}
               className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors ${
                 statusFilter === s
-                  ? "border-brand bg-[#FACC15]/8 text-brand"
+                  ? "border-brand bg-ember-400/8 text-brand"
                   : "border-default text-muted hover:text-primary"
               }`}
             >

@@ -86,7 +86,7 @@ export default function ResolutionsPage() {
       />
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-[#FACC15]/5 border border-[#FACC15]/20">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-ember-400/5 border border-ember-400/20">
           <Sparkles className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
           <p className="text-xs text-secondary leading-relaxed">
             Every closed problem produced a resolution. The action and reasoning are
@@ -212,7 +212,7 @@ function ResolutionRow({
           ) : (
             <button
               onClick={onReview}
-              className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/30 hover:border-[#FACC15]/60 px-3 py-1.5 rounded-lg transition-all"
+              className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-all"
             >
               Review outcome
             </button>
@@ -309,7 +309,7 @@ function ReviewModal({
           <button
             onClick={submit}
             disabled={submitting}
-            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
           >
             {submitting ? "Saving…" : "Save outcome"}
           </button>

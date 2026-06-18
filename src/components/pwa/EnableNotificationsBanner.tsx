@@ -61,7 +61,7 @@ export function EnableNotificationsBanner() {
 
   return (
     <div
-      className="mb-3 flex items-start gap-2.5 rounded-lg border border-[#FACC15]/30 bg-[#FACC15]/[0.05] px-3 py-2.5"
+      className="mb-3 flex items-start gap-2.5 rounded-lg border border-ember-400/30 bg-ember-400/[0.05] px-3 py-2.5"
       role="region"
       aria-label="Notifications opt-in"
     >
@@ -74,7 +74,7 @@ export function EnableNotificationsBanner() {
               <button
                 type="button"
                 onClick={() => void subscribe()}
-                className="text-brand hover:text-[#EAB308] underline underline-offset-2"
+                className="text-brand hover:text-ember-500 underline underline-offset-2"
               >
                 Try again
               </button>
@@ -93,7 +93,7 @@ export function EnableNotificationsBanner() {
             <button
               type="button"
               onClick={() => void subscribe()}
-              className="text-[11px] font-semibold text-[#09090B] bg-[#FACC15] hover:bg-[#EAB308] px-2.5 py-1 rounded-md transition-colors"
+              className="text-[11px] font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-2.5 py-1 rounded-md transition-colors"
             >
               Enable notifications
             </button>

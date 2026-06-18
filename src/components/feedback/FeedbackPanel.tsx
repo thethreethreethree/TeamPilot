@@ -356,7 +356,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                       onClick={() => setKind(opt.value)}
                       className={`flex items-start gap-2.5 text-left p-2.5 rounded-lg border transition-colors ${
                         active
-                          ? "border-brand bg-[#FACC15]/8"
+                          ? "border-brand bg-ember-400/8"
                           : "border-default bg-surface hover:border-strong"
                       }`}
                     >
@@ -389,7 +389,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="One sentence — what happened or what you noticed"
                 maxLength={200}
-                className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30"
+                className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30"
               />
             </div>
 
@@ -434,7 +434,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                 members={members}
                 rows={5}
                 placeholder="What you expected, what actually happened, anything that helps reproduce…"
-                className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 resize-none leading-relaxed"
+                className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 resize-none leading-relaxed"
               />
             </div>
 
@@ -548,7 +548,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
               <button
                 onClick={submit}
                 disabled={submitting || !title.trim()}
-                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
               >
                 {submitting ? (
                   <>

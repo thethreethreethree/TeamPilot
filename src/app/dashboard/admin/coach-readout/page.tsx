@@ -203,7 +203,7 @@ export default function CoachReadoutPage() {
       <div className="p-6 max-w-5xl mx-auto space-y-5">
         {/* Discipline preamble — explicit so the reader knows what
             this surface IS and IS NOT. */}
-        <div className="glass-card p-4 border border-[#FACC15]/30 bg-[#FACC15]/5">
+        <div className="glass-card p-4 border border-ember-400/30 bg-ember-400/5">
           <p className="text-xs text-secondary leading-relaxed">
             This page surfaces what the chain says about whether the
             Conversational Coach changes downstream consequence — NOT

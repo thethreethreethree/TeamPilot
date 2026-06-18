@@ -230,7 +230,7 @@ function DigestRowCard({
         <button
           type="button"
           onClick={onSendCheckIn}
-          className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-3 py-1.5 rounded-lg text-xs transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg text-xs transition-colors flex-shrink-0"
         >
           <MessageCircleQuestion className="w-3.5 h-3.5" aria-hidden />
           Send check-in
@@ -320,7 +320,7 @@ function NudgeModal({
           onChange={(e) => setBody(e.target.value)}
           rows={5}
           placeholder="Open the conversation. Frame as a doorway, not a deadline."
-          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 resize-none leading-relaxed"
+          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 resize-none leading-relaxed"
         />
         {error && (
           <p className="text-[11px] text-red-400 mt-2" role="alert">
@@ -339,7 +339,7 @@ function NudgeModal({
             type="button"
             onClick={() => void submit()}
             disabled={submitting || body.trim().length < 12}
-            className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-3 py-2 rounded-lg text-xs transition-colors"
+            className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-3 py-2 rounded-lg text-xs transition-colors"
           >
             {submitting ? "Sending…" : "Send check-in"}
           </button>

@@ -119,7 +119,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ceo@company.com"
-                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
             <div>
@@ -132,7 +132,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -143,7 +143,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               aria-busy={loading}
-              className="w-full flex items-center justify-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-60 disabled:cursor-not-allowed text-[#09090B] font-semibold py-2.5 rounded-lg transition-colors shadow-glow hover:shadow-none"
+              className="w-full flex items-center justify-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-60 disabled:cursor-not-allowed text-[#09090B] font-semibold py-2.5 rounded-lg transition-colors shadow-glow hover:shadow-none"
             >
               {loading ? (
                 <>

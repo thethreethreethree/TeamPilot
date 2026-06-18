@@ -1066,7 +1066,7 @@ export function ConversationsApp({
                 onClick={() => setView(v.key)}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   active
-                    ? "bg-[#FACC15]/10 text-brand"
+                    ? "bg-ember-400/10 text-brand"
                     : "text-secondary hover:text-primary hover:bg-white/[0.03]"
                 }`}
               >
@@ -1492,7 +1492,7 @@ function ConversationListRow({
           collide. */}
       <label
         className={`pl-3 pr-1 py-2.5 flex items-start cursor-pointer ${
-          bulkSelected ? "bg-[#FACC15]/[0.04]" : ""
+          bulkSelected ? "bg-ember-400/[0.04]" : ""
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1501,7 +1501,7 @@ function ConversationListRow({
           checked={bulkSelected}
           onChange={onBulkToggle}
           aria-label="Select conversation for bulk action"
-          className="mt-0.5 w-3.5 h-3.5 accent-[#FACC15] cursor-pointer"
+          className="mt-0.5 w-3.5 h-3.5 accent-ember-400 cursor-pointer"
         />
       </label>
       <button
@@ -1509,9 +1509,9 @@ function ConversationListRow({
         onClick={onClick}
         className={`flex-1 text-left pl-1 pr-3 py-2.5 transition-colors flex items-start gap-2.5 ${
           selected
-            ? "bg-[#FACC15]/[0.06] border-l-2 border-[#FACC15]"
+            ? "bg-ember-400/[0.06] border-l-2 border-ember-400"
             : bulkSelected
-              ? "bg-[#FACC15]/[0.04] border-l-2 border-transparent"
+              ? "bg-ember-400/[0.04] border-l-2 border-transparent"
               : "hover:bg-white/[0.02] border-l-2 border-transparent"
         }`}
       >
@@ -1695,7 +1695,7 @@ function DetailHeader({
             <Link
               href={`/dashboard/decisions/new?fromCareConversation=${conversation.id}`}
               title="Open this as a structured internal Decision Dialogue"
-              className="inline-flex items-center gap-1.5 text-xs text-brand border border-[#FACC15]/40 hover:border-[#FACC15]/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1.5 text-xs text-brand border border-ember-400/40 hover:border-ember-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
             >
               <Brain className="w-3.5 h-3.5" aria-hidden />
               Open as Decision Dialogue
@@ -1706,7 +1706,7 @@ function DetailHeader({
               type="button"
               onClick={onClaim}
               disabled={acting}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-[#FACC15]/10 border border-[#FACC15]/40 hover:border-[#FACC15]/70 hover:bg-[#FACC15]/15 disabled:opacity-50 px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-ember-400/10 border border-ember-400/40 hover:border-ember-400/70 hover:bg-ember-400/15 disabled:opacity-50 px-3 py-1.5 rounded-md"
             >
               <UserCheck className="w-3.5 h-3.5" aria-hidden />
               Take over
@@ -2002,7 +2002,7 @@ function MessageRow({
       ? "border-default bg-white/[0.02]"
       : isAi
         ? "border-arc-400/30 bg-arc-400/[0.04]"
-        : "border-[#FACC15]/30 bg-[#FACC15]/[0.04]";
+        : "border-ember-400/30 bg-ember-400/[0.04]";
 
   return (
     <div className={`rounded-lg border p-3 ${tone}`}>
@@ -2032,7 +2032,7 @@ function MessageRow({
           When coach_counts is absent (messages graded before
           migration 0040) the v5 enum is the fallback render. */}
       {isAgent && !isNote && (
-        <div className="mt-2 pt-2 border-t border-[#FACC15]/20">
+        <div className="mt-2 pt-2 border-t border-ember-400/20">
           {message.coachCounts ? (
             <CoachCountsRow
               counts={message.coachCounts}
@@ -2153,7 +2153,7 @@ function CoachCountsRow({
               composerRef?.current?.focus();
               onAskCoPilot();
             }}
-            className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2 py-0.5 rounded transition-colors"
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-ember-400 border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 px-2 py-0.5 rounded transition-colors"
           >
             <Sparkles className="w-2.5 h-2.5" aria-hidden />
             Want a follow-up draft with this in mind?
@@ -2243,7 +2243,7 @@ function CoachLegacyRow({
               composerRef?.current?.focus();
               onAskCoPilot();
             }}
-            className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-[#FACC15] border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 px-2 py-0.5 rounded transition-colors"
+            className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:text-ember-400 border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 px-2 py-0.5 rounded transition-colors"
           >
             <Sparkles className="w-2.5 h-2.5" aria-hidden />
             Want a follow-up draft with this in mind?
@@ -2301,7 +2301,7 @@ function Composer({
           onClick={() => onToggleNote(false)}
           className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
             !isInternalNote
-              ? "text-brand border-[#FACC15]/40 bg-[#FACC15]/10"
+              ? "text-brand border-ember-400/40 bg-ember-400/10"
               : "text-muted border-default hover:border-strong"
           }`}
         >
@@ -2325,11 +2325,11 @@ function Composer({
             <button
               type="button"
               onClick={onFormulate}
-              title="Tell the System what you want to say; it shapes your intent into a clear reply"
+              title="Formulate C.A.R.E — tell the System what you want to say; it shapes your intent into a clear support reply. Distinct from chat's Formulate (which uses 3 reflection questions)."
               className="text-[11px] font-semibold text-secondary border border-default hover:border-strong hover:text-primary inline-flex items-center gap-1 px-2 py-0.5 rounded"
             >
               <Lightbulb className="w-3 h-3" aria-hidden />
-              Help me formulate
+              Formulate C.A.R.E
             </button>
             <button
               type="button"
@@ -2346,7 +2346,7 @@ function Composer({
               onClick={onAiCoPilot}
               disabled={aiDrafting}
               title="Draft a reply using the Coach's communication discipline + the company's past resolutions"
-              className="text-[11px] font-semibold text-brand border border-[#FACC15]/40 hover:border-[#FACC15]/70 bg-[#FACC15]/5 hover:bg-[#FACC15]/10 disabled:opacity-50 inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              className="text-[11px] font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 disabled:opacity-50 inline-flex items-center gap-1 px-2 py-0.5 rounded"
             >
               {aiDrafting ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -2425,7 +2425,7 @@ function Composer({
           type="button"
           onClick={onSend}
           disabled={sending || !draft.trim()}
-          className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] px-3 py-2 rounded-md"
+          className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] px-3 py-2 rounded-md"
         >
           {sending ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -2493,7 +2493,7 @@ function BulkActionBar({
   // direction (Reopen).
   const isTerminalView = viewKey === "closed" || viewKey === "resolved";
   return (
-    <div className="px-3 py-2 border-b border-default bg-[#FACC15]/[0.06] flex items-center gap-2 sticky top-0 z-10">
+    <div className="px-3 py-2 border-b border-default bg-ember-400/[0.06] flex items-center gap-2 sticky top-0 z-10">
       <span className="text-xs font-semibold text-brand">
         {count} selected
       </span>
@@ -2804,7 +2804,7 @@ function PaneSplitter({
       aria-orientation="vertical"
       aria-label={ariaLabel}
       onMouseDown={onMouseDown}
-      className="w-1 flex-shrink-0 bg-default/40 hover:bg-[#FACC15]/40 active:bg-[#FACC15]/60 cursor-col-resize transition-colors"
+      className="w-1 flex-shrink-0 bg-default/40 hover:bg-ember-400/40 active:bg-ember-400/60 cursor-col-resize transition-colors"
     />
   );
 }
@@ -2940,7 +2940,7 @@ function FormulateCarePanel({
   };
 
   return (
-    <ToolPanelShell title="Help me formulate" onClose={onClose}>
+    <ToolPanelShell title="Formulate C.A.R.E" onClose={onClose}>
       {!result ? (
         <>
           <p className="text-xs text-secondary leading-relaxed mb-3">
@@ -2961,7 +2961,7 @@ function FormulateCarePanel({
               type="button"
               onClick={() => void submit()}
               disabled={!intent.trim() || drafting}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] px-3 py-1.5 rounded-md"
             >
               {drafting ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -2996,7 +2996,7 @@ function FormulateCarePanel({
             <button
               type="button"
               onClick={() => onApply(result.draft)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 text-[#09090B] px-3 py-1.5 rounded-md"
             >
               Use this draft
             </button>
@@ -3241,7 +3241,7 @@ function AskCoachCarePanel({
                     response.improvement &&
                     onAcceptRevision(response.improvement.suggestedRevision)
                   }
-                  className="text-[11px] font-semibold text-[#09090B] bg-[#FACC15] hover:bg-[#EAB308] px-2.5 py-1 rounded-md transition-colors"
+                  className="text-[11px] font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-2.5 py-1 rounded-md transition-colors"
                 >
                   Use this revision
                 </button>
@@ -3286,7 +3286,7 @@ function AskCoachCarePanel({
                               turn.alternativeRevision &&
                               onAcceptRevision(turn.alternativeRevision)
                             }
-                            className="text-[11px] font-semibold text-[#09090B] bg-[#FACC15] hover:bg-[#EAB308] px-2 py-0.5 rounded"
+                            className="text-[11px] font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-2 py-0.5 rounded"
                           >
                             Use this revision
                           </button>

@@ -31,7 +31,7 @@ import { useEffect, useMemo, useState } from "react";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 
 const STATUS_BADGE: Record<string, string> = {
-  open: "bg-surface-raised text-active-text border border-[#FACC15]/30",
+  open: "bg-surface-raised text-active-text border border-ember-400/30",
   closed: "bg-gold-400/15 text-accent-text border border-gold-400/40",
   archived: "bg-surface-raised text-muted border border-default",
 };
@@ -130,7 +130,7 @@ export default function TeamChatListPage() {
             <button
               onClick={() => setCreating(true)}
               disabled={!supabaseEnabled && mode !== "demo-fixtures"}
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               <Plus className="w-3.5 h-3.5" aria-hidden="true" />
               New topic
@@ -147,7 +147,7 @@ export default function TeamChatListPage() {
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1 rounded text-xs font-medium transition-colors capitalize ${
                   filter === f
-                    ? "bg-[#FACC15]/15 text-brand"
+                    ? "bg-ember-400/15 text-brand"
                     : "text-muted hover:text-primary"
                 }`}
               >
@@ -480,7 +480,7 @@ function CreateTopicModal({
             <button
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Creating…" : "Create topic"}
             </button>

@@ -326,7 +326,7 @@ export function FeedbackScreenshotEditor({
                 aria-label={t.label}
                 className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
                   active
-                    ? "border-brand bg-[#FACC15]/15 text-brand"
+                    ? "border-brand bg-ember-400/15 text-brand"
                     : "border-default text-secondary hover:text-primary"
                 }`}
               >
@@ -373,7 +373,7 @@ export function FeedbackScreenshotEditor({
             onClick={handleDone}
             disabled={saving}
             title="Save annotations"
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 text-[#09090B] font-semibold"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ember-400 hover:bg-ember-500 disabled:opacity-50 text-[#09090B] font-semibold"
           >
             <Check className="w-3.5 h-3.5" aria-hidden />
             {saving ? "Saving…" : "Done"}
@@ -618,7 +618,7 @@ function TextEditOverlay({
         }}
         rows={1}
         placeholder="Type label, press Enter…"
-        className="absolute bg-[#FACC15] text-[#09090B] font-bold rounded-md outline-none resize-none ring-2 ring-white shadow-lg placeholder:text-[#09090B]/60"
+        className="absolute bg-ember-400 text-[#09090B] font-bold rounded-md outline-none resize-none ring-2 ring-white shadow-lg placeholder:text-[#09090B]/60"
         style={{
           left,
           top,
@@ -634,7 +634,7 @@ function TextEditOverlay({
         onClick={onCommit}
         title="Save label (Enter)"
         aria-label="Save label"
-        className="absolute bg-white text-[#FACC15] rounded-full shadow-lg ring-2 ring-white hover:bg-emerald-50 flex items-center justify-center"
+        className="absolute bg-white text-ember-400 rounded-full shadow-lg ring-2 ring-white hover:bg-emerald-50 flex items-center justify-center"
         style={{
           left: left - 14,
           top: top - 14,

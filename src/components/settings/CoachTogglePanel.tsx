@@ -380,7 +380,7 @@ export function CoachTogglePanel() {
           }
           className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border ${
             enabled
-              ? "border-[#FACC15]/40 hover:border-[#FACC15]/70 text-brand bg-[#FACC15]/5"
+              ? "border-ember-400/40 hover:border-ember-400/70 text-brand bg-ember-400/5"
               : "border-default hover:border-strong text-secondary"
           } disabled:opacity-40 disabled:cursor-not-allowed`}
         >

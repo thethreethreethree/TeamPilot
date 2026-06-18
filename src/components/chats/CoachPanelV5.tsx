@@ -325,7 +325,7 @@ export function CoachPanelV5({
   if (state.kind === "analyzing") {
     return (
       <div
-        className="mb-2 border border-[#FACC15]/15 bg-[#FACC15]/[0.03] rounded-lg px-3 py-1.5 flex items-center gap-2"
+        className="mb-2 border border-ember-400/15 bg-ember-400/[0.03] rounded-lg px-3 py-1.5 flex items-center gap-2"
         role="status"
         aria-label="Coach analyzing the draft"
       >
@@ -362,7 +362,7 @@ export function CoachPanelV5({
   const { response } = state.active;
   return (
     <div
-      className="mb-2 border border-[#FACC15]/30 bg-[#FACC15]/5 rounded-lg px-3 py-2.5"
+      className="mb-2 border border-ember-400/30 bg-ember-400/5 rounded-lg px-3 py-2.5"
       role="region"
       aria-label="Coach analysis"
     >
@@ -401,7 +401,7 @@ export function CoachPanelV5({
                 <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
                   {response.improvement.suggestedRevision}
                 </p>
-                <p className="text-[11px] text-secondary leading-relaxed border-l-2 border-[#FACC15]/40 pl-2 italic">
+                <p className="text-[11px] text-secondary leading-relaxed border-l-2 border-ember-400/40 pl-2 italic">
                   {response.improvement.whySentence}
                 </p>
                 <p className="text-[10px] text-muted font-mono uppercase tracking-wider">
@@ -423,7 +423,7 @@ export function CoachPanelV5({
                   onClick={() =>
                     response.improvement && acceptRevision(response.improvement.suggestedRevision)
                   }
-                  className="text-[11px] font-semibold text-[#09090B] bg-[#FACC15] hover:bg-[#EAB308] px-2.5 py-1 rounded-md transition-colors"
+                  className="text-[11px] font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-2.5 py-1 rounded-md transition-colors"
                 >
                   Use this revision
                 </button>
@@ -442,7 +442,7 @@ export function CoachPanelV5({
               reply pair renders here. The Coach's reply may carry an
               alternativeRevision the user can adopt directly. */}
           {state.turns.length > 0 && (
-            <div className="pt-2 border-t border-[#FACC15]/15 space-y-2">
+            <div className="pt-2 border-t border-ember-400/15 space-y-2">
               {state.turns.map((turn, i) => (
                 <TurnBubble
                   key={i}
@@ -463,7 +463,7 @@ export function CoachPanelV5({
               follow-up call with the starter as the user's question. The
               starters update after each Coach reply. */}
           {!state.followingUp && state.latestStarters.length > 0 && (
-            <div className="pt-2 border-t border-[#FACC15]/15">
+            <div className="pt-2 border-t border-ember-400/15">
               <p className="text-[10px] uppercase tracking-widest font-mono text-muted mb-1.5">
                 {state.turns.length === 0 ? "You could ask me" : "Or ask"}
               </p>
@@ -473,7 +473,7 @@ export function CoachPanelV5({
                     key={i}
                     type="button"
                     onClick={() => void sendFollowUp(q)}
-                    className="text-[11px] text-left text-secondary hover:text-primary bg-surface hover:bg-[#FACC15]/[0.08] border border-default rounded-full px-2.5 py-1 transition-colors"
+                    className="text-[11px] text-left text-secondary hover:text-primary bg-surface hover:bg-ember-400/[0.08] border border-default rounded-full px-2.5 py-1 transition-colors"
                   >
                     {q}
                   </button>
@@ -542,7 +542,7 @@ function TurnBubble({
           <button
             type="button"
             onClick={() => onUseAlternative(turn.alternativeRevision!)}
-            className="text-[10px] font-semibold text-[#09090B] bg-[#FACC15] hover:bg-[#EAB308] px-2 py-0.5 rounded-md transition-colors"
+            className="text-[10px] font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-2 py-0.5 rounded-md transition-colors"
           >
             Use this instead
           </button>
@@ -582,14 +582,14 @@ function FollowUpInput({
         }}
         disabled={disabled}
         placeholder="Ask me anything about this draft…"
-        className="flex-1 min-w-0 text-[11px] text-primary placeholder:text-muted bg-surface border border-default rounded-md px-2 py-1.5 focus:outline-none focus:border-[#FACC15]/40 disabled:opacity-50"
+        className="flex-1 min-w-0 text-[11px] text-primary placeholder:text-muted bg-surface border border-default rounded-md px-2 py-1.5 focus:outline-none focus:border-ember-400/40 disabled:opacity-50"
       />
       <button
         type="button"
         onClick={submit}
         disabled={disabled || !value.trim()}
         aria-label="Send follow-up question"
-        className="flex items-center justify-center w-7 h-7 rounded-md bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-30 disabled:cursor-not-allowed text-[#09090B] transition-colors"
+        className="flex items-center justify-center w-7 h-7 rounded-md bg-ember-400 hover:bg-ember-500 disabled:opacity-30 disabled:cursor-not-allowed text-[#09090B] transition-colors"
       >
         <Send className="w-3 h-3" aria-hidden />
       </button>

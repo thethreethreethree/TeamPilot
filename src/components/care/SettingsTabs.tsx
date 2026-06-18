@@ -29,7 +29,7 @@ export function SettingsTabs() {
             href={t.href}
             className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-colors ${
               active
-                ? "bg-[#FACC15]/10 border-[#FACC15]/40 text-brand"
+                ? "bg-ember-400/10 border-ember-400/40 text-brand"
                 : "border-default text-secondary hover:border-strong hover:text-primary"
             }`}
           >

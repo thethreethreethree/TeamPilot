@@ -52,7 +52,7 @@ export default function CareAnalyticsPage() {
         {!loading && data && (
           <>
             {/* Honest preamble */}
-            <div className="bg-[#FACC15]/5 border border-[#FACC15]/30 rounded-lg p-3">
+            <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3">
               <p className="text-xs text-secondary leading-relaxed">
                 Last {data.windowDays} days · n = {data.totalConversations}.
                 These numbers are raw counts and distributions —
@@ -129,7 +129,7 @@ export default function CareAnalyticsPage() {
                         </span>
                         <div className="flex-1 h-3 bg-surface rounded-sm overflow-hidden">
                           <div
-                            className="h-full bg-[#FACC15] transition-all"
+                            className="h-full bg-ember-400 transition-all"
                             style={{ width: `${pct}%` }}
                           />
                         </div>

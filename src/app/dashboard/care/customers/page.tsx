@@ -98,7 +98,7 @@ function CustomerCard({ customer }: { customer: Customer }) {
   return (
     <div className="bg-white/[0.02] border border-default rounded-xl p-4 hover:border-strong transition-colors">
       <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-full bg-[#FACC15]/15 border border-[#FACC15]/30 flex items-center justify-center text-brand text-sm font-bold shrink-0">
+        <div className="w-9 h-9 rounded-full bg-ember-400/15 border border-ember-400/30 flex items-center justify-center text-brand text-sm font-bold shrink-0">
           {(customer.name ?? customer.email ?? "?").slice(0, 1).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">

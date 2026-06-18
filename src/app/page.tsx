@@ -146,7 +146,7 @@ export default function Landing() {
             </Link>
             <Link
               href="/login"
-              className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors"
             >
               Request access <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
@@ -188,7 +188,7 @@ export default function Landing() {
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
             href="/login"
-            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
+            className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
             Request pilot access <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
@@ -302,7 +302,7 @@ export default function Landing() {
               <div className="flex items-center gap-2 mb-3">
                 <div
                   aria-hidden
-                  className="w-8 h-8 rounded-lg bg-[#FACC15]/10 border border-[#FACC15]/30 text-brand text-sm font-bold flex items-center justify-center"
+                  className="w-8 h-8 rounded-lg bg-ember-400/10 border border-ember-400/30 text-brand text-sm font-bold flex items-center justify-center"
                 >
                   {m.step}
                 </div>
@@ -326,7 +326,7 @@ export default function Landing() {
           that refusal IS the moat. Most landing pages would hide
           this. We lead with it. */}
       <section className="px-6 py-20 max-w-4xl mx-auto">
-        <div className="glass-card p-8 md:p-10 border border-[#FACC15]/30 bg-[#FACC15]/[0.03]">
+        <div className="glass-card p-8 md:p-10 border border-ember-400/30 bg-ember-400/[0.03]">
           <div className="flex items-start gap-3 mb-4">
             <Hourglass className="w-5 h-5 text-brand shrink-0 mt-1" aria-hidden />
             <div>
@@ -458,7 +458,7 @@ export default function Landing() {
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
             href="/login"
-            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
+            className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
             Request pilot access{" "}
             <ArrowRight className="w-4 h-4" aria-hidden="true" />

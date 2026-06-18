@@ -102,7 +102,7 @@ export function FeedbackButton() {
            widget at right-4 (16px + 56px bubble = ends at 72px, plus
            an 8px gap = right-20). Keeps both visible per the
            user's "Care next to Feedback" placement. */
-        className="fixed bottom-4 right-20 z-[60] flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] text-xs font-semibold px-3 py-2 md:py-2.5 rounded-full shadow-glow transition-colors"
+        className="fixed bottom-4 right-20 z-[60] flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] text-xs font-semibold px-3 py-2 md:py-2.5 rounded-full shadow-glow transition-colors"
       >
         <MessageSquarePlus className="w-4 h-4" aria-hidden />
         Feedback

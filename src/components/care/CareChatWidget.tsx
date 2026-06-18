@@ -282,7 +282,7 @@ export function CareChatWidget() {
           onClick={() => setOpen(true)}
           aria-label="Open support chat"
           title="Talk to us"
-          className="fixed bottom-4 right-4 z-[55] flex items-center justify-center w-14 h-14 rounded-full bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] shadow-glow-ember transition-all hover:scale-105"
+          className="fixed bottom-4 right-4 z-[55] flex items-center justify-center w-14 h-14 rounded-full bg-ember-400 hover:bg-ember-500 text-[#09090B] shadow-glow-ember transition-all hover:scale-105"
         >
           <MessageCircle className="w-6 h-6" aria-hidden />
           {messages.some(
@@ -360,7 +360,7 @@ export function CareChatWidget() {
           >
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                <div className="w-12 h-12 rounded-full bg-[#FACC15]/15 flex items-center justify-center mb-3">
+                <div className="w-12 h-12 rounded-full bg-ember-400/15 flex items-center justify-center mb-3">
                   <MessageCircle
                     className="w-5 h-5 text-brand"
                     aria-hidden
@@ -453,7 +453,7 @@ export function CareChatWidget() {
                   onClick={() => void handleSend()}
                   disabled={sending || !draft.trim()}
                   aria-label="Send message"
-                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] transition-colors"
+                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-ember-400 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] transition-colors"
                 >
                   {sending ? (
                     <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
@@ -488,7 +488,7 @@ function MessageBubble({ message }: { message: Message }) {
       <div
         className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
           isCustomer
-            ? "bg-[#FACC15] text-[#09090B] rounded-br-sm"
+            ? "bg-ember-400 text-[#09090B] rounded-br-sm"
             : "bg-surface text-primary border border-default rounded-bl-sm"
         }`}
       >

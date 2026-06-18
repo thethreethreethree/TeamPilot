@@ -229,13 +229,13 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-base flex items-center justify-center px-4 py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-[#FACC15]/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-ember-400/5 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-lg relative">
         {/* Header */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center shadow-glow">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-ember-400 to-[#FDE047] flex items-center justify-center shadow-glow">
             <Activity className="w-4 h-4 text-primary" />
           </div>
           <span className="text-lg font-bold text-primary">ELOSTATE</span>
@@ -247,7 +247,7 @@ export default function OnboardingPage() {
             <div
               key={i}
               className={`flex-1 h-1 rounded-full transition-all duration-500 ${
-                i + 1 <= step ? "bg-[#FACC15]" : "bg-surface-raised"
+                i + 1 <= step ? "bg-ember-400" : "bg-surface-raised"
               }`}
             />
           ))}
@@ -258,7 +258,7 @@ export default function OnboardingPage() {
           {/* Step 1: Company name */}
           {step === 1 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-ember-400/10 border border-ember-400/20 flex items-center justify-center mb-5">
                 <Building2 className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">What&apos;s your company called?</h2>
@@ -269,7 +269,7 @@ export default function OnboardingPage() {
                 onChange={(e) => update("companyName", e.target.value)}
                 placeholder="Acme Corp"
                 autoFocus
-                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors text-base"
+                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors text-base"
               />
             </div>
           )}
@@ -277,7 +277,7 @@ export default function OnboardingPage() {
           {/* Step 2: Company profile */}
           {step === 2 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-ember-400/10 border border-ember-400/20 flex items-center justify-center mb-5">
                 <Target className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">Tell us about {form.companyName}</h2>
@@ -293,7 +293,7 @@ export default function OnboardingPage() {
                         onClick={() => update("industry", ind)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                           form.industry === ind
-                            ? "bg-[#FACC15]/15 border-[#FACC15]/50 text-brand"
+                            ? "bg-ember-400/15 border-ember-400/50 text-brand"
                             : "border-default text-muted hover:border-strong hover:text-secondary"
                         }`}
                       >
@@ -312,7 +312,7 @@ export default function OnboardingPage() {
                         onClick={() => update("size", s)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                           form.size === s
-                            ? "bg-[#FACC15]/15 border-[#FACC15]/50 text-brand"
+                            ? "bg-ember-400/15 border-ember-400/50 text-brand"
                             : "border-default text-muted hover:border-strong hover:text-secondary"
                         }`}
                       >
@@ -331,7 +331,7 @@ export default function OnboardingPage() {
                         onClick={() => update("stage", s)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                           form.stage === s
-                            ? "bg-[#FACC15]/15 border-[#FACC15]/50 text-brand"
+                            ? "bg-ember-400/15 border-ember-400/50 text-brand"
                             : "border-default text-muted hover:border-strong hover:text-secondary"
                         }`}
                       >
@@ -347,7 +347,7 @@ export default function OnboardingPage() {
           {/* Step 3: Goals */}
           {step === 3 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-ember-400/10 border border-ember-400/20 flex items-center justify-center mb-5">
                 <Target className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">What are your top priorities?</h2>
@@ -359,13 +359,13 @@ export default function OnboardingPage() {
                     onClick={() => toggleGoal(goal)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm border text-left transition-all ${
                       form.selectedGoals.includes(goal)
-                        ? "bg-[#FACC15]/15 border-[#FACC15]/50 text-brand"
+                        ? "bg-ember-400/15 border-ember-400/50 text-brand"
                         : "border-default text-muted hover:border-strong hover:text-secondary"
                     }`}
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        form.selectedGoals.includes(goal) ? "bg-[#FACC15]" : "bg-surface-raised"
+                        form.selectedGoals.includes(goal) ? "bg-ember-400" : "bg-surface-raised"
                       }`}
                     />
                     {goal}
@@ -378,7 +378,7 @@ export default function OnboardingPage() {
           {/* Step 4: CEO name */}
           {step === 4 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-ember-400/10 border border-ember-400/20 flex items-center justify-center mb-5">
                 <Users className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">Who are you?</h2>
@@ -391,10 +391,10 @@ export default function OnboardingPage() {
                 onChange={(e) => update("ceoName", e.target.value)}
                 placeholder="Your name"
                 autoFocus
-                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors text-base mb-4"
+                className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors text-base mb-4"
               />
               {form.ceoName && (
-                <div className="bg-[#FACC15]/10 border border-[#FACC15]/20 rounded-xl p-4 fade-in">
+                <div className="bg-ember-400/10 border border-ember-400/20 rounded-xl p-4 fade-in">
                   <p className="text-sm text-secondary">
                     Welcome, <span className="text-primary font-semibold">{form.ceoName}</span>.
                     One last optional step before ELOSTATE activates for{" "}
@@ -423,7 +423,7 @@ export default function OnboardingPage() {
               as work). */}
           {step === 5 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-ember-400/10 border border-ember-400/20 flex items-center justify-center mb-5">
                 <Sparkles className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">
@@ -452,7 +452,7 @@ Pricing & access:
 
 Always hand off to a human for:
 [account-specific data, billing, refunds, anything sensitive]`}
-                className="w-full bg-surface border border-default rounded-lg px-3.5 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors resize-y leading-relaxed font-mono"
+                className="w-full bg-surface border border-default rounded-lg px-3.5 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-y leading-relaxed font-mono"
               />
               <p className="text-[11px] text-muted mt-2 leading-relaxed">
                 Listing features by name makes &quot;yes, we have that&quot;
@@ -475,7 +475,7 @@ Always hand off to a human for:
               "bring your team" not "configure permissions". */}
           {step === 6 && (
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl bg-ember-400/10 border border-ember-400/20 flex items-center justify-center mb-5">
                 <Mail className="w-6 h-6 text-brand" />
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">
@@ -497,14 +497,14 @@ Always hand off to a human for:
                         updateInviteRow(idx, { email: e.target.value })
                       }
                       placeholder="teammate@company.com"
-                      className="flex-1 bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 transition-colors"
+                      className="flex-1 bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors"
                     />
                     <select
                       value={row.role}
                       onChange={(e) =>
                         updateInviteRow(idx, { role: e.target.value })
                       }
-                      className="bg-surface border border-default rounded-lg px-2 py-2 text-xs text-primary focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30"
+                      className="bg-surface border border-default rounded-lg px-2 py-2 text-xs text-primary focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30"
                     >
                       <option value="Member">Member</option>
                       <option value="Lead">Lead</option>
@@ -526,7 +526,7 @@ Always hand off to a human for:
               <button
                 type="button"
                 onClick={addInviteRow}
-                className="inline-flex items-center gap-1.5 text-xs text-brand border border-[#FACC15]/40 hover:border-[#FACC15]/70 px-3 py-1.5 rounded-md transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs text-brand border border-ember-400/40 hover:border-ember-400/70 px-3 py-1.5 rounded-md transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" aria-hidden />
                 {form.teamInvites.length === 0
@@ -553,7 +553,7 @@ Always hand off to a human for:
             <button
               onClick={next}
               disabled={!canProceed() || submitting}
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] font-semibold px-6 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+              className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] font-semibold px-6 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
             >
               {submitting
                 ? "Launching…"

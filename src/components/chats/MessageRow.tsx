@@ -420,8 +420,8 @@ function SwipeToReplyRow({
           <div
             className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
               committed
-                ? "bg-[#FACC15] text-[#09090B]"
-                : "bg-[#FACC15]/20 text-brand"
+                ? "bg-ember-400 text-[#09090B]"
+                : "bg-ember-400/20 text-brand"
             }`}
           >
             <Reply className="w-4 h-4" aria-hidden />

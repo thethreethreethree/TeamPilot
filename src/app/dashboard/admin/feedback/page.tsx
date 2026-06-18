@@ -82,7 +82,7 @@ const KIND_ICONS: Record<
 const STATUS_COLORS: Record<FeedbackStatus, string> = {
   open: "border-default bg-surface text-secondary",
   triaged: "border-arc-400/40 bg-arc-400/10 text-arc-300",
-  in_progress: "border-[#FACC15]/40 bg-[#FACC15]/10 text-brand",
+  in_progress: "border-ember-400/40 bg-ember-400/10 text-brand",
   resolved: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
   declined: "border-default bg-surface-raised text-muted",
   duplicate: "border-default bg-surface-raised text-muted",
@@ -177,7 +177,7 @@ export default function AdminFeedbackPage() {
                 onClick={() => setStatusFilter(s)}
                 className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors ${
                   statusFilter === s
-                    ? "border-brand bg-[#FACC15]/8 text-brand"
+                    ? "border-brand bg-ember-400/8 text-brand"
                     : "border-default text-muted hover:text-primary"
                 }`}
               >
@@ -194,7 +194,7 @@ export default function AdminFeedbackPage() {
                 onClick={() => setKindFilter(k)}
                 className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
                   kindFilter === k
-                    ? "border-brand bg-[#FACC15]/8 text-brand"
+                    ? "border-brand bg-ember-400/8 text-brand"
                     : "border-default text-muted hover:text-primary"
                 }`}
               >
@@ -354,7 +354,7 @@ function FeedbackRowCard({
               onChange={(e) => setNote(e.target.value)}
               rows={2}
               placeholder="Resolution / decline note (saved with the transition event)"
-              className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-[#FACC15]/50 focus:ring-1 focus:ring-[#FACC15]/30 resize-none mb-2"
+              className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 resize-none mb-2"
             />
             <div className="flex flex-wrap items-center gap-2">
               {(["triaged", "in_progress", "resolved", "declined"] as FeedbackStatus[]).map(

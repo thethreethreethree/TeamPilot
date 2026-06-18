@@ -193,7 +193,7 @@ export default function CareWidgetSettingsPage() {
           type="button"
           onClick={() => void save()}
           disabled={saving}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 text-[#09090B] px-3 py-1.5 rounded-md"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-50 text-[#09090B] px-3 py-1.5 rounded-md"
         >
           {saving ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -229,7 +229,7 @@ export default function CareWidgetSettingsPage() {
                 type="checkbox"
                 checked={draft.active}
                 onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
-                className="accent-[#FACC15]"
+                className="accent-ember-400"
               />
               Active
             </label>
@@ -245,7 +245,7 @@ export default function CareWidgetSettingsPage() {
             <button
               type="button"
               onClick={() => void copy(snippet, "Snippet on your clipboard.")}
-              className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] text-brand bg-[#FACC15]/10 border border-[#FACC15]/40 hover:border-[#FACC15]/70 px-2 py-1 rounded-md"
+              className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] text-brand bg-ember-400/10 border border-ember-400/40 hover:border-ember-400/70 px-2 py-1 rounded-md"
             >
               <Copy className="w-3 h-3" aria-hidden />
               Copy
@@ -330,7 +330,7 @@ export default function CareWidgetSettingsPage() {
                     void navigator.clipboard.writeText(inboundEmailAddress);
                     toast.success("Copied.");
                   }}
-                  className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-[#FACC15] border border-default hover:border-strong px-2 py-1 rounded"
+                  className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-ember-400 border border-default hover:border-strong px-2 py-1 rounded"
                 >
                   <Copy className="w-3 h-3" aria-hidden />
                   Copy
@@ -558,7 +558,7 @@ Always hand off to a human for:
         {/* Plan */}
         <Section title="Plan">
           <div className="flex items-center gap-3">
-            <span className="text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded border border-[#FACC15]/40 bg-[#FACC15]/10 text-brand">
+            <span className="text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded border border-ember-400/40 bg-ember-400/10 text-brand">
               {draft.plan}
             </span>
             <p className="text-xs text-secondary">

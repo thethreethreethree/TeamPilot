@@ -235,7 +235,7 @@ export default function CareHomePage() {
               constitutionally different from Zendesk's RTM. The
               copy itself is the reframe. */}
           {growth && (
-            <div className="bg-[#FACC15]/5 border border-[#FACC15]/30 rounded-lg p-3 flex items-start gap-2">
+            <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
               <ShieldCheck
                 className="w-4 h-4 text-brand shrink-0 mt-0.5"
                 aria-hidden
@@ -334,7 +334,7 @@ export default function CareHomePage() {
                 </div>
                 <Link
                   href={isLeader ? "/dashboard/care/leadership" : "/dashboard/care/growth"}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-[#FACC15] mt-3"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-ember-400 mt-3"
                 >
                   Full breakdown
                   <ArrowRight className="w-3 h-3" aria-hidden />
@@ -407,7 +407,7 @@ export default function CareHomePage() {
                 {patterns.length > 5 && (
                   <Link
                     href="/dashboard/care/patterns"
-                    className="flex items-center justify-center px-4 py-2 text-[11px] font-semibold text-brand hover:text-[#FACC15] hover:bg-white/[0.03] transition-colors"
+                    className="flex items-center justify-center px-4 py-2 text-[11px] font-semibold text-brand hover:text-ember-400 hover:bg-white/[0.03] transition-colors"
                   >
                     See all {patterns.length} patterns
                     <ArrowRight className="w-3 h-3 ml-1" aria-hidden />
@@ -465,7 +465,7 @@ export default function CareHomePage() {
                 <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1">
                   {isLeader ? "Team work" : "Your work"}
                 </p>
-                <p className="text-sm text-primary group-hover:text-[#FACC15] flex items-center gap-1">
+                <p className="text-sm text-primary group-hover:text-ember-400 flex items-center gap-1">
                   {isLeader ? "Open the team view" : "Open your growth view"}
                   <ArrowRight className="w-3 h-3" aria-hidden />
                 </p>
@@ -477,7 +477,7 @@ export default function CareHomePage() {
                 <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1">
                   Conversations
                 </p>
-                <p className="text-sm text-primary group-hover:text-[#FACC15] flex items-center gap-1">
+                <p className="text-sm text-primary group-hover:text-ember-400 flex items-center gap-1">
                   Open the inbox
                   <ArrowRight className="w-3 h-3" aria-hidden />
                 </p>
@@ -507,7 +507,7 @@ function CatchCell({
 }) {
   const toneCls =
     tone === "brand"
-      ? "border-[#FACC15]/30 bg-[#FACC15]/5 text-brand"
+      ? "border-ember-400/30 bg-ember-400/5 text-brand"
       : tone === "emerald"
         ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
         : tone === "amber"
@@ -572,7 +572,7 @@ function LoadCell({
     tone === "amber"
       ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
       : tone === "brand"
-        ? "border-[#FACC15]/30 bg-[#FACC15]/5 text-brand"
+        ? "border-ember-400/30 bg-ember-400/5 text-brand"
         : "border-default bg-surface/40 text-secondary";
   return (
     <Link

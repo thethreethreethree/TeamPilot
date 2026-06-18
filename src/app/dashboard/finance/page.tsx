@@ -94,7 +94,7 @@ export default function FinancePage() {
                 <div key={m.month} className="flex-1 flex flex-col items-center gap-1.5">
                   <div className="w-full flex items-end justify-center gap-1 h-32">
                     <div
-                      className="w-1/2 rounded-t bg-gradient-to-t from-[#FACC15] to-[#FDE047]"
+                      className="w-1/2 rounded-t bg-gradient-to-t from-ember-400 to-[#FDE047]"
                       style={{ height: `${(m.mrr / maxBar) * 100}%` }}
                       title={`MRR ${fmtMoney(m.mrr)}`}
                     />
@@ -110,7 +110,7 @@ export default function FinancePage() {
             </div>
             <div className="flex items-center gap-4 mt-3 text-[10px] text-muted uppercase tracking-wider">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-[#FACC15]" /> MRR
+                <span className="w-2.5 h-2.5 rounded-sm bg-ember-400" /> MRR
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-surface-raised" /> Expenses
@@ -119,7 +119,7 @@ export default function FinancePage() {
           </div>
 
           {/* AI Diagnosis */}
-          <div className="glass-card p-5 border-[#FACC15]/20">
+          <div className="glass-card p-5 border-ember-400/20">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-brand" />
@@ -151,7 +151,7 @@ export default function FinancePage() {
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-surface-raised overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-[#FACC15] to-[#FDE047]"
+                      className="h-full rounded-full bg-gradient-to-r from-ember-400 to-[#FDE047]"
                       style={{ width: `${e.share}%` }}
                     />
                   </div>

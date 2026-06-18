@@ -33,7 +33,7 @@ export default function Error({
     <div className="min-h-screen bg-base text-primary flex items-center justify-center px-6">
       <div className="max-w-lg w-full text-center">
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FACC15] to-[#FDE047] flex items-center justify-center shadow-glow">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-ember-400 to-[#FDE047] flex items-center justify-center shadow-glow">
             <Activity className="w-4 h-4 text-primary" />
           </div>
           <span className="text-sm font-bold tracking-tight">ELOSTATE</span>
@@ -67,7 +67,7 @@ export default function Error({
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={reset}
-            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-5 py-2.5 rounded-lg transition-colors text-xs"
+            className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-5 py-2.5 rounded-lg transition-colors text-xs"
           >
             <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
             Retry

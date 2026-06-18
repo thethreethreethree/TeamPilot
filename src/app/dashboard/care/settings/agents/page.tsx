@@ -111,7 +111,7 @@ export default function CareAgentsPage() {
       <SettingsTabs />
       <div className="flex-1 overflow-y-auto px-8 py-6 max-w-4xl w-full mx-auto space-y-4">
         {/* §A10 preamble — same line on every admin visit. */}
-        <div className="bg-[#FACC15]/5 border border-[#FACC15]/30 rounded-lg p-3 flex items-start gap-2">
+        <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
           <ShieldCheck
             className="w-4 h-4 text-brand shrink-0 mt-0.5"
             aria-hidden
@@ -159,7 +159,7 @@ export default function CareAgentsPage() {
                     {/* Top row — identity + toggle */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-full bg-[#FACC15]/15 border border-[#FACC15]/30 flex items-center justify-center text-brand text-xs font-bold">
+                        <div className="w-7 h-7 rounded-full bg-ember-400/15 border border-ember-400/30 flex items-center justify-center text-brand text-xs font-bold">
                           {(a.fullName ?? "?").slice(0, 1).toUpperCase()}
                         </div>
                         <div>
@@ -191,7 +191,7 @@ export default function CareAgentsPage() {
                               onChange={(e) =>
                                 void toggleAgent(a.id, e.target.checked)
                               }
-                              className="accent-[#FACC15]"
+                              className="accent-ember-400"
                             />
                             Agent
                           </label>
@@ -313,7 +313,7 @@ function RoutingControls({
         type="button"
         disabled={!dirty}
         onClick={() => onSave({ maxConcurrent, channels })}
-        className="text-[11px] font-semibold bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] px-3 py-1.5 rounded-md"
+        className="text-[11px] font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] px-3 py-1.5 rounded-md"
       >
         Save routing
       </button>

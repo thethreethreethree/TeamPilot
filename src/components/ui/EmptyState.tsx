@@ -57,7 +57,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center text-center px-6 py-16 max-w-xl mx-auto">
-      <div className="w-14 h-14 rounded-2xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center mb-5">
+      <div className="w-14 h-14 rounded-2xl bg-ember-400/10 border border-ember-400/20 flex items-center justify-center mb-5">
         <Icon className="w-7 h-7 text-brand" aria-hidden />
       </div>
       <h2 className="text-lg font-bold text-primary mb-2">{title}</h2>
@@ -92,7 +92,7 @@ function ActionButton({
 }) {
   const className =
     variant === "primary"
-      ? "inline-flex items-center gap-1.5 text-sm font-semibold bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] px-4 py-2 rounded-lg transition-colors shadow-glow hover:shadow-none"
+      ? "inline-flex items-center gap-1.5 text-sm font-semibold bg-ember-400 hover:bg-ember-500 text-[#09090B] px-4 py-2 rounded-lg transition-colors shadow-glow hover:shadow-none"
       : "inline-flex items-center gap-1.5 text-sm font-medium text-secondary border border-default hover:text-primary hover:border-strong px-4 py-2 rounded-lg transition-colors";
   if ("href" in action && action.href) {
     return (

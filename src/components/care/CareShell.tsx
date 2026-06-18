@@ -140,7 +140,7 @@ export function CareShell({ children }: { children: React.ReactNode }) {
         {/* Header: brand + agent status */}
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-start gap-2 mb-3">
-            <div className="w-7 h-7 rounded-md bg-[#FACC15] flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-md bg-ember-400 flex items-center justify-center shrink-0">
               <LifeBuoy className="w-4 h-4 text-[#09090B]" aria-hidden />
             </div>
             <div className="flex-1 min-w-0">
