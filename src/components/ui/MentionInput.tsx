@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
   type TextareaHTMLAttributes,
 } from "react";
+import { FloatingMenu } from "@/components/ui/FloatingMenu";
 
 /**
  * MentionInput — textarea with @-autocomplete for tagging company
@@ -207,12 +208,15 @@ export function MentionInput({
         onKeyDown={handleKeyDown}
         className={className}
       />
-      {open && context && suggestions.length > 0 && (
-        <div
-          className="absolute left-0 right-0 top-full mt-1 z-20 bg-surface border border-default rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto"
-          role="listbox"
-          aria-label="Mention suggestions"
-        >
+      <FloatingMenu
+        open={open && !!context && suggestions.length > 0}
+        anchorRef={ref}
+        placement="bottom-stretch"
+        onClose={() => setOpen(false)}
+        zIndex={50}
+        className="bg-surface border border-default rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto"
+      >
+        <div role="listbox" aria-label="Mention suggestions">
           {suggestions.map((m, i) => {
             const initials = (m.fullName ?? "?")
               .split(" ")
@@ -228,8 +232,6 @@ export function MentionInput({
                 role="option"
                 aria-selected={active}
                 onMouseDown={(e) => {
-                  // mousedown to fire BEFORE textarea blur so caret
-                  // stays where we want it after the insertion.
                   e.preventDefault();
                   insertMention(m);
                 }}
@@ -251,7 +253,7 @@ export function MentionInput({
             );
           })}
         </div>
-      )}
+      </FloatingMenu>
     </div>
   );
 }

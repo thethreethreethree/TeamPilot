@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import {
   BarChart3,
   BookOpen,
@@ -369,9 +370,11 @@ function PresenceControl() {
         ? "Away"
         : "Offline";
 
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setMenuOpen((v) => !v)}
         className={`w-full flex items-center justify-between gap-2 text-[11px] font-medium ${textCls} hover:text-white transition-colors`}
@@ -391,31 +394,36 @@ function PresenceControl() {
           </span>
         )}
       </button>
-      {menuOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-[#0B1620] border border-white/[0.08] rounded-md shadow-lg py-1">
-          <StatusOption
-            current={state.status}
-            value="online"
-            label="Online"
-            hint="Receiving auto-routed conversations"
-            onClick={setStatus}
-          />
-          <StatusOption
-            current={state.status}
-            value="away"
-            label="Away"
-            hint="Visible to team, no auto-routing"
-            onClick={setStatus}
-          />
-          <StatusOption
-            current={state.status}
-            value="offline"
-            label="Offline"
-            hint="Signed out of routing"
-            onClick={setStatus}
-          />
-        </div>
-      )}
+      <FloatingMenu
+        open={menuOpen}
+        anchorRef={triggerRef}
+        placement="bottom-stretch"
+        onClose={() => setMenuOpen(false)}
+        zIndex={50}
+        className="bg-[#0B1620] border border-white/[0.08] rounded-md shadow-lg py-1"
+      >
+        <StatusOption
+          current={state.status}
+          value="online"
+          label="Online"
+          hint="Receiving auto-routed conversations"
+          onClick={setStatus}
+        />
+        <StatusOption
+          current={state.status}
+          value="away"
+          label="Away"
+          hint="Visible to team, no auto-routing"
+          onClick={setStatus}
+        />
+        <StatusOption
+          current={state.status}
+          value="offline"
+          label="Offline"
+          hint="Signed out of routing"
+          onClick={setStatus}
+        />
+      </FloatingMenu>
     </div>
   );
 }

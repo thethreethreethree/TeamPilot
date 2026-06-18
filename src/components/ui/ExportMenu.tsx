@@ -1,8 +1,9 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useToast } from "@/components/ui/toast";
+import { FloatingMenu } from "@/components/ui/FloatingMenu";
 
 /**
  * Small "Export" dropdown that triggers download of the current entity in CSV
@@ -10,6 +11,9 @@ import { useToast } from "@/components/ui/toast";
  *
  * Disabled in demo mode — exports are about exfiltrating YOUR data, not
  * exfiltrating fixtures.
+ *
+ * 2026-06-19 — migrated to FloatingMenu so the menu portals to body
+ * (escapes the toolbar's overflow context) and is viewport-aware.
  */
 export default function ExportMenu({
   entity,
@@ -21,32 +25,13 @@ export default function ExportMenu({
   disabledReason?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const toast = useToast();
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
 
   const download = (format: "csv" | "json") => {
     setOpen(false);
     if (disabled) return;
     const url = `/api/export/${entity}?format=${format}`;
-    // Use a transient anchor so the browser handles Content-Disposition correctly.
     const a = document.createElement("a");
     a.href = url;
     a.rel = "noopener";
@@ -60,8 +45,9 @@ export default function ExportMenu({
   };
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => !disabled && setOpen((o) => !o)}
         disabled={disabled}
@@ -73,12 +59,18 @@ export default function ExportMenu({
         <Download className="w-3 h-3" aria-hidden="true" />
         Export
       </button>
-      {open && !disabled && (
-        <div
-          role="menu"
-          className="absolute right-0 mt-1 z-30 w-32 bg-surface border border-default rounded-lg shadow-lg overflow-hidden"
-        >
+      <FloatingMenu
+        open={open && !disabled}
+        anchorRef={triggerRef}
+        placement="bottom-end"
+        onClose={() => setOpen(false)}
+        minWidth={128}
+        zIndex={50}
+        className="bg-surface border border-default rounded-lg shadow-lg overflow-hidden"
+      >
+        <div role="menu">
           <button
+            type="button"
             role="menuitem"
             onClick={() => download("csv")}
             className="w-full text-left text-xs text-primary hover:bg-surface-raised px-3 py-2"
@@ -86,6 +78,7 @@ export default function ExportMenu({
             CSV
           </button>
           <button
+            type="button"
             role="menuitem"
             onClick={() => download("json")}
             className="w-full text-left text-xs text-primary hover:bg-surface-raised px-3 py-2"
@@ -93,7 +86,7 @@ export default function ExportMenu({
             JSON
           </button>
         </div>
-      )}
-    </div>
+      </FloatingMenu>
+    </>
   );
 }

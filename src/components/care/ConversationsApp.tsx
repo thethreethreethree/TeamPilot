@@ -31,6 +31,7 @@ import { careStatusDisplay } from "@/lib/care/statusLabels";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { priorityDisplay, tagTone } from "@/lib/care/tagColors";
 import { useToast } from "@/components/ui/toast";
+import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { ReadPhasePanel } from "./ReadPhasePanel";
 import { ResolutionCaptureModal } from "./ResolutionCaptureModal";
 import TaskRefinementPanel from "@/components/tasks/TaskRefinementPanel";
@@ -1938,30 +1939,13 @@ function AssignDropdown({
   onAssign: (targetAgentId: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handle = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    // L4.1 fix: Escape key dismissal — standard a11y
-    // affordance. Click-outside worked already; this adds
-    // keyboard parity.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("mousedown", handle);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", handle);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const current = team.find((t) => t.id === currentAssignedId);
   const label = current?.fullName ?? "Assign";
   return (
-    <div ref={rootRef} className="relative">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={acting}
@@ -1971,55 +1955,61 @@ function AssignDropdown({
         <UserCheck className="w-3.5 h-3.5" aria-hidden />
         {current ? `Assigned: ${label}` : "Assign"}
       </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-64 max-h-80 overflow-y-auto bg-base border border-default rounded-md shadow-lg z-30 py-1">
-          {currentAssignedId && (
+      <FloatingMenu
+        open={open}
+        anchorRef={triggerRef}
+        placement="bottom-end"
+        onClose={() => setOpen(false)}
+        minWidth={256}
+        zIndex={50}
+        className="max-h-80 overflow-y-auto bg-base border border-default rounded-md shadow-lg py-1"
+      >
+        {currentAssignedId && (
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onAssign(null);
+            }}
+            className="w-full text-left px-3 py-2 text-xs text-red-300 hover:bg-red-500/5"
+          >
+            ↶ Unassign (return to Unassigned)
+          </button>
+        )}
+        {team.map((t) => {
+          const isCurrent = t.id === currentAssignedId;
+          const isMe = t.id === currentUserId;
+          return (
             <button
+              key={t.id}
               type="button"
               onClick={() => {
                 setOpen(false);
-                onAssign(null);
+                if (!isCurrent) onAssign(t.id);
               }}
-              className="w-full text-left px-3 py-2 text-xs text-red-300 hover:bg-red-500/5"
+              disabled={isCurrent}
+              className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 ${
+                isCurrent
+                  ? "bg-arc-400/5 text-arc-300 cursor-default"
+                  : "text-primary hover:bg-base/40"
+              }`}
             >
-              ↶ Unassign (return to Unassigned)
+              <span className="truncate">
+                {t.fullName ?? "(unnamed)"}
+                {isMe && (
+                  <span className="text-muted ml-1.5 text-[10px]">
+                    (you)
+                  </span>
+                )}
+              </span>
+              <span className="text-[10px] text-muted uppercase tracking-widest shrink-0">
+                {t.role ?? (t.isSupportAgent ? "agent" : "")}
+              </span>
             </button>
-          )}
-          {team.map((t) => {
-            const isCurrent = t.id === currentAssignedId;
-            const isMe = t.id === currentUserId;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  if (!isCurrent) onAssign(t.id);
-                }}
-                disabled={isCurrent}
-                className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 ${
-                  isCurrent
-                    ? "bg-arc-400/5 text-arc-300 cursor-default"
-                    : "text-primary hover:bg-base/40"
-                }`}
-              >
-                <span className="truncate">
-                  {t.fullName ?? "(unnamed)"}
-                  {isMe && (
-                    <span className="text-muted ml-1.5 text-[10px]">
-                      (you)
-                    </span>
-                  )}
-                </span>
-                <span className="text-[10px] text-muted uppercase tracking-widest shrink-0">
-                  {t.role ?? (t.isSupportAgent ? "agent" : "")}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+          );
+        })}
+      </FloatingMenu>
+    </>
   );
 }
 
@@ -2031,31 +2021,12 @@ function PriorityDropdown({
   onChange: (p: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  // L4.1 fix: unify dismissal with AssignDropdown — click-outside
-  // AND Escape key. Replaces the prior onMouseLeave dismissal
-  // which was hostile to both keyboard users (no key dismissal)
-  // and accidental dismissal (mouse drift over the dropdown
-  // boundary would close it mid-selection).
-  useEffect(() => {
-    if (!open) return;
-    const handle = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("mousedown", handle);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", handle);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const cur = priorityDisplay(current);
   return (
-    <div ref={rootRef} className="relative">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border ${cur.tone.chip}`}
@@ -2063,30 +2034,34 @@ function PriorityDropdown({
         <span className={`w-1.5 h-1.5 rounded-full ${cur.tone.dot}`} />
         {cur.label}
       </button>
-      {open && (
-        <div
-          className="absolute z-10 mt-1 left-0 bg-base border border-default rounded-md shadow-lg py-1 min-w-[120px]"
-        >
-          {(["urgent", "high", "normal", "low"] as const).map((p) => {
-            const d = priorityDisplay(p);
-            return (
-              <button
-                key={p}
-                type="button"
-                onClick={() => {
-                  onChange(p);
-                  setOpen(false);
-                }}
-                className="w-full text-left px-2.5 py-1 text-[11px] hover:bg-white/[0.04] flex items-center gap-1.5"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${d.tone.dot}`} />
-                {d.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      <FloatingMenu
+        open={open}
+        anchorRef={triggerRef}
+        placement="bottom-start"
+        onClose={() => setOpen(false)}
+        minWidth={120}
+        zIndex={50}
+        className="bg-base border border-default rounded-md shadow-lg py-1"
+      >
+        {(["urgent", "high", "normal", "low"] as const).map((p) => {
+          const d = priorityDisplay(p);
+          return (
+            <button
+              key={p}
+              type="button"
+              onClick={() => {
+                onChange(p);
+                setOpen(false);
+              }}
+              className="w-full text-left px-2.5 py-1 text-[11px] hover:bg-white/[0.04] flex items-center gap-1.5"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${d.tone.dot}`} />
+              {d.label}
+            </button>
+          );
+        })}
+      </FloatingMenu>
+    </>
   );
 }
 
