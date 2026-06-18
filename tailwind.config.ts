@@ -23,7 +23,11 @@ import { ember, ink } from "./src/lib/design/tokens";
  *   `accent`  → ember  (was: gold)
  *   `gold`    → ember  (legacy alias; same scale now)
  *   `crimson` → REMOVED; literal #C8232C usages must migrate
- *   `arc`     → REMOVED
+ *   `arc`     → ember  (back-compat alias; was REMOVED but 76 sites
+ *                       still reference it. Per TT.md A21 audit
+ *                       2026-06-18 CRITICAL finding C4 — aliasing
+ *                       restores rendering immediately. Sweep to
+ *                       semantic tokens is a follow-up.)
  *   `navy`    → ink    (legacy alias on the surface scale)
  */
 const config: Config = {
@@ -42,10 +46,16 @@ const config: Config = {
         // Semantic aliases — all pointing at ember.
         brand: ember,
         accent: ember,
-        // Back-compat aliases so existing `bg-gold-400`, `text-gold-300`
-        // etc. render without a sweep. These literally point at the
-        // ember scale — they exist for migration ergonomics only.
+        // Back-compat aliases so existing `bg-gold-400`, `text-gold-300`,
+        // `text-arc-300`, `border-arc-400/40` etc. render without a sweep.
+        // These literally point at the ember scale — they exist for
+        // migration ergonomics only. `arc` was previously REMOVED in the
+        // tailwind config, leaving 76 sites with broken rendering; per
+        // TT.md A21 audit CRITICAL finding C4 (2026-06-18) it's re-aliased
+        // here so the UI renders correctly while a token sweep happens
+        // gradually.
         gold: ember,
+        arc: ember,
         navy: ink,
         surface: ink,
         dark: {
