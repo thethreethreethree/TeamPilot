@@ -126,6 +126,7 @@ export function InviteMemberDialog({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
+              autoComplete="email"
               placeholder="teammate@company.com"
               autoFocus
             />

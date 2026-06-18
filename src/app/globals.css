@@ -365,3 +365,29 @@ html {
   .fade-in { opacity: 1 !important; transform: none !important; }
   .cursor-blink::after { opacity: 1 !important; }
 }
+
+/* Wave T (2026-06-19) — global keyboard-focus baseline.
+ *
+ * The codebase had ~0 components using focus-visible rings, which
+ * means keyboard-only users (and anyone tabbing through forms)
+ * couldn't see where they were. Browsers SOMETIMES paint a default
+ * outline, but Tailwind's preflight strips it for buttons + many
+ * interactive elements. This baseline restores it with an ember
+ * ring that matches the brand.
+ *
+ * Components that have their own focus styling still win — this
+ * is just the fallback. `:focus-visible` (not `:focus`) means
+ * mouse clicks don't paint the ring; only keyboard navigation does. */
+:where(button, a, [role="button"], [role="menuitem"], [role="option"], [role="tab"], [role="checkbox"], [role="radio"]):not(.no-focus-ring):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(250 204 21 / 0.7);
+  border-radius: 4px;
+}
+
+/* Form fields share the same baseline but with a slightly softer
+ * ring + visible offset so the ring doesn't blend into the field
+ * border. */
+:where(input, textarea, select):not(.no-focus-ring):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(250 204 21 / 0.5);
+}

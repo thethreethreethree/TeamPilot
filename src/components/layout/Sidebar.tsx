@@ -693,10 +693,11 @@ export default function Sidebar() {
             <p className="text-xs text-muted truncate">{userRole || "Executive Access"}</p>
           </div>
           <button
+            type="button"
             onClick={signOut}
             title="Sign out"
             aria-label="Sign out"
-            className="p-1.5 rounded-lg text-muted hover:text-red-400 hover:bg-surface-raised transition-colors"
+            className="p-1.5 rounded-lg text-muted hover:text-red-400 hover:bg-surface-raised transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
           >
             <LogOut aria-hidden="true" className="w-4 h-4" />
           </button>

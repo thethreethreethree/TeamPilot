@@ -436,6 +436,7 @@ function OverviewTab({
             <FormField label="Primary contact email">
               <input
                 type="email"
+                autoComplete="email"
                 value={form.primaryContactEmail}
                 onChange={(e) =>
                   setForm({ ...form, primaryContactEmail: e.target.value })
@@ -668,6 +669,7 @@ function ContactsTab({
             />
             <input
               type="email"
+              autoComplete="email"
               placeholder="Email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
