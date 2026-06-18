@@ -16,6 +16,7 @@ import {
   Lightbulb,
   ListChecks,
   Loader2,
+  MessageCircle,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -30,6 +31,16 @@ interface DailyQuestions {
   thingsWorthNoticing: string[];
 }
 
+/** C.A.R.E counts shown only when the tenant has support
+ *  activity. Per TT.md A21 — Command Center is the
+ *  operational hub; support state belongs here. */
+interface CareStats {
+  hasActivity: boolean;
+  openCount: number;
+  needsGuidanceCount: number;
+  awaitingFirstReplyCount: number;
+}
+
 export default function CommandDashboard() {
   const companyName = useCompanyName();
 
@@ -40,6 +51,7 @@ export default function CommandDashboard() {
   const [signalsMode, setSignalsMode] = useState<SignalsMode>("live-empty");
   const [problems, setProblems] = useState<ProblemRecord[]>([]);
   const [resolutions, setResolutions] = useState<ResolutionRecord[]>([]);
+  const [careStats, setCareStats] = useState<CareStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   // AI question generator
@@ -49,11 +61,22 @@ export default function CommandDashboard() {
 
   const refresh = async () => {
     setLoading(true);
-    const [t, s, p, r] = await Promise.all([
+    const [t, s, p, r, careRes] = await Promise.all([
       fetchTasks(),
       fetchSignals({ sinceDays: 30 }),
       fetchProblems(),
       fetchResolutions(),
+      // Per TT.md A21 — C.A.R.E activity surfaced on Command
+      // Center for tenants running support. Best-effort; the
+      // section hides itself when stats is null OR hasActivity
+      // is false, so the page is unchanged for tenants who
+      // haven't touched C.A.R.E yet.
+      fetch("/api/dashboard/care-stats")
+        .then((r) => (r.ok ? r.json() : null))
+        .then(
+          (data) => (data?.stats as CareStats | null) ?? null
+        )
+        .catch(() => null),
     ]);
     setTasks(t.tasks);
     setTasksMode(t.mode);
@@ -61,6 +84,7 @@ export default function CommandDashboard() {
     setSignalsMode(s.mode);
     setProblems(p.problems);
     setResolutions(r.resolutions);
+    setCareStats(careRes);
     setLoading(false);
   };
 
@@ -221,6 +245,66 @@ export default function CommandDashboard() {
             color={heldRate === null ? "text-muted" : "text-emerald-400"}
           />
         </div>
+
+        {/* C.A.R.E surface — hidden unless tenant has support
+            activity. Per TT.md A21 — Command Center is the
+            operational hub; support state is operational. */}
+        {careStats?.hasActivity && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <ChainStat
+              label="Open conversations"
+              value={careStats.openCount}
+              icon={<MessageCircle className="w-3.5 h-3.5" />}
+              href="/dashboard/care"
+              loading={false}
+              mode="live"
+            />
+            <ChainStat
+              label="Awaiting first reply"
+              value={careStats.awaitingFirstReplyCount}
+              sub={
+                careStats.awaitingFirstReplyCount > 0
+                  ? "most time-sensitive"
+                  : "all touched"
+              }
+              icon={<Activity className="w-3.5 h-3.5" />}
+              href="/dashboard/care?status=new"
+              loading={false}
+              mode="live"
+              color={
+                careStats.awaitingFirstReplyCount > 0
+                  ? "text-amber-400"
+                  : "text-emerald-400"
+              }
+            />
+            <ChainStat
+              label="Needs guidance"
+              value={careStats.needsGuidanceCount}
+              sub={
+                careStats.needsGuidanceCount > 0
+                  ? "supervisor requested"
+                  : "none flagged"
+              }
+              icon={<ShieldCheck className="w-3.5 h-3.5" />}
+              href="/dashboard/care?filter=needs-guidance"
+              loading={false}
+              mode="live"
+              color={
+                careStats.needsGuidanceCount > 0
+                  ? "text-amber-400"
+                  : "text-muted"
+              }
+            />
+            <Link
+              href="/dashboard/care/leadership"
+              className="glass-card p-3 flex items-center gap-2 text-xs text-secondary hover:text-primary transition-colors"
+            >
+              <Layers className="w-3.5 h-3.5 text-muted" />
+              <span className="flex-1">Leadership readouts</span>
+              <ChevronRight className="w-3 h-3 text-muted" />
+            </Link>
+          </div>
+        )}
 
         {/* Quickstart — real, state-derived suggestion */}
         {quickstart && (

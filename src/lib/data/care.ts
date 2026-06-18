@@ -292,6 +292,80 @@ export async function markConversationHandedOff(
 // ─── Agent-side (authenticated; RLS-scoped) ──────────────────
 
 /**
+ * Lightweight C.A.R.E counts for the Command Center surface.
+ *
+ * Per TT.md A21 (2026-06-18) — Command Center is the operational
+ * hub, but until this fix it surfaced tasks/signals/problems/
+ * resolutions WITHOUT any support state. A tenant running
+ * C.A.R.E would land on Command Center and not see open
+ * customer conversations, supervisor-guidance-needed cases,
+ * or unread incoming messages. L3 composition gap: the user's
+ * "daily standup" view was incomplete.
+ *
+ * Returns:
+ *   - hasActivity: true if the tenant has ANY support
+ *     conversation ever (gates whether to show the section)
+ *   - openCount: status in (new, open, assigned, waiting)
+ *   - needsGuidanceCount: supervisor_guidance_requested_at
+ *     IS NOT NULL AND status != 'closed'
+ *   - awaitingFirstReplyCount: status='new' (untouched
+ *     inbound — the most time-sensitive subset)
+ *
+ * Uses head:true count queries — cheap. Returns null on any
+ * error so the page can omit the section instead of showing
+ * misleading zeros.
+ */
+export type CareCommandStats = {
+  hasActivity: boolean;
+  openCount: number;
+  needsGuidanceCount: number;
+  awaitingFirstReplyCount: number;
+};
+
+export async function fetchCareCommandStats(): Promise<CareCommandStats | null> {
+  try {
+    const sb = await createServerClient();
+
+    const totalProbe = await sb
+      .from("support_conversations")
+      .select("id", { count: "exact", head: true });
+    if (totalProbe.error) return null;
+    const hasActivity = (totalProbe.count ?? 0) > 0;
+    if (!hasActivity) {
+      return {
+        hasActivity: false,
+        openCount: 0,
+        needsGuidanceCount: 0,
+        awaitingFirstReplyCount: 0,
+      };
+    }
+
+    const openProbe = await sb
+      .from("support_conversations")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["new", "open", "assigned", "waiting"]);
+    const guidanceProbe = await sb
+      .from("support_conversations")
+      .select("id", { count: "exact", head: true })
+      .not("supervisor_guidance_requested_at", "is", null)
+      .neq("status", "closed");
+    const newProbe = await sb
+      .from("support_conversations")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new");
+
+    return {
+      hasActivity: true,
+      openCount: openProbe.count ?? 0,
+      needsGuidanceCount: guidanceProbe.count ?? 0,
+      awaitingFirstReplyCount: newProbe.count ?? 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Inbox list for an agent — all conversations in their company.
  * RLS filters by company; we just sort and limit here.
  */
