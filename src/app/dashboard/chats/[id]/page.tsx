@@ -675,7 +675,16 @@ export default function TeamChatTopicPage() {
                   companyCoachOn || topic.coachEnabled
                     ? "text-brand border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5"
                     : "text-secondary border-default hover:border-strong"
-                } ${companyCoachOn ? "cursor-default opacity-90" : ""}`}
+                } ${
+                  companyCoachOn
+                    ? // Disabled state should READ as disabled.
+                      // Previously kept full brand styling + only
+                      // dimmed via opacity-90, creating a false
+                      // affordance that the button was interactive.
+                      // Now: muted text + no hover affordance.
+                      "cursor-not-allowed !opacity-60 !text-secondary !border-default"
+                    : ""
+                }`}
               >
                 {companyCoachOn || topic.coachEnabled ? (
                   <BookOpenCheck className="w-3 h-3" aria-hidden />

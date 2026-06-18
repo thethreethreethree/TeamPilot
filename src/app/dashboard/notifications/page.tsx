@@ -203,7 +203,18 @@ export default function NotificationsPage() {
                   {inner}
                 </Link>
               ) : (
-                <div key={n.id}>{inner}</div>
+                // Non-actionable notifications get aria-disabled +
+                // a subtle visual mute so they don't pretend to be
+                // dead links. Previously rendered identically to
+                // actionable rows. Caught in audit (Agent 2).
+                <div
+                  key={n.id}
+                  aria-disabled="true"
+                  className="opacity-70"
+                  title="Informational only — no detail page yet for this event kind"
+                >
+                  {inner}
+                </div>
               );
             })}
             <p className="text-[10px] text-muted text-center font-mono mt-3">
