@@ -41,6 +41,15 @@ type ChainEventRow = {
 
 const PHASE_2_TOPIC_KINDS = ["decision.opened", "decision.decided"] as const;
 const TASK_PARTICIPANT_KIND = "task.participant_added";
+/** Per migration 0050 — C.A.R.E notification kinds. Targeting logic
+ *  per-kind is in the filter pass below. */
+const CARE_KINDS = [
+  "care.conversation.message_added",
+  "care.conversation.assigned",
+  "care.conversation.guidance_requested",
+  "care.conversation.durability_due",
+] as const;
+type CareKind = (typeof CARE_KINDS)[number];
 
 export async function GET() {
   if (!supabaseEnabled) {
@@ -52,6 +61,25 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
   const userId = auth.user.id;
+
+  // Resolve the caller's C.A.R.E role flags once. Used to target
+  // care.* events: support agents see message_added / assigned /
+  // durability_due for their own conversations; admins additionally
+  // see guidance_requested for any conversation in the company.
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("is_support_agent, role")
+    .eq("id", userId)
+    .maybeSingle();
+  const isSupportAgent =
+    Boolean(myProfile?.is_support_agent) ||
+    myProfile?.role === "CEO" ||
+    myProfile?.role === "COO" ||
+    myProfile?.role === "admin";
+  const isCompanyAdmin =
+    myProfile?.role === "CEO" ||
+    myProfile?.role === "COO" ||
+    myProfile?.role === "admin";
 
   // Topics the user is an ACTIVE participant of. We need this to
   // gate decision.* events to rooms the user is actually in. Doing
@@ -75,6 +103,7 @@ export async function GET() {
     "mention.created",
     ...PHASE_2_TOPIC_KINDS,
     TASK_PARTICIPANT_KIND,
+    ...CARE_KINDS,
   ];
   const { data: events, error } = await supabase
     .from("events")
@@ -102,6 +131,38 @@ export async function GET() {
       // self-skip should already enforce the second clause, but we
       // check defensively in case an older trigger emitted.
       return p.added_user_id === userId && e.actor !== userId;
+    }
+    // C.A.R.E targeting. Per migration 0050 emit triggers, each
+    // care.* event payload carries the relevant agent id; we filter
+    // per-user here without an extra DB lookup.
+    if ((CARE_KINDS as readonly string[]).includes(e.kind)) {
+      if (!isSupportAgent) return false;
+      const kind = e.kind as CareKind;
+      if (kind === "care.conversation.message_added") {
+        // Notify the assigned agent only. Unassigned conversations
+        // surface in the agent inbox already; we don't fan out to
+        // every agent on every customer reply.
+        const assigned = p.assigned_agent_id as string | null | undefined;
+        return assigned === userId;
+      }
+      if (kind === "care.conversation.assigned") {
+        // Notify the NEW assignee, only when it's not me reassigning
+        // to myself.
+        return p.new_agent_id === userId && e.actor !== userId;
+      }
+      if (kind === "care.conversation.guidance_requested") {
+        // The "Need guidance" path the founder named explicitly.
+        // Notifies all company admins (CEO / COO / admin), excluding
+        // the requesting agent (they already know they asked).
+        return isCompanyAdmin && p.requested_by_agent_id !== userId;
+      }
+      if (kind === "care.conversation.durability_due") {
+        // Notify the agent who captured the resolution. If no
+        // captured_by is recorded, fall through to assigned agent.
+        const captured = p.captured_by_agent_id as string | null | undefined;
+        return captured ? captured === userId : false;
+      }
+      return false;
     }
     return false;
   });
@@ -182,6 +243,26 @@ export async function GET() {
         topicTitle: null,
         taskTitle: (payload.task_title as string | undefined) ?? null,
         role: (payload.role as string | undefined) ?? null,
+        chosenPath: null,
+      };
+    }
+    if ((CARE_KINDS as readonly string[]).includes(e.kind)) {
+      const convId =
+        (payload.conversation_id as string | undefined) ??
+        e.subject.replace(/^support_conversation:/, "");
+      return {
+        id: e.id,
+        kind: e.kind,
+        subject: e.subject,
+        actorId: e.actor,
+        actorName,
+        occurredAt: e.occurred_at,
+        sourceKind: "care_conversation",
+        sourceId: convId,
+        excerpt: (payload.preview as string | null) ?? null,
+        topicTitle: (payload.subject as string | null) ?? null,
+        taskTitle: null,
+        role: (payload.priority as string | null) ?? null,
         chosenPath: null,
       };
     }

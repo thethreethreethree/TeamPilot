@@ -32,6 +32,11 @@ import type {
 export async function listAccounts(args?: {
   search?: string;
   lifecycleStage?: CrmLifecycleStage;
+  /** Per migration 0050 — defaults to excluding test signups so the
+   *  customer list shows production accounts only. Set to `true` to
+   *  show test accounts alongside production (QA / debugging) and
+   *  `"only"` to show test accounts exclusively. */
+  includeTest?: boolean | "only";
   limit?: number;
 }): Promise<CrmAccountSummary[]> {
   const sb = createAdminClient();
@@ -42,6 +47,11 @@ export async function listAccounts(args?: {
     .limit(args?.limit ?? 200);
   if (args?.lifecycleStage) {
     query = query.eq("lifecycle_stage", args.lifecycleStage);
+  }
+  if (args?.includeTest === "only") {
+    query = query.eq("is_test_account", true);
+  } else if (!args?.includeTest) {
+    query = query.eq("is_test_account", false);
   }
   if (args?.search && args.search.trim().length > 0) {
     const term = `%${args.search.trim()}%`;
@@ -94,6 +104,7 @@ export async function updateAccount(
     primaryContactEmail: string | null;
     billingStatus: string;
     sourceNote: string | null;
+    isTestAccount: boolean;
   }>
 ): Promise<CrmAccount | null> {
   const sb = createAdminClient();
@@ -111,6 +122,7 @@ export async function updateAccount(
     row.primary_contact_email = patch.primaryContactEmail;
   if (patch.billingStatus !== undefined) row.billing_status = patch.billingStatus;
   if (patch.sourceNote !== undefined) row.source_note = patch.sourceNote;
+  if (patch.isTestAccount !== undefined) row.is_test_account = patch.isTestAccount;
   const { data } = await sb
     .from("crm_accounts")
     .update(row)
@@ -358,6 +370,7 @@ function mapAccount(row: Record<string, unknown>): CrmAccount {
     region: (row.region as string | null) ?? null,
     primaryContactEmail: (row.primary_contact_email as string | null) ?? null,
     billingStatus: row.billing_status as string,
+    isTestAccount: (row.is_test_account as boolean) ?? false,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };

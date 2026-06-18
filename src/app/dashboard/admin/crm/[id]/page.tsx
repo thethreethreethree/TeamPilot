@@ -162,13 +162,38 @@ export default function CrmAccountDetailPage() {
               <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full border border-default bg-surface text-secondary">
                 billing: {account.billingStatus}
               </span>
+              {account.isTestAccount && (
+                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full border border-violet-500/40 bg-violet-500/10 text-violet-300">
+                  test account
+                </span>
+              )}
             </div>
           </div>
-          <LifecycleSwitcher
-            current={account.lifecycleStage}
-            accountId={account.id}
-            onChanged={() => void load()}
-          />
+          <div className="flex flex-col items-end gap-2">
+            <LifecycleSwitcher
+              current={account.lifecycleStage}
+              accountId={account.id}
+              onChanged={() => void load()}
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch(`/api/admin/crm/accounts/${account.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    isTestAccount: !account.isTestAccount,
+                  }),
+                });
+                void load();
+              }}
+              className="text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded border border-default bg-surface text-secondary hover:text-primary"
+            >
+              {account.isTestAccount
+                ? "Mark as production"
+                : "Mark as test account"}
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}

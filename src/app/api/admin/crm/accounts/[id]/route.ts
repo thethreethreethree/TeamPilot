@@ -60,6 +60,7 @@ const PatchSchema = z
       ])
       .optional(),
     sourceNote: z.string().max(2000).nullable().optional(),
+    isTestAccount: z.boolean().optional(),
   })
   .strict();
 
@@ -153,6 +154,7 @@ export async function PATCH(
     primaryContactEmail: body.primaryContactEmail,
     billingStatus: body.billingStatus,
     sourceNote: body.sourceNote,
+    isTestAccount: body.isTestAccount,
   });
   if (!updated) {
     return NextResponse.json(

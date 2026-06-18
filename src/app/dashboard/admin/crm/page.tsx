@@ -38,10 +38,13 @@ const STAGES: Array<{ key: CrmLifecycleStage | "all"; label: string }> = [
   { key: "archived", label: "Archived" },
 ];
 
+type TestVisibility = "production" | "include" | "only";
+
 export default function CrmAccountsPage() {
   const [accounts, setAccounts] = useState<CrmAccountSummary[]>([]);
   const [stage, setStage] = useState<CrmLifecycleStage | "all">("all");
   const [search, setSearch] = useState("");
+  const [testVis, setTestVis] = useState<TestVisibility>("production");
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
 
@@ -52,6 +55,7 @@ export default function CrmAccountsPage() {
       const params = new URLSearchParams();
       if (stage !== "all") params.set("stage", stage);
       if (search.trim().length > 0) params.set("q", search.trim());
+      if (testVis !== "production") params.set("test", testVis);
       void fetch(`/api/admin/crm/accounts?${params.toString()}`)
         .then(async (res) => {
           if (cancelled) return;
@@ -78,7 +82,7 @@ export default function CrmAccountsPage() {
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [stage, search]);
+  }, [stage, search, testVis]);
 
   if (forbidden) {
     return (
@@ -144,6 +148,35 @@ export default function CrmAccountsPage() {
           </div>
         </div>
 
+        {/* Test-vs-production toggle. Per migration 0050 — production
+            customers only by default so the metrics aren't polluted by
+            founder/QA signups. */}
+        <div className="flex items-center gap-1.5 text-[11px]">
+          <span className="text-muted uppercase tracking-widest font-bold mr-1">
+            Environment
+          </span>
+          {(
+            [
+              { key: "production", label: "Production" },
+              { key: "include", label: "+ test" },
+              { key: "only", label: "Test only" },
+            ] as const
+          ).map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              onClick={() => setTestVis(v.key)}
+              className={`px-2 py-0.5 rounded border transition-colors ${
+                testVis === v.key
+                  ? "border-violet-500/60 bg-violet-500/10 text-violet-300"
+                  : "border-default bg-surface text-secondary hover:text-primary"
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
         {/* Counts banner */}
         <div className="flex items-center gap-4 text-xs text-muted">
           <span>
@@ -198,12 +231,19 @@ export default function CrmAccountsPage() {
                   className="border-b border-default hover:bg-surface-raised/50 transition-colors"
                 >
                   <td className="py-2.5 px-4">
-                    <Link
-                      href={`/dashboard/admin/crm/${a.id}`}
-                      className="text-sm text-primary font-semibold hover:text-ember-300"
-                    >
-                      {a.companyName}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/dashboard/admin/crm/${a.id}`}
+                        className="text-sm text-primary font-semibold hover:text-ember-300"
+                      >
+                        {a.companyName}
+                      </Link>
+                      {a.isTestAccount && (
+                        <span className="text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border border-violet-500/40 bg-violet-500/10 text-violet-300">
+                          test
+                        </span>
+                      )}
+                    </div>
                     {a.primaryContactEmail && (
                       <p className="text-[10px] text-muted font-mono mt-0.5">
                         {a.primaryContactEmail}

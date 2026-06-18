@@ -2,7 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AtSign, Bell, Brain, CheckCircle2, ListChecks, Loader2 } from "lucide-react";
+import {
+  AtSign,
+  Bell,
+  Brain,
+  CheckCircle2,
+  Clock,
+  ListChecks,
+  Loader2,
+  MessageCircle,
+  ShieldAlert,
+  UserPlus,
+} from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import {
   markNotificationsRead,
@@ -68,6 +79,10 @@ function sourceLink(n: Notification): string | null {
   if (n.kind === "task.participant_added" && n.sourceId) {
     return `/dashboard/operations/${n.sourceId}`;
   }
+  // C.A.R.E events deep-link to the conversation in the inbox.
+  if (n.kind.startsWith("care.conversation.") && n.sourceId) {
+    return `/dashboard/care?conversation=${n.sourceId}`;
+  }
   return null;
 }
 
@@ -127,9 +142,10 @@ export default function NotificationsPage() {
             <p className="text-sm text-primary mb-1">No notifications yet.</p>
             <p className="text-xs text-muted max-w-sm mx-auto leading-relaxed">
               When a teammate @mentions you, adds you to a task, opens a
-              Decision Dialogue in one of your topics, or records a
-              decision there — it lands here. Everything reads from the
-              chain.
+              Decision Dialogue in one of your topics, records a decision
+              there — or a C.A.R.E customer messages you, a teammate asks
+              for guidance, or a §3.5 durability check comes due — it
+              lands here. Everything reads from the chain.
             </p>
           </div>
         )}
@@ -275,6 +291,123 @@ function NotificationRow({ n }: { n: Notification }) {
       </div>
     );
   }
+  // C.A.R.E notifications. Per migration 0050.
+  if (kind === "care.conversation.message_added") {
+    return (
+      <div className="glass-card p-3 flex items-start gap-3 hover:border-strong transition-colors">
+        <MessageCircle
+          className="w-4 h-4 text-ember-300 mt-0.5 flex-shrink-0"
+          aria-hidden
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-primary mb-1">
+            <span className="font-semibold">Customer reply</span>
+            {n.topicTitle && (
+              <>
+                {" "}
+                <span className="text-muted">on</span>{" "}
+                <span className="font-medium">{n.topicTitle}</span>
+              </>
+            )}
+          </p>
+          {n.excerpt && (
+            <p className="text-xs text-secondary leading-relaxed line-clamp-2">
+              {String(n.excerpt)}
+            </p>
+          )}
+          <p className="text-[10px] text-muted font-mono mt-1">
+            {new Date(n.occurredAt).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (kind === "care.conversation.assigned") {
+    return (
+      <div className="glass-card p-3 flex items-start gap-3 hover:border-strong transition-colors">
+        <UserPlus
+          className="w-4 h-4 text-ember-300 mt-0.5 flex-shrink-0"
+          aria-hidden
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-primary mb-1">
+            <span className="font-semibold">{n.actorName}</span>{" "}
+            <span className="text-muted">assigned a conversation to you</span>
+            {n.topicTitle && (
+              <>
+                {" "}
+                <span className="text-muted">·</span>{" "}
+                <span className="font-medium">{n.topicTitle}</span>
+              </>
+            )}
+          </p>
+          <p className="text-[10px] text-muted font-mono mt-1">
+            {new Date(n.occurredAt).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (kind === "care.conversation.guidance_requested") {
+    return (
+      <div className="glass-card p-3 flex items-start gap-3 hover:border-strong transition-colors border-violet-500/40 bg-violet-500/[0.04]">
+        <ShieldAlert
+          className="w-4 h-4 text-violet-300 mt-0.5 flex-shrink-0"
+          aria-hidden
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-primary mb-1">
+            <span className="font-semibold">{n.actorName}</span>{" "}
+            <span className="text-muted">requested supervisor guidance</span>
+            {n.topicTitle && (
+              <>
+                {" "}
+                <span className="text-muted">·</span>{" "}
+                <span className="font-medium">{n.topicTitle}</span>
+              </>
+            )}
+          </p>
+          <p className="text-xs text-secondary leading-relaxed">
+            Open the conversation, read the thread, and weigh in. The agent
+            asked because the next move isn&apos;t obvious to them.
+          </p>
+          <p className="text-[10px] text-muted font-mono mt-1">
+            {new Date(n.occurredAt).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (kind === "care.conversation.durability_due") {
+    return (
+      <div className="glass-card p-3 flex items-start gap-3 hover:border-strong transition-colors">
+        <Clock
+          className="w-4 h-4 text-ember-300 mt-0.5 flex-shrink-0"
+          aria-hidden
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-primary mb-1">
+            <span className="font-semibold">Durability check due</span>
+            {n.topicTitle && (
+              <>
+                {" "}
+                <span className="text-muted">on</span>{" "}
+                <span className="font-medium">{n.topicTitle}</span>
+              </>
+            )}
+          </p>
+          <p className="text-xs text-secondary leading-relaxed">
+            §3.5 — 7 days have passed since you resolved this. Did the fix
+            hold?
+          </p>
+          <p className="text-[10px] text-muted font-mono mt-1">
+            {new Date(n.occurredAt).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Fallback — should not happen given the API filters, but keeps the
   // surface honest if a new kind lands before the UI catches up.
   return (

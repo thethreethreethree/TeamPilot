@@ -64,9 +64,18 @@ export async function GET(req: NextRequest) {
   const rawLimit = parseInt(params.get("limit") ?? "200", 10) || 200;
   const limit = Math.max(1, Math.min(500, rawLimit));
 
+  // Per migration 0050 — production accounts only by default. The
+  // founder can toggle to "include test" (production + test) or
+  // "only test" (test isolated). Excluded by default so the customer
+  // metrics aren't polluted by QA signups.
+  const testParam = params.get("test");
+  const includeTest: boolean | "only" =
+    testParam === "only" ? "only" : testParam === "include" ? true : false;
+
   const accounts = await listAccounts({
     search,
     lifecycleStage: stage,
+    includeTest,
     limit,
   });
   return NextResponse.json({ accounts });

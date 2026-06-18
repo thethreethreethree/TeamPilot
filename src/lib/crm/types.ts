@@ -78,6 +78,9 @@ export interface CrmAccount {
   region: string | null;
   primaryContactEmail: string | null;
   billingStatus: string;
+  /** Per migration 0050 — distinguishes QA/dev signups from real
+   *  customer accounts. Excluded from the default list view. */
+  isTestAccount: boolean;
   createdAt: string;
   updatedAt: string;
 }
