@@ -14,7 +14,7 @@ import {
   UserMinus,
   UserPlus,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function TeamPage() {
@@ -40,9 +40,35 @@ export default function TeamPage() {
   }, []);
 
   const searchParams = useSearchParams();
+  // Consume ?new=1 exactly once. Without removing it from the
+  // URL, any subsequent re-render where searchParams re-resolves
+  // would re-open the invite modal even after the user has
+  // dismissed it. (Audit finding: re-fire bug — user closes the
+  // modal, sees it pop back up after typing elsewhere on the
+  // page.)
+  const handledNewParam = useRef(false);
+  const [failedInvites, setFailedInvites] = useState<string[]>([]);
   useEffect(() => {
+    if (handledNewParam.current) return;
     if (searchParams.get("new") === "1" && supabaseEnabled) {
+      handledNewParam.current = true;
       setInviting(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("new");
+      window.history.replaceState({}, "", url.toString());
+    }
+    // Consume ?inviteFailed=email1,email2 (set by the onboarding
+    // wizard when one or more invites failed to create). Surface
+    // them at the top of the team page so the founder can retry.
+    const failedParam = searchParams.get("inviteFailed");
+    if (failedParam) {
+      const emails = failedParam.split(",").filter(Boolean);
+      if (emails.length > 0) {
+        setFailedInvites(emails);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("inviteFailed");
+        window.history.replaceState({}, "", url.toString());
+      }
     }
   }, [searchParams]);
 
@@ -65,6 +91,33 @@ export default function TeamPage() {
           </div>
         )}
 
+        {supabaseEnabled && failedInvites.length > 0 && (
+          <div className="glass-card p-4 border border-amber-400/40 bg-amber-400/5">
+            <p className="text-sm font-semibold text-amber-100 mb-2 flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-amber-300" aria-hidden />
+              {failedInvites.length} invite
+              {failedInvites.length === 1 ? "" : "s"} from onboarding didn&apos;t
+              land
+            </p>
+            <p className="text-xs text-amber-200 leading-relaxed mb-3">
+              Either the email was already a member, the address was invalid,
+              or the server rejected the request. Re-invite them from the
+              Invite button below if you want to try again.
+            </p>
+            <ul className="text-xs font-mono text-amber-100 bg-base/40 rounded-md p-2 space-y-1">
+              {failedInvites.map((email) => (
+                <li key={email}>· {email}</li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setFailedInvites([])}
+              className="mt-3 text-[11px] text-amber-200 hover:text-amber-100 underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         {supabaseEnabled && (
           <>
             <div className="flex items-center justify-between">

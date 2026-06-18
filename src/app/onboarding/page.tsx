@@ -155,6 +155,7 @@ export default function OnboardingPage() {
           role: r.role,
         }))
         .filter((r) => r.email.length > 0 && r.email.includes("@"));
+      const failedEmails: string[] = [];
       if (validInvites.length > 0) {
         // Sequential, not parallel: the POST /api/team handler has
         // duplicate-prevention checks that hit the same row, and
@@ -163,21 +164,40 @@ export default function OnboardingPage() {
         // sequential cost is negligible.
         for (const invite of validInvites) {
           try {
-            await fetch("/api/team", {
+            const inviteRes = await fetch("/api/team", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(invite),
             });
+            // Audit finding: the previous try/catch only caught
+            // network errors. fetch() resolves successfully for
+            // 4xx responses (e.g. 409 duplicate email), so a
+            // failed invite was silently treated as success.
+            // Per the existing A14 comment we DO NOT claim
+            // success we didn't deliver — now we track failures
+            // and surface them.
+            if (!inviteRes.ok) {
+              failedEmails.push(invite.email);
+            }
           } catch {
-            // Best-effort — the founder will see whatever did or
-            // didn't land in /dashboard/team. Per A14 we don't
-            // claim success we didn't deliver, but we also don't
-            // block the new-tenant landing on optional invites.
+            failedEmails.push(invite.email);
           }
         }
       }
 
-      router.push("/dashboard");
+      // Surface failed invites via URL params so /dashboard/team
+      // can show the founder which ones didn't land and offer
+      // retry. Without this, the wizard would say "Launched"
+      // and the founder would have no visibility into the
+      // partial failure.
+      if (failedEmails.length > 0) {
+        const qs = new URLSearchParams({
+          inviteFailed: failedEmails.join(","),
+        }).toString();
+        router.push(`/dashboard/team?${qs}`);
+      } else {
+        router.push("/dashboard");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not complete setup.");
