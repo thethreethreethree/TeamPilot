@@ -1,6 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import {
   fetchResolutions,
   type ResolutionRecord,
@@ -86,15 +87,25 @@ export default function ResolutionsPage() {
       />
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-ember-400/5 border border-ember-400/20">
-          <Sparkles className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-secondary leading-relaxed">
-            Every closed problem produced a resolution. The action and reasoning are
-            immutable; the observed outcome and durability are filled later, after enough
-            time has passed to see whether the resolution held. This is what §3.5 calls
-            measuring consequence, not agreement.
-          </p>
-        </div>
+        <LearningHint
+          as="block"
+          category="Chain · §3.5"
+          title="The Resolutions ledger"
+          whatItIs="Every closed problem has a row here: action taken, reasoning (≥40 chars), expected outcome, observed outcome, durability state. Action and reasoning are immutable from the moment of capture. Outcome and durability get filled later, when enough time has passed to actually see whether the resolution held."
+          why="This is the only place in the System where consequence is measured against expectation honestly. Other tools track 'we did X' and stop. This one tracks 'we did X expecting Y, and we got Z' — which is the only data that can tell you whether the team is getting better at the work. The held rate stat on Command Center is derived from this page."
+          how="Open a resolution row periodically (especially ones older than 7 days). Walk through: did the expected outcome match the observed one? Did the underlying problem reopen? Record held / reopened / partial / inconclusive. The discipline is in the recording — the closure was the easy part."
+          principle="Measure consequence, not agreement. A resolution everyone loved that didn't hold is failure. A resolution someone resisted that did hold is success."
+        >
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-ember-400/5 border border-ember-400/20">
+            <Sparkles className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-secondary leading-relaxed">
+              Every closed problem produced a resolution. The action and reasoning are
+              immutable; the observed outcome and durability are filled later, after enough
+              time has passed to see whether the resolution held. This is what §3.5 calls
+              measuring consequence, not agreement.
+            </p>
+          </div>
+        </LearningHint>
 
         {/* Summary + export */}
         <div className="flex items-start justify-between gap-4">

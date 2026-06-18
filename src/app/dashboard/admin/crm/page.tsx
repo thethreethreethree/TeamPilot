@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import {
   Search,
   ChevronRight,
@@ -151,6 +152,15 @@ export default function CrmAccountsPage() {
         {/* Test-vs-production toggle. Per migration 0050 — production
             customers only by default so the metrics aren't polluted by
             founder/QA signups. */}
+        <LearningHint
+          as="block"
+          category="CRM · Vendor admin"
+          title="Environment filter"
+          whatItIs="Toggles which accounts the list shows: Production (real customers only — default), + test (production AND test accounts), Test only (test accounts isolated). 'Test account' is a per-row boolean — the founder marks their own QA signups manually."
+          why="The CRM tracks ELOSTATE's own customers. Without a test/production distinction, the founder's own dev signups would pollute the customer metrics (lifecycle stage distribution, contact counts, activity volume). Production-by-default is the honest behavior — any account is treated as a real customer until manually marked otherwise."
+          how="Leave on Production for daily operating use. Switch to '+ test' when you want to see both for cross-checking. 'Test only' when you're auditing your own dev tenants specifically. Mark new test signups via the toggle in the account detail page."
+          principle="Vendor-side metrics need clean data. The test flag is the boundary between 'this is real customer state' and 'this is dev exhaust' — honest by default, opt-in to surface dev rows."
+        >
         <div className="flex items-center gap-1.5 text-[11px]">
           <span className="text-muted uppercase tracking-widest font-bold mr-1">
             Environment
@@ -176,6 +186,7 @@ export default function CrmAccountsPage() {
             </button>
           ))}
         </div>
+        </LearningHint>
 
         {/* Counts banner */}
         <div className="flex items-center gap-4 text-xs text-muted">

@@ -1,6 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { fetchProblems, type ProblemRecord, type ProblemsMode } from "@/lib/data/problems";
 import { fetchSignals } from "@/lib/data/signals";
@@ -75,14 +76,23 @@ export default function ProblemsPage() {
           <p className="text-xs text-muted">
             {problems.length} hypothesis{problems.length === 1 ? "" : "es"} on file
           </p>
-          <button
-            onClick={() => setCreating(true)}
-            disabled={!supabaseEnabled}
-            className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+          <LearningHint
+            category="Chain · §3.2"
+            title="New problem hypothesis"
+            whatItIs="Opens the problem-draft modal. A hypothesis is the team's articulated read of a pattern: title + diagnosis (the WHY, ≥80 chars) + linked supporting signals. The Understanding Gate evaluates live as you fill the form — you see exactly what's still missing before it can surface."
+            why="The word 'hypothesis' is deliberate. A team that names problems before earning the right to name them produces work that addresses symptoms — and the same symptom comes back the next cycle. The draft state is the discipline of 'state your read in a form the gate can evaluate.' Some drafts will earn surface; some won't. Both outcomes are useful."
+            how="Click when you see a pattern that's bothering you. Write the title in your own words. Write the diagnosis — the WHY behind the pattern, in ≥80 chars. Link the signals that point at it. If the gate says 'would hold,' look at the reason. Don't force surface by padding the diagnosis — sharpen it, or gather more signal."
+            principle="A hypothesis is more honest than a 'problem.' You're stating your read; the gate decides whether the team should attend to it."
           >
-            <Plus className="w-3.5 h-3.5" />
-            New problem hypothesis
-          </button>
+            <button
+              onClick={() => setCreating(true)}
+              disabled={!supabaseEnabled}
+              className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New problem hypothesis
+            </button>
+          </LearningHint>
         </div>
 
         {loading && (

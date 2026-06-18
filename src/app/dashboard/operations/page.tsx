@@ -1,6 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { taskDisplayLabel } from "@/lib/tasks/statusLabels";
 import { fetchTasks, type FetchTasksMode, type Task } from "@/lib/data/tasks";
 import { fetchTeam, type TeamMember } from "@/lib/data/team";
@@ -221,19 +222,23 @@ export default function OperationsPage() {
               disabled={!supabaseEnabled || mode === "demo-fixtures"}
               disabledReason="Export requires live mode (your data, not demo fixtures)."
             />
-            <button
-              onClick={openCreate}
-              disabled={!supabaseEnabled}
-              className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
-              title={
-                supabaseEnabled
-                  ? "Create a new task"
-                  : "Live mode required — configure Supabase to create tasks"
-              }
+            <LearningHint
+              category="Tasks"
+              title="New task"
+              whatItIs="Opens the task creation modal. A task in ELOSTATE has title, description, department, assignee, status, priority, AI priority score, impact level, blocker reason (required if status='Blocked'), and due date. Tasks emit events into the §3.1 chain — they're not just tickets, they're inputs to the team's reasoning."
+              why="The reason a task system is built INTO this product (rather than relying on Jira/Asana) is that the chain depends on tasks emitting events the System can read. A task slipped, a task got blocked, a task got reassigned — each is a signal source. Without native tasks, the chain has nothing to derive from for the operational work the team is doing."
+              how="Click to draft. State the title plainly, write a description that explains WHAT and WHY (the WHY is what makes the task connect to reasoning). Set priority honestly — not everything is Critical. If the task is blocked, the System will require a blocker reason; that's the discipline."
+              principle="Tasks are units of work AND inputs to reasoning. The chain depends on the second function as much as the first."
             >
-              <Plus className="w-3.5 h-3.5" />
+              <button
+                onClick={openCreate}
+                disabled={!supabaseEnabled}
+                className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
               New task
             </button>
+            </LearningHint>
           </div>
         </div>
 

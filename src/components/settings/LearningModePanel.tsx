@@ -3,6 +3,7 @@
 import { Lightbulb, Moon, Sun } from "lucide-react";
 import { useLearningMode } from "@/components/learning/LearningModeProvider";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Settings panel for Learning Mode. Per migration 0051 and founder
@@ -53,24 +54,33 @@ export function LearningModePanel() {
             layer can explain the System to someone else.
           </p>
         </div>
-        <label
-          className="relative inline-flex items-center cursor-pointer flex-shrink-0"
-          aria-label="Toggle Learning Mode"
+        <LearningHint
+          category="Learning Mode (meta)"
+          title="The toggle you're hovering"
+          whatItIs="The Learning Mode opt-in toggle itself. When on, persisted to your profile (cross-device). When off, the lightbulb FAB never renders. Enabling auto-switches the theme to dark — the brand metaphor only lands against a dark surface."
+          why="The fact that THIS feature has its own teaching hint is intentional. Learning Mode shouldn't be invisible chrome the user enables and forgets — it should teach about itself the same way it teaches about every other surface. Hovering this toggle should explain WHY the feature exists, not just what it does."
+          how="Toggle on to enable; the lightbulb appears bottom-right in dark mode. Click the lightbulb to illuminate the page (every annotated element pulses and shows a teaching popover on hover). Click again to dim. Toggle off here when you no longer want it available."
+          principle="A learning surface that doesn't teach about itself is teaching by exception. The discipline applies to every feature including this one."
         >
-          <input
-            type="checkbox"
-            className="sr-only peer"
-            checked={enabled}
-            onChange={() => void toggleEnabled()}
-          />
-          <span className="w-10 h-5 bg-surface-raised border border-default rounded-full peer-checked:bg-ember-400/20 peer-checked:border-ember-400 transition-all relative">
-            <span
-              className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-secondary transition-transform ${
-                enabled ? "translate-x-5 bg-ember-400" : ""
-              }`}
+          <label
+            className="relative inline-flex items-center cursor-pointer flex-shrink-0"
+            aria-label="Toggle Learning Mode"
+          >
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={enabled}
+              onChange={() => void toggleEnabled()}
             />
-          </span>
-        </label>
+            <span className="w-10 h-5 bg-surface-raised border border-default rounded-full peer-checked:bg-ember-400/20 peer-checked:border-ember-400 transition-all relative">
+              <span
+                className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-secondary transition-transform ${
+                  enabled ? "translate-x-5 bg-ember-400" : ""
+                }`}
+              />
+            </span>
+          </label>
+        </LearningHint>
       </div>
 
       {/* Constraint explanation — always visible so it's never a

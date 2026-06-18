@@ -1,6 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import Modal from "@/components/ui/Modal";
 import { Textarea } from "@/components/ui/Field";
@@ -189,14 +190,23 @@ export default function BrainPage() {
                     cycles are correct when the chain has not produced validated evidence.
                   </p>
                 </div>
-                <button
-                  onClick={triggerLearning}
-                  disabled={learning}
-                  className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs flex-shrink-0"
+                <LearningHint
+                  category="Brain · §1.6"
+                  title="Run learning cycle"
+                  whatItIs="Manually triggers the learning cycle — the System reads the team's accumulated HELD resolutions and DISMISSED problems from the recent window and distills them into structured brain updates. Conservative by design: most cycles return zero updates because the chain hasn't produced validated evidence yet."
+                  why="The Brain shapes every AI call on this tenant. Without periodic learning cycles it stays static and gradually drifts from the team's actual patterns. The cycle is conservative because the wrong shape of learning (over-fitting to a single dismissed problem, for example) would teach the Brain to behave worse, not better. Empty cycles ARE the correct output when the chain hasn't earned a real lesson."
+                  how="Run it after a meaningful batch of resolutions has accumulated (typically every 2-4 weeks of normal operation). Read the output. If it's empty, that's honest. If it has updates, they get applied to the Brain composition layer and influence future AI outputs."
+                  principle="A learning system that learns when it has nothing to learn is worse than one that stays silent. The cycle's conservatism is the feature."
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${learning ? "animate-spin" : ""}`} />
-                  {learning ? "Running…" : "Run learning cycle"}
-                </button>
+                  <button
+                    onClick={triggerLearning}
+                    disabled={learning}
+                    className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs flex-shrink-0"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${learning ? "animate-spin" : ""}`} />
+                    {learning ? "Running…" : "Run learning cycle"}
+                  </button>
+                </LearningHint>
               </div>
               {learnMessage && (
                 <p className="text-xs text-secondary mt-2">{learnMessage}</p>
