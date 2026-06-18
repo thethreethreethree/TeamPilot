@@ -148,6 +148,12 @@ function ProblemRow({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Dismissal capture is now a structured modal, not window.prompt().
+  // prompt() is OS-styled (breaks brand consistency), can't validate,
+  // can't be tested, and isn't usable on most modern mobile keyboards.
+  // Audit 2026-06-19.
+  const [dismissalOpen, setDismissalOpen] = useState(false);
+  const [dismissalReason, setDismissalReason] = useState("");
 
   const surface = async () => {
     setBusy(true);
@@ -173,11 +179,14 @@ function ProblemRow({
     }
   };
 
-  const dismiss = async () => {
-    const reason = prompt(
-      "Why is this being dismissed? (preserved on the record for retrospective learning)"
-    );
-    if (!reason) return;
+  const submitDismissal = async () => {
+    const reason = dismissalReason.trim();
+    if (reason.length < 10) {
+      setError(
+        `Dismissal reason needs ≥10 characters (currently ${reason.length}). The record is permanent — flesh it out.`
+      );
+      return;
+    }
     setBusy(true);
     setError("");
     const res = await fetch("/api/problems", {
@@ -192,6 +201,9 @@ function ProblemRow({
     if (!res.ok) {
       const data = await res.json();
       setError(data.error ?? "Could not dismiss.");
+    } else {
+      setDismissalOpen(false);
+      setDismissalReason("");
     }
     setBusy(false);
     onChanged();
@@ -227,6 +239,7 @@ function ProblemRow({
           {problem.status === "draft" && (
             <>
               <button
+                type="button"
                 onClick={surface}
                 disabled={busy}
                 className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
@@ -234,7 +247,8 @@ function ProblemRow({
                 <ShieldCheck className="w-3 h-3" /> Try to surface
               </button>
               <button
-                onClick={dismiss}
+                type="button"
+                onClick={() => setDismissalOpen(true)}
                 disabled={busy}
                 className="text-xs text-muted hover:text-red-400 disabled:opacity-40"
               >
@@ -244,6 +258,73 @@ function ProblemRow({
           )}
         </div>
       </div>
+      {dismissalOpen && (
+        <Modal
+          open
+          onClose={() => {
+            if (!busy) {
+              setDismissalOpen(false);
+              setDismissalReason("");
+              setError("");
+            }
+          }}
+          title="Dismiss this hypothesis"
+          size="md"
+        >
+          <p className="text-xs text-secondary mb-3 leading-relaxed">
+            Dismissals land on the §3.1 chain as permanent events. The
+            reason is preserved for retrospective learning. Be specific
+            — &quot;not a real problem&quot; doesn&apos;t teach the next
+            audit.
+          </p>
+          <Textarea
+            value={dismissalReason}
+            onChange={(e) => setDismissalReason(e.target.value)}
+            rows={4}
+            placeholder="Why is this being dismissed? Be concrete."
+            autoFocus
+          />
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[10px] text-muted">Minimum 10 characters.</p>
+            <p
+              className={`text-[10px] tabular-nums ${
+                dismissalReason.trim().length < 10
+                  ? "text-muted"
+                  : "text-emerald-400"
+              }`}
+            >
+              {dismissalReason.trim().length} / 10+
+            </p>
+          </div>
+          {error && (
+            <p className="text-[11px] text-red-400 mt-2" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="flex items-center justify-end gap-2 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setDismissalOpen(false);
+                setDismissalReason("");
+                setError("");
+              }}
+              disabled={busy}
+              className="text-xs text-muted hover:text-secondary px-3 py-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void submitDismissal()}
+              disabled={busy || dismissalReason.trim().length < 10}
+              className="bg-red-500/15 hover:bg-red-500/25 disabled:opacity-40 text-red-300 font-semibold px-3 py-2 rounded-lg text-xs transition-colors"
+            >
+              {busy ? "Dismissing…" : "Dismiss with reason"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
