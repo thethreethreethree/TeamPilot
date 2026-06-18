@@ -443,7 +443,13 @@ export default function OnboardingPage() {
                 onChange={(e) =>
                   update("aiProductContext", e.target.value)
                 }
-                rows={8}
+                // Smaller default on mobile (5) — 8 rows pushes
+                // the Next button below the keyboard on iPhone SE.
+                // Desktop keeps 8 via md:rows-* (handled by min-height
+                // utility class on the textarea container instead,
+                // since rows= can't be responsive). Keep rows=5 +
+                // min-h via class.
+                rows={5}
                 placeholder={`What ${form.companyName || "your business"} actually does:
 [one sentence — the product in plain terms]
 
@@ -456,7 +462,7 @@ Pricing & access:
 
 Always hand off to a human for:
 [account-specific data, billing, refunds, anything sensitive]`}
-                className="w-full bg-surface border border-default rounded-lg px-3.5 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-y leading-relaxed font-mono"
+                className="w-full min-h-[10rem] md:min-h-[14rem] bg-surface border border-default rounded-lg px-3.5 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-y leading-relaxed font-mono"
               />
               <p className="text-[11px] text-muted mt-2 leading-relaxed">
                 Listing features by name makes &quot;yes, we have that&quot;

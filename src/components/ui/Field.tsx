@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import React from "react";
+import React, { useId } from "react";
 
 /**
  * Shared form primitives (audit Tier 3 #24).
@@ -15,6 +15,11 @@ import React from "react";
  * were sitting in Tasks, Problems, Settings, and Team pages.
  */
 
+/** When a Field wraps an Input/Textarea/Select, we want a real
+ *  htmlFor↔id association so tapping the label focuses the
+ *  control (matters most on mobile, where labels are common tap
+ *  targets). We clone the only ReactElement child and inject an
+ *  id IF it doesn't already have one. */
 export function Field({
   label,
   required,
@@ -28,9 +33,27 @@ export function Field({
   error?: string;
   children: React.ReactNode;
 }) {
+  const generatedId = useId();
+  const fieldId = `field-${generatedId}`;
+  let injectedChildren = children;
+  if (React.isValidElement(children)) {
+    const childProps = (children.props ?? {}) as { id?: string };
+    if (!childProps.id) {
+      injectedChildren = React.cloneElement(
+        children as React.ReactElement<{ id?: string }>,
+        { id: fieldId },
+      );
+    }
+  }
+  const labelHtmlFor =
+    React.isValidElement(children) &&
+    ((children.props as { id?: string }).id ?? fieldId);
   return (
     <div className="space-y-1.5">
-      <label className="flex items-center gap-1 text-xs font-medium text-secondary">
+      <label
+        htmlFor={labelHtmlFor || undefined}
+        className="flex items-center gap-1 text-xs font-medium text-secondary"
+      >
         {label}
         {required && (
           <span className="text-red-400" aria-label="required">
@@ -38,7 +61,7 @@ export function Field({
           </span>
         )}
       </label>
-      {children}
+      {injectedChildren}
       {hint && !error && <p className="text-[10px] text-muted">{hint}</p>}
       {error && <p className="text-[10px] text-red-400">{error}</p>}
     </div>
