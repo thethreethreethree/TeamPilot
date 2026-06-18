@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Sidebar from "@/components/layout/Sidebar";
 import CommandPalette from "@/components/layout/CommandPalette";
 import { ToastProvider } from "@/components/ui/toast";
+import { LearningModeProvider } from "@/components/learning/LearningModeProvider";
+import { LearningModeFab } from "@/components/learning/LearningModeFab";
+import { AskJeffPanel } from "@/components/learning/AskJeffPanel";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
@@ -71,17 +74,26 @@ export default async function DashboardLayout({
 
   return (
     <ToastProvider>
-      <div className="flex min-h-screen bg-base overflow-x-hidden">
-        <Sidebar />
-        {/* min-w-0 on <main> is the load-bearing guard against children
-            (chat URLs, long table cells, etc.) pushing the page wider
-            than the viewport. Combined with overflow-x-hidden it
-            structurally prevents horizontal scroll on mobile. */}
-        <main className="flex-1 md:ml-64 min-h-screen min-w-0 overflow-x-hidden">
-          {children}
-        </main>
-        <CommandPalette />
-      </div>
+      <LearningModeProvider>
+        <div className="flex min-h-screen bg-base overflow-x-hidden">
+          <Sidebar />
+          {/* min-w-0 on <main> is the load-bearing guard against children
+              (chat URLs, long table cells, etc.) pushing the page wider
+              than the viewport. Combined with overflow-x-hidden it
+              structurally prevents horizontal scroll on mobile. */}
+          <main className="flex-1 md:ml-64 min-h-screen min-w-0 overflow-x-hidden">
+            {children}
+          </main>
+          <CommandPalette />
+          {/* Lightbulb FAB — renders only when the user's preference is
+              enabled AND the resolved theme is dark. The brand mark IS
+              the FAB; clicking it illuminates the page. */}
+          <LearningModeFab />
+          {/* Ask Jeff slide-out — opens when a LearningHint's "Ask
+              Jeff what this does" button is clicked. */}
+          <AskJeffPanel />
+        </div>
+      </LearningModeProvider>
     </ToastProvider>
   );
 }

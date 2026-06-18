@@ -18,6 +18,7 @@ import { useToast } from "@/components/ui/toast";
 import { LlmConnectionPanel } from "@/components/settings/LlmConnectionPanel";
 import { ChangePasswordPanel } from "@/components/settings/ChangePasswordPanel";
 import { CoachTogglePanel } from "@/components/settings/CoachTogglePanel";
+import { LearningModePanel } from "@/components/settings/LearningModePanel";
 import { AvatarCustomizationPanel } from "@/components/settings/AvatarCustomizationPanel";
 
 interface Settings {
@@ -145,6 +146,13 @@ export default function SettingsPage() {
             OFF per asset A3; flipping it on activates the Coach
             across tasks, feedback, smoke test notes, and chat. */}
         <CoachTogglePanel />
+
+        {/* Learning Mode — per-user toggle. Activates the lightbulb
+            FAB on every dashboard page so the user can illuminate
+            the interface and see what each feature does. Dark-mode
+            only per the brand metaphor; enabling auto-switches the
+            theme. */}
+        <LearningModePanel />
 
         {!supabaseEnabled && (
           <div className="glass-card p-6 text-center">
