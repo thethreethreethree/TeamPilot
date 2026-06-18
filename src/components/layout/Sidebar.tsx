@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { cn } from "@/lib/utils";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { CONSTITUTION } from "@/lib/constitution";
@@ -37,24 +38,162 @@ import { useUnreadNotifications } from "@/lib/notifications/useUnread";
 import { LightbulbMark } from "@/components/brand/Logo";
 import { FeedbackPanel } from "@/components/feedback/FeedbackPanel";
 
-const productionNav = [
-  { label: "Command Center", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Team Chat", href: "/dashboard/chats", icon: MessageSquare },
-  { label: "Tasks", href: "/dashboard/operations", icon: ListChecks },
-  { label: "Team", href: "/dashboard/team", icon: Users },
-  { label: "Living Diagnosis", href: "/dashboard/diagnose", icon: GitMerge },
-  { label: "Problems", href: "/dashboard/problems", icon: ShieldCheck },
-  { label: "Resolutions", href: "/dashboard/resolutions", icon: Sparkles },
-  { label: "Company Brain", href: "/dashboard/brain", icon: Brain },
-  { label: "Decision Dialogue", href: "/dashboard/decisions", icon: Brain },
-  // §3.6 make-learning-visible — user-facing perception surface for
-  // cross-conversation memory. Each member sees their own; admin
-  // readout stays separate (different audience, different framing).
-  { label: "My growth", href: "/dashboard/my-growth", icon: Heart },
-  // C.A.R.E — Customer Assistance and Response Engine. Agent-only
-  // route returns 403 to non-agents. Sidebar entry is visible to
-  // everyone (cheap), the page itself enforces access.
-  { label: "C.A.R.E", href: "/dashboard/care", icon: MessageSquarePlus },
+type NavHint = {
+  whatItIs: string;
+  why: string;
+  how: string;
+  principle?: string;
+};
+
+const productionNav: Array<{
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  hint: NavHint;
+}> = [
+  {
+    label: "Command Center",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    hint: {
+      whatItIs:
+        "The operational hub. The §3.1 chain at a glance: open tasks, signals, problems, resolutions, held rate. Plus C.A.R.E support state when the tenant has support activity. Today's open questions on demand. Where-to-focus suggestion based on actual chain state.",
+      why: "Every other team-software product surfaces 'activity' on the home page. ELOSTATE surfaces CONSEQUENCE — held rate, surfaced problems, durability due. The hub answers 'what's worth attending to today' instead of 'what happened recently'.",
+      how: "Land here when starting a session or returning from a context shift. Read the stats top-down, then check the where-to-focus suggestion if you're unsure where to go next. Click any stat card to drill into its module.",
+      principle:
+        "The hub measures consequence. Activity belongs in the modules; the hub asks whether the team is producing durable outcomes.",
+    },
+  },
+  {
+    label: "Team Chat",
+    href: "/dashboard/chats",
+    icon: MessageSquare,
+    hint: {
+      whatItIs:
+        "Topic-threaded team conversations with participants, @mentions, reactions, and Coach v5 communication coaching on every draft. Each topic is a self-contained reasoning space. Decision Dialogues can open inline inside any topic.",
+      why: "Slack is for talking; this is for deciding what matters. Every message becomes part of the §3.1 chain — mentions become events, conversations get linked to tasks and decisions, and the Coach surfaces sharper drafts before the team commits a phrasing it'll regret.",
+      how: "Open or create a topic for any work that involves the team. The composer coaches you while you type. @mentions notify; everything threads. When a topic surfaces an actual decision, open the Decision Dialogue inside the thread rather than fragmenting the reasoning across tools.",
+      principle:
+        "Conversation is the substrate. The discipline is in capturing the reasoning, not in moving faster.",
+    },
+  },
+  {
+    label: "Tasks",
+    href: "/dashboard/operations",
+    icon: ListChecks,
+    hint: {
+      whatItIs:
+        "The Operations board: every task with status, priority, assignee, due date, blocker reason. Status transitions are validated server-side; tasks can't skip states. Blocker reason is required when status='Blocked' — the System refuses to leave a task blocked with no stated reason.",
+      why: "Most task systems optimize for 'how many tickets did we close.' This one asks 'did the work resolve the underlying problem?' A closed ticket whose underlying problem reopens within 7 days is failure, not success — and the §3.5 durability tracking on Resolutions enforces that.",
+      how: "Use the board for the work-in-flight view. Use task detail when you need to see the reasoning chain that spawned the task. Blockers without stated reasons are a smell — fix the data, not just the work.",
+      principle:
+        "Tickets are units of work; reasoning is the unit of capability. A team that closes 100 tickets without recording reasoning is busier, not better.",
+    },
+  },
+  {
+    label: "Team",
+    href: "/dashboard/team",
+    icon: Users,
+    hint: {
+      whatItIs:
+        "The roster: every team member with role (CEO / COO / admin / member / support agent), invitations, and revocations. New invites are sent via the Invite flow with role assignment at invite time.",
+      why: "Roles aren't decoration here — they shape what each user sees and can do across the System. Admin role gates leadership readouts. Support agent role gates the C.A.R.E inbox. Getting the role right at invite time prevents downstream confusion.",
+      how: "Add a teammate via Invite — pick role, send. They get an invitation email; clicking it brings them through profile setup. Revoke when someone leaves. Update roles via the row controls when responsibilities change.",
+      principle:
+        "Role is permissioning that's also pedagogy. A user's role signals what part of the System they're responsible for.",
+    },
+  },
+  {
+    label: "Living Diagnosis",
+    href: "/dashboard/diagnose",
+    icon: GitMerge,
+    hint: {
+      whatItIs:
+        "The full §3.1 chain in motion: events → signals → problems → resolutions → new events. The page shows the signal stream (what the System has noticed) with the data sources and observation timestamps. It's the chain made visible.",
+      why: "Most products hide the work the System is doing behind a 'magic AI' framing. ELOSTATE refuses that — the chain IS the product. Showing it explicitly means the team can audit what signals exist, where they came from, and whether the System is picking up real patterns or noise.",
+      how: "Browse signals when you're investigating a specific suspicion ('did the System pick up the meeting overrun last Tuesday?'). The signal kinds tell you which event sources are emitting. A signal stream that's mostly one kind is a tenant that's only exercising one part of the System.",
+      principle:
+        "Diagnosis works backward from the record. The chain page is the record made navigable.",
+    },
+  },
+  {
+    label: "Problems",
+    href: "/dashboard/problems",
+    icon: ShieldCheck,
+    hint: {
+      whatItIs:
+        "The problem board: every named problem the team is aware of, split by status (draft / surfaced / dismissed / resolved). Draft problems are still being earned; surfaced problems have crossed the §3.2 evidence threshold and are ready for action.",
+      why: "The Understanding Gate (§3.2) is the System's structural refusal to promote a half-understood problem. The board makes the gate visible — you see what the team is articulating, what's earned the right to be acted on, and what got dismissed (with the reason captured).",
+      how: "Draft a problem by writing what you're observing + linking the supporting signals. The gate tells you what's still missing before it can surface. Don't fight the gate — gather more signal or sharpen the diagnosis.",
+      principle:
+        "A problem promoted before it has earned the right to be named is the most expensive kind of work. The gate is the discipline encoded.",
+    },
+  },
+  {
+    label: "Resolutions",
+    href: "/dashboard/resolutions",
+    icon: Sparkles,
+    hint: {
+      whatItIs:
+        "The resolution corpus: every closed problem with action taken, reasoning (≥40 chars required), expected outcome, observed outcome, and durability state (held / reopened / partial / inconclusive). The team's playbook, derived from what actually worked.",
+      why: "Closing a ticket without recording the reasoning is the failure mode every productivity tool ships. The resolution corpus is the institutional memory the team usually loses to turnover. Browse it when the same kind of problem comes back; the prior reasoning is right there.",
+      how: "Walk through unreviewed resolutions whose durability check is overdue — the §3.5 measurement is the single most important metric the System tracks. Browse by category to see patterns. Export when assembling a postmortem or a strategy doc.",
+      principle:
+        "Tickets close; reasoning compounds. A team that records the WHY behind every resolution gets better at the work over time. A team that doesn't, rediscovers the same fixes.",
+    },
+  },
+  {
+    label: "Company Brain",
+    href: "/dashboard/brain",
+    icon: Brain,
+    hint: {
+      whatItIs:
+        "The per-tenant learning composition layer. The Brain reads your team's accumulated patterns, durable resolutions, and characteristic failure modes — and composes them into the system prompt of every AI call. After the §3.4 control window, every AI output is shaped by THIS team's record, not a generic template.",
+      why: "Generic AI tools give every customer the same answer. The Brain is what makes ELOSTATE's AI specific to your team. The control window (month-1 silent baseline) exists so the Brain has real data to compose from before it starts speaking. Without the wait, the Brain would be guessing.",
+      how: "Read the learning summary periodically to see what patterns the System has noticed about your team. Unlock the control window manually only if you have a real reason (and the override gets recorded with your reason; future review can assess whether the early unlock helped).",
+      principle:
+        "An AI shaped by your team's actual record is fundamentally different from an AI prompted with your industry. The wait is the feature.",
+    },
+  },
+  {
+    label: "Decision Dialogue",
+    href: "/dashboard/decisions",
+    icon: Brain,
+    hint: {
+      whatItIs:
+        "Structured four-phase reasoning for decisions that deserve more than a Slack reply: Situation → Your Read → System Response → Decide (adopt yours / adopt System's / hybrid / defer). The System never asserts before you've spoken.",
+      why: "Most decisions in teams get reasoning attached AFTER the fact, in the form of post-hoc narrative. Decision Dialogue forces the reasoning to be captured BEFORE resolution — and lets the System weigh in with explicit WHY only after you've stated yours. The reasoning is the transferable asset; the dialogue captures it.",
+      how: "Open a Dialogue when a decision is worth more than 5 minutes of thought. Walk through the phases honestly — write your actual diagnosis, your actual proposal. Engage the System's response; don't just accept it. Decide. The record survives the meeting.",
+      principle:
+        "The System asks first, suggests second, never asserts. The reasoning is transferred to the human, not retained by the machine.",
+    },
+  },
+  {
+    label: "My growth",
+    href: "/dashboard/my-growth",
+    icon: Heart,
+    hint: {
+      whatItIs:
+        "Your personal development surface — 30-day rolling read of your resolutions (with durability outcomes), Co-Pilot edit magnitudes (in C.A.R.E), Coach grades over time. Personal, not surveillance: each member sees their own; admin readouts aggregate at team level without per-agent identification per §A18.",
+      why: "Most team-tools optimize for leadership readouts and treat individual development as an afterthought. My growth flips that — the individual's view of their own pattern is the highest-leverage learning surface in the System. The admin equivalent stays separate so this surface stays trustworthy.",
+      how: "Visit weekly. Look at durability outcomes on your own resolutions — what held, what reopened. Read Coach feedback patterns on your own messages. The goal isn't to improve the numbers; the goal is to notice the pattern of what kinds of reasoning you produce vs what kinds hold.",
+      principle:
+        "Your own pattern is the most useful teaching artifact you have access to. The System surfaces it so you don't have to wait for an annual review to see it.",
+    },
+  },
+  {
+    label: "C.A.R.E",
+    href: "/dashboard/care",
+    icon: MessageSquarePlus,
+    hint: {
+      whatItIs:
+        "Customer Assistance and Response Engine. A complete support module: multi-channel inbox (widget / email / voice), Read Phase before reply, AI Co-Pilot drafting with surfaced precedents, Coach pre-send analysis, Resolution capture, §3.5 durability tracking, Knowledge base, Leadership readouts.",
+      why: "Standard support tools optimize for 'how fast did we close the ticket.' C.A.R.E asks 'did we resolve what the customer was actually trying to solve, and did it hold?' Same constitutional discipline as the rest of the System, applied to customer-facing reasoning.",
+      how: "Open conversations from the inbox. The Read Phase shows context first; reply, then capture resolution when done. The 7-day durability check shows up automatically. Browse Knowledge for institutional memory; Patterns for what's recurring; Leadership readouts for team-level health.",
+      principle:
+        "Support is the same discipline applied to customer-facing reasoning. The fact that the customer is external doesn't change the rule.",
+    },
+  },
 ];
 
 const testingNav = [
@@ -359,27 +498,37 @@ export default function Sidebar() {
           const isActive = pathname === item.href;
 
           return (
-            <Link
+            <LearningHint
               key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                isActive
-                  ? "bg-ember-400/15 text-brand border border-ember-400/30"
-                  : "text-secondary hover:text-primary hover:bg-surface-raised"
-              )}
+              as="block"
+              category="Module"
+              title={item.label}
+              whatItIs={item.hint.whatItIs}
+              why={item.hint.why}
+              how={item.hint.how}
+              principle={item.hint.principle}
             >
-              <Icon
+              <Link
+                href={item.href}
                 className={cn(
-                  "w-4 h-4 flex-shrink-0",
-                  isActive ? "text-brand" : "text-muted"
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                  isActive
+                    ? "bg-ember-400/15 text-brand border border-ember-400/30"
+                    : "text-secondary hover:text-primary hover:bg-surface-raised"
                 )}
-              />
-              {item.label}
-              {isActive && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-ember-400" />
-              )}
-            </Link>
+              >
+                <Icon
+                  className={cn(
+                    "w-4 h-4 flex-shrink-0",
+                    isActive ? "text-brand" : "text-muted"
+                  )}
+                />
+                {item.label}
+                {isActive && (
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-ember-400" />
+                )}
+              </Link>
+            </LearningHint>
           );
         })}
 

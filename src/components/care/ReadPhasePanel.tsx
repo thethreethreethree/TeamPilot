@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { LearningHint } from "@/components/learning/LearningHint";
 import {
   BookOpen,
   CheckCircle2,
@@ -117,7 +118,16 @@ export function ReadPhasePanel({
     data.customerHasHistory || data.similarResolutions.length > 0;
 
   return (
-    <div className="mx-6 mt-4 mb-2 border rounded-lg overflow-hidden border-arc-400/30 bg-arc-400/[0.04]">
+    <LearningHint
+      as="block"
+      category="C.A.R.E · §3.2"
+      title="The Read Phase"
+      whatItIs="A pre-reply context panel that surfaces, before the agent drafts: (1) the customer's prior conversations with the team, (2) up to 3-5 past resolutions whose keywords match this customer's recent messages, and (3) confirmation that the agent has reviewed the context. The §0 Understanding Gate (understanding precedes solving) applied to customer support."
+      why="The most common failure mode in support is drafting from the latest customer message alone — ignoring whether the customer has been here before, what worked for similar customers, or what the agent's company already knows about this kind of issue. The Read Phase forces the System to surface that institutional context before the composer becomes the focus. It's structural anti-amnesia."
+      how="When you open a conversation, the Read Phase appears above the composer. Scan the prior conversations panel (have they been here before? what was the prior issue?), read the similar past resolutions (what worked for someone else's customer asking the same shape?), then hit 'I've reviewed' to mark the gate cleared. The acknowledgment is part of the audit — it records that the agent operated against context, not from memory."
+      principle="The most expensive support replies are the ones written without checking what the team already knows. The Read Phase makes the check structural so the agent can't accidentally skip it."
+    >
+      <div className="mx-6 mt-4 mb-2 border rounded-lg overflow-hidden border-arc-400/30 bg-arc-400/[0.04]">
       <button
         type="button"
         onClick={() => setCollapsed((v) => !v)}
@@ -226,23 +236,33 @@ export function ReadPhasePanel({
                 §0 Understanding precedes solving — confirm you&apos;ve
                 reviewed the context before drafting.
               </p>
-              <button
-                type="button"
-                onClick={() => void markComplete()}
-                disabled={marking}
-                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/10 hover:bg-arc-400/15 disabled:opacity-50 px-2.5 py-1 rounded-md shrink-0"
+              <LearningHint
+                category="§0 Understanding Gate"
+                title="I've reviewed"
+                whatItIs="Marks the Read Phase as reviewed for this conversation. Records reading_complete_at on the conversation row and clears the Read Phase prompt above the composer."
+                why="The gate is structural, not policy. Without an explicit acknowledgment, 'I checked the context' becomes the kind of claim that's impossible to verify and easy to skip under time pressure. The button is small friction; the audit it produces is large value."
+                how="Click after you've actually read the prior conversations and similar resolutions panels above. Don't click reflexively — the discipline is in the reading, not the click. The agent's name and timestamp become part of the conversation's audit history."
+                principle="§0 Understanding precedes solving. The button doesn't make you understand; it records that you confirmed you did."
               >
-                {marking ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3 h-3" aria-hidden />
-                )}
-                I&apos;ve reviewed
-              </button>
+                <button
+                  type="button"
+                  onClick={() => void markComplete()}
+                  disabled={marking}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/10 hover:bg-arc-400/15 disabled:opacity-50 px-2.5 py-1 rounded-md shrink-0"
+                >
+                  {marking ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3 h-3" aria-hidden />
+                  )}
+                  I&apos;ve reviewed
+                </button>
+              </LearningHint>
             </div>
           )}
         </div>
       )}
-    </div>
+      </div>
+    </LearningHint>
   );
 }
