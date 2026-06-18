@@ -76,12 +76,24 @@ export default async function DashboardLayout({
     <ToastProvider>
       <LearningModeProvider>
         <div className="flex min-h-screen bg-base overflow-x-hidden">
+          {/* Skip-to-content link for keyboard / screen-reader users.
+              Hidden by default; appears in the top-left when focused
+              via Tab so the user can jump past the sidebar nav. */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:px-3 focus:py-2 focus:bg-ember-400 focus:text-[#09090B] focus:font-semibold focus:rounded-md focus:text-xs focus:shadow-glow"
+          >
+            Skip to main content
+          </a>
           <Sidebar />
           {/* min-w-0 on <main> is the load-bearing guard against children
               (chat URLs, long table cells, etc.) pushing the page wider
               than the viewport. Combined with overflow-x-hidden it
               structurally prevents horizontal scroll on mobile. */}
-          <main className="flex-1 md:ml-64 min-h-screen min-w-0 overflow-x-hidden">
+          <main
+            id="main-content"
+            className="flex-1 md:ml-64 min-h-screen min-w-0 overflow-x-hidden"
+          >
             {children}
           </main>
           <CommandPalette />

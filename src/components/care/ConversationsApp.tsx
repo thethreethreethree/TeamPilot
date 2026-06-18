@@ -2582,11 +2582,20 @@ function Composer({
           placeholder={
             isInternalNote
               ? "Internal note — agent-only, customer never sees this…"
-              : "Type your reply…"
+              : "Type your reply… (Cmd/Ctrl+Enter to send)"
           }
           rows={3}
           disabled={sending}
-          className={`flex-1 min-w-0 bg-base border rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none resize-y leading-relaxed ${
+          aria-label={
+            isInternalNote
+              ? "Internal note. Cmd/Ctrl+Enter to send."
+              : "Reply to customer. Cmd/Ctrl+Enter to send."
+          }
+          // Min-h ensures the composer keeps a sensible size when
+          // the mobile keyboard occupies the lower half of the
+          // viewport. resize-y still allows the agent to drag the
+          // textarea taller.
+          className={`flex-1 min-w-0 min-h-[5rem] bg-base border rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none resize-y leading-relaxed ${
             isInternalNote
               ? "border-accent-text/30 focus:border-accent-text/50"
               : "border-default focus:border-strong"
