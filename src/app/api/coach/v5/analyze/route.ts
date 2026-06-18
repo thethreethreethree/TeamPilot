@@ -68,6 +68,16 @@ const ContextPayloadSchema = z.object({
   taskDescription: z.string().max(4000).optional(),
   feedbackKind: z.string().max(100).optional(),
   smokeTestItemTitle: z.string().max(400).optional(),
+  // Per TT.md A21 — C.A.R.E support_reply parity. Same Coach v5
+  // backend; just adds the support surface's context fields.
+  supportCustomerLastMessage: z
+    .object({
+      author: z.string().max(200),
+      body: z.string().max(4000),
+    })
+    .optional(),
+  supportProductContext: z.string().max(8000).optional(),
+  supportCustomerName: z.string().max(200).optional(),
 });
 
 const AnalyzeSchema = z.object({
@@ -80,6 +90,7 @@ const AnalyzeSchema = z.object({
     "task_field",
     "feedback",
     "smoke_test_note",
+    "support_reply",
   ]),
   contextPayload: ContextPayloadSchema,
 });
@@ -344,6 +355,11 @@ function subjectFor(contextType: string): string {
       return "feedback:analyze";
     case "smoke_test_note":
       return "smoke_test_result:analyze";
+    case "support_reply":
+      // C.A.R.E surface — bucket alongside support_conversation
+      // events so §4 readouts roll up the agent's Coach activity
+      // into the customer's conversation history per A21.
+      return "support_conversation:analyze";
     default:
       return `${contextType}:analyze`;
   }

@@ -61,6 +61,14 @@ const ContextPayloadSchema = z.object({
   taskDescription: z.string().max(4000).optional(),
   feedbackKind: z.string().max(100).optional(),
   smokeTestItemTitle: z.string().max(400).optional(),
+  supportCustomerLastMessage: z
+    .object({
+      author: z.string().max(200),
+      body: z.string().max(4000),
+    })
+    .optional(),
+  supportProductContext: z.string().max(8000).optional(),
+  supportCustomerName: z.string().max(200).optional(),
 });
 
 const FollowUpSchema = z.object({
@@ -72,6 +80,7 @@ const FollowUpSchema = z.object({
     "task_field",
     "feedback",
     "smoke_test_note",
+    "support_reply",
   ]),
   contextPayload: ContextPayloadSchema,
   priorTurns: z

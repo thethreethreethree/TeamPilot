@@ -147,6 +147,8 @@ const CONTEXT_TYPE_NOTES: Record<CoachContextType, string> = {
     "Surface: a feedback note. The reader is the feedback recipient (someone whose work is being commented on). High stakes interpersonal — Crucial Conversations principles (especially Path to Action 2.2 and Contrasting Statement 2.6) and Rosenberg's OFNR (7.1) are usually the right layer.",
   smoke_test_note:
     "Surface: a smoke test draft note. The reader is a teammate verifying a feature. Standard prose discipline (Zinsser) is enough; this surface is usually low-stakes interpersonally.",
+  support_reply:
+    "Surface: a C.A.R.E customer-support reply. The reader is the END CUSTOMER (not a teammate). Stakes are different — the customer is asking for help, often after one or more frustrating attempts. The voice rules of C.A.R.E: plain prose, 1-4 sentences typical, acknowledge briefly + answer (or honestly hand off) + clear next step, no corporate filler (\"we appreciate your patience\"). The principles that usually apply here: Tactical Empathy (Voss 3.x), Concreteness (Heath 6.3), Zinsser's clarity/brevity, and Carnegie's name-the-feeling. Be careful NOT to invent product specifics that aren't in the product context — fabricated specifics are the dominant failure mode in support voice. If the agent's draft promises something not grounded in the product context, flag it. Pull from `supportCustomerLastMessage` and `supportProductContext`.",
 };
 
 /**
@@ -282,6 +284,21 @@ export function buildUserMessage(args: {
   }
   if (contextType === "smoke_test_note" && contextPayload.smokeTestItemTitle) {
     sections.push(`SMOKE TEST ITEM:\n${contextPayload.smokeTestItemTitle}`);
+  }
+  if (contextType === "support_reply") {
+    if (contextPayload.supportCustomerName) {
+      sections.push(`CUSTOMER NAME:\n${contextPayload.supportCustomerName}`);
+    }
+    if (contextPayload.supportCustomerLastMessage) {
+      sections.push(
+        `CUSTOMER'S MOST RECENT MESSAGE:\n  ${contextPayload.supportCustomerLastMessage.author}: ${contextPayload.supportCustomerLastMessage.body}`
+      );
+    }
+    if (contextPayload.supportProductContext) {
+      sections.push(
+        `PRODUCT CONTEXT (the only specifics the agent — and you — should treat as ground truth):\n${contextPayload.supportProductContext}`
+      );
+    }
   }
 
   return sections.join("\n\n");

@@ -17,7 +17,11 @@ export type CoachContextType =
   | "chat_reply"
   | "task_field"
   | "feedback"
-  | "smoke_test_note";
+  | "smoke_test_note"
+  /** Per TT.md A21 — C.A.R.E uses the same Coach v5 the rest of
+   *  ELOSTATE uses. "Ask Coach" must behave identically across
+   *  modules; the only difference is the surface context payload. */
+  | "support_reply";
 
 /** Mode determines whether the Coach speaks when the draft is "correct".
  *  - "auto": Coach is passive — speaks only when needs_improvement=true
@@ -60,6 +64,11 @@ export type CoachContextPayload = {
   feedbackKind?: string;
   /** For smoke_test_note surface. */
   smokeTestItemTitle?: string;
+  /** For support_reply surface — the C.A.R.E customer conversation
+   *  context the agent is drafting against. */
+  supportCustomerLastMessage?: { author: string; body: string };
+  supportProductContext?: string;
+  supportCustomerName?: string;
 };
 
 export type CoachAnalysisRequest = {

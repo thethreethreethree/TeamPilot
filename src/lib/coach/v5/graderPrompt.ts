@@ -73,6 +73,8 @@ const CONTEXT_NOTES: Record<CoachContextType, string> = {
   feedback:
     "Surface: a feedback note about someone's work. High interpersonal stakes — be alert for evaluation-vs-observation, identity-vs-behavior.",
   smoke_test_note: "Surface: a smoke test draft. Low interpersonal stakes; most are neutral.",
+  support_reply:
+    "Surface: a C.A.R.E reply going to an end CUSTOMER (not a teammate). Tighter prose rules — 1-4 sentences, no corporate filler. The dominant risk is fabricated specifics (promising things the agent can't actually deliver). Grade leniently on form; grade strictly on whether the claims are grounded in product context.",
 };
 
 /**

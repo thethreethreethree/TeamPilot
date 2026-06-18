@@ -1426,7 +1426,11 @@ export function ConversationsApp({
         <AskCoachCarePanel
           conversationId={selected.id}
           draft={draft}
-          coPilotReasoning={aiReasoning}
+          onAcceptRevision={(revised) => {
+            setDraft(revised);
+            setAskCoachOpen(false);
+            composerRef.current?.focus();
+          }}
           onClose={() => setAskCoachOpen(false)}
         />
       )}
@@ -2930,41 +2934,70 @@ function FormulateCarePanel({
 
 /**
  * Slide-out modal showing pre-send Coach feedback on the
- * current draft. §A11 counts surfaced; agent renders verdict.
- * §A16 direction 2 composition — passes Co-Pilot reasoning
- * when available so deliberate shape choices don't get
- * penalized.
+ * current draft. Per TT.md A21 (2026-06-18) — same Coach v5
+ * backend + same v5 UI as ELOSTATE's chat-side Ask Coach.
+ * Cross-system feature parity: founder framing — "asked coach
+ * is one of the biggest features a customer management chat
+ * system can have."
+ *
+ * Backend: /api/care/agent/conversations/[id]/ask-coach now
+ * returns CoachAnalysisResponse (the same shape /api/coach/v5/
+ * analyze returns). The follow-up endpoint at .../followup
+ * handles conversational depth.
+ *
+ * UI mirrors CoachPanelV5 (chats):
+ *   - HERE'S WHAT I'M SEEING — improvement.whyContext
+ *   - WANT TO TRY THIS? — improvement.suggestedRevision with
+ *     source citation (principle name + book)
+ *   - Use this revision / Send as written CTAs
+ *   - YOU COULD ASK ME — conversationStarters chips
+ *   - Ask me anything about this draft… — free-form input
+ *   - Turn bubbles for the multi-turn conversation
  */
 function AskCoachCarePanel({
   conversationId,
   draft,
-  coPilotReasoning,
+  onAcceptRevision,
   onClose,
 }: {
   conversationId: string;
   draft: string;
-  coPilotReasoning: string | null;
+  onAcceptRevision: (revision: string) => void;
   onClose: () => void;
 }) {
-  type Counts = {
-    positive: {
-      acknowledged: 0 | 1;
-      answered: 0 | 1;
-      next_step: 0 | 1;
-    };
-    risks: {
-      unsupported_absolutes: number;
-      fabricated_specifics: number;
-      empty_filler: number;
-    };
-    reason_internal: string;
+  type Principle = { name: string; book: string; sectionRef: string };
+  type Improvement = {
+    suggestedRevision: string;
+    whyContext: string;
+    whySentence: string;
+    principleCited: Principle;
+    secondaryPrinciple?: Principle;
   };
-  const [counts, setCounts] = useState<Counts | null>(null);
-  const [reason, setReason] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  type CoachResponse = {
+    classification: string;
+    needsImprovement: boolean;
+    affirmation?: string;
+    improvement?: Improvement;
+    conversationStarters: string[];
+  };
+  type Turn =
+    | { role: "user"; content: string }
+    | { role: "coach"; content: string; alternativeRevision?: string };
+
+  const [response, setResponse] = useState<CoachResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [followUpInput, setFollowUpInput] = useState("");
+  const [followingUp, setFollowingUp] = useState(false);
+  const [starters, setStarters] = useState<string[]>([]);
 
   useEffect(() => {
+    setResponse(null);
+    setError(null);
+    setLoading(true);
+    setTurns([]);
+    setStarters([]);
     void (async () => {
       try {
         const res = await fetch(
@@ -2972,100 +3005,279 @@ function AskCoachCarePanel({
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              draft,
-              coPilotReasoning: coPilotReasoning ?? null,
-            }),
+            body: JSON.stringify({ draft, mode: "ask" }),
           }
         );
         if (!res.ok) {
-          setError("Couldn't get Coach feedback.");
+          const body = await res.json().catch(() => null);
+          setError(body?.error ?? `Coach unavailable (HTTP ${res.status})`);
           return;
         }
         const data = await res.json();
-        setCounts(data.counts ?? null);
-        setReason(data.reasonInternal ?? null);
+        if (data.suppressed) {
+          setError("Coach is in control window — guidance suppressed.");
+          return;
+        }
+        if (!data.response) {
+          setError("Coach returned an empty response.");
+          return;
+        }
+        setResponse(data.response as CoachResponse);
+        setStarters(data.response.conversationStarters ?? []);
       } catch {
         setError("Couldn't reach the server.");
       } finally {
         setLoading(false);
       }
     })();
-  }, [conversationId, draft, coPilotReasoning]);
+  }, [conversationId, draft]);
+
+  async function askFollowUp(question: string) {
+    if (!question.trim() || followingUp) return;
+    const trimmed = question.trim();
+    setTurns((t) => [...t, { role: "user", content: trimmed }]);
+    setFollowUpInput("");
+    setFollowingUp(true);
+    try {
+      const priorTurns = [...turns, { role: "user" as const, content: trimmed }];
+      const res = await fetch(
+        `/api/care/agent/conversations/${conversationId}/ask-coach/followup`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            draft,
+            priorTurns: priorTurns.map((t) => ({
+              role: t.role,
+              content: t.content,
+            })),
+            userQuestion: trimmed,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setTurns((t) => [
+          ...t,
+          {
+            role: "coach",
+            content: body?.error ?? "Coach couldn't respond just now.",
+          },
+        ]);
+        return;
+      }
+      const data = await res.json();
+      if (data.suppressed || !data.response) {
+        setTurns((t) => [
+          ...t,
+          { role: "coach", content: "Coach is unavailable right now." },
+        ]);
+        return;
+      }
+      const reply = data.response as {
+        reply: string;
+        alternativeRevision?: string;
+        conversationStarters: string[];
+      };
+      setTurns((t) => [
+        ...t,
+        {
+          role: "coach",
+          content: reply.reply,
+          alternativeRevision: reply.alternativeRevision,
+        },
+      ]);
+      setStarters(reply.conversationStarters ?? []);
+    } catch {
+      setTurns((t) => [
+        ...t,
+        { role: "coach", content: "Couldn't reach the server." },
+      ]);
+    } finally {
+      setFollowingUp(false);
+    }
+  }
 
   return (
     <ToolPanelShell title="Ask Coach" onClose={onClose}>
-      <p className="text-xs text-secondary leading-relaxed mb-3">
-        Pre-send feedback on your draft. The Coach counts what&apos;s
-        present and what&apos;s flagged — you decide whether the
-        pattern is fair before you Send.
-      </p>
       {loading && (
         <p className="text-xs text-muted flex items-center gap-2">
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
           Reading your draft…
         </p>
       )}
-      {error && <p className="text-xs text-red-300">{error}</p>}
-      {counts && (
-        <>
-          <div className="flex flex-wrap items-center gap-1 mb-2">
-            {counts.positive.acknowledged === 1 ? (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                ✓ acknowledged
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted bg-surface border border-default px-1.5 py-0.5 rounded">
-                0 acknowledgment
-              </span>
-            )}
-            {counts.positive.answered === 1 ? (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                ✓ answered
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted bg-surface border border-default px-1.5 py-0.5 rounded">
-                0 answer
-              </span>
-            )}
-            {counts.positive.next_step === 1 ? (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                ✓ next step
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted bg-surface border border-default px-1.5 py-0.5 rounded">
-                0 next step
-              </span>
-            )}
-            {counts.risks.unsupported_absolutes > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
-                {counts.risks.unsupported_absolutes} unsupported absolute
-                {counts.risks.unsupported_absolutes > 1 ? "s" : ""}
-              </span>
-            )}
-            {counts.risks.fabricated_specifics > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
-                {counts.risks.fabricated_specifics} fabricated specific
-                {counts.risks.fabricated_specifics > 1 ? "s" : ""}
-              </span>
-            )}
-            {counts.risks.empty_filler > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
-                {counts.risks.empty_filler} empty filler
-                {counts.risks.empty_filler > 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-          {(reason || counts.reason_internal) && (
-            <p className="text-[11px] text-secondary leading-relaxed italic">
-              {reason ?? counts.reason_internal}
-            </p>
+      {error && (
+        <div className="text-xs text-red-300 border border-red-500/30 bg-red-500/5 rounded-md px-2.5 py-2">
+          {error}
+        </div>
+      )}
+      {response && (
+        <div className="space-y-3">
+          {response.affirmation && (
+            <div className="flex items-start gap-2">
+              <Sparkles
+                className="w-3 h-3 text-emerald-400 mt-0.5 flex-shrink-0"
+                aria-hidden
+              />
+              <p className="text-xs text-primary leading-relaxed">
+                {response.affirmation}
+              </p>
+            </div>
           )}
-          <p className="text-[10px] text-muted italic mt-3">
-            §A11 — counts, not verdict. Edit if the pattern reads
-            unfair, then Send.
-          </p>
-        </>
+
+          {response.improvement && (
+            <>
+              <div className="rounded-lg bg-amber-400/10 border border-amber-400/30 p-2.5 space-y-2">
+                <p className="text-[10px] uppercase tracking-widest font-mono text-brand">
+                  Here&apos;s what I&apos;m seeing
+                </p>
+                <p className="text-xs text-primary leading-relaxed">
+                  {response.improvement.whyContext}
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-surface border border-default p-2.5 space-y-2">
+                <p className="text-[10px] uppercase tracking-widest font-mono text-brand">
+                  Want to try this?
+                </p>
+                <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
+                  {response.improvement.suggestedRevision}
+                </p>
+                <p className="text-[11px] text-secondary leading-relaxed border-l-2 border-amber-400/40 pl-2 italic">
+                  {response.improvement.whySentence}
+                </p>
+                <p className="text-[10px] text-muted font-mono uppercase tracking-wider">
+                  {response.improvement.principleCited.name}
+                  {" — "}
+                  {response.improvement.principleCited.book}
+                  {response.improvement.secondaryPrinciple && (
+                    <>
+                      {" + "}
+                      {response.improvement.secondaryPrinciple.name}
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    response.improvement &&
+                    onAcceptRevision(response.improvement.suggestedRevision)
+                  }
+                  className="text-[11px] font-semibold text-[#09090B] bg-[#FACC15] hover:bg-[#EAB308] px-2.5 py-1 rounded-md transition-colors"
+                >
+                  Use this revision
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="text-[11px] text-muted hover:text-secondary"
+                >
+                  Send as written
+                </button>
+              </div>
+            </>
+          )}
+
+          {turns.length > 0 && (
+            <div className="pt-2 border-t border-amber-400/15 space-y-2">
+              {turns.map((turn, i) => (
+                <div key={i} className="text-xs leading-relaxed">
+                  {turn.role === "user" ? (
+                    <p className="text-secondary">
+                      <span className="text-muted font-mono text-[10px] uppercase tracking-widest mr-1.5">
+                        You
+                      </span>
+                      {turn.content}
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <p className="text-primary">
+                        <span className="text-brand font-mono text-[10px] uppercase tracking-widest mr-1.5">
+                          Coach
+                        </span>
+                        {turn.content}
+                      </p>
+                      {turn.alternativeRevision && (
+                        <div className="rounded-md bg-surface border border-default p-2 space-y-1.5">
+                          <p className="text-sm text-primary whitespace-pre-wrap">
+                            {turn.alternativeRevision}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              turn.alternativeRevision &&
+                              onAcceptRevision(turn.alternativeRevision)
+                            }
+                            className="text-[11px] font-semibold text-[#09090B] bg-[#FACC15] hover:bg-[#EAB308] px-2 py-0.5 rounded"
+                          >
+                            Use this revision
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {followingUp && (
+                <div className="flex items-center gap-2 text-[10px] text-muted uppercase tracking-widest font-mono">
+                  <Loader2
+                    className="w-3 h-3 text-brand/60 animate-spin"
+                    aria-hidden
+                  />
+                  Coach is thinking…
+                </div>
+              )}
+            </div>
+          )}
+
+          {starters.length > 0 && !followingUp && (
+            <div className="pt-2 border-t border-amber-400/15 space-y-1.5">
+              <p className="text-[10px] uppercase tracking-widest font-mono text-muted">
+                You could ask me
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {starters.map((s, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => askFollowUp(s)}
+                    className="text-[11px] text-primary border border-default hover:border-strong bg-surface hover:bg-surface-raised rounded-full px-2 py-0.5 text-left"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <form
+            className="pt-2 flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void askFollowUp(followUpInput);
+            }}
+          >
+            <input
+              type="text"
+              value={followUpInput}
+              onChange={(e) => setFollowUpInput(e.target.value)}
+              placeholder="Ask me anything about this draft…"
+              disabled={followingUp}
+              className="flex-1 min-w-0 bg-base border border-default focus:border-strong rounded-md px-2.5 py-1.5 text-xs text-primary placeholder:text-muted focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={followingUp || !followUpInput.trim()}
+              aria-label="Send"
+              className="shrink-0 inline-flex items-center justify-center bg-amber-400/10 hover:bg-amber-400/20 disabled:opacity-40 text-brand border border-amber-400/30 rounded-md w-7 h-7"
+            >
+              <Send className="w-3.5 h-3.5" aria-hidden />
+            </button>
+          </form>
+        </div>
       )}
     </ToolPanelShell>
   );
