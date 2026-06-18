@@ -269,7 +269,16 @@ export async function POST(req: NextRequest) {
   }
 
   // ─── 7. Insert the customer message ──────────────────────────
-  const { data: insertedMsg } = await admin
+  // Per TT.md A21 audit (2026-06-18) MED finding F6 — the dedup
+  // check at step 3 and this insert form a check-then-insert
+  // race. Two concurrent webhook retries (Postmark retries up
+  // to 25 times) could both pass the existing-row check before
+  // either inserts, then both attempt insert. The unique index
+  // on external_message_id would reject the second, and
+  // previously the route returned 500 — which makes Postmark
+  // retry indefinitely. Fix: catch unique-violation (Postgres
+  // error code 23505) and treat it as the dedup case.
+  const insertResult = await admin
     .from("support_messages")
     .insert({
       conversation_id: conversationId,
@@ -289,6 +298,22 @@ export async function POST(req: NextRequest) {
     })
     .select("id")
     .single();
+  if (insertResult.error) {
+    // Postgres unique violation = the other concurrent retry
+    // won. Return success with deduped:true so the provider
+    // stops retrying.
+    if (insertResult.error.code === "23505") {
+      return NextResponse.json(
+        { ok: true, deduped: true, reason: "race_resolved" },
+        { status: 200 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Couldn't insert the customer message." },
+      { status: 500 }
+    );
+  }
+  const insertedMsg = insertResult.data;
   if (!insertedMsg) {
     return NextResponse.json(
       { error: "Couldn't insert the customer message." },

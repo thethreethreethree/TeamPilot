@@ -144,7 +144,18 @@ export async function dispatchOutboundEmailReply(args: {
     ? subjectBase
     : `Re: ${subjectBase}`;
 
-  const signature = tenant.reply_signature?.trim();
+  // Per TT.md A21 audit (2026-06-18) MED finding F8 — until this
+  // cap, tenant.reply_signature was appended verbatim with no
+  // bounds. A tenant with a multi-KB signature (accident or
+  // misconfig) would bloat every outbound email body + threading
+  // payload. Cap at 2000 chars (~30 lines of plain text) — plenty
+  // for legal/contact info, bounded against pathological cases.
+  const SIGNATURE_MAX_CHARS = 2000;
+  const rawSig = tenant.reply_signature?.trim();
+  const signature =
+    rawSig && rawSig.length > SIGNATURE_MAX_CHARS
+      ? rawSig.slice(0, SIGNATURE_MAX_CHARS) + " […truncated]"
+      : rawSig;
   const textBody = signature ? `${msg.body}\n\n--\n${signature}` : msg.body;
 
   // Threading headers — In-Reply-To + References point at the
