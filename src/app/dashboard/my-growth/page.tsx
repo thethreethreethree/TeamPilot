@@ -312,7 +312,8 @@ function GradeStat({
   total: number;
   tone: "emerald" | "muted" | "amber";
 }) {
-  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const hasData = total > 0;
+  const pct = hasData ? Math.round((count / total) * 100) : 0;
   const toneClass =
     tone === "emerald"
       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
@@ -324,9 +325,15 @@ function GradeStat({
       <p className="text-[10px] uppercase tracking-widest font-bold">
         {label}
       </p>
-      <p className="mt-1 text-lg font-bold text-primary">{pct}%</p>
+      {/* hasData guard — when total is 0 the percentage is
+          meaningless. Show an em-dash instead of '0%' so the user
+          doesn't read a sparse-data state as a real grade of zero
+          (caught in audit 2026-06-19). */}
+      <p className="mt-1 text-lg font-bold text-primary">
+        {hasData ? `${pct}%` : "—"}
+      </p>
       <p className="text-[10px] text-muted font-mono">
-        {count} of {total}
+        {hasData ? `${count} of ${total}` : "no data yet"}
       </p>
     </div>
   );

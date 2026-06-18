@@ -279,7 +279,7 @@ export default function DiagnosePage() {
         .join("\n\n— Why this is the right call:\n");
       if (reasoning.length < 40) {
         setCloseError(
-          "Reasoning is too short — flesh out the hypothesis or add a note explaining why this is the right call (≥40 chars total)."
+          `Reasoning is too short — flesh out the hypothesis or add a note explaining why this is the right call. Needs ≥40 chars total (currently ${reasoning.length}).`
         );
         setClosingLoop(false);
         return;
@@ -545,6 +545,17 @@ export default function DiagnosePage() {
                     rows={5}
                     className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 resize-none"
                   />
+                  <div className="flex items-center justify-end">
+                    <p
+                      className={`text-[10px] tabular-nums ${
+                        hypothesisDiagnosis.trim().length < 80
+                          ? "text-muted"
+                          : "text-emerald-400"
+                      }`}
+                    >
+                      {hypothesisDiagnosis.trim().length} / 80+ chars
+                    </p>
+                  </div>
                 </div>
                 {liveRun.gate && <GateBadge gate={liveRun.gate} />}
               </StepCard>

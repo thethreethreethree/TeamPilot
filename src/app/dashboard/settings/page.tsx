@@ -53,8 +53,12 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
 
-  // Editable copy
-  const [draft, setDraft] = useState({
+  // Editable copy. Any setter call also clears the "Saved" stamp
+  // so the button reverts to "Save changes" the moment the user
+  // modifies anything — the old behavior left the Saved state
+  // visible after a fresh edit, which suggested nothing was
+  // pending when there was. Wrap below.
+  const [draft, setDraftInternal] = useState({
     name: "",
     industry: "",
     size: "",
@@ -62,6 +66,22 @@ export default function SettingsPage() {
     timezone: "UTC",
     llm_provider_preference: "" as "" | "deepseek" | "anthropic",
   });
+  /** Wrap setDraft so any edit clears the post-save 'Saved'
+   *  badge. Without this, the badge stays on screen even after
+   *  the user starts a new edit, suggesting nothing is pending. */
+  const setDraft: React.Dispatch<
+    React.SetStateAction<{
+      name: string;
+      industry: string;
+      size: string;
+      stage: string;
+      timezone: string;
+      llm_provider_preference: "" | "deepseek" | "anthropic";
+    }>
+  > = (next) => {
+    setDraftInternal(next);
+    setSavedAt(null);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -74,7 +94,9 @@ export default function SettingsPage() {
       }
       const data = (await res.json()) as Settings;
       setSettings(data);
-      setDraft({
+      // Use the raw setter here so we don't clear savedAt after
+      // a successful save (which calls load() to refresh).
+      setDraftInternal({
         name: data.company.name ?? "",
         industry: data.company.industry ?? "",
         size: data.company.size ?? "",

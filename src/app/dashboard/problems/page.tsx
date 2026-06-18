@@ -323,6 +323,8 @@ function CreateProblemModal({
           <Input
             value={kind}
             onChange={(e) => setKind(e.target.value)}
+            autoComplete="off"
+            placeholder="e.g. operational_bottleneck, financial_risk"
             className="font-mono"
           />
         </Field>
@@ -331,6 +333,7 @@ function CreateProblemModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="One-line hypothesis title"
+            autoComplete="off"
           />
         </Field>
         <Field label="Diagnosis (the WHY — ≥80 chars to pass the gate)">
@@ -339,6 +342,15 @@ function CreateProblemModal({
             onChange={(e) => setDiagnosis(e.target.value)}
             rows={4}
           />
+          <div className="flex items-center justify-end mt-1">
+            <p
+              className={`text-[10px] tabular-nums ${
+                diagnosis.trim().length < 80 ? "text-muted" : "text-emerald-400"
+              }`}
+            >
+              {diagnosis.trim().length} / 80+ chars
+            </p>
+          </div>
         </Field>
         <Field
           label={`Link supporting signals (${allSignals.length} available)`}

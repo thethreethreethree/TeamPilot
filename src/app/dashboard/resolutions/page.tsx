@@ -248,9 +248,12 @@ function ReviewModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const MIN_OUTCOME_CHARS = 20;
   const submit = async () => {
-    if (observedOutcome.trim().length < 20) {
-      setError("Observed outcome must be ≥20 characters.");
+    if (observedOutcome.trim().length < MIN_OUTCOME_CHARS) {
+      setError(
+        `Observed outcome needs at least ${MIN_OUTCOME_CHARS} characters — currently ${observedOutcome.trim().length}.`
+      );
       return;
     }
     setSubmitting(true);
@@ -278,13 +281,24 @@ function ReviewModal({
         <p className="text-sm text-primary">{resolution.actionTaken}</p>
       </div>
       <div className="space-y-3" aria-busy={submitting}>
-        <Field label="What actually happened? (≥20 chars)">
+        <Field label={`What actually happened? (≥${MIN_OUTCOME_CHARS} chars)`}>
           <Textarea
             value={observedOutcome}
             onChange={(e) => setObservedOutcome(e.target.value)}
             rows={4}
             placeholder="Concrete observation — not 'it worked', but what specifically changed in the world."
           />
+          <div className="mt-1 flex items-center justify-end">
+            <p
+              className={`text-[10px] tabular-nums ${
+                observedOutcome.trim().length < MIN_OUTCOME_CHARS
+                  ? "text-muted"
+                  : "text-emerald-400"
+              }`}
+            >
+              {observedOutcome.trim().length} / {MIN_OUTCOME_CHARS}+
+            </p>
+          </div>
         </Field>
         <Field label="Durability">
           <div className="grid grid-cols-2 gap-2">

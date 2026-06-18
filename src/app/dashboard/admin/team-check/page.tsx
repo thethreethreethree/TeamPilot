@@ -264,9 +264,16 @@ function NudgeModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // Min length is 12 chars (NudgeSchema in the route enforces
+  // .min(12). Earlier message read "at least 12 characters" but
+  // the check rejected length < 12, meaning 12 itself was the
+  // floor. Aligning the message to the actual rule.
+  const MIN_BODY_CHARS = 12;
   const submit = async () => {
-    if (body.trim().length < 12) {
-      setError("Check-in message needs at least 12 characters.");
+    if (body.trim().length < MIN_BODY_CHARS) {
+      setError(
+        `Check-in message needs at least ${MIN_BODY_CHARS} characters — currently ${body.trim().length}.`
+      );
       return;
     }
     setSubmitting(true);
@@ -322,6 +329,18 @@ function NudgeModal({
           placeholder="Open the conversation. Frame as a doorway, not a deadline."
           className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 resize-none leading-relaxed"
         />
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <p className="text-[10px] text-muted">
+            Minimum {MIN_BODY_CHARS} characters.
+          </p>
+          <p
+            className={`text-[10px] tabular-nums ${
+              body.trim().length < MIN_BODY_CHARS ? "text-muted" : "text-emerald-400"
+            }`}
+          >
+            {body.trim().length} / {MIN_BODY_CHARS}+
+          </p>
+        </div>
         {error && (
           <p className="text-[11px] text-red-400 mt-2" role="alert">
             {error}
@@ -338,7 +357,7 @@ function NudgeModal({
           <button
             type="button"
             onClick={() => void submit()}
-            disabled={submitting || body.trim().length < 12}
+            disabled={submitting || body.trim().length < MIN_BODY_CHARS}
             className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-3 py-2 rounded-lg text-xs transition-colors"
           >
             {submitting ? "Sending…" : "Send check-in"}
