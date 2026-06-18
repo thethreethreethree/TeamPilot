@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchHotkey } from "@/components/ui/useSearchHotkey";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -49,6 +50,8 @@ export default function CrmAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  useSearchHotkey(searchInputRef);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,10 +137,13 @@ export default function CrmAccountsPage() {
               aria-hidden
             />
             <input
+              ref={searchInputRef}
               type="search"
+              autoComplete="off"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by company name or contact email…"
+              placeholder="Search by company name or contact email… ( / )"
+              aria-label="Search accounts. Press slash to focus."
               className="w-full bg-surface border border-default focus:border-strong rounded-md pl-8 pr-3 py-1.5 text-xs text-primary placeholder:text-muted focus:outline-none"
             />
           </div>
@@ -272,22 +278,26 @@ export default function CrmAccountsPage() {
                   key={a.id}
                   className="border-b border-default hover:bg-surface-raised/50 transition-colors"
                 >
-                  <td className="py-2.5 px-4">
-                    <div className="flex items-center gap-2">
+                  <td className="py-2.5 px-4 max-w-[280px]">
+                    <div className="flex items-center gap-2 min-w-0">
                       <Link
                         href={`/dashboard/admin/crm/${a.id}`}
-                        className="text-sm text-primary font-semibold hover:text-ember-300"
+                        className="text-sm text-primary font-semibold hover:text-ember-300 truncate"
+                        title={a.companyName}
                       >
                         {a.companyName}
                       </Link>
                       {a.isTestAccount && (
-                        <span className="text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border border-violet-500/40 bg-violet-500/10 text-violet-300">
+                        <span className="text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border border-violet-500/40 bg-violet-500/10 text-violet-300 shrink-0">
                           test
                         </span>
                       )}
                     </div>
                     {a.primaryContactEmail && (
-                      <p className="text-[10px] text-muted font-mono mt-0.5">
+                      <p
+                        className="text-[10px] text-muted font-mono mt-0.5 truncate"
+                        title={a.primaryContactEmail}
+                      >
                         {a.primaryContactEmail}
                       </p>
                     )}

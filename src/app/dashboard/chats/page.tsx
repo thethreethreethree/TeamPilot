@@ -27,7 +27,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchHotkey } from "@/components/ui/useSearchHotkey";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -61,6 +62,8 @@ export default function TeamChatListPage() {
   const [inviting, setInviting] = useState(false);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
   const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  useSearchHotkey(searchInputRef);
 
   const refresh = async () => {
     setLoading(true);
@@ -171,12 +174,13 @@ export default function TeamChatListPage() {
           <div className="flex items-center gap-2 bg-surface border border-default rounded-lg px-3 py-1.5 flex-1 max-w-md">
             <Search className="w-3.5 h-3.5 text-muted" aria-hidden="true" />
             <input
+              ref={searchInputRef}
               type="search"
               autoComplete="off"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search topics or tags…"
-              aria-label="Search topics or tags"
+              placeholder="Search topics or tags… ( / )"
+              aria-label="Search topics or tags. Press slash to focus."
               className="bg-transparent text-xs text-primary placeholder:text-muted focus:outline-none flex-1"
             />
           </div>

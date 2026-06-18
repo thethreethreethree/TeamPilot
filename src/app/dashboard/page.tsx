@@ -586,9 +586,11 @@ export default function CommandDashboard() {
                           <p className="text-sm font-medium text-primary truncate">
                             {task.title}
                           </p>
-                          {task.blockerReason && (
+                          {task.status === "Blocked" && (
                             <p className="text-xs text-red-400 mt-0.5 truncate">
-                              Blocker: {task.blockerReason}
+                              Blocker:{" "}
+                              {task.blockerReason?.trim() ||
+                                "no reason captured"}
                             </p>
                           )}
                           {task.assignee && (

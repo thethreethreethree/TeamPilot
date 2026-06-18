@@ -304,23 +304,35 @@ function ReviewModal({
           </div>
         </Field>
         <Field label="Durability">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Durability outcome">
             {(["held", "partial", "reopened", "unknown"] as const).map((d) => {
               const meta = DURABILITY_META[d];
               if (!meta) return null;
               const Icon = meta.icon;
+              const isSelected = durability === d;
               return (
                 <button
                   key={d}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
                   onClick={() => setDurability(d)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-all ${
-                    durability === d
-                      ? `${meta.bg} ${meta.border} ${meta.color}`
+                    isSelected
+                      ? `${meta.bg} ${meta.border} ${meta.color} ring-2 ring-current/30`
                       : "border-default text-muted hover:border-strong"
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   {meta.label}
+                  {isSelected && (
+                    <span
+                      aria-hidden
+                      className="ml-auto text-[10px] uppercase tracking-widest font-bold"
+                    >
+                      selected
+                    </span>
+                  )}
                 </button>
               );
             })}
