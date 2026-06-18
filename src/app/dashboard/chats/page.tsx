@@ -128,6 +128,7 @@ export default function TeamChatListPage() {
               Invite member
             </button>
             <button
+              type="button"
               onClick={() => setCreating(true)}
               disabled={!supabaseEnabled && mode !== "demo-fixtures"}
               className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
@@ -144,6 +145,7 @@ export default function TeamChatListPage() {
             {(["all", "open", "closed"] as const).map((f) => (
               <button
                 key={f}
+                type="button"
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1 rounded text-xs font-medium transition-colors capitalize ${
                   filter === f
@@ -158,9 +160,12 @@ export default function TeamChatListPage() {
           <div className="flex items-center gap-2 bg-surface border border-default rounded-lg px-3 py-1.5 flex-1 max-w-md">
             <Search className="w-3.5 h-3.5 text-muted" aria-hidden="true" />
             <input
+              type="search"
+              autoComplete="off"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search topics or tags…"
+              aria-label="Search topics or tags"
               className="bg-transparent text-xs text-primary placeholder:text-muted focus:outline-none flex-1"
             />
           </div>

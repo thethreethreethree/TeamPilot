@@ -130,6 +130,7 @@ export default function InviteAcceptPage() {
               <form onSubmit={handleAuthAndAccept} className="space-y-3">
                 <input
                   type="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -138,6 +139,7 @@ export default function InviteAcceptPage() {
                 />
                 <input
                   type="password"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
                   required
                   minLength={6}
                   value={password}
@@ -148,6 +150,7 @@ export default function InviteAcceptPage() {
                 {mode === "signup" && (
                   <input
                     type="text"
+                    autoComplete="name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Your name (optional)"
@@ -171,9 +174,11 @@ export default function InviteAcceptPage() {
               <p className="text-center text-xs text-muted mt-4">
                 {mode === "signup" ? "Already have an account? " : "Need an account? "}
                 <button
+                  type="button"
                   onClick={() => {
                     setMode(mode === "signup" ? "signin" : "signup");
                     setError("");
+                    setPassword("");
                   }}
                   className="text-brand hover:text-primary"
                 >
@@ -194,6 +199,7 @@ export default function InviteAcceptPage() {
               </p>
               <input
                 type="text"
+                autoComplete="name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Your name (optional, used in team views)"

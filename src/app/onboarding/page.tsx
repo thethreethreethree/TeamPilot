@@ -290,6 +290,7 @@ export default function OnboardingPage() {
                     {industries.map((ind) => (
                       <button
                         key={ind}
+                        type="button"
                         onClick={() => update("industry", ind)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                           form.industry === ind
@@ -309,6 +310,7 @@ export default function OnboardingPage() {
                     {sizes.map((s) => (
                       <button
                         key={s}
+                        type="button"
                         onClick={() => update("size", s)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                           form.size === s
@@ -328,6 +330,7 @@ export default function OnboardingPage() {
                     {stages.map((s) => (
                       <button
                         key={s}
+                        type="button"
                         onClick={() => update("stage", s)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                           form.stage === s
@@ -356,6 +359,7 @@ export default function OnboardingPage() {
                 {goals.map((goal) => (
                   <button
                     key={goal}
+                    type="button"
                     onClick={() => toggleGoal(goal)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm border text-left transition-all ${
                       form.selectedGoals.includes(goal)
@@ -492,6 +496,7 @@ Always hand off to a human for:
                   <div key={idx} className="flex items-center gap-2">
                     <input
                       type="email"
+                      autoComplete="email"
                       value={row.email}
                       onChange={(e) =>
                         updateInviteRow(idx, { email: e.target.value })

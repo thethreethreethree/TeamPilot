@@ -168,10 +168,16 @@ export default function LoginPage() {
           <p className="text-center text-xs text-muted mt-6">
             {mode === "signin" ? "No account? " : "Already have an account? "}
             <button
+              type="button"
               onClick={() => {
                 setMode(mode === "signin" ? "signup" : "signin");
                 setError("");
                 setNotice("");
+                // Clear password on mode switch so a sign-up
+                // password doesn't get auto-submitted as a sign-in
+                // attempt (or vice-versa). Email stays — usually
+                // the user wants to keep it across the toggle.
+                setPassword("");
               }}
               disabled={loading}
               className="text-brand hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

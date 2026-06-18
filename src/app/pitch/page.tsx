@@ -592,6 +592,7 @@ export default function PitchPage() {
       <div className="fixed bottom-6 inset-x-0 flex items-center justify-center pointer-events-none z-40">
         <div className="pointer-events-auto flex items-center gap-2 bg-surface/80 backdrop-blur-sm border border-default rounded-full px-3 py-2 shadow-lg">
           <button
+            type="button"
             onClick={() => scrollTo(activeIndex - 1)}
             disabled={activeIndex === 0}
             aria-label="Previous slide"
@@ -605,6 +606,7 @@ export default function PitchPage() {
             </span>
           )}
           <button
+            type="button"
             onClick={() => scrollTo(activeIndex + 1)}
             disabled={activeIndex === SLIDES.length - 1}
             aria-label="Next slide"

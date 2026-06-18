@@ -191,6 +191,7 @@ export default function RecoverPage() {
               </label>
               <input
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoFocus
@@ -204,6 +205,7 @@ export default function RecoverPage() {
               </label>
               <input
                 type="password"
+                autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 disabled={phase.kind === "submitting"}
