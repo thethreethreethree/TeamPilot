@@ -204,9 +204,25 @@ Draft the next reply.`;
   const draft = (idx >= 0 ? raw.slice(0, idx) : raw).trim();
   const reasoning = idx >= 0 ? raw.slice(idx + marker.length).trim() : "";
 
+  // Per TT.md A21 audit (2026-06-18) MED finding — until this,
+  // we returned only `precedentsUsed: precedents.length` (a count).
+  // The agent had no way to see WHICH past resolutions the System
+  // leaned on. §3.6 make-learning-visible was violated — the
+  // institutional memory was being consulted invisibly. Now we
+  // return a trimmed precedent list (id + summary + category) so
+  // the UI can surface "Drew on: refund within 7 days (4 days
+  // ago)" etc. Agents can verify the precedent is real (drill-
+  // through to the resolution) and judge whether the generalization
+  // is fair (§3.3 guide-don't-overtake).
   return NextResponse.json({
     draft,
     reasoning,
+    precedents: precedents.map((p) => ({
+      id: p.id,
+      issueSummary: p.issueSummary,
+      category: p.category,
+      whatWorked: p.whatWorked,
+    })),
     precedentsUsed: precedents.length,
   });
 }

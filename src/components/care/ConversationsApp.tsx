@@ -210,6 +210,19 @@ export function ConversationsApp({
   const [acting, setActing] = useState(false);
   const [aiDrafting, setAiDrafting] = useState(false);
   const [aiReasoning, setAiReasoning] = useState<string | null>(null);
+  // Per TT.md A21 audit (2026-06-18) MED finding — surface the
+  // specific past resolutions the Co-Pilot leaned on, not just a
+  // count. §3.6 make-learning-visible: the agent sees WHICH prior
+  // case the System drew from, can verify it's a real precedent,
+  // and judges whether the generalization is fair (§3.3).
+  const [aiPrecedents, setAiPrecedents] = useState<
+    Array<{
+      id: string;
+      issueSummary: string;
+      category: string | null;
+      whatWorked: string;
+    }>
+  >([]);
   // When the agent invokes the Co-Pilot we capture the original
   // draft so we can later record (draft, sent) into the learning
   // corpus on send.
@@ -984,6 +997,7 @@ export function ConversationsApp({
     setAiDrafting(true);
     setAiReasoning(null);
     setAiOriginalDraft(null);
+    setAiPrecedents([]);
     try {
       const res = await fetch(
         `/api/care/agent/conversations/${selected.id}/co-pilot`,
@@ -991,9 +1005,6 @@ export function ConversationsApp({
       );
       if (res.ok) {
         const data = await res.json();
-        // §3.4 control window — surface honestly per A21 fix
-        // rather than silently failing. The agent then types
-        // their own draft and the team's baseline is captured.
         if (data.suppressed) {
           toast.info(
             data.message ??
@@ -1007,6 +1018,9 @@ export function ConversationsApp({
         setAiOriginalDraft(draftText);
         setIsInternalNote(false);
         if (data.reasoning) setAiReasoning(data.reasoning);
+        if (Array.isArray(data.precedents)) {
+          setAiPrecedents(data.precedents);
+        }
         composerRef.current?.focus();
       } else {
         toast.error("Co-pilot couldn't draft.");
@@ -1288,6 +1302,7 @@ export function ConversationsApp({
                   onAiCoPilot={askAiCoPilot}
                   aiDrafting={aiDrafting}
                   aiReasoning={aiReasoning}
+                  aiPrecedents={aiPrecedents}
                   composerRef={composerRef}
                   conversationId={selected.id}
                   onSpawnTask={() => setSpawnTaskOpen(true)}
@@ -2249,6 +2264,7 @@ function Composer({
   onAiCoPilot,
   aiDrafting,
   aiReasoning,
+  aiPrecedents,
   composerRef,
   onSpawnTask,
   onFormulate,
@@ -2264,6 +2280,12 @@ function Composer({
   onAiCoPilot: () => void;
   aiDrafting: boolean;
   aiReasoning: string | null;
+  aiPrecedents: Array<{
+    id: string;
+    issueSummary: string;
+    category: string | null;
+    whatWorked: string;
+  }>;
   composerRef: React.RefObject<HTMLTextAreaElement | null>;
   conversationId: string;
   onSpawnTask: () => void;
@@ -2349,6 +2371,30 @@ function Composer({
         <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.04] text-[11px] text-arc-300 leading-relaxed">
           <span className="font-semibold">Co-pilot reasoning (internal):</span>{" "}
           {aiReasoning}
+        </div>
+      )}
+      {/* §3.6 make-learning-visible — the precedents the Co-Pilot drew
+          from. Surfaced so the agent can verify they're real cases and
+          judge whether the System's generalization is fair (§3.3). Per
+          TT.md A21 audit MED fix (2026-06-18). */}
+      {aiPrecedents.length > 0 && (
+        <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.02] text-[11px] text-arc-300 leading-relaxed">
+          <p className="font-semibold mb-1">
+            Drew on {aiPrecedents.length} past resolution
+            {aiPrecedents.length === 1 ? "" : "s"}:
+          </p>
+          <ul className="space-y-0.5">
+            {aiPrecedents.map((p) => (
+              <li key={p.id} className="text-secondary">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-muted mr-1.5">
+                  {p.category ?? "uncat"}
+                </span>
+                {p.issueSummary.length > 80
+                  ? p.issueSummary.slice(0, 77) + "…"
+                  : p.issueSummary}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <div className="flex items-end gap-2">
