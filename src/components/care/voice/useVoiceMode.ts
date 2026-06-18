@@ -2,11 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoicePhase } from "./VoiceSurface";
-import {
-  checkMicPermission,
-  detectBrowser,
-  getRecoverySteps,
-} from "./micPermission";
+import { detectBrowser, getRecoverySteps } from "./micPermission";
 
 /**
  * Voice call hook — Phase 9, rewritten to "phone call" shape

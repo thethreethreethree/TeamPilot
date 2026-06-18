@@ -1674,7 +1674,7 @@ function DetailHeader({
   acting,
   team,
   currentUserId,
-  isAdmin,
+  isAdmin: _isAdmin,
   onClaim,
   onAssign,
   onToggleGuidance,

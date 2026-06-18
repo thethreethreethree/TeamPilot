@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Loader2, MessageCircle, Send, X } from "lucide-react";
+import { BookOpen, Loader2, MessageCircle, Send } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import type {
   CoachAnalysisRequest,

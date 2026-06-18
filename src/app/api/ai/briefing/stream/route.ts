@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { runBrainStream, type ControlGate } from "@/lib/brain";
+import { runBrainStream } from "@/lib/brain";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
@@ -61,7 +61,6 @@ export async function POST(req: NextRequest) {
 
       try {
         let collected = "";
-        let gate: ControlGate | undefined;
 
         const gen = runBrainStream({
           companyId,
@@ -82,7 +81,7 @@ export async function POST(req: NextRequest) {
           send("delta", { text: delta });
           next = await gen.next();
         }
-        gate = next.value.gate;
+        const gate = next.value.gate;
         if (!gate.guidanceEnabled) {
           send("gate", { suppressed: true, reason: gate.reason });
           send("done", { suppressed: true });
