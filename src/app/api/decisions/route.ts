@@ -93,7 +93,20 @@ export async function POST(req: NextRequest) {
       decided_at: new Date().toISOString(),
     });
   if (dialogueErr) {
-    return NextResponse.json({ error: dialogueErr.message }, { status: 500 });
+    // The decision row already landed. Without cleanup, the user
+    // sees a 500 and (if they retry) gets a NEW decision row,
+    // leaving the orphaned first row behind. Roll the decision
+    // back so the user's retry produces exactly one row.
+    // (Supabase/PostgREST has no real transaction here — best-
+    // effort delete is the pragmatic fix until we wrap in an
+    // RPC.)
+    await supabase.from("decisions").delete().eq("id", decision.id);
+    return NextResponse.json(
+      {
+        error: `Decision saved but dialogue capture failed (${dialogueErr.message}). The partial decision has been rolled back — please try again.`,
+      },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ decisionId: decision.id });

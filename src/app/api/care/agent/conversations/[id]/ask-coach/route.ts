@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchAgentConversation } from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
@@ -145,6 +146,17 @@ export async function POST(
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+
+  // Rate limit per agent — Coach v5 burns LLM tokens. The mirror
+  // route /api/coach/v5/analyze rate-limits at 30/min; matching
+  // here so a scripted client can't escape the cost ceiling by
+  // routing through the C.A.R.E mirror.
+  const limited = rateLimit(req, {
+    id: `care-ask-coach:${auth.agentId}`,
+    windowMs: 60_000,
+    max: 30,
+  });
+  if (limited) return limited;
 
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;

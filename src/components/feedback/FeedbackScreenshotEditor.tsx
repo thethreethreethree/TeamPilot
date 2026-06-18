@@ -634,15 +634,18 @@ function TextEditOverlay({
         onClick={onCommit}
         title="Save label (Enter)"
         aria-label="Save label"
+        // 44x44 to meet WCAG 2.5.5 touch target minimum. Previous
+        // size was 28x28, missable on mobile (caught in audit
+        // 2026-06-19).
         className="absolute bg-white text-ember-400 rounded-full shadow-lg ring-2 ring-white hover:bg-emerald-50 flex items-center justify-center"
         style={{
-          left: left - 14,
-          top: top - 14,
-          width: 28,
-          height: 28,
+          left: left - 22,
+          top: top - 22,
+          width: 44,
+          height: 44,
         }}
       >
-        <Check className="w-4 h-4" aria-hidden />
+        <Check className="w-5 h-5" aria-hidden />
       </button>
     </>
   );
