@@ -6,10 +6,10 @@ import {
   fetchAgentConversation,
   postAgentMessage,
 } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { gradeCareAgentReply } from "@/lib/care/grader";
 import { dispatchOutboundEmailReply } from "@/lib/care/email/outbound";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * POST /api/care/agent/conversations/[id]/messages
@@ -36,30 +36,33 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent) {
-    return NextResponse.json(
-      { error: "Care is agent-only." },
-      { status: 403 }
-    );
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
+
+  // Defense-in-depth: verify the conversation belongs to the
+  // caller's company before writing anything (the post +
+  // Co-Pilot corpus capture below). RLS catches it; route-level
+  // makes it explicit. F7 fix: this also makes the second
+  // profile fetch below unnecessary — auth.companyId is already
+  // resolved.
+  const detail = await fetchAgentConversation(id);
+  if (!detail) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 }
+    );
+  }
+  if (auth.companyId && detail.conversation.companyId !== auth.companyId) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 }
+    );
+  }
 
   // §A16 direction 2 plumbing — when the agent's reply was
   // drafted via Co-Pilot, persist the Co-Pilot reasoning on the
@@ -70,7 +73,7 @@ export async function POST(
   const msg = await postAgentMessage({
     conversationId: id,
     body: body.body,
-    agentId: auth.user.id,
+    agentId: auth.agentId,
     isInternalNote: !!body.isInternalNote,
     coPilotReasoning:
       coPilotInvoked && body.aiReasoning ? body.aiReasoning : null,
@@ -85,27 +88,24 @@ export async function POST(
 
   // Capture the Co-Pilot edit if the client sent it. Best-effort —
   // never block the response on this. The accumulated corpus
-  // teaches the Co-Pilot the company's voice over time.
-  if (!body.isInternalNote && body.aiDraft) {
-    const { data: profile } = await sb
-      .from("profiles")
-      .select("company_id")
-      .eq("id", auth.user.id)
-      .maybeSingle();
-    if (profile?.company_id) {
-      try {
-        await captureCoPilotEdit({
-          conversationId: id,
-          companyId: profile.company_id,
-          agentId: auth.user.id,
-          aiDraft: body.aiDraft,
-          aiReasoning: body.aiReasoning ?? null,
-          agentSent: body.body,
-        });
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[care] co-pilot edit capture failed", e);
-        }
+  // teaches the Co-Pilot the company's voice over time. F7 fix:
+  // use auth.companyId from the shared helper instead of
+  // re-fetching the profile (which was redundant + skipped the
+  // company-match check the new explicit verify above enforces).
+  if (!body.isInternalNote && body.aiDraft && auth.companyId) {
+    try {
+      await captureCoPilotEdit({
+        conversationId: id,
+        companyId: auth.companyId,
+        agentId: auth.agentId,
+        aiDraft: body.aiDraft,
+        aiReasoning: body.aiReasoning ?? null,
+        agentSent: body.body,
+      });
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.warn("[care] co-pilot edit capture failed", e);
       }
     }
   }
@@ -136,12 +136,10 @@ export async function POST(
   // (no dispatch regardless of source).
   let emailDispatchPromised = false;
   if (!body.isInternalNote && msg) {
-    const { data: convRow } = await sb
-      .from("support_conversations")
-      .select("source")
-      .eq("id", id)
-      .maybeSingle();
-    if (convRow?.source === "email") {
+    // Use the already-fetched detail.conversation.source instead
+    // of re-querying the row. Saves a round-trip and removes the
+    // stale `sb` reference (auth.sb is available if needed).
+    if (detail.conversation.source === "email") {
       emailDispatchPromised = true;
       void dispatchOutboundEmailReply({
         conversationId: id,

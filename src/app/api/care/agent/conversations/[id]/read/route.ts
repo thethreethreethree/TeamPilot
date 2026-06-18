@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import {
   fetchAgentConversation,
   fetchCustomerPriorConversations,
@@ -7,6 +6,7 @@ import {
   findSimilarResolutions,
   markReadingComplete,
 } from "@/lib/data/care";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET /api/care/agent/conversations/[id]/read
@@ -26,39 +26,30 @@ import {
  * context. Sets reading_complete_at on the conversation row.
  */
 
-async function requireAgent() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) return { error: "Not authenticated.", status: 401 } as const;
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent || !profile?.company_id) {
-    return { error: "Agent only.", status: 403 } as const;
-  }
-  return { agentId: auth.user.id, companyId: profile.company_id };
-}
+// Local requireAgent replaced by shared requireCareAgent helper.
 
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const auth = await requireAgent();
-  if ("error" in auth) {
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!auth.companyId) {
+    return NextResponse.json({ error: "Agent only." }, { status: 403 });
   }
 
   const conv = await fetchEnrichedConversation(id);
   const detail = await fetchAgentConversation(id);
   if (!conv || !detail) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 }
+    );
+  }
+  if (detail.conversation.companyId !== auth.companyId) {
     return NextResponse.json(
       { error: "Conversation not found." },
       { status: 404 }
@@ -106,9 +97,24 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const auth = await requireAgent();
-  if ("error" in auth) {
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  // Defense-in-depth: verify the conversation belongs to the
+  // caller's company before marking the Read Phase complete.
+  const detail = await fetchAgentConversation(id);
+  if (!detail) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 }
+    );
+  }
+  if (auth.companyId && detail.conversation.companyId !== auth.companyId) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 }
+    );
   }
   await markReadingComplete(id);
   return NextResponse.json({ ok: true });

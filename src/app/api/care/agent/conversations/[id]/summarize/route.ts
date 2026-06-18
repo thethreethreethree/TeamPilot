@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { fetchAgentConversation } from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * POST /api/care/agent/conversations/[id]/summarize
@@ -39,27 +39,19 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent) {
-    return NextResponse.json({ error: "Care is agent-only." }, { status: 403 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const detail = await fetchAgentConversation(id);
   if (!detail) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 }
+    );
+  }
+  if (auth.companyId && detail.conversation.companyId !== auth.companyId) {
     return NextResponse.json(
       { error: "Conversation not found." },
       { status: 404 }

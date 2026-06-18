@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
-import { captureResolution } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
+import {
+  captureResolution,
+  fetchAgentConversation,
+} from "@/lib/data/care";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * POST /api/care/agent/conversations/[id]/resolution
@@ -32,32 +35,41 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent || !profile?.company_id) {
+  if (!auth.companyId) {
     return NextResponse.json({ error: "Agent only." }, { status: 403 });
   }
 
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 
+  // Defense-in-depth: verify the conversation belongs to the
+  // caller's company before capturing a resolution against it.
+  // Otherwise a forged conversation id from a peer tenant could
+  // get a resolution attached (RLS on support_resolutions would
+  // catch it, but explicit check makes the boundary auditable
+  // and avoids the WRITE attempt entirely).
+  const detail = await fetchAgentConversation(id);
+  if (!detail) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 }
+    );
+  }
+  if (detail.conversation.companyId !== auth.companyId) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 }
+    );
+  }
+
   const resolution = await captureResolution({
     conversationId: id,
-    companyId: profile.company_id,
-    capturedBy: auth.user.id,
+    companyId: auth.companyId,
+    capturedBy: auth.agentId,
     issueSummary: body.issueSummary,
     whatWorked: body.whatWorked,
     category: body.category ?? null,
@@ -67,14 +79,14 @@ export async function POST(
   if (body.category) {
     // Also stamp the category on the conversation for fast filtering
     // (pattern detection page reads from here directly).
-    await sb
+    await auth.sb
       .from("support_conversations")
       .update({ resolution_outcome_category: body.category })
       .eq("id", id);
   }
 
   if (body.alsoMarkResolved) {
-    await sb
+    await auth.sb
       .from("support_conversations")
       .update({ status: "resolved" })
       .eq("id", id);
