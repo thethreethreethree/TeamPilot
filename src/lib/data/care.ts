@@ -320,6 +320,13 @@ export type CareCommandStats = {
   openCount: number;
   needsGuidanceCount: number;
   awaitingFirstReplyCount: number;
+  /** Per TT.md A21 audit (2026-06-18) MED finding — until this,
+   *  due durability checks (scheduled 7 days after resolution
+   *  per §3.5) had an endpoint (listDueDurabilityChecks) but
+   *  NO UI surface. The constitutional loop fired but humans
+   *  never saw the prompt to render the verdict. Surfacing
+   *  here puts it on the operational hub. */
+  dueDurabilityCount: number;
 };
 
 export async function fetchCareCommandStats(): Promise<CareCommandStats | null> {
@@ -337,6 +344,7 @@ export async function fetchCareCommandStats(): Promise<CareCommandStats | null> 
         openCount: 0,
         needsGuidanceCount: 0,
         awaitingFirstReplyCount: 0,
+        dueDurabilityCount: 0,
       };
     }
 
@@ -353,12 +361,20 @@ export async function fetchCareCommandStats(): Promise<CareCommandStats | null> 
       .from("support_conversations")
       .select("id", { count: "exact", head: true })
       .eq("status", "new");
+    // §3.5 durability checks scheduled 7+ days ago that the
+    // agent hasn't reviewed yet (checked_at IS NULL).
+    const durabilityProbe = await sb
+      .from("support_durability_checks")
+      .select("id", { count: "exact", head: true })
+      .is("checked_at", null)
+      .lte("scheduled_for", new Date().toISOString());
 
     return {
       hasActivity: true,
       openCount: openProbe.count ?? 0,
       needsGuidanceCount: guidanceProbe.count ?? 0,
       awaitingFirstReplyCount: newProbe.count ?? 0,
+      dueDurabilityCount: durabilityProbe.count ?? 0,
     };
   } catch {
     return null;

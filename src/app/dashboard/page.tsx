@@ -39,6 +39,7 @@ interface CareStats {
   openCount: number;
   needsGuidanceCount: number;
   awaitingFirstReplyCount: number;
+  dueDurabilityCount: number;
 }
 
 export default function CommandDashboard() {
@@ -331,14 +332,29 @@ export default function CommandDashboard() {
                   : "text-muted"
               }
             />
-            <Link
-              href="/dashboard/care/leadership"
-              className="glass-card p-3 flex items-center gap-2 text-xs text-secondary hover:text-primary transition-colors"
-            >
-              <Layers className="w-3.5 h-3.5 text-muted" />
-              <span className="flex-1">Leadership readouts</span>
-              <ChevronRight className="w-3 h-3 text-muted" />
-            </Link>
+            {/* §3.5 durability — surfaced because the §3.5 loop
+                fires automatically at 7 days but the verdict needs
+                a human (§A11). Per TT.md A21 audit MED finding —
+                until this tile, due checks had an endpoint but no
+                UI consumer; the loop fired silently. */}
+            <ChainStat
+              label="Due durability checks"
+              value={careStats.dueDurabilityCount}
+              sub={
+                careStats.dueDurabilityCount > 0
+                  ? "review the §3.5 outcome"
+                  : "all caught up"
+              }
+              icon={<Lightbulb className="w-3.5 h-3.5" />}
+              href="/dashboard/care?filter=due-durability"
+              loading={false}
+              mode="live"
+              color={
+                careStats.dueDurabilityCount > 0
+                  ? "text-amber-400"
+                  : "text-emerald-400"
+              }
+            />
           </div>
         )}
 
