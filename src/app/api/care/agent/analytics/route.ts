@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET /api/care/agent/analytics
@@ -8,23 +8,15 @@ import { createClient } from "@/lib/supabase/server";
  * 30-day window.
  */
 export async function GET() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent) {
-    return NextResponse.json({ error: "Care is agent-only." }, { status: 403 });
+  if (!auth.companyId) {
+    return NextResponse.json(
+      { error: "Complete onboarding first." },
+      { status: 403 }
+    );
   }
 
   const windowDays = 30;
@@ -32,9 +24,12 @@ export async function GET() {
     Date.now() - windowDays * 24 * 60 * 60 * 1000
   ).toISOString();
 
-  const { data: convs } = await sb
+  // Defense-in-depth: explicit company_id filter at the route
+  // layer. RLS on support_conversations also enforces it.
+  const { data: convs } = await auth.sb
     .from("support_conversations")
     .select("status, first_message_at, first_response_at")
+    .eq("company_id", auth.companyId)
     .gte("created_at", since)
     .limit(5000);
 

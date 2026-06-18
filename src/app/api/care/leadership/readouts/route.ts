@@ -57,7 +57,15 @@ export async function GET(req: NextRequest) {
   }
 
   const windowDaysParam = req.nextUrl.searchParams.get("windowDays");
-  const windowDays = windowDaysParam ? parseInt(windowDaysParam, 10) : 60;
+  // Audit finding: previously unbounded. parseInt could return
+  // NaN (passed string-default) or unbounded large values
+  // causing pathological queries. Clamp 1-365: the readout
+  // window is conceptually "look-back," and beyond a year the
+  // signal/noise on operating data degrades. NaN parses fall
+  // through the `|| 60` default.
+  const rawWindowDays =
+    (windowDaysParam ? parseInt(windowDaysParam, 10) : 60) || 60;
+  const windowDays = Math.max(1, Math.min(365, rawWindowDays));
 
   const [
     coachRubric,

@@ -1,35 +1,29 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 export async function GET() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent) {
+  if (!auth.companyId) {
     return NextResponse.json(
-      { error: "Care is agent-only." },
+      { error: "Complete onboarding first." },
       { status: 403 }
     );
   }
 
-  // Aggregate: customers + conversation count.
-  const { data } = await sb
+  // Aggregate: customers + conversation count. Per defense-in-
+  // depth audit: explicit .eq("company_id") at the route layer
+  // even though RLS on support_customers (migration 0034) also
+  // enforces it. Route-level filter survives future RLS changes
+  // and makes the auth boundary auditable at the route surface.
+  const { data } = await auth.sb
     .from("support_customers")
     .select(
       "id, name, email, phone, lifetime_value, signup_date, last_seen_at, support_conversations(count)"
     )
+    .eq("company_id", auth.companyId)
     .order("last_seen_at", { ascending: false, nullsFirst: false })
     .limit(500);
 

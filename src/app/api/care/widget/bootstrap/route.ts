@@ -14,13 +14,24 @@ import { resolveCareTenantByEmbedToken } from "@/lib/care/config";
  * server-side.
  */
 export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get("token") ?? "";
+  const token = (req.nextUrl.searchParams.get("token") ?? "").trim();
   const origin = req.headers.get("origin") ?? req.headers.get("referer") ?? null;
   const userAgent = req.headers.get("user-agent");
 
   if (!token) {
     return NextResponse.json(
       { error: "Missing embed token." },
+      { status: 400 }
+    );
+  }
+  // Audit finding: token was passed downstream without length
+  // validation. Embed tokens are 32-char hex (UUID without
+  // dashes) per care_tenant_config.embed_token default — anything
+  // beyond 64 chars is malformed and would cause unnecessary DB
+  // lookups. Bound the input.
+  if (token.length > 64) {
+    return NextResponse.json(
+      { error: "Invalid embed token." },
       { status: 400 }
     );
   }
