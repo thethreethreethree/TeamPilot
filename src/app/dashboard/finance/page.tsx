@@ -13,8 +13,7 @@ import {
   mockExpenses,
   mockInvoices,
 } from "@/lib/mock-data";
-import { Brain, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { useState } from "react";
+import { Brain, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 const fmtMoney = (n: number) =>
   n >= 1_000_000
@@ -29,8 +28,8 @@ const trendIcon = {
 
 export default function FinancePage() {
   const companyName = useCompanyName();
-  const [aiDiagnosis, setAiDiagnosis] = useState("");
-  const [loading, setLoading] = useState(false);
+  // Per C3 fix — aiDiagnosis state + Run handler removed (route is
+  // deprecated; the dashboard is design-preview only).
 
   const overdue = mockInvoices.filter((i) => i.status === "Overdue");
   const outstanding = mockInvoices
@@ -38,27 +37,12 @@ export default function FinancePage() {
     .reduce((sum, i) => sum + i.amount, 0);
   const maxBar = Math.max(...mockRevenueTrend.map((m) => m.expenses));
 
-  const runDiagnosis = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/ai/finance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          finance: mockFinance,
-          revenueTrend: mockRevenueTrend,
-          expenses: mockExpenses,
-          invoices: mockInvoices,
-        }),
-      });
-      const data = await res.json();
-      setAiDiagnosis(data.diagnosis || JSON.stringify(data, null, 2));
-    } catch {
-      setAiDiagnosis("Unable to run diagnosis. Check your API key.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Per TT.md A21 audit (2026-06-18) CRITICAL finding C3 — runDiagnosis
+  // previously POSTed to /api/ai/finance which returns HTTP 410 (Gone). The
+  // catch then surfaced "Check your API key" — a dishonest error implying
+  // a config problem when the feature was intentionally deprecated. The
+  // Run button + handler are removed. The AwaitingEvidence panel below
+  // already speaks honestly about why nothing surfaces yet (§3.2).
 
   return (
     <div className="min-h-screen bg-base">
@@ -141,25 +125,14 @@ export default function FinancePage() {
                 <Brain className="w-4 h-4 text-brand" />
                 <h2 className="text-sm font-semibold text-primary">AI Finance Diagnosis</h2>
               </div>
-              <button
-                onClick={runDiagnosis}
-                disabled={loading}
-                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-[#FACC15]/30 hover:border-[#FACC15]/60 px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
-                {loading ? "..." : "Run"}
-              </button>
+              <span className="text-[10px] uppercase tracking-widest font-mono text-muted">
+                design preview
+              </span>
             </div>
-            {aiDiagnosis ? (
-              <pre className="text-xs text-secondary leading-relaxed whitespace-pre-wrap font-mono">
-                {aiDiagnosis}
-              </pre>
-            ) : (
-              <AwaitingEvidence
-                domain="finance"
-                hint="Multiple months of widening gap between MRR growth and burn, paired with at least one independent signal (overdue invoices spiking, expense category drift) — patterns from one number alone are anecdote."
-              />
-            )}
+            <AwaitingEvidence
+              domain="finance"
+              hint="Multiple months of widening gap between MRR growth and burn, paired with at least one independent signal (overdue invoices spiking, expense category drift) — patterns from one number alone are anecdote."
+            />
           </div>
         </div>
 

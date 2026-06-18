@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
-import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
+import { rateLimit } from "@/lib/api/rateLimit";
+import type { NextRequest } from "next/server";
 
 /**
  * GET /api/admin/coach-readout
@@ -120,25 +122,43 @@ function summarize(
   };
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (!supabaseEnabled) {
     return NextResponse.json(
       { error: "Live mode required." },
       { status: 400 }
     );
   }
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-  const companyId = await getCurrentCompanyId();
-  if (!companyId) {
+  // Per TT.md A21 audit (2026-06-18) CRITICAL finding C2 — until this fix
+  // any authenticated company member could read the §4 leadership readout.
+  // Defense: getCurrentAuthContext + isAdmin check matches /api/admin/team-
+  // check and /api/admin/feedback gating patterns. Also adds the rate-limit
+  // that nudge had but coach-readout lacked.
+  const limited = rateLimit(req, {
+    id: "admin-coach-readout",
+    windowMs: 60_000,
+    max: 20,
+  });
+  if (limited) return limited;
+
+  const ctx = await getCurrentAuthContext();
+  if (!ctx) {
     return NextResponse.json(
-      { error: "Complete onboarding first." },
-      { status: 400 }
+      { error: "Not authenticated or onboarding incomplete." },
+      { status: 401 }
     );
   }
+  if (!ctx.isAdmin) {
+    return NextResponse.json(
+      {
+        error:
+          "Coach readout is leadership-only (CEO / COO / admin). It exposes per-heuristic team data that §A18 keeps off the agent view by design.",
+      },
+      { status: 403 }
+    );
+  }
+  const supabase = await createClient();
+  const companyId = ctx.companyId;
 
   // 1. Topics — RLS already scopes to the caller's company.
   const { data: topics, error: topicsErr } = await supabase
