@@ -8,7 +8,7 @@ import {
   setAgentStatus,
   touchAgentHeartbeat,
 } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET /api/care/agent/presence
@@ -34,25 +34,11 @@ import { createClient } from "@/lib/supabase/server";
  * (TODO Phase 5 commit 3).
  */
 export async function GET() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent) {
-    return NextResponse.json({ error: "Agent only." }, { status: 403 });
-  }
-  if (!profile?.company_id) {
+  if (!auth.companyId) {
     return NextResponse.json(
       { error: "No company on profile." },
       { status: 403 }
@@ -62,19 +48,14 @@ export async function GET() {
   // §A6 — touch the heartbeat so 'online' reflects real activity.
   // No-op if the agent_state row doesn't exist yet (handled by
   // strictMutate inside, returning silently). Best-effort.
-  void touchAgentHeartbeat(auth.user.id).catch(() => {
+  void touchAgentHeartbeat(auth.agentId).catch(() => {
     /* best-effort */
   });
 
-  const self = await fetchAgentPresence(auth.user.id);
+  const self = await fetchAgentPresence(auth.agentId);
 
-  const isLeader =
-    profile.role === "CEO" ||
-    profile.role === "COO" ||
-    profile.role === "admin";
-
-  if (isLeader) {
-    const team = await fetchTeamPresence(profile.company_id);
+  if (auth.isAdmin) {
+    const team = await fetchTeamPresence(auth.companyId);
     return NextResponse.json({ self, team });
   }
 
@@ -98,38 +79,20 @@ const PutBody = z.object({
 });
 
 export async function PUT(req: NextRequest) {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent) {
-    return NextResponse.json({ error: "Agent only." }, { status: 403 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const body = await readBody(req, PutBody);
   if (body instanceof NextResponse) return body;
 
-  const targetAgentId = body.agentId ?? auth.user.id;
-  const isSelf = targetAgentId === auth.user.id;
-  const isLeader =
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
+  const targetAgentId = body.agentId ?? auth.agentId;
+  const isSelf = targetAgentId === auth.agentId;
 
   // Status: agents update their own only.
   if (body.status !== undefined) {
-    if (!isSelf && !isLeader) {
+    if (!isSelf && !auth.isAdmin) {
       return NextResponse.json(
         { error: "Status can only be updated by the agent themselves." },
         { status: 403 }
@@ -153,7 +116,7 @@ export async function PUT(req: NextRequest) {
     body.maxConcurrent !== undefined ||
     body.channels !== undefined
   ) {
-    if (!isLeader) {
+    if (!auth.isAdmin) {
       return NextResponse.json(
         {
           error:

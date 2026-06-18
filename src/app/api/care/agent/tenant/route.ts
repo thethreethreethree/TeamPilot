@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET /api/care/agent/tenant
@@ -19,33 +19,22 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * action for rotation.
  */
 
-async function requireCompanyAdmin() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) return { error: "Not authenticated.", status: 401 } as const;
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  if (
-    !profile?.company_id ||
-    !(
-      profile.role === "CEO" ||
-      profile.role === "COO" ||
-      profile.role === "admin"
-    )
-  ) {
-    return { error: "Company admin only.", status: 403 } as const;
-  }
-  return { companyId: profile.company_id };
-}
+// Local requireCompanyAdmin replaced by the shared
+// requireCareAgent helper + admin role check at the call site.
+// Same effective gate; consistent shape across routes.
 
 export async function GET() {
-  const ctx = await requireCompanyAdmin();
-  if ("error" in ctx) {
-    return NextResponse.json({ error: ctx.error }, { status: ctx.status });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+  if (!auth.isAdmin || !auth.companyId) {
+    return NextResponse.json(
+      { error: "Company admin only." },
+      { status: 403 }
+    );
+  }
+  const ctx = { companyId: auth.companyId };
   const admin = createAdminClient();
   // Upsert-then-read so two concurrent first-loads (e.g. CEO and
   // COO opening the settings page at the same moment) can't race
@@ -100,10 +89,17 @@ const PatchBody = z.object({
 });
 
 export async function PATCH(req: NextRequest) {
-  const ctx = await requireCompanyAdmin();
-  if ("error" in ctx) {
-    return NextResponse.json({ error: ctx.error }, { status: ctx.status });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+  if (!auth.isAdmin || !auth.companyId) {
+    return NextResponse.json(
+      { error: "Company admin only." },
+      { status: 403 }
+    );
+  }
+  const ctx = { companyId: auth.companyId };
   const body = await readBody(req, PatchBody);
   if (body instanceof NextResponse) return body;
 

@@ -5,27 +5,7 @@ import {
   listDueDurabilityChecks,
   recordDurabilityOutcome,
 } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
-
-async function requireAgent() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) return { error: "Not authenticated.", status: 401 } as const;
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent || !profile?.company_id) {
-    return { error: "Agent only.", status: 403 } as const;
-  }
-  return { companyId: profile.company_id };
-}
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET /api/care/agent/durability — list due checks.
@@ -37,11 +17,14 @@ async function requireAgent() {
  * agent decides.
  */
 export async function GET() {
-  const ctx = await requireAgent();
-  if ("error" in ctx) {
-    return NextResponse.json({ error: ctx.error }, { status: ctx.status });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const checks = await listDueDurabilityChecks(ctx.companyId);
+  if (!auth.companyId) {
+    return NextResponse.json({ error: "Agent only." }, { status: 403 });
+  }
+  const checks = await listDueDurabilityChecks(auth.companyId);
   return NextResponse.json({ checks });
 }
 
@@ -52,9 +35,9 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const ctx = await requireAgent();
-  if ("error" in ctx) {
-    return NextResponse.json({ error: ctx.error }, { status: ctx.status });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;

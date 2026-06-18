@@ -1,25 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 async function requireCompanyAdmin() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) return { error: "Not authenticated.", status: 401 } as const;
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isCompanyAdmin =
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isCompanyAdmin || !profile?.company_id) {
-    return { error: "Company admin only.", status: 403 } as const;
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return { error: auth.error, status: auth.status } as const;
   }
-  return { sb, companyId: profile.company_id };
+  if (!auth.isAdmin || !auth.companyId) {
+    return { error: "Company admin only.", status: 403 as const } as const;
+  }
+  return { sb: auth.sb, companyId: auth.companyId };
 }
 
 export async function GET() {

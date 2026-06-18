@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listKnowledgeResolutions } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET /api/care/agent/knowledge
@@ -21,22 +21,11 @@ import { createClient } from "@/lib/supabase/server";
  *   limit      — defaults to 50
  */
 export async function GET(req: NextRequest) {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent || !profile?.company_id) {
+  if (!auth.companyId) {
     return NextResponse.json(
       { error: "Knowledge base is for support agents." },
       { status: 403 }
@@ -54,10 +43,13 @@ export async function GET(req: NextRequest) {
       ? outcomeParam
       : null;
   const limitParam = searchParams.get("limit");
-  const limit = limitParam ? Math.min(parseInt(limitParam, 10), 200) : 50;
+  // Audit finding: same windowDays bounds class as leadership
+  // readouts. parseInt could be NaN or negative; clamp 1-200.
+  const rawLimit = (limitParam ? parseInt(limitParam, 10) : 50) || 50;
+  const limit = Math.max(1, Math.min(200, rawLimit));
 
   const { resolutions, categories } = await listKnowledgeResolutions({
-    companyId: profile.company_id,
+    companyId: auth.companyId,
     category,
     capturedBy,
     outcome,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchAgentGrowth } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET /api/care/agent/growth
@@ -14,24 +14,14 @@ import { createClient } from "@/lib/supabase/server";
  * counts and patterns the agent decides what to do with.
  */
 export async function GET() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent) {
-    return NextResponse.json({ error: "Agent only." }, { status: 403 });
-  }
-  const snapshot = await fetchAgentGrowth(auth.user.id);
+  // Growth is scoped to the calling agent — auth.agentId is the
+  // identity we report against. No conversation-level company
+  // check needed (the helper already verified the agent IS an
+  // agent of A company; the snapshot is per-user not per-company).
+  const snapshot = await fetchAgentGrowth(auth.agentId);
   return NextResponse.json({ snapshot });
 }

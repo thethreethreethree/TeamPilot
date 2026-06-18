@@ -5,32 +5,15 @@ import {
   createCannedResponse,
   listCannedResponses,
 } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
-
-async function requireAgent() {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) return { error: "Not authenticated.", status: 401 } as const;
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent || !profile?.company_id) {
-    return { error: "Agent only.", status: 403 } as const;
-  }
-  return { companyId: profile.company_id, userId: auth.user.id };
-}
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 export async function GET() {
-  const ctx = await requireAgent();
-  if ("error" in ctx) {
-    return NextResponse.json({ error: ctx.error }, { status: ctx.status });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!auth.companyId) {
+    return NextResponse.json({ error: "Agent only." }, { status: 403 });
   }
   const shortcuts = await listCannedResponses();
   return NextResponse.json({ shortcuts });
@@ -43,9 +26,12 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const ctx = await requireAgent();
-  if ("error" in ctx) {
-    return NextResponse.json({ error: ctx.error }, { status: ctx.status });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!auth.companyId) {
+    return NextResponse.json({ error: "Agent only." }, { status: 403 });
   }
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
@@ -53,8 +39,8 @@ export async function POST(req: NextRequest) {
     shortcut: body.shortcut,
     title: body.title,
     body: body.body,
-    companyId: ctx.companyId,
-    createdBy: ctx.userId,
+    companyId: auth.companyId,
+    createdBy: auth.agentId,
   });
   if (!created) {
     return NextResponse.json(

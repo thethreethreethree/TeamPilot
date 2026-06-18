@@ -3,7 +3,7 @@ import {
   detectCoachRiskPatterns,
   detectSupportPatterns,
 } from "@/lib/data/care";
-import { createClient } from "@/lib/supabase/server";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
  * GET /api/care/agent/patterns
@@ -36,25 +36,11 @@ import { createClient } from "@/lib/supabase/server";
  *   windowDays — defaults to 30
  */
 export async function GET(req: NextRequest) {
-  const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("is_support_agent, role, company_id")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  const isAgent =
-    profile?.is_support_agent ||
-    profile?.role === "CEO" ||
-    profile?.role === "COO" ||
-    profile?.role === "admin";
-  if (!isAgent) {
-    return NextResponse.json({ error: "Agent only." }, { status: 403 });
-  }
-  if (!profile?.company_id) {
+  if (!auth.companyId) {
     return NextResponse.json(
       { error: "No company on profile." },
       { status: 403 }
@@ -62,12 +48,16 @@ export async function GET(req: NextRequest) {
   }
 
   const windowDaysParam = req.nextUrl.searchParams.get("windowDays");
-  const windowDays = windowDaysParam ? parseInt(windowDaysParam, 10) : 30;
+  // Audit finding: parseInt unclamped. Pattern detection uses
+  // the same 1-365 day bound as leadership readouts.
+  const rawWindowDays =
+    (windowDaysParam ? parseInt(windowDaysParam, 10) : 30) || 30;
+  const windowDays = Math.max(1, Math.min(365, rawWindowDays));
 
   const [issuePatterns, replyShapePatterns] = await Promise.all([
     detectSupportPatterns({ windowDays }),
     detectCoachRiskPatterns({
-      companyId: profile.company_id,
+      companyId: auth.companyId,
       windowDays,
     }),
   ]);
