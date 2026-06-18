@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { priorityDisplay, tagTone } from "@/lib/care/tagColors";
 import { useToast } from "@/components/ui/toast";
 import { ReadPhasePanel } from "./ReadPhasePanel";
@@ -2304,74 +2305,129 @@ function Composer({
   return (
     <div className="border-t border-default bg-white/[0.02] px-6 py-3">
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-        <button
-          type="button"
-          onClick={() => onToggleNote(false)}
-          className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
-            !isInternalNote
-              ? "text-brand border-ember-400/40 bg-ember-400/10"
-              : "text-muted border-default hover:border-strong"
-          }`}
+        <LearningHint
+          category="C.A.R.E"
+          title="Reply mode"
+          whatItIs="Composes a message that goes to the customer. The standard mode for any agent-to-customer communication."
+          why="Support conversations are a high-stakes channel — the customer is in your product, often frustrated, and what you say lands in their inbox or chat. The composer separates Reply from Internal note structurally so it's impossible to accidentally send an internal observation to the customer."
+          how="Default to Reply. Type the message you want the customer to receive. Use the AI tools (Formulate, Co-pilot) to shape it. Ask Coach checks it before send. The customer sees only what you compose here."
+          principle="The channel boundary is enforced by the System, not by your memory. If something is for the customer, write it here. If it's not, switch to Internal note."
         >
-          Reply
-        </button>
-        <button
-          type="button"
-          onClick={() => onToggleNote(true)}
-          className={`text-[11px] font-semibold px-2 py-0.5 rounded border inline-flex items-center gap-1 ${
-            isInternalNote
-              ? "text-accent-text border-accent-text/40 bg-accent-text/10"
-              : "text-muted border-default hover:border-strong"
-          }`}
+          <button
+            type="button"
+            onClick={() => onToggleNote(false)}
+            className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
+              !isInternalNote
+                ? "text-brand border-ember-400/40 bg-ember-400/10"
+                : "text-muted border-default hover:border-strong"
+            }`}
+          >
+            Reply
+          </button>
+        </LearningHint>
+
+        <LearningHint
+          category="C.A.R.E"
+          title="Internal note"
+          whatItIs="Composes a note visible only to your team — the customer never sees it. Use it to capture context, hand off to a teammate, or record reasoning you'll need later."
+          why="Tribal knowledge in support is the failure mode every team eventually pays for: the senior agent who handled this customer six months ago leaves, and the team rediscovers the same context from scratch. Internal notes become permanent record on the conversation, so future agents (and future-you) have the reasoning intact."
+          how="Switch to Internal note when you want to record what you tried, why you handed it off, the customer's tone, or anything else that informs the next move. Notes thread with the conversation — they sit alongside customer messages in the timeline but are styled distinctly so no agent confuses them with a sent reply."
+          principle="Every observation worth having is worth recording. The conversation history is the team's institutional memory; notes turn what's in your head into what's in the System."
         >
-          <StickyNote className="w-3 h-3" aria-hidden />
-          Internal note
-        </button>
+          <button
+            type="button"
+            onClick={() => onToggleNote(true)}
+            className={`text-[11px] font-semibold px-2 py-0.5 rounded border inline-flex items-center gap-1 ${
+              isInternalNote
+                ? "text-accent-text border-accent-text/40 bg-accent-text/10"
+                : "text-muted border-default hover:border-strong"
+            }`}
+          >
+            <StickyNote className="w-3 h-3" aria-hidden />
+            Internal note
+          </button>
+        </LearningHint>
+
         <div className="flex-1" />
         {!isInternalNote && (
           <>
-            <button
-              type="button"
-              onClick={onFormulate}
-              title="Formulate C.A.R.E — tell the System what you want to say; it shapes your intent into a clear support reply. Distinct from chat's Formulate (which uses 3 reflection questions)."
-              className="text-[11px] font-semibold text-secondary border border-default hover:border-strong hover:text-primary inline-flex items-center gap-1 px-2 py-0.5 rounded"
+            <LearningHint
+              category="AI · C.A.R.E"
+              title="Formulate C.A.R.E"
+              whatItIs="You tell the System what you want to communicate (one or two sentences of intent), and it shapes that intent into a clear, warm customer-facing reply in the C.A.R.E voice."
+              why="Sometimes you know exactly what to say but don't have the words yet — the right opening, the right level of acknowledgment, the right close. Formulate keeps you in the driver's seat (you provide the substance) while the System handles the prose. This is different from AI Co-Pilot: Co-Pilot drafts unprompted; Formulate shapes your stated intent."
+              how={`Click, write your intent ("tell them the refund will land in 5-7 business days, acknowledge the wait was longer than usual, offer to follow up if it doesn't arrive"), and the System returns a polished draft. Edit before sending — it's a starting point, not a final word.`}
+              principle="Tools that draft for you risk replacing your judgment. Tools that shape your intent strengthen it. Formulate is the second kind."
             >
-              <Lightbulb className="w-3 h-3" aria-hidden />
-              Formulate C.A.R.E
-            </button>
-            <button
-              type="button"
-              onClick={onAskCoach}
-              disabled={!draft.trim()}
-              title="Get Coach feedback on your draft BEFORE you send it"
-              className="text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              <button
+                type="button"
+                onClick={onFormulate}
+                className="text-[11px] font-semibold text-secondary border border-default hover:border-strong hover:text-primary inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              >
+                <Lightbulb className="w-3 h-3" aria-hidden />
+                Formulate C.A.R.E
+              </button>
+            </LearningHint>
+
+            <LearningHint
+              category="AI · Coach"
+              title="Ask Coach"
+              whatItIs="Pre-send review of your draft using Coach v5 — the LLM-primary communication coach grounded in 10 books of operational communication principles (Voss, Carnegie, Heath, Zinsser, Rosenberg, others). Returns a classification, a suggested revision with explicit source citation, and conversational follow-up."
+              why="The same risks show up in support replies again and again: unsupported absolutes, fabricated specifics (the agent invents a feature or policy the product doesn't actually have), empty filler that delays the actual answer. The Coach is calibrated to surface these BEFORE send, when the cost of fixing is editing one sentence — not after, when the cost is a customer who reads the fabricated specific as a promise."
+              how="Type your draft. Click Ask Coach. Read the diagnostic (what the Coach noticed) and the suggested revision (with the principle and book it's drawing from). Use the revision, edit it further, or dismiss and send as-is. The Coach informs; you decide."
+              principle="The Coach never sends. Its job is to surface the risk you can't see in your own draft. Yours is to decide whether the risk is real and what to do about it."
             >
-              <Wand2 className="w-3 h-3" aria-hidden />
-              Ask Coach
-            </button>
-            <button
-              type="button"
-              onClick={onAiCoPilot}
-              disabled={aiDrafting}
-              title="Draft a reply using the Coach's communication discipline + the company's past resolutions"
-              className="text-[11px] font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 disabled:opacity-50 inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              <button
+                type="button"
+                onClick={onAskCoach}
+                disabled={!draft.trim()}
+                className="text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              >
+                <Wand2 className="w-3 h-3" aria-hidden />
+                Ask Coach
+              </button>
+            </LearningHint>
+
+            <LearningHint
+              category="AI · C.A.R.E"
+              title="AI Co-pilot"
+              whatItIs="Drafts a customer reply from scratch using the conversation context, product context, and the company's past resolutions. Surfaces WHICH precedents it drew from so you can verify the System is generalizing from real prior work, not guessing."
+              why="The agent who has handled this kind of issue 14 times before drafts a confident response in 30 seconds. The agent who's seen it once spends 5 minutes. Co-Pilot evens that out — it surfaces the company's institutional memory the moment you start a reply, so a new agent gets the senior agent's pattern recognition. Brain-gated: silent during the month-1 control window so the System learns the team's baseline voice before it starts shaping replies."
+              how="Click after the customer has sent at least one message. Co-Pilot returns a draft you can use as-is, edit, or discard. The precedents it drew from appear below the composer — open them and verify they're real cases that actually match. If they don't, the draft probably misses the mark."
+              principle="An AI draft you can't verify is an AI draft you can't trust. Co-Pilot shows its work so you can judge whether the generalization is fair before you send."
             >
-              {aiDrafting ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Sparkles className="w-3 h-3" aria-hidden />
-              )}
-              AI Co-pilot
-            </button>
-            <button
-              type="button"
-              onClick={onSpawnTask}
-              title="Turn this conversation into a structured task — uses the same Task Spawn Engine as Decision Dialogue"
-              className="text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              <button
+                type="button"
+                onClick={onAiCoPilot}
+                disabled={aiDrafting}
+                className="text-[11px] font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 disabled:opacity-50 inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              >
+                {aiDrafting ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3" aria-hidden />
+                )}
+                AI Co-pilot
+              </button>
+            </LearningHint>
+
+            <LearningHint
+              category="C.A.R.E · Composition"
+              title="Spawn task"
+              whatItIs="Turns this conversation into a structured task in the Operations board. Carries the conversation context with it so the task owner has the full thread, not just a one-line description."
+              why="Customer conversations regularly surface work that doesn't belong in the customer reply — a bug to fix, a docs page to update, a process to revisit. Without Spawn task, that work either disappears into a Slack message someone forgets to act on or gets crammed awkwardly into the support reply. With it, the work lands in Operations with the full thread attached, and the support agent gets back to the customer with the right message."
+              how="Click Spawn task. Add a title and any extra context the conversation doesn't already capture. The new task appears in Operations, linked back to this conversation so future viewers can trace the origin. The conversation can resolve independently — the task lives on its own track."
+              principle="Conversations and work are different units. The conversation is closed when the customer is satisfied. The work is closed when the underlying issue is resolved. Treat them as separate so neither blocks the other."
             >
-              <ListChecks className="w-3 h-3" aria-hidden />
-              Spawn task
-            </button>
+              <button
+                type="button"
+                onClick={onSpawnTask}
+                className="text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              >
+                <ListChecks className="w-3 h-3" aria-hidden />
+                Spawn task
+              </button>
+            </LearningHint>
           </>
         )}
       </div>
