@@ -74,12 +74,48 @@ function getDefaultVoiceId(): string {
  * pipes this directly to the client as a chunked response —
  * no server-side buffering.
  */
+/**
+ * Maximum characters per single TTS call. Per TT.md A21 audit
+ * (2026-06-18) HIGH finding — until this cap, an unbounded
+ * reply_signature appended to an LLM-generated body could result
+ * in a multi-KB synthesis request, blowing up cost (ElevenLabs
+ * bills per character). 800 chars ≈ 5-6 sentences ≈ ~20s of
+ * synthesized speech — well above the ~80-token reply ceiling
+ * but bounded against accidents and abuse.
+ */
+const TTS_MAX_CHARS = 800;
+
 export async function synthesizeSpeechStream(args: {
   text: string;
   voiceId?: string | null;
 }): Promise<ReadableStream<Uint8Array>> {
   const apiKey = getApiKey();
   const voiceId = args.voiceId ?? getDefaultVoiceId();
+
+  // Hard cost guardrail BEFORE the request goes to ElevenLabs.
+  // If the text exceeds the ceiling, truncate at the nearest
+  // sentence break before the cap so playback doesn't end mid-
+  // word. The agent gets the truncation feedback (debug log)
+  // so they can investigate the upstream cause.
+  let text = args.text;
+  if (text.length > TTS_MAX_CHARS) {
+    const head = text.slice(0, TTS_MAX_CHARS);
+    const lastBreak = Math.max(
+      head.lastIndexOf(". "),
+      head.lastIndexOf("? "),
+      head.lastIndexOf("! ")
+    );
+    text =
+      lastBreak > TTS_MAX_CHARS * 0.5
+        ? text.slice(0, lastBreak + 1)
+        : head;
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[care/voice] TTS truncated from ${args.text.length} → ${text.length} chars (cap ${TTS_MAX_CHARS}).`
+      );
+    }
+  }
 
   const response = await fetch(`${TTS_ENDPOINT}/${voiceId}/stream`, {
     method: "POST",
@@ -89,7 +125,7 @@ export async function synthesizeSpeechStream(args: {
       Accept: "audio/mpeg",
     },
     body: JSON.stringify({
-      text: args.text,
+      text,
       // 2026-06-17 — switched turbo_v2_5 → flash_v2_5 after user
       // reported Jeff feels slow. Flash is ElevenLabs' ultra-low-
       // latency model (~75ms first-byte vs turbo's ~250-400ms).

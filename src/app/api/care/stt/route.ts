@@ -19,11 +19,24 @@ import { transcribeSpeech } from "@/lib/care/voice/elevenlabs";
  *
  * Rate-limited because STT costs real money.
  */
+// Per TT.md A21 audit (2026-06-18) HIGH finding — until this fix:
+//   - The 10MB byte cap allowed ~40min of opus audio per request.
+//     ElevenLabs Scribe bills per minute transcribed; a single
+//     attacker request could cost real money.
+//   - The 30/min rate limit at full payload size was a sustained
+//     cost-attack surface (30 × ~40min = 20 cumulative hours of
+//     audio per minute).
+// Tightened to a 2MB cap (~8min of opus, still generous for a
+// conversational support widget where 30s is typical) and 8/min
+// rate (8 voice queries per minute per IP is already heavy
+// legitimate use).
+const STT_MAX_BYTES = 2 * 1024 * 1024;
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
     id: "care-stt",
     windowMs: 60_000,
-    max: 30,
+    max: 8,
   });
   if (limited) return limited;
 
@@ -56,11 +69,17 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    // Provider limits: ~25MB typical. We cap at 10MB so a
-    // runaway recording can't bill us.
-    if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
+    // Per TT.md A21 audit cost guardrail — cap at STT_MAX_BYTES
+    // (2MB). A conversational voice query in a support widget is
+    // typically 5-30s ≈ 100-400KB at opus 32kbps. 2MB is ~8min,
+    // bounded against accident and abuse while remaining
+    // generous for legitimate verbose customers.
+    if (arrayBuffer.byteLength > STT_MAX_BYTES) {
       return NextResponse.json(
-        { error: "Audio payload too large." },
+        {
+          error:
+            "Audio payload too large. Voice queries should be under ~2 minutes; please re-record a shorter message.",
+        },
         { status: 413 }
       );
     }
