@@ -75,6 +75,7 @@ export function ChangePasswordPanel() {
           </label>
           <input
             type="password"
+            autoComplete="new-password"
             value={next}
             onChange={(e) => setNext(e.target.value)}
             disabled={state.kind === "submitting"}
@@ -89,6 +90,7 @@ export function ChangePasswordPanel() {
           </label>
           <input
             type="password"
+            autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             disabled={state.kind === "submitting"}

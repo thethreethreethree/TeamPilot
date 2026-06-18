@@ -114,6 +114,7 @@ export default function LoginPage() {
               <label className="block text-xs font-medium text-secondary mb-1.5">Email</label>
               <input
                 type="email"
+                autoComplete="email"
                 required
                 disabled={loading}
                 value={email}
@@ -126,6 +127,7 @@ export default function LoginPage() {
               <label className="block text-xs font-medium text-secondary mb-1.5">Password</label>
               <input
                 type="password"
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 required
                 minLength={6}
                 disabled={loading}
