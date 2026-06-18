@@ -117,7 +117,8 @@ export default function MarketingPage() {
             </div>
             <AwaitingEvidence
               domain="marketing"
-              hint="Sustained ROI drop on a single channel across multiple weeks, paired with a corresponding funnel drop-off — channel-level numbers alone, without the stage they break at, are not yet a diagnosis."
+              mode="design-preview"
+              hint="The chain pattern that produced Operations needs to be replayed for marketing — events from real ad/CRM integrations, signals derived from at least 2 sources, problems gated by ≥3 signals. Until that infrastructure ships, this dashboard is for layout review only."
             />
           </div>
         </div>

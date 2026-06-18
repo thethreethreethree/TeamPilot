@@ -20,7 +20,7 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
@@ -106,6 +106,11 @@ export default function DecisionsPage() {
   // Required to wire the spawn panel to the source decision row so
   // the resulting task gets linked_decision_id and the §3.1 chain
   // records lineage from dialogue → action.
+  /** Scroll the Spawn-task button into view after persistence
+   *  succeeds. Per audit (Agent 3): users persisted the dialogue,
+   *  saw 'Persisted', and lost the connection to the now-visible
+   *  Spawn affordance below. Auto-scroll fixes the continuity gap. */
+  const spawnButtonRef = useRef<HTMLButtonElement | null>(null);
   const [persistedDecisionId, setPersistedDecisionId] = useState<string | null>(
     null
   );
@@ -191,6 +196,15 @@ export default function DecisionsPage() {
       setPersistMsg(`Persisted (id ${String(data.decisionId).slice(0, 8)}…).`);
       if (typeof data.decisionId === "string") {
         setPersistedDecisionId(data.decisionId);
+        // Scroll the user's eye to the now-visible Spawn task
+        // button. Without this, persistMsg surfaces success but
+        // the next-action affordance lives off-screen.
+        requestAnimationFrame(() => {
+          spawnButtonRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        });
       }
       const refreshed = await fetchDecisions();
       setDecisions(refreshed.decisions);
@@ -537,6 +551,7 @@ export default function DecisionsPage() {
                         : "Persist (live mode only)"}
                     </button>
                     <button
+                      type="button"
                       onClick={reset}
                       className="flex items-center gap-2 text-xs text-brand hover:text-primary"
                     >
@@ -547,8 +562,10 @@ export default function DecisionsPage() {
                       decision.kind !== "defer" &&
                       response && (
                         <button
+                          ref={spawnButtonRef}
+                          type="button"
                           onClick={() => setSpawnPanelOpen(true)}
-                          className="flex items-center gap-2 text-xs font-semibold text-primary bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-lg"
+                          className="flex items-center gap-2 text-xs font-semibold text-primary bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-lg ring-1 ring-ember-400/30"
                         >
                           <Sparkles className="w-3 h-3" />
                           Spawn task from this decision

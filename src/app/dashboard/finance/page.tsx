@@ -131,7 +131,8 @@ export default function FinancePage() {
             </div>
             <AwaitingEvidence
               domain="finance"
-              hint="Multiple months of widening gap between MRR growth and burn, paired with at least one independent signal (overdue invoices spiking, expense category drift) — patterns from one number alone are anecdote."
+              mode="design-preview"
+              hint="The chain pattern that produced Operations needs to be replayed for finance — events from real accounting integrations, signals derived from at least 2 sources, problems gated by ≥3 signals. Until that infrastructure ships, this dashboard is for layout review only."
             />
           </div>
         </div>
