@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { FeedbackPanel } from "@/components/feedback/FeedbackPanel";
 import {
   AlertTriangle,
   Bug,
@@ -99,6 +101,17 @@ export default function MyFeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Compose panel state — opens immediately when the page is
+  // entered via ?intent=feedback (from the landing-page Feedback
+  // link routing through /login), or when the user explicitly
+  // clicks "Submit new feedback" below.
+  const searchParams = useSearchParams();
+  const [composing, setComposing] = useState(false);
+  useEffect(() => {
+    if (searchParams?.get("intent") === "feedback") {
+      setComposing(true);
+    }
+  }, [searchParams]);
   const [statusFilter, setStatusFilter] = useState<FeedbackStatus | "all">(
     "all"
   );
@@ -143,6 +156,19 @@ export default function MyFeedbackPage() {
         subtitle="The journey of every report you've filed — open, triaged, resolved"
       />
       <div className="p-6 max-w-3xl mx-auto space-y-5">
+        {/* Composer entry — replaces the misleading "use the
+            floating button" copy. Floating button is suppressed on
+            dashboard routes; this page IS the submission entry. */}
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setComposing(true)}
+            className="inline-flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg text-xs transition-colors"
+          >
+            <MessageSquarePlus className="w-3.5 h-3.5" aria-hidden />
+            Submit new feedback
+          </button>
+        </div>
         {/* Why this page exists, in one line — answers the user's
             silent question "did my submission go anywhere?" */}
         <div className="glass-card p-4 border border-ember-400/30 bg-ember-400/5">
@@ -172,6 +198,7 @@ export default function MyFeedbackPage() {
           ).map((s) => (
             <button
               key={s}
+              type="button"
               onClick={() => setStatusFilter(s)}
               className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors ${
                 statusFilter === s
@@ -202,11 +229,20 @@ export default function MyFeedbackPage() {
             <p className="text-sm text-primary mb-1">
               You haven&apos;t filed any feedback yet.
             </p>
-            <p className="text-xs text-muted max-w-sm mx-auto leading-relaxed">
-              Use the floating Feedback button (bottom-right on every page)
-              to file a report. It&apos;ll appear here, and every triage
-              transition admins make will show up too.
+            <p className="text-xs text-muted max-w-sm mx-auto leading-relaxed mb-3">
+              Click <span className="text-primary font-medium">Submit new
+              feedback</span> above to file a report. It&apos;ll appear
+              here, and every triage transition admins make will show
+              up too.
             </p>
+            <button
+              type="button"
+              onClick={() => setComposing(true)}
+              className="inline-flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-1.5 rounded-md text-xs transition-colors"
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5" aria-hidden />
+              Submit new feedback
+            </button>
           </div>
         ) : (
           <div className="space-y-2">
@@ -223,6 +259,11 @@ export default function MyFeedbackPage() {
           </div>
         )}
       </div>
+      {composing && (
+        <FeedbackPanel
+          onClose={() => setComposing(false)}
+        />
+      )}
     </div>
   );
 }

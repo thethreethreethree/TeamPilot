@@ -3,7 +3,7 @@
 import { ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { BrandLogo } from "@/components/brand/Logo";
@@ -18,6 +18,25 @@ export default function LoginPage() {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  // Optional intent passed by the landing page Feedback link
+  // (or any other deep link). When present, we forward it on
+  // the post-auth redirect so the dashboard can open the right
+  // surface. Without this, /login?intent=feedback was a dead
+  // signal — caught in audit 2026-06-19.
+  const searchParams = useSearchParams();
+  const intent = searchParams?.get("intent") ?? null;
+  const buildDestination = (base: string) => {
+    if (!intent) return base;
+    // For the feedback intent we route to /dashboard/feedback
+    // (where 'Submit new feedback' opens the composer
+    // automatically on intent=feedback). Other intents pass
+    // through to the original base with the intent appended.
+    if (intent === "feedback" && base === "/dashboard") {
+      return "/dashboard/feedback?intent=feedback";
+    }
+    const params = new URLSearchParams({ intent });
+    return `${base}?${params.toString()}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +48,7 @@ export default function LoginPage() {
     // the navigation window — same UX rule as the live path below.
     if (!supabaseEnabled) {
       setLoading(true);
-      router.push("/dashboard");
+      router.push(buildDestination("/dashboard"));
       return;
     }
 
@@ -68,7 +87,11 @@ export default function LoginPage() {
         .eq("id", auth.user!.id)
         .maybeSingle();
 
-      router.push(profile?.company_id ? "/dashboard" : "/onboarding");
+      router.push(
+        profile?.company_id
+          ? buildDestination("/dashboard")
+          : "/onboarding"
+      );
       router.refresh();
       // Same as the signup-with-session branch — leave loading=true
       // so the button stays disabled through the redirect.
