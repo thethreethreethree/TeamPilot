@@ -1,0 +1,53 @@
+-- 0052 — Fix Supabase Security Definer View advisor warnings.
+--
+-- The Supabase advisor flagged two views as running with
+-- SECURITY DEFINER semantics:
+--   - public.chat_topic_with_counts  (created in 0048)
+--   - public.crm_account_summary     (created in 0049, modified 0050)
+--
+-- Why this matters
+-- ────────────────
+-- In Postgres 15+, views without an explicit `security_invoker`
+-- option inherit a SECURITY DEFINER-like behavior — they run with
+-- the permissions of the VIEW CREATOR (typically the migration
+-- runner, which has elevated privileges), NOT the user executing
+-- the SELECT. Result: RLS policies on the underlying tables are
+-- BYPASSED when accessed via the view. Anyone with SELECT on the
+-- view sees every row, regardless of what their per-tenant RLS
+-- would normally allow.
+--
+-- For chat_topic_with_counts this means a user who can query the
+-- view might see every chat topic in the database, not just topics
+-- they participate in. The chat_topics table's RLS would have
+-- prevented that on direct query — the view leaked it.
+--
+-- For crm_account_summary the impact is bounded because RLS on
+-- crm_accounts already gates by is_vendor_super_admin(), but
+-- defense-in-depth says the view should still be INVOKER so the
+-- table-level RLS is the single source of truth.
+--
+-- Fix
+-- ───
+-- ALTER VIEW <name> SET (security_invoker = true). Available since
+-- Postgres 15. Cheap, instant, no data migration. The view's
+-- behavior changes from "anyone who can SELECT sees everything"
+-- to "the querying user's RLS context is honored on the underlying
+-- tables."
+--
+-- Per CLAUDE.md §A11 — RLS is the source of truth for row-level
+-- access. A view that silently bypasses it is the System claiming
+-- a security boundary it isn't actually enforcing — exactly the
+-- "honest by default" rule the constitution requires.
+
+alter view public.chat_topic_with_counts set (security_invoker = true);
+alter view public.crm_account_summary    set (security_invoker = true);
+
+-- ─────────────────────────────────────────────────────────────
+-- Verification: re-run the Supabase advisor after applying this
+-- migration. Both warnings should clear.
+--
+-- Going forward: any new view that references RLS-protected tables
+-- MUST be declared with `with (security_invoker = true)` at
+-- creation time. Adding this as a code-review item; the next view
+-- shouldn't need a follow-up migration.
+-- ─────────────────────────────────────────────────────────────
