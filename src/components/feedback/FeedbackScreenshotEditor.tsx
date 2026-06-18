@@ -373,7 +373,7 @@ export function FeedbackScreenshotEditor({
             onClick={handleDone}
             disabled={saving}
             title="Save annotations"
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 text-white font-semibold"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 text-[#09090B] font-semibold"
           >
             <Check className="w-3.5 h-3.5" aria-hidden />
             {saving ? "Saving…" : "Done"}
@@ -618,7 +618,7 @@ function TextEditOverlay({
         }}
         rows={1}
         placeholder="Type label, press Enter…"
-        className="absolute bg-[#FACC15] text-white font-bold rounded-md outline-none resize-none ring-2 ring-white shadow-lg placeholder:text-white/70"
+        className="absolute bg-[#FACC15] text-[#09090B] font-bold rounded-md outline-none resize-none ring-2 ring-white shadow-lg placeholder:text-[#09090B]/60"
         style={{
           left,
           top,

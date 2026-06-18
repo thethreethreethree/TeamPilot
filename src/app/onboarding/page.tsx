@@ -553,7 +553,7 @@ Always hand off to a human for:
             <button
               onClick={next}
               disabled={!canProceed() || submitting}
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] font-semibold px-6 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
             >
               {submitting
                 ? "Launching…"

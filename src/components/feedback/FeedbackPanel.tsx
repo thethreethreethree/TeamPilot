@@ -548,7 +548,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
               <button
                 onClick={submit}
                 disabled={submitting || !title.trim()}
-                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
               >
                 {submitting ? (
                   <>

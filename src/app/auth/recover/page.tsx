@@ -214,7 +214,7 @@ export default function RecoverPage() {
               <button
                 type="submit"
                 disabled={phase.kind === "submitting" || !password || !confirm}
-                className="w-full flex items-center justify-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-all text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] font-semibold px-6 py-2.5 rounded-lg transition-all text-sm"
               >
                 {phase.kind === "submitting" ? "Saving…" : "Save new password"}
               </button>

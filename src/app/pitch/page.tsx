@@ -546,7 +546,7 @@ export default function PitchPage() {
           </div>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
+            className="inline-flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
             Start your first decision <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
@@ -573,7 +573,7 @@ export default function PitchPage() {
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
               href="/login"
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
             >
               Get started — free preview
               <ArrowRight className="w-4 h-4" aria-hidden="true" />

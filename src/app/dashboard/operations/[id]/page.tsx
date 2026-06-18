@@ -461,7 +461,7 @@ export default function TaskDetailPage() {
                     <button
                       type="submit"
                       disabled={submitting || !draft.trim()}
-                      className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold text-xs px-3 py-2 rounded-lg transition-colors"
+                      className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold text-xs px-3 py-2 rounded-lg transition-colors"
                     >
                       {submitting ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -685,7 +685,7 @@ function GateForm({
           type="button"
           onClick={submit}
           disabled={submitting}
-          className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold text-xs px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold text-xs px-4 py-2 rounded-lg transition-colors"
         >
           {submitting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />

@@ -164,7 +164,7 @@ export function InviteMemberDialog({
               type="button"
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Creating…" : "Create invitation"}
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />}
@@ -182,7 +182,7 @@ export function InviteMemberDialog({
             <div className="flex items-center gap-2 flex-wrap">
               <a
                 href={mailto}
-                className="flex items-center gap-1.5 text-xs bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-3 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 text-xs bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-3 py-2 rounded-lg transition-colors"
                 title="Open in your mail client"
               >
                 <Send className="w-3 h-3" aria-hidden />

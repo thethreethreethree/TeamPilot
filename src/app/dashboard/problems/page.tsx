@@ -78,7 +78,7 @@ export default function ProblemsPage() {
           <button
             onClick={() => setCreating(true)}
             disabled={!supabaseEnabled}
-            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+            className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             New problem hypothesis
@@ -428,7 +428,7 @@ function CreateProblemModal({
             <button
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Creating…" : "Create draft"}
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}

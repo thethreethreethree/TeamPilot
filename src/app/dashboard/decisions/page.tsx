@@ -303,7 +303,7 @@ export default function DecisionsPage() {
               <button
                 onClick={startElicit}
                 disabled={!situation.trim()}
-                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
               >
                 Continue <ChevronRight className="w-4 h-4" />
               </button>
@@ -369,7 +369,7 @@ export default function DecisionsPage() {
                   disabled={
                     loading || !userDiagnosis.trim() || !userProposal.trim()
                   }
-                  className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                  className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
                 >
                   <MessageCircleQuestion className={`w-4 h-4 ${loading ? "animate-pulse" : ""}`} />
                   {loading ? "Asking the System…" : "Ask the System"}
@@ -432,7 +432,7 @@ export default function DecisionsPage() {
                 </button>
                 <button
                   onClick={() => setPhase("decide")}
-                  className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-white font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
+                  className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] text-[#09090B] font-semibold px-5 py-2.5 rounded-lg transition-all shadow-glow hover:shadow-none text-sm"
                 >
                   Decide <ChevronRight className="w-4 h-4" />
                 </button>

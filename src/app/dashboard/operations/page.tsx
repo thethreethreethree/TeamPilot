@@ -224,7 +224,7 @@ export default function OperationsPage() {
             <button
               onClick={openCreate}
               disabled={!supabaseEnabled}
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
               title={
                 supabaseEnabled
                   ? "Create a new task"
@@ -474,7 +474,7 @@ export default function OperationsPage() {
             <button
               onClick={submit}
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Saving…" : editing ? "Save changes" : "Create task"}
               {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}

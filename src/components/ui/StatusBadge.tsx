@@ -8,25 +8,49 @@ interface StatusBadgeProps {
   className?: string;
 }
 
+/**
+ * Per TT.md A21 audit (2026-06-18) HIGH finding — until this fix, StatusBadge
+ * used red-500 / blue-500 / yellow-500 / orange-500 (Tailwind defaults). Those
+ * are not in the brand monopalette — red + blue were dropped 2026-06-12 when
+ * the logo became design governance. The new tokens map status semantics
+ * onto the ember scale + emerald:
+ *
+ *   - "danger/blocked/error" → ember-800 (burnt amber — semantic error per
+ *     tokens.ts; reads as warning without the red-chroma palette violation)
+ *   - "attention/warning"    → ember-500 (primary-hover amber)
+ *   - "neutral/info"         → ember-300 (light amber — system speaking)
+ *   - "validated/success"    → emerald-400 (one of two accepted accents)
+ *   - "idle/no-state"        → surface-raised + secondary text
+ *
+ * The semantic loss vs the prior red/blue/yellow taxonomy is bounded: status
+ * meaning is still distinguishable (3 ember intensities + emerald + neutral),
+ * but the brand discipline holds. Color is one signal among several — labels
+ * still read the status word.
+ */
 const statusStyles: Record<string, string> = {
-  Blocked: "bg-red-500/15 text-red-400 border border-red-500/30",
-  "In Progress": "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+  // Workflow / task statuses
+  Blocked: "bg-ember-800/20 text-ember-300 border border-ember-800/40",
+  "In Progress": "bg-ember-400/15 text-ember-300 border border-ember-400/30",
   "To Do": "bg-surface-raised text-secondary border border-strong",
-  "Needs Review": "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30",
+  "Needs Review": "bg-ember-500/15 text-ember-300 border border-ember-500/30",
   Completed: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
-  Critical: "bg-red-500/15 text-red-400 border border-red-500/30",
-  High: "bg-orange-500/15 text-orange-400 border border-orange-500/30",
-  Medium: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30",
+  // Priorities
+  Critical: "bg-ember-800/20 text-ember-300 border border-ember-800/40",
+  High: "bg-ember-500/15 text-ember-300 border border-ember-500/30",
+  Medium: "bg-ember-400/15 text-ember-300 border border-ember-400/30",
   Low: "bg-surface-raised text-secondary border border-strong",
-  Overloaded: "bg-red-500/15 text-red-400 border border-red-500/30",
+  // Workload state
+  Overloaded: "bg-ember-800/20 text-ember-300 border border-ember-800/40",
   Balanced: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
-  Underutilized: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30",
-  Overdue: "bg-red-500/15 text-red-400 border border-red-500/30",
-  Pending: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30",
+  Underutilized: "bg-ember-500/15 text-ember-300 border border-ember-500/30",
+  // Invoice / payment
+  Overdue: "bg-ember-800/20 text-ember-300 border border-ember-800/40",
+  Pending: "bg-ember-500/15 text-ember-300 border border-ember-500/30",
   Paid: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
-  critical: "bg-red-500/15 text-red-400 border border-red-500/30",
-  warning: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30",
-  info: "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+  // Generic severities
+  critical: "bg-ember-800/20 text-ember-300 border border-ember-800/40",
+  warning: "bg-ember-500/15 text-ember-300 border border-ember-500/30",
+  info: "bg-ember-400/15 text-ember-300 border border-ember-400/30",
 };
 
 export default function StatusBadge({ status, className }: StatusBadgeProps) {

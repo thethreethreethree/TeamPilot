@@ -355,7 +355,7 @@ export function InThreadDecisionDialogue({
                     !userDiagnosis.trim() ||
                     !userProposal.trim()
                   }
-                  className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
+                  className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
                 >
                   <MessageCircleQuestion
                     className={`w-3.5 h-3.5 ${askingSystem ? "animate-pulse" : ""}`}
@@ -418,7 +418,7 @@ export function InThreadDecisionDialogue({
                   type="button"
                   onClick={() => void advance("decide")}
                   disabled={advancing}
-                  className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
+                  className="flex items-center gap-1.5 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
                 >
                   {advancing ? "Saving…" : "Decide"}
                   <ChevronRight className="w-3.5 h-3.5" aria-hidden />

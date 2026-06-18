@@ -245,7 +245,7 @@ export function AddParticipantsDialog({
                 type="button"
                 onClick={submit}
                 disabled={submitting || selected.size === 0}
-                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                className="flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
               >
                 {submitting ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />

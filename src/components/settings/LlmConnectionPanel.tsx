@@ -152,7 +152,7 @@ export function LlmConnectionPanel() {
           type="button"
           onClick={runTest}
           disabled={status.state === "loading"}
-          className="inline-flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 bg-[#FACC15] hover:bg-[#EAB308] disabled:opacity-60 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
         >
           {status.state === "loading" ? (
             <>
