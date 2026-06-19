@@ -13,6 +13,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { useToast } from "@/components/ui/toast";
 import { MentionText } from "@/components/ui/MentionText";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
@@ -371,17 +372,57 @@ function FeedbackRowCard({
             />
             <div className="flex flex-wrap items-center gap-2">
               {(["triaged", "in_progress", "resolved", "declined"] as FeedbackStatus[]).map(
-                (s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    disabled={row.status === s}
-                    onClick={() => void onTransition(row.id, s, note)}
-                    className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-default hover:border-strong text-secondary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Mark {s.replace("_", " ")}
-                  </button>
-                )
+                (s) => {
+                  const hints: Record<FeedbackStatus, { whatItIs: string; why: string; how: string; principle?: string }> = {
+                    open: { whatItIs: "", why: "", how: "" },
+                    triaged: {
+                      whatItIs: "Moves the report from Open to Triaged — meaning an admin has READ it and acknowledged its category and severity. The tester sees the move on their My Feedback page.",
+                      why: "Triaged is the first acknowledgment moment. Reports that sit in Open beyond a day or two erode the tester's belief that feedback matters. The triaged transition is the structural answer to 'did anyone see this?'",
+                      how: "Click after reading the report and confirming the kind + severity look right. Write an optional note about scope or next steps before transitioning if useful.",
+                      principle: "Acknowledgment within hours preserves the feedback channel. Silence kills it.",
+                    },
+                    in_progress: {
+                      whatItIs: "Moves the report to In Progress — meaning someone is actively working on it. The tester sees this state and knows their report is being addressed RIGHT NOW.",
+                      why: "Some reports get fixed within hours; others within months. The in-progress state separates 'we plan to do this someday' from 'we are doing this now', which materially changes the tester's read of the channel.",
+                      how: "Click when work has actually started. Pair with a note explaining what's being attempted. Do NOT use this state as a parking lot for 'should fix eventually' — that's what Triaged is for.",
+                      principle: "In Progress is a high-quality signal. Reserving it for actually-being-worked-on keeps it meaningful.",
+                    },
+                    resolved: {
+                      whatItIs: "Marks the report as RESOLVED — meaning the underlying issue has been addressed (bug fixed, feature shipped, friction smoothed). The tester sees the move and can verify whether their original problem is gone.",
+                      why: "Resolved is the closure moment that proves the channel works. The tester filed a report; an admin engaged with it; a fix shipped; the loop closed. Compound effect: testers who see closure file more (and better-shaped) reports next time.",
+                      how: "Click when the underlying issue is actually addressed in the product. Add a note explaining what changed so the tester knows what to verify. The chain event makes the resolution auditable.",
+                      principle: "Resolution is what makes the feedback channel a real channel. Closure beats acknowledgment.",
+                    },
+                    declined: {
+                      whatItIs: "Closes the report WITHOUT addressing the underlying issue — meaning the team has decided not to act on this report. Requires a reason note explaining WHY (out of scope, won't fix, working as intended, duplicate handled elsewhere).",
+                      why: "Declining is the honest path when an issue isn't worth addressing. Without the explicit decline state, those reports would either sit Open forever (silent gap) or get marked Resolved without actually being fixed (lies). The reason note routes future similar reports correctly — duplicates can be merged, scope conversations can refer back.",
+                      how: "Click. Write the reason honestly. 'Won't fix because X' is honest; 'declined' alone is not. The reason becomes the record.",
+                      principle: "Declining honestly is more respectful than ghosting. The reason is the structural respect.",
+                    },
+                    duplicate: { whatItIs: "", why: "", how: "" },
+                  };
+                  const h = hints[s];
+                  return (
+                    <LearningHint
+                      key={s}
+                      category="Feedback · Triage"
+                      title={`Mark ${s.replace("_", " ")}`}
+                      whatItIs={h.whatItIs}
+                      why={h.why}
+                      how={h.how}
+                      principle={h.principle}
+                    >
+                      <button
+                        type="button"
+                        disabled={row.status === s}
+                        onClick={() => void onTransition(row.id, s, note)}
+                        className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-default hover:border-strong text-secondary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Mark {s.replace("_", " ")}
+                      </button>
+                    </LearningHint>
+                  );
+                }
               )}
             </div>
           </div>
