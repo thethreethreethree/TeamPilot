@@ -154,30 +154,43 @@ export default function TeamChatListPage() {
               <Stat label="Total" value={topics.length} tone="all" />
             </LearningHint>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Invite member — mounts the shared dialog in place so we
-                don't yank testers out of the chat surface they're on.
-                Earlier this was a Link to /dashboard/team?new=1, which
-                worked functionally but produced a jarring context shift
-                that the user (rightly) flagged as a UX bug. */}
-            <button
-              type="button"
-              onClick={() => setInviting(true)}
-              title="Invite a team member"
-              className="flex items-center gap-2 border border-default hover:border-strong text-secondary hover:text-primary font-semibold px-3 py-2 rounded-lg transition-colors text-xs"
+          <div className="flex items-center gap-2 flex-wrap">
+            <LearningHint
+              category="Chat · Team"
+              title="Invite member"
+              whatItIs="Opens the invite dialog inline (without yanking you out of the chat surface). Generates a unique invite link tied to a specific email + role; the invitee clicks it, lands in the auth flow, and joins THIS company on accept."
+              why="Most invite flows force a context shift — you leave whatever you were doing, navigate to a team page, fill the form, navigate back. The in-place dialog respects the user's flow: invite + return without losing position."
+              how="Click. Type the teammate's email. Pick a role (CEO / COO / Admin / Member / Support agent — the role gates downstream access). Send. The invitee gets an email with the link. Track pending invites on /dashboard/team."
+              principle="Context shifts add up. The inline dialog is structural anti-friction for a recurring action."
             >
-              <UserPlus className="w-3.5 h-3.5" aria-hidden="true" />
-              Invite member
-            </button>
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              disabled={!supabaseEnabled && mode !== "demo-fixtures"}
-              className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              <button
+                type="button"
+                onClick={() => setInviting(true)}
+                title="Invite a team member"
+                className="flex items-center gap-2 border border-default hover:border-strong text-secondary hover:text-primary font-semibold px-3 py-2 rounded-lg transition-colors text-xs"
+              >
+                <UserPlus className="w-3.5 h-3.5" aria-hidden="true" />
+                Invite member
+              </button>
+            </LearningHint>
+            <LearningHint
+              category="Chat · Create"
+              title="New topic"
+              whatItIs="Opens the create-topic modal. A topic in ELOSTATE has a title, a description, optional tags, and a set of participants. Once created, it becomes a threaded conversation space — every message threads, mentions notify, the Coach grades drafts on send."
+              why="The unit of work in Team Chat is the topic, not the message. A topic carries the team's reasoning about ONE thing — a decision, a problem, a plan. Threading conversations into topics is how the team avoids the Slack failure mode where critical reasoning gets buried in #general."
+              how="Click to draft. Title clearly (a future teammate will search this). Description tells participants what they're being added to. Pick tags so the topic is findable. Add participants — they'll get a notification on mount."
+              principle="The topic boundary is what makes the conversation findable later. The 15 seconds you spend titling well saves the team finding-this-again later."
             >
-              <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-              New topic
-            </button>
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                disabled={!supabaseEnabled && mode !== "demo-fixtures"}
+                className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                New topic
+              </button>
+            </LearningHint>
           </div>
         </div>
 

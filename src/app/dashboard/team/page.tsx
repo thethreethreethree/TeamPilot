@@ -1,6 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import { fetchTeam, type TeamMember, type TeamInvitation } from "@/lib/data/team";
@@ -128,14 +129,23 @@ export default function TeamPage() {
                   {pendingInvites.length === 1 ? "" : "s"}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setInviting(true)}
-                className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              <LearningHint
+                category="Team · Invite"
+                title="Invite member"
+                whatItIs="Opens the invite dialog. Generates a unique invite link tied to a specific email + role; the invitee clicks it, lands in auth, and joins this company on accept. Pending invites show on this page until accepted or revoked."
+                why="Role is set at invite time because role gates what each user can see and do across the System. CEO/COO/admin see leadership readouts; member doesn't. Support agent gates the C.A.R.E inbox. Getting the role right at invite time prevents downstream confusion."
+                how="Click. Type the teammate's email. Pick a role that matches what they'll actually do. Send. Copy the invite link separately if you want to share it via DM. Revoke any time before they accept."
+                principle="Role is permissioning that's also pedagogy. A user's role signals what part of the System they're responsible for."
               >
-                <UserPlus className="w-3.5 h-3.5" />
-                Invite member
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setInviting(true)}
+                  className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  Invite member
+                </button>
+              </LearningHint>
             </div>
 
             {loading && (
