@@ -11,6 +11,7 @@ import {
   Quote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * ComposerToolbar — markdown formatting controls + keyboard shortcuts
@@ -189,6 +190,15 @@ export function ComposerToolbar({
   }, [value]);
 
   return (
+    <LearningHint
+      as="block"
+      category="Composer · Markdown"
+      title="Formatting toolbar"
+      whatItIs="Markdown formatting controls for the composer — bold, italic, inline code, link, bulleted list, ordered list, blockquote. Each button wraps the current selection in the matching markdown syntax. Keyboard shortcuts work too (Ctrl/Cmd + B for bold, etc.)."
+      why="Plain text loses structure fast. A message with a real list, an inline code reference, or a quoted excerpt reads RADICALLY differently from the same content as a wall of prose. The toolbar exists so the team can produce structured messages without leaving the composer for a different surface."
+      how="Select text first, then click the formatting button (or use the keyboard shortcut). To insert a link, select the link text and click the link icon — you'll be prompted for the URL. Lists work on the current line; press Enter to add a list item."
+      principle="Structure compounds clarity. The 10 seconds you spend formatting a message saves the reader 30 seconds reading it."
+    >
     <div
       className={cn(
         "flex items-center gap-0.5 flex-wrap py-1.5 px-2 border-b border-default",
@@ -228,6 +238,7 @@ export function ComposerToolbar({
         onClick={() => apply("quote")}
       />
     </div>
+    </LearningHint>
   );
 }
 

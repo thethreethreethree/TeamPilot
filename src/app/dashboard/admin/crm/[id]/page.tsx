@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import {
   ArrowLeft,
   Loader2,
@@ -197,31 +198,89 @@ export default function CrmAccountDetailPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-default">
+        <div className="flex items-center gap-1 border-b border-default overflow-x-auto">
           {(
             [
-              { key: "overview", label: "Overview", icon: ActivityIcon },
-              { key: "contacts", label: "Contacts", icon: Users },
-              { key: "subscription", label: "Subscription", icon: Receipt },
-              { key: "activity", label: "Activity", icon: ActivityIcon },
-              { key: "notes", label: "Notes", icon: StickyNote },
+              {
+                key: "overview",
+                label: "Overview",
+                icon: ActivityIcon,
+                hint: {
+                  whatItIs: "The at-a-glance summary of this account — industry, size, health score, primary contact, lifecycle stage, account owner. The first thing you see when opening an account.",
+                  why: "Vendor admin work is usually 'why is this account where it is?' Overview is the structured answer in one view: the basics + a quick activity pulse so context loads fast.",
+                  how: "Land here, scan the basics, click into the right tab if you need to act. For deeper history, switch to Activity. For touch points, Contacts.",
+                },
+              },
+              {
+                key: "contacts",
+                label: "Contacts",
+                icon: Users,
+                hint: {
+                  whatItIs: "Every named contact on this account — full name, email, role, primary vs secondary. Add new contacts here; their email auto-attaches to any inbound C.A.R.E conversation from the same address.",
+                  why: "Most vendor-customer relationships are with people, not companies. Tracking contacts lets the team know WHO they're talking to vs guessing from email signatures. When the primary contact churns, you see it.",
+                  how: "Add contacts as the team meets them. Mark exactly ONE as primary (the system uses primary email as default reply target). Keep roles accurate so the team knows whether they're talking to ops, eng, or leadership.",
+                  principle: "Relationships are with people. The contact list is how the team remembers WHO across turnover.",
+                },
+              },
+              {
+                key: "subscription",
+                label: "Subscription",
+                icon: Receipt,
+                hint: {
+                  whatItIs: "The account's plan + status — plan tier, seat count, MRR, subscription state (active / not_collecting / paused / cancelled). Per the constitution, billing is in the schema but NOT actively collecting during pilot; state stays 'not_collecting' until the team explicitly turns on live billing.",
+                  why: "Billing data here is the SHAPE of what will land when collection turns on — not active charges yet. The honesty here matters: claiming MRR you haven't collected would corrupt the team's read of revenue.",
+                  how: "Read to see how this account is configured for billing. Use Generate stub to produce paper invoices for bookkeeping while collection is off. When live billing turns on tenant-wide, this tab becomes the operational subscription surface.",
+                  principle: "Subscription data is honest about the not-collecting state. Performing revenue you haven't collected is the failure mode this surface defeats.",
+                },
+              },
+              {
+                key: "activity",
+                label: "Activity",
+                icon: ActivityIcon,
+                hint: {
+                  whatItIs: "The chronological log of every event on this account — lifecycle changes, subscription updates, contact additions, notes appended. Each row is an immutable §3.1 chain event.",
+                  why: "Without an audit trail, account state changes get re-litigated ('who moved this to churned and when?'). The activity log is the structural answer: it shows exactly who did what, when, with what reason.",
+                  how: "Scan top-down for recent activity. Open older logs when investigating 'how did this account get to where it is.' Use the activity log as evidence in any vendor-side decision about the account's future.",
+                  principle: "Append-only history is how vendor admin avoids re-litigating decisions. The log is the record.",
+                },
+              },
+              {
+                key: "notes",
+                label: "Notes",
+                icon: StickyNote,
+                hint: {
+                  whatItIs: "Free-form notes on this account — the team's read of the relationship, things worth remembering, context that doesn't fit in other tabs. Notes are append-only (no editing prior notes); new notes append to the bottom.",
+                  why: "Salesforce-style structured fields can't capture nuance like 'CTO is skeptical about pricing but their CEO loves us.' Notes are where the human read lives. Append-only keeps the history honest: you can disagree with a prior note, but you can't erase it.",
+                  how: "Write a note when something material changes (new contact joins, decision-maker shifts, pricing conversation happens). Date it implicitly via the chain. Future notes can reference and update without erasing.",
+                  principle: "Append-only notes preserve the team's evolving read. Erasing history is the failure mode this defeats.",
+                },
+              },
             ] as const
           ).map((t) => {
             const Icon = t.icon;
             return (
-              <button
+              <LearningHint
                 key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 border-b-2 transition-colors ${
-                  tab === t.key
-                    ? "border-ember-400 text-primary"
-                    : "border-transparent text-secondary hover:text-primary"
-                }`}
+                category="CRM · Tab"
+                title={t.label}
+                whatItIs={t.hint.whatItIs}
+                why={t.hint.why}
+                how={t.hint.how}
+                principle={"principle" in t.hint ? t.hint.principle : undefined}
               >
-                <Icon className="w-3 h-3" aria-hidden />
-                {t.label}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setTab(t.key)}
+                  className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 border-b-2 transition-colors shrink-0 ${
+                    tab === t.key
+                      ? "border-ember-400 text-primary"
+                      : "border-transparent text-secondary hover:text-primary"
+                  }`}
+                >
+                  <Icon className="w-3 h-3" aria-hidden />
+                  {t.label}
+                </button>
+              </LearningHint>
             );
           })}
         </div>

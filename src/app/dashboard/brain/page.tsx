@@ -384,12 +384,22 @@ function GateCard({
         </p>
       </div>
       <p className="text-xs text-secondary mb-3">{gate.reason}</p>
-      <button
-        onClick={onUnlock}
-        className="text-xs text-primary hover:text-primary border border-yellow-500/40 hover:border-yellow-500/70 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
+      <LearningHint
+        category="Brain · §3.4 / §7.5"
+        title="Unlock early (with reason)"
+        whatItIs="An admin-only override of the §3.4 control window — the 30-day silent baseline that lets the team's natural operating shape get captured before AI guidance composes anything against it. Unlocking early opens AI guidance immediately. Requires a written reason (≥20 chars) which gets stored on the brain's audit trail."
+        why="The 30-day silent control is constitutional. It exists so the §4 readout can compare 'before AI guidance' (month 1) against 'with AI guidance' (month 2+) on the same tenant — the cleanest A/B you can run. Unlocking early collapses that comparison. The override exists because some teams have a real operational reason (pilot timeline, customer crisis, leadership change) that justifies the cost. The reason is on the record so §7.5 review can later assess whether early-unlock cohorts produced WORSE outcomes than control-respecting ones."
+        how="Click only if the team genuinely needs guidance before the control window expires. Write a specific reason — 'we want to test it' is not enough; the audit trail rewards specificity. The chain event gets written immediately and is immutable."
+        principle="The constitution refuses to believe its own evolution until results prove it (§4). Unlocking early is the team voluntarily giving up the cleanest measurement they'd otherwise have."
       >
-        <Unlock className="w-3 h-3" /> Unlock early (with reason)
-      </button>
+        <button
+          type="button"
+          onClick={onUnlock}
+          className="text-xs text-primary hover:text-primary border border-yellow-500/40 hover:border-yellow-500/70 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
+        >
+          <Unlock className="w-3 h-3" /> Unlock early (with reason)
+        </button>
+      </LearningHint>
     </div>
   );
 }

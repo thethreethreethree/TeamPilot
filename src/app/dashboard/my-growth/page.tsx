@@ -10,6 +10,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /dashboard/my-growth — §3.6 make-learning-visible surface.
@@ -219,24 +220,51 @@ export default function MyGrowthPage() {
                     subtitle="The Coach grades sent messages on whether the framing tends to produce clarity, neutrality, or pushback. This is downstream consequence — not a rating on you."
                   >
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <GradeStat
-                        label="Productive"
-                        count={snap.recentGradeMix.productive}
-                        total={snap.totalGraded}
-                        tone="emerald"
-                      />
-                      <GradeStat
-                        label="Neutral"
-                        count={snap.recentGradeMix.neutral}
-                        total={snap.totalGraded}
-                        tone="muted"
-                      />
-                      <GradeStat
-                        label="Needs guidance"
-                        count={snap.recentGradeMix.needsGuidance}
-                        total={snap.totalGraded}
-                        tone="amber"
-                      />
+                      <LearningHint
+                        category="My growth · Coach grade"
+                        title="Productive"
+                        whatItIs="The percentage of your sent messages (last 30 days) graded as PRODUCTIVE by the Coach — meaning the framing tends to land cleanly, produce a clear next step, and reduce the number of clarification cycles needed."
+                        why="Productive is the consequence measure for communication quality. Higher productive % usually correlates with shorter reply chains, fewer 'wait, what did you mean' loops, and the team's reasoning compounding faster. The Coach grades on language patterns, not your worth — this is downstream consequence per §A10."
+                        how="If productive is climbing, your communication is sharpening — keep doing what you're doing. If it's flat or declining, check the Needs guidance count for the kinds of patterns the Coach is flagging. Use Guide my response BEFORE sending a high-stakes message to lift this rate further."
+                        principle="Productive measures what your messages CAUSED downstream, not who you ARE. The grade is about pattern, not person."
+                      >
+                        <GradeStat
+                          label="Productive"
+                          count={snap.recentGradeMix.productive}
+                          total={snap.totalGraded}
+                          tone="emerald"
+                        />
+                      </LearningHint>
+                      <LearningHint
+                        category="My growth · Coach grade"
+                        title="Neutral"
+                        whatItIs="The percentage of your sent messages graded NEUTRAL — messages that neither sharpened the conversation nor introduced friction. Honest baseline rather than a verdict."
+                        why="Most messages are neutral. The point of surfacing this percentage isn't to drive it down (sometimes neutral is exactly right — a simple acknowledgement, a status update, a quick yes). It's to PAIR with productive + needs-guidance so the picture is honest."
+                        how="Watch it in context. A team where neutral is 70%+ might be under-engaging with the harder conversations; a team where it's 20% might be running hot. Neither is intrinsically wrong; both are signals to talk about."
+                        principle="Neutral isn't bad. It's the baseline that makes productive and needs-guidance interpretable."
+                      >
+                        <GradeStat
+                          label="Neutral"
+                          count={snap.recentGradeMix.neutral}
+                          total={snap.totalGraded}
+                          tone="muted"
+                        />
+                      </LearningHint>
+                      <LearningHint
+                        category="My growth · Coach grade"
+                        title="Needs guidance"
+                        whatItIs="The percentage of your sent messages where the Coach flagged a risk pattern — usually NVC-evaluation, voss-bare-assertion, stone-identity-collision, or similar. The grade marks messages that COULD HAVE LANDED BETTER, not that you're at fault."
+                        why="Risk patterns recur — once you ship a message with identity-collision language, you'll do it again unless someone surfaces it. Surfacing the rate is what makes the pattern improvable. Per §A18, this view is yours alone; admins see aggregate, never per-agent."
+                        how="If the rate is climbing, click into the actual flagged messages in C.A.R.E or chats and read the Coach's note. The note explains WHICH pattern triggered and WHY the framing produced risk. Use that read in your NEXT draft. The point is compound improvement, not self-criticism."
+                        principle="Patterns are improvable; people aren't 'fixed.' The discipline is in reading the pattern and changing the next draft."
+                      >
+                        <GradeStat
+                          label="Needs guidance"
+                          count={snap.recentGradeMix.needsGuidance}
+                          total={snap.totalGraded}
+                          tone="amber"
+                        />
+                      </LearningHint>
                     </div>
                     <p className="text-[11px] text-muted mt-3">
                       n = {snap.totalGraded} graded messages over the
