@@ -98,13 +98,18 @@ export function CareShell({ children }: { children: React.ReactNode }) {
       const raw = window.localStorage.getItem("care-shell-collapsed");
       if (raw === "1") {
         setNavCollapsed(true);
-      } else if (raw === null && typeof window !== "undefined") {
-        // First visit — default to collapsed on mobile so the
-        // inbox surface gets the full viewport. User can expand
-        // explicitly; the choice then persists.
-        const isMobile = window.matchMedia("(max-width: 768px)").matches;
-        if (isMobile) setNavCollapsed(true);
+        return;
       }
+      if (raw !== null) return;
+      // First visit — default to collapsed on mobile so the inbox
+      // surface gets the full viewport. Guard matchMedia in case
+      // an exotic mobile browser doesn't expose it (we'd rather
+      // skip the auto-collapse than throw).
+      const mm =
+        typeof window !== "undefined" && typeof window.matchMedia === "function"
+          ? window.matchMedia("(max-width: 768px)")
+          : null;
+      if (mm?.matches) setNavCollapsed(true);
     } catch {
       /* ignore */
     }

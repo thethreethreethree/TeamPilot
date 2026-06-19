@@ -372,12 +372,18 @@ export function ConversationsApp({
           setListCollapsed(v.listCollapsed);
         if (typeof v.customerCollapsed === "boolean")
           setCustomerCollapsed(v.customerCollapsed);
-      } else if (typeof window !== "undefined") {
+      } else {
         // First visit — default both side panes collapsed on
         // narrow viewports so the conversation surface gets the
-        // full width. User can expand explicitly; choice persists.
-        const isMobile = window.matchMedia("(max-width: 768px)").matches;
-        if (isMobile) {
+        // full width. matchMedia guarded in case an exotic
+        // mobile browser doesn't expose it (we'd rather skip
+        // auto-collapse than throw).
+        const mm =
+          typeof window !== "undefined" &&
+          typeof window.matchMedia === "function"
+            ? window.matchMedia("(max-width: 768px)")
+            : null;
+        if (mm?.matches) {
           setViewsCollapsed(true);
           setCustomerCollapsed(true);
         }
