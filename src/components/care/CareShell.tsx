@@ -145,14 +145,19 @@ export function CareShell({ children }: { children: React.ReactNode }) {
           onClick={() => setNavCollapsed(false)}
           aria-label="Expand C.A.R.E navigation"
           title="Expand navigation"
-          className="w-6 flex-shrink-0 bg-[#0B1620] border-r border-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/90 hover:bg-white/5 transition-colors"
+          className="w-6 flex-shrink-0 bg-[#0B1620] border-r border-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/90 hover:bg-white/5 transition-colors pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
         >
           <ChevronRight className="w-3.5 h-3.5" aria-hidden />
         </button>
       ) : (
       <aside className="w-56 flex-shrink-0 bg-[#0B1620] text-white/90 border-r border-white/[0.06] flex flex-col">
-        {/* Header: brand + agent status */}
-        <div className="px-4 pt-4 pb-3">
+        {/* Header: brand + agent status.
+            pt-[max(1rem,env(safe-area-inset-top))] pushes the C.A.R.E
+            logo + title BELOW the iOS status bar / dynamic island on
+            phones with a notch. Without this, the brand text rendered
+            directly under the system clock + battery — caught in
+            founder mobile audit 2026-06-19. */}
+        <div className="px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="flex items-start gap-2 mb-3">
             <div className="w-7 h-7 rounded-md bg-ember-400 flex items-center justify-center shrink-0">
               <LifeBuoy className="w-4 h-4 text-[#09090B]" aria-hidden />
@@ -217,8 +222,13 @@ export function CareShell({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        {/* Footer: back to ELOSTATE */}
-        <div className="px-2 pb-3 pt-2 border-t border-white/[0.06]">
+        {/* Footer: back to ELOSTATE.
+            pb-[max(0.75rem,env(safe-area-inset-bottom))] pushes the
+            footer ABOVE the iPhone home gesture bar so 'Back to
+            ELOSTATE' stays reliably tappable on devices with the
+            home indicator. Without this, the footer was cut off by
+            the gesture area — caught in founder audit 2026-06-19. */}
+        <div className="px-2 pt-2 border-t border-white/[0.06] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <Link
             href="/dashboard"
             className="flex items-center gap-2 px-3 py-2 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors"
@@ -229,8 +239,12 @@ export function CareShell({ children }: { children: React.ReactNode }) {
       </aside>
       )}
 
-      {/* Main content area */}
-      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      {/* Main content area. pt-[env(safe-area-inset-top)] guards
+          against child pages whose first row would otherwise render
+          under the iOS status bar. Each page's <header> sits at the
+          top of this main; the inset is absorbed once here so pages
+          don't have to repeat it. */}
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
         {children}
       </main>
     </div>

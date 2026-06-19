@@ -2416,7 +2416,7 @@ function Composer({
   isEmailChannel?: boolean;
 }) {
   return (
-    <div className="border-t border-default bg-white/[0.02] px-4 md:px-6 py-3">
+    <div className="border-t border-default bg-white/[0.02] px-4 md:px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
         <LearningHint
           category="C.A.R.E"

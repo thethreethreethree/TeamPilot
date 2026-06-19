@@ -196,38 +196,145 @@ const productionNav: Array<{
   },
 ];
 
-const testingNav = [
-  { label: "Smoke test", href: "/dashboard/smoke-test", icon: ClipboardList },
-  { label: "My feedback", href: "/dashboard/feedback", icon: MessageSquare },
-  { label: "Notifications", href: "/dashboard/notifications", icon: Bell },
+const testingNav: Array<{
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  hint: NavHint;
+}> = [
+  {
+    label: "Smoke test",
+    href: "/dashboard/smoke-test",
+    icon: ClipboardList,
+    hint: {
+      whatItIs:
+        "A structured pilot-acceptance checklist — every item the team agreed must pass before the System is signed off. Each row: a thing to verify, pass/fail/unable buttons, a notes field. Pass produces a chain event so completion is auditable; fail surfaces in the admin feedback inbox.",
+      why: "Pilot validation is the single moment when claims get traded for evidence. Most teams skip this step and ship into ambiguity. The smoke-test page is the structural defense — leadership can't claim 'we tested it' without rows on this surface.",
+      how: "Walk every item top to bottom. Notes are required when status is fail or unable. The Coach v6 model in the background reviews notes; admin sees a triage list. After the smoke test passes end-to-end, the team has crossed from claim to evidence.",
+      principle:
+        "Acceptance is a moment that should be recorded, not inferred. The smoke test is the record.",
+    },
+  },
+  {
+    label: "My feedback",
+    href: "/dashboard/feedback",
+    icon: MessageSquare,
+    hint: {
+      whatItIs:
+        "Your personal view of every feedback report you've filed plus its current triage state (open / triaged / in-progress / resolved / declined / duplicate). Submit a new report from the button at the top.",
+      why: "Without this surface, the team filing feedback would never see what happened to it. That loop — file, watch it move through triage, see it resolved — is what turns 'feedback' into a real channel rather than a black hole.",
+      how: "Click 'Submit new feedback' to file. Watch the status column on each row evolve. When an admin transitions a row, you see it here. Filter by status to see only what's still open.",
+      principle:
+        "Feedback that disappears is feedback the team will stop filing. Visible triage is what keeps the channel alive.",
+    },
+  },
+  {
+    label: "Notifications",
+    href: "/dashboard/notifications",
+    icon: Bell,
+    hint: {
+      whatItIs:
+        "The unified surface for every signal addressed at YOU — @mentions in topics, Decision Dialogue activity in topics you participate in, task additions where you were tagged, C.A.R.E pings (if you're an agent). Each row links to where the signal landed.",
+      why: "Push notifications + slack + email + tickets fragment attention. The dashboard's notifications page is the single inbox for things specific to you — capture what's there, then close the page. Pulled, not pushed.",
+      how: "Open once or twice a day. Walk top to bottom; click into anything that needs an action. The unread dot in the sidebar tells you when something new has landed.",
+      principle:
+        "Pulling beats pushing for sustained attention. Use this surface intentionally; don't let it use you.",
+    },
+  },
 ];
 
-const adminNav = [
+const adminNav: Array<{
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  hint: NavHint;
+}> = [
   {
     label: "Customer accounts",
     href: "/dashboard/admin/crm",
     icon: Building2,
+    hint: {
+      whatItIs:
+        "The vendor CRM — every tenant company (ELOSTATE's customers) with lifecycle stage, subscription, contacts, billing events, account-owner notes. Test accounts (founder dev signups) are hidden by default; toggle to surface them.",
+      why: "Even a discipline-first product has customer admin work. The CRM is the honest minimum that surfaces lifecycle stage, billing state, and contact history without becoming a Salesforce ceremony. Vendor-side metrics (count by stage, MRR trend) live here.",
+      how: "Browse the list to scan customer health. Click into an account for full detail (subscription edit, invoices, contacts, notes). Use Environment filter to keep dev signups out of the production-customer view.",
+      principle:
+        "Vendor metrics need clean data. The CRM exists so customer admin doesn't pollute the team's operational surfaces.",
+    },
   },
   {
     label: "Feedback inbox",
     href: "/dashboard/admin/feedback",
     icon: MessageSquarePlus,
+    hint: {
+      whatItIs:
+        "The admin-side triage surface for all feedback rows the team has filed. Filter by status (open / triaged / in-progress / resolved / declined / duplicate) and by kind (bug / friction / idea / question / praise / smoke-test-result). Action buttons transition each row through the triage workflow.",
+      why: "Feedback that doesn't get triaged becomes silent failure. This surface forces leadership to engage with every report — even the duplicates, even the praise. The action of transitioning a row also writes a chain event so the audit trail is intact.",
+      how: "Walk the Open filter once a day or so. Transition rows: triaged (acknowledged, in queue), in_progress (someone's working it), resolved (fixed/built), declined (with reason), duplicate (with link to the original).",
+      principle:
+        "The cost of a feedback row is bounded; the cost of NOT triaging it is unbounded.",
+    },
   },
   {
     label: "Coach readout",
     href: "/dashboard/admin/coach-readout",
     icon: BookOpen,
+    hint: {
+      whatItIs:
+        "The §4 leadership readout — Coach grading distribution, communication-pattern trends, before/after Coach ON vs Coach OFF comparison data. Aggregate across the team; never per-agent (per §A18, no stack-rank).",
+      why: "The Coach is the team's communication mirror. The readout is how leadership reads the mirror without invading individuals' privacy. Per §3.5, only consequence measures count; the readout filters Coach-grading data through that discipline.",
+      how: "Read trend over time, not single snapshots. Compare Coach-on cohorts against Coach-off cohorts where available. The deltas are the team's actual learning rate; the absolute counts are context.",
+      principle:
+        "Aggregate visibility, individual privacy. The §A18 line that separates leader-readout from agent-readout is constitutional.",
+    },
   },
   {
     label: "Team check",
     href: "/dashboard/admin/team-check",
     icon: Heart,
+    hint: {
+      whatItIs:
+        "The §Pillar 2 invitation surface — surfaces tasks that have gone stale (4+ days without activity) for an admin to send a structured check-in (the NudgeModal) to the assignee. Records the nudge as a chain event so the §4 readout can measure whether nudges actually moved the work.",
+      why: "Standing micromanagement is corrosive; ignoring stalled work is irresponsible. The team check is the structured middle path — an admin sends ONE message at the right moment, framed as a doorway not a deadline, and the System tracks whether it landed.",
+      how: "Open this page when you've been wondering 'who might need a doorway today.' For each row, click 'Send check-in', edit the suggested message to match your voice and relationship with the person, send. The system records whether the task moved.",
+      principle:
+        "The leader's job at this surface is to open doors, not push backs. The discipline is in the framing of the message.",
+    },
   },
 ];
 
-const designPreviewNav = [
-  { label: "Finance", href: "/dashboard/finance", icon: DollarSign },
-  { label: "Marketing", href: "/dashboard/marketing", icon: Megaphone },
+const designPreviewNav: Array<{
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  hint: NavHint;
+}> = [
+  {
+    label: "Finance",
+    href: "/dashboard/finance",
+    icon: DollarSign,
+    hint: {
+      whatItIs:
+        "A design preview of the future Finance dashboard. The AI Finance Diagnosis feature was sunset in 2026-04 (it produced surface-level patterns that failed §3.2). The next version replays the same chain architecture you see in Operations, scoped to finance — when it ships, this preview becomes real.",
+      why: "Design previews exist so leadership can review the SHAPE of a future module before committing to build it. Showing layout + data structure ahead of the AI integration is honest about the build sequence: layout first, then chain, then AI lens.",
+      how: "Don't operate from this surface yet. Browse to see what's coming. Tell us if the shape doesn't match what your team would actually need.",
+      principle:
+        "Design preview is the honest tradeoff: SHOW what's coming, don't HIDE that it's not built.",
+    },
+  },
+  {
+    label: "Marketing",
+    href: "/dashboard/marketing",
+    icon: Megaphone,
+    hint: {
+      whatItIs:
+        "Same design-preview pattern as Finance — a layout for the future Marketing dashboard. AI Marketing Diagnosis was sunset for the same reason: the chain architecture needs to be in place (events from real ad/CRM integrations, signals derived from at least 2 sources) before AI can compose anything trustworthy.",
+      why: "Build sequence: surface layout → chain events → durable signals → AI lens that won't fail §3.2. We're at step 1 here; the next steps require infrastructure that hasn't shipped.",
+      how: "Browse for layout review. Don't depend on data shown here.",
+      principle:
+        "Marketing AI fails most often by pattern-matching against weak signals. The honest version waits for §3.2 to be satisfiable.",
+    },
+  },
 ];
 
 export default function Sidebar() {
@@ -571,32 +678,42 @@ export default function Sidebar() {
             const showUnreadDot =
               item.href === "/dashboard/notifications" && unread;
             return (
-              <Link
+              <LearningHint
                 key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                  isActive
-                    ? "bg-ember-400/15 text-brand border border-ember-400/30"
-                    : "text-secondary hover:text-primary hover:bg-surface-raised"
-                )}
+                as="block"
+                category="Module · Testing"
+                title={item.label}
+                whatItIs={item.hint.whatItIs}
+                why={item.hint.why}
+                how={item.hint.how}
+                principle={item.hint.principle}
               >
-                <span className="relative flex-shrink-0">
-                  <Icon
-                    className={cn(
-                      "w-4 h-4",
-                      isActive ? "text-brand" : "text-muted"
-                    )}
-                  />
-                  {showUnreadDot && (
-                    <span
-                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-ember-400 ring-2 ring-base"
-                      aria-label="Unread notifications"
-                    />
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                    isActive
+                      ? "bg-ember-400/15 text-brand border border-ember-400/30"
+                      : "text-secondary hover:text-primary hover:bg-surface-raised"
                   )}
-                </span>
-                {item.label}
-              </Link>
+                >
+                  <span className="relative flex-shrink-0">
+                    <Icon
+                      className={cn(
+                        "w-4 h-4",
+                        isActive ? "text-brand" : "text-muted"
+                      )}
+                    />
+                    {showUnreadDot && (
+                      <span
+                        className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-ember-400 ring-2 ring-base"
+                        aria-label="Unread notifications"
+                      />
+                    )}
+                  </span>
+                  {item.label}
+                </Link>
+              </LearningHint>
             );
           })}
           {/* "Send feedback" — replaces the floating bottom-right
@@ -624,24 +741,34 @@ export default function Sidebar() {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
-                <Link
+                <LearningHint
                   key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                    isActive
-                      ? "bg-ember-400/15 text-brand border border-ember-400/30"
-                      : "text-secondary hover:text-primary hover:bg-surface-raised"
-                  )}
+                  as="block"
+                  category="Module · Admin"
+                  title={item.label}
+                  whatItIs={item.hint.whatItIs}
+                  why={item.hint.why}
+                  how={item.hint.how}
+                  principle={item.hint.principle}
                 >
-                  <Icon
+                  <Link
+                    href={item.href}
                     className={cn(
-                      "w-4 h-4 flex-shrink-0",
-                      isActive ? "text-brand" : "text-muted"
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                      isActive
+                        ? "bg-ember-400/15 text-brand border border-ember-400/30"
+                        : "text-secondary hover:text-primary hover:bg-surface-raised"
                     )}
-                  />
-                  {item.label}
-                </Link>
+                  >
+                    <Icon
+                      className={cn(
+                        "w-4 h-4 flex-shrink-0",
+                        isActive ? "text-brand" : "text-muted"
+                      )}
+                    />
+                    {item.label}
+                  </Link>
+                </LearningHint>
               );
             })}
         </div>
@@ -655,19 +782,29 @@ export default function Sidebar() {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
-              <Link
+              <LearningHint
                 key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                  isActive
-                    ? "bg-violet-500/10 text-violet-300 border border-violet-500/30"
-                    : "text-muted hover:text-secondary hover:bg-surface-raised"
-                )}
+                as="block"
+                category="Module · Design preview"
+                title={item.label}
+                whatItIs={item.hint.whatItIs}
+                why={item.hint.why}
+                how={item.hint.how}
+                principle={item.hint.principle}
               >
-                <Icon className="w-4 h-4 text-muted" />
-                {item.label}
-              </Link>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                    isActive
+                      ? "bg-violet-500/10 text-violet-300 border border-violet-500/30"
+                      : "text-muted hover:text-secondary hover:bg-surface-raised"
+                  )}
+                >
+                  <Icon className="w-4 h-4 text-muted" />
+                  {item.label}
+                </Link>
+              </LearningHint>
             );
           })}
         </div>
@@ -676,6 +813,15 @@ export default function Sidebar() {
           <p className="px-3 mb-2 text-[10px] text-muted uppercase tracking-widest">
             System
           </p>
+          <LearningHint
+            as="block"
+            category="Module · System"
+            title="Settings"
+            whatItIs="The system configuration surface — company profile, AI provider (DeepSeek primary, Anthropic alternate), Coach company-wide toggle, Learning Mode preference, Avatar customization, Password rotation. Every change writes a chain event so the audit trail is intact."
+            why="Settings are usually a junk drawer. ELOSTATE's intent is to make them a deliberate surface — the LLM provider you've chosen is part of the §3.4 control story; the Coach toggle affects every chat surface; Learning Mode (the FAB you're hovering right now) is opt-in here. Every choice on this page shapes how the System behaves for the team."
+            how="Read top to bottom on first visit. Configure the LLM provider before doing anything else. Set Coach on/off at the company level — your topic-level toggles inherit from it. Toggle Learning Mode here if you want hint popovers across the dashboard. Change your password anytime."
+            principle="Settings is governance, not chrome. Every choice here propagates."
+          >
           <Link
             href="/dashboard/settings"
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-secondary hover:text-primary hover:bg-surface-raised transition-all duration-150"
@@ -683,6 +829,7 @@ export default function Sidebar() {
             <Settings className="w-4 h-4 text-muted" />
             Settings
           </Link>
+          </LearningHint>
         </div>
       </nav>
 
