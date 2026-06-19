@@ -184,7 +184,7 @@ export default function TaskDetailPage() {
     return (
       <div className="min-h-screen bg-base">
         <TopBar title="Task" subtitle="Not found" />
-        <div className="p-6 max-w-3xl mx-auto space-y-4">
+        <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-4">
           <p className="text-sm text-primary">Task not found.</p>
           <Link
             href="/dashboard/operations"

@@ -537,7 +537,7 @@ export default function TeamChatTopicPage() {
     return (
       <div className="min-h-screen bg-base">
         <TopBar title="Topic not found" subtitle="" />
-        <div className="p-6 max-w-3xl mx-auto">
+        <div className="p-4 md:p-6 max-w-3xl mx-auto">
           <Link
             href="/dashboard/chats"
             className="inline-flex items-center gap-1.5 text-xs text-brand hover:text-primary mb-4"

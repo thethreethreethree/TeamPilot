@@ -132,7 +132,7 @@ export function CareShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="flex h-screen w-full bg-base overflow-hidden">
+    <div className="flex h-dvh w-full bg-base overflow-hidden">
       {/* Care left sidebar — dark navy, Zendesk-shaped */}
       {navCollapsed ? (
         <button

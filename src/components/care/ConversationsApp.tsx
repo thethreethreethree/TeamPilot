@@ -1373,7 +1373,7 @@ export function ConversationsApp({
               {/* Message stream */}
               <div
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto px-8 py-5 space-y-3 bg-white/[0.01]"
+                className="flex-1 overflow-y-auto px-4 md:px-8 py-5 space-y-3 bg-white/[0.01]"
               >
                 {detailLoading && messages.length === 0 && (
                   <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
@@ -1714,7 +1714,7 @@ function DetailHeader({
   const dl = careStatusDisplay(conversation.status);
   const Icon = dl.icon;
   return (
-    <div className="border-b border-default px-6 py-3 bg-base/40">
+    <div className="border-b border-default px-4 md:px-6 py-3 bg-base/40">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h2 className="text-base font-semibold text-primary truncate">
@@ -2410,7 +2410,7 @@ function Composer({
   isEmailChannel?: boolean;
 }) {
   return (
-    <div className="border-t border-default bg-white/[0.02] px-6 py-3">
+    <div className="border-t border-default bg-white/[0.02] px-4 md:px-6 py-3">
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
         <LearningHint
           category="C.A.R.E"
