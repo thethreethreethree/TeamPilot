@@ -333,8 +333,8 @@ export default function CoachReadoutPage() {
                 §3.5-anchored outcome — then time-to-close and average
                 message count as efficiency signals.
               </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+              <div className="overflow-x-auto" role="region" aria-label="Comparison table">
+                <table className="w-full min-w-[480px] text-xs">
                   <thead>
                     <tr className="text-left text-[10px] uppercase tracking-widest text-muted border-b border-default">
                       <th className="py-2 pr-4">Metric</th>
@@ -415,8 +415,8 @@ export default function CoachReadoutPage() {
                   No tasks recorded yet.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                <div className="overflow-x-auto" role="region" aria-label="Data table">
+                  <table className="w-full min-w-[480px] text-xs">
                     <thead>
                       <tr className="text-left text-[10px] uppercase tracking-widest text-muted border-b border-default">
                         <th className="py-2 pr-4">Source</th>
@@ -598,8 +598,8 @@ export default function CoachReadoutPage() {
                   populates as the team uses Coach.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                <div className="overflow-x-auto" role="region" aria-label="Data table">
+                  <table className="w-full min-w-[480px] text-xs">
                     <thead>
                       <tr className="text-left text-[10px] uppercase tracking-widest text-muted border-b border-default">
                         <th className="py-2 pr-4">Principle</th>
@@ -655,8 +655,8 @@ export default function CoachReadoutPage() {
                   No Coach activity on any surface yet.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                <div className="overflow-x-auto" role="region" aria-label="Data table">
+                  <table className="w-full min-w-[480px] text-xs">
                     <thead>
                       <tr className="text-left text-[10px] uppercase tracking-widest text-muted border-b border-default">
                         <th className="py-2 pr-4">Surface</th>
@@ -715,8 +715,8 @@ export default function CoachReadoutPage() {
                   No coach.suggestion_* events on the chain yet.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                <div className="overflow-x-auto" role="region" aria-label="Data table">
+                  <table className="w-full min-w-[480px] text-xs">
                     <thead>
                       <tr className="text-left text-[10px] uppercase tracking-widest text-muted border-b border-default">
                         <th className="py-2 pr-4">Heuristic</th>

@@ -74,6 +74,7 @@ export default function CareKnowledgePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (categoryFilter) params.set("category", categoryFilter);
@@ -86,14 +87,18 @@ export default function CareKnowledgePage() {
         return;
       }
       if (!res.ok) {
-        setError("Couldn't load.");
+        setError(`Could not load knowledge (status ${res.status}).`);
         return;
       }
       const data = await res.json();
       setResolutions(data.resolutions ?? []);
       setCategories(data.categories ?? []);
-    } catch {
-      setError("Couldn't reach the server.");
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? `Could not load knowledge — ${e.message}`
+          : "Could not load knowledge (network error)."
+      );
     } finally {
       setLoading(false);
     }
@@ -138,10 +143,14 @@ export default function CareKnowledgePage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+              <label
+                htmlFor="knowledge-category"
+                className="block text-[10px] uppercase tracking-widest text-muted mb-1"
+              >
                 Category
               </label>
               <select
+                id="knowledge-category"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="w-full bg-base border border-default rounded-md px-2.5 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"
@@ -155,10 +164,14 @@ export default function CareKnowledgePage() {
               </select>
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+              <label
+                htmlFor="knowledge-outcome"
+                className="block text-[10px] uppercase tracking-widest text-muted mb-1"
+              >
                 Durability outcome
               </label>
               <select
+                id="knowledge-outcome"
                 value={outcomeFilter}
                 onChange={(e) => setOutcomeFilter(e.target.value)}
                 className="w-full bg-base border border-default rounded-md px-2.5 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"
@@ -179,8 +192,17 @@ export default function CareKnowledgePage() {
           </div>
         )}
         {error && (
-          <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4">
-            <p className="text-sm text-red-300">{error}</p>
+          <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4 flex items-center gap-3">
+            <p className="flex-1 text-sm text-red-300">{error}</p>
+            {error !== "Knowledge base is for support agents." && (
+              <button
+                type="button"
+                onClick={() => void load()}
+                className="text-xs font-semibold text-ember-300 hover:text-primary border border-ember-400/40 hover:border-ember-400 px-2.5 py-1 rounded-md transition-colors"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 
