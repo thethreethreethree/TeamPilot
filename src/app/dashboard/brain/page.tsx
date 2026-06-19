@@ -407,7 +407,9 @@ function UnlockModal({
 
   const submit = async () => {
     if (reason.trim().length < 20) {
-      setError("Reason must be ≥20 chars.");
+      setError(
+        `Reason needs at least 20 characters (currently ${reason.trim().length}). This lands on the audit trail — be specific.`
+      );
       return;
     }
     setSubmitting(true);
@@ -444,17 +446,29 @@ function UnlockModal({
           rows={4}
           placeholder="Why does this team need the control window overridden? Be specific — this is on the record."
         />
+        <div className="flex items-center justify-end mt-1">
+          <p
+            className={`text-[10px] tabular-nums ${
+              reason.trim().length < 20 ? "text-muted" : "text-emerald-400"
+            }`}
+          >
+            {reason.trim().length} / 20+ chars
+          </p>
+        </div>
         {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
-        <div className="flex items-center justify-end gap-2 pt-3">
+        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-base/95 backdrop-blur-sm border-t border-default flex items-center justify-end gap-2 mt-3">
           <button
+            type="button"
             onClick={onClose}
+            disabled={submitting}
             className="text-xs text-muted hover:text-secondary px-3 py-2"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={submit}
-            disabled={submitting}
+            disabled={submitting || reason.trim().length < 20}
             className="flex items-center gap-2 bg-yellow-500/20 hover:bg-yellow-500/30 disabled:opacity-40 text-primary font-semibold px-4 py-2 rounded-lg transition-all text-xs"
           >
             {submitting ? "Unlocking…" : "Unlock with reason"}

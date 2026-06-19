@@ -353,8 +353,11 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            {/* Save */}
-            <div className="flex items-center justify-between">
+            {/* Save — sticky-bottom on mobile so the action stays
+                reachable as the user scrolls through long settings.
+                md+ goes back to inline so the layout doesn't shift
+                on desktop. */}
+            <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-base/95 backdrop-blur-sm border-t border-default md:static md:bg-transparent md:backdrop-blur-0 md:border-t-0 md:p-0 flex items-center justify-between gap-3 mb-[env(safe-area-inset-bottom)] md:mb-0">
               <p className="text-[10px] text-muted font-mono">
                 Last saved:{" "}
                 {settings.company.updated_at
