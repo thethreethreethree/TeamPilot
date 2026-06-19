@@ -108,8 +108,8 @@ export default function ResolutionsPage() {
         </LearningHint>
 
         {/* Summary + export */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="grid grid-cols-3 gap-4 flex-1">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="grid grid-cols-3 gap-3 md:gap-4 flex-1 min-w-0">
             <Stat label="Total resolutions" value={resolutions.length} color="text-primary" />
             <Stat label="Reviewed" value={reviewed.length} color="text-blue-400" />
             <Stat

@@ -728,13 +728,13 @@ function PhaseCard({
 }) {
   return (
     <div
-      className={`glass-card p-5 transition-opacity ${active ? "" : "opacity-60"}`}
+      className={`glass-card p-4 md:p-5 transition-opacity ${active ? "" : "opacity-60"}`}
     >
-      <div className="flex items-baseline gap-2 mb-1">
+      <div className="flex items-baseline gap-2 mb-1 flex-wrap">
         <span className="text-[10px] font-mono text-brand">PHASE {number}</span>
         <h2 className="text-sm font-semibold text-primary">{title}</h2>
       </div>
-      <p className="text-xs text-muted mb-4">{subtitle}</p>
+      <p className="text-xs text-muted mb-4 break-words">{subtitle}</p>
       {children}
     </div>
   );

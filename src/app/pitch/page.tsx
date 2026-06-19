@@ -664,7 +664,7 @@ function ScaleQuote({
           {size}
         </p>
       </div>
-      <p className="text-sm text-primary leading-relaxed italic">
+      <p className="text-sm text-primary leading-relaxed italic break-words">
         &ldquo;{quote}&rdquo;
       </p>
     </div>

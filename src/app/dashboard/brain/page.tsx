@@ -249,7 +249,7 @@ export default function BrainPage() {
                     System prompt addendum (injected into every LLM call)
                   </h2>
                 </div>
-                <pre className="text-xs text-secondary whitespace-pre-wrap leading-relaxed bg-surface border border-default rounded-xl p-4 max-h-72 overflow-y-auto">
+                <pre className="text-xs text-secondary whitespace-pre-wrap leading-relaxed bg-surface border border-default rounded-xl p-4 max-h-72 overflow-y-auto break-words">
 {state.brain.systemPromptAddendum}
                 </pre>
               </div>
