@@ -21,6 +21,7 @@ import {
 } from "@/lib/data/topicDecisions";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
+import { LearningHint } from "@/components/learning/LearningHint";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
 
 /**
@@ -595,6 +596,15 @@ function FoldedDecided({
   };
 
   return (
+    <LearningHint
+      as="block"
+      category="Topic · Decision history"
+      title="Decision Dialogue closed"
+      whatItIs="A folded summary card showing that a Decision Dialogue ran inside this topic and what was decided. The card carries the chosen path (yours / system's / hybrid / defer) and a snippet of the chosen-note. Tap or swipe to dismiss the card; the dialogue stays on the §3.1 chain regardless."
+      why="When a topic produces a decision, the team needs to SEE the decision happened so they don't re-open the same conversation a week later. The folded card is the in-thread receipt — small enough to not consume composer space, visible enough to keep the decision on everyone's mental map."
+      how="Read the line. If you need to revisit the reasoning, the chosen-note snippet hints at why. If the situation has changed enough to warrant a new decision, hit 'New dialogue' (admin-only). Swipe left or right on mobile to dismiss the card from view — the decision row stays permanent."
+      principle="A decision that vanishes from sight gets re-decided. The fold keeps it lightly visible without taking the composer over."
+    >
     <div
       className="mb-3 flex items-start gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20"
       style={{
@@ -623,14 +633,23 @@ function FoldedDecided({
         )}
       </div>
       {iAmAdmin && (
-        <button
-          type="button"
-          onClick={onOpenNew}
-          className="flex-shrink-0 flex items-center gap-1.5 text-[11px] text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-2 py-1 rounded-lg transition-colors"
+        <LearningHint
+          category="Topic · Decision"
+          title="New dialogue"
+          whatItIs="Opens a fresh Decision Dialogue inside this topic. The prior decision stays on the §3.1 chain; the new dialogue is a separate decision instance with its own situation, your read, system response, and chosen path."
+          why="Decisions are point-in-time judgments. When the situation changes — new information, new constraints, the underlying problem reopens — the honest response is to OPEN ANOTHER dialogue rather than amend the old one. Each dialogue is immutable; the team's evolving understanding shows up as a SEQUENCE of dialogues, not as edits."
+          how="Click when the situation has materially changed and you need to re-decide. The new dialogue starts from a blank Situation phase. The prior dialogue's card remains visible above it for context."
+          principle="Decisions are append-only events. Edits would corrupt the audit trail; new dialogues preserve it."
         >
-          <RotateCcw className="w-3 h-3" aria-hidden />
-          New dialogue
-        </button>
+          <button
+            type="button"
+            onClick={onOpenNew}
+            className="flex-shrink-0 flex items-center gap-1.5 text-[11px] text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-2 py-1 rounded-lg transition-colors"
+          >
+            <RotateCcw className="w-3 h-3" aria-hidden />
+            New dialogue
+          </button>
+        </LearningHint>
       )}
       {/* Dismiss — UI-only "I've seen this" affordance. The decision
           row stays on the §3.1 chain; this just hides the in-thread
@@ -648,6 +667,7 @@ function FoldedDecided({
         </button>
       )}
     </div>
+    </LearningHint>
   );
 }
 
