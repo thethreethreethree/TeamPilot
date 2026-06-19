@@ -102,7 +102,7 @@ export function AskJeffPanel() {
       onClick={closeAskJeff}
     >
       <div
-        className="w-full max-w-md bg-base border-l border-ember-400/30 h-full flex flex-col"
+        className="w-full max-w-md bg-base border-l border-ember-400/30 h-full flex flex-col mb-[env(safe-area-inset-bottom)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header — Jeff's identity + the feature being discussed */}
@@ -129,7 +129,7 @@ export function AskJeffPanel() {
             type="button"
             onClick={closeAskJeff}
             aria-label="Close"
-            className="text-muted hover:text-primary p-1 rounded hover:bg-surface-raised flex-shrink-0"
+            className="text-muted hover:text-primary p-2 rounded hover:bg-surface-raised flex-shrink-0"
           >
             <X className="w-4 h-4" aria-hidden />
           </button>
@@ -219,15 +219,17 @@ export function AskJeffPanel() {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask Jeff about this feature…"
             disabled={busy}
-            className="flex-1 min-w-0 bg-base border border-default focus:border-ember-400/60 rounded-md px-3 py-1.5 text-xs text-primary placeholder:text-muted focus:outline-none"
+            autoComplete="off"
+            aria-label="Ask Jeff about this feature"
+            className="flex-1 min-w-0 bg-base border border-default focus:border-ember-400/60 rounded-md px-3 py-2 text-sm md:text-xs text-primary placeholder:text-muted focus:outline-none"
           />
           <button
             type="submit"
             disabled={busy || !input.trim()}
-            aria-label="Send"
-            className="shrink-0 inline-flex items-center justify-center bg-ember-400/10 hover:bg-ember-400/20 disabled:opacity-40 text-ember-300 border border-ember-400/40 rounded-md w-8 h-8"
+            aria-label="Send message to Jeff"
+            className="shrink-0 inline-flex items-center justify-center bg-ember-400/10 hover:bg-ember-400/20 disabled:opacity-40 text-ember-300 border border-ember-400/40 rounded-md w-10 h-10"
           >
-            <Send className="w-3.5 h-3.5" aria-hidden />
+            <Send className="w-4 h-4" aria-hidden />
           </button>
         </form>
       </div>

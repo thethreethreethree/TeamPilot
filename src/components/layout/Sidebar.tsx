@@ -296,6 +296,27 @@ export default function Sidebar() {
       window.removeEventListener("elostate:close-sidebar", onClose);
     };
   }, []);
+  // Escape key closes the mobile drawer — keyboard parity for the
+  // backdrop-tap dismissal that already exists.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+  // Body scroll lock while the mobile drawer is open. Without this,
+  // a long sidebar in a short viewport could scroll the page behind
+  // the drawer when the user touches the open drawer.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
   useEffect(() => {
     setMobileOpen(false); // close drawer on route change
   }, [pathname]);
