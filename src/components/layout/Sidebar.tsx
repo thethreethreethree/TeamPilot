@@ -26,6 +26,7 @@ import {
   Heart,
   Hourglass,
   Building2,
+  FolderOpen,
   X,
 } from "lucide-react";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
@@ -75,6 +76,19 @@ const productionNav: Array<{
       how: "Open or create a topic for any work that involves the team. The composer coaches you while you type. @mentions notify; everything threads. When a topic surfaces an actual decision, open the Decision Dialogue inside the thread rather than fragmenting the reasoning across tools.",
       principle:
         "Conversation is the substrate. The discipline is in capturing the reasoning, not in moving faster.",
+    },
+  },
+  {
+    label: "Files",
+    href: "/dashboard/files",
+    icon: FolderOpen,
+    hint: {
+      whatItIs:
+        "The team's asset library. Every file uploaded across Tasks, Team Chat, and C.A.R.E lands here, classified by department + task + description (the §3.2 Understanding Gate applied to assets). Files missing classification count toward your 3/day casual cap.",
+      why: "A file storage layer without a gate produces a graveyard — most files uploaded once, never retrieved, never cited. The 3 classification fields are the structural defense; the casual escape hatch is the honest acknowledgment that not everything needs to be an asset.",
+      how: "Drop a file or click to upload. Classify it (or accept the casual lane). Filter and search to find what the team already built. Click a card to download. Edit classification any time.",
+      principle:
+        "The 3 fields are not metadata. They ARE the team's asset memory.",
     },
   },
   {
