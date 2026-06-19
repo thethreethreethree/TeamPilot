@@ -718,11 +718,24 @@ export function ConversationsApp({
     [filtered, selectedId]
   );
 
-  // Auto-select first in view if nothing is selected
+  // Auto-select first in view if nothing is selected.
+  //
+  // Desktop only: this is a convenience so J/K keyboard nav has
+  // a starting cursor and the right pane isn't a giant empty
+  // state. On MOBILE the user only ever sees one pane at a time
+  // and the auto-select would (1) skip the conversation list
+  // entirely on load, dropping them straight into a Detail
+  // they didn't pick, and (2) re-select immediately after the
+  // user taps "Back to list", making the back button feel
+  // broken.
   useEffect(() => {
-    if (!selectedId && filtered[0]) {
-      setSelectedId(filtered[0].id);
-    }
+    if (selectedId || !filtered[0]) return;
+    const isMobile =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 767px)").matches;
+    if (isMobile) return;
+    setSelectedId(filtered[0].id);
   }, [filtered, selectedId]);
 
   // Sync URL with selected id (deep link)
@@ -1197,16 +1210,17 @@ export function ConversationsApp({
                   onClick={() => {
                     setView(v.key);
                     // Mobile UX: picking a filter should auto-
-                    // collapse the Views drawer so the user lands
-                    // on the now-filtered List. Without this they'd
-                    // pick a filter and stay stuck on the Views
-                    // pane wondering where the rows went.
+                    // collapse the Views drawer AND clear any
+                    // previously-selected conversation, so the
+                    // user lands on the filtered List — not on
+                    // a stale Detail from the previous filter.
                     if (
                       typeof window !== "undefined" &&
                       window.matchMedia &&
                       !window.matchMedia("(min-width: 768px)").matches
                     ) {
                       setViewsCollapsed(true);
+                      setSelectedId(null);
                     }
                   }}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
