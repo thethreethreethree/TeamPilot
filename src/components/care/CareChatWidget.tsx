@@ -278,9 +278,7 @@ export function CareChatWidget() {
           // eslint-disable-next-line no-console
           console.error(`[care-widget] POST /messages → ${res.status} (no body)`);
         }
-        if (res.status === 410) {
-          setConversationClosed(true);
-        }
+        // (410 handled below alongside the in-banner detail.)
         // Stale-session recovery: a 401 (token rejected) or 404
         // (conversation gone) means the localStorage session
         // points at something the server no longer recognises.
@@ -290,6 +288,24 @@ export function CareChatWidget() {
         // common Jeff failure mode: a developer wiped the DB or
         // the conversation was archived out from under a long-
         // lived browser tab.
+        // Capture the original response's error info BEFORE the
+        // recovery branch consumes the body. We surface this to
+        // the user no matter which path runs.
+        let initialErrorString = `HTTP ${res.status}`;
+        try {
+          const errJson = await res.clone().json();
+          const e = errJson?.error ?? null;
+          const d = errJson?.detail ?? null;
+          if (typeof e === "string" || typeof d === "string") {
+            initialErrorString = `${res.status} ${[e, d].filter(Boolean).join(" — ").slice(0, 220)}`;
+          }
+        } catch {
+          /* response wasn't JSON */
+        }
+        // Stale-session recovery: a 401 (token rejected) or 404
+        // (conversation gone) means the localStorage session
+        // points at something the server no longer recognises.
+        let recoveryError: string | null = null;
         if (res.status === 401 || res.status === 404) {
           clearSession();
           setSession(null);
@@ -320,27 +336,33 @@ export function CareChatWidget() {
                 setMessages(data.messages ?? []);
                 return;
               }
+              // Recovery's retry also failed — capture its
+              // status + body so we surface the real cause.
+              try {
+                const retryJson = await retry.clone().json();
+                recoveryError = `recovery POST /messages → ${retry.status} ${[retryJson?.error, retryJson?.detail].filter(Boolean).join(" — ").slice(0, 220)}`;
+              } catch {
+                recoveryError = `recovery POST /messages → ${retry.status}`;
+              }
+            } else {
+              try {
+                const sessJson = await sessRes.clone().json();
+                recoveryError = `recovery POST /conversations → ${sessRes.status} ${[sessJson?.error, sessJson?.detail].filter(Boolean).join(" — ").slice(0, 220)}`;
+              } catch {
+                recoveryError = `recovery POST /conversations → ${sessRes.status}`;
+              }
             }
-          } catch {
-            /* fall through to the generic error below */
+          } catch (err) {
+            recoveryError = `recovery threw: ${err instanceof Error ? err.message : String(err)}`;
           }
         }
-        // Surface server-returned detail in the error so the
-        // founder can diagnose without DevTools. Server emits
-        // { error, detail } for 500s now.
-        let detail: string | null = null;
-        try {
-          const errJson = await res.clone().json();
-          if (errJson && typeof errJson.detail === "string") {
-            detail = errJson.detail.slice(0, 160);
-          }
-        } catch {
-          /* ignore */
+        if (res.status === 410) {
+          setConversationClosed(true);
         }
         setError(
-          detail
-            ? `Couldn't send (${res.status}): ${detail}`
-            : "Couldn't send. Please try again."
+          recoveryError
+            ? `${initialErrorString} · ${recoveryError}`
+            : initialErrorString
         );
         // Remove the optimistic message so the user can retry.
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
