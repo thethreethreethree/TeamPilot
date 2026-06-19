@@ -373,9 +373,18 @@ export default function OperationsPage() {
                         <p className="text-sm font-medium text-primary group-hover:text-brand transition-colors">
                           {t.title}
                           {!t.gateCleared && (
-                            <span className="ml-2 text-[9px] uppercase tracking-widest text-accent-text bg-gold-400/15 border border-gold-400/40 px-1.5 py-0.5 rounded">
-                              gate
-                            </span>
+                            <LearningHint
+                              category="Task · §3.2"
+                              title="Understanding Gate · pending"
+                              whatItIs="This badge means the task hasn't cleared the Understanding Gate yet — the four-question gate that asks WHAT you're trying to accomplish, WHO does what, HOW the work proceeds, and WHEN it lands. Until those answers exist, the task is in 'small task' or 'real task' draft state and can't be marked complete in the structural sense."
+                              why="§3.2 (the Understanding Gate, applied to operational work) is the constitutional defense against starting work without a shared read. Most failed initiatives don't fail in execution; they fail because the team started without alignment on what 'done' looks like. The badge surfaces THAT risk before the work compounds."
+                              how="Click into the task. Walk through the gate prompts. Either fill them in (most common — the gate just needed a few sentences) or escalate the task back to whoever drafted it so the gate gets a real answer. The badge disappears once the gate clears."
+                              principle="Starting work before the gate clears is the team admitting it's willing to be wrong. The badge exists so that admission is visible."
+                            >
+                              <span className="ml-2 text-[9px] uppercase tracking-widest text-accent-text bg-gold-400/15 border border-gold-400/40 px-1.5 py-0.5 rounded">
+                                gate
+                              </span>
+                            </LearningHint>
                           )}
                         </p>
                         {t.blockerReason && (

@@ -1194,25 +1194,43 @@ export default function TeamChatTopicPage() {
                 <div
                   className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto -mx-1 px-1 [touch-action:pan-x] [overscroll-behavior:contain] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
                 >
-                  <button
-                    type="button"
-                    onClick={() => setGuideOpen(true)}
-                    disabled={!draft.trim()}
-                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary disabled:opacity-30 border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 whitespace-nowrap"
-                    title="Have the System sharpen your draft before you send it"
+                  <LearningHint
+                    category="Composer · Guide"
+                    title="Guide my response"
+                    whatItIs="Sends your current draft to the System for a structural read — what's sharp, what's vague, what's missing — and offers a revised version you can accept, modify, or ignore. Read-only: it never sends to the customer / topic on your behalf."
+                    why="The biggest cost of a poorly-framed message isn't the draft; it's the reply chain that follows. A frustrated customer responds to vague answers with more questions; a confused teammate asks for clarification. Guide my response intercepts ONCE BEFORE SEND so the cost of bad framing doesn't compound."
+                    how="Type your draft. Click Guide. Read the revised version + the WHY behind each change. If the revision is better, accept it. If your original framing was right (it often is), reject. Either way, the System recorded the comparison — over time the Coach learns when your judgment was right."
+                    principle="Sharpening before send is cheap; sharpening AFTER send costs the entire reply chain. The Guide pass is the structural intercept point."
                   >
-                    <Wand2 className="w-3 h-3" aria-hidden="true" />
-                    Guide my response
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormulateOpen(true)}
-                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 whitespace-nowrap"
-                    title="Get help formulating a fuller response by answering questions first"
+                    <button
+                      type="button"
+                      onClick={() => setGuideOpen(true)}
+                      disabled={!draft.trim()}
+                      className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary disabled:opacity-30 border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 whitespace-nowrap"
+                      title="Have the System sharpen your draft before you send it"
+                    >
+                      <Wand2 className="w-3 h-3" aria-hidden="true" />
+                      Guide my response
+                    </button>
+                  </LearningHint>
+                  <LearningHint
+                    category="Composer · Formulate"
+                    title="Help me formulate"
+                    whatItIs="Opens a structured prompt flow that asks you a few targeted questions about WHAT you're trying to communicate + WHO will read it + WHAT outcome you want, then composes a draft from your answers. Different from Guide my response: Formulate STARTS from nothing; Guide REVISES a draft."
+                    why="Some messages need more than a quick tweak — they need a fresh structure. When you're staring at a blank composer for a hard message, Formulate is the scaffolding. It produces a draft you can edit; you stay the author of the final text."
+                    how="Click when you're stuck. Answer the questions briefly and honestly. The System produces a draft that hits the outcome you stated. Edit ruthlessly — Formulate's first draft is a starting point, not a finished message."
+                    principle="The author is you; the System is a structural lever. Use Formulate when blank-page anxiety would otherwise stall the work."
                   >
-                    <Lightbulb className="w-3 h-3" aria-hidden="true" />
-                    Help me formulate
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormulateOpen(true)}
+                      className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary border border-default hover:border-arc-400/50 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 whitespace-nowrap"
+                      title="Get help formulating a fuller response by answering questions first"
+                    >
+                      <Lightbulb className="w-3 h-3" aria-hidden="true" />
+                      Help me formulate
+                    </button>
+                  </LearningHint>
                   {aiAssisted && (
                     <span className="flex items-center gap-1 text-[10px] text-arc-300 flex-shrink-0 whitespace-nowrap">
                       <Sparkles className="w-3 h-3" aria-hidden="true" />
@@ -1221,22 +1239,40 @@ export default function TeamChatTopicPage() {
                   )}
                 </div>
                 {(companyCoachOn || topic.coachEnabled) && (
-                  <AskCoachButton
-                    disabled={!draft.trim()}
-                    onAsk={() => setAskCoachToken((t) => t + 1)}
-                  />
+                  <LearningHint
+                    category="Composer · Coach v5"
+                    title="Ask Coach"
+                    whatItIs="Triggers a Coach v5 read of your current draft + the topic context. The Coach returns a structured analysis — what's working, what's at risk (NVC-evaluation, voss-bare-assertion, identity-collision patterns), what to revise — and an annotated revision if needed."
+                    why="The Coach is the team's per-message communication lens. It's the load-bearing piece of the §3.5 consequence story: better individual communication → fewer clarification cycles → higher held rate. Ask Coach is the explicit, opt-in summoning of that lens."
+                    how="Type your draft. Click Ask Coach. Read the analysis carefully — the WHY behind each note is usually more valuable than the proposed revision. If the Coach flags a real risk, revise. If it flags a pattern that doesn't apply to your situation, ignore — the Coach is a perspective, not a verdict."
+                    principle="The Coach asks you to think harder, not to submit to its read. Engagement, not compliance, is the goal."
+                  >
+                    <AskCoachButton
+                      disabled={!draft.trim()}
+                      onAsk={() => setAskCoachToken((t) => t + 1)}
+                    />
+                  </LearningHint>
                 )}
-                <button
-                  type="submit"
-                  disabled={!draft.trim() || submitting}
-                  onPointerDown={() => {
-                    if (draft.trim() && !submitting) hapticSend();
-                  }}
-                  className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 active:scale-95 disabled:opacity-40 disabled:active:scale-100 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-all duration-150 text-xs flex-shrink-0"
+                <LearningHint
+                  category="Composer · Send"
+                  title="Send"
+                  whatItIs="Posts your draft to the topic as a new message. The message lands on the §3.1 chain immediately — chain event, mention notifications, Coach grade. The action is durable: there's no undo, just an Edit / Delete capability on your own messages."
+                  why="Send is the moment the team's reasoning becomes shared context. The Coach grades it; the chain records it; teammates receive it. The pause BEFORE clicking is where Guide / Formulate / Ask Coach earn their keep."
+                  how="Enter (without Shift) sends. Shift+Enter inserts a newline. On mobile, tap the button. The button is disabled while the draft is empty or a send is in flight."
+                  principle="Send is irreversible at the chain level. The pre-send affordances exist because the audit trail rewards thinking once and sending once."
                 >
-                  Send
-                  <CornerDownLeft className="w-3 h-3" aria-hidden="true" />
-                </button>
+                  <button
+                    type="submit"
+                    disabled={!draft.trim() || submitting}
+                    onPointerDown={() => {
+                      if (draft.trim() && !submitting) hapticSend();
+                    }}
+                    className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 active:scale-95 disabled:opacity-40 disabled:active:scale-100 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-all duration-150 text-xs flex-shrink-0"
+                  >
+                    Send
+                    <CornerDownLeft className="w-3 h-3" aria-hidden="true" />
+                  </button>
+                </LearningHint>
               </div>
             </div>
           </form>

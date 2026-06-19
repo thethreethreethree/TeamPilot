@@ -1,6 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import { useCompanyName } from "@/lib/hooks/useCompany";
@@ -152,22 +153,62 @@ export default function SettingsPage() {
       <TopBar title="Settings" subtitle="Company + AI configuration" />
 
       <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
-        {/* LLM connection — renders in demo mode too, since the key
-            doesn't depend on Supabase being configured. Lets the user
-            verify provider connectivity before wiring anything else. */}
-        <LlmConnectionPanel />
+        <LearningHint
+          as="block"
+          category="Settings · AI"
+          title="LLM connection"
+          whatItIs="The AI provider configuration panel. Lets the team verify which LLM provider is active (DeepSeek primary by default; Anthropic alternate), confirm the API key is connected, and send a test ping. Reports the model used, response latency, and token usage. Rate-limited to 6 pings per minute."
+          why="The AI is doing real work on this tenant — drafting Coach replies, composing Decision Dialogue responses, reading customer messages. Before the team trusts any of that output, they need a structural way to verify the provider is responding and the key is alive. Without this surface, an expired key would silently degrade every AI feature with no obvious signal."
+          how="Land on Settings, see which provider is active (green ACTIVE tag), confirm key status (green dot if configured). Hit Run test — within a few seconds you should see model, latency, and a sample of the response. If latency is climbing or the test fails, that's actionable signal before users feel it."
+          principle="Trust the AI surface only when you've verified the AI is actually there. The Run test button is the structural verification."
+        >
+          {/* LLM connection — renders in demo mode too, since the key
+              doesn't depend on Supabase being configured. Lets the user
+              verify provider connectivity before wiring anything else. */}
+          <LlmConnectionPanel />
+        </LearningHint>
 
-        {/* User-level avatar customization — color + initials shown on
-            chat, tasks, notifications. Stores on profiles row via RLS. */}
-        <AvatarCustomizationPanel />
+        <LearningHint
+          as="block"
+          category="Settings · Profile"
+          title="Avatar"
+          whatItIs="Personal avatar customization — color + initials shown on your messages across chat, tasks, decisions, and notifications. Defaults to derived initials (first letter of first + last name) and the brand ember color. You can override either; both stored on your profile row."
+          why="Recognition matters in fast-scrolling conversation surfaces. When the team can tell at a glance which messages are yours, comprehension speeds up materially. The customization here is small but the daily compound benefit is real."
+          how="Pick a color from the swatch row or type a hex value. Set initials (1–3 chars). Save. The next message you send carries the new avatar; existing messages re-render with the new color too."
+          principle="Small recognition affordances compound. Spend 30 seconds here once; reap the benefit every conversation."
+        >
+          {/* User-level avatar customization — color + initials shown on
+              chat, tasks, notifications. Stores on profiles row via RLS. */}
+          <AvatarCustomizationPanel />
+        </LearningHint>
 
-        {/* In-app password rotation. Hidden in demo mode (no auth). */}
-        <ChangePasswordPanel />
+        <LearningHint
+          as="block"
+          category="Settings · Security"
+          title="Change password"
+          whatItIs="In-app password rotation. Sets a new password on your auth row, takes effect immediately. You stay signed in on this device; other devices stay signed in too until you sign them out. Hidden in demo mode (no auth there)."
+          why="Periodic password rotation is the cheapest security hygiene. The point of having a rotate-in-app affordance (rather than 'email a reset link') is that the user is already authenticated — there's no roundtrip through email or SMS — so rotation friction is low enough that the team actually does it."
+          how="Enter your new password (≥8 chars, autocomplete=new-password so your password manager picks it up). Confirm. Save. Done — no sign-out needed."
+          principle="Security hygiene is what you do regularly. The affordance is here because friction kills the habit."
+        >
+          {/* In-app password rotation. Hidden in demo mode (no auth). */}
+          <ChangePasswordPanel />
+        </LearningHint>
 
-        {/* Conversational Coach v1.1 — company-wide toggle. Default
-            OFF per asset A3; flipping it on activates the Coach
-            across tasks, feedback, smoke test notes, and chat. */}
-        <CoachTogglePanel />
+        <LearningHint
+          as="block"
+          category="Settings · Coach"
+          title="Coach company-wide toggle"
+          whatItIs="The master switch for Conversational Coach v5 across the whole tenant. When ON, the Coach lens activates on every message draft — chat, tasks, feedback, smoke-test notes. When OFF, individual topics can still flip Coach on per-topic. Default OFF per §A3 so the §4 readout has a clean A/B baseline between Coach-on and Coach-off cohorts."
+          why="The default-OFF is constitutional. The §4 readout's whole purpose is to measure whether Coach changes outcomes — that comparison is only possible if some teams have it on and some have it off. Once you flip this ON, your tenant becomes a Coach-on cohort permanently; future readout comparisons can still happen at the per-topic level."
+          how="Flip ON when the team has agreed to operate with Coach guidance on every draft. Flip OFF if Coach feedback is producing more noise than signal for your team's style. The switch records a chain event each direction so the audit trail is intact."
+          principle="Coach default OFF is a constitutional choice, not a UX oversight. Flipping it is a real commitment."
+        >
+          {/* Conversational Coach v1.1 — company-wide toggle. Default
+              OFF per asset A3; flipping it on activates the Coach
+              across tasks, feedback, smoke test notes, and chat. */}
+          <CoachTogglePanel />
+        </LearningHint>
 
         {/* Learning Mode — per-user toggle. Activates the lightbulb
             FAB on every dashboard page so the user can illuminate
