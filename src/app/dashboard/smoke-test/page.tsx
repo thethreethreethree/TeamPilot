@@ -554,11 +554,12 @@ function SmokeTestItemCard({
           className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 resize-none"
         />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <button
+          type="button"
           onClick={() => void wrap("pass")}
           disabled={pending !== null}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-300 disabled:opacity-40"
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-300 disabled:opacity-40"
         >
           {pending === "pass" ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -568,9 +569,10 @@ function SmokeTestItemCard({
           Pass
         </button>
         <button
+          type="button"
           onClick={() => void wrap("fail")}
           disabled={pending !== null}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-500/40 hover:bg-red-500/10 text-red-300 disabled:opacity-40"
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-red-500/40 hover:bg-red-500/10 text-red-300 disabled:opacity-40"
         >
           {pending === "fail" ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -580,9 +582,10 @@ function SmokeTestItemCard({
           Fail
         </button>
         <button
+          type="button"
           onClick={() => void wrap("unable")}
           disabled={pending !== null}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-yellow-500/40 hover:bg-yellow-500/10 text-accent-text disabled:opacity-40"
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-yellow-500/40 hover:bg-yellow-500/10 text-accent-text disabled:opacity-40"
         >
           {pending === "unable" ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />

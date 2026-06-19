@@ -538,22 +538,22 @@ export default function CommandDashboard() {
             </div>
 
             {/* Critical & Blocked Tasks — from REAL tasks, honest empty state */}
-            <div className="glass-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-orange-400" />
-                  <h2 className="text-sm font-semibold text-primary">
+            <div className="glass-card p-4 md:p-5">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Layers className="w-4 h-4 text-orange-400 shrink-0" aria-hidden="true" />
+                  <h2 className="text-sm font-semibold text-primary truncate">
                     Critical & blocked tasks
                   </h2>
-                  <span className="text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full shrink-0">
                     {blockedTasks.length + criticalTasks.length}
                   </span>
                 </div>
                 <Link
                   href="/dashboard/operations"
-                  className="text-xs text-muted hover:text-brand flex items-center gap-1 transition-colors"
+                  className="text-xs text-muted hover:text-brand flex items-center gap-1 transition-colors shrink-0"
                 >
-                  All tasks <ChevronRight className="w-3 h-3" />
+                  All tasks <ChevronRight className="w-3 h-3" aria-hidden="true" />
                 </Link>
               </div>
               {loading ? (

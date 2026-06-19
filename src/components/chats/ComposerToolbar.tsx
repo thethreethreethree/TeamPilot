@@ -246,7 +246,10 @@ function ToolButton({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="p-1.5 rounded text-secondary hover:text-brand hover:bg-ember-400/[0.08] transition-colors"
+      // p-2 yields ~30px tap target with the 3.5x3.5 icon. The
+      // previous p-1.5 was a 24px tap target — uncomfortably small
+      // on mobile.
+      className="p-2 rounded text-secondary hover:text-brand hover:bg-ember-400/[0.08] transition-colors"
     >
       <Icon className="w-3.5 h-3.5" aria-hidden />
     </button>
