@@ -20,14 +20,14 @@ const TABS = [
 export function SettingsTabs() {
   const pathname = usePathname() ?? "";
   return (
-    <div className="px-8 py-2 border-b border-default bg-white/[0.01] flex items-center gap-1.5 flex-wrap">
+    <div className="px-4 md:px-8 py-2 border-b border-default bg-white/[0.01] flex items-center gap-1.5 overflow-x-auto">
       {TABS.map((t) => {
         const active = pathname === t.href;
         return (
           <Link
             key={t.href}
             href={t.href}
-            className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-colors ${
+            className={`text-xs font-medium px-3 py-2 rounded-md border transition-colors shrink-0 ${
               active
                 ? "bg-ember-400/10 border-ember-400/40 text-brand"
                 : "border-default text-secondary hover:border-strong hover:text-primary"
