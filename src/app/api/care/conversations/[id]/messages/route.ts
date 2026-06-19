@@ -304,5 +304,8 @@ function serializeMessage(m: SupportMessage) {
     authorType: m.authorType,
     body: m.body,
     createdAt: m.createdAt,
+    kind: m.kind,
+    mediaUrl: m.mediaUrl,
+    mediaType: m.mediaType,
   };
 }

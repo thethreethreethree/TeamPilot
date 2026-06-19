@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
-import {
-  getCareConversationByToken,
-  postCustomerMessage,
-} from "@/lib/data/care";
 import { createFileRecord } from "@/lib/data/files";
+import { postAgentMessage } from "@/lib/data/care";
 import {
   buildStoragePath,
   uploadAssetBytes,
@@ -13,24 +11,17 @@ import {
 } from "@/lib/storage/assets";
 
 /**
- * POST /api/care/conversations/[id]/upload
+ * POST /api/care/conversations/[id]/agent-upload
  *
- * Customer-side file upload from the C.A.R.E widget.
- * Authenticated by x-care-session header (not user auth).
+ * Agent-side file upload from the C.A.R.E composer. Combines:
+ *   • multipart upload to Supabase Storage
+ *   • files row creation (linked to this conversation)
+ *   • support_messages attachment-kind row posting
  *
- * Per founder red-pen 2026-06-19:
- *   • 10 MB cap (stricter than agent's 25 MB)
- *   • Images + PDF only (stricter than agent's full allow list)
- *   • Auto-classified to the conversation context:
- *     - title = original filename
- *     - description = null (no classification gate for
- *       customer uploads in v1; customer is not an asset-author)
- *     - linked_conversation_id = THIS conversation
- *     - uploaded_via = 'customer_widget'
- *
- * The file lands in casual lane (no department/task tied; the
- * cap doesn't apply to customers because customers aren't
- * subject to the team's 3/day discipline).
+ * Single endpoint = single network call from the composer.
+ * 25 MB agent cap, agent allow list (images / pdf / docs /
+ * audio). RLS still enforces company isolation at the row
+ * level.
  */
 export async function POST(
   req: NextRequest,
@@ -38,21 +29,14 @@ export async function POST(
 ) {
   const { id } = await context.params;
   const limited = rateLimit(req, {
-    id: "care-upload",
+    id: "care-agent-upload",
     windowMs: 60_000,
-    max: 6,
+    max: 20,
   });
   if (limited) return limited;
-  const token = req.headers.get("x-care-session");
-  if (!token) {
-    return NextResponse.json({ error: "Missing session token." }, { status: 401 });
-  }
-  const conv = await getCareConversationByToken(token);
-  if (!conv || conv.id !== id) {
-    return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
-  }
-  if (conv.status === "closed") {
-    return NextResponse.json({ error: "Conversation closed." }, { status: 410 });
+  const auth = await getCurrentAuthContext();
+  if (!auth) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
   let form: FormData;
   try {
@@ -67,10 +51,11 @@ export async function POST(
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Missing 'file' part." }, { status: 400 });
   }
+  const isInternalNote = form.get("is_internal_note") === "1";
   const v = validateUploadCandidate({
     sizeBytes: file.size,
     mimeType: file.type || "application/octet-stream",
-    uploadedVia: "customer_widget",
+    uploadedVia: "agent_dashboard",
   });
   if (!v.ok) {
     return NextResponse.json(
@@ -80,7 +65,7 @@ export async function POST(
   }
   const fileId = randomUUID();
   const storagePath = buildStoragePath({
-    companyId: conv.companyId,
+    companyId: auth.companyId,
     fileId,
     originalFilename: file.name,
   });
@@ -91,17 +76,15 @@ export async function POST(
     contentType: file.type || "application/octet-stream",
   });
   if (!up.ok) {
-    // eslint-disable-next-line no-console
-    console.error(`[care.upload] storage failed conv=${id}: ${up.error}`);
     return NextResponse.json(
       { error: `Upload failed: ${up.error}` },
       { status: 500 }
     );
   }
   const row = await createFileRecord({
-    companyId: conv.companyId,
-    uploaderId: null,
-    customerSessionToken: token,
+    companyId: auth.companyId,
+    uploaderId: auth.userId,
+    customerSessionToken: null,
     storagePath,
     mimeType: file.type || "application/octet-stream",
     sizeBytes: file.size,
@@ -109,22 +92,20 @@ export async function POST(
     title: file.name,
     description: null,
     accessRole: "everyone",
-    uploadedVia: "customer_widget",
-    linkedConversationId: conv.id,
+    uploadedVia: "agent_dashboard",
+    linkedConversationId: id,
   });
   if (!row) {
     return NextResponse.json(
-      { error: "Failed to write file row." },
+      { error: "File row write failed." },
       { status: 500 }
     );
   }
-  // 0058 — post an attachment-kind support_messages row so the
-  // agent sees the file inline in the conversation thread, not
-  // only via the library filter. Body = filename; media_url
-  // carries the file pointer for the inline render path.
-  await postCustomerMessage({
-    conversationId: conv.id,
+  await postAgentMessage({
+    conversationId: id,
     body: row.title,
+    agentId: auth.userId,
+    isInternalNote,
     kind: "attachment",
     mediaUrl: `assets-v1://${row.id}`,
     mediaType: row.mimeType,

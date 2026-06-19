@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
 import { FileDropzone } from "@/components/files/FileDropzone";
+import { InlineAttachment } from "@/components/files/InlineAttachment";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { priorityDisplay, tagTone } from "@/lib/care/tagColors";
 import { useToast } from "@/components/ui/toast";
@@ -131,6 +132,10 @@ type Message = {
    *  "AI drafted; reasoning: ..." for agent visibility. */
   coPilotReasoning?: string | null;
   coPilotInvoked?: boolean;
+  /** 0058 — attachment kind for file uploads. */
+  kind?: "message" | "attachment" | "system";
+  mediaUrl?: string | null;
+  mediaType?: string | null;
 };
 
 type ConversationEvent = {
@@ -2273,9 +2278,17 @@ function MessageRow({
           {new Date(message.createdAt).toLocaleString()}
         </span>
       </div>
-      <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
-        {message.body}
-      </p>
+      {message.kind === "attachment" && message.mediaUrl ? (
+        <InlineAttachment
+          mediaUrl={message.mediaUrl}
+          mediaType={message.mediaType ?? null}
+          fallbackTitle={message.body}
+        />
+      ) : (
+        <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
+          {message.body}
+        </p>
+      )}
       {/* Coach v6 — count-based render. §A11: the System counts;
           the agent renders the verdict. §A17: three contracts —
           positive counts (what's present, surfaced FIRST per the
@@ -2675,11 +2688,13 @@ function Composer({
               </button>
             </LearningHint>
             {/* Asset System v1 — Phase 4 C.A.R.E composer
-                integration. Files auto-link to this support
-                conversation via linked_conversation_id. */}
+                integration. The agent-upload endpoint atomically
+                writes the file row AND posts an attachment-kind
+                support_messages row so the file is visible
+                inline in the thread (not only via library). */}
             <FileDropzone
               hiddenLabel
-              linkedConversationId={conversationId}
+              endpoint={`/api/care/conversations/${conversationId}/agent-upload`}
             />
           </>
         )}

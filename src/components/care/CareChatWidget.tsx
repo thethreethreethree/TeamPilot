@@ -55,6 +55,9 @@ type Message = {
   authorType: "customer" | "ai" | "agent" | "system";
   body: string;
   createdAt: string;
+  kind?: "message" | "attachment" | "system";
+  mediaUrl?: string | null;
+  mediaType?: string | null;
 };
 
 function loadSession(): StoredSession | null {
@@ -498,7 +501,12 @@ export function CareChatWidget() {
               </div>
             )}
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} />
+              <MessageBubble
+                key={m.id}
+                message={m}
+                sessionToken={session?.sessionToken}
+                conversationId={session?.conversationId}
+              />
             ))}
             {aiThinking && (
               <div className="flex items-center gap-2 text-xs text-muted">
@@ -601,7 +609,15 @@ export function CareChatWidget() {
   );
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({
+  message,
+  sessionToken,
+  conversationId,
+}: {
+  message: Message;
+  sessionToken?: string | null;
+  conversationId?: string | null;
+}) {
   const isCustomer = message.authorType === "customer";
   const isSystem = message.authorType === "system";
 
@@ -612,6 +628,8 @@ function MessageBubble({ message }: { message: Message }) {
       </div>
     );
   }
+
+  const isAttachment = message.kind === "attachment" && !!message.mediaUrl;
 
   return (
     <div
@@ -624,8 +642,114 @@ function MessageBubble({ message }: { message: Message }) {
             : "bg-surface text-primary border border-default rounded-bl-sm"
         }`}
       >
-        {message.body}
+        {isAttachment ? (
+          <CustomerAttachmentBubble
+            message={message}
+            sessionToken={sessionToken ?? null}
+            conversationId={conversationId ?? null}
+            isCustomer={isCustomer}
+          />
+        ) : (
+          message.body
+        )}
       </div>
+    </div>
+  );
+}
+
+function CustomerAttachmentBubble({
+  message,
+  sessionToken,
+  conversationId,
+  isCustomer,
+}: {
+  message: Message;
+  sessionToken: string | null;
+  conversationId: string | null;
+  isCustomer: boolean;
+}) {
+  const SCHEME = "assets-v1://";
+  const fileId =
+    message.mediaUrl && message.mediaUrl.startsWith(SCHEME)
+      ? message.mediaUrl.slice(SCHEME.length)
+      : null;
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [title, setTitle] = useState<string>(message.body);
+  const [mimeType, setMimeType] = useState<string>(message.mediaType ?? "");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!fileId || !sessionToken || !conversationId) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/care/conversations/${conversationId}/file/${fileId}`,
+          { headers: { "x-care-session": sessionToken } }
+        );
+        if (!res.ok) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        setDownloadUrl(data.downloadUrl ?? null);
+        if (data.title) setTitle(data.title);
+        if (data.mimeType) setMimeType(data.mimeType);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fileId, sessionToken, conversationId]);
+
+  const isImage = mimeType.startsWith("image/");
+
+  return (
+    <div className={`flex flex-col gap-1 ${isCustomer ? "items-end" : ""}`}>
+      <div className="flex items-center gap-1.5 text-xs">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.93 8.8L9.41 17.32a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+        </svg>
+        <span className="font-medium">{title}</span>
+      </div>
+      {isImage && downloadUrl && (
+        <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={downloadUrl}
+            alt={title}
+            className="max-h-40 rounded-md object-contain bg-base/40"
+            loading="lazy"
+          />
+        </a>
+      )}
+      {!loading && downloadUrl && !isImage && (
+        <a
+          href={downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] underline"
+        >
+          Download
+        </a>
+      )}
     </div>
   );
 }

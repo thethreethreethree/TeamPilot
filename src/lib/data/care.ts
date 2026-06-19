@@ -93,6 +93,11 @@ export type SupportMessage = {
    *  drafting? Independent of coPilotReasoning (which can be
    *  null even if invoked, if the LLM call failed). */
   coPilotInvoked: boolean;
+  /** 0058 — message kind. Default 'message'; 'attachment' for
+   *  file uploads (media_url carries the file pointer). */
+  kind: "message" | "attachment" | "system";
+  mediaUrl: string | null;
+  mediaType: string | null;
 };
 
 function mapConversation(row: Record<string, unknown>): SupportConversation {
@@ -135,6 +140,9 @@ function mapMessage(row: Record<string, unknown>): SupportMessage {
     coachCounts: (row.coach_counts as CoachCountsValue | null) ?? null,
     coPilotReasoning: (row.co_pilot_reasoning as string | null) ?? null,
     coPilotInvoked: (row.co_pilot_invoked as boolean | null) ?? false,
+    kind: (row.kind as SupportMessage["kind"]) ?? "message",
+    mediaUrl: (row.media_url as string | null) ?? null,
+    mediaType: (row.media_type as string | null) ?? null,
   };
 }
 
@@ -242,6 +250,11 @@ export async function postCustomerMessage(args: {
   conversationId: string;
   body: string;
   medium?: "text" | "voice";
+  /** 0058 — customer-uploaded files post an attachment-kind
+   *  message; media_url carries the file pointer. */
+  kind?: "message" | "attachment";
+  mediaUrl?: string | null;
+  mediaType?: string | null;
 }): Promise<SupportMessage | null> {
   const sb = createServiceRoleClient();
   const { data, error } = await sb
@@ -251,6 +264,9 @@ export async function postCustomerMessage(args: {
       author_type: "customer",
       body: args.body,
       medium: args.medium ?? "text",
+      kind: args.kind ?? "message",
+      media_url: args.mediaUrl ?? null,
+      media_type: args.mediaType ?? null,
     })
     .select("*")
     .single();
@@ -558,6 +574,13 @@ export async function postAgentMessage(args: {
    *  Coach grader can read it when scoring. */
   coPilotReasoning?: string | null;
   coPilotInvoked?: boolean;
+  /** 0058 — attachment-kind agent messages carry the file
+   *  pointer in media_url (assets-v1://{fileId}). Body is the
+   *  file's title; the render path resolves the row + signed
+   *  download URL on demand. */
+  kind?: "message" | "attachment";
+  mediaUrl?: string | null;
+  mediaType?: string | null;
 }): Promise<SupportMessage | null> {
   const sb = await createServerClient();
   const { data, error } = await sb
@@ -570,6 +593,9 @@ export async function postAgentMessage(args: {
       is_internal_note: !!args.isInternalNote,
       co_pilot_reasoning: args.coPilotReasoning ?? null,
       co_pilot_invoked: !!args.coPilotInvoked,
+      kind: args.kind ?? "message",
+      media_url: args.mediaUrl ?? null,
+      media_type: args.mediaType ?? null,
     })
     .select("*")
     .single();

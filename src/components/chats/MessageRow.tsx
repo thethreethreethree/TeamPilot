@@ -12,6 +12,7 @@ import {
 } from "@/lib/brand/avatar";
 import { renderMessageBody } from "@/lib/chat/markdown";
 import { MessageGradeIndicator } from "./MessageGradeIndicator";
+import { InlineAttachment } from "@/components/files/InlineAttachment";
 
 /**
  * MessageRow — renders a single message in the chat stream.
@@ -217,7 +218,15 @@ export function MessageRow({
             className="chat-message-body text-sm text-primary leading-relaxed pr-14 break-words space-y-1"
             style={{ overflowWrap: "anywhere" }}
           >
-            {renderMessageBody(msg.body)}
+            {msg.kind === "attachment" && msg.mediaUrl ? (
+              <InlineAttachment
+                mediaUrl={msg.mediaUrl}
+                mediaType={msg.mediaType ?? null}
+                fallbackTitle={msg.body ?? undefined}
+              />
+            ) : (
+              renderMessageBody(msg.body)
+            )}
           </div>
           {/* Coach v5 Encouragement System indicator — renders 🙌 /
               Review-with-Coach / Needs Guidance with strict visibility

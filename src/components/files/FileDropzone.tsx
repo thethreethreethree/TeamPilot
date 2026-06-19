@@ -32,6 +32,7 @@ export function FileDropzone({
   compact = false,
   linkedTopicId,
   linkedConversationId,
+  endpoint,
 }: {
   onUploadComplete?: (result: UploadResult) => void;
   /** Label tweak for in-context dropzones (e.g. "Attach to this task"). */
@@ -41,6 +42,11 @@ export function FileDropzone({
   compact?: boolean;
   linkedTopicId?: string;
   linkedConversationId?: string;
+  /** Override the upload endpoint. Defaults to /api/files. C.A.R.E
+   *  composer uses /api/care/conversations/{id}/agent-upload to
+   *  combine the file row + an attachment-kind support_messages
+   *  row in a single network round-trip. */
+  endpoint?: string;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -60,7 +66,7 @@ export function FileDropzone({
       if (linkedConversationId)
         form.append("linked_conversation_id", linkedConversationId);
       try {
-        const res = await fetch("/api/files", {
+        const res = await fetch(endpoint ?? "/api/files", {
           method: "POST",
           body: form,
         });
@@ -85,7 +91,7 @@ export function FileDropzone({
         setUploading(false);
       }
     },
-    [linkedTopicId, linkedConversationId, onUploadComplete]
+    [linkedTopicId, linkedConversationId, onUploadComplete, endpoint]
   );
 
   const handleFiles = useCallback(
