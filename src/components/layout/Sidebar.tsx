@@ -27,6 +27,7 @@ import {
   Hourglass,
   Building2,
   FolderOpen,
+  Search as SearchIcon,
   X,
 } from "lucide-react";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
@@ -76,6 +77,19 @@ const productionNav: Array<{
       how: "Open or create a topic for any work that involves the team. The composer coaches you while you type. @mentions notify; everything threads. When a topic surfaces an actual decision, open the Decision Dialogue inside the thread rather than fragmenting the reasoning across tools.",
       principle:
         "Conversation is the substrate. The discipline is in capturing the reasoning, not in moving faster.",
+    },
+  },
+  {
+    label: "Search",
+    href: "/dashboard/search",
+    icon: SearchIcon,
+    hint: {
+      whatItIs:
+        "A single search box across the team's three durable surfaces — files (title + description), team chat messages (body), and C.A.R.E support conversations (body, excluding internal notes). Results grouped by type.",
+      why: "Capture without retrieval is a write-only log. Search is what makes the team's writing pay off later — the message you write today is the answer somebody finds next month.",
+      how: "Type any term. Debounced 250ms. Click any result to jump into context. Respects access roles — you only see what you'd see in the original surface.",
+      principle:
+        "Retrieval is what makes capture worth it.",
     },
   },
   {

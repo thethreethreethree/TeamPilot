@@ -9,7 +9,9 @@ import {
   ClassificationModal,
   type ClassificationDept,
   type ClassificationTask,
+  type ClassificationPerson,
 } from "@/components/files/ClassificationModal";
+import { FolderTree } from "@/components/files/FolderTree";
 import { Loader2, Search } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 
@@ -36,8 +38,10 @@ export default function FilesLibraryPage() {
   const [files, setFiles] = useState<ApiFile[]>([]);
   const [departments, setDepartments] = useState<ClassificationDept[]>([]);
   const [tasks, setTasks] = useState<ClassificationTask[]>([]);
+  const [team, setTeam] = useState<ClassificationPerson[]>([]);
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("");
+  const [taskFilter, setTaskFilter] = useState<string>("");
   const [laneFilter, setLaneFilter] = useState<"" | "classified" | "casual">("");
   const [loading, setLoading] = useState(true);
   const [casual, setCasual] = useState<CasualSnap>({ today: 0, cap: 3, remaining: 3 });
@@ -48,12 +52,14 @@ export default function FilesLibraryPage() {
     const params = new URLSearchParams();
     if (search) params.set("q", search);
     if (departmentFilter) params.set("department", departmentFilter);
+    if (taskFilter) params.set("task", taskFilter);
     if (laneFilter) params.set("lane", laneFilter);
     try {
-      const [filesRes, depsRes, tasksRes] = await Promise.all([
+      const [filesRes, depsRes, tasksRes, teamRes] = await Promise.all([
         fetch(`/api/files?${params.toString()}`),
         fetch("/api/departments"),
         fetch("/api/tasks"),
+        fetch("/api/team"),
       ]);
       if (filesRes.ok) {
         const data = await filesRes.json();
@@ -78,10 +84,21 @@ export default function FilesLibraryPage() {
           }))
         );
       }
+      if (teamRes.ok) {
+        const data = await teamRes.json();
+        setTeam(
+          (data.members ?? []).map(
+            (m: { id: string; full_name: string | null; fullName?: string | null }) => ({
+              id: m.id,
+              fullName: m.fullName ?? m.full_name ?? null,
+            })
+          )
+        );
+      }
     } finally {
       setLoading(false);
     }
-  }, [search, departmentFilter, laneFilter]);
+  }, [search, departmentFilter, taskFilter, laneFilter]);
 
   useEffect(() => {
     void refresh();
@@ -169,63 +186,75 @@ export default function FilesLibraryPage() {
               className="w-full bg-surface border border-default rounded-md pl-7 pr-2 py-1.5 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-strong"
             />
           </div>
-          <select
-            value={departmentFilter}
-            onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="text-xs bg-surface border border-default rounded-md px-2 py-1.5 text-primary focus:outline-none focus:border-strong"
-          >
-            <option value="">All departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={laneFilter}
-            onChange={(e) =>
-              setLaneFilter(e.target.value as "" | "classified" | "casual")
-            }
-            className="text-xs bg-surface border border-default rounded-md px-2 py-1.5 text-primary focus:outline-none focus:border-strong"
-          >
-            <option value="">All lanes</option>
-            <option value="classified">Classified</option>
-            <option value="casual">Casual</option>
-          </select>
           <span className="text-[11px] text-muted ml-auto">
             Casual today: <span className="text-brand font-semibold">{casual.today}</span>/
             {casual.cap}
           </span>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-16 text-muted text-sm">
-            <Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden />
-            Loading files…
+        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
+          {/* Folder tree — auto-derived from classification.
+              Per founder Q1 = (a): the 3 fields ARE the folders. */}
+          <aside className="rounded-lg border border-default p-2 bg-white/[0.01] h-fit max-h-[70vh] overflow-y-auto">
+            <FolderTree
+              files={files.map((f) => ({
+                id: f.id,
+                classificationLane: f.classificationLane,
+                departmentIds: f.departmentIds,
+                taskIds: f.taskIds,
+              }))}
+              departments={departments}
+              tasks={tasks}
+              selectedDepartmentId={departmentFilter}
+              selectedTaskId={taskFilter}
+              selectedLane={laneFilter}
+              onSelectDepartment={(id) => {
+                setDepartmentFilter(id);
+                setLaneFilter("");
+              }}
+              onSelectTask={(id) => {
+                setTaskFilter(id);
+                setLaneFilter("");
+              }}
+              onSelectLane={(lane) => {
+                setLaneFilter(lane);
+                setDepartmentFilter("");
+                setTaskFilter("");
+              }}
+            />
+          </aside>
+
+          <div>
+            {loading ? (
+              <div className="flex items-center justify-center py-16 text-muted text-sm">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden />
+                Loading files…
+              </div>
+            ) : cardData.length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-sm text-primary mb-2">No assets yet.</p>
+                <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
+                  Drop a file above to start building the team&apos;s asset base. The
+                  files you classify now become the answers your team will find next
+                  month. Empty libraries don&apos;t teach anyone anything.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {cardData.map((f) => (
+                  <FileCard
+                    key={f.id}
+                    file={f}
+                    onOpen={() => openFile(f.id)}
+                    onEdit={() => setClassifyingId(f.id)}
+                    onDelete={() => deleteFile(f.id)}
+                    canEdit={true}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        ) : cardData.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-sm text-primary mb-2">No assets yet.</p>
-            <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
-              Drop a file above to start building the team&apos;s asset base. The
-              files you classify now become the answers your team will find next
-              month. Empty libraries don&apos;t teach anyone anything.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {cardData.map((f) => (
-              <FileCard
-                key={f.id}
-                file={f}
-                onOpen={() => openFile(f.id)}
-                onEdit={() => setClassifyingId(f.id)}
-                onDelete={() => deleteFile(f.id)}
-                canEdit={true}
-              />
-            ))}
-          </div>
-        )}
+        </div>
       </div>
 
       {classifyingId && (() => {
@@ -246,6 +275,7 @@ export default function FilesLibraryPage() {
             }}
             departments={departments}
             tasks={tasks}
+            teamMembers={team}
             onSaved={() => {
               setClassifyingId(null);
               void refresh();

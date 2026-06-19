@@ -37,6 +37,8 @@ export type ClassificationDraft = {
   accessRole: "everyone" | "admins" | "ceo_admins" | "specific_people";
 };
 
+export type ClassificationPerson = { id: string; fullName: string | null };
+
 export function ClassificationModal({
   open,
   onClose,
@@ -44,6 +46,7 @@ export function ClassificationModal({
   initial,
   departments,
   tasks,
+  teamMembers,
   onSaved,
   casualRemaining,
 }: {
@@ -53,9 +56,41 @@ export function ClassificationModal({
   initial: Partial<ClassificationDraft>;
   departments: ClassificationDept[];
   tasks: ClassificationTask[];
+  teamMembers?: ClassificationPerson[];
   onSaved: (file: unknown) => void;
   casualRemaining: number;
 }) {
+  const [grants, setGrants] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (initial.accessRole !== "specific_people") return;
+    void (async () => {
+      const res = await fetch(`/api/files/${fileId}/access`);
+      if (res.ok) {
+        const data = await res.json();
+        setGrants(
+          (data.grants ?? []).map((g: { profile_id: string }) => g.profile_id)
+        );
+      }
+    })();
+  }, [open, fileId, initial.accessRole]);
+
+  const toggleGrant = async (profileId: string) => {
+    if (grants.includes(profileId)) {
+      setGrants((g) => g.filter((x) => x !== profileId));
+      await fetch(`/api/files/${fileId}/access?profileId=${profileId}`, {
+        method: "DELETE",
+      });
+    } else {
+      setGrants((g) => [...g, profileId]);
+      await fetch(`/api/files/${fileId}/access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId }),
+      });
+    }
+  };
   const [title, setTitle] = useState(initial.title ?? "");
   const [description, setDescription] = useState(initial.description ?? "");
   const [departmentIds, setDepartmentIds] = useState<string[]>(
@@ -323,6 +358,35 @@ export function ClassificationModal({
           <p className="text-[10px] text-muted mt-0.5">
             You (the uploader) always see your own file regardless of this setting.
           </p>
+          {accessRole === "specific_people" && (
+            <div className="mt-2 rounded-md border border-default p-2">
+              <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1.5">
+                Who specifically?
+              </p>
+              {!teamMembers || teamMembers.length === 0 ? (
+                <p className="text-[11px] text-muted italic">
+                  No teammates available.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                  {teamMembers.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => toggleGrant(p.id)}
+                      className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
+                        grants.includes(p.id)
+                          ? "bg-ember-400/15 border-ember-400/50 text-brand"
+                          : "border-default text-secondary hover:border-strong"
+                      }`}
+                    >
+                      {p.fullName ?? "Unnamed"}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {error && (
