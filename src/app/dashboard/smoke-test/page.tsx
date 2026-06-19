@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { useToast } from "@/components/ui/toast";
 import { MentionInput, type MentionMember } from "@/components/ui/MentionInput";
 import { fetchTeam } from "@/lib/data/team";
@@ -555,45 +556,72 @@ function SmokeTestItemCard({
         />
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-        <button
-          type="button"
-          onClick={() => void wrap("pass")}
-          disabled={pending !== null}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-300 disabled:opacity-40"
+        <LearningHint
+          category="Smoke test · Verdict"
+          title="Pass"
+          whatItIs="Marks this checklist item as verified — the team confirmed the behavior works as documented. Writes a chain event with your user ID + timestamp so the audit trail records WHO verified what, WHEN."
+          why="Pilot acceptance is the single moment where claims trade for evidence. Without recorded passes the team could say 'we tested it' but couldn't prove which items, by whom, when. Pass + the audit trail IS the proof."
+          how="Click only after you've actually performed the verification described in the checklist row. Notes are optional on pass but a sentence about what you confirmed compounds the audit value."
+          principle="Pass is a recorded act of verification, not a checkbox. The chain event is the structural defense against retroactive 'we tested it' claims."
         >
-          {pending === "pass" ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-          ) : (
-            <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
-          )}
-          Pass
-        </button>
-        <button
-          type="button"
-          onClick={() => void wrap("fail")}
-          disabled={pending !== null}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-red-500/40 hover:bg-red-500/10 text-red-300 disabled:opacity-40"
+          <button
+            type="button"
+            onClick={() => void wrap("pass")}
+            disabled={pending !== null}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-300 disabled:opacity-40"
+          >
+            {pending === "pass" ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+            ) : (
+              <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+            )}
+            Pass
+          </button>
+        </LearningHint>
+        <LearningHint
+          category="Smoke test · Verdict"
+          title="Fail"
+          whatItIs="Marks this checklist item as failed — the team verified the behavior does NOT work as documented. Requires a note explaining WHAT failed and HOW the actual behavior differs from documented. The note lands on the admin's Feedback inbox for triage."
+          why="Fails are the most valuable smoke-test signal — they surface real product gaps before customers hit them. Notes are required because 'fail' without context can't be triaged; the next admin needs to see WHAT failed to know whether to fix product, fix docs, or correct the checklist."
+          how="Click. Write a specific note: what step you performed, what the docs said would happen, what actually happened. The note becomes the feedback row's body; admins triage it from /dashboard/admin/feedback."
+          principle="A fail without a note is unactionable. The note requirement is structural triage routing."
         >
-          {pending === "fail" ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-          ) : (
-            <XCircle className="w-3.5 h-3.5" aria-hidden />
-          )}
-          Fail
-        </button>
-        <button
-          type="button"
-          onClick={() => void wrap("unable")}
-          disabled={pending !== null}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-yellow-500/40 hover:bg-yellow-500/10 text-accent-text disabled:opacity-40"
+          <button
+            type="button"
+            onClick={() => void wrap("fail")}
+            disabled={pending !== null}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-red-500/40 hover:bg-red-500/10 text-red-300 disabled:opacity-40"
+          >
+            {pending === "fail" ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+            ) : (
+              <XCircle className="w-3.5 h-3.5" aria-hidden />
+            )}
+            Fail
+          </button>
+        </LearningHint>
+        <LearningHint
+          category="Smoke test · Verdict"
+          title="Unable"
+          whatItIs="Marks this checklist item as NOT verifiable in the current state — usually because a precondition isn't in place (no data yet, feature gated by something else, environment-specific). Requires a note explaining the precondition."
+          why="Unable is the third honest verdict. Without it, testers would either skip rows (silent gap) or mark them as fail (misleading triage). Unable preserves the honest 'we couldn't verify this yet' state with the reason captured."
+          how="Click when you can't actually run the verification. Write a note explaining what's missing — 'needs at least 3 customers in trial state', 'requires Stripe live mode on', etc. The admin reviewing decides whether to update the checklist precondition or unblock the path."
+          principle="Three states honest the actual verification surface: passed, failed, couldn't-yet. Forcing pass/fail erases the third real state."
         >
-          {pending === "unable" ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-          ) : (
-            <AlertCircle className="w-3.5 h-3.5" aria-hidden />
-          )}
-          Unable
-        </button>
+          <button
+            type="button"
+            onClick={() => void wrap("unable")}
+            disabled={pending !== null}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-yellow-500/40 hover:bg-yellow-500/10 text-accent-text disabled:opacity-40"
+          >
+            {pending === "unable" ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+            ) : (
+              <AlertCircle className="w-3.5 h-3.5" aria-hidden />
+            )}
+            Unable
+          </button>
+        </LearningHint>
       </div>
     </div>
   );

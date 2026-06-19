@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { useToast } from "@/components/ui/toast";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 
@@ -227,14 +228,23 @@ function DigestRowCard({
               : `Joined ${row.daysStale} days ago · no meaningful action yet`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onSendCheckIn}
-          className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg text-xs transition-colors flex-shrink-0"
+        <LearningHint
+          category="Team check · Pillar 2"
+          title="Send check-in"
+          whatItIs="Opens the NudgeModal — a structured way to send a single check-in message to a teammate whose task has been stale (4+ days without activity). Pre-populated with a suggested doorway-framed message you can edit. Sending writes a chain event so the §4 readout can later measure whether the nudge moved the work."
+          why="Standing micromanagement corrodes the team; ignoring stalled work is irresponsible. The check-in is the middle path: ONE structured message at the right moment, framed as a doorway not a deadline. The chain event makes the §4 measurement possible — did nudges actually shift outcomes?"
+          how="Click. Read the suggested message. Edit it to match your voice and your relationship with the person — the suggestion is a starting point, not a verdict. Aim for ≥12 chars. Send. The system tracks whether the task moves within a meaningful window."
+          principle="The leader's job at this surface is to open doors, not push backs. The discipline is in the framing of the message."
         >
-          <MessageCircleQuestion className="w-3.5 h-3.5" aria-hidden />
-          Send check-in
-        </button>
+          <button
+            type="button"
+            onClick={onSendCheckIn}
+            className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg text-xs transition-colors flex-shrink-0"
+          >
+            <MessageCircleQuestion className="w-3.5 h-3.5" aria-hidden />
+            Send check-in
+          </button>
+        </LearningHint>
       </div>
       <div className="mt-2 p-3 rounded-lg bg-ember-400/[0.04] border border-ember-400/15">
         <p className="text-[10px] uppercase tracking-widest text-brand mb-1 flex items-center gap-1">
