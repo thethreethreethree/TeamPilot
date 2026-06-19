@@ -2697,16 +2697,11 @@ function BulkActionBar({
           Reopen
         </button>
       ) : (
-        <button
-          type="button"
-          onClick={onArchive}
-          disabled={acting}
-          title="Close — soft archive, conversation moves to Closed folder"
-          className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-red-300 hover:border-red-500/50 disabled:opacity-50 px-2.5 py-1 rounded-md"
-        >
-          <Lock className="w-3.5 h-3.5" aria-hidden />
-          Close
-        </button>
+        <BulkCloseButton
+          count={count}
+          acting={acting}
+          onConfirm={onArchive}
+        />
       )}
       <button
         type="button"
@@ -2717,6 +2712,72 @@ function BulkActionBar({
         Clear
       </button>
     </div>
+  );
+}
+
+/**
+ * BulkCloseButton — two-step confirm for bulk close action.
+ *
+ * Single-conversation Close has its own modal/confirm chain.
+ * Bulk Close fires on a multi-row selection — accidental click can
+ * close several conversations at once. The two-step pattern (Close
+ * → "Confirm close N?") is the lightest weight defense; no modal
+ * stack, no scroll, just a visible state shift on the same button.
+ *
+ * Per Wave AG (2026-06-19) audit response.
+ */
+function BulkCloseButton({
+  count,
+  acting,
+  onConfirm,
+}: {
+  count: number;
+  acting: boolean;
+  onConfirm: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (!confirming) return;
+    const timer = window.setTimeout(() => setConfirming(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [confirming]);
+  if (confirming) {
+    return (
+      <div className="inline-flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            setConfirming(false);
+            onConfirm();
+          }}
+          disabled={acting}
+          className="inline-flex items-center gap-1.5 text-xs text-red-200 bg-red-500/15 border border-red-500/60 hover:bg-red-500/25 disabled:opacity-50 px-2.5 py-1 rounded-md font-semibold"
+        >
+          <Lock className="w-3.5 h-3.5" aria-hidden />
+          Confirm close {count}
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          disabled={acting}
+          className="text-[11px] text-muted hover:text-primary px-2 py-1 rounded"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      disabled={acting}
+      title={`Close ${count} conversation${count === 1 ? "" : "s"} — soft archive, customer can reopen by replying`}
+      className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-red-300 hover:border-red-500/50 disabled:opacity-50 px-2.5 py-1 rounded-md"
+    >
+      <Lock className="w-3.5 h-3.5" aria-hidden />
+      Close
+    </button>
   );
 }
 
