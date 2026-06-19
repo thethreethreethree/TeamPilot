@@ -16,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { useToast } from "@/components/ui/toast";
 import {
   fetchTask,
@@ -612,39 +613,57 @@ function GateForm({
       </div>
 
       {/* Mode picker */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setMode("small")}
-          className={`text-left rounded-lg border p-3 transition-colors ${
-            mode === "small"
-              ? "border-brand bg-ember-400/8"
-              : "border-default hover:border-strong"
-          }`}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <LearningHint
+          category="Task · Gate"
+          title="Small task"
+          whatItIs="The lightweight Understanding Gate path — one sentence describing the outcome + a deadline. Use for work where the answer is obvious and moving parts are minimal: routine ops, small bug fixes, single-person work with no dependencies."
+          why="Forcing every task through the full Real-task gate is friction theater. Small tasks (5-line emails, single ops actions) genuinely don't have hidden alignment risk; making them pretend otherwise wastes time. The Small path exists so the team can honestly skip the heavy gate when it doesn't apply."
+          how="Click if THIS task is genuinely simple. Write one clear sentence about the outcome. Set a deadline. Save. The task clears the gate immediately."
+          principle="Use the lightest gate that honestly fits. Inflating simple work into ceremony is its own failure mode."
         >
-          <p className="text-xs font-semibold text-primary mb-0.5">
-            Small task
-          </p>
-          <p className="text-[10px] text-muted">
-            One sentence + deadline. Use for genuinely simple work.
-          </p>
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("real")}
-          className={`text-left rounded-lg border p-3 transition-colors ${
-            mode === "real"
-              ? "border-brand bg-ember-400/8"
-              : "border-default hover:border-strong"
-          }`}
+          <button
+            type="button"
+            onClick={() => setMode("small")}
+            className={`text-left rounded-lg border p-3 transition-colors ${
+              mode === "small"
+                ? "border-brand bg-ember-400/8"
+                : "border-default hover:border-strong"
+            }`}
+          >
+            <p className="text-xs font-semibold text-primary mb-0.5">
+              Small task
+            </p>
+            <p className="text-[10px] text-muted">
+              One sentence + deadline. Use for genuinely simple work.
+            </p>
+          </button>
+        </LearningHint>
+        <LearningHint
+          category="Task · Gate"
+          title="Real task"
+          whatItIs="The full Understanding Gate path — the WHAT (outcome), the RESOURCES needed, the ROLES (who owns what), and the WHEN (deadlines + checkpoints). Use whenever moving parts exist: multi-person work, cross-team handoffs, anything where 'what done looks like' isn't already shared."
+          why="Most task failures aren't execution failures; they're alignment failures discovered halfway through. The Real-task gate is the structural prevention — by the time the team has answered all four questions, the shared read of 'what done looks like' is durable."
+          how="Click. Walk through each prompt honestly. If you can't articulate Resources or Roles cleanly, that's the gate working — it's surfacing the missing alignment BEFORE work starts. Either fill in what you can find out, OR escalate the task back to whoever drafted it."
+          principle="Real-task is the gate doing its job. The few minutes you spend here save the days lost to misaligned work."
         >
-          <p className="text-xs font-semibold text-primary mb-0.5">
-            Real task
-          </p>
-          <p className="text-[10px] text-muted">
-            What + Resources + Roles. Use whenever moving parts exist.
-          </p>
-        </button>
+          <button
+            type="button"
+            onClick={() => setMode("real")}
+            className={`text-left rounded-lg border p-3 transition-colors ${
+              mode === "real"
+                ? "border-brand bg-ember-400/8"
+                : "border-default hover:border-strong"
+            }`}
+          >
+            <p className="text-xs font-semibold text-primary mb-0.5">
+              Real task
+            </p>
+            <p className="text-[10px] text-muted">
+              What + Resources + Roles. Use whenever moving parts exist.
+            </p>
+          </button>
+        </LearningHint>
       </div>
 
       <Field label="What are we trying to accomplish?" required>
@@ -681,19 +700,28 @@ function GateForm({
       )}
 
       <div className="flex items-center justify-end pt-2 border-t border-default">
-        <button
-          type="button"
-          onClick={submit}
-          disabled={submitting}
-          className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold text-xs px-4 py-2 rounded-lg transition-colors"
+        <LearningHint
+          category="Task · §3.2"
+          title="Clear gate · start work"
+          whatItIs="Writes the gate answers to the task and marks it as gate_cleared. The badge disappears; the task can now move into In Progress. The gate clearance writes a chain event with WHO cleared the gate, WHEN, and the answers."
+          why="The clearance moment is constitutional: it records the team's commitment to the shared read of 'what done looks like.' Without the event, the task could shift later and nobody could tell whether the original gate answers were ever set. The event is the audit defense."
+          how="Click when your gate answers are honest — when you can actually defend each one. The submit button is disabled until the gate's required fields (WHAT for small, WHAT/RESOURCES/ROLES for real) have non-trivial content. Once cleared, the task is unblocked for the team."
+          principle="Clearing the gate is the team's commitment to the shared read. Pretending to clear is the failure mode that erodes the discipline."
         >
-          {submitting ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-          ) : (
-            <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
-          )}
-          Clear gate · start work
-        </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={submitting}
+            className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold text-xs px-4 py-2 rounded-lg transition-colors"
+          >
+            {submitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+            ) : (
+              <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+            )}
+            Clear gate · start work
+          </button>
+        </LearningHint>
       </div>
     </div>
   );
