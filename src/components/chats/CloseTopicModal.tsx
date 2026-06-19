@@ -102,15 +102,27 @@ export function CloseTopicModal({
             placeholder="Plain language. What was actually concluded? What was the call?"
             autoFocus
           />
+          <div className="flex items-center justify-end mt-1">
+            <p
+              className={`text-[10px] tabular-nums ${
+                summary.trim().length < 20 ? "text-muted" : "text-emerald-400"
+              }`}
+            >
+              {summary.trim().length} / 20+ chars
+            </p>
+          </div>
         </Field>
-        <div className="flex items-center justify-end gap-2 pt-2">
+        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-base/95 backdrop-blur-sm border-t border-default flex items-center justify-end gap-2 mt-3">
           <button
+            type="button"
             onClick={onClose}
+            disabled={submitting}
             className="text-xs text-muted hover:text-primary px-3 py-2"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={submit}
             disabled={submitting || summary.trim().length < 20}
             className="flex items-center gap-2 bg-gold-400 hover:bg-gold-500 disabled:opacity-40 text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
