@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { fetchSignals, type SignalsMode } from "@/lib/data/signals";
 import { supabaseEnabled } from "@/lib/supabase/client";
@@ -387,7 +388,17 @@ export default function DiagnosePage() {
         )}
 
         {/* Step stepper */}
-        <StepStepper current={step} liveRun={liveRun} onJump={setStep} />
+        <LearningHint
+          as="block"
+          category="Diagnose · §1.1"
+          title="The 7-step Living Diagnosis loop"
+          whatItIs="The §1.1 method made walkable: Data-as-Asset (events) → Retrospective Identification (look at the record) → Outside-View Identification (counter tunnel vision) → Understanding Gate (≥3 signals, diagnosis ≥80 chars) → Ripple Trace (what else does this affect) → Decision (the move + the WHY) → Close the Loop (capture as resolution). Each step has its own card; the stepper lets you jump between them after they've cleared their prerequisites."
+          why="Most teams skip steps 1–4 and start at 6. That's how you get fast-but-wrong decisions. The stepper exists to make the discipline VISIBLE — when you're tempted to skip the Outside View, the step glows at you. Every step the team takes leaves an immutable chain event so the next audit can see whether the discipline held."
+          how="Walk top to bottom on the first run. The stepper indicates which steps have cleared (filled circle) vs pending (outline circle). Click a cleared step to revisit; the System lets you jump forward only when the gate would pass."
+          principle="The order isn't arbitrary; it's the structural prevention of misdiagnosis. The stepper is the discipline made navigable."
+        >
+          <StepStepper current={step} liveRun={liveRun} onJump={setStep} />
+        </LearningHint>
 
         {/* Step canvas */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -722,16 +733,25 @@ export default function DiagnosePage() {
                         events).
                       </p>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={closeTheLoop}
-                        disabled={closingLoop}
-                        className="bg-ember-400 hover:bg-ember-500 disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                      <LearningHint
+                        category="Diagnose · §1.6"
+                        title="Close the loop"
+                        whatItIs="The final step of the §1.1 Living Diagnosis loop — atomically writes BOTH the problem row (with diagnosis + supporting signals) AND the resolution row (with chosen action + reasoning ≥40 chars). The problem lands in 'resolved' state; the resolution lands in 'pending review' state with the 7-day durability clock already running."
+                        why="§1.6 (close the loop) is what makes the entire diagnostic discipline pay off. The team did the hard work in steps 1–6; closing the loop is how that work gets compounded into the team's playbook. Skipping it means the team did the diagnosis but never recorded the outcome — the next time the same shape returns, the team has to re-derive."
+                        how="Click once you've actually picked an action AND can articulate the WHY in ≥40 chars. The System refuses shorter reasoning — that's the structural defense against close-without-thinking. After close, you land on /dashboard/resolutions where the new row shows the durability clock counting down."
+                        principle="The loop closes the team's reasoning into reusable form. Skipping the close is how reasoning evaporates."
                       >
-                        {closingLoop
-                          ? "Closing the loop…"
-                          : "Close the loop"}
-                      </button>
+                        <button
+                          type="button"
+                          onClick={closeTheLoop}
+                          disabled={closingLoop}
+                          className="bg-ember-400 hover:bg-ember-500 disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                        >
+                          {closingLoop
+                            ? "Closing the loop…"
+                            : "Close the loop"}
+                        </button>
+                      </LearningHint>
                     )}
                   </div>
                 )}

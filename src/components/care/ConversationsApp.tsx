@@ -1829,15 +1829,24 @@ function DetailHeader({
             </LearningHint>
           )}
           {conversation.aiResponding && (
-            <button
-              type="button"
-              onClick={onClaim}
-              disabled={acting}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-ember-400/10 border border-ember-400/40 hover:border-ember-400/70 hover:bg-ember-400/15 disabled:opacity-50 px-3 py-1.5 rounded-md"
+            <LearningHint
+              category="C.A.R.E · Take over"
+              title="Take over"
+              whatItIs="Claims this conversation for YOU (the signed-in agent). Replaces the AI as the active responder — any drafted-but-unsent AI reply is discarded; the conversation moves into your queue. Shorthand for 'assign to me' when an AI-handled conversation needs a human."
+              why="C.A.R.E's first-line responder for most conversations is the AI. Most of the time that's the right shape — the AI handles tier-1 questions fast and well. But some conversations need a human read: emotional weight, edge cases, anything where empathy is part of the response. Take over is the structural transfer."
+              how="Click when you see a conversation that needs you specifically. The AI stops; you become the assignee; the customer is told (via a system message) that a human is now responding. Once you've taken over, use the composer to reply."
+              principle="The AI handles the volume; the human handles the nuance. Take over is the structural seam between those modes."
             >
-              <UserCheck className="w-3.5 h-3.5" aria-hidden />
-              Take over
-            </button>
+              <button
+                type="button"
+                onClick={onClaim}
+                disabled={acting}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-ember-400/10 border border-ember-400/40 hover:border-ember-400/70 hover:bg-ember-400/15 disabled:opacity-50 px-3 py-1.5 rounded-md"
+              >
+                <UserCheck className="w-3.5 h-3.5" aria-hidden />
+                Take over
+              </button>
+            </LearningHint>
           )}
           {/* Assign dropdown — always visible when there's a team
               to assign to. Take over (above) is a shortcut for
