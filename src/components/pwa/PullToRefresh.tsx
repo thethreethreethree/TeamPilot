@@ -139,8 +139,8 @@ export function PullToRefresh({
 
   return (
     <div
-      aria-hidden
-      className="fixed left-0 right-0 top-0 z-50 flex justify-center pointer-events-none"
+      aria-hidden="true"
+      className="fixed left-0 right-0 top-[env(safe-area-inset-top)] z-50 flex justify-center pointer-events-none"
       style={{
         transform: `translateY(${Math.max(0, pull - 32)}px)`,
         opacity: spinnerOpacity,

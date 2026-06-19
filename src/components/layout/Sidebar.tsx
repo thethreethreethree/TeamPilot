@@ -410,9 +410,12 @@ export default function Sidebar() {
           onClick={() => setDesktopCollapsed(true)}
           aria-label="Collapse sidebar"
           title="Collapse sidebar"
-          className="hidden md:flex absolute top-2 right-2 text-muted hover:text-primary p-1 rounded hover:bg-white/[0.04] items-center justify-center"
+          // p-2 + 3.5x3.5 icon = ~28px tap target on the desktop
+          // collapse trigger. On iPad landscape (which falls into the
+          // md breakpoint) this matters.
+          className="hidden md:flex absolute top-2 right-2 text-muted hover:text-primary p-2 rounded hover:bg-white/[0.04] items-center justify-center"
         >
-          <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
+          <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
         <Link
           href="/"

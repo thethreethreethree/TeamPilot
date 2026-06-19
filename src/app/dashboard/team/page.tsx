@@ -246,14 +246,14 @@ function MemberRow({
     .slice(0, 2)
     .toUpperCase();
   return (
-    <div className="flex items-center justify-between py-3">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ember-400 to-[#FDE047] flex items-center justify-center text-xs font-bold text-white">
+    <div className="flex items-center justify-between py-3 gap-2">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ember-400 to-[#FDE047] flex items-center justify-center text-xs font-bold text-white shrink-0">
           {initials}
         </div>
-        <div>
-          <p className="text-sm text-primary">{member.fullName ?? "—"}</p>
-          <p className="text-[10px] text-muted font-mono">
+        <div className="min-w-0">
+          <p className="text-sm text-primary truncate">{member.fullName ?? "—"}</p>
+          <p className="text-[10px] text-muted font-mono truncate">
             {member.role} · joined {member.createdAt.slice(0, 10)}
           </p>
         </div>
@@ -262,7 +262,7 @@ function MemberRow({
         type="button"
         onClick={remove}
         disabled={busy}
-        className="flex items-center gap-1.5 text-xs text-muted hover:text-red-400 disabled:opacity-40"
+        className="flex items-center gap-1.5 text-xs text-muted hover:text-red-400 disabled:opacity-40 p-2 -m-2 shrink-0"
         aria-label={`Remove member ${member.fullName ?? ""}`.trim()}
         title="Remove member"
       >
@@ -307,12 +307,12 @@ function InviteRow({
 
   return (
     <div className="py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm text-primary flex items-center gap-2 flex-wrap">
-            <Mail className="w-3.5 h-3.5 text-muted" />
-            {invitation.email}
-            <span className="text-[10px] uppercase tracking-widest text-violet-300 bg-violet-500/10 border border-violet-500/30 px-1.5 py-0.5 rounded-full">
+      <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+        <div className="min-w-0 w-full sm:w-auto">
+          <p className="text-sm text-primary flex items-center gap-2 flex-wrap min-w-0">
+            <Mail className="w-3.5 h-3.5 text-muted shrink-0" aria-hidden="true" />
+            <span className="truncate">{invitation.email}</span>
+            <span className="text-[10px] uppercase tracking-widest text-violet-300 bg-violet-500/10 border border-violet-500/30 px-1.5 py-0.5 rounded-full shrink-0">
               {invitation.role}
             </span>
           </p>
@@ -321,7 +321,7 @@ function InviteRow({
             {invitation.expiresAt.slice(0, 10)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={copy}
