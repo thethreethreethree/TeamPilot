@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { LearningHint } from "@/components/learning/LearningHint";
 import {
   ArrowRight,
   Loader2,
@@ -221,35 +222,54 @@ export default function CarePatternsPage() {
                 This is the institutional-knowledge surface; the
                 team's resolutions are compounding (§1.1). */}
             {issuePatterns && issuePatterns.length > 0 && (
-              <section>
-                <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
-                  What customers keep asking about
-                </h2>
-                <p className="text-[11px] text-secondary leading-relaxed mb-3">
-                  Categories with 3+ resolutions in the window. The
-                  earliest warning system for product / process /
-                  messaging gaps.
-                </p>
-                <div className="space-y-2">
-                  {issuePatterns.map((p) => (
-                    <IssuePatternRow key={p.category} pattern={p} />
-                  ))}
-                </div>
-              </section>
+              <LearningHint
+                as="block"
+                category="Patterns · §A17"
+                title="What customers keep asking about"
+                whatItIs="Issue categories where the team has captured 3+ resolutions in the window — meaning customers have asked about this thing enough times to cross the §3.2 Understanding Gate threshold. Each row shows the category, count, and links to the underlying resolutions."
+                why="Recurring customer questions are early signals of product/process/messaging gaps. A team that gets 5 'where do I find X?' tickets isn't dealing with bad customers; it's dealing with a product where X is mislocated. This panel makes the recurrence visible so the leadership can fix the cause, not just close more tickets."
+                how="Read top-down — the most frequent categories are at the top. Click into a row to see the resolutions and look for the COMMON SHAPE across them. The fix is usually upstream (product label, docs, onboarding flow), not downstream (better support replies)."
+                principle="Frequency reveals cause. The team that fixes upstream produces less downstream work."
+              >
+                <section>
+                  <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
+                    What customers keep asking about
+                  </h2>
+                  <p className="text-[11px] text-secondary leading-relaxed mb-3">
+                    Categories with 3+ resolutions in the window. The
+                    earliest warning system for product / process /
+                    messaging gaps.
+                  </p>
+                  <div className="space-y-2">
+                    {issuePatterns.map((p) => (
+                      <IssuePatternRow key={p.category} pattern={p} />
+                    ))}
+                  </div>
+                </section>
+              </LearningHint>
             )}
 
             {/* §A18 framing — team-level only, coach the cause. */}
             {replyShapePatterns && replyShapePatterns.length > 0 && (
-              <section>
-                <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
-                  Where the team&apos;s replies could use a second look
-                </h2>
-                <p className="text-[11px] text-secondary leading-relaxed mb-3">
-                  Coach v6 risk counts across the team this window.
-                  Often these patterns point to gaps in product context
-                  (the cause) rather than to careless agents (the
-                  symptom). Coach the cause.
-                </p>
+              <LearningHint
+                as="block"
+                category="Patterns · §A18"
+                title="Where the team's replies could use a second look"
+                whatItIs="Coach v6 risk-pattern counts across the entire team (NEVER per-agent — that's §A18). Each row is a named risk (NVC-evaluation, voss-bare-assertion, stone-identity-collision, etc.) with its 7-day count and direction."
+                why="Per §A18 the readout is structurally team-level. The constitution prevents per-agent breakdown of communication patterns because that would create a stack-rank surface — and stack-ranks corrode the team faster than they improve any individual. Team-level visibility coaches the CAUSE without singling out the agent. Often these patterns point to gaps in product context (the cause) rather than to careless agents (the symptom)."
+                how="Read the patterns + counts. Ask: what about our product, our docs, our customer-facing language could be producing this pattern? Fix the cause once and the pattern usually drops across every agent. Resist the urge to coach individuals from this surface."
+                principle="Coach the cause, not the symptom. The team-level view is the structural defense against the stack-rank failure mode."
+              >
+                <section>
+                  <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
+                    Where the team&apos;s replies could use a second look
+                  </h2>
+                  <p className="text-[11px] text-secondary leading-relaxed mb-3">
+                    Coach v6 risk counts across the team this window.
+                    Often these patterns point to gaps in product context
+                    (the cause) rather than to careless agents (the
+                    symptom). Coach the cause.
+                  </p>
                 <div className="space-y-2">
                   {replyShapePatterns.map((p) => (
                     <ReplyShapePatternRow
@@ -258,7 +278,8 @@ export default function CarePatternsPage() {
                     />
                   ))}
                 </div>
-              </section>
+                </section>
+              </LearningHint>
             )}
           </>
         )}
