@@ -17,20 +17,43 @@ type AnalyticsSnapshot = {
 export default function CareAnalyticsPage() {
   const [data, setData] = useState<AnalyticsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
         const res = await fetch("/api/care/agent/analytics");
+        if (cancelled) return;
         if (res.ok) {
           const d = await res.json();
           setData(d);
+        } else {
+          setLoadError(
+            res.status === 403
+              ? "You're not authorized to view analytics."
+              : `Could not load analytics (status ${res.status}).`
+          );
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(
+            e instanceof Error
+              ? `Could not load analytics — ${e.message}`
+              : "Could not load analytics (network error)."
+          );
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
 
   return (
     <>
@@ -42,6 +65,18 @@ export default function CareAnalyticsPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto px-8 py-6 max-w-5xl mx-auto w-full space-y-5">
+        {loadError && !loading && (
+          <div className="glass-card p-4 border border-red-500/30 bg-red-500/[0.04] flex items-center gap-3">
+            <p className="flex-1 text-xs text-red-300">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="text-xs font-semibold text-ember-300 hover:text-primary border border-ember-400/40 hover:border-ember-400 px-2.5 py-1 rounded-md transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {loading && (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />

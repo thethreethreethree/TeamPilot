@@ -92,29 +92,44 @@ export default function CareLeadershipPage() {
   const [presence, setPresence] = useState<TeamPresence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
+      setLoading(true);
+      setError(null);
       try {
         const res = await fetch("/api/care/leadership/team");
+        if (cancelled) return;
         if (res.status === 403) {
           setError("Leadership view is for CEO / COO / admin.");
           return;
         }
         if (!res.ok) {
-          setError("Couldn't load.");
+          setError(`Could not load leadership readout (status ${res.status}).`);
           return;
         }
         const data = await res.json();
+        if (cancelled) return;
         setSnap(data.snapshot ?? null);
         setPresence(data.presence ?? null);
-      } catch {
-        setError("Couldn't reach the server.");
+      } catch (e) {
+        if (!cancelled) {
+          setError(
+            e instanceof Error
+              ? `Could not load leadership readout — ${e.message}`
+              : "Could not load leadership readout (network error)."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
 
   const totalDurability = snap
     ? snap.durabilityHeld + snap.durabilityReopened + snap.durabilityInconclusive
@@ -156,8 +171,17 @@ export default function CareLeadershipPage() {
           </div>
         )}
         {error && (
-          <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4">
-            <p className="text-sm text-red-300">{error}</p>
+          <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4 flex items-center gap-3">
+            <p className="flex-1 text-sm text-red-300">{error}</p>
+            {error !== "Leadership view is for CEO / COO / admin." && (
+              <button
+                type="button"
+                onClick={() => setReloadKey((k) => k + 1)}
+                className="text-xs font-semibold text-ember-300 hover:text-primary border border-ember-400/40 hover:border-ember-400 px-2.5 py-1 rounded-md transition-colors"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 

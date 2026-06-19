@@ -74,14 +74,29 @@ export default function CareAgentsPage() {
   }, []);
 
   const toggleAgent = async (id: string, enabled: boolean) => {
-    const res = await fetch("/api/care/agent/settings/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, isSupportAgent: enabled }),
-    });
-    if (res.ok) {
-      // Refresh to pick up any auto-created care_agent_state row.
+    try {
+      const res = await fetch("/api/care/agent/settings/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isSupportAgent: enabled }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(
+          data.error
+            ? `Could not update agent — ${data.error}`
+            : `Could not update agent (status ${res.status}).`
+        );
+        return;
+      }
+      toast.success(enabled ? "Agent activated." : "Agent deactivated.");
       void refresh();
+    } catch (e) {
+      toast.error(
+        e instanceof Error
+          ? `Could not update agent — ${e.message}`
+          : "Could not update agent (network error)."
+      );
     }
   };
 

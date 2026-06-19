@@ -102,11 +102,16 @@ export default function CarePatternsPage() {
   const [windowDays, setWindowDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
+      setLoading(true);
+      setError(null);
       try {
         const res = await fetch("/api/care/agent/patterns");
+        if (cancelled) return;
         if (res.ok) {
           const d = await res.json();
           setIssuePatterns(d.issuePatterns ?? d.patterns ?? []);
@@ -114,12 +119,25 @@ export default function CarePatternsPage() {
           setWindowDays(d.windowDays ?? 30);
         } else if (res.status === 403) {
           setError("Care is agent-only.");
+        } else {
+          setError(`Could not load patterns (status ${res.status}).`);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(
+            e instanceof Error
+              ? `Could not load patterns — ${e.message}`
+              : "Could not load patterns (network error)."
+          );
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
 
   const nothingSurfaced =
     !loading &&
@@ -144,8 +162,17 @@ export default function CarePatternsPage() {
           </div>
         )}
         {error && (
-          <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4">
-            <p className="text-sm text-red-300">{error}</p>
+          <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4 flex items-center gap-3">
+            <p className="flex-1 text-sm text-red-300">{error}</p>
+            {error !== "Care is agent-only." && (
+              <button
+                type="button"
+                onClick={() => setReloadKey((k) => k + 1)}
+                className="text-xs font-semibold text-ember-300 hover:text-primary border border-ember-400/40 hover:border-ember-400 px-2.5 py-1 rounded-md transition-colors"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 

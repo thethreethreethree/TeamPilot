@@ -76,28 +76,42 @@ export default function CareGrowthPage() {
   const [snap, setSnap] = useState<GrowthSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
+      setLoading(true);
+      setError(null);
       try {
         const res = await fetch("/api/care/agent/growth");
+        if (cancelled) return;
         if (res.status === 403) {
           setError("Care growth is for agents.");
           return;
         }
         if (!res.ok) {
-          setError("Couldn't load.");
+          setError(`Could not load growth (status ${res.status}).`);
           return;
         }
         const data = await res.json();
-        setSnap(data.snapshot ?? null);
-      } catch {
-        setError("Couldn't reach the server.");
+        if (!cancelled) setSnap(data.snapshot ?? null);
+      } catch (e) {
+        if (!cancelled) {
+          setError(
+            e instanceof Error
+              ? `Could not load growth — ${e.message}`
+              : "Could not load growth (network error)."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
 
   const totalEdits = snap
     ? snap.copilotMinor +
@@ -131,8 +145,17 @@ export default function CareGrowthPage() {
           </div>
         )}
         {error && (
-          <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4">
-            <p className="text-sm text-red-300">{error}</p>
+          <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4 flex items-center gap-3">
+            <p className="flex-1 text-sm text-red-300">{error}</p>
+            {error !== "Care growth is for agents." && (
+              <button
+                type="button"
+                onClick={() => setReloadKey((k) => k + 1)}
+                className="text-xs font-semibold text-ember-300 hover:text-primary border border-ember-400/40 hover:border-ember-400 px-2.5 py-1 rounded-md transition-colors"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 
