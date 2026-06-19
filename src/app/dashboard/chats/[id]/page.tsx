@@ -1,6 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { useToast } from "@/components/ui/toast";
 import {
   postMessage,
@@ -714,25 +715,43 @@ export default function TeamChatTopicPage() {
                 </button>
               )}
             {iAmAdmin && !isClosed && !spawnSelectMode && (
-              <button
-                type="button"
-                onClick={() => setSpawnSelectMode(true)}
-                title="Select messages to convert into a structured task with steps"
-                className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+              <LearningHint
+                category="Topic · Action"
+                title="Spawn task"
+                whatItIs="Lets the admin select one or more messages in this topic and convert them into a structured task with steps. The selected messages become the task's source context; the spawned task carries a reference back to this topic so the reasoning chain is intact."
+                why="Most conversations produce action items. Without a structured way to convert a 'we should do X' message into a task, the action lives only in someone's memory until it falls off. Spawning a task captures the reasoning + the action in one move."
+                how="Click to enter select mode. Tap message rows to add them to the selection. When you've selected the right set, confirm to create the task. The task lands in /dashboard/operations with the source messages quoted in its description."
+                principle="Conversation is where the reasoning lives. Tasks are where the reasoning becomes action. The bridge between them needs to be structural, not heroic memory."
               >
-                <ListPlus className="w-3 h-3" aria-hidden="true" />
-                Spawn task
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setSpawnSelectMode(true)}
+                  title="Select messages to convert into a structured task with steps"
+                  className="flex items-center gap-1.5 text-xs text-arc-300 hover:text-arc-200 border border-arc-400/40 hover:border-arc-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+                >
+                  <ListPlus className="w-3 h-3" aria-hidden="true" />
+                  Spawn task
+                </button>
+              </LearningHint>
             )}
             {iAmAdmin && !isClosed && (
-              <button
-                type="button"
-                onClick={() => setClosingOpen(true)}
-                className="flex items-center gap-1.5 text-xs text-accent-text hover:text-accent-text border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+              <LearningHint
+                category="Topic · Closure"
+                title="Close topic"
+                whatItIs="Marks the topic as closed and captures a summary (≥20 chars) recording what was concluded. Once closed, the topic moves out of the open queue but stays searchable in Knowledge. Customers / participants can still see and reply to the closed conversation if needed."
+                why="Closing without a summary is what makes most chat conversations evaporate — the team rediscovers the same reasoning six months later. The summary requirement turns the close moment into a structural learning capture: WHAT was concluded, HOW it was concluded, WHY this is the right call."
+                how="Click to open the close modal. Write a plain-language summary of what was actually concluded. The Coach reviews the summary; it can ask follow-up questions if the framing is ambiguous. Hit Close topic. The summary lives forever in the topic's record."
+                principle="Closure is where conversation becomes knowledge. The discipline is in writing the summary as if a future teammate will read it cold and need to understand."
               >
-                <Lock className="w-3 h-3" aria-hidden="true" />
-                Close topic
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setClosingOpen(true)}
+                  className="flex items-center gap-1.5 text-xs text-accent-text hover:text-accent-text border border-gold-400/40 hover:border-gold-400/70 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+                >
+                  <Lock className="w-3 h-3" aria-hidden="true" />
+                  Close topic
+                </button>
+              </LearningHint>
             )}
             {/* Inline Feedback chip — replaces the floating button on
                 chat detail pages. Feedback IS the user talking to
@@ -741,15 +760,24 @@ export default function TeamChatTopicPage() {
                 where it kept colliding with whichever surface I'd
                 moved it to last. The chip scrolls with the row and
                 never overlaps anything. */}
-            <button
-              type="button"
-              onClick={() => setFeedbackOpen(true)}
-              title="Send feedback"
-              className="flex items-center gap-1.5 text-xs font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/10 hover:bg-ember-400/15 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+            <LearningHint
+              category="Topic · System"
+              title="Feedback"
+              whatItIs="Opens the feedback panel so you can file a report from inside this specific topic. The current topic + your recent context get attached automatically, so the admin triaging your report sees what you were doing when it landed."
+              why="Most feedback channels lose context — the user submits a report from a generic 'Contact Us' form and the admin has to guess what surface produced it. Per §A8, Feedback IS the user talking to the System; it belongs WITH the other system affordances in the topic header, not floating somewhere generic."
+              how="Click any time you spot a friction or have an idea. Pick bug / friction / idea / question / praise. Add a description. The current topic ID + your visible state attach automatically. Watch the report move through triage in /dashboard/feedback."
+              principle="Feedback in-context > feedback in a vacuum. The chip lives here so the System hears you where the friction happens."
             >
-              <MessageSquarePlus className="w-3 h-3" aria-hidden="true" />
-              Feedback
-            </button>
+              <button
+                type="button"
+                onClick={() => setFeedbackOpen(true)}
+                title="Send feedback"
+                className="flex items-center gap-1.5 text-xs font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/10 hover:bg-ember-400/15 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+              >
+                <MessageSquarePlus className="w-3 h-3" aria-hidden="true" />
+                Feedback
+              </button>
+            </LearningHint>
           </div>
         </div>
         {showParticipants && (
