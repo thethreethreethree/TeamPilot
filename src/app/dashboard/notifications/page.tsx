@@ -155,7 +155,7 @@ export default function NotificationsPage() {
         title="Notifications"
         subtitle="Mentions and Decision Dialogue activity from the §3.1 chain"
       />
-      <div className="p-6 max-w-3xl mx-auto space-y-4">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-4">
         {loading && (
           <div className="glass-card overflow-hidden">
             <SkeletonRow />

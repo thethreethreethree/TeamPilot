@@ -86,7 +86,7 @@ export default function ResolutionsPage() {
         subtitle="Past decisions + their actual outcomes · §3.5 consequence measurement"
       />
 
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
         <LearningHint
           as="block"
           category="Chain · §3.5"

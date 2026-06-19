@@ -151,7 +151,7 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-base">
       <TopBar title="Settings" subtitle="Company + AI configuration" />
 
-      <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
         {/* LLM connection — renders in demo mode too, since the key
             doesn't depend on Supabase being configured. Lets the user
             verify provider connectivity before wiring anything else. */}

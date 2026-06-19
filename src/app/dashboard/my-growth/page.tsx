@@ -81,7 +81,7 @@ export default function MyGrowthPage() {
         subtitle="What the System has been noticing about your communication · last 30 days"
       />
 
-      <div className="p-6 max-w-3xl mx-auto space-y-5">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
         {/* §A10 transparency preamble. The user needs to know: the
             data on this page is exactly what the Coach reads when
             forming its next response. No backstage read. */}

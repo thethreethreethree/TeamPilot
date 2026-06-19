@@ -155,7 +155,7 @@ export default function MyFeedbackPage() {
         title="My feedback"
         subtitle="The journey of every report you've filed — open, triaged, resolved"
       />
-      <div className="p-6 max-w-3xl mx-auto space-y-5">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
         {/* Composer entry — replaces the misleading "use the
             floating button" copy. Floating button is suppressed on
             dashboard routes; this page IS the submission entry. */}

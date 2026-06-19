@@ -128,7 +128,7 @@ export default function CrmAccountsPage() {
         title="Customer accounts"
         subtitle="Vendor back office · companies signed up to ELOSTATE"
       />
-      <div className="p-6 max-w-7xl mx-auto space-y-5">
+      <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-5">
         {/* Search + filter row */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 w-full md:min-w-[240px] md:max-w-md">

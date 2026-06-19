@@ -361,7 +361,7 @@ export default function DiagnosePage() {
         subtitle={`${companyName} · The constitution as runtime`}
       />
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
         <div className="flex items-start gap-3 p-3 rounded-xl bg-ember-400/5 border border-ember-400/20">
           <Activity className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
           <p className="text-xs text-secondary leading-relaxed">

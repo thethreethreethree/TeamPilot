@@ -200,7 +200,7 @@ export default function CoachReadoutPage() {
         title="Coach readout"
         subtitle="§4 instrument · raw counts, no verdicts — the reader interprets"
       />
-      <div className="p-6 max-w-5xl mx-auto space-y-5">
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
         {/* Discipline preamble — explicit so the reader knows what
             this surface IS and IS NOT. */}
         <div className="glass-card p-4 border border-ember-400/30 bg-ember-400/5">

@@ -159,7 +159,7 @@ export default function AdminFeedbackPage() {
         title="Feedback inbox"
         subtitle="Triage tester reports — every transition lands on the §3.1 chain"
       />
-      <div className="p-6 max-w-5xl mx-auto space-y-5">
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
         {/* Filters */}
         <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-3">

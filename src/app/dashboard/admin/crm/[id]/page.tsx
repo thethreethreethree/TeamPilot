@@ -130,7 +130,7 @@ export default function CrmAccountDetailPage() {
         title={`Account · ${account.id.slice(0, 8)}`}
         subtitle="Vendor back office"
       />
-      <div className="p-6 max-w-7xl mx-auto space-y-5">
+      <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-5">
         <Link
           href="/dashboard/admin/crm"
           className="inline-flex items-center gap-1 text-[11px] text-muted hover:text-primary"

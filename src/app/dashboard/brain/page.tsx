@@ -122,7 +122,7 @@ export default function BrainPage() {
         subtitle="What the System has learned about this team · §3.4, §3.6"
       />
 
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
         {/* §3.6 — Learning Visible. Surfaces what the System has
             noticed about this team from the §3.1 chain: Coach pattern
             observations, decision durability, topic resolutions,
