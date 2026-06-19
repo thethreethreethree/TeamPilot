@@ -161,9 +161,9 @@ export function CareShell({ children }: { children: React.ReactNode }) {
           onClick={() => setNavCollapsed(false)}
           aria-label="Expand C.A.R.E navigation"
           title="Expand navigation"
-          className="w-6 flex-shrink-0 bg-[#0B1620] border-r border-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/90 hover:bg-white/5 transition-colors pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+          className="w-6 flex-shrink-0 bg-ember-400/[0.08] border-r border-ember-400/40 flex items-center justify-center text-brand hover:text-primary hover:bg-ember-400/20 transition-colors pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
         >
-          <ChevronRight className="w-3.5 h-3.5" aria-hidden />
+          <ChevronRight className="w-4 h-4" aria-hidden />
         </button>
       ) : (
       <aside className="w-56 flex-shrink-0 bg-[#0B1620] text-white/90 border-r border-white/[0.06] flex flex-col fixed md:relative inset-y-0 left-0 z-50 md:z-auto h-dvh md:h-auto">

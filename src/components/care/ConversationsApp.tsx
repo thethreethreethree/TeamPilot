@@ -1821,7 +1821,10 @@ function DetailHeader({
   const Icon = dl.icon;
   return (
     <div className="border-b border-default px-4 md:px-6 py-3 bg-base/40">
-      <div className="flex items-start justify-between gap-3">
+      {/* Mobile: stack title/badges and action row vertically so
+          the chips don't compete with the buttons for horizontal
+          space and overlap. Desktop (md+): side-by-side as before. */}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h2 className="text-base font-semibold text-primary truncate">
             {conversation.subject ?? "Untitled conversation"}
@@ -1869,7 +1872,7 @@ function DetailHeader({
             })}
           </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap justify-end gap-y-2 relative z-10 max-w-full">
+        <div className="flex items-center gap-1.5 flex-wrap justify-start md:justify-end gap-y-2 relative z-10 max-w-full pt-1 md:pt-0 border-t md:border-t-0 border-default md:border-transparent">
           {/* Summarize — System's read of the thread for an agent
               taking over a long conversation. Always available;
               the endpoint says "no messages yet" if there's
@@ -2952,16 +2955,23 @@ function CollapsedRail({
   // chevronDir="left"  = collapsed panel on the RIGHT side → rail
   // needs its border on the LEFT.
   const borderClass =
-    chevronDir === "left" ? "border-l border-default" : "border-r border-default";
+    chevronDir === "left"
+      ? "border-l border-ember-400/40"
+      : "border-r border-ember-400/40";
+  // The rail is the only affordance back to a collapsed panel.
+  // The earlier muted-gray look made it nearly invisible against
+  // the dark surface — users couldn't find their way back.
+  // Brand-accent tint + brighter chevron makes it a real
+  // doorway, not a vestigial 1px stripe.
   return (
     <button
       type="button"
       onClick={onExpand}
       aria-label={ariaLabel}
       title={ariaLabel}
-      className={`w-6 flex-shrink-0 ${borderClass} bg-white/[0.01] hover:bg-white/[0.04] flex items-center justify-center text-muted hover:text-primary transition-colors`}
+      className={`w-6 flex-shrink-0 ${borderClass} bg-ember-400/[0.08] hover:bg-ember-400/20 flex items-center justify-center text-brand hover:text-primary transition-colors`}
     >
-      <Chevron className="w-3.5 h-3.5" aria-hidden />
+      <Chevron className="w-4 h-4" aria-hidden />
     </button>
   );
 }
