@@ -578,6 +578,15 @@ export default function Sidebar() {
           an affordance that opens a "switcher" the user can't use would
           be the UI overtaking the truth of what the System can do.) */}
       <div className="px-4 py-3 border-b border-default">
+        <LearningHint
+          as="block"
+          category="Chrome · Company"
+          title="Company pill + cycle phase badge"
+          whatItIs="The 'COMPANY · ELOSTATE · M1 · Day N' pill at the top of the sidebar. The company name + a §3.4 cycle phase badge that shows where in the 60-day proof window your tenant is — Month 1 (control: AI guidance silent), Month 2 (single-variable intervention: guidance on), or beyond (ongoing/compounding). Tap to land on Settings."
+          why="The cycle phase is constitutional: §3.4 reserves Month 1 as a control window so the §4 readout has a clean A/B between Coach-on and Coach-off cohorts. Putting the phase badge on the always-visible sidebar means admins never lose track of whether their team is currently producing baseline data or intervention data — which matters when interpreting any metric."
+          how="Glance at this every time you read another metric. 'Coach observations · 7d' means something different in M1 vs M2. The badge is your orientation. Tap the pill to land on Settings where you can configure provider + Coach + Avatar."
+          principle="The cycle phase changes the meaning of every other metric. Surfacing it always-visible is the structural defense against misreading data."
+        >
         <Link
           href="/dashboard/settings"
           aria-label="Edit company profile"
@@ -620,6 +629,7 @@ export default function Sidebar() {
           </div>
           <ChevronRight className="w-3.5 h-3.5 text-muted group-hover:text-secondary transition-colors" />
         </Link>
+        </LearningHint>
       </div>
 
       {/* Navigation */}
@@ -846,12 +856,22 @@ export default function Sidebar() {
       {/* Theme switcher — placed above the constitution badge so it's
           always reachable without scrolling. Compact variant keeps the
           sidebar density consistent. */}
+      <LearningHint
+        as="block"
+        category="Chrome · Theme"
+        title="Theme switcher"
+        whatItIs="Three-state theme switcher: System (follows OS preference), Light, Dark. Persisted to localStorage per device; doesn't affect other users on your team."
+        why="Reading comfort matters across long work sessions. The default System mode follows what the OS already learned about the user (light during day, dark at night on most setups). Explicit Light or Dark overrides system preference. Note: Learning Mode (the lightbulb FAB) ONLY activates against dark surfaces because the brand metaphor is a lightbulb in darkness — switch here to dark to use Learning Mode."
+        how="Click the three icons to cycle: monitor = system, sun = light, moon = dark. Your choice persists across page navigation and across browser sessions on this device."
+        principle="Reading mode is personal preference; the System defers to the user's choice + OS context. No team-wide enforcement."
+      >
       <div className="px-4 pt-3 pb-2 flex items-center justify-between">
         <span className="text-[10px] text-muted uppercase tracking-widest">
           Theme
         </span>
         <ThemeToggle />
       </div>
+      </LearningHint>
 
       {/* Constitution version badge */}
       <div className="px-4 pt-1 pb-1 border-t border-default">
