@@ -353,6 +353,54 @@ html {
 /**
  * Respect reduced-motion preference (a11y).
  */
+/* Wave AO (2026-06-19) — print stylesheet.
+ *
+ * People do print terms / privacy / pitch decks. Without a print
+ * media rule the page prints with the dark theme background, fixed
+ * floating buttons, and the sidebar visible — wasting ink and
+ * looking unprofessional.
+ *
+ * Goals: white background, black text, suppress all chrome (FAB,
+ * chat widget, install prompt, sidebar, toast viewport). */
+@media print {
+  :root {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  /* Suppress all floating / fixed chrome on print. */
+  .care-chat-widget,
+  [data-feedback-ignore],
+  aside[aria-label="Primary navigation"],
+  [role="region"][aria-label="Notifications"],
+  nav[aria-label*="palette"] {
+    display: none !important;
+  }
+  /* Remove dark-theme glow/shadows that print as ugly gray
+   * blobs. */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  /* Avoid breaking inside list items / definitions. */
+  li, dd, dt, figure {
+    page-break-inside: avoid;
+  }
+  /* Heading orphans look bad. */
+  h1, h2, h3, h4 {
+    page-break-after: avoid;
+  }
+  /* Link URLs visible in print for context. */
+  a[href]:not([href^="#"])::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: #555;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -297,22 +297,22 @@ function NudgeModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-950/70 backdrop-blur-sm">
       <div className="w-full max-w-lg glass-card p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div>
+        <div className="flex items-start justify-between mb-3 gap-3">
+          <div className="min-w-0 flex-1">
             <p className="text-xs text-muted uppercase tracking-widest mb-0.5">
               Send check-in
             </p>
-            <p className="text-sm text-primary">
+            <p className="text-sm text-primary truncate" title={`${row.userName} · ${row.taskTitle}`}>
               {row.userName} · {row.taskTitle}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-muted hover:text-secondary"
+            className="text-muted hover:text-secondary p-2 -m-2 rounded-md"
             aria-label="Close"
           >
-            <X className="w-4 h-4" aria-hidden />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
         <p className="text-[11px] text-muted leading-relaxed mb-3">
@@ -326,6 +326,8 @@ function NudgeModal({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={5}
+          spellCheck
+          autoComplete="off"
           placeholder="Open the conversation. Frame as a doorway, not a deadline."
           className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 resize-none leading-relaxed"
         />

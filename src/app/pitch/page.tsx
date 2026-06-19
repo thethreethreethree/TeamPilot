@@ -620,7 +620,7 @@ export default function PitchPage() {
       {/* Subtle hint at top right */}
       <div className="fixed top-4 right-4 z-40 pointer-events-none">
         <p className="text-[10px] text-muted font-mono">
-          press <kbd className="bg-surface border border-default rounded px-1">S</kbd> to toggle counter
+          press <kbd className="bg-surface border border-default rounded px-1.5 py-0.5 font-mono text-[10px]">S</kbd> to toggle counter
         </p>
       </div>
     </div>
