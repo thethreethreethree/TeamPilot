@@ -354,6 +354,17 @@ export function ConversationsApp({
   }, [view]);
   useEffect(() => {
     try {
+      // Check mobile FIRST — on mobile we ALWAYS force Views +
+      // Customer collapsed at mount regardless of persisted state.
+      // Without this override, a user who expanded Views on desktop
+      // then opened the same login on mobile would see a Views pane
+      // covering the entire phone screen with no way to know there's
+      // a conversation list behind it.
+      const isMobile =
+        typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(max-width: 767px)").matches;
+
       const raw = window.localStorage.getItem("care-pane-widths");
       if (raw) {
         const v = JSON.parse(raw) as {
@@ -366,27 +377,24 @@ export function ConversationsApp({
         if (typeof v.list === "number") setListWidth(clampPane(v.list, 240, 520));
         if (typeof v.customer === "number")
           setCustomerWidth(clampPane(v.customer, 240, 520));
-        if (typeof v.viewsCollapsed === "boolean")
-          setViewsCollapsed(v.viewsCollapsed);
-        if (typeof v.listCollapsed === "boolean")
-          setListCollapsed(v.listCollapsed);
-        if (typeof v.customerCollapsed === "boolean")
-          setCustomerCollapsed(v.customerCollapsed);
-      } else {
-        // First visit — default both side panes collapsed on
-        // narrow viewports so the conversation surface gets the
-        // full width. matchMedia guarded in case an exotic
-        // mobile browser doesn't expose it (we'd rather skip
-        // auto-collapse than throw).
-        const mm =
-          typeof window !== "undefined" &&
-          typeof window.matchMedia === "function"
-            ? window.matchMedia("(max-width: 768px)")
-            : null;
-        if (mm?.matches) {
+        if (isMobile) {
+          // Force single-pane defaults on mobile, ignore persisted
+          // expansion state (it was set on a different form factor).
           setViewsCollapsed(true);
           setCustomerCollapsed(true);
+          setListCollapsed(false);
+        } else {
+          if (typeof v.viewsCollapsed === "boolean")
+            setViewsCollapsed(v.viewsCollapsed);
+          if (typeof v.listCollapsed === "boolean")
+            setListCollapsed(v.listCollapsed);
+          if (typeof v.customerCollapsed === "boolean")
+            setCustomerCollapsed(v.customerCollapsed);
         }
+      } else if (isMobile) {
+        // First visit on mobile — same single-pane defaults.
+        setViewsCollapsed(true);
+        setCustomerCollapsed(true);
       }
     } catch {
       /* ignore */
@@ -1128,6 +1136,19 @@ export function ConversationsApp({
 
   // ─── Render ─────────────────────────────────────────────────
 
+  // Mobile single-pane logic: on < md viewports only ONE pane is
+  // visible at a time. The order of precedence top-down:
+  //   1. Views (when expanded) — drawer/full-width overlay
+  //   2. Customer (when expanded) — drawer/full-width overlay
+  //   3. Detail (when a conversation is selected)
+  //   4. List (default)
+  // Desktop (md+) renders all panes side-by-side as before.
+  const mobileShowViews = !viewsCollapsed;
+  const mobileShowCustomer = !customerCollapsed && selectedId !== null;
+  const mobileShowDetail =
+    selectedId !== null && !mobileShowViews && !mobileShowCustomer;
+  const mobileShowList = !mobileShowViews && !mobileShowCustomer && !mobileShowDetail;
+
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* LEFT — Views + search + tag filters */}
@@ -1137,7 +1158,11 @@ export function ConversationsApp({
           onExpand={() => setViewsCollapsed(false)}
         />
       ) : (
-        <aside className="w-full md:w-60 flex-shrink-0 border-r border-default bg-white/[0.01] flex flex-col">
+        <aside
+          className={`w-full md:w-60 flex-shrink-0 border-r border-default bg-white/[0.01] flex-col ${
+            mobileShowViews ? "flex" : "hidden md:flex"
+          }`}
+        >
         <div className="px-4 py-3 border-b border-default flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-primary">Conversations</h2>
           <button
@@ -1169,7 +1194,21 @@ export function ConversationsApp({
               >
                 <button
                   type="button"
-                  onClick={() => setView(v.key)}
+                  onClick={() => {
+                    setView(v.key);
+                    // Mobile UX: picking a filter should auto-
+                    // collapse the Views drawer so the user lands
+                    // on the now-filtered List. Without this they'd
+                    // pick a filter and stay stuck on the Views
+                    // pane wondering where the rows went.
+                    if (
+                      typeof window !== "undefined" &&
+                      window.matchMedia &&
+                      !window.matchMedia("(min-width: 768px)").matches
+                    ) {
+                      setViewsCollapsed(true);
+                    }
+                  }}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     active
                       ? "bg-ember-400/10 text-brand"
@@ -1209,15 +1248,29 @@ export function ConversationsApp({
           />
         ) : (
         <div
-          // Mobile: full width (single-pane drawer). md+: persisted
-          // user width via CSS variable so the resize handle still
-          // works on desktop without any runtime branching that
-          // would cause SSR/CSR drift.
+          // Mobile: full width when this is the active pane;
+          // hidden otherwise. md+: persisted user width via CSS
+          // variable so the resize handle still works on desktop.
           style={{ "--care-list-w": `${listWidth}px` } as React.CSSProperties}
-          className="flex-shrink-0 border-r border-default flex flex-col w-full md:w-[var(--care-list-w)]"
+          className={`flex-shrink-0 border-r border-default flex-col w-full md:w-[var(--care-list-w)] ${
+            mobileShowList ? "flex" : "hidden md:flex"
+          }`}
         >
           {/* Search + collapse */}
           <div className="px-3 py-2 border-b border-default flex items-center gap-2">
+            {/* Mobile-only Filter / Views button — re-opens the
+                Views drawer. Without this, mobile users who picked
+                a view earlier (which auto-collapsed Views) would
+                have no way to change view. */}
+            <button
+              type="button"
+              onClick={() => setViewsCollapsed(false)}
+              aria-label="Show views / filters"
+              title="Filters"
+              className="md:hidden text-muted hover:text-primary p-1.5 rounded hover:bg-white/[0.04] shrink-0"
+            >
+              <Filter className="w-4 h-4" aria-hidden />
+            </button>
             <div className="relative flex-1 min-w-0">
               <Search
                 className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2"
@@ -1236,7 +1289,7 @@ export function ConversationsApp({
               onClick={() => setListCollapsed(true)}
               aria-label="Collapse conversation list"
               title="Collapse"
-              className="text-muted hover:text-primary p-1 rounded hover:bg-white/[0.04] shrink-0"
+              className="hidden md:inline-flex text-muted hover:text-primary p-1 rounded hover:bg-white/[0.04] shrink-0"
             >
               <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
             </button>
@@ -1306,8 +1359,15 @@ export function ConversationsApp({
           />
         )}
 
-        {/* Detail pane */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        {/* Detail pane.
+            Mobile: visible only when a conversation is selected
+            AND no other drawer (Views/Customer) is open.
+            Desktop: always rendered as the center flex-1 region. */}
+        <div
+          className={`flex-1 min-w-0 flex-col ${
+            mobileShowDetail ? "flex w-full" : "hidden md:flex"
+          }`}
+        >
           {!selected ? (
             <div className="flex-1 flex items-center justify-center text-center px-8">
               <div>
@@ -1325,6 +1385,20 @@ export function ConversationsApp({
             </div>
           ) : (
             <>
+              {/* Mobile back-to-list button — md+ never see this
+                  because the List pane is still visible to the
+                  left. On mobile the List is hidden when Detail
+                  is showing, so the user needs an explicit way
+                  back to the conversation list. */}
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                className="md:hidden flex items-center gap-1.5 text-xs text-secondary hover:text-primary border-b border-default px-4 py-2 transition-colors"
+                aria-label="Back to conversation list"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                Back to list
+              </button>
               {/* Detail header */}
               <DetailHeader
                 conversation={selected}
@@ -1426,16 +1500,24 @@ export function ConversationsApp({
           )}
         </div>
 
-        {/* RIGHT — Customer panel + timeline */}
+        {/* RIGHT — Customer panel + timeline.
+            Mobile: only visible when explicitly open AND a
+            conversation is selected; otherwise hidden so the
+            single-pane mobile UX is preserved.
+            Desktop: rail when collapsed, full pane when open. */}
         {selected && (
           customerCollapsed ? (
-            <CollapsedRail
-              ariaLabel="Expand customer panel"
-              onExpand={() => setCustomerCollapsed(false)}
-              chevronDir="left"
-            />
+            <div className="hidden md:flex">
+              <CollapsedRail
+                ariaLabel="Expand customer panel"
+                onExpand={() => setCustomerCollapsed(false)}
+                chevronDir="left"
+              />
+            </div>
           ) : (
-            <>
+            <div
+              className={`${mobileShowCustomer ? "flex w-full" : "hidden md:flex"} flex-shrink-0`}
+            >
               <PaneSplitter
                 onDrag={(dx) =>
                   setCustomerWidth((w) => clampPane(w - dx, 240, 520))
@@ -1448,7 +1530,7 @@ export function ConversationsApp({
                 width={customerWidth}
                 onCollapse={() => setCustomerCollapsed(true)}
               />
-            </>
+            </div>
           )
         )}
       </div>
