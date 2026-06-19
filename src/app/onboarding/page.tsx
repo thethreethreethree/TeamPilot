@@ -355,7 +355,7 @@ export default function OnboardingPage() {
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">What are your top priorities?</h2>
               <p className="text-sm text-muted mb-6">Select all that apply. ELOSTATE will focus its intelligence here.</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {goals.map((goal) => (
                   <button
                     key={goal}

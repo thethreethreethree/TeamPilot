@@ -338,14 +338,16 @@ function ReviewModal({
           </div>
         </Field>
         {error && <p className="text-xs text-red-400">{error}</p>}
-        <div className="flex items-center justify-end gap-2 pt-2">
+        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-base/95 backdrop-blur-sm border-t border-default flex items-center justify-end gap-2 mt-3">
           <button
+            type="button"
             onClick={onClose}
             className="text-xs text-muted hover:text-secondary px-3 py-2"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={submit}
             disabled={submitting}
             className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"

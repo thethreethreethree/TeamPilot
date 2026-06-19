@@ -1131,7 +1131,8 @@ export default function TeamChatTopicPage() {
                 ref={inputRef}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Write your message…"
+                placeholder="Write your message… (Enter to send, Shift+Enter for new line)"
+                aria-label="Type a message. Enter to send, Shift+Enter for a new line."
                 rows={2}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {

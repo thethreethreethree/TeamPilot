@@ -475,20 +475,27 @@ export default function OperationsPage() {
             </Field>
           )}
           {error && <p className="text-xs text-red-400">{error}</p>}
-          <div className="flex items-center justify-end gap-2 pt-2">
+          {/* Sticky footer on mobile — the modal scrolls when fields
+              exceed the visible viewport; the action buttons stayed
+              at the bottom-of-content and disappeared off-screen.
+              sticky + bottom-0 + bg-base/95 keeps the actions
+              reachable while the user scrolls through fields. */}
+          <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-base/95 backdrop-blur-sm border-t border-default flex items-center justify-end gap-2 mt-3">
             <button
+              type="button"
               onClick={closeForm}
               className="text-xs text-muted hover:text-secondary px-3 py-2"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={submit}
               disabled={submitting}
               className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
             >
               {submitting ? "Saving…" : editing ? "Save changes" : "Create task"}
-              {!submitting && <CheckCircle2 className="w-3.5 h-3.5" />}
+              {!submitting && <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />}
             </button>
           </div>
         </div>
