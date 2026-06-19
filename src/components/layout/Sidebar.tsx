@@ -529,7 +529,7 @@ export default function Sidebar() {
           The bulb image's native aspect is 255×354 (taller than wide),
           so width/height match the actual asset proportions to avoid
           stretching. */}
-      <div className="px-6 py-6 border-b border-default relative">
+      <div className="px-6 pb-6 pt-[max(1.5rem,env(safe-area-inset-top))] border-b border-default relative">
         {/* Desktop-only collapse trigger. Mobile keeps the drawer
             pattern (the X button at top-right of the drawer
             already exists for that). */}
@@ -885,7 +885,7 @@ export default function Sidebar() {
       </div>
 
       {/* User footer */}
-      <div className="px-4 py-4 border-t border-default">
+      <div className="px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-default">
         <div className="flex items-center gap-3 px-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ember-400 to-[#FDE047] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
             {initials}

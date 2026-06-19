@@ -102,11 +102,19 @@ export function AskJeffPanel() {
       onClick={closeAskJeff}
     >
       <div
-        className="w-full max-w-md bg-base border-l border-ember-400/30 h-full flex flex-col mb-[env(safe-area-inset-bottom)]"
+        // h-dvh keeps the drawer bound to the dynamic viewport so the
+        // iOS keyboard doesn't push content beyond the screen edge.
+        className="w-full max-w-md bg-base border-l border-ember-400/30 h-dvh flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header — Jeff's identity + the feature being discussed */}
-        <div className="px-5 py-3 border-b border-default flex items-start gap-3 sticky top-0 bg-base">
+        {/* Header — Jeff's identity + the feature being discussed.
+            pt-[max(0.75rem,env(safe-area-inset-top))] pushes the
+            title + close X below the iOS status bar / Dynamic Island
+            on phones with a notch. Without it the panel header sat
+            under the system clock and the close button was untappable. */}
+        <div
+          className="px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-default flex items-start gap-3 bg-base flex-shrink-0"
+        >
           <div className="w-10 h-10 rounded-md bg-ember-400/10 border border-ember-400/40 flex items-center justify-center flex-shrink-0">
             <LearningBulb size={26} glowing priority />
           </div>
@@ -207,7 +215,7 @@ export function AskJeffPanel() {
 
         {/* Composer */}
         <form
-          className="px-5 py-3 border-t border-default flex items-center gap-2"
+          className="px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-default flex items-center gap-2 flex-shrink-0"
           onSubmit={(e) => {
             e.preventDefault();
             void submit();

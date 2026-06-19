@@ -303,12 +303,14 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
         onClick={onClose}
         className="flex-1 bg-black/40 backdrop-blur-sm"
       />
-      {/* Panel */}
+      {/* Panel — h-dvh + flex column keeps the iOS keyboard from
+          eating the bottom of the form, and the safe-area-top push
+          puts the header below the status bar / Dynamic Island. */}
       <div
         ref={dialogRef}
-        className="w-full max-w-md bg-base border-l border-default shadow-2xl overflow-y-auto"
+        className="w-full max-w-md bg-base border-l border-default shadow-2xl h-dvh flex flex-col overflow-hidden"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3 bg-base border-b border-default">
+        <div className="flex-shrink-0 z-10 flex items-center justify-between px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] bg-base border-b border-default">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-brand" aria-hidden />
             <h2 className="text-sm font-semibold text-primary">Send feedback</h2>
@@ -322,6 +324,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
+        <div className="flex-1 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
         {done ? (
           <div className="p-6 flex flex-col items-center text-center gap-3">
             <CheckCircle2 className="w-10 h-10 text-emerald-400" aria-hidden />
@@ -572,6 +575,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

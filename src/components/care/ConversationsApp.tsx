@@ -3813,21 +3813,33 @@ function ToolPanelShell({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-base border-l border-default h-full overflow-y-auto"
+        // h-dvh so iOS keyboard doesn't bleed the drawer past the
+        // viewport. overflow-hidden keeps the sticky header glued
+        // to the top of THIS drawer rather than the document.
+        className="w-full max-w-md bg-base border-l border-default h-dvh flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-3 border-b border-default flex items-center justify-between sticky top-0 bg-base">
+        {/* Header: safe-area top so the title + close button push
+            BELOW the iOS status bar / Dynamic Island on phones with
+            a notch. Without this on /dashboard/care which renders
+            full-bleed, the system clock + battery sat directly on
+            top of "Ask Coach" and the X — both untappable. */}
+        <div
+          className="px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-default flex items-center justify-between bg-base flex-shrink-0"
+        >
           <h2 className="text-sm font-semibold text-primary">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-muted hover:text-primary p-1 rounded hover:bg-surface-raised"
+            className="text-muted hover:text-primary p-1.5 rounded hover:bg-surface-raised"
           >
             <X className="w-4 h-4" aria-hidden />
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="px-5 py-4 flex-1 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {children}
+        </div>
       </div>
     </div>
   );
