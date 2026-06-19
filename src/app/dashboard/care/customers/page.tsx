@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Search, Users } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 type Customer = {
   id: string;
@@ -43,6 +44,15 @@ export default function CareCustomersPage() {
 
   return (
     <>
+      <LearningHint
+        as="block"
+        category="C.A.R.E · Customers"
+        title="Customer index"
+        whatItIs="Every visitor who's ever messaged the team via C.A.R.E (widget or email) shows up here as a customer card — name, email, total conversation count, lifetime profile. Searchable by name or email. The card links into a specific conversation history view."
+        why="Conversation history alone isn't enough — the team needs a customer-centric view that answers 'who is this person across all our conversations' without searching the inbox conversation by conversation. The customer index is that view: per §A11 patterns, never per-person verdicts."
+        how="Browse to scan recent visitors. Search when you know the email or name. Click a card to see the lifetime conversation history for that customer."
+        principle="Customer view is institutional memory of the relationship. The team that knows who they're talking to delivers better support."
+      >
       <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60 flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-lg font-semibold text-primary">Customers</h1>
@@ -66,6 +76,7 @@ export default function CareCustomersPage() {
           />
         </div>
       </header>
+      </LearningHint>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
         {loading && (
