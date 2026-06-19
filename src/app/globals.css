@@ -271,16 +271,24 @@ html {
  *
  * Targets:
  *   - any class containing #FACC15 / #EAB308 / #CA8A04 backgrounds
- *   - bg-ember-* utilities
+ *   - bg-ember-400 / bg-ember-500 SOLID utilities only
  *   - gradient containers
+ *
+ * 2026-06-19 fix — switched from [class*=] (substring) to [class~=]
+ * (whole-word token) so that low-opacity variants like
+ * bg-ember-400/5 do NOT trigger the dark-text swap. Those variants
+ * are mostly-transparent over the dark surface, so swapping text-
+ * primary to BLACK made text invisible against the underlying dark
+ * background. Confirmed by founder on Settings / My Growth /
+ * Tasks gate pages: 'text is too dark and can not be read properly'.
  */
 .bg-ember-metallic .text-primary,
 .bg-crimson-metallic .text-primary,
-[class*="bg-[#FACC15]"] .text-primary,
-[class*="bg-[#EAB308]"] .text-primary,
-[class*="bg-[#CA8A04]"] .text-primary,
-[class*="bg-ember-400"] .text-primary,
-[class*="bg-ember-500"] .text-primary,
+[class~="bg-[#FACC15]"] .text-primary,
+[class~="bg-[#EAB308]"] .text-primary,
+[class~="bg-[#CA8A04]"] .text-primary,
+[class~="bg-ember-400"] .text-primary,
+[class~="bg-ember-500"] .text-primary,
 [class*="bg-gradient-to"] .text-primary {
   color: #09090B;
 }

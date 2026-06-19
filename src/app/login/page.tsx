@@ -2,7 +2,7 @@
 
 import { ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -10,7 +10,22 @@ import { BrandLogo } from "@/components/brand/Logo";
 
 type Mode = "signin" | "signup";
 
-export default function LoginPage() {
+/**
+ * Wrap in Suspense so useSearchParams() doesn't break static
+ * generation (Next 16 requires a Suspense boundary above any
+ * hook that reads URL params during render). Without this the
+ * entire build fails at the prerender step — Vercel deploys
+ * since 2026-06-19 were all errored on this.
+ */
+export default function LoginPageWrapper() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPage />
+    </Suspense>
+  );
+}
+
+function LoginPage() {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

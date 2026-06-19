@@ -22,6 +22,50 @@ import { useSearchParams } from "next/navigation";
 
 type FilterType = "All" | "Blocked" | "In Progress" | "To Do" | "Needs Review" | "Completed";
 
+type TaskFilterHint = {
+  whatItIs: string;
+  why: string;
+  how: string;
+  principle?: string;
+};
+
+const FILTER_HINTS: Record<FilterType, TaskFilterHint> = {
+  All: {
+    whatItIs: "Shows every task — every status, every priority, every assignee. The default landing view.",
+    why: "Sometimes you need the full picture before deciding what to act on. Starting from All and narrowing via filter is faster than starting narrow and missing context.",
+    how: "Use All when you're scanning the team's overall load or you don't yet know what you're looking for. Once you have a question (what's blocked? what's mine?), switch to the filter that answers it directly.",
+  },
+  Blocked: {
+    whatItIs: "Tasks in the Blocked status — work that has stalled with a stated blocker reason captured.",
+    why: "The Blocked filter is the discipline surface for the work the team has parked. Browsing it periodically prevents the silent accumulation of stale blocked tasks where nobody remembers why they were blocked.",
+    how: "Open this filter once or twice a week. For each row, ask: 'Is the blocker still real?' If not, transition the task back to In Progress. If yes, decide whether to unblock or reroute.",
+    principle: "A blocker without a recent review is a blocker that's quietly become a habit.",
+  },
+  "In Progress": {
+    whatItIs: "Tasks the team has explicitly picked up — work that's started but not yet completed.",
+    why: "The In Progress count is the team's working memory. The honest team measures this and keeps it small; the unfocused team lets it grow until everyone has a dozen things half-done.",
+    how: "Use this view to see your own active work + your teammates'. If In Progress is high across the team without proportional completion velocity, the right move is usually to STOP starting new tasks until in-progress drains.",
+    principle: "WIP is the lever. Cap it consciously; don't let it grow by default.",
+  },
+  "To Do": {
+    whatItIs: "Tasks in the To Do state — scoped, assigned, but not yet started. The team's queue.",
+    why: "To Do is the bench. Browsing it answers 'what's next' without committing to anything yet. Helpful when planning your next session of focused work, OR when assessing whether the team has enough scoped work to fill the next sprint.",
+    how: "If To Do is empty and In Progress is high, the team has lost runway — every existing task is in-flight. If To Do is enormous, the team has more scope than it can credibly absorb.",
+  },
+  "Needs Review": {
+    whatItIs: "Tasks marked Needs Review — work that has been completed by the doer and is now awaiting a second pair of eyes before being marked Completed.",
+    why: "The review step is the team's quality + handoff discipline. A team that always closes tasks straight to Completed skips this — and quality drift is one of the first places that shows up.",
+    how: "If you've assigned reviews, open this filter to see your queue. Slow reviews are a real cost to teammates; clear them within a day where possible.",
+    principle: "The review step is what makes the team get better. Don't optimize past it.",
+  },
+  Completed: {
+    whatItIs: "Tasks marked Completed — closed work. The team's done pile.",
+    why: "Sometimes you need to find a task you finished last week to reference what was decided. The Completed filter is for archival lookup.",
+    how: "Don't operate from Completed. Don't celebrate count-of-completed (that's vanity). Use it when you specifically need to find or reference closed work.",
+    principle: "Completion count is a vanity metric on its own. Pair it mentally with held rate from Resolutions to see if the work actually held.",
+  },
+};
+
 const FILTERS: FilterType[] = [
   "All",
   "Blocked",
@@ -192,30 +236,78 @@ export default function OperationsPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Stat label="Open tasks" value={tasks.length} color="text-primary" />
-          <Stat label="Blocked" value={blockedCount} color="text-red-400" />
-          <Stat label="In Progress" value={inProgressCount} color="text-blue-400" />
-          <Stat label="Critical" value={criticalCount} color="text-orange-400" />
+          <LearningHint
+            category="Tasks · Load"
+            title="Open tasks"
+            whatItIs="The count of every task currently in flight — anything not yet completed or deleted. Includes To Do, In Progress, Blocked, and Needs Review."
+            why="Activity counts (tickets created, comments, meeting minutes) are noise. The single honest measure of operational load is 'how many unresolved threads is the team carrying.' That's the count of open work. If this number climbs faster than completions, the team is taking on more than it can finish — capacity has shifted."
+            how="Use this number to gauge load, not to chase. A team with 200 open tasks and steady completions is fine. A team with 50 open tasks and zero completions is stuck. The number alone tells you nothing — the trend versus completions tells you everything."
+            principle="Open count is the load gauge. Pair it mentally with completion velocity to read the operational truth."
+          >
+            <Stat label="Open tasks" value={tasks.length} color="text-primary" />
+          </LearningHint>
+          <LearningHint
+            category="Tasks · Risk"
+            title="Blocked"
+            whatItIs="Tasks currently in the Blocked state. Per the chain discipline, any task in Blocked must carry a blocker_reason (the API rejects the transition without one) — so this count IS the count of tasks where someone has explicitly named a blocker."
+            why="The blocked-count answers a question other counts can't: 'how much of the team's load is paused, with a stated reason?' A team that drifts blocked-count upward without anyone noticing is a team accepting that work just stops sometimes. Surfacing the count makes the pile visible."
+            how="When this number is non-zero, open the Critical & Blocked Tasks panel on the Command Center to see WHICH tasks are blocked and WHY. Decide: do you unblock by removing the constraint, or do you accept the block and reroute work around it? Both are legitimate; choosing without seeing the count isn't."
+            principle="A blocker without a stated reason is a discipline gap. The count exists to surface that gap."
+          >
+            <Stat label="Blocked" value={blockedCount} color="text-red-400" />
+          </LearningHint>
+          <LearningHint
+            category="Tasks · Flow"
+            title="In Progress"
+            whatItIs="Tasks currently in the In Progress state — work that has been picked up but not yet completed."
+            how="Use this to gauge work-in-flight. If In Progress is high but completion velocity is low, the team is starting too much and finishing too little — context-switching cost is eating output. The honest move when this happens is to STOP starting new tasks until in-progress drains."
+            why="The single most reliable predictor of team output is how many things are simultaneously open in everyone's head. WIP (work in progress) count is the proxy for that load. Lean / kanban / agile literature converges on this because the underlying psychology converges on it."
+            principle="WIP is the lever. Lower WIP and completions usually rise; higher WIP and completions usually fall."
+          >
+            <Stat label="In Progress" value={inProgressCount} color="text-blue-400" />
+          </LearningHint>
+          <LearningHint
+            category="Tasks · Priority"
+            title="Critical"
+            whatItIs="Tasks the team has explicitly marked priority=Critical. Critical is the highest band — reserved for work that, if it slips, has consequences worth surfacing."
+            why="Most priority schemes fail because every task ends up Critical by inflation. The honest discipline is to keep Critical SCARCE — if everything is critical, nothing is. The count above is your check: if Critical is greater than ~10% of Open, the team has lost the calibration and Critical no longer means anything."
+            how="If this number feels too high, that's a signal. Walk through and demote tasks that should be High. The downstream payoff is that when Critical genuinely matters, the team responds."
+            principle="Critical is a scarce resource. The count tells you whether the team is still treating it that way."
+          >
+            <Stat label="Critical" value={criticalCount} color="text-orange-400" />
+          </LearningHint>
         </div>
 
         {/* Filter + Create */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-1.5 flex-wrap min-w-0">
             <Filter className="w-3.5 h-3.5 text-muted shrink-0" aria-hidden="true" />
-            {FILTERS.map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setActiveFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeFilter === f
-                    ? "bg-ember-400/15 text-brand border border-ember-400/30"
-                    : "text-muted hover:text-secondary border border-transparent hover:border-default"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+            {FILTERS.map((f) => {
+              const hint = FILTER_HINTS[f];
+              return (
+                <LearningHint
+                  key={f}
+                  category="Tasks · Filter"
+                  title={f}
+                  whatItIs={hint.whatItIs}
+                  why={hint.why}
+                  how={hint.how}
+                  principle={hint.principle}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilter(f)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      activeFilter === f
+                        ? "bg-ember-400/15 text-brand border border-ember-400/30"
+                        : "text-muted hover:text-secondary border border-transparent hover:border-default"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                </LearningHint>
+              );
+            })}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <ExportMenu

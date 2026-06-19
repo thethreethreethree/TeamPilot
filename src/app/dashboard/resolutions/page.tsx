@@ -110,13 +110,40 @@ export default function ResolutionsPage() {
         {/* Summary + export */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="grid grid-cols-3 gap-3 md:gap-4 flex-1 min-w-0">
-            <Stat label="Total resolutions" value={resolutions.length} color="text-primary" />
-            <Stat label="Reviewed" value={reviewed.length} color="text-blue-400" />
-            <Stat
-              label="Held rate"
-              value={heldRate === null ? "—" : `${Math.round(heldRate * 100)}%`}
-              color={heldRate === null ? "text-muted" : "text-emerald-400"}
-            />
+            <LearningHint
+              category="Resolutions · Volume"
+              title="Total resolutions"
+              whatItIs="The all-time count of closed problems that produced a captured resolution. Every row on this page represents one count."
+              why="A team's playbook size matters less than people think. A small team with 30 high-quality, durable resolutions outperforms a larger team with 300 shallow ones. The raw count is context, not a verdict — use it alongside Held rate to read the real signal."
+              how="Watch the trend, not the absolute number. A flat count means the team isn't closing problems with reasoning attached. A growing count without a holding Held rate means the team is closing things that don't stick. The honest team grows count AND Held rate together."
+              principle="Count without quality is vanity. Quality without count is a one-off. The pair is what compounds."
+            >
+              <Stat label="Total resolutions" value={resolutions.length} color="text-primary" />
+            </LearningHint>
+            <LearningHint
+              category="Resolutions · Review"
+              title="Reviewed"
+              whatItIs="Of all captured resolutions, the count that have been reviewed for durability — meaning the observed outcome has been filled in and durability (held / partial / reopened / inconclusive) recorded."
+              why="A resolution without a review is half a resolution. The capture moment records the team's expectation; the review moment compares that expectation against what actually happened. The §3.5 measure-consequence discipline lives in the review step. A team that captures but doesn't review is performing learning, not doing it."
+              how="If Reviewed is much smaller than Total, that's the team's first action item — walk through unreviewed resolutions whose durability window has elapsed (7 days post-decided is the canonical check) and record what actually held. The Resolutions list highlights overdue reviews."
+              principle="Review is where the team decides whether the work was real. Skipping it means the team never finds out."
+            >
+              <Stat label="Reviewed" value={reviewed.length} color="text-blue-400" />
+            </LearningHint>
+            <LearningHint
+              category="Resolutions · §3.5"
+              title="Held rate"
+              whatItIs="Of resolutions that have been reviewed, the percentage where durability was marked HELD (the underlying problem did not reopen within the durability window). The single most honest measure of the team's operational learning."
+              why="Every other team-metric (close rate, response time, tickets per day) measures the team's activity. Held rate measures whether the work actually worked. It's the only metric that resists the productivity-theater failure mode — you can't game it by closing more things, because closing things faster makes them more likely to reopen, which DECREASES Held rate."
+              how="Track held rate over time. A flat or declining held rate means the team is closing problems that don't stick — usually a symptom of skipped diagnosis. The fix isn't to close fewer things; it's to invest more in the WHY (the diagnosis + reasoning) before closing."
+              principle="The single number that resists vanity. If only one metric survived for the team, this is the one to keep."
+            >
+              <Stat
+                label="Held rate"
+                value={heldRate === null ? "—" : `${Math.round(heldRate * 100)}%`}
+                color={heldRate === null ? "text-muted" : "text-emerald-400"}
+              />
+            </LearningHint>
           </div>
           <ExportMenu
             entity="resolutions"

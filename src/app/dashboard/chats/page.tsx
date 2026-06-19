@@ -1,6 +1,7 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { EnableNotificationsBanner } from "@/components/pwa/EnableNotificationsBanner";
 import { PullToRefresh } from "@/components/pwa/PullToRefresh";
 import { useCompanyName } from "@/lib/hooks/useCompany";
@@ -122,9 +123,36 @@ export default function TeamChatListPage() {
         {/* Stats + actions */}
         <div className="flex items-end justify-between flex-wrap gap-4">
           <div className="flex gap-6">
-            <Stat label="Open" value={openCount} tone="open" />
-            <Stat label="Closed" value={closedCount} tone="closed" />
-            <Stat label="Total" value={topics.length} tone="all" />
+            <LearningHint
+              category="Chat · Activity"
+              title="Open"
+              whatItIs="The count of topics currently in the open state — conversations that haven't been closed with a captured resolution."
+              why="Topic counts are the team's working-conversation surface. Different from C.A.R.E (customer conversations) — this is the internal team's reasoning surface. A team that NEVER closes topics is a team where conversations evaporate. A team that closes too quickly is a team that loses context."
+              how="Open is the working pile. Periodically scan it for topics that have gone stale (no message in 7+ days) — those are candidates to either restart or close with a resolution capture."
+              principle="Open topics are reasoning in progress. Stale opens are reasoning that quietly died."
+            >
+              <Stat label="Open" value={openCount} tone="open" />
+            </LearningHint>
+            <LearningHint
+              category="Chat · Outcomes"
+              title="Closed"
+              whatItIs="The count of topics that have been closed via the structured Close Topic flow — meaning a summary (≥20 chars) was captured along with the topic's outcome."
+              why="Every closed topic is a chunk of institutional memory. Six months from now when 'didn't we talk about X' comes up, the closed topic carries the answer. This count is the team's compounding playbook size."
+              how="Browse Closed periodically to refresh memory on past decisions. The Knowledge surface aggregates these into a searchable corpus."
+              principle="Closed is the team's reasoning crystallized into reusable form. The more reasoning closes durably, the less the team has to re-derive."
+            >
+              <Stat label="Closed" value={closedCount} tone="closed" />
+            </LearningHint>
+            <LearningHint
+              category="Chat · Total"
+              title="Total"
+              whatItIs="Open + Closed. The all-time count of topics ever created on this tenant."
+              why="The shape of this number tells you which mode the team operates in. A team with 50 total topics in a year is probably under-using the conversation discipline; a team with 5000 is probably over-fragmenting (every Slack message becoming a topic)."
+              how="Don't optimize this number — optimize the ratio of Closed to Open. A high total with low Closed means lots of conversations evaporate without capture. A balanced ratio is the healthy shape."
+              principle="The shape of the ratio matters more than the raw count. Aim for closure, not creation."
+            >
+              <Stat label="Total" value={topics.length} tone="all" />
+            </LearningHint>
           </div>
           <div className="flex items-center gap-2">
             {/* Invite member — mounts the shared dialog in place so we
@@ -156,21 +184,66 @@ export default function TeamChatListPage() {
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 bg-surface border border-default rounded-lg p-1">
-            {(["all", "open", "closed"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors capitalize ${
-                  filter === f
-                    ? "bg-ember-400/15 text-brand"
-                    : "text-muted hover:text-primary"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+            {(["all", "open", "closed"] as const).map((f) => {
+              const hint =
+                f === "all"
+                  ? {
+                      whatItIs:
+                        "Shows every topic regardless of status. The default landing view.",
+                      why: "Useful when scanning or searching across both open and closed topics — e.g., 'did we discuss X' regardless of whether that discussion is still alive.",
+                      how: "Start here when you don't yet know whether the conversation you're looking for is still open. Narrow via Open or Closed once you know.",
+                    }
+                  : f === "open"
+                  ? {
+                      whatItIs:
+                        "Filters to topics currently in the open state — active reasoning surfaces.",
+                      why: "When you want to know what the team is currently talking through, Open is the relevant lens. Hides the archived conversations that would otherwise add noise.",
+                      how: "Operate from this filter for daily work. The topics here are where new context is landing.",
+                      principle:
+                        "Open is the team's working memory surface. Browse it consciously.",
+                    }
+                  : {
+                      whatItIs:
+                        "Filters to topics that have been closed with a captured outcome.",
+                      why: "When you're looking for institutional memory (what was decided about X, what was the summary of last quarter's tradeoff), Closed is where it lives.",
+                      how: "Use the search box alongside this filter to find specific closed conversations. The summary captured at close is searchable.",
+                      principle:
+                        "Closed is the playbook. Search it first before re-deriving.",
+                    };
+              return (
+                <LearningHint
+                  key={f}
+                  category="Chat · Filter"
+                  title={f.charAt(0).toUpperCase() + f.slice(1)}
+                  whatItIs={hint.whatItIs}
+                  why={hint.why}
+                  how={hint.how}
+                  principle={"principle" in hint ? hint.principle : undefined}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setFilter(f)}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors capitalize ${
+                      filter === f
+                        ? "bg-ember-400/15 text-brand"
+                        : "text-muted hover:text-primary"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                </LearningHint>
+              );
+            })}
           </div>
+          <LearningHint
+            as="block"
+            category="Chat · Search"
+            title="Search topics"
+            whatItIs="Full-text search across topic titles, descriptions, and tags. Press '/' from anywhere on the page to focus this input."
+            why="As the topic count grows, scrolling to find a specific conversation becomes hostile. The search lets you jump straight to a topic by any phrase you remember. The tag dimension matters most — tagging conversations consistently turns the whole archive into a navigable atlas."
+            how="Try keywords from what you remember of the conversation: a customer name, a feature, a date range, a tag. Press '/' anywhere to instantly focus this field. Combine with the open/closed filter to narrow."
+            principle="Search trumps memory. Building the habit of searching first compounds over months."
+          >
           <div className="flex items-center gap-2 bg-surface border border-default rounded-lg px-3 py-1.5 flex-1 max-w-md">
             <Search className="w-3.5 h-3.5 text-muted" aria-hidden="true" />
             <input
@@ -184,6 +257,7 @@ export default function TeamChatListPage() {
               className="bg-transparent text-xs text-primary placeholder:text-muted focus:outline-none flex-1"
             />
           </div>
+          </LearningHint>
         </div>
 
         {/* Topic list */}
