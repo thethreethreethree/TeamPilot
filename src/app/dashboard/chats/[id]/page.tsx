@@ -68,6 +68,7 @@ import {
 
 import { InThreadDecisionDialogue } from "@/components/chats/InThreadDecisionDialogue";
 import { ComposerToolbar } from "@/components/chats/ComposerToolbar";
+import { FileDropzone } from "@/components/files/FileDropzone";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import { BookOpen, BookOpenCheck, Brain } from "lucide-react";
 import {
@@ -1155,6 +1156,25 @@ export default function TeamChatTopicPage() {
                 value={draft}
                 onChange={setDraft}
               />
+              {/* Asset System v1 — Phase 3 chat composer
+                  integration. Inline paperclip; files auto-link
+                  to this topic so the classification modal pre-
+                  fills topic context. */}
+              <div className="flex items-center gap-1.5">
+                <FileDropzone
+                  hiddenLabel
+                  linkedTopicId={topicId}
+                  onUploadComplete={(r) => {
+                    if (r.ok && r.file) {
+                      // Reload thread / participants so the
+                      // new file row counts toward any visible
+                      // signals. Files render in the library
+                      // and on the topic via linked_topic_id.
+                      void refresh();
+                    }
+                  }}
+                />
+              </div>
               <textarea
                 ref={inputRef}
                 value={draft}

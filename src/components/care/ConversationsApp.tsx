@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
+import { FileDropzone } from "@/components/files/FileDropzone";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { priorityDisplay, tagTone } from "@/lib/care/tagColors";
 import { useToast } from "@/components/ui/toast";
@@ -2519,6 +2520,7 @@ function Composer({
   aiReasoning,
   aiPrecedents,
   composerRef,
+  conversationId,
   onSpawnTask,
   onFormulate,
   onAskCoach,
@@ -2672,6 +2674,13 @@ function Composer({
                 Spawn task
               </button>
             </LearningHint>
+            {/* Asset System v1 — Phase 4 C.A.R.E composer
+                integration. Files auto-link to this support
+                conversation via linked_conversation_id. */}
+            <FileDropzone
+              hiddenLabel
+              linkedConversationId={conversationId}
+            />
           </>
         )}
       </div>

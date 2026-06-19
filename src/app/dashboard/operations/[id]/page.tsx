@@ -30,6 +30,7 @@ import {
   type TaskParticipant,
 } from "@/lib/data/tasks";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
+import { TaskAssetsSection } from "@/components/files/TaskAssetsSection";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
@@ -357,6 +358,11 @@ export default function TaskDetailPage() {
               gateResources={task.gateResources}
               gateRoles={task.gateRoles}
             />
+
+            {/* Assets attached to this task. Phase 2 of Asset
+                System v1 — composition layer per AMD-006 §1.5.1.
+                Dropzone pre-fills task in the classification modal. */}
+            <TaskAssetsSection taskId={task.id} taskTitle={task.title} />
 
             {/* Participants + engagement (Pillar 2). Per A10, anyone
                 can see this; per A7, when we surface signals about

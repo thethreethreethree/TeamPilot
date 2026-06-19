@@ -558,6 +558,16 @@ export function CareChatWidget() {
                   disabled={sending}
                   className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"
                 />
+                {/* Asset System v1 — customer-side upload.
+                    10 MB cap, images + PDF only. Auto-classified
+                    to this conversation. */}
+                <CustomerUploadButton
+                  sessionToken={session?.sessionToken ?? null}
+                  conversationId={session?.conversationId ?? null}
+                  onUploaded={() => {
+                    void loadMessages();
+                  }}
+                />
                 {/* "Call Jeff" — customer opt-in to phone-call
                     mode. Click starts a continuous conversation
                     (hands-free, VAD-driven turns). */}
@@ -624,4 +634,95 @@ function MessageBubble({ message }: { message: Message }) {
 // "last seen" timestamp the agent inbox surfaces.
 function messageWasSeen(_m: Message): boolean {
   return true;
+}
+
+
+/**
+ * Customer-side upload button — inline in the widget composer.
+ * Authenticated by the widget's session token (NOT user auth).
+ * 10 MB cap, images + PDF only enforced server-side in
+ * /api/care/conversations/[id]/upload.
+ */
+function CustomerUploadButton({
+  sessionToken,
+  conversationId,
+  onUploaded,
+}: {
+  sessionToken: string | null;
+  conversationId: string | null;
+  onUploaded: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !sessionToken || !conversationId)
+      return;
+    const f = files[0];
+    if (!f) return;
+    setErr(null);
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", f);
+      const res = await fetch(
+        `/api/care/conversations/${conversationId}/upload`,
+        {
+          method: "POST",
+          headers: { "x-care-session": sessionToken },
+          body: form,
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setErr(data?.error ?? `Upload failed (${res.status})`);
+        return;
+      }
+      onUploaded();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Network error.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading || !sessionToken}
+        aria-label="Attach a file"
+        title={err ?? "Attach an image or PDF (10 MB max)"}
+        className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-default hover:border-strong text-muted hover:text-primary disabled:opacity-40"
+      >
+        {uploading ? (
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.93 8.8L9.41 17.32a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+          </svg>
+        )}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={(e) => void handleFiles(e.target.files)}
+      />
+    </>
+  );
 }
