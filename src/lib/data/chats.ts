@@ -885,6 +885,11 @@ export async function postMessage(args: {
    *  must reference a message that already exists; RLS verifies the
    *  message is in the same company. */
   replyToId?: string | null;
+  /** Asset System v1 — when kind='attachment', media_url holds
+   *  `assets-v1://{fileId}` so the render path can resolve the
+   *  file row + a signed URL. media_type carries the MIME. */
+  mediaUrl?: string | null;
+  mediaType?: string | null;
 }): Promise<ChatMessage> {
   if (!supabaseEnabled) {
     return demoPostMessage(args);
@@ -906,6 +911,8 @@ export async function postMessage(args: {
       body: args.body,
       ai_assisted: args.aiAssisted ?? args.kind === "summary",
       reply_to_id: args.replyToId ?? null,
+      media_url: args.mediaUrl ?? null,
+      media_type: args.mediaType ?? null,
     })
     .select(
       "id, topic_id, author_id, kind, body, media_url, media_type, reply_to_id, ai_assisted, created_at"

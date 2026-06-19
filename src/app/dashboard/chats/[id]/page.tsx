@@ -1164,12 +1164,26 @@ export default function TeamChatTopicPage() {
                 <FileDropzone
                   hiddenLabel
                   linkedTopicId={topicId}
-                  onUploadComplete={(r) => {
+                  onUploadComplete={async (r) => {
                     if (r.ok && r.file) {
-                      // Reload thread / participants so the
-                      // new file row counts toward any visible
-                      // signals. Files render in the library
-                      // and on the topic via linked_topic_id.
+                      // Post a chat_messages row referencing
+                      // the file so teammates SEE the attachment
+                      // in the thread, not just in the library.
+                      // media_url uses the assets-v1:// scheme so
+                      // the render path can resolve a signed URL
+                      // on demand.
+                      try {
+                        await postMessage({
+                          topicId,
+                          body: r.file.title as string,
+                          kind: "attachment",
+                          mediaUrl: `assets-v1://${r.file.id as string}`,
+                          mediaType:
+                            (r.file as { mimeType?: string }).mimeType ?? null,
+                        });
+                      } catch {
+                        /* file is in library regardless */
+                      }
                       void refresh();
                     }
                   }}
