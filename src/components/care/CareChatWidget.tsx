@@ -265,8 +265,65 @@ export function CareChatWidget() {
         }
       );
       if (!res.ok) {
+        // Log the actual status + body so the founder can see
+        // WHY Jeff failed when triaging from the DevTools console
+        // instead of just "Couldn't send."
+        try {
+          const errBody = await res.clone().text();
+          // eslint-disable-next-line no-console
+          console.error(
+            `[care-widget] POST /messages → ${res.status}: ${errBody.slice(0, 400)}`
+          );
+        } catch {
+          // eslint-disable-next-line no-console
+          console.error(`[care-widget] POST /messages → ${res.status} (no body)`);
+        }
         if (res.status === 410) {
           setConversationClosed(true);
+        }
+        // Stale-session recovery: a 401 (token rejected) or 404
+        // (conversation gone) means the localStorage session
+        // points at something the server no longer recognises.
+        // Wipe it, start a fresh conversation, and re-send the
+        // message inline so the customer sees their text land
+        // instead of "Couldn't send". This is the single most
+        // common Jeff failure mode: a developer wiped the DB or
+        // the conversation was archived out from under a long-
+        // lived browser tab.
+        if (res.status === 401 || res.status === 404) {
+          clearSession();
+          setSession(null);
+          setMessages((prev) => prev.filter((m) => m.id !== tempId));
+          try {
+            const sessRes = await fetch("/api/care/conversations", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}),
+            });
+            if (sessRes.ok) {
+              const fresh = (await sessRes.json()) as StoredSession;
+              saveSession(fresh);
+              setSession(fresh);
+              const retry = await fetch(
+                `/api/care/conversations/${fresh.conversationId}/messages`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-care-session": fresh.sessionToken,
+                  },
+                  body: JSON.stringify({ body }),
+                }
+              );
+              if (retry.ok) {
+                const data = await retry.json();
+                setMessages(data.messages ?? []);
+                return;
+              }
+            }
+          } catch {
+            /* fall through to the generic error below */
+          }
         }
         setError("Couldn't send. Please try again.");
         // Remove the optimistic message so the user can retry.
@@ -276,7 +333,9 @@ export function CareChatWidget() {
       const data = await res.json();
       // Replace optimistic + AI reply with the server's canonical list.
       setMessages(data.messages ?? []);
-    } catch {
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[care-widget] send failed:", err);
       setError("Couldn't reach the server.");
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
