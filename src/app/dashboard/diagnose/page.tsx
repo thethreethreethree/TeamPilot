@@ -857,7 +857,8 @@ function StepStepper({
 }) {
   const currentIndex = DIAGNOSIS_STEPS.indexOf(current);
   return (
-    <div className="grid grid-cols-7 gap-2">
+    <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
+    <div className="grid grid-cols-7 gap-2 min-w-[600px]">
       {DIAGNOSIS_STEPS.map((s, i) => {
         const meta = STEP_META[s];
         const Icon = meta.icon;
@@ -896,6 +897,7 @@ function StepStepper({
           </button>
         );
       })}
+    </div>
     </div>
   );
 }

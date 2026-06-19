@@ -218,7 +218,7 @@ export default function MyGrowthPage() {
                     title="How your messages have been landing"
                     subtitle="The Coach grades sent messages on whether the framing tends to produce clarity, neutrality, or pushback. This is downstream consequence — not a rating on you."
                   >
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <GradeStat
                         label="Productive"
                         count={snap.recentGradeMix.productive}

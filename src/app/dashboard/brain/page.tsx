@@ -175,7 +175,7 @@ export default function BrainPage() {
             />
 
             {/* Brain summary */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat
                 label="Brain version"
                 value={`v${state.brain.version}`}
