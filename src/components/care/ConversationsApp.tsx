@@ -1137,7 +1137,7 @@ export function ConversationsApp({
           onExpand={() => setViewsCollapsed(false)}
         />
       ) : (
-        <aside className="w-60 flex-shrink-0 border-r border-default bg-white/[0.01] flex flex-col">
+        <aside className="w-full md:w-60 flex-shrink-0 border-r border-default bg-white/[0.01] flex flex-col">
         <div className="px-4 py-3 border-b border-default flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-primary">Conversations</h2>
           <button
@@ -1209,8 +1209,12 @@ export function ConversationsApp({
           />
         ) : (
         <div
-          style={{ width: listWidth }}
-          className="flex-shrink-0 border-r border-default flex flex-col"
+          // Mobile: full width (single-pane drawer). md+: persisted
+          // user width via CSS variable so the resize handle still
+          // works on desktop without any runtime branching that
+          // would cause SSR/CSR drift.
+          style={{ "--care-list-w": `${listWidth}px` } as React.CSSProperties}
+          className="flex-shrink-0 border-r border-default flex flex-col w-full md:w-[var(--care-list-w)]"
         >
           {/* Search + collapse */}
           <div className="px-3 py-2 border-b border-default flex items-center gap-2">
@@ -2843,8 +2847,10 @@ function CustomerPanel({
   const customer = conversation.customer;
   return (
     <aside
-      style={{ width }}
-      className="flex-shrink-0 border-l border-default bg-white/[0.01] flex flex-col"
+      // Mobile: full-width drawer. md+: persisted user width via
+      // CSS variable so resize handle still works on desktop.
+      style={{ "--care-customer-w": `${width}px` } as React.CSSProperties}
+      className="flex-shrink-0 border-l border-default bg-white/[0.01] flex flex-col w-full md:w-[var(--care-customer-w)]"
     >
       <div className="px-5 py-4 border-b border-default">
         <div className="flex items-start justify-between gap-2 mb-1.5">

@@ -138,7 +138,23 @@ export function CareShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh w-full bg-base overflow-hidden">
-      {/* Care left sidebar — dark navy, Zendesk-shaped */}
+      {/* Mobile backdrop — appears when the C.A.R.E sidebar is
+          OPEN on a < md viewport. Tap dismisses. Without the
+          backdrop the user can lose the sidebar context with no
+          obvious way to close it. */}
+      {!navCollapsed && (
+        <div
+          onClick={() => setNavCollapsed(true)}
+          className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+          aria-hidden="true"
+        />
+      )}
+      {/* Care left sidebar — dark navy, Zendesk-shaped.
+          Mobile: the expanded sidebar becomes a fixed-positioned
+          drawer over content (z-50) instead of a flex column that
+          pushes content. Without this, the 224px sidebar + 240px
+          conversation list overflowed iPhone viewports (~544px
+          total on a 375px screen). Desktop unchanged. */}
       {navCollapsed ? (
         <button
           type="button"
@@ -150,7 +166,7 @@ export function CareShell({ children }: { children: React.ReactNode }) {
           <ChevronRight className="w-3.5 h-3.5" aria-hidden />
         </button>
       ) : (
-      <aside className="w-56 flex-shrink-0 bg-[#0B1620] text-white/90 border-r border-white/[0.06] flex flex-col">
+      <aside className="w-56 flex-shrink-0 bg-[#0B1620] text-white/90 border-r border-white/[0.06] flex flex-col fixed md:relative inset-y-0 left-0 z-50 md:z-auto h-dvh md:h-auto">
         {/* Header: brand + agent status.
             pt-[max(1rem,env(safe-area-inset-top))] pushes the C.A.R.E
             logo + title BELOW the iOS status bar / dynamic island on
