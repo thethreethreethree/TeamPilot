@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Plus, Zap } from "lucide-react";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
+import { useToast } from "@/components/ui/toast";
 
 type Shortcut = {
   id: string;
@@ -15,6 +16,7 @@ export default function CareShortcutsPage() {
   const [items, setItems] = useState<Shortcut[] | null>(null);
   const [draft, setDraft] = useState({ shortcut: "", title: "", body: "" });
   const [creating, setCreating] = useState(false);
+  const toast = useToast();
 
   const refresh = async () => {
     const res = await fetch("/api/care/agent/shortcuts");
@@ -40,9 +42,23 @@ export default function CareShortcutsPage() {
         body: JSON.stringify(draft),
       });
       if (res.ok) {
+        toast.success(`Shortcut ${draft.shortcut} created.`);
         setDraft({ shortcut: "", title: "", body: "" });
         await refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(
+          data.error
+            ? `Could not create shortcut — ${data.error}`
+            : `Could not create shortcut (status ${res.status}).`
+        );
       }
+    } catch (e) {
+      toast.error(
+        e instanceof Error
+          ? `Could not create shortcut — ${e.message}`
+          : "Could not create shortcut (network error)."
+      );
     } finally {
       setCreating(false);
     }
@@ -70,6 +86,7 @@ export default function CareShortcutsPage() {
               </label>
               <input
                 type="text"
+                autoComplete="off"
                 value={draft.shortcut}
                 onChange={(e) =>
                   setDraft({ ...draft, shortcut: e.target.value })

@@ -36,7 +36,8 @@ export default function PrivacyPage() {
 
         <h1 className="text-2xl font-bold mt-6 mb-2">Privacy Policy</h1>
         <p className="text-xs text-muted">
-          Version 0.1 · last updated 2026-06-15
+          Version 0.1 · last updated{" "}
+          <time dateTime="2026-06-19">June 19, 2026</time>
         </p>
 
         <Section title="The core promise (the structural one)">

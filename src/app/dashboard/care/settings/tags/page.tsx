@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Plus, Tag as TagIcon } from "lucide-react";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
 import { ALL_TAG_COLORS, tagTone } from "@/lib/care/tagColors";
+import { useToast } from "@/components/ui/toast";
 
 type Tag = {
   id: string;
@@ -16,6 +17,7 @@ export default function CareTagsPage() {
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("gray");
   const [creating, setCreating] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     void refresh();
@@ -39,9 +41,23 @@ export default function CareTagsPage() {
         body: JSON.stringify({ name: newName.trim(), color: newColor }),
       });
       if (res.ok) {
+        toast.success(`Tag "${newName.trim()}" created.`);
         setNewName("");
         await refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(
+          data.error
+            ? `Could not create tag — ${data.error}`
+            : `Could not create tag (status ${res.status}).`
+        );
       }
+    } catch (e) {
+      toast.error(
+        e instanceof Error
+          ? `Could not create tag — ${e.message}`
+          : "Could not create tag (network error)."
+      );
     } finally {
       setCreating(false);
     }
@@ -67,6 +83,7 @@ export default function CareTagsPage() {
               </label>
               <input
                 type="text"
+                autoComplete="off"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="e.g. billing"
