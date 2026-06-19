@@ -199,14 +199,15 @@ export default function OperationsPage() {
         </div>
 
         {/* Filter + Create */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-muted" />
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            <Filter className="w-3.5 h-3.5 text-muted shrink-0" aria-hidden="true" />
             {FILTERS.map((f) => (
               <button
                 key={f}
+                type="button"
                 onClick={() => setActiveFilter(f)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeFilter === f
                     ? "bg-ember-400/15 text-brand border border-ember-400/30"
                     : "text-muted hover:text-secondary border border-transparent hover:border-default"
@@ -216,7 +217,7 @@ export default function OperationsPage() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <ExportMenu
               entity="tasks"
               disabled={!supabaseEnabled || mode === "demo-fixtures"}

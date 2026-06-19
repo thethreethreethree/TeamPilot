@@ -184,16 +184,16 @@ function ResolutionRow({
   const Icon = dur?.icon;
   return (
     <div className="glass-card p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-primary">
+      <div className="flex items-start justify-between gap-3 flex-col sm:flex-row">
+        <div className="min-w-0 flex-1 w-full">
+          <p className="text-sm font-medium text-primary break-words">
             {resolution.problemTitle ?? "—"}
           </p>
-          <p className="text-xs text-secondary mt-1 leading-relaxed">
+          <p className="text-xs text-secondary mt-1 leading-relaxed break-words">
             <span className="text-muted uppercase tracking-widest text-[10px]">action</span>{" "}
             {resolution.actionTaken}
           </p>
-          <p className="text-xs text-secondary mt-1 leading-relaxed">
+          <p className="text-xs text-secondary mt-1 leading-relaxed break-words">
             <span className="text-muted uppercase tracking-widest text-[10px]">why</span>{" "}
             {resolution.reasoning}
           </p>
@@ -215,7 +215,7 @@ function ResolutionRow({
               ` · reviewed ${resolution.reviewedAt.slice(0, 10)}`}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+        <div className="flex sm:flex-col items-start sm:items-end gap-2 flex-shrink-0 flex-wrap sm:flex-nowrap">
           {dur && Icon ? (
             <span
               className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full border ${dur.color} ${dur.bg} ${dur.border}`}

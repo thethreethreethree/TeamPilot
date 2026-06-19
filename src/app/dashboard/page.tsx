@@ -446,19 +446,19 @@ export default function CommandDashboard() {
             how="Treat it as a SIGNAL, not an instruction. The CTA opens the relevant module. If your team's real priority is different (a customer crisis, a meeting in 30 minutes), trust your judgment over the panel's pointer. The panel goes silent once the chain is mature; that's the right behavior."
             principle="A useful nudge points at where the work is, not at what to do with it. The judgment is yours."
           >
-            <div className="glass-card p-5 border-ember-400/30">
+            <div className="glass-card p-4 md:p-5 border-ember-400/30">
               <p className="text-[10px] text-brand uppercase tracking-widest mb-2">
                 Where to focus next
               </p>
               <p className="text-sm text-primary mb-2">{quickstart.title}</p>
-              <p className="text-xs text-secondary leading-relaxed mb-3">
+              <p className="text-xs text-secondary leading-relaxed mb-3 break-words">
                 {quickstart.body}
               </p>
               <Link
                 href={quickstart.href}
                 className="inline-flex items-center gap-1.5 text-xs text-brand hover:text-primary"
               >
-                {quickstart.cta} <ChevronRight className="w-3 h-3" />
+                {quickstart.cta} <ChevronRight className="w-3 h-3" aria-hidden="true" />
               </Link>
             </div>
           </LearningHint>
