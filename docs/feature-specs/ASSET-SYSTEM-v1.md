@@ -1,8 +1,23 @@
-# Asset System v1 — Spec for Red-Pen
+# Asset System v1 — Locked Spec (post red-pen)
 
-**Status:** Spec draft. Awaiting founder red-pen before any code.
+**Status:** RED-PEN ROUND 1 INCORPORATED. Phase 0 (schema) authorized.
 **Author:** Agent, under CLAUDE.md + ThinkerThinker.md + AMD-006.
-**Date:** 2026-06-19.
+**Date:** 2026-06-19 (revised after founder red-pen).
+**Companion specs:** `CONVERSATION-SEARCH-v1.md`, `FOLDER-SYSTEM-v1.md` — both load on top of this schema, sharing the phase plan.
+
+## Founder red-pen — what changed from the v1-draft (Section 5)
+
+| Question | Original draft | Locked after red-pen |
+| --- | --- | --- |
+| Departments per file | one | **MULTIPLE** (many-to-many) |
+| Tasks per file | one primary | **MULTIPLE tags** (many-to-many) |
+| Classification field shape | title + description | **title + short description + tag chips** |
+| Blocked file types | executables, archives | **videos blocked** also |
+| Permissions model | company-wide visibility only | **Role-based gate** (everyone / admins / CEO+admins / specific-people). Uploader **always** sees own file per §A10. |
+| C.A.R.E customer uploads | deferred to v2 | **IN v1** — 10MB cap, images+PDF only, auto-classified to conversation, customer filename = title |
+| Casual cap trigger | "uploader picks casual lane" | **AUTOMATIC** — any file missing department OR description OR task counts toward the 3/day cap |
+| Department seed list | 5 seeded names | **EMPTY at signup** — admins create at `/dashboard/settings/departments` |
+| Retrieval surface | inline + library page | **inline + library + auto-folder navigation + cross-conversation search** (last two are companion specs) |
 
 > Per §0 (Understanding precedes solving) and A2 (Design backwards from the §4 readout),
 > the goal here is to earn understanding of WHAT this feature is, WHY it is built this
@@ -133,16 +148,70 @@ storage_path        text                                -- Supabase Storage path
 mime_type           text
 size_bytes          bigint
 original_filename   text                                -- as the user named it
-title               text                                -- "what is the file about"
-                                                          (mandatory unless casual)
-department_id       uuid fk → departments(id) NULL     -- pillar 1, field 1
-task_id             uuid fk → tasks(id)       NULL     -- pillar 1, field 2 (see §6)
-description         text                                -- "what is the file about" long form
-classification_lane text CHECK IN (classified, casual) -- the gate distinction
+title               text                                -- "what is the file about" (line 1)
+description         text                                -- short description (≤500 chars)
+access_role         text CHECK IN (
+                      'everyone',                       -- default; any active company member
+                      'admins',                         -- admins + CEO + COO
+                      'ceo_admins',                     -- CEO + COO + admins (alias for clarity)
+                      'specific_people'                 -- whitelist in file_access_grants
+                    ) DEFAULT 'everyone'
+classification_lane text CHECK IN ('classified', 'casual') -- derived; classified iff fields complete
 classified_at       timestamptz                         -- when the gate cleared (NULL if casual)
+uploaded_via        text CHECK IN (
+                      'agent_dashboard',                -- via TeamPilot dashboard
+                      'customer_widget'                 -- via C.A.R.E widget visitor upload
+                    ) DEFAULT 'agent_dashboard'
+linked_conversation_id uuid fk → support_conversations(id) NULL  -- C.A.R.E context
+linked_topic_id     uuid fk → chat_topics(id) NULL     -- team chat context
 deprecated_at       timestamptz                         -- soft-delete (per §3.1, NEVER hard-delete)
 created_at          timestamptz default now()
 ```
+
+Note: No `department_id` / `task_id` columns on `files` itself. Both are MANY-TO-MANY via join tables below — a file can belong to multiple departments AND tag multiple tasks. Per the founder's red-pen.
+
+**`file_departments` (join table — many-to-many).**
+```
+file_id        uuid fk → files(id)        on delete cascade
+department_id  uuid fk → departments(id)  on delete cascade
+created_at     timestamptz default now()
+primary key (file_id, department_id)
+```
+
+**`file_tasks` (join table — many-to-many).**
+```
+file_id      uuid fk → files(id)   on delete cascade
+task_id      uuid fk → tasks(id)   on delete cascade
+created_at   timestamptz default now()
+primary key (file_id, task_id)
+```
+
+**`file_tags` (the chip system).**
+```
+file_id     uuid fk → files(id) on delete cascade
+tag         text                                 -- normalized lowercase; ≤40 chars
+created_at  timestamptz default now()
+primary key (file_id, tag)
+```
+
+**`file_access_grants` (used when `access_role = 'specific_people'`).**
+```
+file_id      uuid fk → files(id)        on delete cascade
+profile_id   uuid fk → profiles(id)     on delete cascade
+granted_by   uuid fk → profiles(id)     on delete set null
+granted_at   timestamptz default now()
+primary key (file_id, profile_id)
+```
+
+**Casual-lane derivation (NOT stored — derived).** A file is `classified` iff it has:
+1. At least one row in `file_departments`, AND
+2. Non-empty `description`, AND
+3. At least one row in `file_tasks`.
+
+Otherwise it's `casual` and counts toward the user's 3/day cap. The `classification_lane`
+column is a derived materialized field (updated by trigger on insert + on join-table
+write) so the cap-check query is O(1). Per A12, the trigger is CREATE OR REPLACE and
+the column has a default that the trigger overwrites.
 
 **`departments` table (new).**
 ```
