@@ -207,17 +207,29 @@ export async function POST(
     });
     aiText = r.text.trim();
   } catch (err) {
-    if (err instanceof LlmError) {
-      // Soft-fail: post a graceful handoff message instead of
-      // showing an error to the customer. The widget surfaces this
-      // as a normal AI reply so the conversation continues; the
-      // agent inbox surfaces it as an open conversation.
-      aiText =
-        "I'm having trouble pulling up an answer right now — let me bring in a teammate who can help. They'll see everything we've talked about.";
-      await markConversationHandedOff(conversation.id);
-    } else {
-      throw err;
-    }
+    // Soft-fail on ANY exception in the AI call — LlmError
+    // (provider rejected, quota, network) OR a bare Error (env
+    // misconfig like "No LLM provider configured" at startup,
+    // unexpected throw inside provider lib). The customer's
+    // message has already been saved (line 148); throwing here
+    // would make the route return 500 and the widget show
+    // "Couldn't send", convincing the customer their message
+    // didn't land when it actually did.
+    //
+    // Better: post a graceful handoff and let the agent inbox
+    // pick it up. The team sees the conversation immediately;
+    // the customer sees a continuation, not a failure.
+    //
+    // eslint-disable-next-line no-console
+    console.error(
+      "[care.messages] AI reply failed, falling back to handoff:",
+      err instanceof Error ? `${err.name}: ${err.message}` : err
+    );
+    aiText =
+      err instanceof LlmError
+        ? "I'm having trouble pulling up an answer right now — let me bring in a teammate who can help. They'll see everything we've talked about."
+        : "Thanks — I'm pulling in a teammate to take this. They'll see everything you've shared and reply shortly.";
+    await markConversationHandedOff(conversation.id);
   }
 
   // If the AI emitted a hand-off signal, flip the conversation so

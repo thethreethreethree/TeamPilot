@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Loader2,
   MessageCircle,
@@ -11,6 +12,20 @@ import {
 } from "lucide-react";
 import { VoiceSurface } from "./voice/VoiceSurface";
 import { useVoiceMode } from "./voice/useVoiceMode";
+
+/**
+ * Route prefixes where the customer-facing Care widget MUST NOT
+ * render. These are agent-side workspaces (C.A.R.E inbox, topic
+ * chats) where the Jeff FAB visually collides with the agent's
+ * own send/compose surface and signals nothing useful to the
+ * agent who is already inside the agent product. The widget
+ * remains everywhere else (public marketing pages + the rest of
+ * the dashboard) because that's where it serves a real visitor.
+ */
+const WIDGET_HIDDEN_PREFIXES = [
+  "/dashboard/care",
+  "/dashboard/chats",
+];
 
 /**
  * Customer-facing Care chat widget. Floats bottom-right; expands to
@@ -66,6 +81,10 @@ function clearSession() {
 }
 
 export function CareChatWidget() {
+  const pathname = usePathname();
+  const hiddenHere =
+    pathname !== null &&
+    WIDGET_HIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState<StoredSession | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -272,6 +291,8 @@ export function CareChatWidget() {
       void handleSend();
     }
   };
+
+  if (hiddenHere) return null;
 
   return (
     <>
