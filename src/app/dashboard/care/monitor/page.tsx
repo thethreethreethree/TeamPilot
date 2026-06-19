@@ -5,7 +5,7 @@ import { Activity } from "lucide-react";
 export default function CareMonitorPage() {
   return (
     <>
-      <header className="px-8 py-4 border-b border-default bg-base/60">
+      <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60">
         <h1 className="text-lg font-semibold text-primary">Monitor</h1>
         <p className="text-[11px] text-muted">
           Live view of who&apos;s on the site and what they&apos;re looking at

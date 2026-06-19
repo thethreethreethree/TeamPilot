@@ -42,7 +42,7 @@ export default function MarketingPage() {
     <div className="min-h-screen bg-base">
       <TopBar title="Marketing" subtitle={`${companyName} · Growth Intelligence`} />
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
         <DesignPreviewBanner
           domain="Marketing"
           needs="A marketing data source (HubSpot, GA4, Mixpanel, or manual entry) must exist before lead/CAC/funnel values become derived."

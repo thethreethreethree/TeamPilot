@@ -207,7 +207,7 @@ export default function CommandDashboard() {
     <div className="min-h-screen bg-base">
       <TopBar title="Command Center" subtitle={companyName} />
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
         <InstallTeamChatBanner />
         {/* Honest loader-failure banner. Per TT.md A21
             Command Center audit — silent failures dressed

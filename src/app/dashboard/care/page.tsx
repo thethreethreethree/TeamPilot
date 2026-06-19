@@ -204,7 +204,7 @@ export default function CareHomePage() {
 
   return (
     <>
-      <header className="px-8 py-4 border-b border-default bg-base/60 flex items-center justify-between">
+      <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60 flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-lg font-semibold text-primary">
             What the System noticed this week
@@ -218,7 +218,7 @@ export default function CareHomePage() {
         </span>
       </header>
       <div className="flex-1 overflow-y-auto bg-white/[0.01]">
-        <div className="px-8 py-6 max-w-6xl mx-auto space-y-6">
+        <div className="px-4 md:px-8 py-6 max-w-6xl mx-auto space-y-6">
           {loading && !growth && (
             <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
               <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />

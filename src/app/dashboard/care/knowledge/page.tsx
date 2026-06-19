@@ -110,14 +110,14 @@ export default function CareKnowledgePage() {
 
   return (
     <>
-      <header className="px-8 py-4 border-b border-default bg-base/60">
+      <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60">
         <h1 className="text-lg font-semibold text-primary">Knowledge</h1>
         <p className="text-[11px] text-muted">
           Your team&apos;s playbook · every resolution captured · §1.1
           data-as-asset
         </p>
       </header>
-      <div className="flex-1 overflow-y-auto px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
         {/* §A8 preamble — what this surface IS. */}
         <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
           <ShieldCheck

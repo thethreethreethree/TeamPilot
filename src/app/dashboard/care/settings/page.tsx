@@ -37,13 +37,13 @@ const CARDS = [
 export default function CareSettingsLandingPage() {
   return (
     <>
-      <header className="px-8 py-4 border-b border-default bg-base/60">
+      <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60">
         <h1 className="text-lg font-semibold text-primary">Settings</h1>
         <p className="text-[11px] text-muted">
           Configure how Care behaves for your team
         </p>
       </header>
-      <div className="flex-1 overflow-y-auto px-8 py-6 max-w-5xl w-full mx-auto">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl w-full mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {CARDS.map((c) => {
             const Icon = c.icon;

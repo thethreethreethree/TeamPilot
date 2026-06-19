@@ -3,12 +3,12 @@ import { SettingsTabs } from "@/components/care/SettingsTabs";
 export default function CareAccountPage() {
   return (
     <>
-      <header className="px-8 py-4 border-b border-default bg-base/60">
+      <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60">
         <h1 className="text-lg font-semibold text-primary">Settings</h1>
         <p className="text-[11px] text-muted">Account</p>
       </header>
       <SettingsTabs />
-      <div className="flex-1 overflow-y-auto px-8 py-6 max-w-3xl w-full mx-auto space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-3xl w-full mx-auto space-y-5">
         <Section title="Subscription">
           <p className="text-xs text-secondary">
             Pilot-stage · invite-only. Stripe + plan tiers ship in

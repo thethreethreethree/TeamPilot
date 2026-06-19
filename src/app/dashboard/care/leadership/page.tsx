@@ -148,7 +148,7 @@ export default function CareLeadershipPage() {
 
   return (
     <>
-      <header className="px-8 py-4 border-b border-default bg-base/60 flex items-center justify-between">
+      <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60 flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-lg font-semibold text-primary">Team</h1>
           <p className="text-[11px] text-muted">
@@ -163,7 +163,7 @@ export default function CareLeadershipPage() {
           §4 readouts
         </Link>
       </header>
-      <div className="flex-1 overflow-y-auto px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
         {loading && (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />

@@ -187,7 +187,7 @@ export default function OperationsPage() {
         subtitle="Production task management · every mutation emits an event into the §3.1 chain"
       />
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
         <ModeBanner mode={mode} />
 
         {/* Stats */}

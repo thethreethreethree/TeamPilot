@@ -48,7 +48,7 @@ export default function FinancePage() {
     <div className="min-h-screen bg-base">
       <TopBar title="Finance" subtitle={`${companyName} · Financial Intelligence`} />
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
         <DesignPreviewBanner
           domain="Finance"
           needs="A finance data source (accounting integration like Xero/QuickBooks, or a manual entry pipeline) must exist before runway, burn, and expense values become derived."

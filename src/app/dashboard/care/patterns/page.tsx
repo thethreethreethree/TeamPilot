@@ -147,14 +147,14 @@ export default function CarePatternsPage() {
 
   return (
     <>
-      <header className="px-8 py-4 border-b border-default bg-base/60">
+      <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60">
         <h1 className="text-lg font-semibold text-primary">Patterns</h1>
         <p className="text-[11px] text-muted">
           What the System noticed across the last {windowDays} days · §3.2
           Understanding Gate · counts, never verdicts
         </p>
       </header>
-      <div className="flex-1 overflow-y-auto px-8 py-6 max-w-4xl w-full mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl w-full mx-auto space-y-6">
         {loading && (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />

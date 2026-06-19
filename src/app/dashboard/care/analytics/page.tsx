@@ -57,14 +57,14 @@ export default function CareAnalyticsPage() {
 
   return (
     <>
-      <header className="px-8 py-4 border-b border-default bg-base/60">
+      <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60">
         <h1 className="text-lg font-semibold text-primary">Analytics</h1>
         <p className="text-[11px] text-muted">
           Honest measurement · distributions, not averages · §3.5
         </p>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6 max-w-5xl mx-auto w-full space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-5">
         {loadError && !loading && (
           <div className="glass-card p-4 border border-red-500/30 bg-red-500/[0.04] flex items-center gap-3">
             <p className="flex-1 text-xs text-red-300">{loadError}</p>

@@ -172,7 +172,7 @@ export default function SmokeTestPage() {
   return (
     <div className="min-h-screen bg-base">
       <TopBar title="Smoke test" subtitle="Verify the System against the published checklist" />
-      <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
         {loading && (
           <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> Loading
