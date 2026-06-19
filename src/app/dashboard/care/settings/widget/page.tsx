@@ -293,6 +293,9 @@ export default function CareWidgetSettingsPage() {
             value={originsRaw}
             onChange={(e) => setOriginsRaw(e.target.value)}
             rows={4}
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={4000}
             placeholder={"https://yourbusiness.com\nhttps://www.yourbusiness.com"}
             className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y font-mono"
           />
@@ -607,13 +610,19 @@ function Field({
   onChange: (v: string) => void;
   mono?: boolean;
 }) {
+  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return (
     <div>
-      <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+      <label
+        htmlFor={`widget-field-${id}`}
+        className="block text-[10px] uppercase tracking-widest text-muted mb-1"
+      >
         {label}
       </label>
       <input
+        id={`widget-field-${id}`}
         type="text"
+        autoComplete="off"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={`w-full bg-base border border-default rounded-md px-2.5 py-1.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong ${

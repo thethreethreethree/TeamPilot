@@ -196,18 +196,23 @@ export default function CarePatternsPage() {
             </div>
 
             {nothingSurfaced && (
-              <div className="text-center py-16">
+              <div className="text-center py-16 px-6">
                 <TrendingUp
                   className="w-8 h-8 text-muted mx-auto mb-2"
                   aria-hidden
                 />
                 <p className="text-sm text-primary mb-1">No patterns yet.</p>
-                <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
+                <p className="text-xs text-muted max-w-md mx-auto leading-relaxed mb-4">
                   As the team resolves conversations and Coach grades
                   replies, recurring themes will surface here when they
                   cross the §3.2 Understanding Gate threshold (3
                   matching resolutions for issues, 5 risk instances
                   for reply shapes). Until then, no faux-pattern noise.
+                </p>
+                <p className="text-[11px] text-muted max-w-md mx-auto leading-relaxed">
+                  In a fresh tenant this is typically the state for the
+                  first 2–4 weeks of support activity. Check back when
+                  you have ~15+ resolutions captured.
                 </p>
               </div>
             )}

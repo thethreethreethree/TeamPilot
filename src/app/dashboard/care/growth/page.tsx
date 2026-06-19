@@ -190,7 +190,7 @@ export default function CareGrowthPage() {
                 team&apos;s playbook.
               </p>
               {totalDurability === 0 ? (
-                <SparseNotice text="Not enough checked durabilities yet. Each resolution gets a check 7 days out." />
+                <SparseNotice text="No durability checks yet. Each resolution you capture gets a 7-day check — the first results will land here a week after your first resolution." />
               ) : (
                 <div className="grid grid-cols-3 gap-3">
                   <DurabilityCell
@@ -241,7 +241,7 @@ export default function CareGrowthPage() {
                 read.
               </p>
               {snap.coachAggregate.repliesGraded === 0 ? (
-                <SparseNotice text="No replies graded under Coach v6 yet in the window." />
+                <SparseNotice text="No replies graded under Coach v6 in this window. Replies get graded as you send them — the first batch will appear here within an hour of your first Coach-active reply." />
               ) : (
                 <>
                   <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-2">
