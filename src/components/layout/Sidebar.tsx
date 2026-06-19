@@ -722,20 +722,30 @@ export default function Sidebar() {
               Testing entries so it's no longer floating over page
               content. Public pages (landing / login) still see the
               floating button since they have no sidebar. */}
-          <button
-            type="button"
-            onClick={() => setFeedbackOpen(true)}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-              "text-secondary hover:text-primary hover:bg-surface-raised"
-            )}
+          <LearningHint
+            as="block"
+            category="Module · Testing"
+            title="Send feedback"
+            whatItIs="Opens the feedback slide-out from inside the sidebar — the entry point for filing a feedback report against any surface in the System. Picks up the current dashboard route + your visible state as auto-attached context so the admin triaging your report sees exactly what you were doing."
+            why="Feedback channels die when filing has friction. Per §A8, Feedback IS the user talking to the System — so the affordance belongs WITH the navigation, not floating somewhere generic. Putting it in the sidebar makes it a one-click action from any dashboard page, with no context shift."
+            how="Click to open. Pick the kind (bug / friction / idea / question / praise / smoke test result). Write your report. Add a screenshot if useful. Submit. Watch it move through triage at /dashboard/feedback (My feedback)."
+            principle="The friction you don't add up front is the friction the team would have paid every time. The sidebar slot is structural anti-friction."
           >
-            <MessageSquarePlus
-              className="w-4 h-4 flex-shrink-0 text-muted"
-              aria-hidden
-            />
-            Send feedback
-          </button>
+            <button
+              type="button"
+              onClick={() => setFeedbackOpen(true)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                "text-secondary hover:text-primary hover:bg-surface-raised"
+              )}
+            >
+              <MessageSquarePlus
+                className="w-4 h-4 flex-shrink-0 text-muted"
+                aria-hidden
+              />
+              Send feedback
+            </button>
+          </LearningHint>
           {(userRole === "admin" || userRole === "CEO" || userRole === "COO") &&
             adminNav.map((item) => {
               const Icon = item.icon;

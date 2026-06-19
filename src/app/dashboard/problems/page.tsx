@@ -237,22 +237,40 @@ function ProblemRow({
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
           {problem.status === "draft" && (
             <>
-              <button
-                type="button"
-                onClick={surface}
-                disabled={busy}
-                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
+              <LearningHint
+                category="Problem · §3.2"
+                title="Try to surface"
+                whatItIs="Asks the server to promote this draft hypothesis to SURFACED state — meaning the team accepts it as a real problem worth attending to. The server evaluates the Understanding Gate (≥3 supporting signals from ≥2 distinct sources AND a diagnosis ≥80 chars) and returns either success (the problem surfaces) or the specific reason the gate held."
+                why="The gate is structural, not policy. Without it, anyone could declare anything a 'problem' and the team would chase shadows. The gate forces every surfaced problem to be backed by evidence the System can audit. 'Try' is the right verb — you're attempting to clear the gate, not skipping it."
+                how="Click. If the gate clears, the problem moves to surfaced and shows up in the team's active problem queue. If it holds, the error message tells you exactly what's missing (more signals? specific source diversity? longer diagnosis?). Use that feedback to either gather more signal or sharpen the diagnosis."
+                principle="Surface is earned, not asserted. The gate is the structural defense against problem-of-the-week fatigue."
               >
-                <ShieldCheck className="w-3 h-3" /> Try to surface
-              </button>
-              <button
-                type="button"
-                onClick={() => setDismissalOpen(true)}
-                disabled={busy}
-                className="text-xs text-muted hover:text-red-400 disabled:opacity-40"
+                <button
+                  type="button"
+                  onClick={surface}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
+                >
+                  <ShieldCheck className="w-3 h-3" /> Try to surface
+                </button>
+              </LearningHint>
+              <LearningHint
+                category="Problem · Closure"
+                title="Dismiss"
+                whatItIs="Closes the draft hypothesis without surfacing it. Captures a written reason (≥10 chars) explaining WHY the team decided not to pursue it — bad fit, no longer relevant, duplicate of another problem, etc. The dismissal lands on the §3.1 chain as a permanent event."
+                why="Dismissing without a reason erases history; the next team-member who has the same suspicion has to re-derive whether it's worth pursuing. The reason capture turns dismissals into reusable knowledge: 'we already considered X — here's why we didn't run with it.'"
+                how="Click. Write 1–2 sentences explaining the dismissal honestly. 'Not a real problem' is too thin; 'we already addressed the upstream cause via Y' is honest. The reason lives forever in the audit trail."
+                principle="A dismissal without a reason is the team admitting it might re-decide the same way next month. The reason is the structural prevention."
               >
-                Dismiss
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setDismissalOpen(true)}
+                  disabled={busy}
+                  className="text-xs text-muted hover:text-red-400 disabled:opacity-40"
+                >
+                  Dismiss
+                </button>
+              </LearningHint>
             </>
           )}
         </div>
