@@ -1270,6 +1270,25 @@ export function ConversationsApp({
             mobileShowList ? "flex" : "hidden md:flex"
           }`}
         >
+          {/* Mobile-only active-view label. Without it the list
+              header had only Filter icon + search box and the user
+              couldn't tell WHICH filter they were viewing — the
+              Views drawer was their only signal and that was now
+              dismissed. Desktop has the persistent Views pane
+              showing the active filter, so this label is md:hidden. */}
+          {(() => {
+            const active = VIEWS.find((v) => v.key === view);
+            if (!active) return null;
+            const Icon = active.icon;
+            return (
+              <div className="md:hidden flex items-center gap-2 px-3 pt-2 pb-1">
+                <Icon className="w-3.5 h-3.5 text-brand" aria-hidden />
+                <span className="text-[10px] uppercase tracking-widest text-brand font-bold">
+                  {active.label}
+                </span>
+              </div>
+            );
+          })()}
           {/* Search + collapse */}
           <div className="px-3 py-2 border-b border-default flex items-center gap-2">
             {/* Mobile-only Filter / Views button — re-opens the
