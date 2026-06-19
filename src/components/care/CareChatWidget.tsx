@@ -325,7 +325,23 @@ export function CareChatWidget() {
             /* fall through to the generic error below */
           }
         }
-        setError("Couldn't send. Please try again.");
+        // Surface server-returned detail in the error so the
+        // founder can diagnose without DevTools. Server emits
+        // { error, detail } for 500s now.
+        let detail: string | null = null;
+        try {
+          const errJson = await res.clone().json();
+          if (errJson && typeof errJson.detail === "string") {
+            detail = errJson.detail.slice(0, 160);
+          }
+        } catch {
+          /* ignore */
+        }
+        setError(
+          detail
+            ? `Couldn't send (${res.status}): ${detail}`
+            : "Couldn't send. Please try again."
+        );
         // Remove the optimistic message so the user can retry.
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
         return;

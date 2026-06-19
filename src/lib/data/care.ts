@@ -184,9 +184,15 @@ export async function createCareConversation(args: {
     .select("*")
     .single();
   if (error || !data) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[care] createConversation failed", error);
-    }
+    // Log in ALL environments — the dev-only warn was hiding
+    // production failures (RLS, schema drift, missing FK) at
+    // the exact moment we needed to see them. The widget gives
+    // the user 'Couldn't send'; this line tells the operator
+    // why.
+    // eslint-disable-next-line no-console
+    console.error(
+      `[care.createConversation] insert failed companyId=${args.companyId} source=${args.source ?? "web_widget"} error=${error?.message ?? "no row returned"}`
+    );
     return null;
   }
   return mapConversation(data);
@@ -248,7 +254,13 @@ export async function postCustomerMessage(args: {
     })
     .select("*")
     .single();
-  if (error || !data) return null;
+  if (error || !data) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[care.postCustomerMessage] insert failed conversationId=${args.conversationId} error=${error?.message ?? "no row returned"}`
+    );
+    return null;
+  }
   return mapMessage(data);
 }
 

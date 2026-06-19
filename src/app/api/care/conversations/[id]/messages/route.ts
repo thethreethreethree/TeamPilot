@@ -93,69 +93,98 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Full audit of EVERY non-2xx path. The user reports Jeff
+  // failing with "Couldn't send" despite LLM being verifiably
+  // connected — meaning the failure is BEFORE the AI call.
+  // Every guard below now logs the path it took with the
+  // conversation id so Vercel function logs make the cause
+  // obvious instead of "500 — somewhere".
   const { id } = await context.params;
-  const limited = rateLimit(req, {
-    id: "care-messages-write",
-    windowMs: 60_000,
-    max: 30,
-  });
-  if (limited) return limited;
+  try {
+    const limited = rateLimit(req, {
+      id: "care-messages-write",
+      windowMs: 60_000,
+      max: 30,
+    });
+    if (limited) {
+      // eslint-disable-next-line no-console
+      console.warn(`[care.messages] 429 rate-limited id=${id}`);
+      return limited;
+    }
 
-  const { token } = authedConversationId(req, id);
-  if (!token) {
-    return NextResponse.json(
-      { error: "Missing session token." },
-      { status: 401 }
-    );
-  }
+    const { token } = authedConversationId(req, id);
+    if (!token) {
+      // eslint-disable-next-line no-console
+      console.warn(`[care.messages] 401 missing x-care-session id=${id}`);
+      return NextResponse.json(
+        { error: "Missing session token." },
+        { status: 401 }
+      );
+    }
 
-  const conversation = await getCareConversationByToken(token);
-  if (!conversation || conversation.id !== id) {
-    return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
-  }
-  if (conversation.status === "closed") {
-    return NextResponse.json(
-      {
-        error:
-          "This conversation has been closed. Open a new one if you have another question.",
-      },
-      { status: 410 }
-    );
-  }
+    const conversation = await getCareConversationByToken(token);
+    if (!conversation || conversation.id !== id) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[care.messages] 404 conversation not found id=${id} tokenMatch=${conversation?.id === id}`
+      );
+      return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+    }
+    if (conversation.status === "closed") {
+      // eslint-disable-next-line no-console
+      console.warn(`[care.messages] 410 conversation closed id=${id}`);
+      return NextResponse.json(
+        {
+          error:
+            "This conversation has been closed. Open a new one if you have another question.",
+        },
+        { status: 410 }
+      );
+    }
 
-  // Honor the tenant's "paused" state even on existing
-  // conversations. Without this, flipping active=false only
-  // blocked NEW conversations — customers already mid-thread
-  // could keep chatting indefinitely. "Paused" should mean
-  // paused. 410 (Gone) is the right shape: same as a closed
-  // conversation from the widget's perspective.
-  const tenant = await getCareTenantConfigByCompanyId(conversation.companyId);
-  if (tenant && !tenant.active) {
-    return NextResponse.json(
-      {
-        error: "Support is temporarily paused. We'll be back soon.",
-        reason: "tenant_inactive",
-      },
-      { status: 410 }
-    );
-  }
+    // Honor the tenant's "paused" state even on existing
+    // conversations. Without this, flipping active=false only
+    // blocked NEW conversations — customers already mid-thread
+    // could keep chatting indefinitely. "Paused" should mean
+    // paused. 410 (Gone) is the right shape: same as a closed
+    // conversation from the widget's perspective.
+    const tenant = await getCareTenantConfigByCompanyId(conversation.companyId);
+    if (tenant && !tenant.active) {
+      // eslint-disable-next-line no-console
+      console.warn(`[care.messages] 410 tenant inactive id=${id} companyId=${conversation.companyId}`);
+      return NextResponse.json(
+        {
+          error: "Support is temporarily paused. We'll be back soon.",
+          reason: "tenant_inactive",
+        },
+        { status: 410 }
+      );
+    }
 
-  const body = await readBody(req, Body);
-  if (body instanceof NextResponse) return body;
+    const body = await readBody(req, Body);
+    if (body instanceof NextResponse) {
+      // eslint-disable-next-line no-console
+      console.warn(`[care.messages] 4xx body validation failed id=${id}`);
+      return body;
+    }
 
-  // Persist the customer's message first so it lands on the chain
-  // even if the AI call fails.
-  const customerMsg = await postCustomerMessage({
-    conversationId: conversation.id,
-    body: body.body,
-    medium: body.medium ?? "text",
-  });
-  if (!customerMsg) {
-    return NextResponse.json(
-      { error: "Couldn't post the message. Please try again." },
-      { status: 500 }
-    );
-  }
+    // Persist the customer's message first so it lands on the chain
+    // even if the AI call fails.
+    const customerMsg = await postCustomerMessage({
+      conversationId: conversation.id,
+      body: body.body,
+      medium: body.medium ?? "text",
+    });
+    if (!customerMsg) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care.messages] 500 postCustomerMessage returned null id=${id} (likely DB insert error — check support_messages schema/RLS)`
+      );
+      return NextResponse.json(
+        { error: "Couldn't post the message. Please try again." },
+        { status: 500 }
+      );
+    }
 
   // If the AI is no longer the first responder (an agent claimed
   // this conversation), don't generate a reply. The agent will
@@ -244,11 +273,29 @@ export async function POST(
     body: aiText,
   });
 
-  const messages = await listCareMessagesForCustomer(conversation.id);
-  return NextResponse.json({
-    messages: messages.map(serializeMessage),
-    aiReplied: !!aiMsg,
-  });
+    const messages = await listCareMessagesForCustomer(conversation.id);
+    return NextResponse.json({
+      messages: messages.map(serializeMessage),
+      aiReplied: !!aiMsg,
+    });
+  } catch (err) {
+    // Top-level catch — surfaces any uncaught exception
+    // (missing SUPABASE_SERVICE_ROLE_KEY, schema drift, foreign
+    // key violation, anything). Without this Next.js returns
+    // 500 with no body and the operator has no signal beyond
+    // "the widget shows Couldn't send."
+    const message =
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    // eslint-disable-next-line no-console
+    console.error(
+      `[care.messages] 500 uncaught exception id=${id}: ${message}`,
+      err
+    );
+    return NextResponse.json(
+      { error: "Server error.", detail: message },
+      { status: 500 }
+    );
+  }
 }
 
 function serializeMessage(m: SupportMessage) {

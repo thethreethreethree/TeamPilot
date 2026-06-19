@@ -37,6 +37,7 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  try {
   const limited = rateLimit(req, {
     id: "care-conversations-create",
     windowMs: 60_000,
@@ -158,4 +159,14 @@ export async function POST(req: NextRequest) {
     // Echo origin so the client can verify what we recorded
     origin: configOrigin,
   });
+  } catch (err) {
+    const message =
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    // eslint-disable-next-line no-console
+    console.error(`[care.conversations.create] 500 uncaught: ${message}`, err);
+    return NextResponse.json(
+      { error: "Couldn't open a conversation.", detail: message },
+      { status: 500 }
+    );
+  }
 }
