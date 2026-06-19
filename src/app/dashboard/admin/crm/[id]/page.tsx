@@ -356,6 +356,15 @@ function LifecycleSwitcher({
     onChanged();
   };
   return (
+    <LearningHint
+      as="block"
+      category="CRM · Lifecycle"
+      title="Lifecycle stage switcher"
+      whatItIs="A horizontal row of stage buttons (lead → trial → active → at_risk → churned, etc.). Clicking a different stage writes a lifecycle_changed chain event on this account immediately. The current stage is the highlighted ember button."
+      why="The lifecycle stage is the single most important field on an account — it drives the team's read of customer health AND it shapes the vendor metrics (count by stage, conversion rates, churn signal). The append-only chain event means every transition is auditable: WHO moved this account to where, and WHEN."
+      how="Click a different stage when the account's state has materially changed. The change writes immediately; there's no Save button (the discipline is that lifecycle changes are deliberate, not draft). For nuance the stage can't capture, use the Notes tab."
+      principle="Lifecycle is operational truth. Treat the transition button like a chain event — because that's exactly what it is."
+    >
     <div className="flex items-center gap-1.5 flex-wrap">
       {LIFECYCLE_OPTIONS.map((s) => (
         <button
@@ -373,6 +382,7 @@ function LifecycleSwitcher({
         </button>
       ))}
     </div>
+    </LearningHint>
   );
 }
 

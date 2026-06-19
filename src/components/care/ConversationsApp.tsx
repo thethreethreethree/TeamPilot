@@ -2683,6 +2683,15 @@ function BulkActionBar({
   // direction (Reopen).
   const isTerminalView = viewKey === "closed" || viewKey === "resolved";
   return (
+    <LearningHint
+      as="block"
+      category="C.A.R.E · Bulk"
+      title="Bulk action bar"
+      whatItIs="A sticky-top action bar that appears whenever you've selected ≥1 conversation via the row checkboxes. Shows the selection count + bulk actions (Assign / Close OR Reopen depending on the view). The Clear button drops the selection without acting."
+      why="Operating C.A.R.E one conversation at a time is fine until you hit a wave (spam, broken integration affecting many customers, a triage backlog). The bulk affordances exist for the wave case. The two-step confirm on Close (matched by the actual button) is the structural defense against accidental mass-close."
+      how="Check the rows you want to act on. The bar appears. Pick the action. For terminal views (Closed/Resolved) you get Reopen; for active views you get Close (with the two-step confirm). Clear drops the selection if you change your mind. Selections clear automatically when you switch views — stale selections would be confusing."
+      principle="Bulk affordances reward leverage AND require structural safeguards. The two-step confirm + auto-clear are both about safety, not friction."
+    >
     <div className="px-3 py-2 border-b border-default bg-ember-400/[0.06] flex items-center gap-2 sticky top-0 z-10">
       <span className="text-xs font-semibold text-brand">
         {count} selected
@@ -2698,14 +2707,23 @@ function BulkActionBar({
         />
       )}
       {isTerminalView ? (
-        <button
-          type="button"
-          onClick={onReopen}
-          disabled={acting}
-          className="inline-flex items-center gap-1.5 text-xs text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/70 disabled:opacity-50 px-2.5 py-1 rounded-md"
+        <LearningHint
+          category="C.A.R.E · Bulk reopen"
+          title="Reopen"
+          whatItIs="Moves every selected closed/resolved conversation BACK to open. Useful when the customer's reply comes in after the agent closed the thread, or when a 'resolved' state turns out not to have held."
+          why="Conversations aren't permanently closed — customers can always reply and reopen via that path. The bulk reopen is the agent-side reverse: when you realize a batch of conversations was closed prematurely, you can put them back in the queue without one-by-one work."
+          how="From a terminal-view filter (Closed or Resolved), select the conversations. Click Reopen. They reappear in the active queue and the agent who owns them gets a notification."
+          principle="Closure is a state, not an end. Reopening is the structural acknowledgment that the agent's earlier judgment turned out wrong."
         >
-          Reopen
-        </button>
+          <button
+            type="button"
+            onClick={onReopen}
+            disabled={acting}
+            className="inline-flex items-center gap-1.5 text-xs text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/70 disabled:opacity-50 px-2.5 py-1 rounded-md"
+          >
+            Reopen
+          </button>
+        </LearningHint>
       ) : (
         <BulkCloseButton
           count={count}
@@ -2713,15 +2731,25 @@ function BulkActionBar({
           onConfirm={onArchive}
         />
       )}
-      <button
-        type="button"
-        onClick={onClear}
-        disabled={acting}
-        className="ml-auto text-[11px] text-muted hover:text-primary px-2 py-1 rounded"
+      <LearningHint
+        category="C.A.R.E · Bulk"
+        title="Clear selection"
+        whatItIs="Drops the current bulk selection without performing any action. The conversations stay in whatever state they were in; only the checkbox state resets."
+        why="Without an explicit Clear, the agent's only way to drop the selection would be to uncheck every row one at a time. Clear is the structural exit from bulk mode if you change your mind."
+        how="Click to drop the selection. The bulk action bar disappears. The view returns to single-conversation operation."
+        principle="A reversible action shouldn't require effortful reversal. Clear is the single-click exit."
       >
-        Clear
-      </button>
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={acting}
+          className="ml-auto text-[11px] text-muted hover:text-primary px-2 py-1 rounded"
+        >
+          Clear
+        </button>
+      </LearningHint>
     </div>
+    </LearningHint>
   );
 }
 
