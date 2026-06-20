@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# scripts/hooks/pre-commit — diff-side reminder for constitutional citations
+#
+# Honest framing: FRICTION against forgetting, NOT enforcement.
+# See scripts/hooks/commit-msg for the full design notes; this file
+# only does the diff-side detection and warns. The actual validation
+# (does the commit message have a Session-Reads: trailer matching the
+# citations?) runs in commit-msg because pre-commit fires BEFORE the
+# commit message exists.
+
+set -euo pipefail
+
+# Scan the staged diff for constitutional citations.
+# Patterns:
+#   §A<digits>            → ThinkerThinker.md asset references
+#   §<digits>.<digits>    → CLAUDE.md sub-section references
+#   §<digits>             → CLAUDE.md top-level section references
+DIFF_CITATIONS=$(
+  git diff --cached --unified=0 -- '*.ts' '*.tsx' '*.sql' '*.md' '*.sh' 2>/dev/null \
+    | grep -oE '§A[0-9]+|§[0-9]+\.[0-9]+|§[0-9]+' \
+    | sort -u || true
+)
+
+if [ -n "${DIFF_CITATIONS}" ]; then
+  cat >&2 <<EOF
+
+[pre-commit] Constitutional citations detected in your staged diff:
+$(echo "${DIFF_CITATIONS}" | sed 's/^/  - /')
+
+Per §A22, your commit message MUST include a Session-Reads: trailer
+listing the in-session timestamp you re-read each cited asset, OR
+referencing a docs/closures/<date>-<slug>.md manifest that does.
+
+This is a reminder. The commit-msg hook enforces the trailer; if
+your message doesn't have one, the commit will be rejected at that
+stage with the exact format to use.
+
+EOF
+fi
+
+exit 0

@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# scripts/hooks/commit-msg — constitutional citation friction layer
+#
+# What this is, honestly:
+#   FRICTION against forgetfulness, NOT enforcement of constitutional
+#   compliance. Per A22 captured 2026-06-19, the agent cannot build
+#   a system from inside its own writable artifacts that prevents
+#   willful constitutional violation under §5 pressure. Every check
+#   below can be bypassed:
+#     - --no-verify skips the hook entirely
+#     - the Session-Reads trailer can contain false timestamps
+#     - the closure doc can be appended to without actual re-reading
+#
+# What this WILL catch:
+#   - Forgetting to add a Session-Reads trailer when citing
+#     constitutional assets in a commit
+#   - Format errors in the trailer (wrong shape, missing assets)
+#
+# What this WILL NOT catch:
+#   - A trailer that LIES about which assets were re-read
+#   - An agent confidently filling in fake timestamps
+#   - The §A9 "language without behavior" failure mode
+#
+# The actual structural defense against constitutional drift is the
+# founder's periodic interrogation. This hook is supplementary friction.
+
+set -euo pipefail
+
+COMMIT_MSG_FILE="${1:-}"
+if [ -z "${COMMIT_MSG_FILE}" ] || [ ! -f "${COMMIT_MSG_FILE}" ]; then
+  exit 0
+fi
+
+COMMIT_MSG=$(cat "${COMMIT_MSG_FILE}")
+
+# Skip merge / revert / fixup / squash — they don't author new
+# constitutional intent.
+if echo "${COMMIT_MSG}" | head -1 | grep -qE '^(Merge|Revert|fixup!|squash!) '; then
+  exit 0
+fi
+
+# Detect citations in BOTH the commit message AND the staged diff.
+MSG_CITATIONS=$(echo "${COMMIT_MSG}" | grep -oE '§A[0-9]+|§[0-9]+\.[0-9]+|§[0-9]+' | sort -u || true)
+DIFF_CITATIONS=$(
+  git diff --cached --unified=0 -- '*.ts' '*.tsx' '*.sql' '*.md' '*.sh' 2>/dev/null \
+    | grep -oE '§A[0-9]+|§[0-9]+\.[0-9]+|§[0-9]+' \
+    | sort -u || true
+)
+CITATIONS=$(printf '%s\n%s\n' "${MSG_CITATIONS}" "${DIFF_CITATIONS}" | grep -v '^$' | sort -u || true)
+
+if [ -z "${CITATIONS}" ]; then
+  exit 0
+fi
+
+# Look for Session-Reads: trailer.
+TRAILER=$(echo "${COMMIT_MSG}" | grep -E '^Session-Reads:' || true)
+
+if [ -z "${TRAILER}" ]; then
+  cat <<EOF >&2
+
+[commit-msg] Constitutional citations detected:
+$(echo "${CITATIONS}" | sed 's/^/  - /')
+
+Per §A22, this commit MUST include a Session-Reads: trailer.
+
+Add ONE of these to the commit body:
+
+  Session-Reads: §A14:$(date -u +%Y-%m-%dT%H:%MZ), §3.1:$(date -u +%Y-%m-%dT%H:%MZ)
+
+  OR
+
+  Session-Reads: see docs/closures/$(date -u +%Y-%m-%d)-<slug>.md
+
+This hook is FRICTION (against forgetting), not enforcement.
+Bypass with --no-verify if intentional.
+
+EOF
+  exit 1
+fi
+
+# Trailer present. Validate shape.
+# Form A — reference: 'Session-Reads: see docs/closures/<path>.md'
+# Form B — inline:    'Session-Reads: §X:<ts>, §Y:<ts>'
+if echo "${TRAILER}" | grep -qE 'see +docs/closures/.+\.md'; then
+  REFERENCED_FILE=$(echo "${TRAILER}" | grep -oE 'docs/closures/[A-Za-z0-9._/-]+\.md' | head -1)
+  if [ ! -f "${REFERENCED_FILE}" ]; then
+    echo "[commit-msg] Session-Reads references ${REFERENCED_FILE} which does not exist." >&2
+    echo "[commit-msg] Create that file (template at docs/closures/README.md) or use inline form." >&2
+    exit 1
+  fi
+  exit 0
+fi
+
+# Inline form. Every cited asset must appear in the trailer.
+MISSING=""
+for cite in ${CITATIONS}; do
+  esc=$(echo "${cite}" | sed 's/[][\.*^$/]/\\&/g')
+  if ! echo "${TRAILER}" | grep -qE "${esc}"; then
+    MISSING="${MISSING} ${cite}"
+  fi
+done
+
+if [ -n "${MISSING}" ]; then
+  echo "[commit-msg] Session-Reads trailer is missing entries for:${MISSING}" >&2
+  echo "[commit-msg] Add timestamps for these and recommit." >&2
+  exit 1
+fi
+
+exit 0
