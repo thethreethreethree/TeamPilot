@@ -69,6 +69,7 @@ import {
 import { InThreadDecisionDialogue } from "@/components/chats/InThreadDecisionDialogue";
 import { ComposerToolbar } from "@/components/chats/ComposerToolbar";
 import { FileDropzone } from "@/components/files/FileDropzone";
+import { FileMentionAutocomplete } from "@/components/files/FileMentionAutocomplete";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import { BookOpen, BookOpenCheck, Brain } from "lucide-react";
 import {
@@ -1219,11 +1220,17 @@ export default function TeamChatTopicPage() {
                   }}
                 />
               </div>
+              <div className="relative">
+              <FileMentionAutocomplete
+                textareaRef={inputRef}
+                value={draft}
+                onChange={setDraft}
+              />
               <textarea
                 ref={inputRef}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Write your message… (Enter to send, Shift+Enter for new line)"
+                placeholder="Write your message… (@file to cite a file)"
                 aria-label="Type a message. Enter to send, Shift+Enter for a new line."
                 rows={2}
                 onKeyDown={(e) => {
@@ -1241,6 +1248,7 @@ export default function TeamChatTopicPage() {
                    the original 14px density. */
                 className="w-full min-w-0 bg-transparent text-base md:text-sm text-primary placeholder:text-muted px-4 py-3 focus:outline-none resize-none"
               />
+              </div>
               {/* Composer footer — three lanes:
                     LEFT: horizontally-scrollable secondary tools
                           (Guide my response, Help me formulate).

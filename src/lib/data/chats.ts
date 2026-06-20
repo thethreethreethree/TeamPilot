@@ -934,6 +934,38 @@ export async function postMessage(args: {
     );
   }
 
+  // Asset System v1 — emit asset.file.cited for every @file mention
+  // in the body. Per §3.1 this is the citation event the §4 readout
+  // measures. Direct insert via the user-side supabase client (events
+  // RLS allows insert where company_id = auth_company_id()). Fire-
+  // and-forget; if the emitter fails the post still stands.
+  // NOTE: dynamic import of @/lib/data/assetEvents would pull
+  // "server-only" into this client-side data module. Instead we use
+  // the existing user-scoped supabase client directly.
+  if (args.body) {
+    void (async () => {
+      try {
+        const { extractFileMentions } = await import("@/lib/files/fileMention");
+        const mentions = extractFileMentions(args.body);
+        for (const m of mentions) {
+          await supabase.from("events").insert({
+            company_id: ctx.companyId,
+            actor: ctx.userId,
+            kind: "asset.file.cited",
+            subject: `file:${m.fileId}`,
+            payload: {
+              file_id: m.fileId,
+              cited_in: `chat_topic:${args.topicId}`,
+              cited_in_message: data.id,
+            },
+          });
+        }
+      } catch {
+        /* observation failure is non-fatal */
+      }
+    })();
+  }
+
   // Resolve poster's display name. Override beats summary-system-author
   // beats cached profile name beats email. The cached full_name in ctx
   // saves the profile lookup that used to run per-post.

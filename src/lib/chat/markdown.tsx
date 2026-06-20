@@ -26,6 +26,8 @@
  */
 
 import React from "react";
+import { FILE_MENTION_INLINE } from "@/lib/files/fileMention";
+import { FileMentionChip } from "@/components/files/FileMentionChip";
 
 /**
  * Render a single line's INLINE content into React nodes. Handles
@@ -63,6 +65,22 @@ function renderInline(line: string, keyPrefix: string): React.ReactNode[] {
         </code>
       );
       cursor += codeMatch[0].length;
+      continue;
+    }
+
+    // 2a) @file mention — must be checked BEFORE the plain
+    //     markdown-link pattern because they share `[Title](X)`
+    //     shape. The `@file` prefix is what distinguishes them.
+    const fileMatch = remaining.match(FILE_MENTION_INLINE);
+    if (fileMatch) {
+      nodes.push(
+        <FileMentionChip
+          key={`${keyPrefix}-fm-${counter++}`}
+          fileId={fileMatch[2] ?? ""}
+          title={fileMatch[1] ?? ""}
+        />
+      );
+      cursor += fileMatch[0].length;
       continue;
     }
 
