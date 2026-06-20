@@ -15,6 +15,7 @@ import {
   classifyFile,
   listFiles,
 } from "@/lib/data/files";
+import { emitAssetEvent } from "@/lib/data/assetEvents";
 import { randomUUID } from "crypto";
 
 /**
@@ -197,15 +198,45 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // §3.1 chain event — file uploaded.
+  await emitAssetEvent({
+    companyId: auth.companyId,
+    actor: auth.userId,
+    kind: "asset.file.uploaded",
+    fileId: row.id,
+    payload: {
+      uploaded_via: "agent_dashboard",
+      size_bytes: row.sizeBytes,
+      mime_type: row.mimeType,
+      classification_lane: row.classificationLane,
+    },
+  });
+
   // Attach classification join rows if any were provided in
   // the upload form. Triggers re-derive classification_lane.
   if (departmentIds.length > 0 || taskIds.length > 0 || tags.length > 0) {
-    await classifyFile({
+    const classified = await classifyFile({
       fileId: row.id,
       departmentIds,
       taskIds,
       tags,
     });
+    // Emit asset.file.classified if the lane transitioned to
+    // 'classified'. Reading after classifyFile to get post-trigger
+    // lane state.
+    if (classified?.classificationLane === "classified") {
+      await emitAssetEvent({
+        companyId: auth.companyId,
+        actor: auth.userId,
+        kind: "asset.file.classified",
+        fileId: row.id,
+        payload: {
+          department_ids: departmentIds,
+          task_ids: taskIds,
+          tags,
+        },
+      });
+    }
   }
 
   const used = await countUserCasualUploadsToday(auth.userId);

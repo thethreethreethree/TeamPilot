@@ -63,20 +63,29 @@ async function getFileForCustomer(
   | { storagePath: string; title: string; mimeType: string; sizeBytes: number }
   | null
 > {
-  // Use the regular getFile, which goes through createClient.
-  // For service-role bypass we'd need a separate path; for v1
-  // we rely on the fact that getFile is RLS-aware and the
-  // service-role customer-widget path needs the admin client.
+  // Use the admin client so the customer (no auth.users row)
+  // can resolve the file. Authorization is enforced by:
+  //   1. linked_conversation_id matches their session's
+  //      conversation (prevents cross-conversation file leaks)
+  //   2. access_role MUST be 'everyone' — customers cannot
+  //      download admins-only / ceo_admins / specific_people
+  //      files even if the agent attached them. Per the
+  //      inspection closure 2026-06-19-asset-system-v1 Finding 3.
   const { createAdminClient } = await import("@/lib/supabase/admin");
   const sb = createAdminClient();
   const { data } = await sb
     .from("files")
-    .select("storage_path, title, mime_type, size_bytes, linked_conversation_id")
+    .select("storage_path, title, mime_type, size_bytes, linked_conversation_id, access_role")
     .eq("id", fileId)
     .is("deprecated_at", null)
     .maybeSingle();
   if (!data) return null;
   if (data.linked_conversation_id !== conversationId) return null;
+  // Customer-side: only 'everyone' files are downloadable. An
+  // agent who marks a file admins-only and attaches it to the
+  // conversation is signaling internal-only — the customer must
+  // not be able to download it via the inline attachment link.
+  if (data.access_role !== "everyone") return null;
   return {
     storagePath: data.storage_path as string,
     title: data.title as string,

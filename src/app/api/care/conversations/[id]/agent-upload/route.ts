@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { createFileRecord } from "@/lib/data/files";
+import {
+  CASUAL_DAILY_CAP,
+  countUserCasualUploadsToday,
+  createFileRecord,
+} from "@/lib/data/files";
 import { postAgentMessage } from "@/lib/data/care";
 import {
   buildStoragePath,
   uploadAssetBytes,
   validateUploadCandidate,
 } from "@/lib/storage/assets";
+import { emitAssetEvent } from "@/lib/data/assetEvents";
 
 /**
  * POST /api/care/conversations/[id]/agent-upload
@@ -63,6 +68,24 @@ export async function POST(
       { status: 400 }
     );
   }
+
+  // Casual-cap check (per inspection Finding 4 — closing the
+  // §A6/§A5 divergence). C.A.R.E composer uploads are always
+  // casual (no classification fields in the multipart form),
+  // so they always count against the cap. The agent who wants
+  // to upload more can classify the file from /dashboard/files.
+  const usedToday = await countUserCasualUploadsToday(auth.userId);
+  if (usedToday >= CASUAL_DAILY_CAP) {
+    return NextResponse.json(
+      {
+        error:
+          "File upload without a designated purpose is limited to 3 per day. To upload more from C.A.R.E, classify a previous upload at /dashboard/files first.",
+        reason: "casual_cap_reached",
+        casual: { today: usedToday, cap: CASUAL_DAILY_CAP },
+      },
+      { status: 429 }
+    );
+  }
   const fileId = randomUUID();
   const storagePath = buildStoragePath({
     companyId: auth.companyId,
@@ -109,6 +132,20 @@ export async function POST(
     kind: "attachment",
     mediaUrl: `assets-v1://${row.id}`,
     mediaType: row.mimeType,
+  });
+  // §3.1 chain event.
+  await emitAssetEvent({
+    companyId: auth.companyId,
+    actor: auth.userId,
+    kind: "asset.file.uploaded",
+    fileId: row.id,
+    payload: {
+      uploaded_via: "agent_dashboard",
+      size_bytes: row.sizeBytes,
+      mime_type: row.mimeType,
+      classification_lane: "casual",
+      linked_conversation_id: id,
+    },
   });
   return NextResponse.json({ file: row });
 }

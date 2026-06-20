@@ -6,6 +6,7 @@ import {
   postCustomerMessage,
 } from "@/lib/data/care";
 import { createFileRecord } from "@/lib/data/files";
+import { emitAssetEvent } from "@/lib/data/assetEvents";
 import {
   buildStoragePath,
   uploadAssetBytes,
@@ -128,6 +129,21 @@ export async function POST(
     kind: "attachment",
     mediaUrl: `assets-v1://${row.id}`,
     mediaType: row.mimeType,
+  });
+  // §3.1 chain event. Per migration 0054 lesson, actor is null
+  // for customer uploads (visitor is not an auth.users row); the
+  // events table actor column is nullable.
+  await emitAssetEvent({
+    companyId: conv.companyId,
+    actor: null,
+    kind: "asset.file.uploaded",
+    fileId: row.id,
+    payload: {
+      uploaded_via: "customer_widget",
+      size_bytes: row.sizeBytes,
+      mime_type: row.mimeType,
+      linked_conversation_id: conv.id,
+    },
   });
   return NextResponse.json({ file: row });
 }

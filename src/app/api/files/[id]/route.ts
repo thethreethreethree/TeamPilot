@@ -7,6 +7,7 @@ import {
   getFile,
 } from "@/lib/data/files";
 import { signAssetUrl } from "@/lib/storage/assets";
+import { emitAssetEvent } from "@/lib/data/assetEvents";
 
 export async function GET(
   req: NextRequest,
@@ -32,6 +33,15 @@ export async function GET(
   const downloadUrl = await signAssetUrl({
     storagePath: file.storagePath,
     expiresInSeconds: 300,
+  });
+  // §3.1 chain — view + downloaded. v1 treats them as the same
+  // event (signed URL issuance = intent to view-or-download); will
+  // split if the §4 readout needs the distinction.
+  await emitAssetEvent({
+    companyId: file.companyId,
+    actor: auth.userId,
+    kind: "asset.file.viewed",
+    fileId: file.id,
   });
   return NextResponse.json({ file, downloadUrl });
 }
@@ -94,9 +104,18 @@ export async function DELETE(
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
   const { id } = await context.params;
+  const file = await getFile(id);
   const ok = await deprecateFile(id);
   if (!ok) {
     return NextResponse.json({ error: "Delete failed." }, { status: 500 });
+  }
+  if (file) {
+    await emitAssetEvent({
+      companyId: file.companyId,
+      actor: auth.userId,
+      kind: "asset.file.deprecated",
+      fileId: id,
+    });
   }
   return NextResponse.json({ ok: true });
 }
