@@ -68,6 +68,7 @@ export async function PATCH(
     title?: string;
     description?: string;
     accessRole?: "everyone" | "admins" | "ceo_admins" | "specific_people";
+    userAction?: "accepted_as_is" | "edited_then_saved" | "rejected";
   };
   try {
     body = await req.json();
@@ -86,6 +87,39 @@ export async function PATCH(
   if (!file) {
     return NextResponse.json({ error: "Update failed." }, { status: 500 });
   }
+
+  // If the modal reported a user_action against a routed
+  // suggestion, update the most recent pending suggestion row
+  // and emit the asset.suggestion.acted_on chain event.
+  if (body.userAction) {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const adminSb = createAdminClient();
+    const { data: pending } = await adminSb
+      .from("file_classification_suggestions")
+      .select("id")
+      .eq("file_id", id)
+      .eq("user_action", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (pending?.id) {
+      await adminSb
+        .from("file_classification_suggestions")
+        .update({
+          user_action: body.userAction,
+          user_acted_at: new Date().toISOString(),
+        })
+        .eq("id", pending.id);
+      await emitAssetEvent({
+        companyId: file.companyId,
+        actor: auth.userId,
+        kind: "asset.suggestion.acted_on",
+        fileId: id,
+        payload: { user_action: body.userAction },
+      });
+    }
+  }
+
   return NextResponse.json({ file });
 }
 

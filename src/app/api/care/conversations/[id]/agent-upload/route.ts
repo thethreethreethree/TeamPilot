@@ -14,6 +14,9 @@ import {
   validateUploadCandidate,
 } from "@/lib/storage/assets";
 import { emitAssetEvent } from "@/lib/data/assetEvents";
+import { autoRouteFile } from "@/lib/files/autoRoute";
+import { classifyFile } from "@/lib/data/files";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * POST /api/care/conversations/[id]/agent-upload
@@ -104,6 +107,18 @@ export async function POST(
       { status: 500 }
     );
   }
+  // Auto-route the upload via deterministic rules. Per §A11 —
+  // System counts derived from facts (linked conversation,
+  // uploader department, filename, support-department lookup).
+  const routed = await autoRouteFile({
+    uploaderId: auth.userId,
+    companyId: auth.companyId,
+    fileName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    linkedConversationId: id,
+    source: "care_agent",
+  });
+
   const row = await createFileRecord({
     companyId: auth.companyId,
     uploaderId: auth.userId,
@@ -112,8 +127,8 @@ export async function POST(
     mimeType: file.type || "application/octet-stream",
     sizeBytes: file.size,
     originalFilename: file.name,
-    title: file.name,
-    description: null,
+    title: routed.title || file.name,
+    description: routed.description,
     accessRole: "everyone",
     uploadedVia: "agent_dashboard",
     linkedConversationId: id,
@@ -123,6 +138,32 @@ export async function POST(
       { error: "File row write failed." },
       { status: 500 }
     );
+  }
+
+  // Apply the routed classification (departments + tags). Tasks
+  // are typically empty for C.A.R.E uploads (conversations aren't
+  // tasks). The classification trigger derives the lane.
+  if (
+    routed.departmentIds.length > 0 ||
+    routed.taskIds.length > 0 ||
+    routed.tags.length > 0
+  ) {
+    await classifyFile({
+      fileId: row.id,
+      departmentIds: routed.departmentIds,
+      taskIds: routed.taskIds,
+      tags: routed.tags,
+    });
+    const adminSb = createAdminClient();
+    await adminSb.from("file_classification_suggestions").insert({
+      file_id: row.id,
+      suggested_department_ids: routed.departmentIds,
+      suggested_task_ids: routed.taskIds,
+      suggested_title: routed.title,
+      suggested_description: routed.description,
+      suggested_tags: routed.tags,
+      user_action: "pending",
+    });
   }
   await postAgentMessage({
     conversationId: id,

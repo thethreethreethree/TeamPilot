@@ -123,6 +123,16 @@ export function ClassificationModal({
     taskIds.length > 0 &&
     description.trim().length > 0;
 
+  // Whether the modal opened with pre-filled values — signal that
+  // deterministic auto-routing fired on upload (per §A11 + the
+  // logic-only routing system 2026-06-19). The user is shown the
+  // pre-fills, can accept or edit any field.
+  const wasAutoRouted =
+    (initial.departmentIds?.length ?? 0) > 0 ||
+    (initial.taskIds?.length ?? 0) > 0 ||
+    (initial.tags?.length ?? 0) > 0 ||
+    (initial.description?.trim().length ?? 0) > 0;
+
   const addTag = () => {
     const t = tagInput.trim().toLowerCase();
     if (!t || t.length > 40 || tags.includes(t)) {
@@ -162,6 +172,36 @@ export function ClassificationModal({
     }
     setSaving(true);
     setError(null);
+
+    // Compute user_action vs the routing suggestion. Per §A11 the
+    // suggestions audit records what the rules proposed AND what
+    // the user decided, so a later §4 readout can measure rule
+    // accuracy without measuring adoption (per §3.5).
+    const arraysEqualUnordered = (a: string[], b: string[]) =>
+      a.length === b.length && [...a].sort().join() === [...b].sort().join();
+    let userAction: "accepted_as_is" | "edited_then_saved" | "rejected" =
+      "accepted_as_is";
+    if (wasAutoRouted) {
+      const deptChanged = !arraysEqualUnordered(
+        initial.departmentIds ?? [],
+        departmentIds
+      );
+      const taskChanged = !arraysEqualUnordered(initial.taskIds ?? [], taskIds);
+      const tagsChanged = !arraysEqualUnordered(initial.tags ?? [], tags);
+      const descChanged = (initial.description ?? "") !== description;
+      const titleChanged = (initial.title ?? "") !== title;
+      const changes = [
+        deptChanged,
+        taskChanged,
+        tagsChanged,
+        descChanged,
+        titleChanged,
+      ].filter(Boolean).length;
+      if (changes === 0) userAction = "accepted_as_is";
+      else if (changes >= 4) userAction = "rejected";
+      else userAction = "edited_then_saved";
+    }
+
     try {
       const res = await fetch(`/api/files/${fileId}`, {
         method: "PATCH",
@@ -173,6 +213,7 @@ export function ClassificationModal({
           taskIds,
           tags,
           accessRole,
+          userAction: wasAutoRouted ? userAction : undefined,
         }),
       });
       const data = await res.json();
@@ -215,6 +256,20 @@ export function ClassificationModal({
               : `Missing classification. Counts against your 3/day cap (${casualRemaining} remaining).`}
           </span>
         </div>
+
+        {wasAutoRouted && (
+          <div className="rounded-md border border-arc-400/30 bg-arc-400/[0.06] px-3 py-2 text-xs text-arc-300 flex items-start gap-2">
+            <span className="font-bold uppercase tracking-widest text-[10px] flex-shrink-0">
+              Pre-filled
+            </span>
+            <span className="text-secondary leading-relaxed">
+              These fields were filled in automatically from where you uploaded
+              from (task / chat / conversation), your department membership, and
+              the filename. Accept as-is or edit any field — the System counts
+              from facts; you decide.
+            </span>
+          </div>
+        )}
 
         <div>
           <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">

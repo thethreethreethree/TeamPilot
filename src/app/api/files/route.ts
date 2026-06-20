@@ -16,6 +16,8 @@ import {
   listFiles,
 } from "@/lib/data/files";
 import { emitAssetEvent } from "@/lib/data/assetEvents";
+import { autoRouteFile } from "@/lib/files/autoRoute";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
 
 /**
@@ -105,6 +107,7 @@ export async function POST(req: NextRequest) {
   const linkedTopicId = (form.get("linked_topic_id") as string | null) ?? null;
   const linkedConversationId =
     (form.get("linked_conversation_id") as string | null) ?? null;
+  const linkedTaskIdRaw = (form.get("linked_task_id") as string | null) ?? null;
   const departmentIdsRaw = (form.get("department_ids") as string | null) ?? "";
   const taskIdsRaw = (form.get("task_ids") as string | null) ?? "";
   const tagsRaw = (form.get("tags") as string | null) ?? "";
@@ -120,6 +123,46 @@ export async function POST(req: NextRequest) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+
+  // Deterministic auto-routing (no AI / LLM).
+  // If the form did not supply classification fields, fall back
+  // to the rule-based router (§A11 — System counts derived from
+  // facts; user decides). The router reads context (linked task /
+  // topic / conversation, uploader's departments, filename
+  // keywords, file extension) and proposes classification. The
+  // user can override in the ClassificationModal.
+  const callerProvidedClassification =
+    departmentIds.length > 0 ||
+    taskIds.length > 0 ||
+    tags.length > 0 ||
+    !!description;
+  let routedTitle = title;
+  let routedDescription: string | null = description;
+  let routeTrace: string[] = [];
+  if (!callerProvidedClassification) {
+    const routed = await autoRouteFile({
+      uploaderId: auth.userId,
+      companyId: auth.companyId,
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream",
+      linkedTaskId: linkedTaskIdRaw,
+      linkedTopicId,
+      linkedConversationId,
+      source: linkedTaskIdRaw
+        ? "task"
+        : linkedTopicId
+          ? "chat"
+          : linkedConversationId
+            ? "care_agent"
+            : "library",
+    });
+    departmentIds.push(...routed.departmentIds);
+    taskIds.push(...routed.taskIds);
+    tags.push(...routed.tags);
+    routedTitle = routed.title || title;
+    routedDescription = routed.description ?? description;
+    routeTrace = routed.ruleTrace;
+  }
 
   // Validate size + type
   const v = validateUploadCandidate({
@@ -184,8 +227,8 @@ export async function POST(req: NextRequest) {
     mimeType: file.type || "application/octet-stream",
     sizeBytes: file.size,
     originalFilename: file.name,
-    title,
-    description,
+    title: routedTitle,
+    description: routedDescription,
     accessRole,
     uploadedVia: "agent_dashboard",
     linkedTopicId,
@@ -211,6 +254,24 @@ export async function POST(req: NextRequest) {
       classification_lane: row.classificationLane,
     },
   });
+
+  // Log the routing audit row if the deterministic router fired.
+  // This records WHAT THE ROUTER PROPOSED so a later §4 readout
+  // can measure rule accuracy (did the user accept-as-is, edit, or
+  // reject?). Per §A11 — the System counts (deterministic rules
+  // here, not LLM judgment); the user decides.
+  if (routeTrace.length > 0) {
+    const adminSb = createAdminClient();
+    await adminSb.from("file_classification_suggestions").insert({
+      file_id: row.id,
+      suggested_department_ids: departmentIds,
+      suggested_task_ids: taskIds,
+      suggested_title: routedTitle,
+      suggested_description: routedDescription,
+      suggested_tags: tags,
+      user_action: "pending",
+    });
+  }
 
   // Attach classification join rows if any were provided in
   // the upload form. Triggers re-derive classification_lane.

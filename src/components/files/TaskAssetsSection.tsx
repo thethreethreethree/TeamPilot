@@ -88,19 +88,11 @@ export function TaskAssetsSection({
     void refresh();
   }, [refresh]);
 
-  const onUploadComplete = async (result: UploadResult) => {
+  const onUploadComplete = (result: UploadResult) => {
     if (result.ok && result.file) {
-      // Auto-attach the file to this task before opening
-      // the classification modal so even if the user
-      // dismisses, the task link is preserved.
-      await fetch(`/api/files/${result.file.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: result.file.title,
-          taskIds: [taskId],
-        }),
-      });
+      // No follow-up PATCH needed — the upload route auto-routed
+      // the file to this task via linked_task_id in the form data.
+      // Open the modal so the user can confirm or edit.
       setClassifyingId(result.file.id as string);
       void refresh();
     }
@@ -126,7 +118,8 @@ export function TaskAssetsSection({
 
       <FileDropzone
         compact
-        contextHint="Attached files auto-link to this task. Add a description + department to classify them as team assets."
+        contextHint="Attached files auto-route to this task. Add a description + department to classify them as team assets."
+        linkedTaskId={taskId}
         onUploadComplete={onUploadComplete}
       />
 
