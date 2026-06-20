@@ -278,6 +278,19 @@ const adminNav: Array<{
   hint: NavHint;
 }> = [
   {
+    label: "Asset readout",
+    href: "/dashboard/admin/asset-readout",
+    icon: FolderOpen,
+    hint: {
+      whatItIs:
+        "The Asset System v1 §4 readout — measures whether files become team assets or sit unused. Four metrics per the spec: re-retrieval rate (target > 40%), cross-actor retrieval (target > 25%), citation rate, and routing-rule acceptance. Time windows: 7 / 30 / 60 days / all-time.",
+      why: "A file storage layer without measurement is a graveyard. The discipline only pays off if files compound as team assets. This page is how the founder verifies the discipline is working — and surfaces graveyard signals (rate < 15%) when it isn't.",
+      how: "Pick a window. Read each metric's evaluation (Healthy / Below target / Graveyard). Below-target rates are signals to ask 'why don't people retrieve their files later?' — not failures to suppress.",
+      principle:
+        "Measurement anchored to consequence is what makes the discipline real. Measurement anchored to adoption is grading our own homework.",
+    },
+  },
+  {
     label: "Customer accounts",
     href: "/dashboard/admin/crm",
     icon: Building2,
