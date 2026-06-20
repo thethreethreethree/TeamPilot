@@ -47,16 +47,28 @@ type Action =
   | "ol"
   | "quote";
 
+/**
+ * `trailing` slot: render at the END of the toolbar row (after the
+ * markdown formatting buttons). Used by chat composer to surface the
+ * Attach (file upload) button without taking a new row. Per the
+ * 2026-06-19 founder report — Attach was eating vertical space below
+ * the toolbar; moving it into the toolbar row closes the gap.
+ */
 export function ComposerToolbar({
   textareaRef,
   value,
   onChange,
   className,
+  trailing,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   value: string;
   onChange: (next: string) => void;
   className?: string;
+  /** Optional slot rendered at the end of the toolbar row, after
+   *  the markdown formatting buttons. Use for inline composer
+   *  affordances that should NOT take a new row (e.g., Attach). */
+  trailing?: React.ReactNode;
 }) {
   const apply = (action: Action) => {
     const el = textareaRef.current;
@@ -237,6 +249,12 @@ export function ComposerToolbar({
         label="Blockquote (Ctrl+Shift+9)"
         onClick={() => apply("quote")}
       />
+      {trailing && (
+        <>
+          <Divider />
+          <div className="flex items-center gap-0.5 ml-auto">{trailing}</div>
+        </>
+      )}
     </div>
     </LearningHint>
   );

@@ -1186,44 +1186,36 @@ export default function TeamChatTopicPage() {
                 textareaRef={inputRef}
                 value={draft}
                 onChange={setDraft}
-              />
-              {/* Asset System v1 — Phase 3 chat composer
-                  integration. Inline paperclip; files auto-link
-                  to this topic so the classification modal pre-
-                  fills topic context. */}
-              <div className="flex items-center gap-1.5">
-                <FileDropzone
-                  hiddenLabel
-                  linkedTopicId={topicId}
-                  onUploadComplete={async (r) => {
-                    if (r.ok && r.file) {
-                      // Post a chat_messages row referencing
-                      // the file so teammates SEE the attachment
-                      // in the thread, not just in the library.
-                      // media_url uses the assets-v1:// scheme so
-                      // the render path can resolve a signed URL
-                      // on demand.
-                      try {
-                        await postMessage({
-                          topicId,
-                          body: r.file.title as string,
-                          kind: "attachment",
-                          mediaUrl: `assets-v1://${r.file.id as string}`,
-                          mediaType:
-                            (r.file as { mimeType?: string }).mimeType ?? null,
-                        });
-                      } catch {
-                        /* file is in library regardless */
+                trailing={
+                  // Asset System v1 — Phase 3 chat composer
+                  // integration. Inline paperclip in the toolbar
+                  // row so it doesn't take new vertical space
+                  // (per 2026-06-19 founder feedback). Files
+                  // auto-link to this topic so the classification
+                  // modal pre-fills topic context.
+                  <FileDropzone
+                    hiddenLabel
+                    linkedTopicId={topicId}
+                    onUploadComplete={async (r) => {
+                      if (r.ok && r.file) {
+                        try {
+                          await postMessage({
+                            topicId,
+                            body: r.file.title as string,
+                            kind: "attachment",
+                            mediaUrl: `assets-v1://${r.file.id as string}`,
+                            mediaType:
+                              (r.file as { mimeType?: string }).mimeType ?? null,
+                          });
+                        } catch {
+                          /* file is in library regardless */
+                        }
+                        void refresh();
                       }
-                      // Toast for auto-routing transparency is
-                      // emitted by FileDropzone itself based on
-                      // the file's classification_lane in the
-                      // response. No need to duplicate here.
-                      void refresh();
-                    }
-                  }}
-                />
-              </div>
+                    }}
+                  />
+                }
+              />
               <div className="relative">
               <FileMentionAutocomplete
                 textareaRef={inputRef}
