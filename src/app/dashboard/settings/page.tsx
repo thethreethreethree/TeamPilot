@@ -5,8 +5,10 @@ import { LearningHint } from "@/components/learning/LearningHint";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { supabaseEnabled } from "@/lib/supabase/client";
 import { useCompanyName } from "@/lib/hooks/useCompany";
+import Link from "next/link";
 import {
   AlertTriangle,
+  Building2,
   CheckCircle2,
   Cpu,
   Globe,
@@ -166,6 +168,34 @@ export default function SettingsPage() {
               doesn't depend on Supabase being configured. Lets the user
               verify provider connectivity before wiring anything else. */}
           <LlmConnectionPanel />
+        </LearningHint>
+
+        <LearningHint
+          as="block"
+          category="Settings · Org"
+          title="Departments"
+          whatItIs="The org-chart units within your company. Pillar 1 of the §A6 asset classification triad — every classified file belongs to one or more departments. Admin-managed (CEO / COO / admin) at /dashboard/settings/departments: create, rename, archive, assign users."
+          why="Without real departments, the asset classification gate is theater — files get tagged with made-up labels and the search later doesn't help anyone. Real org-chart units make the gate honest and the retrieval valuable."
+          how="Click Manage departments. Add a department for each function the team actually has (Engineering, Customer Success, Operations, etc.). Add a short description so the AI classifier can read department semantics."
+          principle="The org chart is the search index. Honest names + honest descriptions = the team finding what it built."
+        >
+          <div className="rounded-lg border border-default p-4 bg-white/[0.01] flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-primary flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-brand" aria-hidden />
+                Departments
+              </p>
+              <p className="text-[11px] text-muted mt-0.5">
+                Org-chart units used by the asset classification gate and the auto-folder navigation.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/settings/departments"
+              className="text-xs font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 px-3 py-1.5 rounded-md flex-shrink-0"
+            >
+              Manage departments →
+            </Link>
+          </div>
         </LearningHint>
 
         <LearningHint
