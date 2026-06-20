@@ -306,9 +306,21 @@ export function ClassificationModal({
             Departments {departmentIds.length === 0 && <span className="text-red-300/60">(at least 1 for classified)</span>}
           </label>
           {departments.length === 0 ? (
-            <p className="text-xs text-muted italic">
-              No departments yet. An admin can create them in Settings.
-            </p>
+            <div className="rounded-md border border-arc-400/30 bg-arc-400/[0.06] p-2.5">
+              <p className="text-xs text-arc-300 mb-1.5">
+                No departments yet — the classification gate needs at least one.
+              </p>
+              <a
+                href="/dashboard/settings/departments"
+                className="text-[11px] font-semibold text-brand underline"
+              >
+                Create your first department →
+              </a>
+              <p className="text-[11px] text-muted mt-1.5 leading-relaxed">
+                Admin-only. Files uploaded before departments exist stay casual
+                until you classify them later.
+              </p>
+            </div>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {departments.map((d) => (
