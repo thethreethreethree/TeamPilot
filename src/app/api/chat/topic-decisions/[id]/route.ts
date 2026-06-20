@@ -184,6 +184,40 @@ export async function PATCH(
         mode: "in_thread",
       },
     });
+
+    // Asset System v1 — emit asset.file.cited for every @file
+    // mention across the patched fields, ONLY on phase advance.
+    // Gated to phase advance for the same reason the
+    // decision.phase_entered event is — pure draft saves shouldn't
+    // flood the chain. Reading the LATEST state from `updated`
+    // (post-patch) to catch any mention that just landed.
+    try {
+      const { extractFileMentions } = await import("@/lib/files/fileMention");
+      const cited = new Set<string>();
+      for (const text of [
+        (updated.situation as string | null) ?? "",
+        (updated.user_diagnosis as string | null) ?? "",
+        (updated.user_proposal as string | null) ?? "",
+      ]) {
+        for (const m of extractFileMentions(text)) cited.add(m.fileId);
+      }
+      for (const fileId of cited) {
+        await supabase.from("events").insert({
+          company_id: row.company_id,
+          actor: auth.user.id,
+          kind: "asset.file.cited",
+          subject: `file:${fileId}`,
+          payload: {
+            file_id: fileId,
+            cited_in: `chat_topic_decision:${id}`,
+            cited_in_topic: row.topic_id,
+            on_phase_advance_to: body.phase,
+          },
+        });
+      }
+    } catch {
+      /* non-fatal */
+    }
   }
 
   return NextResponse.json({ row: updated });

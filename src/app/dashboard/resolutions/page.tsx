@@ -19,7 +19,8 @@ import {
   Sparkles,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { FileMentionAutocomplete } from "@/components/files/FileMentionAutocomplete";
 
 const DURABILITY_META: Record<
   string,
@@ -286,6 +287,7 @@ function ReviewModal({
   const [durability, setDurability] = useState<string>(resolution.durability ?? "unknown");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const outcomeRef = useRef<HTMLTextAreaElement | null>(null);
 
   const MIN_OUTCOME_CHARS = 20;
   const submit = async () => {
@@ -321,12 +323,20 @@ function ReviewModal({
       </div>
       <div className="space-y-3" aria-busy={submitting}>
         <Field label={`What actually happened? (≥${MIN_OUTCOME_CHARS} chars)`}>
-          <Textarea
-            value={observedOutcome}
-            onChange={(e) => setObservedOutcome(e.target.value)}
-            rows={4}
-            placeholder="Concrete observation — not 'it worked', but what specifically changed in the world."
-          />
+          <div className="relative">
+            <FileMentionAutocomplete
+              textareaRef={outcomeRef}
+              value={observedOutcome}
+              onChange={setObservedOutcome}
+            />
+            <Textarea
+              ref={outcomeRef}
+              value={observedOutcome}
+              onChange={(e) => setObservedOutcome(e.target.value)}
+              rows={4}
+              placeholder="Concrete observation — not 'it worked', but what specifically changed in the world. Type @file to cite a file."
+            />
+          </div>
           <div className="mt-1 flex items-center justify-end">
             <p
               className={`text-[10px] tabular-nums ${

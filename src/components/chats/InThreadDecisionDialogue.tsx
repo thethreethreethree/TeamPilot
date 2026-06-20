@@ -21,6 +21,7 @@ import {
 } from "@/lib/data/topicDecisions";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
+import { FileMentionAutocomplete } from "@/components/files/FileMentionAutocomplete";
 import { LearningHint } from "@/components/learning/LearningHint";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
 
@@ -74,6 +75,7 @@ export function InThreadDecisionDialogue({
 }) {
   // ─── Local draft state — mirrors the row, debounce-saved ────
   const [situation, setSituation] = useState(decision.situation);
+  const situationRef = useRef<HTMLTextAreaElement | null>(null);
   const [userDiagnosis, setUserDiagnosis] = useState(decision.userDiagnosis);
   const [userProposal, setUserProposal] = useState(decision.userProposal);
   const [chosenNote, setChosenNote] = useState(decision.chosenNote);
@@ -275,14 +277,22 @@ export function InThreadDecisionDialogue({
               onAcceptRevision={(revised) => setSituation(revised)}
             />
           )}
-          <textarea
-            value={situation}
-            onChange={(e) => setSituation(e.target.value)}
-            disabled={phase !== "situation"}
-            rows={4}
-            placeholder="What's happening, in your words. State the facts of the case before anyone proposes a fix."
-            className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
-          />
+          <div className="relative">
+            <FileMentionAutocomplete
+              textareaRef={situationRef}
+              value={situation}
+              onChange={setSituation}
+            />
+            <textarea
+              ref={situationRef}
+              value={situation}
+              onChange={(e) => setSituation(e.target.value)}
+              disabled={phase !== "situation"}
+              rows={4}
+              placeholder="What's happening, in your words. Type @file to cite a file."
+              className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+            />
+          </div>
           {phase === "situation" && (
             <div className="mt-2 flex items-center justify-between flex-wrap gap-2">
               {coachOn ? (
@@ -758,6 +768,7 @@ function ElicitField({
     onAsk: () => void;
   };
 }) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   return (
     <div>
       <label className="flex items-center gap-1.5 text-[11px] font-medium text-secondary mb-1">
@@ -773,14 +784,22 @@ function ElicitField({
           onAcceptRevision={(revised) => onChange(revised)}
         />
       )}
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        rows={3}
-        placeholder={placeholder}
-        className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
-      />
+      <div className="relative">
+        <FileMentionAutocomplete
+          textareaRef={textareaRef}
+          value={value}
+          onChange={onChange}
+        />
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          rows={3}
+          placeholder={placeholder}
+          className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-none leading-relaxed disabled:opacity-60"
+        />
+      </div>
       {coachV5 && (
         <div className="mt-1 flex justify-end">
           <AskCoachButton

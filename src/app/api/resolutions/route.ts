@@ -53,5 +53,37 @@ export async function PATCH(req: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Asset System v1 — emit asset.file.cited for every @file mention
+  // in the observed outcome. Per §1.6 (close the loop): resolution
+  // reviews are the canonical close-the-loop moment. Citations from
+  // here say "this file informed how I evaluated the outcome" — the
+  // strongest asset-value signal in the §4 readout.
+  try {
+    const { extractFileMentions } = await import("@/lib/files/fileMention");
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("id", auth.user.id)
+      .maybeSingle();
+    const companyId = (profile?.company_id as string | undefined) ?? null;
+    if (companyId) {
+      for (const m of extractFileMentions(observedOutcome)) {
+        await supabase.from("events").insert({
+          company_id: companyId,
+          actor: auth.user.id,
+          kind: "asset.file.cited",
+          subject: `file:${m.fileId}`,
+          payload: {
+            file_id: m.fileId,
+            cited_in: `resolution:${id}`,
+          },
+        });
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+
   return NextResponse.json({ ok: true });
 }
