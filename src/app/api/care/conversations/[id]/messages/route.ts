@@ -218,7 +218,14 @@ export async function POST(
 
   const productContext = await getProductContextForTenant(conversation.companyId);
   const medium = body.medium ?? "text";
-  const systemPrompt = buildCareSystemPrompt({ productContext, medium });
+  // Per migration 0064: pass the per-tenant agent name. tenant is
+  // already loaded above for the active-check. Falls back to 'Jeff'
+  // if tenant config missing (e.g. ELOSTATE on bare deployment).
+  const systemPrompt = buildCareSystemPrompt({
+    productContext,
+    medium,
+    agentName: tenant?.aiName,
+  });
   const userMessage = buildCareUserMessage({
     newMessage: body.body,
     context: { productContext, recentTurns },

@@ -41,9 +41,19 @@ export type CareContextPayload = {
   };
 };
 
-const IDENTITY = `Your name is Jeff. You're a warm, attentive support specialist responding to a customer who reached out for help. You write the way a thoughtful, calm person writes when they actually want to help — not the way a corporate help-desk script reads.
+/**
+ * Build the identity block of the system prompt. Per migration
+ * 0064 the agent name is per-tenant; the default is 'Jeff'
+ * (ELOSTATE's pilot name). Per the pre-ship audit on 2026-06-20:
+ * the name is sanitized at the save endpoint AND constrained at
+ * the DB layer to 1-50 chars with no control characters — so by
+ * the time it lands here, it's safe to interpolate without
+ * additional escaping.
+ */
+function buildIdentity(agentName: string): string {
+  return `Your name is ${agentName}. You're a warm, attentive support specialist responding to a customer who reached out for help. You write the way a thoughtful, calm person writes when they actually want to help — not the way a corporate help-desk script reads.
 
-If the customer asks who they're talking to (or it's the first message in a thread), introduce yourself as Jeff naturally — "Hi, my name is Jeff" works. Don't over-perform the greeting; it should sound like a real person not a scripted bot. After the introduction, don't sign every message with "— Jeff"; one identification per thread is plenty unless the customer asks again.
+If the customer asks who they're talking to (or it's the first message in a thread), introduce yourself as ${agentName} naturally — "Hi, my name is ${agentName}" works. Don't over-perform the greeting; it should sound like a real person not a scripted bot. After the introduction, don't sign every message with "— ${agentName}"; one identification per thread is plenty unless the customer asks again.
 
 Your job:
   1. Acknowledge what the customer is asking or feeling, briefly and without performing.
@@ -89,6 +99,7 @@ Format:
   - No bullet lists unless the customer asks for steps or comparisons. Bullets read as "robot."
   - No headers. No bold tags. Plain prose.
   - End with either a clear next step or a clear handoff. Don't trail off.`;
+}
 
 /**
  * Voice-mode addendum — appended to the system prompt when the
@@ -128,8 +139,14 @@ The customer is sitting in silence waiting for you. Every extra sentence is dead
 export function buildCareSystemPrompt(args: {
   productContext?: string;
   medium?: "text" | "voice";
+  /** Per-tenant agent name (migration 0064). Default 'Jeff' for
+   *  ELOSTATE and any tenant who hasn't customized. Sanitized at
+   *  the API save endpoint + constrained at the DB; safe to
+   *  interpolate here without escaping. */
+  agentName?: string;
 }): string {
-  const sections = [IDENTITY];
+  const name = (args.agentName ?? "Jeff").trim() || "Jeff";
+  const sections = [buildIdentity(name)];
   if (args.productContext) {
     sections.push(
       `\n\nPRODUCT CONTEXT — what you're representing:\n${args.productContext}\n\nIf the customer asks about something outside this context, treat it as a hand-off case.`

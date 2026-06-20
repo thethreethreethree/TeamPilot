@@ -62,6 +62,7 @@ type TenantConfig = {
   ai_product_context: string | null;
   ai_tone: "warm" | "formal" | "casual" | "direct";
   ai_response_length: "short" | "medium" | "long";
+  ai_name: string;
   voice_id: string | null;
   plan: string;
   monthly_conversation_quota: number;
@@ -122,12 +123,14 @@ export default function CareWidgetSettingsPage() {
           widgetGreeting: draft.widget_greeting,
           widgetSubtitle: draft.widget_subtitle,
           widgetPosition: draft.widget_position,
-          widgetLogoUrl: draft.widget_logo_url,
+          // widget_logo_url set via dedicated /logo endpoint only;
+          // PATCH no longer accepts it (prevents arbitrary-URL bypass).
           companyDisplayName: draft.company_display_name,
           replySignature: draft.reply_signature,
           aiProductContext: draft.ai_product_context,
           aiTone: draft.ai_tone,
           aiResponseLength: draft.ai_response_length,
+          aiName: draft.ai_name,
           voiceId: draft.voice_id,
         }),
       });
@@ -403,13 +406,73 @@ export default function CareWidgetSettingsPage() {
                 <option value="bottom-left">Bottom-left</option>
               </select>
             </div>
-            <Field
-              label="Logo URL (optional)"
-              value={draft.widget_logo_url ?? ""}
-              onChange={(v) =>
-                setDraft({ ...draft, widget_logo_url: v || null })
-              }
-            />
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                Brand logo / icon
+              </label>
+              {draft.widget_logo_url ? (
+                <div className="flex items-center gap-3 mb-2 p-2 rounded-md border border-default bg-surface">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={draft.widget_logo_url}
+                    alt="Current logo"
+                    className="w-12 h-12 object-contain bg-base rounded"
+                  />
+                  <p className="text-[11px] text-muted flex-1 truncate">
+                    {draft.widget_logo_url}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await fetch("/api/care/agent/tenant/logo", {
+                        method: "DELETE",
+                      });
+                      if (res.ok) {
+                        setDraft({ ...draft, widget_logo_url: null });
+                        setConfig({ ...draft, widget_logo_url: null });
+                        toast.success("Removed", "Logo cleared.");
+                      } else {
+                        toast.error("Failed", "Couldn't remove logo.");
+                      }
+                    }}
+                    className="text-[11px] text-secondary hover:text-red-300 border border-default hover:border-red-500/40 rounded-md px-2 py-1"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : null}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp,image/x-icon,image/vnd.microsoft.icon"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  const fd = new FormData();
+                  fd.append("file", f);
+                  const res = await fetch("/api/care/agent/tenant/logo", {
+                    method: "POST",
+                    body: fd,
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    setDraft({ ...draft, widget_logo_url: data.logoUrl });
+                    setConfig({ ...draft, widget_logo_url: data.logoUrl });
+                    toast.success("Uploaded", "Logo saved.");
+                  } else {
+                    const data = await res.json().catch(() => null);
+                    toast.error("Upload failed", data?.error ?? "Try again.");
+                  }
+                  // Reset the file input so the same file can be re-selected
+                  e.target.value = "";
+                }}
+                className="block w-full text-xs text-muted"
+              />
+              <p className="text-[11px] text-muted mt-1">
+                2 MB max. PNG, JPG, SVG, WebP, or ICO. Shows in the widget header
+                + greeting card. The current value is the public URL; uploading a
+                new file replaces it.
+              </p>
+            </div>
             <Field
               label="Display name"
               value={draft.company_display_name ?? ""}
@@ -426,6 +489,26 @@ export default function CareWidgetSettingsPage() {
           subtitle="How the AI represents your product and speaks to customers."
         >
           <div className="space-y-3">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                Agent name
+              </label>
+              <input
+                type="text"
+                value={draft.ai_name}
+                onChange={(e) =>
+                  setDraft({ ...draft, ai_name: e.target.value.slice(0, 50) })
+                }
+                maxLength={50}
+                placeholder="Jeff"
+                className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+              />
+              <p className="text-[11px] text-muted mt-1">
+                What your AI introduces itself as. Shows up in the widget greeting
+                (&ldquo;Hi, my name is X.&rdquo;) and in every message the AI sends.
+                1–50 characters; no line breaks.
+              </p>
+            </div>
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
                 Product context

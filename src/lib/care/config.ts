@@ -48,6 +48,11 @@ export type CareTenantConfig = {
   aiProductContext: string | null;
   aiTone: "warm" | "formal" | "casual" | "direct";
   aiResponseLength: "short" | "medium" | "long";
+  /** Per-tenant name for the customer-facing AI agent. Default 'Jeff'.
+   *  Constrained at the DB layer (migration 0064) to 1-50 chars and
+   *  no control characters as defense against prompt injection into
+   *  the LLM system prompt. */
+  aiName: string;
   plan: "pilot" | "starter" | "pro" | "enterprise";
   monthlyConversationQuota: number;
 };
@@ -72,6 +77,7 @@ function mapConfig(row: Record<string, unknown>): CareTenantConfig {
     aiResponseLength:
       (row.ai_response_length as CareTenantConfig["aiResponseLength"]) ??
       "medium",
+    aiName: (row.ai_name as string) ?? "Jeff",
     plan: (row.plan as CareTenantConfig["plan"]) ?? "pilot",
     monthlyConversationQuota:
       (row.monthly_conversation_quota as number) ?? 200,

@@ -75,12 +75,37 @@ const PatchBody = z.object({
   widgetGreeting: z.string().min(1).max(200).optional(),
   widgetSubtitle: z.string().min(1).max(200).optional(),
   widgetPosition: z.enum(["bottom-right", "bottom-left"]).optional(),
-  widgetLogoUrl: z.string().url().max(2000).optional().nullable(),
+  // widgetLogoUrl is INTENTIONALLY NOT accepted via PATCH — per
+  // the 2026-06-20 pre-ship audit Persona 3 finding, allowing
+  // arbitrary URLs here would let an admin bypass the
+  // /api/care/agent/tenant/logo upload endpoint's image-type check
+  // and point the customer-facing widget at any external URL
+  // (phishing surface, tracking pixels, malicious SVG). The logo
+  // can ONLY be set via the dedicated upload endpoint, which
+  // writes to our widget-logos bucket and stores the public URL.
+  // Use DELETE /api/care/agent/tenant/logo to clear.
   companyDisplayName: z.string().max(200).optional().nullable(),
   replySignature: z.string().max(400).optional().nullable(),
   aiProductContext: z.string().max(8000).optional().nullable(),
   aiTone: z.enum(["warm", "formal", "casual", "direct"]).optional(),
   aiResponseLength: z.enum(["short", "medium", "long"]).optional(),
+  // Per-tenant agent name (migration 0064). Sanitized via Zod
+  // refine to strip control characters BEFORE the DB layer's
+  // CHECK constraint sees it — defense in depth against the
+  // prompt-injection vector named in the 2026-06-20 pre-ship
+  // audit. The refine returns the cleaned string; the CHECK
+  // constraint at the DB rejects anything that slips through.
+  aiName: z
+    .string()
+    .min(1)
+    .max(50)
+    // Strip control chars (newline/tab/NUL/DEL etc.); defense
+    // in depth against prompt injection. DB CHECK is the backstop.
+    .transform((s) => s.replace(new RegExp("[\x00-\x1F\x7F]", "g"), "").trim())
+    .refine((s) => s.length >= 1 && s.length <= 50, {
+      message: "Agent name must be 1-50 printable characters.",
+    })
+    .optional(),
   // Phase 9 voice — ElevenLabs voice ID. Freeform text rather
   // than enum so tenants can use any voice from the ElevenLabs
   // library (the settings UI surfaces a curated picker but
@@ -111,7 +136,8 @@ export async function PATCH(req: NextRequest) {
   if (body.widgetGreeting !== undefined) patch.widget_greeting = body.widgetGreeting;
   if (body.widgetSubtitle !== undefined) patch.widget_subtitle = body.widgetSubtitle;
   if (body.widgetPosition !== undefined) patch.widget_position = body.widgetPosition;
-  if (body.widgetLogoUrl !== undefined) patch.widget_logo_url = body.widgetLogoUrl;
+  // widget_logo_url intentionally not mapped — set via the
+  // dedicated /api/care/agent/tenant/logo upload endpoint only.
   if (body.companyDisplayName !== undefined)
     patch.company_display_name = body.companyDisplayName;
   if (body.replySignature !== undefined) patch.reply_signature = body.replySignature;
@@ -120,6 +146,7 @@ export async function PATCH(req: NextRequest) {
   if (body.aiTone !== undefined) patch.ai_tone = body.aiTone;
   if (body.aiResponseLength !== undefined)
     patch.ai_response_length = body.aiResponseLength;
+  if (body.aiName !== undefined) patch.ai_name = body.aiName;
   if (body.voiceId !== undefined) patch.voice_id = body.voiceId;
 
   const admin = createAdminClient();

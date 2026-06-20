@@ -33,6 +33,8 @@ type WidgetConfig = {
   position: "bottom-right" | "bottom-left";
   logoUrl: string | null;
   displayName: string | null;
+  /** Per-tenant agent name. Default 'Jeff' if bootstrap omits. */
+  aiName: string;
 };
 
 type StoredSession = {
@@ -54,6 +56,7 @@ const DEFAULT_CONFIG: WidgetConfig = {
   position: "bottom-right",
   logoUrl: null,
   displayName: null,
+  aiName: "Jeff",
 };
 
 export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
@@ -425,7 +428,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
             {messages.length === 0 && (
               <div className="text-center px-4 py-8">
                 <p className="text-sm font-medium text-primary mb-1">
-                  Hi, my name is Jeff.
+                  Hi, my name is {config.aiName}.
                 </p>
                 <p className="text-xs text-secondary leading-relaxed max-w-[260px] mx-auto">
                   Ask anything — a real person sees these too.
@@ -482,8 +485,8 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
               <button
                 type="button"
                 onClick={() => void startCall()}
-                aria-label="Call Jeff"
-                title="Call Jeff — real-time voice conversation"
+                aria-label={`Call ${config.aiName}`}
+                title={`Call ${config.aiName} — real-time voice conversation`}
                 className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-default hover:border-strong text-muted hover:text-primary"
               >
                 <Phone className="w-4 h-4" aria-hidden />

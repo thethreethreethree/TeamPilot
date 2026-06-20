@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
       position: c.widgetPosition,
       logoUrl: c.widgetLogoUrl,
       displayName: c.companyDisplayName,
+      aiName: c.aiName,
     },
   });
 }
