@@ -219,21 +219,32 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const row = await createFileRecord({
-    companyId: auth.companyId,
-    uploaderId: auth.userId,
-    customerSessionToken: null,
-    storagePath,
-    mimeType: file.type || "application/octet-stream",
-    sizeBytes: file.size,
-    originalFilename: file.name,
-    title: routedTitle,
-    description: routedDescription,
-    accessRole,
-    uploadedVia: "agent_dashboard",
-    linkedTopicId,
-    linkedConversationId,
-  });
+  let row;
+  try {
+    row = await createFileRecord({
+      companyId: auth.companyId,
+      uploaderId: auth.userId,
+      customerSessionToken: null,
+      storagePath,
+      mimeType: file.type || "application/octet-stream",
+      sizeBytes: file.size,
+      originalFilename: file.name,
+      title: routedTitle,
+      description: routedDescription,
+      accessRole,
+      uploadedVia: "agent_dashboard",
+      linkedTopicId,
+      linkedConversationId,
+    });
+  } catch (err) {
+    // Surface the actual Supabase error message (e.g. RLS denial,
+    // FK violation, column missing) instead of an opaque 500.
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: `Failed to write file row after upload: ${detail}` },
+      { status: 500 }
+    );
+  }
   if (!row) {
     return NextResponse.json(
       { error: "Failed to write file row after upload." },

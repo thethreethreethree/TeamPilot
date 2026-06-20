@@ -135,7 +135,19 @@ export async function uploadAssetBytes(args: {
       upsert: false,
     });
   if (error) {
-    return { ok: false, error: error.message };
+    // Per 2026-06-19 founder report: "Bucket not found" was the
+    // opaque error. Detect that specific case and return an
+    // actionable instruction instead of just the raw Supabase
+    // message. Operator can then act on the right step (create
+    // bucket via Dashboard) without having to read code or logs.
+    const msg = error.message || "Unknown storage error.";
+    if (/bucket not found|bucket does not exist/i.test(msg)) {
+      return {
+        ok: false,
+        error: `Storage bucket '${ASSETS_BUCKET}' does not exist on this Supabase project. Create it via Supabase Dashboard → Storage → New bucket → Name: '${ASSETS_BUCKET}' → Public: OFF → File size limit: 25 MB. (Migration 0062 attempts to create it via SQL but newer Supabase Cloud instances may block storage.buckets INSERT from the SQL Editor; the Dashboard always works.)`,
+      };
+    }
+    return { ok: false, error: msg };
   }
   return { ok: true };
 }

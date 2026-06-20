@@ -119,20 +119,29 @@ export async function POST(
     source: "care_agent",
   });
 
-  const row = await createFileRecord({
-    companyId: auth.companyId,
-    uploaderId: auth.userId,
-    customerSessionToken: null,
-    storagePath,
-    mimeType: file.type || "application/octet-stream",
-    sizeBytes: file.size,
-    originalFilename: file.name,
-    title: routed.title || file.name,
-    description: routed.description,
-    accessRole: "everyone",
-    uploadedVia: "agent_dashboard",
-    linkedConversationId: id,
-  });
+  let row;
+  try {
+    row = await createFileRecord({
+      companyId: auth.companyId,
+      uploaderId: auth.userId,
+      customerSessionToken: null,
+      storagePath,
+      mimeType: file.type || "application/octet-stream",
+      sizeBytes: file.size,
+      originalFilename: file.name,
+      title: routed.title || file.name,
+      description: routed.description,
+      accessRole: "everyone",
+      uploadedVia: "agent_dashboard",
+      linkedConversationId: id,
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: `File row write failed: ${detail}` },
+      { status: 500 }
+    );
+  }
   if (!row) {
     return NextResponse.json(
       { error: "File row write failed." },

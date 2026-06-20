@@ -142,11 +142,18 @@ export async function createFileRecord(args: {
     .select("*")
     .single();
   if (error || !data) {
+    const msg = error?.message ?? "no row returned";
     // eslint-disable-next-line no-console
     console.error(
-      `[files.create] failed companyId=${args.companyId} via=${args.uploadedVia} error=${error?.message ?? "no row"}`
+      `[files.create] failed companyId=${args.companyId} via=${args.uploadedVia} error=${msg}`
     );
-    return null;
+    // Throw a structured error so the API route can surface the
+    // actual Supabase message to the operator. Previous behavior
+    // returned null and the route emitted a generic "Failed to
+    // write file row after upload" — opaque. Per 2026-06-19
+    // founder report ("still failing") the operator needs the
+    // real error string to diagnose.
+    throw new Error(`files.create: ${msg}`);
   }
   return hydrate(data as DbRow);
 }

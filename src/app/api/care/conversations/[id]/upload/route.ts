@@ -99,20 +99,29 @@ export async function POST(
       { status: 500 }
     );
   }
-  const row = await createFileRecord({
-    companyId: conv.companyId,
-    uploaderId: null,
-    customerSessionToken: token,
-    storagePath,
-    mimeType: file.type || "application/octet-stream",
-    sizeBytes: file.size,
-    originalFilename: file.name,
-    title: file.name,
-    description: null,
-    accessRole: "everyone",
-    uploadedVia: "customer_widget",
-    linkedConversationId: conv.id,
-  });
+  let row;
+  try {
+    row = await createFileRecord({
+      companyId: conv.companyId,
+      uploaderId: null,
+      customerSessionToken: token,
+      storagePath,
+      mimeType: file.type || "application/octet-stream",
+      sizeBytes: file.size,
+      originalFilename: file.name,
+      title: file.name,
+      description: null,
+      accessRole: "everyone",
+      uploadedVia: "customer_widget",
+      linkedConversationId: conv.id,
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: `Failed to write file row: ${detail}` },
+      { status: 500 }
+    );
+  }
   if (!row) {
     return NextResponse.json(
       { error: "Failed to write file row." },
