@@ -223,6 +223,36 @@ export default function TeamChatTopicPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
 
+  // Search deep-link: when ?focus=<messageId> is on the URL,
+  // scroll to that message after the thread loads. One-shot —
+  // we don't keep re-scrolling on every messages update.
+  const focusedOnceRef = useRef(false);
+  useEffect(() => {
+    if (focusedOnceRef.current) return;
+    if (messages.length === 0) return;
+    const focusId =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("focus")
+        : null;
+    if (!focusId) return;
+    if (!messages.some((m) => m.id === focusId)) return;
+    focusedOnceRef.current = true;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`msg-${focusId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-ember-400", "ring-offset-2", "ring-offset-base");
+      window.setTimeout(() => {
+        el.classList.remove(
+          "ring-2",
+          "ring-ember-400",
+          "ring-offset-2",
+          "ring-offset-base"
+        );
+      }, 2000);
+    });
+  }, [messages]);
+
   // Scroll listener — recomputes whether the user is "near the
   // bottom" so the next message's scroll behavior is right.
   const onMessagesScroll = () => {

@@ -1532,6 +1532,7 @@ export function ConversationsApp({
                   onSpawnTask={() => setSpawnTaskOpen(true)}
                   onFormulate={() => setFormulateOpen(true)}
                   onAskCoach={() => setAskCoachOpen(true)}
+                  onAssetUploaded={() => void loadDetail(selected.id)}
                   isEmailChannel={selected.source === "email"}
                 />
               )}
@@ -2537,6 +2538,7 @@ function Composer({
   onSpawnTask,
   onFormulate,
   onAskCoach,
+  onAssetUploaded,
   isEmailChannel,
 }: {
   draft: string;
@@ -2559,6 +2561,7 @@ function Composer({
   onSpawnTask: () => void;
   onFormulate: () => void;
   onAskCoach: () => void;
+  onAssetUploaded?: () => void;
   isEmailChannel?: boolean;
 }) {
   return (
@@ -2695,6 +2698,9 @@ function Composer({
             <FileDropzone
               hiddenLabel
               endpoint={`/api/care/conversations/${conversationId}/agent-upload`}
+              onUploadComplete={(r) => {
+                if (r.ok) onAssetUploaded?.();
+              }}
             />
           </>
         )}

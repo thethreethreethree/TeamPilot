@@ -160,7 +160,7 @@ export default function SearchPage() {
               {chats.map((m) => (
                 <li key={m.id}>
                   <Link
-                    href={`/dashboard/chats/${m.topic_id}#msg-${m.id}`}
+                    href={`/dashboard/chats/${m.topic_id}?focus=${m.id}`}
                     className="block rounded-md border border-default bg-white/[0.01] hover:border-strong p-2.5"
                   >
                     <div className="flex items-start gap-2">
@@ -190,7 +190,7 @@ export default function SearchPage() {
               {supports.map((m) => (
                 <li key={m.id}>
                   <Link
-                    href={`/dashboard/care?conv=${m.conversation_id}`}
+                    href={`/dashboard/care/conversations/${m.conversation_id}`}
                     className="block rounded-md border border-default bg-white/[0.01] hover:border-strong p-2.5"
                   >
                     <div className="flex items-start gap-2">
