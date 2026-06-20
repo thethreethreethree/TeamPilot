@@ -175,6 +175,15 @@ export function FileMentionAutocomplete({
         e.key === "Escape"
       ) {
         e.preventDefault();
+        // stopImmediatePropagation prevents React's delegated
+        // onKeyDown handler from firing — without this, hitting
+        // Enter to select a file from the dropdown ALSO triggered
+        // the chat composer's Enter-to-send handler, sending the
+        // message immediately with the just-inserted marker. Per
+        // the 2026-06-19 audit Finding #1. capture:true on this
+        // listener fires before React's bubble-phase delegation;
+        // stopImmediatePropagation ensures React never sees it.
+        e.stopImmediatePropagation();
         const synth = {
           key: e.key,
           preventDefault: () => {},

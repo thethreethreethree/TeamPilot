@@ -22,6 +22,7 @@ import {
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { FileMentionAutocomplete } from "@/components/files/FileMentionAutocomplete";
+import { renderInline } from "@/lib/chat/markdown";
 import { LearningHint } from "@/components/learning/LearningHint";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
 
@@ -638,7 +639,7 @@ function FoldedDecided({
         </p>
         {noteSnippet && (
           <p className="text-[11px] text-secondary mt-0.5 leading-relaxed">
-            {noteSnippet}
+            {renderInline(noteSnippet, "folded-decided-note")}
           </p>
         )}
       </div>

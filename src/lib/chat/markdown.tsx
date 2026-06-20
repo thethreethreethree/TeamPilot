@@ -38,7 +38,7 @@ import { FileMentionChip } from "@/components/files/FileMentionChip";
  * markdown chars that should be inert), then explicit links, then
  * bold, then italic, then bare URLs.
  */
-function renderInline(line: string, keyPrefix: string): React.ReactNode[] {
+export function renderInline(line: string, keyPrefix: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
   let cursor = 0;
   let counter = 0;

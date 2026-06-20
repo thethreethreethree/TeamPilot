@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { FileMentionAutocomplete } from "@/components/files/FileMentionAutocomplete";
+import { renderInline } from "@/lib/chat/markdown";
 
 const DURABILITY_META: Record<
   string,
@@ -219,22 +220,22 @@ function ResolutionRow({
           </p>
           <p className="text-xs text-secondary mt-1 leading-relaxed break-words">
             <span className="text-muted uppercase tracking-widest text-[10px]">action</span>{" "}
-            {resolution.actionTaken}
+            {renderInline(resolution.actionTaken, `act-${resolution.id}`)}
           </p>
           <p className="text-xs text-secondary mt-1 leading-relaxed break-words">
             <span className="text-muted uppercase tracking-widest text-[10px]">why</span>{" "}
-            {resolution.reasoning}
+            {renderInline(resolution.reasoning, `why-${resolution.id}`)}
           </p>
           {resolution.expectedOutcome && (
             <p className="text-xs text-secondary mt-1 leading-relaxed">
               <span className="text-muted uppercase tracking-widest text-[10px]">expected</span>{" "}
-              {resolution.expectedOutcome}
+              {renderInline(resolution.expectedOutcome, `exp-${resolution.id}`)}
             </p>
           )}
           {resolution.observedOutcome && (
             <p className="text-xs text-primary/80 mt-1 leading-relaxed">
               <span className="text-emerald-300/80 uppercase tracking-widest text-[10px]">observed</span>{" "}
-              {resolution.observedOutcome}
+              {renderInline(resolution.observedOutcome, `obs-${resolution.id}`)}
             </p>
           )}
           <p className="text-[10px] text-muted mt-2 font-mono">
@@ -319,7 +320,9 @@ function ReviewModal({
     <Modal open onClose={onClose} title="Review outcome" size="lg">
       <div className="mb-3 p-3 bg-surface border border-default rounded-xl">
         <p className="text-xs text-muted uppercase tracking-widest mb-1">action</p>
-        <p className="text-sm text-primary">{resolution.actionTaken}</p>
+        <p className="text-sm text-primary">
+          {renderInline(resolution.actionTaken, `modal-act-${resolution.id}`)}
+        </p>
       </div>
       <div className="space-y-3" aria-busy={submitting}>
         <Field label={`What actually happened? (≥${MIN_OUTCOME_CHARS} chars)`}>

@@ -84,6 +84,17 @@ export function detectFileMentionContext(
   // Token must start with @file (case-sensitive — matches the
   // marker format).
   if (!token.startsWith("@file")) return null;
+  // Per 2026-06-19 audit Finding #2: after `@file` the next char
+  // (if any) MUST be a space. Without this guard, a user typing
+  // `@filename.pdf` in plain text (mentioning a hypothetical file
+  // by name, not as a marker) would wrongly trigger the
+  // autocomplete with query "name.pdf". The trigger should only
+  // fire when the user actually types `@file ` (with a space) or
+  // `@file` at the cursor with nothing after.
+  const afterFile = token.slice("@file".length);
+  if (afterFile.length > 0 && !afterFile.startsWith(" ")) {
+    return null;
+  }
   // Boundary check — the character before `start` must be
   // whitespace, newline, or start-of-string.
   if (start > 0) {
@@ -92,7 +103,7 @@ export function detectFileMentionContext(
   }
   // Extract the query: everything after `@file` (skip one space if
   // present, so `@file foo` queries `foo`).
-  let q = token.slice("@file".length);
+  let q = afterFile;
   if (q.startsWith(" ")) q = q.slice(1);
   return { triggerStart: start, query: q };
 }

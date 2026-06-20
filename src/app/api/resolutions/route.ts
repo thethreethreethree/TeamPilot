@@ -59,6 +59,9 @@ export async function PATCH(req: NextRequest) {
   // reviews are the canonical close-the-loop moment. Citations from
   // here say "this file informed how I evaluated the outcome" — the
   // strongest asset-value signal in the §4 readout.
+  // Per 2026-06-19 audit Finding #4: verify SELECT access on each
+  // file before emitting so unauthorized markers can't pollute the
+  // citation rate metric.
   try {
     const { extractFileMentions } = await import("@/lib/files/fileMention");
     const { data: profile } = await supabase
@@ -69,6 +72,13 @@ export async function PATCH(req: NextRequest) {
     const companyId = (profile?.company_id as string | undefined) ?? null;
     if (companyId) {
       for (const m of extractFileMentions(observedOutcome)) {
+        const { data: fileCheck } = await supabase
+          .from("files")
+          .select("id")
+          .eq("id", m.fileId)
+          .is("deprecated_at", null)
+          .maybeSingle();
+        if (!fileCheck) continue;
         await supabase.from("events").insert({
           company_id: companyId,
           actor: auth.user.id,

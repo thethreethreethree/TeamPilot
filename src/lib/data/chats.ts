@@ -939,6 +939,13 @@ export async function postMessage(args: {
   // measures. Direct insert via the user-side supabase client (events
   // RLS allows insert where company_id = auth_company_id()). Fire-
   // and-forget; if the emitter fails the post still stands.
+  //
+  // Per 2026-06-19 audit Finding #4: before emitting, verify the
+  // citing user actually has SELECT access to the file (RLS-aware
+  // check via the user-scoped client). Without this, a user who
+  // pasted a marker for a file they cannot see could pollute the
+  // citation rate metric. The data-integrity defense lives here.
+  //
   // NOTE: dynamic import of @/lib/data/assetEvents would pull
   // "server-only" into this client-side data module. Instead we use
   // the existing user-scoped supabase client directly.
@@ -948,6 +955,13 @@ export async function postMessage(args: {
         const { extractFileMentions } = await import("@/lib/files/fileMention");
         const mentions = extractFileMentions(args.body);
         for (const m of mentions) {
+          const { data: fileCheck } = await supabase
+            .from("files")
+            .select("id")
+            .eq("id", m.fileId)
+            .is("deprecated_at", null)
+            .maybeSingle();
+          if (!fileCheck) continue;
           await supabase.from("events").insert({
             company_id: ctx.companyId,
             actor: ctx.userId,

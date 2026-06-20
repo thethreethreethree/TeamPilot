@@ -192,22 +192,32 @@ export async function fetchAssetReadout(
   // Rule trace distribution — counts how often each deterministic
   // routing rule fired across the suggestion audit rows in window.
   // Per migration 0061 the rule_trace column stores entries like
-  // 'R2:task-dept-inherit=<uuid>' — we group by the rule prefix
-  // (the part before the colon) so the count rolls up to
-  // R1/R2/R3/R4/R5/R6 instead of per-instance.
+  // 'R2:task-dept-inherit=<uuid>' — we group by the rule prefix.
+  //
+  // Per 2026-06-19 audit Finding #10: this query graceful-degrades
+  // if migration 0061 hasn't been applied yet (column missing →
+  // query errors). Without the try/catch the whole readout would
+  // 500 instead of just losing the rule-trace section. The error
+  // is swallowed; readout still loads with empty ruleTraceCounts.
   const ruleCounts = new Map<string, number>();
   if (fileIds.length > 0) {
-    const { data: traceRows } = await sb
-      .from("file_classification_suggestions")
-      .select("rule_trace")
-      .in("file_id", fileIds);
-    for (const r of traceRows ?? []) {
-      const trace = (r.rule_trace as string[] | null) ?? [];
-      for (const t of trace) {
-        const colonIdx = t.indexOf(":");
-        const ruleKey = colonIdx > 0 ? t.slice(0, colonIdx) : t;
-        ruleCounts.set(ruleKey, (ruleCounts.get(ruleKey) ?? 0) + 1);
+    try {
+      const { data: traceRows, error } = await sb
+        .from("file_classification_suggestions")
+        .select("rule_trace")
+        .in("file_id", fileIds);
+      if (!error && traceRows) {
+        for (const r of traceRows) {
+          const trace = (r.rule_trace as string[] | null) ?? [];
+          for (const t of trace) {
+            const colonIdx = t.indexOf(":");
+            const ruleKey = colonIdx > 0 ? t.slice(0, colonIdx) : t;
+            ruleCounts.set(ruleKey, (ruleCounts.get(ruleKey) ?? 0) + 1);
+          }
+        }
       }
+    } catch {
+      /* migration 0061 likely not applied; degrade silently */
     }
   }
   const ruleTraceCounts = Array.from(ruleCounts.entries())

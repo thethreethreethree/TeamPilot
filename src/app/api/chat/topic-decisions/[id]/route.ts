@@ -187,10 +187,9 @@ export async function PATCH(
 
     // Asset System v1 — emit asset.file.cited for every @file
     // mention across the patched fields, ONLY on phase advance.
-    // Gated to phase advance for the same reason the
-    // decision.phase_entered event is — pure draft saves shouldn't
-    // flood the chain. Reading the LATEST state from `updated`
-    // (post-patch) to catch any mention that just landed.
+    // Per 2026-06-19 audit Finding #4: verify SELECT access on
+    // each file before emitting, so a marker for a file the
+    // user can't see doesn't pollute the §4 readout metric.
     try {
       const { extractFileMentions } = await import("@/lib/files/fileMention");
       const cited = new Set<string>();
@@ -202,6 +201,13 @@ export async function PATCH(
         for (const m of extractFileMentions(text)) cited.add(m.fileId);
       }
       for (const fileId of cited) {
+        const { data: fileCheck } = await supabase
+          .from("files")
+          .select("id")
+          .eq("id", fileId)
+          .is("deprecated_at", null)
+          .maybeSingle();
+        if (!fileCheck) continue;
         await supabase.from("events").insert({
           company_id: row.company_id,
           actor: auth.user.id,
