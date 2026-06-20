@@ -25,6 +25,16 @@ type Readout = {
   rejected: number;
   pending: number;
   acceptedAsIsRate: number;
+  ruleTraceCounts: Array<{ rule: string; count: number }>;
+};
+
+const RULE_LABELS: Record<string, string> = {
+  R1: "Surface context (uploaded from a task/topic/conversation)",
+  R2: "Task → Department inheritance",
+  R3: "Uploader's department fallback",
+  R4: "Filename → Title",
+  R5: "Filename → Tags",
+  R6: "C.A.R.E auto-routing",
 };
 
 function pct(n: number): string {
@@ -202,9 +212,27 @@ export default function AssetReadoutPage() {
               <MetricCard
                 title="Citation rate"
                 value={pct(data.citationRate)}
-                tone="noop"
-                label="@file not yet wired"
-                note="@file mention shortcut ships in a future commit. Citation rate stays 0 until then; the metric is surfaced honestly rather than hidden."
+                tone={
+                  data.citedFiles === 0
+                    ? "noop"
+                    : data.citationRate >= 0.1
+                      ? "good"
+                      : "warn"
+                }
+                label={
+                  data.citedFiles === 0
+                    ? "No citations yet"
+                    : data.citationRate >= 0.1
+                      ? "Files inform reasoning"
+                      : "Low citation"
+                }
+                note={
+                  data.citedFiles === 0
+                    ? "@file mentions land here. Cite a file in a chat message, Decision Dialogue, or Resolution review to see this move."
+                    : data.citationRate >= 0.1
+                      ? "Files are being referenced from reasoning surfaces — the strongest asset-value signal."
+                      : "Some citations, but most files never get @file-referenced from chats / decisions / resolutions."
+                }
                 sub={`${data.citedFiles} files cited`}
               />
               <MetricCard
@@ -227,6 +255,61 @@ export default function AssetReadoutPage() {
                 }
                 sub="What % of router suggestions did the user accept without editing?"
               />
+            </section>
+
+            {/* Rule trace distribution — how often each
+                deterministic routing rule fired across the
+                window's suggestion audit rows. */}
+            <section className="rounded-lg border border-default p-4 bg-white/[0.01]">
+              <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
+                Router rule distribution
+              </h2>
+              {data.ruleTraceCounts.length === 0 ? (
+                <p className="text-xs text-muted">
+                  No router activity yet in this window. Upload a few files
+                  to see which rules fire most often.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {data.ruleTraceCounts.map(({ rule, count }) => {
+                    const max = data.ruleTraceCounts[0]?.count ?? 1;
+                    const width = Math.max(
+                      4,
+                      Math.round((count / max) * 100)
+                    );
+                    const label = RULE_LABELS[rule] ?? rule;
+                    return (
+                      <li key={rule}>
+                        <div className="flex items-baseline justify-between gap-2 text-xs mb-0.5">
+                          <span className="text-secondary">
+                            <span className="text-brand font-mono mr-1.5">
+                              {rule}
+                            </span>
+                            {label}
+                          </span>
+                          <span className="text-muted tabular-nums">
+                            {count}
+                          </span>
+                        </div>
+                        <div className="h-1 rounded-full bg-surface overflow-hidden">
+                          <div
+                            className="h-full bg-ember-400/60"
+                            style={{ width: `${width}%` }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <p className="text-[10px] text-muted mt-3 leading-relaxed">
+                Per §A11: deterministic counts derived from facts (org chart,
+                upload context, filename). Distribution shows where the
+                router&apos;s value comes from — if R1 (surface context)
+                dominates, files are mostly classified by where they came
+                from; if R3 (uploader fallback) dominates, classification
+                is mostly guessed from membership.
+              </p>
             </section>
           </div>
         )}

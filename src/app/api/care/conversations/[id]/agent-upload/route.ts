@@ -162,6 +162,7 @@ export async function POST(
       suggested_title: routed.title,
       suggested_description: routed.description,
       suggested_tags: routed.tags,
+      rule_trace: routed.ruleTrace,
       user_action: "pending",
     });
   }

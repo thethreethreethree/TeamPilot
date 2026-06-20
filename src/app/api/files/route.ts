@@ -269,6 +269,7 @@ export async function POST(req: NextRequest) {
       suggested_title: routedTitle,
       suggested_description: routedDescription,
       suggested_tags: tags,
+      rule_trace: routeTrace,
       user_action: "pending",
     });
   }

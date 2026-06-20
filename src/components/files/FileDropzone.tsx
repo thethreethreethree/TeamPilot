@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Loader2, Paperclip, X } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * Asset System v1 — drag/drop + click-to-pick zone.
@@ -55,6 +56,7 @@ export function FileDropzone({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const toast = useToast();
 
   const upload = useCallback(
     async (file: File) => {
@@ -82,6 +84,21 @@ export function FileDropzone({
           return;
         }
         setProgress(100);
+        // Auto-routing transparency toast — per the inspection
+        // closure 2026-06-19-deterministic-file-routing.md Finding 1.
+        // When the deterministic router auto-classified the file
+        // (lane = 'classified' AND the user did not open a modal
+        // — silent uploads from chat / C.A.R.E composers), tell
+        // the user so they can override. Library + Task uploads
+        // open the modal so the user sees the pre-fill there;
+        // for those we still toast but mute it.
+        const lane = (data.file as { classificationLane?: string })
+          ?.classificationLane;
+        if (lane === "classified") {
+          toast.success("Attached & routed — open library to edit");
+        } else if (lane === "casual") {
+          toast.success("Attached");
+        }
         onUploadComplete?.({ ok: true, file: data.file });
         setTimeout(() => {
           setUploading(false);

@@ -1215,6 +1215,10 @@ export default function TeamChatTopicPage() {
                       } catch {
                         /* file is in library regardless */
                       }
+                      // Toast for auto-routing transparency is
+                      // emitted by FileDropzone itself based on
+                      // the file's classification_lane in the
+                      // response. No need to duplicate here.
                       void refresh();
                     }
                   }}

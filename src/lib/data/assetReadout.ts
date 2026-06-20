@@ -189,14 +189,30 @@ export async function fetchAssetReadout(
   }
   const acceptedAsIsRate = safeRate(acceptedAsIs, suggestionsActedOn);
 
-  // Rule trace distribution — currently NOT stored in events.
-  // We added the rule trace to autoRouteFile's return value but
-  // only the suggestion audit row gets the suggested fields, not
-  // the trace itself. v1 returns an empty trace distribution and
-  // surfaces honestly — this is a known gap that a follow-up
-  // commit can close by writing rule_trace into the suggestions
-  // row payload. Per §A14 we name this gap rather than hide it.
-  const ruleTraceCounts: Array<{ rule: string; count: number }> = [];
+  // Rule trace distribution — counts how often each deterministic
+  // routing rule fired across the suggestion audit rows in window.
+  // Per migration 0061 the rule_trace column stores entries like
+  // 'R2:task-dept-inherit=<uuid>' — we group by the rule prefix
+  // (the part before the colon) so the count rolls up to
+  // R1/R2/R3/R4/R5/R6 instead of per-instance.
+  const ruleCounts = new Map<string, number>();
+  if (fileIds.length > 0) {
+    const { data: traceRows } = await sb
+      .from("file_classification_suggestions")
+      .select("rule_trace")
+      .in("file_id", fileIds);
+    for (const r of traceRows ?? []) {
+      const trace = (r.rule_trace as string[] | null) ?? [];
+      for (const t of trace) {
+        const colonIdx = t.indexOf(":");
+        const ruleKey = colonIdx > 0 ? t.slice(0, colonIdx) : t;
+        ruleCounts.set(ruleKey, (ruleCounts.get(ruleKey) ?? 0) + 1);
+      }
+    }
+  }
+  const ruleTraceCounts = Array.from(ruleCounts.entries())
+    .map(([rule, count]) => ({ rule, count }))
+    .sort((a, b) => b.count - a.count);
 
   const windowLabel =
     window === "all"
