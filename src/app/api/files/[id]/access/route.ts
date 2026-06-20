@@ -27,8 +27,35 @@ export async function GET(
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
   const { id } = await context.params;
-  const sb = await createClient();
-  const { data, error } = await sb
+
+  // Per migration 0063: file_access_grants_select RLS is tightened
+  // to grantee-only to break the cycle with files_select. The file
+  // OWNER viewing their own file's grants now routes through this
+  // endpoint, which uses the admin client and verifies the caller
+  // is the uploader OR a company admin. This is a STRONGER
+  // authorization than the RLS allowed before — RLS only checked
+  // membership; here we check ownership-or-admin explicitly.
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  const { data: file } = await admin
+    .from("files")
+    .select("uploader_id, company_id")
+    .eq("id", id)
+    .is("deprecated_at", null)
+    .maybeSingle();
+  if (!file) {
+    return NextResponse.json({ error: "File not found." }, { status: 404 });
+  }
+  const isUploader = (file.uploader_id as string | null) === auth.userId;
+  const sameCompany = (file.company_id as string) === auth.companyId;
+  if (!isUploader && !(auth.isAdmin && sameCompany)) {
+    return NextResponse.json(
+      { error: "Only the file's uploader or a company admin can list grants." },
+      { status: 403 }
+    );
+  }
+
+  const { data, error } = await admin
     .from("file_access_grants")
     .select("profile_id, granted_by, granted_at")
     .eq("file_id", id);
