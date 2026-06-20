@@ -44,6 +44,14 @@
 -- ─── Drop the cycle-causing for-all policy ───────────────────
 drop policy if exists file_access_grants_write on file_access_grants;
 
+-- Also drop the two new policies if a prior partial run of THIS
+-- migration created them (founder reported '42710: policy already
+-- exists' on re-run). Per §A12 every CREATE that names an object
+-- must be preceded by a DROP IF EXISTS. I missed this on the first
+-- draft of 0065 — adding now so the migration is replayable.
+drop policy if exists file_access_grants_insert on file_access_grants;
+drop policy if exists file_access_grants_delete on file_access_grants;
+
 -- ─── Re-create as separate INSERT + DELETE ───────────────────
 -- INSERT: only the file's uploader or a company admin can grant
 -- access. The WITH CHECK references files but is ONLY evaluated
