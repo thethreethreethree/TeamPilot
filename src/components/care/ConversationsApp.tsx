@@ -1846,11 +1846,14 @@ function DetailHeader({
   const dl = careStatusDisplay(conversation.status);
   const Icon = dl.icon;
   return (
-    <div className="border-b border-default px-4 md:px-6 py-3 bg-base/40">
+    <div className="border-b border-default px-4 md:px-6 py-3 bg-base/40 overflow-hidden">
       {/* Mobile: stack title/badges and action row vertically so
           the chips don't compete with the buttons for horizontal
-          space and overlap. Desktop (md+): side-by-side as before. */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+          space and overlap. Desktop (md+): side-by-side as before.
+          min-w-0 on the container so flex items can shrink below
+          their intrinsic content width (per 2026-06-22 layout bug
+          report: chips were overflowing into the Customer pane). */}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 min-w-0">
         <div className="flex-1 min-w-0">
           <h2 className="text-base font-semibold text-primary truncate">
             {conversation.subject ?? "Untitled conversation"}
@@ -1898,7 +1901,7 @@ function DetailHeader({
             })}
           </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap justify-start md:justify-end gap-y-2 relative z-10 max-w-full pt-1 md:pt-0 border-t md:border-t-0 border-default md:border-transparent">
+        <div className="flex items-center gap-1.5 flex-wrap justify-start md:justify-end gap-y-2 min-w-0 md:max-w-[60%] pt-1 md:pt-0 border-t md:border-t-0 border-default md:border-transparent">
           {/* Summarize — System's read of the thread for an agent
               taking over a long conversation. Always available;
               the endpoint says "no messages yet" if there's
@@ -2566,7 +2569,13 @@ function Composer({
 }) {
   return (
     <div className="border-t border-default bg-white/[0.02] px-4 md:px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+      {/* Tool buttons — horizontal scroll instead of vertical wrap
+          per 2026-06-22 layout bug report. When the Detail pane is
+          narrow (Customer pane open on a typical laptop), flex-wrap
+          stacked each button to its own row, making the composer
+          unusable. Horizontal scroll keeps every tool reachable in
+          one row; touch-pan-x + hidden scrollbar make it feel native. */}
+      <div className="flex items-center gap-1.5 mb-2 overflow-x-auto flex-nowrap [&>*]:shrink-0 [touch-action:pan-x] [overscroll-behavior:contain] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         <LearningHint
           category="C.A.R.E"
           title="Reply mode"
