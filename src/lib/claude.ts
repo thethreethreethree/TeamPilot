@@ -492,8 +492,8 @@ export async function generateCareReply(args: {
    *  is dead air. Defaults to "text". */
   medium?: "text" | "voice";
 }): Promise<CallResult> {
-  // Voice replies should be 1 sentence — see VOICE_ADDENDUM in
-  // src/lib/care/prompt.ts. 80 tokens caps generation at ~55
+  // Voice replies should be 1 sentence — see buildVoiceAddendum()
+  // in src/lib/care/prompt.ts. 80 tokens caps generation at ~55
   // words / ~15 seconds of speech in the worst case; the system
   // prompt drives most replies much shorter than that. The token
   // cap is the hard ceiling that protects against runaway

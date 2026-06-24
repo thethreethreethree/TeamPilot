@@ -116,8 +116,24 @@ export async function POST(req: NextRequest) {
       upsert: true,
     });
   if (uploadError) {
+    // Per audit L2 (2026-06-24): detect the "bucket not found" case
+    // and return an actionable instruction instead of the opaque
+    // Supabase message — mirrors the helper in src/lib/storage/assets.ts.
+    // Newer Supabase Cloud may block `insert into storage.buckets`
+    // from the SQL editor (migration 0064), so the bucket can be
+    // missing even after the migration ran.
+    const msg = uploadError.message || "Unknown storage error.";
+    if (/bucket not found|bucket does not exist/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error:
+            "Storage bucket 'widget-logos' does not exist on this Supabase project. Create it via Supabase Dashboard → Storage → New bucket → Name: 'widget-logos' → Public: ON → File size limit: 2 MB. (Migration 0064 tries to create it via SQL, but newer Supabase Cloud instances may block that; the Dashboard always works.)",
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(
-      { error: `Storage upload failed: ${uploadError.message}` },
+      { error: `Storage upload failed: ${msg}` },
       { status: 500 }
     );
   }

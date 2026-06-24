@@ -517,7 +517,18 @@ export default function CareWidgetSettingsPage() {
                 type="text"
                 value={draft.ai_name}
                 onChange={(e) =>
-                  setDraft({ ...draft, ai_name: e.target.value.slice(0, 50) })
+                  // Per audit L3 (2026-06-24): strip control + Unicode
+                  // line/paragraph separators client-side, mirroring
+                  // the server's \p{C}\p{Zl}\p{Zp} transform and the
+                  // DB CHECK (migration 0066). Without this the server
+                  // silently mutates the saved value and the user sees
+                  // their typed name differ from what persisted. WYSIWYG.
+                  setDraft({
+                    ...draft,
+                    ai_name: e.target.value
+                      .replace(/[\p{C}\p{Zl}\p{Zp}]/gu, "")
+                      .slice(0, 50),
+                  })
                 }
                 maxLength={50}
                 placeholder="Jeff"
