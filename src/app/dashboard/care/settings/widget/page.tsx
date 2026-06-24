@@ -428,8 +428,16 @@ export default function CareWidgetSettingsPage() {
                         method: "DELETE",
                       });
                       if (res.ok) {
-                        setDraft({ ...draft, widget_logo_url: null });
-                        setConfig({ ...draft, widget_logo_url: null });
+                        // M1: same fix as upload — touch only the
+                        // logo field, preserve each state's own
+                        // prior values (the clear IS saved server-
+                        // side immediately).
+                        setDraft((d) =>
+                          d ? { ...d, widget_logo_url: null } : d
+                        );
+                        setConfig((c) =>
+                          c ? { ...c, widget_logo_url: null } : c
+                        );
                         toast.success("Removed", "Logo cleared.");
                       } else {
                         toast.error("Failed", "Couldn't remove logo.");
@@ -455,8 +463,20 @@ export default function CareWidgetSettingsPage() {
                   });
                   if (res.ok) {
                     const data = await res.json();
-                    setDraft({ ...draft, widget_logo_url: data.logoUrl });
-                    setConfig({ ...draft, widget_logo_url: data.logoUrl });
+                    // Per audit M1 (2026-06-24): update ONLY the
+                    // logo field, spreading each state's OWN previous
+                    // value. The old code spread `draft` into both,
+                    // which wrote the user's unsaved edits (ai_name,
+                    // etc.) into the saved baseline `config` — making
+                    // them look persisted when they weren't. The logo
+                    // IS saved server-side immediately, so it's the
+                    // only field that belongs in `config` here.
+                    setDraft((d) =>
+                      d ? { ...d, widget_logo_url: data.logoUrl } : d
+                    );
+                    setConfig((c) =>
+                      c ? { ...c, widget_logo_url: data.logoUrl } : c
+                    );
                     toast.success("Uploaded", "Logo saved.");
                   } else {
                     const data = await res.json().catch(() => null);

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { routeNewConversation } from "@/lib/data/care";
-import { getProductContextForTenant } from "@/lib/care/config";
+import {
+  getProductContextForTenant,
+  getCareTenantConfigByCompanyId,
+} from "@/lib/care/config";
 import {
   buildCareSystemPrompt,
   buildCareUserMessage,
@@ -382,7 +385,16 @@ async function runAiFirstResponder(args: {
     }
 
     const productContext = await getProductContextForTenant(args.companyId);
-    const systemPrompt = buildCareSystemPrompt({ productContext });
+    // Per the 2026-06-24 audit (H2): email-channel customers were
+    // always getting "Jeff" because this caller didn't pass the
+    // per-tenant agent name. Load the tenant config and thread the
+    // name through, same as the messages route. Falls back to 'Jeff'
+    // inside buildCareSystemPrompt if config is null.
+    const tenant = await getCareTenantConfigByCompanyId(args.companyId);
+    const systemPrompt = buildCareSystemPrompt({
+      productContext,
+      agentName: tenant?.aiName,
+    });
     const userMessage = buildCareUserMessage({
       newMessage: args.customerMessage,
       context: {

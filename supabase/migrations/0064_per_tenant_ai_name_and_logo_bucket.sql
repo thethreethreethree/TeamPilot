@@ -130,4 +130,4 @@ create policy "widget-logos: authenticated DELETE own company path"
     and (storage.foldername(name))[1] = auth_company_id()::text
   );
 
--- ─── End migration 0063. ────────────────────────────────────
+-- ─── End migration 0064. ────────────────────────────────────

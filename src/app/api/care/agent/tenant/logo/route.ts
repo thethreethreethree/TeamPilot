@@ -135,10 +135,19 @@ export async function POST(req: NextRequest) {
   // the old image.
   const versioned = `${publicUrl}?v=${Date.now()}`;
 
+  // Per audit M2 (2026-06-24): UPSERT, not UPDATE. A plain
+  // update().eq() is a silent no-op if the tenant has no
+  // care_tenant_config row (legacy companies created before the
+  // 0045 bootstrap trigger, or any anomaly). The bytes would land
+  // in storage, widget_logo_url would never get set, and the
+  // widget would never show the logo — with no error surfaced.
+  // onConflict company_id makes this safe either way.
   const { error: updateError } = await admin
     .from("care_tenant_config")
-    .update({ widget_logo_url: versioned })
-    .eq("company_id", auth.companyId);
+    .upsert(
+      { company_id: auth.companyId, widget_logo_url: versioned },
+      { onConflict: "company_id" }
+    );
   if (updateError) {
     return NextResponse.json(
       { error: `Config update failed: ${updateError.message}` },

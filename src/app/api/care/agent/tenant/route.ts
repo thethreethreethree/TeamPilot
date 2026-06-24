@@ -99,9 +99,18 @@ const PatchBody = z.object({
     .string()
     .min(1)
     .max(50)
-    // Strip control chars (newline/tab/NUL/DEL etc.); defense
-    // in depth against prompt injection. DB CHECK is the backstop.
-    .transform((s) => s.replace(new RegExp("[\x00-\x1F\x7F]", "g"), "").trim())
+    // Strip dangerous Unicode classes (defense in depth against
+    // prompt injection into the LLM system prompt). Per the
+    // 2026-06-24 audit (H1): the old [\x00-\x1F\x7F] range missed
+    // U+2028 LINE SEPARATOR, U+2029 PARAGRAPH SEPARATOR, the C1
+    // controls (U+0080-U+009F), and zero-width chars — all of
+    // which can break a name across lines or obfuscate inside an
+    // LLM prompt. \p{C} = control+format+unassigned+surrogate+
+    // private-use; \p{Zl} = line separator; \p{Zp} = paragraph
+    // separator. Legitimate names (emoji, accents, CJK, Arabic,
+    // normal U+0020 spaces) are all preserved. DB CHECK is the
+    // backstop (migration 0066).
+    .transform((s) => s.replace(/[\p{C}\p{Zl}\p{Zp}]/gu, "").trim())
     .refine((s) => s.length >= 1 && s.length <= 50, {
       message: "Agent name must be 1-50 printable characters.",
     })

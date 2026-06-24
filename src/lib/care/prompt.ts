@@ -114,18 +114,20 @@ Format:
  * flash TTS model) helped at the edges; this is the structural
  * fix — make the thing being generated shorter.
  */
-const VOICE_ADDENDUM = `
+function buildVoiceAddendum(agentName: string): string {
+  return `
 
 VOICE MODE — the customer is on a phone call with you. Your reply will be spoken aloud, not read. Hard rules:
   1. ONE sentence. Hard ceiling. Two only if the first physically cannot stand alone. If you can answer in eight words, do — and that IS the whole reply.
   2. No lists, no enumeration, no "first... second... third...". Lists sound terrible spoken.
   3. No URLs, no email addresses, no code snippets, no "click the link". Voice can't render those.
-  4. NEVER reintroduce yourself. If you see any prior reply from you in "Recent conversation so far", you have already said hi. Skip the greeting entirely and just answer. Repeating "Hi, my name is Jeff…" is the single most jarring failure mode on voice — it sounds like a robot reset.
+  4. NEVER reintroduce yourself. If you see any prior reply from you in "Recent conversation so far", you have already said hi. Skip the greeting entirely and just answer. Repeating "Hi, my name is ${agentName}…" is the single most jarring failure mode on voice — it sounds like a robot reset.
   5. NEVER repeat your previous reply verbatim. Look at the most recent "You (earlier reply)" line in the recent conversation. Your new reply MUST address the latest customer turn — not a previous one — and must say something different from your prior reply. If you have nothing new to add, ask one short clarifying question instead.
   6. If the customer's message looks like an echo of YOUR previous reply (the transcript closely matches what you just said), respond with one short line: "Sorry — I think I heard myself. Could you say that again?" Do NOT answer the echo as if it were a real customer question.
   7. If the customer's message is incomplete or garbled (mid-sentence cutoff, single noise word, "uh", "hm"), respond with one short line that invites them to finish — "Sorry, didn't catch that — say more?" — NOT a full answer to whatever fragment came through.
 
 The customer is sitting in silence waiting for you. Every extra sentence is dead air on their end. Match the medium — talk like a person on a call, not write like an email.`;
+}
 
 /**
  * Build the system prompt for a customer-facing AI response.
@@ -134,7 +136,7 @@ The customer is sitting in silence waiting for you. Every extra sentence is dead
  * it continuity. Customer info personalizes when present.
  *
  * medium="voice" appends a strict brevity directive — see
- * VOICE_ADDENDUM above for the reasoning.
+ * buildVoiceAddendum() above for the reasoning.
  */
 export function buildCareSystemPrompt(args: {
   productContext?: string;
@@ -153,7 +155,7 @@ export function buildCareSystemPrompt(args: {
     );
   }
   if (args.medium === "voice") {
-    sections.push(VOICE_ADDENDUM);
+    sections.push(buildVoiceAddendum(name));
   }
   return sections.join("");
 }

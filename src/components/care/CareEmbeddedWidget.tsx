@@ -365,9 +365,23 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
           onClick={() => setOpen(true)}
           aria-label="Open support chat"
           style={{ backgroundColor: config.color }}
-          className={`fixed ${posClass} w-14 h-14 rounded-full text-[#09090B] shadow-lg hover:scale-105 transition-transform flex items-center justify-center`}
+          className={`fixed ${posClass} w-14 h-14 rounded-full text-[#09090B] shadow-lg hover:scale-105 transition-transform flex items-center justify-center overflow-hidden`}
         >
-          <MessageCircle className="w-6 h-6" aria-hidden />
+          {/* Per audit H4 (2026-06-24): the launcher bubble is the
+              MOST prominent brand surface (always visible on the
+              customer's site). Show the tenant logo here when set;
+              fall back to the generic chat icon. SECURITY: <img src>
+              only — never <object>/inline SVG (sandbox preserved). */}
+          {config.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={config.logoUrl}
+              alt=""
+              className="w-9 h-9 rounded-full object-contain"
+            />
+          ) : (
+            <MessageCircle className="w-6 h-6" aria-hidden />
+          )}
         </button>
       )}
 
@@ -380,11 +394,28 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
             className="px-4 py-3 border-b border-default flex items-center justify-between"
             style={{ backgroundColor: `${config.color}1A` }}
           >
-            <div>
-              <p className="text-sm font-semibold text-primary">
-                {config.greeting}
-              </p>
-              <p className="text-[11px] text-muted">{config.subtitle}</p>
+            <div className="flex items-center gap-2.5 min-w-0">
+              {/* Per audit H4 (2026-06-24): the uploaded brand logo
+                  is now actually rendered. SECURITY: render ONLY via
+                  <img src> — never <object> or inline SVG — so an
+                  SVG logo's scripts stay sandboxed by the browser
+                  (documented constraint in the 0064 closure). */}
+              {config.logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={config.logoUrl}
+                  alt=""
+                  className="w-8 h-8 rounded-lg object-contain shrink-0 bg-base"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-primary truncate">
+                  {config.greeting}
+                </p>
+                <p className="text-[11px] text-muted truncate">
+                  {config.subtitle}
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-1">
               {session && (
@@ -427,6 +458,14 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {messages.length === 0 && (
               <div className="text-center px-4 py-8">
+                {config.logoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={config.logoUrl}
+                    alt=""
+                    className="w-12 h-12 rounded-xl object-contain mx-auto mb-3 bg-base"
+                  />
+                )}
                 <p className="text-sm font-medium text-primary mb-1">
                   Hi, my name is {config.aiName}.
                 </p>
