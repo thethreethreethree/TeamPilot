@@ -46,6 +46,8 @@ import { ArrowDown } from "lucide-react";
 // B2 refactor. Page is now orchestration; each modal owns its concern.
 import { MessageRow } from "@/components/chats/MessageRow";
 import { CloseTopicModal } from "@/components/chats/CloseTopicModal";
+import { CoachDebriefCard } from "@/components/coach/CoachDebriefCard";
+import type { CoachDebrief } from "@/lib/coach/v5/types";
 import { GuideMyResponseModal } from "@/components/chats/GuideMyResponseModal";
 import { FormulateResponseModal } from "@/components/chats/FormulateResponseModal";
 import { ReviewOutcomeModal } from "@/components/chats/ReviewOutcomeModal";
@@ -123,6 +125,10 @@ export default function TeamChatTopicPage() {
   const [reviewingMessageId, setReviewingMessageId] = useState<string | null>(null);
   const [summarizeOpen, setSummarizeOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  // End-of-conversation Coach debrief (§3.6). Generated once when the
+  // topic is closed; read back from the chain on revisit (no regen).
+  const [debrief, setDebrief] = useState<CoachDebrief | null>(null);
+  const [debriefLoading, setDebriefLoading] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
   const [addingParticipants, setAddingParticipants] = useState(false);
   // Reply state — when set, the composer shows a "Replying to X" pill
@@ -295,6 +301,56 @@ export default function TeamChatTopicPage() {
   const iAmAdmin =
     me?.role === "admin" || isCompanyAdminRole(currentUserRole);
   const isClosed = topic?.status === "closed";
+
+  // Generate the end-of-conversation debrief (§3.6) once the topic is
+  // closed. Fired from the CloseTopicModal's onClosed — strictly AFTER
+  // the close succeeds, so it can never stall the close (§1.5.1 layer
+  // 3). Failures are swallowed; the card simply won't appear.
+  const generateDebrief = async (topicId: string) => {
+    setDebriefLoading(true);
+    try {
+      const res = await fetch("/api/coach/v5/debrief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          surface: "chat_topic",
+          conversationId: topicId,
+        }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        setDebrief(j.debrief ?? null);
+      }
+    } catch {
+      /* non-blocking — debrief is a bonus, not a gate */
+    } finally {
+      setDebriefLoading(false);
+    }
+  };
+
+  // Read back a stored debrief when viewing an already-closed topic, so
+  // revisiting shows the same debrief without a fresh LLM call. Skips
+  // if one is already in state (e.g. we just generated it on close).
+  useEffect(() => {
+    if (!isClosed || !topic?.id || debrief) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/coach/v5/debrief?surface=chat_topic&conversationId=${topic.id}`
+        );
+        if (res.ok && !cancelled) {
+          const j = await res.json();
+          if (j.debrief) setDebrief(j.debrief);
+        }
+      } catch {
+        /* non-blocking */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isClosed, topic?.id, debrief]);
 
   const grouped = useMemo(() => groupMessages(messages), [messages]);
 
@@ -898,6 +954,15 @@ export default function TeamChatTopicPage() {
         </div>
       )}
 
+      {/* End-of-conversation Coach debrief (§3.6). Shown under the close
+          banner once the topic is closed — what the user did well +
+          their current edge, taught at the natural end of the thread. */}
+      {isClosed && (debrief?.hasSignal || debriefLoading) && (
+        <div className="max-w-5xl mx-auto w-full px-3 md:px-6 mt-3 min-w-0">
+          <CoachDebriefCard debrief={debrief} loading={debriefLoading} />
+        </div>
+      )}
+
       {/* Message stream — the only scrollable area on this page.
           Sticky date dividers float at the top of the viewport as you
           scroll past a day's worth of messages (Slack pattern).
@@ -1359,6 +1424,8 @@ export default function TeamChatTopicPage() {
               "The resolution is now part of the company's record."
             );
             void refresh();
+            // Fire the debrief AFTER close — non-blocking (§1.5.1 L3).
+            void generateDebrief(topic.id);
           }}
         />
       )}

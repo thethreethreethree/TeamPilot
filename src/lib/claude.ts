@@ -447,6 +447,29 @@ export async function gradeCoachV5(args: {
   });
 }
 
+/**
+ * Coach v5.0 — End-of-conversation Debrief. Reads the user's authored
+ * messages + grades + cross-conversation memory and produces the
+ * two-part teaching debrief (learned / workOn / closing). Knowledge
+ * Base is in the system prompt (~9k tokens) so principles can be cited
+ * by name; the response is small structured JSON. See
+ * src/lib/coach/v5/debriefPrompt.ts.
+ */
+export async function debriefCoachV5(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    // 1-3 learned + 0-2 workOn + closing — comfortably under 600 tokens.
+    maxTokens: 700,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+  });
+}
+
 // ─────────────────────────────────────────────────────────────
 // Task Spawn Engine
 // ─────────────────────────────────────────────────────────────

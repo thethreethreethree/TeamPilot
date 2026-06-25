@@ -31,6 +31,9 @@ import { careStatusDisplay } from "@/lib/care/statusLabels";
 import { FileDropzone } from "@/components/files/FileDropzone";
 import { InlineAttachment } from "@/components/files/InlineAttachment";
 import { LearningHint } from "@/components/learning/LearningHint";
+import Modal from "@/components/ui/Modal";
+import { CoachDebriefCard } from "@/components/coach/CoachDebriefCard";
+import type { CoachDebrief } from "@/lib/coach/v5/types";
 import { priorityDisplay, tagTone } from "@/lib/care/tagColors";
 import { useToast } from "@/components/ui/toast";
 import { FloatingMenu } from "@/components/ui/FloatingMenu";
@@ -315,6 +318,15 @@ export function ConversationsApp({
   // corpus on send.
   const [aiOriginalDraft, setAiOriginalDraft] = useState<string | null>(null);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  // End-of-conversation Coach debrief (§3.6). On C.A.R.E the resolve
+  // action auto-advances to the next conversation, so the debrief
+  // can't render inline (the agent has moved on). It surfaces as a
+  // dismissible overlay instead — auto-advance proceeds underneath,
+  // the agent reads the debrief and dismisses it. Same engine + card
+  // as Team Chat, composed to fit this surface's flow (§1.5.1 L3).
+  const [debrief, setDebrief] = useState<CoachDebrief | null>(null);
+  const [debriefLoading, setDebriefLoading] = useState(false);
+  const [debriefModalOpen, setDebriefModalOpen] = useState(false);
   const [spawnTaskOpen, setSpawnTaskOpen] = useState(false);
   // Phase 8 (chat-tools port) — four agent helpers on the
   // conversation surface. State lives here so the modals can
@@ -1047,6 +1059,43 @@ export function ConversationsApp({
     return filtered[idx + 1]?.id ?? filtered[idx - 1]?.id ?? null;
   };
 
+  // Generate the end-of-conversation debrief for a just-resolved
+  // conversation and surface it as a dismissible overlay. Called from
+  // the resolve onCaptured AFTER the resolution lands, with the
+  // resolved conversation's id captured before auto-advance changes
+  // the selection. Non-blocking — failures simply don't open the modal.
+  const generateCareDebrief = async (conversationId: string) => {
+    setDebrief(null);
+    setDebriefLoading(true);
+    setDebriefModalOpen(true);
+    try {
+      const res = await fetch("/api/coach/v5/debrief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          surface: "support_conversation",
+          conversationId,
+        }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        if (j.debrief?.hasSignal) {
+          setDebrief(j.debrief);
+        } else {
+          // Nothing to teach this conversation — don't interrupt the
+          // agent with an empty overlay; just close it.
+          setDebriefModalOpen(false);
+        }
+      } else {
+        setDebriefModalOpen(false);
+      }
+    } catch {
+      setDebriefModalOpen(false);
+    } finally {
+      setDebriefLoading(false);
+    }
+  };
+
   const changeStatus = async (
     next: "in_conversation" | "awaiting_customer" | "resolved" | "closed"
   ) => {
@@ -1587,6 +1636,10 @@ export function ConversationsApp({
           open={resolveModalOpen}
           onClose={() => setResolveModalOpen(false)}
           onCaptured={() => {
+            // Capture the resolved conversation id BEFORE auto-advance
+            // changes the selection, then fire the debrief overlay
+            // (§3.6). Non-blocking — runs alongside the auto-advance.
+            void generateCareDebrief(selected.id);
             // Same auto-advance pattern as changeStatus for
             // terminal actions — the agent finished this
             // conversation, give them the next one without an
@@ -1615,6 +1668,33 @@ export function ConversationsApp({
             }
           }}
         />
+      )}
+
+      {/* End-of-conversation Coach debrief overlay (§3.6). Appears
+          after resolve; auto-advance has already moved the agent to
+          the next conversation underneath, so this is a dismissible
+          teaching moment, not an inline panel. Only opens when there's
+          real signal (generateCareDebrief closes it otherwise). */}
+      {debriefModalOpen && (
+        <Modal
+          open
+          onClose={() => setDebriefModalOpen(false)}
+          title="Conversation debrief"
+          size="md"
+        >
+          <div className="space-y-4">
+            <CoachDebriefCard debrief={debrief} loading={debriefLoading} />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setDebriefModalOpen(false)}
+                className="text-xs bg-gold-400 hover:bg-gold-500 text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Task spawn — wires to the existing Task Spawn Engine that

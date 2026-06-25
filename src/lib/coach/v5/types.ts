@@ -174,3 +174,42 @@ export type GradeResponse = {
    *  shown to peers. */
   reasonInternal?: string;
 };
+
+// ─── End-of-conversation Debrief (§3.6 make-learning-visible) ───
+
+/** Which conversation surface the debrief is being generated for.
+ *  Team Chat closes a topic; C.A.R.E resolves a support conversation.
+ *  The engine reads different tables per surface but the LLM contract
+ *  and the rendered shape are identical (one engine, both surfaces). */
+export type CoachDebriefSurface = "chat_topic" | "support_conversation";
+
+/** A single message the user authored in the conversation, paired with
+ *  its post-send grade (when one was recorded). The grade is the §3.5
+ *  consequence anchor — "what to work on" must lean on graded outcomes,
+ *  not the debrief LLM's fresh opinion alone. */
+export type CoachDebriefMessage = {
+  body: string;
+  /** Post-send grade if the message was graded; null if it predates
+   *  grading or grading was withheld. */
+  grade: EncouragementGrade | null;
+  timestamp: string;
+};
+
+/** The structured debrief the Coach returns at conversation end. */
+export type CoachDebrief = {
+  /** Did the conversation carry enough coachable signal to teach from?
+   *  false → the honest empty state ("you communicated cleanly here —
+   *  nothing to flag"), never a fabricated lesson (§3.4). */
+  hasSignal: boolean;
+  /** 1-3 "what you did well" items, each grounded in a real message
+   *  the user actually wrote. Empty when hasSignal is false. */
+  learned: string[];
+  /** 0-2 "your current edge" items — what to work on, anchored to the
+   *  message grades + any recurring cross-conversation pattern. MAY be
+   *  empty even when hasSignal is true: a genuinely clean conversation
+   *  has nothing to work on, and inventing something would be the
+   *  §3.4 dishonesty the whole product exists to refuse. */
+  workOn: string[];
+  /** One short closing line in the Coach's peer voice. Optional. */
+  closing?: string;
+};
