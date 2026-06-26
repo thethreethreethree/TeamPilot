@@ -256,6 +256,12 @@ export function MessageRow({
             <div className="flex-1 min-w-0">
               <p className="text-[10px] text-brand font-semibold tracking-wide mb-0.5">
                 {parent?.authorName ?? "Original message"}
+                {/* Audit F4 (§A10/§A14): if the quoted parent was edited,
+                    say so here too — the quote shows its current body,
+                    and the reader shouldn't be misled that it's original. */}
+                {parent?.editedAt && (
+                  <span className="text-muted font-normal italic"> (edited)</span>
+                )}
               </p>
               <p className="text-[11px] text-secondary truncate">
                 {parent
@@ -344,7 +350,12 @@ export function MessageRow({
               rules (sender sees own grade; leader sees others'
               needs_guidance; peers see nothing). Spec: COACH_PROMPT_
               DESIGN.md §10. */}
-          {coachGrade && (
+          {/* Audit F2 (§3.5/§A11): the grade was computed on the
+              original text. Once the message is edited, that verdict no
+              longer matches what's displayed, so we hide it rather than
+              surface a stale judgement. (Re-grading on edit is a
+              separate founder decision, not built here.) */}
+          {coachGrade && !msg.editedAt && (
             <div className="mt-1.5">
               <MessageGradeIndicator
                 grade={coachGrade}

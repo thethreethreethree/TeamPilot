@@ -924,18 +924,25 @@ export async function editMessage(args: {
     return { ok: false, error: "A message can't be empty." };
   }
   const supabase = createClient();
-  const { data: auth } = await supabase.auth.getUser();
 
-  // Capture the prior body BEFORE the edit for the append-only event.
+  // Existence pre-check, so a missing message gives a clearer error
+  // than the generic not-allowed message below.
   const { data: before } = await supabase
     .from("chat_messages")
-    .select("body, company_id, topic_id")
+    .select("id")
     .eq("id", args.messageId)
     .maybeSingle();
   if (!before) {
     return { ok: false, error: "Message not found." };
   }
 
+  // The body update is gated by RLS (sender + <30min + kind='message')
+  // and the guard trigger. The append-only chat.message.edited history
+  // event is now emitted by the AFTER-UPDATE trigger
+  // (chat_messages_emit_edit_event, migration 0069) IN THE SAME
+  // TRANSACTION — atomic with the mutation it records (audit F1 / §3.1).
+  // We no longer emit it app-side, so it cannot be lost while the body
+  // change commits.
   const { data: after, error } = await supabase
     .from("chat_messages")
     .update({ body: trimmed })
@@ -952,19 +959,6 @@ export async function editMessage(args: {
         "You can only edit your own message, within 30 minutes of sending it.",
     };
   }
-
-  // Append-only audit event carrying the prior body (§3.1).
-  void supabase.from("events").insert({
-    company_id: before.company_id,
-    actor: auth?.user?.id ?? null,
-    kind: "chat.message.edited",
-    subject: `chat_message:${args.messageId}`,
-    payload: {
-      topic_id: before.topic_id,
-      prior_body: before.body,
-      new_body: trimmed,
-    },
-  });
 
   return {
     ok: true,
