@@ -1,6 +1,6 @@
-# Think2 — How We Build Here (Part 2: Hard-Won Lessons)
+# Thinkx2 — How We Build Here (Part 2: Hard-Won Lessons)
 
-> Moses — Think1 was the rules. Think2 is the lessons *behind* the
+> Moses — Thinkx1 was the rules. Thinkx2 is the lessons *behind* the
 > rules: real mistakes people made here, and what they teach. You'll
 > understand the rules better once you see why each one exists. Read it
 > once now; come back when you hit one of these situations for real.
@@ -71,3 +71,12 @@ what was asked is how small mistakes become big ones nobody caught.
 the ones where the work looked done but wasn't, because a step was
 skipped quietly.* Slow down at exactly the moments you're tempted to
 rush. The Coach is there for those moments — lean on it.
+
+---
+
+*A note on this file:* As a co-founder and equal owner, nothing here is
+hidden from you. Thinkx2 is the **starting** set of lessons, in plain
+language. The **complete** methodology — every lesson we've earned —
+lives in `ThinkerThinker.md` in the project's main folder, alongside the
+rules in `CLAUDE.md`. They're the same files that govern the founder.
+Read them when you're ready; the Coach will help you make sense of them.

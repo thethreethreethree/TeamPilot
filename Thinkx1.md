@@ -1,4 +1,4 @@
-# Think1 — How We Build Here (Part 1: The Rules)
+# Thinkx1 — How We Build Here (Part 1: The Rules)
 
 > Moses — read this first. It's short on purpose. These are the rules
 > everyone here builds by. They're written plainly so you can start
@@ -65,3 +65,13 @@ cleanly, and stop when you're looping.*
 
 The Coach (type **"I'm Moses"** when you open the project) will walk you
 through all of this, one step at a time. You are not alone in here.
+
+---
+
+*A note on this file:* You're a co-founder and an equal owner of this
+system, so nothing here is hidden from you. Thinkx1 is the **starting**
+version of our discipline, written plainly so you can begin today. The
+**complete** version lives in `ThinkerThinker.md` and `CLAUDE.md` in the
+project's main folder — the same files that govern the founder. Read
+them whenever you're ready; the Coach will help you understand them. You
+don't need them to start, but they're yours the moment you want them.

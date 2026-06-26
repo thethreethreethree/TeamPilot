@@ -3,6 +3,13 @@ title: "Master Sales Mind — A Beginner's Guide to Building in Our System"
 author: "For Moses"
 ---
 
+<!--
+  This Markdown file is the SOURCE OF TRUTH (audit F4). The committed
+  PDF is generated from it. After editing this file, regenerate the PDF
+  so they don't drift:
+    npx --yes md-to-pdf docs/moses/Master-Sales-Mind-Builder-Guide.md
+-->
+
 # Master Sales Mind — A Beginner's Guide to Building in Our System
 
 **Who this is for:** You, Moses. You're new to programming and new to
@@ -13,8 +20,10 @@ in one sitting.
 
 **The golden rule before anything else:** you are never alone in here.
 You have a Coach built into the project. When you open the project and
-type **"I'm Moses"**, the Coach wakes up and helps you with every step.
-Whenever this guide says "ask the Coach," it means exactly that.
+type **"I'm Moses"**, the Coach is meant to greet you and help you with
+every step. (If it doesn't respond, that's not your fault — ask the
+founder to make sure the Coach is active.) Whenever this guide says
+"ask the Coach," it means exactly that.
 
 ---
 
@@ -41,12 +50,12 @@ memorizing them.
 
 ## Part 1 — The rule-books (read these first)
 
-In the project folder there are two short files: **Think1.MD** and
-**Think2.MD**.
+In the project folder there are two short files: **Thinkx1.md** and
+**Thinkx2.md**.
 
-- **Think1.MD** = *the rules.* How everyone here builds. Eight short
+- **Thinkx1.md** = *the rules.* How everyone here builds. Eight short
   rules. Read it.
-- **Think2.MD** = *the lessons.* The real mistakes behind the rules.
+- **Thinkx2.md** = *the lessons.* The real mistakes behind the rules.
   Read it.
 
 They're written for you, in plain language. They are more important
@@ -102,8 +111,10 @@ Open the project folder in VS Code. Then open the Claude Code assistant
 
 Type exactly: **I'm Moses**
 
-The Coach will greet you and check that Think1.MD and Think2.MD are
-present. From that point on, the Coach is your guide. Ask it anything:
+The Coach should greet you and check that Thinkx1.md and Thinkx2.md are
+present. (If it doesn't greet you, ask the founder to confirm the Coach
+is set up — the trigger is new and may need turning on.) From that
+point on, the Coach is your guide. Ask it anything:
 "what does this word mean?", "what's the next step?", "is this safe to
 change?". It will **teach** you and **guide** you — it won't just do the
 work for you, because the point is for *you* to learn to build.
@@ -148,15 +159,15 @@ real training content — in small, safe, tested steps.
 This is the rhythm of all the work. Memorize this loop, not the code:
 
 1. **Understand.** Know *why* you're making the change and *what* it's
-   for. If you can't say it out loud, ask the Coach first. (Think1,
+   for. If you can't say it out loud, ask the Coach first. (Thinkx1,
    Rule 1.)
 2. **Make ONE small change.** The smallest thing that moves you forward.
    Not ten things — one.
 3. **Run it and look.** Save the file, look at `localhost:3000` in your
-   browser. Did it do what you expected? (Think2, Lesson 1: "saved" is
+   browser. Did it do what you expected? (Thinkx2, Lesson 1: "saved" is
    not "they can see it" — *look at the screen*.)
 4. **If it broke, don't pile on patches.** If the same thing fails
-   twice, stop and re-understand. (Think1, Rule 7.)
+   twice, stop and re-understand. (Thinkx1, Rule 7.)
 5. **Save it.** Once it works and you've *seen* it work, save your work
    (next part).
 
@@ -181,22 +192,22 @@ When a small piece works and you've tested it:
    `git push origin moses/my-first-change`
 
 The Coach will walk you through this the first few times. Small, clear
-saves are the goal. (Think1, Rule 6.)
+saves are the goal. (Thinkx1, Rule 6.)
 
 ---
 
 ## Part 9 — When you get stuck (and you will — everyone does)
 
-1. **Re-read the relevant lesson** in Think2.MD. Your situation is
+1. **Re-read the relevant lesson** in Thinkx2.md. Your situation is
    probably in there.
 2. **Ask the Coach.** Describe what you did, what you expected, and what
    actually happened. The more honest and specific you are, the better
    it can help.
 3. **Don't loop.** If you've tried the same fix twice and it failed
    twice, stop — your *understanding* is off, not your typing. Go back
-   to "Understand" with the Coach. (Think1, Rule 7.)
+   to "Understand" with the Coach. (Thinkx1, Rule 7.)
 4. **Be honest about what you haven't tested.** Saying "I'm not sure
-   this works yet" is a strength here, not a weakness. (Think1, Rule 8.)
+   this works yet" is a strength here, not a weakness. (Thinkx1, Rule 8.)
 
 ---
 
