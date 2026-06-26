@@ -12,6 +12,7 @@ import {
   MessageSquare,
   MessageSquarePlus,
   BookOpen,
+  GraduationCap,
   ClipboardList,
   Brain,
   Settings,
@@ -220,6 +221,19 @@ const productionNav: Array<{
       how: "Open conversations from the inbox. The Read Phase shows context first; reply, then capture resolution when done. The 7-day durability check shows up automatically. Browse Knowledge for institutional memory; Patterns for what's recurring; Leadership readouts for team-level health.",
       principle:
         "Support is the same discipline applied to customer-facing reasoning. The fact that the customer is external doesn't change the rule.",
+    },
+  },
+  {
+    label: "Bootcamp",
+    href: "/dashboard/bootcamp",
+    icon: GraduationCap,
+    hint: {
+      whatItIs:
+        "Learning and training materials for specific features and fields of the System. Each Bootcamp area is a focused training track — the first is Master Sales Mind. A place the team comes to build capability deliberately, not by osmosis.",
+      why: "Capability that's only ever transferred ad hoc (a Slack message here, a call there) doesn't compound. A dedicated training surface makes learning a first-class, returnable place — so the team gets better at specific fields on purpose, and new members have somewhere to start.",
+      how: "Open Bootcamp, pick a training area, and work through its materials. Start with Master Sales Mind. New areas get added as the team's training needs grow.",
+      principle:
+        "Capability built deliberately compounds; capability left to osmosis evaporates with turnover.",
     },
   },
 ];
