@@ -12,6 +12,7 @@ import {
   type ClassificationPerson,
 } from "@/components/files/ClassificationModal";
 import { FolderTree } from "@/components/files/FolderTree";
+import { useToast } from "@/components/ui/toast";
 import { Loader2, Search } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 
@@ -46,6 +47,7 @@ export default function FilesLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [casual, setCasual] = useState<CasualSnap>({ today: 0, cap: 3, remaining: 3 });
   const [classifyingId, setClassifyingId] = useState<string | null>(null);
+  const toast = useToast();
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -147,7 +149,17 @@ export default function FilesLibraryPage() {
     if (!confirm("Deprecate this file? Soft-delete; the row is preserved for §3.1 record.")) {
       return;
     }
-    await fetch(`/api/files/${id}`, { method: "DELETE" });
+    // Per the 2026-06-26 audit (Finding A): check the response. The
+    // prior code ignored it, so a failed delete (route error) looked
+    // identical to success — the file just stayed and the user saw
+    // nothing. Surface the real error now.
+    const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      toast.error("Couldn't delete", data?.error ?? "Please try again.");
+      return;
+    }
+    toast.success("Deleted", "File deprecated and removed from the library.");
     await refresh();
   };
 

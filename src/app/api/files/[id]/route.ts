@@ -3,7 +3,6 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import {
   classifyFile,
-  deprecateFile,
   getFile,
 } from "@/lib/data/files";
 import { signAssetUrl } from "@/lib/storage/assets";
@@ -138,18 +137,65 @@ export async function DELETE(
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
   const { id } = await context.params;
-  const file = await getFile(id);
-  const ok = await deprecateFile(id);
-  if (!ok) {
-    return NextResponse.json({ error: "Delete failed." }, { status: 500 });
+
+  // Per the 2026-06-26 file-system audit (Finding A — "delete does
+  // not work"): the prior path called deprecateFile(), which did a
+  // user-scoped UPDATE and returned `!error` — TRUE even when RLS
+  // silently filtered the row to zero affected rows. A failed delete
+  // reported success, the route returned 200, and the file persisted
+  // with no error surfaced anywhere. Root cause class: silent no-op.
+  //
+  // Fix mirrors the /api/files/[id]/access GET route (migration
+  // 0063): use the admin client with an EXPLICIT authorization check
+  // (uploader OR admin-of-same-company), then verify a row was
+  // actually affected via .select(). This guarantees the deprecate
+  // lands when authorized and returns a real error otherwise —
+  // regardless of any RLS subtlety.
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  const { data: file } = await admin
+    .from("files")
+    .select("uploader_id, company_id")
+    .eq("id", id)
+    .is("deprecated_at", null)
+    .maybeSingle();
+  if (!file) {
+    return NextResponse.json(
+      { error: "File not found or already deleted." },
+      { status: 404 }
+    );
   }
-  if (file) {
-    await emitAssetEvent({
-      companyId: file.companyId,
-      actor: auth.userId,
-      kind: "asset.file.deprecated",
-      fileId: id,
-    });
+  const isUploader = (file.uploader_id as string | null) === auth.userId;
+  const sameCompany = (file.company_id as string) === auth.companyId;
+  if (!isUploader && !(auth.isAdmin && sameCompany)) {
+    return NextResponse.json(
+      { error: "Only the file's uploader or a company admin can delete it." },
+      { status: 403 }
+    );
   }
+
+  const { data: updated, error } = await admin
+    .from("files")
+    .update({
+      deprecated_at: new Date().toISOString(),
+      deprecated_by: auth.userId,
+    })
+    .eq("id", id)
+    .is("deprecated_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error || !updated) {
+    return NextResponse.json(
+      { error: `Delete failed: ${error?.message ?? "no row affected"}` },
+      { status: 500 }
+    );
+  }
+
+  await emitAssetEvent({
+    companyId: file.company_id as string,
+    actor: auth.userId,
+    kind: "asset.file.deprecated",
+    fileId: id,
+  });
   return NextResponse.json({ ok: true });
 }
