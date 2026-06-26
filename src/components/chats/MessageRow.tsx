@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Pin, PinOff, Reply, Sparkles } from "lucide-react";
+import { Check, Pencil, Pin, PinOff, Reply, Sparkles, X } from "lucide-react";
 import { hapticThreshold } from "@/lib/pwa/haptics";
-import type { ChatMessage } from "@/lib/data/chats";
+import { type ChatMessage, isWithinEditWindow } from "@/lib/data/chats";
 import { formatTime } from "./utils";
 import {
   avatarColorFor,
@@ -46,6 +46,7 @@ export function MessageRow({
   onStartReply,
   onJumpToParent,
   onReviewWithCoach,
+  onEdit,
 }: {
   msg: ChatMessage;
   /** Parent message this row replies to. Null when not a reply, or
@@ -65,10 +66,60 @@ export function MessageRow({
    *  own needs_guidance-graded message. Sprint 6 wires the actual
    *  retrospective review flow. */
   onReviewWithCoach?: (messageId: string) => void;
+  /** Queue #8 message editing. Called when the sender saves an edit
+   *  to their own message. Returns ok + optional error so the row can
+   *  surface a denial (e.g. the 30-min window passed server-side). */
+  onEdit?: (
+    messageId: string,
+    newBody: string
+  ) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const isSummary = msg.kind === "summary";
   const isSystem = msg.kind === "system";
   const isMine = currentUserId !== null && msg.authorId === currentUserId;
+  // Queue #8: the sender may edit their own text message within the
+  // 30-minute window. The affordance shows only when all hold; the
+  // database (migration 0068 RLS) is the real gate.
+  const canEdit =
+    !!onEdit &&
+    isMine &&
+    msg.kind === "message" &&
+    isWithinEditWindow(msg.createdAt);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(msg.body ?? "");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const startEdit = () => {
+    setDraft(msg.body ?? "");
+    setEditError(null);
+    setEditing(true);
+  };
+  const cancelEdit = () => {
+    setEditing(false);
+    setEditError(null);
+  };
+  const saveEdit = async () => {
+    if (!onEdit) return;
+    const trimmed = draft.trim();
+    if (trimmed.length === 0) {
+      setEditError("A message can't be empty.");
+      return;
+    }
+    if (trimmed === (msg.body ?? "")) {
+      setEditing(false);
+      return;
+    }
+    setSavingEdit(true);
+    setEditError(null);
+    const res = await onEdit(msg.id, trimmed);
+    setSavingEdit(false);
+    if (res.ok) {
+      setEditing(false);
+    } else {
+      setEditError(res.error ?? "Couldn't save the edit.");
+    }
+  };
   const bg = msg.authorAvatarColor ?? avatarColorFor(msg.authorId, msg.authorName);
   const initials =
     msg.authorAvatarInitials ?? avatarInitialsFor(msg.authorName);
@@ -138,6 +189,17 @@ export function MessageRow({
           <span className="text-[10px] text-secondary font-mono">
             {formatTime(msg.createdAt)}
           </span>
+          {/* Queue #8: always-visible (edited) label per §A10 (no
+              shadow read) + §A18 (the honest label). Shown to everyone
+              whenever the message has been edited — never hidden. */}
+          {msg.editedAt && (
+            <span
+              className="text-[10px] text-muted italic"
+              title={`Edited ${formatTime(msg.editedAt)}`}
+            >
+              (edited)
+            </span>
+          )}
           {/* AI-assisted badge — A18 asymmetric visibility (2026-06-13).
               The badge is the same data the system has always recorded
               (msg.aiAssisted), but who sees it now matters:
@@ -214,20 +276,69 @@ export function MessageRow({
               lists, blockquote, auto-linked URLs. Long unbroken
               URLs wrap mid-string via the renderer's break-all class
               so mobile doesn't horizontally overflow. */}
-          <div
-            className="chat-message-body text-sm text-primary leading-relaxed pr-14 break-words space-y-1"
-            style={{ overflowWrap: "anywhere" }}
-          >
-            {msg.kind === "attachment" && msg.mediaUrl ? (
-              <InlineAttachment
-                mediaUrl={msg.mediaUrl}
-                mediaType={msg.mediaType ?? null}
-                fallbackTitle={msg.body ?? undefined}
+          {editing ? (
+            /* Queue #8 inline editor. Replaces the body while the
+               sender edits; Save calls onEdit (-> editMessage). */
+            <div className="space-y-1.5">
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    void saveEdit();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    cancelEdit();
+                  }
+                }}
+                rows={Math.min(8, Math.max(2, draft.split("\n").length))}
+                autoFocus
+                className="w-full bg-base border border-ember-400/40 rounded-md px-2.5 py-1.5 text-sm text-primary focus:outline-none focus:border-ember-400/70 resize-none"
               />
-            ) : (
-              renderMessageBody(msg.body)
-            )}
-          </div>
+              {editError && (
+                <p className="text-[11px] text-red-300">{editError}</p>
+              )}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => void saveEdit()}
+                  disabled={savingEdit}
+                  className="inline-flex items-center gap-1 text-[11px] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 text-[#09090B] font-semibold px-2.5 py-1 rounded-md"
+                >
+                  <Check className="w-3 h-3" aria-hidden />
+                  {savingEdit ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  disabled={savingEdit}
+                  className="inline-flex items-center gap-1 text-[11px] text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1 rounded-md"
+                >
+                  <X className="w-3 h-3" aria-hidden />
+                  Cancel
+                </button>
+                <span className="text-[10px] text-muted">
+                  ⌘/Ctrl+Enter to save · Esc to cancel
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div
+              className="chat-message-body text-sm text-primary leading-relaxed pr-14 break-words space-y-1"
+              style={{ overflowWrap: "anywhere" }}
+            >
+              {msg.kind === "attachment" && msg.mediaUrl ? (
+                <InlineAttachment
+                  mediaUrl={msg.mediaUrl}
+                  mediaType={msg.mediaType ?? null}
+                  fallbackTitle={msg.body ?? undefined}
+                />
+              ) : (
+                renderMessageBody(msg.body)
+              )}
+            </div>
+          )}
           {/* Coach v5 Encouragement System indicator — renders 🙌 /
               Review-with-Coach / Needs Guidance with strict visibility
               rules (sender sees own grade; leader sees others'
@@ -251,6 +362,17 @@ export function MessageRow({
               targets pointer-capable devices; everywhere else they
               stay at opacity-100. */}
           <div className="absolute top-2 right-2 flex items-center gap-1 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
+            {canEdit && !editing && (
+              <button
+                type="button"
+                onClick={startEdit}
+                aria-label="Edit message"
+                title="Edit — within 30 minutes of sending"
+                className="text-muted hover:text-brand"
+              >
+                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            )}
             {onStartReply && (
               <button
                 type="button"

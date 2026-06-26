@@ -52,6 +52,11 @@ export interface ChatMessage {
   replyToId: string | null;
   aiAssisted: boolean;
   createdAt: string;
+  /** When the message was last edited (null/undefined = never).
+   *  Drives the always-visible "(edited)" label. Migration 0068 /
+   *  queue #8. Optional so demo/optimistic constructors needn't set
+   *  it; the live fetchMessages path always populates it. */
+  editedAt?: string | null;
   pinned: boolean;
 }
 
@@ -575,7 +580,7 @@ export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
     supabase
       .from("chat_messages")
       .select(
-        "id, topic_id, author_id, kind, body, media_url, media_type, reply_to_id, ai_assisted, created_at"
+        "id, topic_id, author_id, kind, body, media_url, media_type, reply_to_id, ai_assisted, created_at, edited_at"
       )
       .eq("topic_id", topicId)
       .order("created_at", { ascending: true }),
@@ -617,6 +622,7 @@ export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
       replyToId: m.reply_to_id,
       aiAssisted: m.ai_assisted,
       createdAt: m.created_at,
+      editedAt: (m.edited_at as string | null) ?? null,
       pinned: pinnedIds.has(m.id),
     };
   });
@@ -872,6 +878,98 @@ export async function createTopic(args: {
     messageCount: 0,
     lastMessageAt: null,
       coachEnabled: false,
+  };
+}
+
+/** Team Chat message-edit window (queue #8). The 30-minute boundary
+ *  is ALSO enforced at the database (RLS policy in migration 0068);
+ *  this constant is the client-side mirror that shows/hides the edit
+ *  affordance so the user never sees an option the server will deny. */
+export const MESSAGE_EDIT_WINDOW_MS = 30 * 60 * 1000;
+
+/** True if `createdAt` is within the edit window from now. */
+export function isWithinEditWindow(createdAt: string): boolean {
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t <= MESSAGE_EDIT_WINDOW_MS;
+}
+
+/**
+ * Edit a Team Chat message (queue #8). Sender-only, within 30 minutes,
+ * body only. The actual authorization is enforced at the database:
+ *   • RLS ("chat_messages - update own recent") — sender + <30min +
+ *     kind='message'.
+ *   • the guard trigger — only the body may change; original_body is
+ *     preserved on first edit; edited_at is stamped server-side.
+ * A denied edit silently affects ZERO rows (RLS filter, no error), so
+ * we verify the returned row — the same rows-affected discipline as
+ * the file delete/classify fixes (audit H2). The prior body is
+ * recorded in an append-only chat.message.edited event so §3.1's
+ * "full history intact" survives the row becoming mutable.
+ *
+ * Returns the new body + edited_at for the caller to merge into its
+ * existing message object (the caller already holds author/avatar).
+ */
+export async function editMessage(args: {
+  messageId: string;
+  body: string;
+}): Promise<
+  { ok: true; body: string; editedAt: string | null } | { ok: false; error: string }
+> {
+  if (!supabaseEnabled) {
+    return { ok: false, error: "Editing is unavailable in demo mode." };
+  }
+  const trimmed = args.body.trim();
+  if (trimmed.length === 0) {
+    return { ok: false, error: "A message can't be empty." };
+  }
+  const supabase = createClient();
+  const { data: auth } = await supabase.auth.getUser();
+
+  // Capture the prior body BEFORE the edit for the append-only event.
+  const { data: before } = await supabase
+    .from("chat_messages")
+    .select("body, company_id, topic_id")
+    .eq("id", args.messageId)
+    .maybeSingle();
+  if (!before) {
+    return { ok: false, error: "Message not found." };
+  }
+
+  const { data: after, error } = await supabase
+    .from("chat_messages")
+    .update({ body: trimmed })
+    .eq("id", args.messageId)
+    .select("id, edited_at, body")
+    .maybeSingle();
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (!after) {
+    return {
+      ok: false,
+      error:
+        "You can only edit your own message, within 30 minutes of sending it.",
+    };
+  }
+
+  // Append-only audit event carrying the prior body (§3.1).
+  void supabase.from("events").insert({
+    company_id: before.company_id,
+    actor: auth?.user?.id ?? null,
+    kind: "chat.message.edited",
+    subject: `chat_message:${args.messageId}`,
+    payload: {
+      topic_id: before.topic_id,
+      prior_body: before.body,
+      new_body: trimmed,
+    },
+  });
+
+  return {
+    ok: true,
+    body: (after.body as string | null) ?? trimmed,
+    editedAt: (after.edited_at as string | null) ?? null,
   };
 }
 

@@ -5,6 +5,7 @@ import { LearningHint } from "@/components/learning/LearningHint";
 import { useToast } from "@/components/ui/toast";
 import {
   postMessage,
+  editMessage,
   reviewDurability,
   togglePin,
   toggleCoach,
@@ -611,6 +612,29 @@ export default function TeamChatTopicPage() {
     }
   };
 
+  // Queue #8: save a sender's edit to their own message. editMessage
+  // (data layer) enforces sender + 30-min + body-only via DB RLS +
+  // trigger; on success we merge the new body + edited_at into local
+  // state. Returns ok/error so MessageRow can surface a denial inline.
+  const handleEditMessage = async (
+    messageId: string,
+    newBody: string
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const res = await editMessage({ messageId, body: newBody });
+    if (res.ok) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, body: res.body, editedAt: res.editedAt }
+            : m
+        )
+      );
+      toast.success("Edited", "Your message was updated.");
+      return { ok: true };
+    }
+    return { ok: false, error: res.error };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-base flex items-center justify-center">
@@ -1071,6 +1095,7 @@ export default function TeamChatTopicPage() {
                               onReviewWithCoach={(id) =>
                                 setReviewingMessageId(id)
                               }
+                              onEdit={handleEditMessage}
                             />
                           </div>
                         );
