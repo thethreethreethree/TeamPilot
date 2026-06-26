@@ -35,6 +35,7 @@ export function FileDropzone({
   linkedConversationId,
   linkedTaskId,
   endpoint,
+  onFileSelected,
 }: {
   onUploadComplete?: (result: UploadResult) => void;
   /** Label tweak for in-context dropzones (e.g. "Attach to this task"). */
@@ -50,6 +51,13 @@ export function FileDropzone({
    *  combine the file row + an attachment-kind support_messages
    *  row in a single network round-trip. */
   endpoint?: string;
+  /** Pre-upload classify hook (2026-06-26 audit Finding B). When
+   *  provided, picking a file calls this with the File INSTEAD of
+   *  uploading immediately — the parent opens a classify-before-upload
+   *  modal and performs the upload itself (with classification, so the
+   *  file lands classified and never burns the casual cap). When
+   *  omitted, behaviour is unchanged: upload fires immediately. */
+  onFileSelected?: (file: File) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -117,11 +125,18 @@ export function FileDropzone({
   const handleFiles = useCallback(
     (files: FileList | null) => {
       if (!files || files.length === 0) return;
+      // Pre-upload classify: defer to the parent instead of uploading.
+      // One file at a time in this mode (the modal classifies one).
+      if (onFileSelected) {
+        const first = Array.from(files)[0];
+        if (first) onFileSelected(first);
+        return;
+      }
       for (const f of Array.from(files)) {
         void upload(f);
       }
     },
-    [upload]
+    [upload, onFileSelected]
   );
 
   if (hiddenLabel) {

@@ -49,21 +49,33 @@ export function ClassificationModal({
   teamMembers,
   onSaved,
   casualRemaining,
+  onSubmitDraft,
 }: {
   open: boolean;
   onClose: () => void;
-  fileId: string;
+  /** The file being classified. Omitted in DRAFT mode (pre-upload),
+   *  where the file does not exist yet — see onSubmitDraft. */
+  fileId?: string;
   initial: Partial<ClassificationDraft>;
   departments: ClassificationDept[];
   tasks: ClassificationTask[];
   teamMembers?: ClassificationPerson[];
   onSaved: (file: unknown) => void;
   casualRemaining: number;
+  /** DRAFT mode (pre-upload classify): when provided, Save calls this
+   *  with the collected classification INSTEAD of PATCHing an existing
+   *  file. The parent then uploads the held file WITH these fields, so
+   *  it lands classified and never burns the casual cap. Per the
+   *  2026-06-26 audit Finding B — classify at the moment of upload,
+   *  not retrofit. In draft mode there is no fileId, so the
+   *  specific_people access grants are deferred to post-upload edit. */
+  onSubmitDraft?: (draft: ClassificationDraft) => Promise<void>;
 }) {
+  const isDraft = !!onSubmitDraft;
   const [grants, setGrants] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !fileId) return;
     if (initial.accessRole !== "specific_people") return;
     void (async () => {
       const res = await fetch(`/api/files/${fileId}/access`);
@@ -77,6 +89,10 @@ export function ClassificationModal({
   }, [open, fileId, initial.accessRole]);
 
   const toggleGrant = async (profileId: string) => {
+    // Draft mode: no file exists yet, so grants can't be persisted.
+    // The specific_people UI is replaced by a note in draft mode, so
+    // this is unreachable there; guard anyway.
+    if (!fileId) return;
     if (grants.includes(profileId)) {
       setGrants((g) => g.filter((x) => x !== profileId));
       await fetch(`/api/files/${fileId}/access?profileId=${profileId}`, {
@@ -173,6 +189,27 @@ export function ClassificationModal({
     setSaving(true);
     setError(null);
 
+    // DRAFT mode (pre-upload): hand the collected classification to
+    // the parent, which performs the actual upload WITH these fields.
+    if (onSubmitDraft) {
+      try {
+        await onSubmitDraft({
+          title,
+          description,
+          departmentIds,
+          taskIds,
+          tags,
+          accessRole,
+        });
+        onClose();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Upload failed.");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     // Compute user_action vs the routing suggestion. Per §A11 the
     // suggestions audit records what the rules proposed AND what
     // the user decided, so a later §4 readout can measure rule
@@ -235,7 +272,7 @@ export function ClassificationModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Classify this asset"
+      title={isDraft ? "Classify before upload" : "Classify this asset"}
       size="lg"
     >
       <div className="space-y-4">
@@ -425,7 +462,15 @@ export function ClassificationModal({
           <p className="text-[10px] text-muted mt-0.5">
             You (the uploader) always see your own file regardless of this setting.
           </p>
-          {accessRole === "specific_people" && (
+          {accessRole === "specific_people" && isDraft && (
+            <div className="mt-2 rounded-md border border-arc-400/30 bg-arc-400/[0.06] p-2 text-[11px] text-arc-300 leading-relaxed">
+              You can pick the specific people right after upload — open
+              this file from the library and use the edit (pencil) action.
+              The file uploads now with access restricted to specific
+              people; configure exactly who in the next step.
+            </div>
+          )}
+          {accessRole === "specific_people" && !isDraft && (
             <div className="mt-2 rounded-md border border-default p-2">
               <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1.5">
                 Who specifically?
@@ -477,7 +522,13 @@ export function ClassificationModal({
             className="bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold text-xs px-4 py-1.5 rounded-md flex items-center gap-1.5"
           >
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />}
-            {willClassify ? "Save as classified" : "Save as casual"}
+            {isDraft
+              ? willClassify
+                ? "Upload as classified"
+                : "Upload as casual"
+              : willClassify
+                ? "Save as classified"
+                : "Save as casual"}
           </button>
         </div>
       </div>

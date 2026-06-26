@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { useCompanyName } from "@/lib/hooks/useCompany";
-import { FileDropzone, type UploadResult } from "@/components/files/FileDropzone";
+import { FileDropzone } from "@/components/files/FileDropzone";
 import { FileCard, type FileCardData } from "@/components/files/FileCard";
 import {
   ClassificationModal,
   type ClassificationDept,
   type ClassificationTask,
   type ClassificationPerson,
+  type ClassificationDraft,
 } from "@/components/files/ClassificationModal";
 import { FolderTree } from "@/components/files/FolderTree";
 import { useToast } from "@/components/ui/toast";
@@ -47,6 +48,11 @@ export default function FilesLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [casual, setCasual] = useState<CasualSnap>({ today: 0, cap: 3, remaining: 3 });
   const [classifyingId, setClassifyingId] = useState<string | null>(null);
+  // Pre-upload classify (2026-06-26 audit Finding B): the picked file is
+  // held here while the classify-before-upload modal collects fields,
+  // then uploaded WITH classification so it lands classified and never
+  // burns the casual cap.
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const toast = useToast();
 
   const refresh = useCallback(async () => {
@@ -106,11 +112,38 @@ export default function FilesLibraryPage() {
     void refresh();
   }, [refresh]);
 
-  const onUploadComplete = (result: UploadResult) => {
-    if (result.ok && result.file) {
-      setClassifyingId(result.file.id as string);
-      void refresh();
+  // Upload the held file WITH the classification collected by the
+  // pre-upload modal. Providing department + task + description means
+  // the server skips the casual lane entirely — so a classified upload
+  // never counts against (or is blocked by) the 3/day casual cap.
+  // Throws on failure so the modal surfaces the error inline.
+  const uploadDraft = async (draft: ClassificationDraft) => {
+    if (!pendingFile) return;
+    const form = new FormData();
+    form.append("file", pendingFile);
+    form.append("title", draft.title || pendingFile.name);
+    if (draft.description) form.append("description", draft.description);
+    if (draft.departmentIds.length)
+      form.append("department_ids", draft.departmentIds.join(","));
+    if (draft.taskIds.length) form.append("task_ids", draft.taskIds.join(","));
+    if (draft.tags.length) form.append("tags", draft.tags.join(","));
+    form.append("access_role", draft.accessRole);
+    const res = await fetch("/api/files", { method: "POST", body: form });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error ?? `Upload failed (${res.status}).`);
     }
+    const classified =
+      draft.departmentIds.length > 0 &&
+      draft.taskIds.length > 0 &&
+      draft.description.trim().length > 0;
+    toast.success(
+      "Uploaded",
+      classified
+        ? "Classified — it's a team asset now."
+        : "Uploaded as casual."
+    );
+    await refresh();
   };
 
   const cardData = useMemo<FileCardData[]>(
@@ -180,7 +213,7 @@ export default function FilesLibraryPage() {
           principle="The 3 fields are not metadata. They ARE the team's asset memory."
         >
           <div className="mb-6">
-            <FileDropzone onUploadComplete={onUploadComplete} />
+            <FileDropzone onFileSelected={(f) => setPendingFile(f)} />
           </div>
         </LearningHint>
 
@@ -296,6 +329,24 @@ export default function FilesLibraryPage() {
           />
         );
       })()}
+
+      {/* Pre-upload classify (audit Finding B). The picked file is held
+          in pendingFile; this modal collects classification BEFORE the
+          upload, so a classified file never burns the casual cap and a
+          capped user is never dead-ended. onSubmitDraft does the upload. */}
+      {pendingFile && (
+        <ClassificationModal
+          open
+          onClose={() => setPendingFile(null)}
+          initial={{ title: pendingFile.name.replace(/\.[^.]+$/, "") }}
+          departments={departments}
+          tasks={tasks}
+          teamMembers={team}
+          onSaved={() => {}}
+          casualRemaining={casual.remaining}
+          onSubmitDraft={uploadDraft}
+        />
+      )}
     </>
   );
 }
