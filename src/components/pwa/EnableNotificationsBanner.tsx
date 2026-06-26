@@ -31,14 +31,30 @@ import { useNotificationSubscription } from "@/lib/notifications/useNotification
  * through the hook's error state.
  */
 
-const DISMISS_KEY = "team-chat-notifications-banner-dismissed";
+const DEFAULT_DISMISS_KEY = "team-chat-notifications-banner-dismissed";
+const DEFAULT_PROMPT =
+  "Want to know when teammates message you? Enable notifications so the Team Chat PWA can ping you on this device.";
 
-export function EnableNotificationsBanner() {
+/**
+ * Props let the same opt-in render on non-chat surfaces (e.g. C.A.R.E)
+ * with surface-appropriate copy + its own dismiss flag (audit F1
+ * consolidation, 2026-06-27). Defaults preserve the original Team Chat
+ * usage so existing call sites are unchanged.
+ */
+export function EnableNotificationsBanner({
+  prompt = DEFAULT_PROMPT,
+  dismissKey = DEFAULT_DISMISS_KEY,
+  ariaLabel = "Notifications opt-in",
+}: {
+  prompt?: string;
+  dismissKey?: string;
+  ariaLabel?: string;
+} = {}) {
   const { status, supported, error, subscribe } = useNotificationSubscription();
   const [dismissed, setDismissed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     try {
-      return window.localStorage.getItem(DISMISS_KEY) === "1";
+      return window.localStorage.getItem(dismissKey) === "1";
     } catch {
       return false;
     }
@@ -52,7 +68,7 @@ export function EnableNotificationsBanner() {
   const dismiss = () => {
     setDismissed(true);
     try {
-      window.localStorage.setItem(DISMISS_KEY, "1");
+      window.localStorage.setItem(dismissKey, "1");
     } catch {
       // localStorage blocked (e.g. private browsing) — banner just
       // re-appears on next mount. Not blocking.
@@ -63,7 +79,7 @@ export function EnableNotificationsBanner() {
     <div
       className="mb-3 flex items-start gap-2.5 rounded-lg border border-ember-400/30 bg-ember-400/[0.05] px-3 py-2.5"
       role="region"
-      aria-label="Notifications opt-in"
+      aria-label={ariaLabel}
     >
       <Bell className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" aria-hidden />
       <div className="flex-1 min-w-0">
@@ -82,10 +98,7 @@ export function EnableNotificationsBanner() {
           ) : status === "subscribing" ? (
             <>Asking for permission…</>
           ) : (
-            <>
-              Want to know when teammates message you? Enable notifications
-              so the Team Chat PWA can ping you on this device.
-            </>
+            <>{prompt}</>
           )}
         </p>
         {status !== "subscribing" && status !== "error" && (

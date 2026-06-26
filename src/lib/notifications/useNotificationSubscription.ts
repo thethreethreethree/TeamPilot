@@ -79,7 +79,13 @@ export function useNotificationSubscription(): {
           setStatus("denied");
           return;
         }
-        const reg = await navigator.serviceWorker.ready.catch(() => null);
+        // Check the ROOT sw.js registration — the app-wide push SW
+        // (audit F1, 2026-06-27). A legacy subscription owned by the
+        // chat-scoped SW won't show here, so the opt-in re-appears and
+        // re-enabling migrates it to the root SW.
+        const reg = await navigator.serviceWorker
+          .register("/sw.js")
+          .catch(() => null);
         const existing = reg ? await reg.pushManager.getSubscription() : null;
         if (existing) {
           setStatus("subscribed");
@@ -118,9 +124,37 @@ export function useNotificationSubscription(): {
         setStatus(perm === "denied" ? "denied" : "default");
         return;
       }
-      // The SW must be the team-chat one because that's what handles
-      // the push event. The chat layout already registers it.
-      const reg = await navigator.serviceWorker.ready;
+      // Subscribe via the ROOT sw.js — the single app-wide push-capable
+      // SW (audit F1 consolidation, 2026-06-27). NOT
+      // navigator.serviceWorker.ready, which on chat pages returns the
+      // narrower /dashboard/chats/ SW and would silo the subscription to
+      // chats (so C.A.R.E / any non-chat push would never display).
+      // register() is idempotent — returns the existing root reg.
+      const reg = await navigator.serviceWorker.register("/sw.js");
+
+      // Migrate: drop any push subscription owned by a narrower-scope SW
+      // (the legacy /dashboard/chats/ one) so a single event can't
+      // notify twice across two service workers. Best-effort.
+      try {
+        const allRegs = await navigator.serviceWorker.getRegistrations();
+        for (const r of allRegs) {
+          if (r.scope === reg.scope) continue;
+          const stale = await r.pushManager
+            .getSubscription()
+            .catch(() => null);
+          if (stale) {
+            const staleJson = stale.toJSON();
+            await stale.unsubscribe().catch(() => {});
+            await fetch("/api/notifications/subscribe", {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ endpoint: staleJson.endpoint }),
+            }).catch(() => {});
+          }
+        }
+      } catch {
+        // Best-effort migration; never block a fresh subscribe.
+      }
       // The DOM types for applicationServerKey are stricter in newer
       // TypeScript releases — Uint8Array<ArrayBufferLike> doesn't
       // satisfy BufferSource. The runtime accepts Uint8Array fine; we
@@ -156,7 +190,7 @@ export function useNotificationSubscription(): {
   const unsubscribe = useCallback(async () => {
     if (!isSupported()) return;
     try {
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await navigator.serviceWorker.register("/sw.js");
       const existing = await reg.pushManager.getSubscription();
       if (!existing) {
         setStatus("default");

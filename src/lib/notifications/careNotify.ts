@@ -61,7 +61,15 @@ export async function notifyAssignedAgentOfCustomerMessage(args: {
         tag: `care-conversation:${args.conversationId}`,
       },
     });
-  } catch {
-    // Never let a push failure break message handling.
+  } catch (err) {
+    // Never let a push failure break message handling — but DON'T drop
+    // it silently. A silent catch here is a debugging black hole if push
+    // ever stops working (the same principle sw-team-chat.js states for
+    // the push handler, and sender.ts follows on send failures). Audit
+    // F2, 2026-06-27.
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[careNotify] push notify failed conversationId=${args.conversationId}: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 }

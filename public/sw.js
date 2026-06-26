@@ -60,3 +60,85 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
+// ─── Web Push — app-wide handler (audit F1 consolidation 2026-06-27) ──
+//
+// This is the SINGLE push-capable service worker for the whole app.
+// Before this, the only push handler lived in sw-team-chat.js, scoped
+// to /dashboard/chats/ — so a push subscription created anywhere else
+// (e.g. C.A.R.E) had no handler to display it. The root SW now owns
+// push so notifications work on every surface, not just Team Chat.
+//
+// The handler is GENERIC: it displays whatever {title, body, url, tag}
+// the server sends (Team Chat, C.A.R.E, or any future source) and, on
+// click, navigates to the payload's url. It is NOT biased toward any
+// one surface.
+//
+// Expected payload shape (lib/notifications/sender.ts → PushPayload):
+//   { "title": string, "body": string, "url": string, "tag": string }
+//
+// Defensive: a malformed/absent payload still shows a generic
+// notification — never silently drop a push (that's a debugging black
+// hole when notifications stop working).
+self.addEventListener("push", (event) => {
+  let payload = {
+    title: "New activity",
+    body: "Open the app to see what's new.",
+    url: "/dashboard",
+    tag: "elostate-generic",
+  };
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      payload = {
+        title: typeof parsed.title === "string" ? parsed.title : payload.title,
+        body: typeof parsed.body === "string" ? parsed.body : payload.body,
+        url: typeof parsed.url === "string" ? parsed.url : payload.url,
+        tag: typeof parsed.tag === "string" ? parsed.tag : payload.tag,
+      };
+    } catch {
+      // Malformed payload — fall through to the generic notification.
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      tag: payload.tag,
+      icon: "/icon.svg",
+      badge: "/icon.svg",
+      data: { url: payload.url },
+      // renotify so the same tag re-buzzes on a new message rather than
+      // silently swapping the text.
+      renotify: true,
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl =
+    (event.notification.data && event.notification.data.url) || "/dashboard";
+
+  event.waitUntil(
+    (async () => {
+      const allClients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      // Focus a window already on the target URL; otherwise navigate the
+      // first open app window to it; otherwise open a new one. Generic —
+      // no surface bias (audit F3, 2026-06-27).
+      for (const client of allClients) {
+        if (client.url.endsWith(targetUrl)) return client.focus();
+      }
+      for (const client of allClients) {
+        if (client.url.includes("/dashboard")) {
+          await client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(targetUrl);
+    })()
+  );
+});

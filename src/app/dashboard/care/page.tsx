@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
 import { priorityDisplay } from "@/lib/care/tagColors";
+import { EnableNotificationsBanner } from "@/components/pwa/EnableNotificationsBanner";
 
 /**
  * /dashboard/care — ELOSTATE RTM Home.
@@ -219,6 +220,15 @@ export default function CareHomePage() {
       </header>
       <div className="flex-1 overflow-y-auto bg-white/[0.01]">
         <div className="px-4 md:px-8 py-6 max-w-6xl mx-auto space-y-6">
+          {/* Audit F1 (2026-06-27): C.A.R.E-side push opt-in. Pure-care
+              agents had no way to enable notifications — the only opt-in
+              lived on the Team Chat page. Subscriptions now route to the
+              app-wide root SW so the push actually displays here. */}
+          <EnableNotificationsBanner
+            prompt="Want to know the moment a customer replies? Enable notifications so you're pinged on this device even when the dashboard is closed."
+            dismissKey="care-notifications-banner-dismissed"
+            ariaLabel="C.A.R.E notifications opt-in"
+          />
           {loading && !growth && (
             <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
               <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
