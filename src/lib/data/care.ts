@@ -2,6 +2,7 @@ import "server-only";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { strictMutate } from "@/lib/supabase/strictUpdate";
+import { notifyAssignedAgentOfCustomerMessage } from "@/lib/notifications/careNotify";
 
 /**
  * ELOSTATE Care — data layer.
@@ -277,6 +278,12 @@ export async function postCustomerMessage(args: {
     );
     return null;
   }
+  // Queue #2: push the assigned agent that a customer replied
+  // (fire-and-forget; never blocks the message write).
+  void notifyAssignedAgentOfCustomerMessage({
+    conversationId: args.conversationId,
+    body: args.body,
+  });
   return mapMessage(data);
 }
 

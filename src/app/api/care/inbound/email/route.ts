@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { routeNewConversation } from "@/lib/data/care";
+import { notifyAssignedAgentOfCustomerMessage } from "@/lib/notifications/careNotify";
 import {
   getProductContextForTenant,
   getCareTenantConfigByCompanyId,
@@ -322,6 +323,15 @@ export async function POST(req: NextRequest) {
       { error: "Couldn't insert the customer message." },
       { status: 500 }
     );
+  }
+
+  // Queue #2: push the assigned agent that the customer replied
+  // (fire-and-forget; no push if the conversation is unassigned).
+  if (conversationId) {
+    void notifyAssignedAgentOfCustomerMessage({
+      conversationId,
+      body: body.TextBody,
+    });
   }
 
   // ─── 8. AI first responder — §A16 composition ────────────────
