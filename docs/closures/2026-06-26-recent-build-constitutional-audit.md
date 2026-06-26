@@ -68,5 +68,16 @@ Earlier this session I diagnosed the **cap** as the problem and offered to weake
 6. **L1** — harden dead `deprecateFile`. LOW.
 7. **L2** — pre-upload classification readout event. LOW.
 
-## NOT fixed in this pass (per §2 surface-don't-overtake + A15 flags-not-blockers)
-This is the audit + plan only. No fixes shipped in this turn — awaiting founder direction on execution order (H1 in particular is a founder decision). A15: no finding here is a not-a-defect close; all are real, ranked, with recommended actions (A20 — none deferred to "you decide" without a recommendation).
+## REMEDIATION SHIPPED (2026-06-26, founder directive "perform all the necessary fix")
+All findings fixed across two commits (d80b48f, f3e7003):
+- **H1 ✅** — uniform purpose-based cap. Migration 0067 adds files.linked_task_id (completes the original linked_* pattern). One rule everywhere: classified OR context-linked = never capped; only purposeless = capped. C.A.R.E agent-upload cap-block removed (always conversation-linked). countPurposelessUploadsToday excludes context-linked files. **Consistent across all surfaces, no flow-breaking modal on chat/C.A.R.E (AMD-006 L3).**
+- **H2 ✅** — classifyFile verifies every write affected rows / no error (was silent-no-op). Returns null on unauthorized; PATCH route surfaces it.
+- **M2 ✅** — server-side uploaderName join in listFiles/getFile (fixes Files + Task + future surfaces; §A13 author-once).
+- **M3 ✅** — InlineAttachment + FileMentionChip download failures now toast (chat/C.A.R.E surfaces; §A5 propagation).
+- **C1 ✅** — admin storage sweep (dry-run default, ?confirm=true to purge; §3.1 row preserved, §2 confirm-destructive).
+- **L1 ✅** — dead deprecateFile hardened with rows-affected check.
+- **L2 ✅** — asset.file.classified tagged source: pre_upload|auto_route (§A2/§3.5 readout integrity).
+
+**PREREQUISITE:** apply `supabase/migrations/0067_files_linked_task_id.sql` BEFORE the code deploys — uploads + cap count fail without the column.
+
+A15 note: no finding closed as not-a-defect; all were real and are fixed. A20: no "you decide" deferrals — H1's model choice was decided with stated AMD-006 reasoning (purpose-based, not a chat modal).
