@@ -196,6 +196,48 @@ export default function TeamChatTopicPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicId]);
 
+  // Queue #5 — live updates. Until the codebase's eventual "S7"
+  // Supabase-realtime work (named in the C.A.R.E poll), Team Chat uses
+  // the SAME lightweight 5s poll the C.A.R.E surface already uses
+  // (§A21 — keep the two chat surfaces consistent). The poll refetches
+  // messages + grades only (NOT the whole page, so no skeleton flash;
+  // refresh() with its setLoading(true) is deliberately not reused).
+  // The existing near-bottom scroll logic handles new arrivals: a new
+  // message scrolls if the reader is at the bottom, otherwise surfaces
+  // the "Jump to latest" pill — so this composes without yanking a
+  // reader (AMD-006 L3). Guards: pause on a hidden tab; skip while a
+  // send is in flight so we never clobber the optimistic append.
+  const submittingRef = useRef(false);
+  useEffect(() => {
+    submittingRef.current = submitting;
+  }, [submitting]);
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (submittingRef.current) return;
+      try {
+        const [m, grades] = await Promise.all([
+          fetchMessages(topicId),
+          fetchTopicMessageGrades(topicId),
+        ]);
+        if (cancelled) return;
+        setMessages(m);
+        setMessageGrades(grades);
+      } catch {
+        // Transient fetch failure — the next tick retries. Never
+        // surface an error for a background poll.
+      }
+    };
+    const id = window.setInterval(tick, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topicId]);
+
   // Initial scroll-to-bottom AFTER messages render. Two rAFs because
   // a single rAF runs before layout settles on long threads (the 210-
   // message migration thread exposed this — scrollHeight was 0 when
