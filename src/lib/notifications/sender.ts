@@ -78,8 +78,21 @@ export async function sendPushToUsers(args: {
   if (userIds.length === 0) return { sent: 0, failed: 0, skipped: 0 };
 
   if (!ensureVapidConfigured()) {
-    // No VAPID config → can't send. This is the common case in dev
-    // before keys are generated; not an error condition.
+    // No VAPID config → can't send. A SILENT skip here is a debugging
+    // black hole — it's exactly why "notifications didn't work" was
+    // undiagnosable on 2026-06-27. Name the cause out loud.
+    const present = {
+      VAPID_SUBJECT: Boolean(process.env.VAPID_SUBJECT),
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: Boolean(
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      ),
+      VAPID_PRIVATE_KEY: Boolean(process.env.VAPID_PRIVATE_KEY),
+    };
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[push-sender] SKIPPED ${userIds.length} recipient(s): VAPID not configured. ` +
+        `Present? ${JSON.stringify(present)}`
+    );
     return { sent: 0, failed: 0, skipped: userIds.length };
   }
 
@@ -91,6 +104,11 @@ export async function sendPushToUsers(args: {
     .eq("enabled", true);
 
   if (error || !subs || subs.length === 0) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[push-sender] no enabled subscriptions for ${userIds.length} user(s)` +
+        (error ? ` (query error: ${error.message})` : " — none stored/enabled")
+    );
     return { sent: 0, failed: 0, skipped: 0 };
   }
 
@@ -134,16 +152,23 @@ export async function sendPushToUsers(args: {
             .eq("id", sub.id as string)
             .then(() => undefined, () => undefined);
         }
-        if (process.env.NODE_ENV !== "production") {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[push-sender] failed for endpoint",
-            { endpoint: (sub.endpoint as string).slice(0, 60) + "...", statusCode }
-          );
-        }
+        // Log in ALL environments — a production-only silent failure is
+        // undebuggable. statusCode is the named cause: 403 = VAPID key
+        // mismatch (the public key used to subscribe ≠ the keypair used
+        // to send), 410/404 = dead subscription, 401 = bad VAPID auth.
+        // eslint-disable-next-line no-console
+        console.warn("[push-sender] send FAILED", {
+          endpoint: (sub.endpoint as string).slice(0, 60) + "...",
+          statusCode,
+          message: err instanceof Error ? err.message : String(err),
+        });
       }
     })
   );
 
+  // eslint-disable-next-line no-console
+  console.info(
+    `[push-sender] result sent=${sent} failed=${failed} skipped=0 across ${subs.length} subscription(s)`
+  );
   return { sent, failed, skipped: 0 };
 }
