@@ -18,6 +18,13 @@ never touched this" to "I can make a small, safe change and save it."
 No prior knowledge assumed. Read it slowly. You don't have to finish it
 in one sitting.
 
+**One thing to be clear about up front:** you are a **co-founder and an
+equal owner** of this system. Nothing here is hidden from you and you
+have the same full access as the founder — the *only* reason this guide
+goes slowly and plainly is that you're new to *building*, not because
+anything is held back. The complete discipline lives in `Thinkx1.md`,
+`Thinkx2.md`, and the full files they point to; it's all yours.
+
 **The golden rule before anything else:** you are never alone in here.
 You have a Coach built into the project. When you open the project and
 type **"I'm Moses"**, the Coach is meant to greet you and help you with
