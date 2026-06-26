@@ -157,6 +157,13 @@ export default function FilesLibraryPage() {
         classificationLane: f.classificationLane,
         accessRole: f.accessRole,
         uploaderId: f.uploaderId,
+        // Audit Finding E: resolve the uploader's name from the loaded
+        // team list so the card stops showing "Unknown" for every file
+        // (§A10 — the uploader is always shown, no shadow identity).
+        // Departed members (not in `team`) still fall back to "Unknown";
+        // the §A10-complete server-side join is the follow-up.
+        uploaderName:
+          team.find((m) => m.id === f.uploaderId)?.fullName ?? null,
         createdAt: f.createdAt,
         departmentNames: f.departmentIds
           .map((id) => departments.find((d) => d.id === id)?.name)
@@ -166,15 +173,23 @@ export default function FilesLibraryPage() {
           .filter(Boolean) as string[],
         tags: f.tags,
       })),
-    [files, departments, tasks]
+    [files, departments, tasks, team]
   );
 
   const openFile = async (id: string) => {
+    // Audit Finding D: surface failures instead of silently returning
+    // (same silent-failure class as the delete bug).
     const res = await fetch(`/api/files/${id}`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      toast.error("Couldn't open file", data?.error ?? "Please try again.");
+      return;
+    }
     const data = await res.json();
     if (data.downloadUrl) {
       window.open(data.downloadUrl, "_blank", "noopener");
+    } else {
+      toast.error("Couldn't open file", "No download link was returned.");
     }
   };
 
