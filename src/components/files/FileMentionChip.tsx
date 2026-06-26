@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Image as ImageIcon, Loader2, Music, Paperclip } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * Inline chip for an `@file[Title](UUID)` mention. Renders a
@@ -19,18 +20,29 @@ export function FileMentionChip({
   title: string;
 }) {
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
+  // Audit M3: surface failures instead of silently returning (same
+  // class as the delete bug). A cited file the caller can no longer
+  // access, or a deprecated file, otherwise produced a dead click.
   const open = async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/files/${fileId}`);
       if (!res.ok) {
-        setLoading(false);
+        toast.error(
+          "Can't open file",
+          res.status === 404
+            ? "This file no longer exists."
+            : "You may not have access to this file."
+        );
         return;
       }
       const data = await res.json();
       if (data.downloadUrl) {
         window.open(data.downloadUrl, "_blank", "noopener");
+      } else {
+        toast.error("Can't open file", "The download link is unavailable.");
       }
     } finally {
       setLoading(false);

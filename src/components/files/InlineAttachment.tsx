@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, FileText, Image as ImageIcon, Loader2, Lock, Music } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * Inline attachment card — shown in chat thread + C.A.R.E
@@ -27,6 +28,7 @@ export function InlineAttachment({
   mediaType?: string | null;
 }) {
   const fileId = mediaUrl.startsWith(SCHEME) ? mediaUrl.slice(SCHEME.length) : null;
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState<{
     id: string;
@@ -107,7 +109,17 @@ export function InlineAttachment({
         : `${(file.sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
   const isImage = mime.startsWith("image/");
   const open = () => {
-    if (downloadUrl) window.open(downloadUrl, "_blank", "noopener");
+    // Audit M3: surface the failure instead of a silent no-op (same
+    // class as the delete bug). downloadUrl is null when the signed
+    // URL couldn't be issued (access revoked, file deprecated, etc.).
+    if (downloadUrl) {
+      window.open(downloadUrl, "_blank", "noopener");
+    } else {
+      toast.error(
+        "Can't open attachment",
+        "The download link is unavailable — the file may have been removed or access changed."
+      );
+    }
   };
 
   return (

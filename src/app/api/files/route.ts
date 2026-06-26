@@ -318,6 +318,13 @@ export async function POST(req: NextRequest) {
           department_ids: departmentIds,
           task_ids: taskIds,
           tags,
+          // Audit L2 (§A2/§3.5 readout integrity): distinguish a
+          // user-provided pre-upload classification from a
+          // deterministic auto-route. The §4 rule-acceptance metric
+          // only applies to auto_route uploads; tagging the source
+          // keeps the readout's denominator honest as pre-upload
+          // classification (the new flow) grows.
+          source: callerProvidedClassification ? "pre_upload" : "auto_route",
         },
       });
     }
