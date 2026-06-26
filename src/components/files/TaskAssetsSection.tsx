@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FolderOpen, Loader2 } from "lucide-react";
-import { FileDropzone, type UploadResult } from "./FileDropzone";
+import { FileDropzone } from "./FileDropzone";
 import { FileCard, type FileCardData } from "./FileCard";
 import {
   ClassificationModal,
   type ClassificationDept,
   type ClassificationTask,
+  type ClassificationDraft,
 } from "./ClassificationModal";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * Asset System v1 — Tasks integration.
@@ -17,6 +19,16 @@ import {
  * the task context. The dropzone here pre-fills the
  * classification modal with THIS task as the related task —
  * the user doesn't have to re-pick what's already obvious.
+ *
+ * 2026-06-26 (AMD-006 re-application): the upload now CLASSIFIES
+ * BEFORE uploading — the classify modal opens on file-pick with
+ * this task pre-filled, the user adds a department + description,
+ * and the file uploads classified. Previously the file uploaded
+ * first and landed casual (no description), which tripped the
+ * 3/day casual cap and DEAD-ENDED the user with no way to enter
+ * the information — a layer-2 (effectivity) + layer-3
+ * (composition) failure. The cap was never the bug; the upload
+ * not letting the user classify was.
  */
 
 type ApiFile = {
@@ -46,7 +58,9 @@ export function TaskAssetsSection({
   const [tasks, setTasks] = useState<ClassificationTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [classifyingId, setClassifyingId] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [casualRemaining, setCasualRemaining] = useState(3);
+  const toast = useToast();
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -88,22 +102,54 @@ export function TaskAssetsSection({
     void refresh();
   }, [refresh]);
 
-  const onUploadComplete = (result: UploadResult) => {
-    if (result.ok && result.file) {
-      // No follow-up PATCH needed — the upload route auto-routed
-      // the file to this task via linked_task_id in the form data.
-      // Open the modal so the user can confirm or edit.
-      setClassifyingId(result.file.id as string);
-      void refresh();
+  // Upload the held file WITH the classification collected by the
+  // pre-upload modal. This task is always included in the task_ids
+  // so the file links to it; providing department + description
+  // makes it classified, so it never falls into casual / trips the
+  // cap. Throws on failure so the modal surfaces the error inline.
+  const uploadDraft = async (draft: ClassificationDraft) => {
+    if (!pendingFile) return;
+    const taskIds = draft.taskIds.includes(taskId)
+      ? draft.taskIds
+      : [taskId, ...draft.taskIds];
+    const form = new FormData();
+    form.append("file", pendingFile);
+    form.append("title", draft.title || pendingFile.name);
+    form.append("linked_task_id", taskId);
+    form.append("task_ids", taskIds.join(","));
+    if (draft.description) form.append("description", draft.description);
+    if (draft.departmentIds.length)
+      form.append("department_ids", draft.departmentIds.join(","));
+    if (draft.tags.length) form.append("tags", draft.tags.join(","));
+    form.append("access_role", draft.accessRole);
+    const res = await fetch("/api/files", { method: "POST", body: form });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error ?? `Upload failed (${res.status}).`);
     }
+    const classified =
+      draft.departmentIds.length > 0 && draft.description.trim().length > 0;
+    toast.success(
+      "Attached",
+      classified
+        ? "Classified — it's a team asset now."
+        : "Attached to the task (casual)."
+    );
+    await refresh();
   };
 
   const openFile = async (id: string) => {
     const res = await fetch(`/api/files/${id}`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      toast.error("Couldn't open file", data?.error ?? "Please try again.");
+      return;
+    }
     const data = await res.json();
     if (data.downloadUrl) {
       window.open(data.downloadUrl, "_blank", "noopener");
+    } else {
+      toast.error("Couldn't open file", "No download link was returned.");
     }
   };
 
@@ -118,9 +164,9 @@ export function TaskAssetsSection({
 
       <FileDropzone
         compact
-        contextHint="Attached files auto-route to this task. Add a description + department to classify them as team assets."
+        contextHint="Drop a file — you'll add a department + description so it becomes a searchable team asset on this task."
         linkedTaskId={taskId}
-        onUploadComplete={onUploadComplete}
+        onFileSelected={(f) => setPendingFile(f)}
       />
 
       {loading ? (
@@ -191,6 +237,26 @@ export function TaskAssetsSection({
           />
         );
       })()}
+
+      {/* Pre-upload classify (AMD-006 re-application). The picked file
+          is held in pendingFile; the modal — pre-filled with THIS task
+          — collects department + description BEFORE upload so the file
+          lands classified and never trips the casual cap. */}
+      {pendingFile && (
+        <ClassificationModal
+          open
+          onClose={() => setPendingFile(null)}
+          initial={{
+            title: pendingFile.name.replace(/\.[^.]+$/, ""),
+            taskIds: [taskId],
+          }}
+          departments={departments}
+          tasks={tasks}
+          onSaved={() => {}}
+          casualRemaining={casualRemaining}
+          onSubmitDraft={uploadDraft}
+        />
+      )}
     </div>
   );
 }
