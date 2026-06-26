@@ -10,7 +10,7 @@ import {
 } from "@/lib/storage/assets";
 import {
   CASUAL_DAILY_CAP,
-  countUserCasualUploadsToday,
+  countPurposelessUploadsToday,
   createFileRecord,
   classifyFile,
   listFiles,
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     linkedConversationId,
     limit: 200,
   });
-  const casualToday = await countUserCasualUploadsToday(auth.userId);
+  const casualToday = await countPurposelessUploadsToday(auth.userId);
   return NextResponse.json({
     files,
     casual: {
@@ -174,22 +174,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: v.detail, reason: v.reason }, { status: 400 });
   }
 
-  // Casual-cap check: if this upload would land casual (missing
-  // classification fields) AND the user is already at the cap,
-  // reject. Per the founder red-pen: explainer copy, not just
-  // "limit reached".
-  const willBeCasual =
-    departmentIds.length === 0 ||
-    taskIds.length === 0 ||
-    !description ||
-    description.length === 0;
-  if (willBeCasual) {
-    const used = await countUserCasualUploadsToday(auth.userId);
+  // Casual-cap check (audit H1 — the UNIFORM rule across every
+  // upload surface). The cap limits PURPOSELESS uploads only. A file
+  // has a designated purpose if it is either:
+  //   • explicitly classified (department + task + description), OR
+  //   • context-linked (topic / conversation / task).
+  // Only a file with NEITHER is "purposeless" and counted/blocked.
+  // This is what makes chat/C.A.R.E/task uploads (always
+  // context-linked) consistent with classified library uploads:
+  // none of them ever hit the cap, because all of them have a
+  // purpose. Only a raw library drop with no context and no
+  // classification is capped.
+  const willClassify =
+    departmentIds.length > 0 &&
+    taskIds.length > 0 &&
+    !!description &&
+    description.length > 0;
+  const hasContextLink =
+    !!linkedTopicId || !!linkedConversationId || !!linkedTaskIdRaw;
+  const isPurposeless = !willClassify && !hasContextLink;
+  if (isPurposeless) {
+    const used = await countPurposelessUploadsToday(auth.userId);
     if (used >= CASUAL_DAILY_CAP) {
       return NextResponse.json(
         {
           error:
-            "File upload without a designated purpose is limited to 3 per day. To upload more, attach a department, task, and a short description so this file becomes part of the team's asset base.",
+            "Uploads without a designated purpose are limited to 3 per day. Give this file a purpose — attach a department + task + short description to classify it, or upload it from a task/chat/conversation — and it won't count against the cap.",
           reason: "casual_cap_reached",
           casual: { today: used, cap: CASUAL_DAILY_CAP },
         },
@@ -235,6 +245,7 @@ export async function POST(req: NextRequest) {
       uploadedVia: "agent_dashboard",
       linkedTopicId,
       linkedConversationId,
+      linkedTaskId: linkedTaskIdRaw,
     });
   } catch (err) {
     // Surface the actual Supabase error message (e.g. RLS denial,
@@ -312,7 +323,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const used = await countUserCasualUploadsToday(auth.userId);
+  const used = await countPurposelessUploadsToday(auth.userId);
   return NextResponse.json({
     file: row,
     casual: {

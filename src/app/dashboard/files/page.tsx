@@ -26,6 +26,7 @@ type ApiFile = {
   classificationLane: "classified" | "casual";
   accessRole: "everyone" | "admins" | "ceo_admins" | "specific_people";
   uploaderId: string | null;
+  uploaderName?: string | null;
   createdAt: string;
   departmentIds: string[];
   taskIds: string[];
@@ -157,13 +158,14 @@ export default function FilesLibraryPage() {
         classificationLane: f.classificationLane,
         accessRole: f.accessRole,
         uploaderId: f.uploaderId,
-        // Audit Finding E: resolve the uploader's name from the loaded
-        // team list so the card stops showing "Unknown" for every file
-        // (§A10 — the uploader is always shown, no shadow identity).
-        // Departed members (not in `team`) still fall back to "Unknown";
-        // the §A10-complete server-side join is the follow-up.
+        // Audit M2: the server now resolves the uploader name
+        // (listFiles joins profiles), so every card shows it — including
+        // departed members. Fall back to the team list only if the
+        // server value is absent (older cached responses).
         uploaderName:
-          team.find((m) => m.id === f.uploaderId)?.fullName ?? null,
+          f.uploaderName ??
+          team.find((m) => m.id === f.uploaderId)?.fullName ??
+          null,
         createdAt: f.createdAt,
         departmentNames: f.departmentIds
           .map((id) => departments.find((d) => d.id === id)?.name)

@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
-import {
-  CASUAL_DAILY_CAP,
-  countUserCasualUploadsToday,
-  createFileRecord,
-} from "@/lib/data/files";
+import { createFileRecord } from "@/lib/data/files";
 import { postAgentMessage } from "@/lib/data/care";
 import {
   buildStoragePath,
@@ -72,23 +68,17 @@ export async function POST(
     );
   }
 
-  // Casual-cap check (per inspection Finding 4 — closing the
-  // §A6/§A5 divergence). C.A.R.E composer uploads are always
-  // casual (no classification fields in the multipart form),
-  // so they always count against the cap. The agent who wants
-  // to upload more can classify the file from /dashboard/files.
-  const usedToday = await countUserCasualUploadsToday(auth.userId);
-  if (usedToday >= CASUAL_DAILY_CAP) {
-    return NextResponse.json(
-      {
-        error:
-          "File upload without a designated purpose is limited to 3 per day. To upload more from C.A.R.E, classify a previous upload at /dashboard/files first.",
-        reason: "casual_cap_reached",
-        casual: { today: usedToday, cap: CASUAL_DAILY_CAP },
-      },
-      { status: 429 }
-    );
-  }
+  // Audit 2026-06-26 (H1): C.A.R.E uploads are ALWAYS linked to the
+  // conversation (linked_conversation_id = id below), so they have a
+  // designated purpose by the uniform cap rule and must NOT be
+  // cap-blocked. The previous code treated them as "always casual ->
+  // always counted," which created the dead-end the founder hit:
+  // an agent at the cap could not attach a file to a customer reply
+  // even though that file is inherently purposeful. Removing the cap
+  // block here makes C.A.R.E consistent with every other
+  // context-linked upload surface. (countPurposelessUploadsToday now
+  // excludes context-linked files, so these also stop inflating any
+  // other surface's count.)
   const fileId = randomUUID();
   const storagePath = buildStoragePath({
     companyId: auth.companyId,

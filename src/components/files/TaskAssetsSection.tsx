@@ -40,6 +40,7 @@ type ApiFile = {
   classificationLane: "classified" | "casual";
   accessRole: "everyone" | "admins" | "ceo_admins" | "specific_people";
   uploaderId: string | null;
+  uploaderName?: string | null;
   createdAt: string;
   departmentIds: string[];
   taskIds: string[];
@@ -192,6 +193,8 @@ export function TaskAssetsSection({
                 classificationLane: f.classificationLane,
                 accessRole: f.accessRole,
                 uploaderId: f.uploaderId,
+                // Audit M2: server-resolved uploader name (no more "Unknown").
+                uploaderName: f.uploaderName ?? null,
                 createdAt: f.createdAt,
                 departmentNames: f.departmentIds
                   .map((id) => departments.find((d) => d.id === id)?.name)

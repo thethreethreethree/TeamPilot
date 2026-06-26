@@ -40,9 +40,14 @@ export type FileRecord = {
   uploadedVia: UploadedVia;
   linkedTopicId: string | null;
   linkedConversationId: string | null;
+  linkedTaskId: string | null;
   deprecatedAt: string | null;
   deprecatedBy: string | null;
   createdAt: string;
+  /** Resolved uploader display name (audit M2 — server-side join so
+   *  every card surface shows the name, not "Unknown"). Null for
+   *  customer/widget uploads (no uploader) or unresolvable ids. */
+  uploaderName?: string | null;
   // Hydrated separately on detail fetch
   departmentIds: string[];
   taskIds: string[];
@@ -66,6 +71,7 @@ type DbRow = {
   uploaded_via: UploadedVia;
   linked_topic_id: string | null;
   linked_conversation_id: string | null;
+  linked_task_id: string | null;
   deprecated_at: string | null;
   deprecated_by: string | null;
   created_at: string;
@@ -89,6 +95,7 @@ function mapBase(row: DbRow): Omit<FileRecord, "departmentIds" | "taskIds" | "ta
     uploadedVia: row.uploaded_via,
     linkedTopicId: row.linked_topic_id,
     linkedConversationId: row.linked_conversation_id,
+    linkedTaskId: row.linked_task_id,
     deprecatedAt: row.deprecated_at,
     deprecatedBy: row.deprecated_by,
     createdAt: row.created_at,
@@ -114,6 +121,7 @@ export async function createFileRecord(args: {
   uploadedVia: UploadedVia;
   linkedTopicId?: string | null;
   linkedConversationId?: string | null;
+  linkedTaskId?: string | null;
 }): Promise<FileRecord | null> {
   // Use admin client for customer-widget uploads (uploader_id is
   // null and RLS would reject). Agent uploads use the user-scoped
@@ -138,6 +146,7 @@ export async function createFileRecord(args: {
       uploaded_via: args.uploadedVia,
       linked_topic_id: args.linkedTopicId ?? null,
       linked_conversation_id: args.linkedConversationId ?? null,
+      linked_task_id: args.linkedTaskId ?? null,
     })
     .select("*")
     .single();
@@ -207,10 +216,44 @@ function attachJoins(
   };
 }
 
+/**
+ * Resolve uploader display names for a set of file rows (audit M2).
+ * Server-side so EVERY FileRecord-producing path (listFiles, getFile,
+ * createFileRecord) carries the name — the A13 "author the space
+ * once" fix, instead of each card surface resolving it client-side
+ * (which left the task section showing "Unknown"). RLS-scoped: the
+ * caller can only read profiles in their own company, same as the
+ * team API. Returns a map of uploader_id -> full_name (or null).
+ */
+async function fetchUploaderNames(
+  rows: DbRow[]
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  const ids = Array.from(
+    new Set(rows.map((r) => r.uploader_id).filter((x): x is string => !!x))
+  );
+  if (ids.length === 0) return out;
+  const sb = await createClient();
+  const { data } = await sb
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", ids);
+  for (const p of (data ?? []) as Array<{
+    id: string;
+    full_name: string | null;
+  }>) {
+    out.set(p.id, p.full_name ?? null);
+  }
+  return out;
+}
+
 async function hydrate(row: DbRow): Promise<FileRecord | null> {
   const base = mapBase(row);
   const { byFileDept, byFileTask, byFileTag } = await fetchJoinRows([row.id]);
-  return attachJoins(base, byFileDept, byFileTask, byFileTag);
+  const rec = attachJoins(base, byFileDept, byFileTask, byFileTag);
+  const names = await fetchUploaderNames([row]);
+  rec.uploaderName = row.uploader_id ? names.get(row.uploader_id) ?? null : null;
+  return rec;
 }
 
 export type ListFilesOpts = {
@@ -251,9 +294,12 @@ export async function listFiles(opts: ListFilesOpts = {}): Promise<FileRecord[]>
   const rows = data as DbRow[];
   const ids = rows.map((r) => r.id);
   const { byFileDept, byFileTask, byFileTag } = await fetchJoinRows(ids);
-  let result = rows.map((r) =>
-    attachJoins(mapBase(r), byFileDept, byFileTask, byFileTag)
-  );
+  const names = await fetchUploaderNames(rows);
+  let result = rows.map((r) => {
+    const rec = attachJoins(mapBase(r), byFileDept, byFileTask, byFileTag);
+    rec.uploaderName = r.uploader_id ? names.get(r.uploader_id) ?? null : null;
+    return rec;
+  });
   // Department/task/tag filters are applied AFTER join hydration
   // because they require the m2m rows. For v1 this is fine; if
   // we hit scale we'll move to a denormalized search column.
@@ -294,75 +340,129 @@ export async function classifyFile(args: {
 }): Promise<FileRecord | null> {
   const sb = await createClient();
   // 1. Update files table for title/description/access_role.
+  //
+  // Audit 2026-06-26 (H2): every write below now verifies it
+  // actually affected rows / did not error. The prior code did
+  // `.update(...)` and never checked rows-affected — an RLS-filtered
+  // update (e.g. a non-uploader non-admin) silently touched ZERO
+  // rows, no error, and the function returned getFile() (the
+  // UNCHANGED file) as "success." Same silent-no-op class as the
+  // delete bug. classifyFile now returns null on any unauthorized /
+  // failed write so the PATCH route surfaces a real error.
   const filePatch: Record<string, unknown> = {};
   if (args.title) filePatch.title = args.title.trim().slice(0, 120);
   if (args.description !== undefined)
     filePatch.description = args.description.trim() || null;
   if (args.accessRole) filePatch.access_role = args.accessRole;
   if (Object.keys(filePatch).length > 0) {
-    const { error: e } = await sb
+    const { data: updated, error: e } = await sb
       .from("files")
       .update(filePatch)
-      .eq("id", args.fileId);
-    if (e) {
+      .eq("id", args.fileId)
+      .select("id")
+      .maybeSingle();
+    if (e || !updated) {
       // eslint-disable-next-line no-console
-      console.error(`[files.classify] file patch failed: ${e.message}`);
+      console.error(
+        `[files.classify] file patch failed or affected no row (RLS?): ${
+          e?.message ?? "no row"
+        }`
+      );
       return null;
     }
   }
-  // 2. Replace department join rows.
-  await sb.from("file_departments").delete().eq("file_id", args.fileId);
-  if (args.departmentIds.length > 0) {
-    await sb
+  // 2. Replace department join rows. Capture errors — an RLS-denied
+  //    insert means the caller can't modify this file; fail loudly.
+  {
+    const { error: delErr } = await sb
       .from("file_departments")
-      .insert(
+      .delete()
+      .eq("file_id", args.fileId);
+    if (delErr) return null;
+    if (args.departmentIds.length > 0) {
+      const { error: insErr } = await sb.from("file_departments").insert(
         args.departmentIds.map((dId) => ({
           file_id: args.fileId,
           department_id: dId,
         }))
       );
+      if (insErr) return null;
+    }
   }
   // 3. Replace task join rows.
-  await sb.from("file_tasks").delete().eq("file_id", args.fileId);
-  if (args.taskIds.length > 0) {
-    await sb
+  {
+    const { error: delErr } = await sb
       .from("file_tasks")
-      .insert(args.taskIds.map((tId) => ({ file_id: args.fileId, task_id: tId })));
+      .delete()
+      .eq("file_id", args.fileId);
+    if (delErr) return null;
+    if (args.taskIds.length > 0) {
+      const { error: insErr } = await sb
+        .from("file_tasks")
+        .insert(
+          args.taskIds.map((tId) => ({ file_id: args.fileId, task_id: tId }))
+        );
+      if (insErr) return null;
+    }
   }
   // 4. Replace tags.
-  await sb.from("file_tags").delete().eq("file_id", args.fileId);
-  const normalized = args.tags
-    .map((t) => t.trim().toLowerCase())
-    .filter((t) => t.length > 0 && t.length <= 40)
-    .slice(0, 20);
-  if (normalized.length > 0) {
-    await sb
+  {
+    const { error: delErr } = await sb
       .from("file_tags")
-      .insert(normalized.map((tag) => ({ file_id: args.fileId, tag })));
+      .delete()
+      .eq("file_id", args.fileId);
+    if (delErr) return null;
+    const normalized = args.tags
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length > 0 && t.length <= 40)
+      .slice(0, 20);
+    if (normalized.length > 0) {
+      const { error: insErr } = await sb
+        .from("file_tags")
+        .insert(normalized.map((tag) => ({ file_id: args.fileId, tag })));
+      if (insErr) return null;
+    }
   }
   return getFile(args.fileId);
 }
 
 export async function deprecateFile(id: string): Promise<boolean> {
+  // Audit 2026-06-26 (L1): harden the rows-affected check. The DELETE
+  // route now uses an admin-client path (route handler), so this
+  // helper is not on the live delete path — but it previously
+  // returned `!error`, which is TRUE even when RLS filtered the
+  // update to zero rows. Left as a landmine for any future caller.
+  // Now verifies a row was actually updated via .select().
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
-  const { error } = await sb
+  const { data: updated, error } = await sb
     .from("files")
     .update({
       deprecated_at: new Date().toISOString(),
       deprecated_by: auth?.user?.id ?? null,
     })
-    .eq("id", id);
-  return !error;
+    .eq("id", id)
+    .is("deprecated_at", null)
+    .select("id")
+    .maybeSingle();
+  return !error && !!updated;
 }
 
 /**
- * The user's casual-lane upload count today (UTC).
- * Per migration 0057's count_user_casual_uploads_today() RPC,
- * but we re-implement in TS so the API route can show the
- * counter without a DB round-trip when we already have the user.
+ * The user's PURPOSELESS casual-upload count today (UTC).
+ *
+ * Audit 2026-06-26 (H1): the casual cap exists to limit uploads
+ * "without a designated purpose" — NOT every casual-lane file. A
+ * file linked to a topic / conversation / task has a designated
+ * purpose by the cap's own wording, so it must NOT count against
+ * the cap. This is the uniform rule across every upload surface:
+ * only a file that is casual-lane AND has no context link is
+ * "purposeless" and counted.
+ *
+ * (Renamed from countUserCasualUploadsToday — the old name implied
+ * all casual files counted, which was the inconsistency H1 names.)
  */
-export async function countUserCasualUploadsToday(
+export async function countPurposelessUploadsToday(
   userId: string
 ): Promise<number> {
   const sb = await createClient();
@@ -374,6 +474,9 @@ export async function countUserCasualUploadsToday(
     .eq("uploader_id", userId)
     .eq("classification_lane", "casual")
     .is("deprecated_at", null)
+    .is("linked_topic_id", null)
+    .is("linked_conversation_id", null)
+    .is("linked_task_id", null)
     .gte("created_at", startOfDay.toISOString());
   return count ?? 0;
 }
