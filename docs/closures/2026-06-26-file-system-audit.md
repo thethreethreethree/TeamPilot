@@ -50,7 +50,7 @@ The founder reported the casual-cap dead-end on the TASK assets section and name
 
 Fix: extended the pre-upload classify modal to `TaskAssetsSection` (mirrors the Files-page B fix), pre-filled with the current task. The upload now classifies-before-committing, so an intended-classified file never falls into casual. Also surfaced download errors there (Finding D consistency).
 
-**Open dependency (AMD-006 layer 2):** classification requires ≥1 department to exist (the 0056 trigger needs dept+task+description). A no-departments user can enter everything except a department, so still can't reach "classified." The modal links to create-a-department, but that's a context switch. Follow-up options: inline department creation in the modal, OR confirm the founder has departments. Surfaced to the founder.
+**Resolved (AMD-006 layer 2):** classification requires ≥1 department (the 0056 trigger needs dept+task+description), and the founder had none — so the workflow didn't actually work end-to-end. Closed by adding **inline department creation** to `ClassificationModal`: the user types a name + Create (POST /api/departments, admin-only), it's added + auto-selected, and they classify without leaving the upload flow. Non-admins get a clear inline "admin only" error rather than a silent fail. This makes the full path work for a zero-departments user — the layer-2 completion.
 
 ## NOT verified (needs founder runtime check)
 - The actual delete now working in the founder's account (the fix is certain in code; the founder's specific files were uploaded by "Unknown" — if delete STILL fails after this, the new explicit error will name the real cause).

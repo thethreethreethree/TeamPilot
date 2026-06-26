@@ -120,6 +120,43 @@ export function ClassificationModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Inline department creation (AMD-006 layer-2 completion): a
+  // no-departments user otherwise can't reach the classified lane
+  // and stays dead-ended at the casual cap. Creating one here keeps
+  // them in the upload flow — no context switch to Settings.
+  const [localDepts, setLocalDepts] = useState<ClassificationDept[]>([]);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [creatingDept, setCreatingDept] = useState(false);
+  const [deptError, setDeptError] = useState<string | null>(null);
+
+  const allDepartments = [...departments, ...localDepts];
+
+  const createDept = async () => {
+    const name = newDeptName.trim();
+    if (!name || creatingDept) return;
+    setCreatingDept(true);
+    setDeptError(null);
+    try {
+      const res = await fetch("/api/departments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setDeptError(data?.error ?? "Couldn't create department.");
+        return;
+      }
+      const dep = data.department as { id: string; name: string };
+      setLocalDepts((arr) => [...arr, { id: dep.id, name: dep.name }]);
+      setDepartmentIds((arr) => [...arr, dep.id]); // auto-select it
+      setNewDeptName("");
+    } catch {
+      setDeptError("Network error creating department.");
+    } finally {
+      setCreatingDept(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -130,6 +167,9 @@ export function ClassificationModal({
       setTags(initial.tags ?? []);
       setAccessRole(initial.accessRole ?? "everyone");
       setError(null);
+      setLocalDepts([]);
+      setNewDeptName("");
+      setDeptError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, fileId]);
@@ -342,25 +382,14 @@ export function ClassificationModal({
           <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">
             Departments {departmentIds.length === 0 && <span className="text-red-300/60">(at least 1 for classified)</span>}
           </label>
-          {departments.length === 0 ? (
-            <div className="rounded-md border border-arc-400/30 bg-arc-400/[0.06] p-2.5">
-              <p className="text-xs text-arc-300 mb-1.5">
-                No departments yet — the classification gate needs at least one.
-              </p>
-              <a
-                href="/dashboard/settings/departments"
-                className="text-[11px] font-semibold text-brand underline"
-              >
-                Create your first department →
-              </a>
-              <p className="text-[11px] text-muted mt-1.5 leading-relaxed">
-                Admin-only. Files uploaded before departments exist stay casual
-                until you classify them later.
-              </p>
-            </div>
+          {allDepartments.length === 0 ? (
+            <p className="text-[11px] text-muted mb-2">
+              No departments yet — create your first one below to classify
+              this file as a team asset.
+            </p>
           ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {departments.map((d) => (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {allDepartments.map((d) => (
                 <button
                   key={d.id}
                   type="button"
@@ -375,6 +404,35 @@ export function ClassificationModal({
                 </button>
               ))}
             </div>
+          )}
+          {/* Inline create — keeps a no-departments user in the flow
+              (AMD-006 layer-2 completion). Admin-only server-side; a
+              non-admin gets a clear error rather than a silent fail. */}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={newDeptName}
+              onChange={(e) => setNewDeptName(e.target.value.slice(0, 80))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void createDept();
+                }
+              }}
+              placeholder="+ New department (e.g. Finance)"
+              className="flex-1 bg-surface border border-default rounded-md px-3 py-1.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
+            />
+            <button
+              type="button"
+              onClick={() => void createDept()}
+              disabled={creatingDept || !newDeptName.trim()}
+              className="text-xs px-3 py-1.5 rounded-md border border-default text-secondary hover:text-primary hover:border-strong disabled:opacity-40"
+            >
+              {creatingDept ? "…" : "Create"}
+            </button>
+          </div>
+          {deptError && (
+            <p className="text-[11px] text-red-300 mt-1">{deptError}</p>
           )}
         </div>
 
