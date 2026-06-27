@@ -272,24 +272,47 @@ export function useLiveCoaching(sessionId: string) {
       source.connect(proc);
       proc.connect(ctx.destination);
 
+      let sentChunks = 0;
       proc.onaudioprocess = (e) => {
         if (ws.readyState !== WebSocket.OPEN) return;
         const input = e.inputBuffer.getChannelData(0);
-        ws.send(
-          JSON.stringify({
-            message_type: "input_audio_chunk",
-            audio_base_64: floatTo16BitPCMBase64(input),
-            sample_rate: Math.round(ctx.sampleRate),
-          })
-        );
+        try {
+          ws.send(
+            JSON.stringify({
+              message_type: "input_audio_chunk",
+              audio_base_64: floatTo16BitPCMBase64(input),
+              sample_rate: Math.round(ctx.sampleRate),
+            })
+          );
+          sentChunks += 1;
+          if (sentChunks === 1 || sentChunks % 100 === 0) {
+            // eslint-disable-next-line no-console
+            console.info(
+              `[live-coaching] sent ${sentChunks} audio chunks @ ${Math.round(ctx.sampleRate)}Hz`
+            );
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn("[live-coaching] audio send failed", err);
+        }
       };
 
-      ws.onopen = () => setStatus("live");
-      ws.onerror = () => {
+      ws.onopen = () => {
+        // eslint-disable-next-line no-console
+        console.info("[live-coaching] ws OPEN");
+        setStatus("live");
+      };
+      ws.onerror = (ev) => {
+        // eslint-disable-next-line no-console
+        console.warn("[live-coaching] ws ERROR", ev);
         setError("Realtime connection error.");
         setStatus("error");
       };
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[live-coaching] ws CLOSE code=${ev.code} reason=${ev.reason || "(none)"}`
+        );
         if (status === "live") setStatus("idle");
       };
       ws.onmessage = (ev) => {
@@ -301,6 +324,16 @@ export function useLiveCoaching(sessionId: string) {
           // eslint-disable-next-line no-console
           console.warn("[live-coaching] unparseable ws message", err);
           return;
+        }
+        // Diagnosis: log everything that ISN'T a routine partial, so
+        // errors / session_started / unexpected types are visible.
+        if (msg.message_type !== "partial_transcript") {
+          // eslint-disable-next-line no-console
+          console.info(
+            "[live-coaching] ws msg:",
+            msg.message_type ?? "(no type)",
+            typeof ev.data === "string" ? ev.data.slice(0, 250) : ""
+          );
         }
         if (msg.message_type === "partial_transcript") {
           setPartial(msg.text ?? "");
