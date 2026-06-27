@@ -300,6 +300,38 @@ export async function transcribeWithDiarization(args: {
   return segments;
 }
 
+/**
+ * Mint a single-use token for browser-direct Scribe v2 Realtime
+ * (Live Sales Coach S1b). The browser opens the realtime websocket with
+ * ?token=… so the API key never leaves the server. Token is time-bound
+ * (~15 min) and consumed on use.
+ *
+ * Endpoint verified against the ElevenLabs docs (2026-06-27):
+ * POST /v1/single-use-token/realtime_scribe with the xi-api-key header.
+ * UNTESTED against the live API.
+ */
+export async function mintRealtimeSttToken(): Promise<string> {
+  const apiKey = getApiKey();
+  const response = await fetch(
+    "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe",
+    {
+      method: "POST",
+      headers: { "xi-api-key": apiKey, Accept: "application/json" },
+    }
+  );
+  if (!response.ok) {
+    const err = await response.text().catch(() => "");
+    throw new Error(
+      `ElevenLabs token mint failed: ${response.status} ${err.slice(0, 300)}`
+    );
+  }
+  const result = (await response.json()) as { token?: string };
+  if (!result.token) {
+    throw new Error("ElevenLabs token mint returned no token.");
+  }
+  return result.token;
+}
+
 export { DEFAULT_VOICE_ID };
 
 /**

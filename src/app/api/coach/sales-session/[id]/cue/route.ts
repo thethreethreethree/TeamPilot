@@ -27,6 +27,19 @@ import { generateLiveCue } from "@/lib/coach/v5/liveCue";
 
 const BodySchema = z.object({
   mode: z.enum(["suggestion", "guide_response"]),
+  // S1b realtime: an inline rolling transcript from the live websocket.
+  // When present, the brain reads it directly — skipping the DB round
+  // trip that would add latency on the hot path ("a late tip is
+  // worthless"). When absent, falls back to the stored transcript.
+  liveTranscript: z
+    .array(
+      z.object({
+        speaker: z.enum(["agent", "customer", "unknown"]),
+        text: z.string().min(1).max(8000),
+      })
+    )
+    .max(200)
+    .optional(),
 });
 
 export async function POST(
@@ -62,7 +75,20 @@ export async function POST(
     );
   }
 
-  const segments = await getSessionTranscript(id);
+  // Prefer the inline live transcript (S1b, low-latency); else read the
+  // stored transcript. generateLiveCue only reads .speaker + .text, so
+  // a minimal shape suffices for the inline path.
+  const segments = body.liveTranscript
+    ? body.liveTranscript.map((s, i) => ({
+        id: `live-${i}`,
+        sessionId: id,
+        speaker: s.speaker,
+        text: s.text,
+        seq: i,
+        spokenAt: null,
+      }))
+    : await getSessionTranscript(id);
+
   const result = await generateLiveCue({
     companyId,
     mode: body.mode,

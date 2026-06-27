@@ -14,6 +14,7 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
+import { LiveCoachingPanel } from "@/components/sales-coach/LiveCoachingPanel";
 
 /**
  * /dashboard/sales-coach/[id] — session review surface.
@@ -228,6 +229,9 @@ export default function SessionDetail() {
                 Not enough of the conversation yet to write an honest review.
               </p>
             )}
+
+            {/* S1b — live coaching during the call */}
+            <LiveCoachingPanel sessionId={id} />
 
             {/* S1a — upload a recording → diarize → one-tap label */}
             <SessionRecordingUpload sessionId={id} onLabeled={() => void load()} />
