@@ -115,7 +115,9 @@ export function useLiveCoaching(sessionId: string) {
       node.connect(ctx.destination);
       node.onended = () => setCueStatus("");
       node.start();
-      setCueStatus("🔊 Playing cue…");
+      // F3 (audit 2026-06-27): starting playback ≠ audible. Don't assert
+      // they heard it — point at the output device if they didn't.
+      setCueStatus("🔊 Cue sent to your earpiece — check your output if you don't hear it.");
     } catch (err) {
       setCueStatus(
         `Couldn't play the cue audio: ${err instanceof Error ? err.message : String(err)}. The text is shown above.`
@@ -313,7 +315,15 @@ export function useLiveCoaching(sessionId: string) {
       const proc = ctx.createScriptProcessor(4096, 1, 1);
       procRef.current = proc;
       source.connect(proc);
-      proc.connect(ctx.destination);
+      // F2 (audit 2026-06-27): keep the ScriptProcessor alive via a MUTED
+      // gain node instead of wiring the mic straight to the speakers —
+      // proc->destination echoed the agent's own voice (and fed the cue
+      // back into the mic on speakers). gain 0 = no output, but the node
+      // still processes + sends audio over the websocket.
+      const muteGain = ctx.createGain();
+      muteGain.gain.value = 0;
+      proc.connect(muteGain);
+      muteGain.connect(ctx.destination);
 
       let sentChunks = 0;
       proc.onaudioprocess = (e) => {

@@ -102,6 +102,14 @@ export async function POST(
 
   // Record only delivered cues (append-only). A "stay silent" decision
   // is not a cue and is not recorded.
+  //
+  // KNOWN CONFLATION (audit F4, 2026-06-27, DEFERRED): a forced on-demand
+  // cue (body.force, "coach me now") is recorded identically to an
+  // auto-cue, so the §3.5 cue-reliance signal counts agent-initiated help
+  // requests together with passive auto-cues. Proper fix = an `on_demand`
+  // boolean column on coaching_cues so getCueRelianceSeries can separate
+  // them. Deferred to avoid a migration-ordering window during live
+  // debugging; do the migration when ready.
   if (result.shouldCue) {
     await appendCue({ sessionId: id, mode: result.mode, text: result.cue });
   }

@@ -47,11 +47,17 @@ export async function generateLiveCue(args: {
 
     let systemPrompt = buildLiveCueSystemPrompt(args.mode);
     if (args.force) {
+      // F1 (audit 2026-06-27): the agent asked, so always RESPOND — but
+      // never FABRICATE. Honesty over a forced tip (§3.4/§5). Give a real
+      // move if there is one; otherwise say so plainly.
       systemPrompt +=
-        "\n\nIMPORTANT: The agent has EXPLICITLY asked for help right now. " +
-        "You MUST return shouldCue:true with ONE concrete, specific suggestion " +
-        "for this exact moment in the conversation. Do not stay silent and do " +
-        "not return an empty cue — give your single best move.";
+        "\n\nThe agent has EXPLICITLY asked for help right now, so always " +
+        "respond with one short line and set shouldCue:true. If there is a " +
+        "clear high-value move, give your single best one. If the " +
+        "conversation genuinely has no real coaching moment yet (small talk, " +
+        "a mic check, nothing to work with), say that honestly instead — " +
+        "e.g. 'Nothing jumping out yet — let them keep talking.' NEVER invent " +
+        "a sales moment or coach on something that isn't actually there.";
     }
     const userMessage = buildLiveCueUserMessage({
       context: args.context,
