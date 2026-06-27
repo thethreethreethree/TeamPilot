@@ -1,5 +1,29 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
+import { getSalesKnowledgeBase } from "./salesKnowledgeBase";
+
+/**
+ * Methodology block: the compiled Sales Knowledge Base (SPIN / Challenger
+ * / Voss / Navigate 2.0) when it's present, embedded whole (the same way
+ * the Coach KB is). Falls back to the inline STARTER_SALES_METHODOLOGY
+ * until the KB lands — so the coach is never broken, only less deeply
+ * grounded (§3.4, §A21).
+ */
+function methodologyBlock(): string {
+  const kb = getSalesKnowledgeBase();
+  if (kb) {
+    return `SALES KNOWLEDGE BASE — your operational reference. Reason FROM
+these primary-source-grounded principles (SPIN Selling, The Challenger
+Sale, Never Split the Difference, Navigate 2.0); match the conversation
+to the right move; adapt to what THIS conversation needed (§3.3
+understanding gate). Do not grade against it as a rigid checklist.
+
+${kb}
+
+END OF SALES KNOWLEDGE BASE.`;
+  }
+  return STARTER_SALES_METHODOLOGY;
+}
 
 /**
  * Live Sales Coach — post-call review prompts.
@@ -87,7 +111,7 @@ of their live customer conversations.
 
 ${TONE_LAW}
 
-${STARTER_SALES_METHODOLOGY}
+${methodologyBlock()}
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {
