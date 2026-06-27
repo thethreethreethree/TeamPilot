@@ -12,15 +12,15 @@ import {
   Square,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
 
 /**
  * /dashboard/sales-coach/[id] — session review surface.
  *
  * Shows the diarized transcript + the post-call growth review (tone law:
- * strengths first, then growth-as-opportunity). The four C.A.R.E
- * features (decision dialogue / spawn task / ask coach / summarize) are
- * the NEXT phase — not shown here yet rather than shown as dead buttons
- * (§3.4 honesty).
+ * strengths first, then growth-as-opportunity) + the four C.A.R.E
+ * features (summarize / spawn task / ask coach / decision dialogue),
+ * each reusing the existing engine (§A21).
  */
 
 type Segment = {
@@ -227,6 +227,15 @@ export default function SessionDetail() {
                 Not enough of the conversation yet to write an honest review.
               </p>
             )}
+
+            {/* The four C.A.R.E features on this session */}
+            <SessionCoachTools
+              sessionId={id}
+              segments={transcript.map((s) => ({
+                speaker: s.speaker,
+                text: s.text,
+              }))}
+            />
 
             {/* Transcript */}
             <section>
