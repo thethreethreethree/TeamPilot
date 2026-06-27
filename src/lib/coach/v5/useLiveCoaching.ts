@@ -31,6 +31,9 @@ const REALTIME_WS = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
 // Debounce auto-cue after a committed transcript so we cue at natural
 // beats, not on every tiny commit (founder: "on pauses").
 const AUTO_CUE_DEBOUNCE_MS = 4000;
+// After a cue is delivered, suppress AUTO cues for this long so the coach
+// doesn't talk over the agent (§3.3). On-demand ("coach me") bypasses it.
+const CUE_COOLDOWN_MS = 25_000;
 
 function floatTo16BitPCMBase64(input: Float32Array): string {
   const buf = new ArrayBuffer(input.length * 2);
@@ -54,8 +57,15 @@ export function useLiveCoaching(sessionId: string) {
   const [currentCue, setCurrentCue] = useState<string | null>(null);
   const [mode, setMode] = useState<CueMode>("suggestion");
   const [error, setError] = useState<string | null>(null);
+  // F2: the recorded call audio, available after Stop, to feed the S1a
+  // upload→diarize→label→review pipeline so a live session leaves a
+  // persisted, reviewable record (§1.1). In-person only — the mic holds
+  // both voices in a room; online video, it's agent-only.
+  const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
@@ -63,6 +73,7 @@ export function useLiveCoaching(sessionId: string) {
   const cueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cueInFlightRef = useRef(false);
   const modeRef = useRef<CueMode>("suggestion");
+  const lastCueAtRef = useRef(0); // F4 cooldown (ms epoch); 0 = never
 
   // Speak a cue privately to the agent (reuses Jeff's flash TTS).
   const speakCue = useCallback(async (text: string) => {
@@ -76,54 +87,81 @@ export function useLiveCoaching(sessionId: string) {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      // Plays to the agent's local output (earpiece) — NOT into the call
-      // mic stream, so the customer never hears it.
+      // Plays to the agent's local output. The customer only stays unaware
+      // if the agent is on an in-ear earpiece (enforced at Start, F1) —
+      // the code can't guarantee the output device.
       void audio.play().catch(() => {});
       audio.onended = () => URL.revokeObjectURL(url);
-    } catch {
-      /* TTS failure must never disrupt the call */
+    } catch (err) {
+      // F3: never disrupt the call, but don't swallow silently.
+      // eslint-disable-next-line no-console
+      console.warn("[live-coaching] cue TTS failed", err);
     }
   }, []);
 
-  const invokeCue = useCallback(async () => {
-    if (cueInFlightRef.current) return;
-    const live = transcriptRef.current;
-    if (live.length < 2) return; // not enough to read the situation
-    cueInFlightRef.current = true;
-    try {
-      const res = await fetch(`/api/coach/sales-session/${sessionId}/cue`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: modeRef.current,
-          // Undifferentiated live transcript (no realtime diarization);
-          // the brain reads it as the conversation.
-          liveTranscript: live.slice(-12).map((text) => ({
-            speaker: "unknown" as const,
-            text,
-          })),
-        }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data?.cue?.shouldCue && data.cue.cue) {
-        setCurrentCue(data.cue.cue);
-        void speakCue(data.cue.cue);
+  // onDemand bypasses the F4 cooldown (the agent explicitly asked).
+  const invokeCue = useCallback(
+    async (onDemand = false) => {
+      if (cueInFlightRef.current) return;
+      const live = transcriptRef.current;
+      if (live.length < 2) return; // not enough to read the situation
+      if (
+        !onDemand &&
+        lastCueAtRef.current > 0 &&
+        Date.now() - lastCueAtRef.current < CUE_COOLDOWN_MS
+      ) {
+        return; // within cooldown — don't auto-cue over a fresh cue
       }
-    } catch {
-      /* a cue failure must never disrupt the call */
-    } finally {
-      cueInFlightRef.current = false;
-    }
-  }, [sessionId, speakCue]);
+      cueInFlightRef.current = true;
+      try {
+        const res = await fetch(`/api/coach/sales-session/${sessionId}/cue`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: modeRef.current,
+            // Undifferentiated live transcript (no realtime diarization);
+            // the brain reads it as the conversation.
+            liveTranscript: live.slice(-12).map((text) => ({
+              speaker: "unknown" as const,
+              text,
+            })),
+          }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.cue?.shouldCue && data.cue.cue) {
+          lastCueAtRef.current = Date.now(); // start the cooldown
+          setCurrentCue(data.cue.cue);
+          void speakCue(data.cue.cue);
+        }
+      } catch (err) {
+        // F3: never disrupt the call, but surface the cause.
+        // eslint-disable-next-line no-console
+        console.warn("[live-coaching] cue request failed", err);
+      } finally {
+        cueInFlightRef.current = false;
+      }
+    },
+    [sessionId, speakCue]
+  );
 
   const requestCue = useCallback(() => {
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-    void invokeCue();
+    void invokeCue(true); // on-demand bypasses the cooldown
   }, [invokeCue]);
 
   const stop = useCallback(() => {
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+    // Stop the recorder FIRST (its onstop builds the blob) while the
+    // stream is still live.
+    try {
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+    } catch {
+      /* noop */
+    }
+    recorderRef.current = null;
     try {
       procRef.current?.disconnect();
     } catch {
@@ -157,6 +195,32 @@ export function useLiveCoaching(sessionId: string) {
       // 1. Mic.
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+
+      // F2: record the call audio in parallel for the post-call
+      // transcript/review (S1a pipeline). Best-effort — a recorder
+      // failure must never block live coaching.
+      try {
+        chunksRef.current = [];
+        setRecordingBlob(null);
+        const rec = new MediaRecorder(stream);
+        rec.ondataavailable = (e) => {
+          if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+        rec.onstop = () => {
+          if (chunksRef.current.length > 0) {
+            setRecordingBlob(
+              new Blob(chunksRef.current, {
+                type: chunksRef.current[0]?.type || "audio/webm",
+              })
+            );
+          }
+        };
+        rec.start();
+        recorderRef.current = rec;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[live-coaching] recorder unavailable", err);
+      }
 
       // 2. Single-use token (server-minted; key never reaches the browser).
       const tokRes = await fetch("/api/coach/sales-session/realtime-token", {
@@ -209,7 +273,10 @@ export function useLiveCoaching(sessionId: string) {
         let msg: { message_type?: string; text?: string };
         try {
           msg = JSON.parse(typeof ev.data === "string" ? ev.data : "");
-        } catch {
+        } catch (err) {
+          // F3: a malformed frame is skipped, but named — not silent.
+          // eslint-disable-next-line no-console
+          console.warn("[live-coaching] unparseable ws message", err);
           return;
         }
         if (msg.message_type === "partial_transcript") {
@@ -241,7 +308,11 @@ export function useLiveCoaching(sessionId: string) {
     setMode(m);
   }, []);
 
+  const clearRecording = useCallback(() => setRecordingBlob(null), []);
+
   return {
+    recordingBlob,
+    clearRecording,
     status,
     transcript,
     partial,

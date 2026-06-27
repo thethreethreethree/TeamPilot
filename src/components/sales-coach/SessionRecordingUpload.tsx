@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Upload, Loader2, UserCheck } from "lucide-react";
 
 /**
@@ -21,9 +21,13 @@ type SpeakerSample = { speakerId: string; sample: string };
 export function SessionRecordingUpload({
   sessionId,
   onLabeled,
+  initialBlob = null,
 }: {
   sessionId: string;
   onLabeled: () => void;
+  /** F2: a recording handed in from the live coaching loop. When set,
+   *  it's uploaded automatically (no file picker). */
+  initialBlob?: Blob | null;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [phase, setPhase] = useState<"idle" | "uploading" | "labeling" | "done">(
@@ -33,14 +37,12 @@ export function SessionRecordingUpload({
   const [speakers, setSpeakers] = useState<SpeakerSample[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadBlob = async (blob: Blob, name: string) => {
     setPhase("uploading");
     setError(null);
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", blob, name);
       const res = await fetch(
         `/api/coach/sales-session/${sessionId}/upload-recording`,
         { method: "POST", body: fd }
@@ -59,6 +61,22 @@ export function SessionRecordingUpload({
     } finally {
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  // F2: auto-upload a live recording handed in from S1b (once).
+  const uploadedBlobRef = useRef<Blob | null>(null);
+  useEffect(() => {
+    if (initialBlob && uploadedBlobRef.current !== initialBlob) {
+      uploadedBlobRef.current = initialBlob;
+      void uploadBlob(initialBlob, "live-recording.webm");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialBlob]);
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadBlob(file, file.name || "recording.webm");
   };
 
   const label = async (agentSpeakerId: string) => {

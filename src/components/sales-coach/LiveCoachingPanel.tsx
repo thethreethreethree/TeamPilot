@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Radio, Square, Sparkles, Hand, Loader2 } from "lucide-react";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
+import { SessionRecordingUpload } from "./SessionRecordingUpload";
 
 /**
  * LiveCoachingPanel — Live Sales Coach S1b surface.
@@ -11,8 +13,16 @@ import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
  * also auto-fires at conversation pauses (the brain decides whether to
  * speak). UNTESTED on real hardware.
  */
-export function LiveCoachingPanel({ sessionId }: { sessionId: string }) {
+export function LiveCoachingPanel({
+  sessionId,
+  onRecordingSaved,
+}: {
+  sessionId: string;
+  onRecordingSaved?: () => void;
+}) {
   const {
+    recordingBlob,
+    clearRecording,
     status,
     transcript,
     partial,
@@ -24,6 +34,12 @@ export function LiveCoachingPanel({ sessionId }: { sessionId: string }) {
     stop,
     requestCue,
   } = useLiveCoaching(sessionId);
+
+  // F1: the cue plays to the agent's default output — the code can't
+  // guarantee the customer won't hear it. So gate Start on the agent
+  // confirming they're on an in-ear earpiece (honest enforcement of an
+  // instruction, not a false guarantee).
+  const [earpieceOk, setEarpieceOk] = useState(false);
 
   const live = status === "live";
 
@@ -47,7 +63,7 @@ export function LiveCoachingPanel({ sessionId }: { sessionId: string }) {
             <button
               type="button"
               onClick={() => void start()}
-              disabled={status === "connecting"}
+              disabled={status === "connecting" || !earpieceOk}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"
             >
               {status === "connecting" ? (
@@ -107,6 +123,23 @@ export function LiveCoachingPanel({ sessionId }: { sessionId: string }) {
         )}
       </div>
 
+      {/* F1: honest enforcement — gate Start on an earpiece acknowledgement. */}
+      {!live && (
+        <label className="flex items-start gap-2 mt-3 text-[11px] text-secondary cursor-pointer">
+          <input
+            type="checkbox"
+            checked={earpieceOk}
+            onChange={(e) => setEarpieceOk(e.target.checked)}
+            className="accent-ember-400 mt-0.5"
+          />
+          <span>
+            I have an in-ear earpiece in, so the customer can&apos;t hear my
+            coaching. (The cue plays to your device&apos;s audio output — on
+            speakers, the customer could hear it.)
+          </span>
+        </label>
+      )}
+
       {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
 
       {/* Current cue */}
@@ -134,10 +167,29 @@ export function LiveCoachingPanel({ sessionId }: { sessionId: string }) {
         </div>
       )}
 
+      {/* F2: after Stop, the recorded call is processed into the saved,
+          reviewable transcript (S1a pipeline). In-person only — the mic
+          holds both voices in a room; online video it's agent-only. */}
+      {recordingBlob && !live && (
+        <div className="mt-3">
+          <p className="text-[11px] text-muted mb-2">
+            Save this call&apos;s transcript + review from the recording:
+          </p>
+          <SessionRecordingUpload
+            sessionId={sessionId}
+            initialBlob={recordingBlob}
+            onLabeled={() => {
+              clearRecording();
+              onRecordingSaved?.();
+            }}
+          />
+        </div>
+      )}
+
       <p className="text-[11px] text-muted mt-2">
-        The cue plays only in your earpiece — the customer never hears it. The
-        live transcript here is for coaching; the saved transcript + review come
-        from uploading the recording after the call.
+        The live transcript here is for coaching only. The saved transcript +
+        growth review are generated from the call recording, captured
+        automatically and processed when you Stop.
       </p>
     </section>
   );

@@ -231,7 +231,7 @@ export default function SessionDetail() {
             )}
 
             {/* S1b — live coaching during the call */}
-            <LiveCoachingPanel sessionId={id} />
+            <LiveCoachingPanel sessionId={id} onRecordingSaved={() => void load()} />
 
             {/* S1a — upload a recording → diarize → one-tap label */}
             <SessionRecordingUpload sessionId={id} onLabeled={() => void load()} />
