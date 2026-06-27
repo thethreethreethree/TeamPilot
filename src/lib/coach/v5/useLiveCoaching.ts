@@ -118,7 +118,14 @@ export function useLiveCoaching(sessionId: string) {
     async (onDemand = false) => {
       if (cueInFlightRef.current) return;
       const live = transcriptRef.current;
-      if (live.length < 2) return; // not enough to read the situation
+      if (live.length < 2) {
+        // "Coach me now" shouldn't feel dead when there's nothing to read
+        // yet (image 1: button did nothing).
+        if (onDemand) {
+          setCurrentCue("Still listening — say a bit more and I'll jump in.");
+        }
+        return;
+      }
       if (
         !onDemand &&
         lastCueAtRef.current > 0 &&
@@ -252,20 +259,34 @@ export function useLiveCoaching(sessionId: string) {
       }
       const { token } = await tokRes.json();
 
-      // 3. WebSocket to Scribe v2 Realtime.
-      const ws = new WebSocket(
-        `${REALTIME_WS}?token=${encodeURIComponent(token)}&model_id=scribe_v2_realtime`
-      );
-      wsRef.current = ws;
-
-      // 4. Audio graph: capture PCM at the context's native rate (Scribe
-      //    accepts 48kHz, so no resampling). ScriptProcessorNode is
-      //    deprecated but works; AudioWorklet is the eventual upgrade.
-      const ctx = new AudioContext();
+      // 3. AudioContext FIRST — prefer 16kHz so the PCM we send matches
+      //    Scribe's default audio_format. We pass the real rate to the
+      //    socket regardless.
+      let ctx: AudioContext;
+      try {
+        ctx = new AudioContext({ sampleRate: 16000 });
+      } catch {
+        ctx = new AudioContext();
+      }
       ctxRef.current = ctx;
       // Resume on the Start gesture so it can also play cue audio later
       // without hitting autoplay restrictions.
       if (ctx.state === "suspended") await ctx.resume();
+      const sr = Math.round(ctx.sampleRate);
+
+      // 4. WebSocket to Scribe v2 Realtime.
+      //    commit_strategy=vad is REQUIRED: the default is "manual", which
+      //    emits NOTHING unless the client sends commit:true — the cause of
+      //    "socket open, audio sent, transcript empty" (2026-06-27 fix via
+      //    the realtime AsyncAPI docs). audio_format matches our PCM rate.
+      const ws = new WebSocket(
+        `${REALTIME_WS}?token=${encodeURIComponent(token)}` +
+          `&model_id=scribe_v2_realtime&commit_strategy=vad&audio_format=pcm_${sr}`
+      );
+      wsRef.current = ws;
+
+      // 5. Audio graph. ScriptProcessorNode is deprecated but works;
+      //    AudioWorklet is the eventual upgrade.
       const source = ctx.createMediaStreamSource(stream);
       const proc = ctx.createScriptProcessor(4096, 1, 1);
       procRef.current = proc;
@@ -281,7 +302,7 @@ export function useLiveCoaching(sessionId: string) {
             JSON.stringify({
               message_type: "input_audio_chunk",
               audio_base_64: floatTo16BitPCMBase64(input),
-              sample_rate: Math.round(ctx.sampleRate),
+              sample_rate: sr,
             })
           );
           sentChunks += 1;
