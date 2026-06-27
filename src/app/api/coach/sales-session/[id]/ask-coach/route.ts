@@ -65,6 +65,14 @@ export async function POST(
     );
   }
   const segments = await getSessionTranscript(id);
+  // Audit F3 (2026-06-27): don't coach from nothing. With no transcript
+  // the model would fabricate advice about a call it can't see (§3.4).
+  if (segments.length === 0) {
+    return NextResponse.json({
+      answer:
+        "There's no transcript on this session yet, so I can't coach from the call. Upload the recording (or add the transcript) first, then ask me anything about how it went.",
+    });
+  }
   const transcript = segments
     .map((s) => `${s.speaker.toUpperCase()}: ${s.text}`)
     .join("\n");
@@ -73,7 +81,7 @@ export async function POST(
     const r = await generateCareReply({
       companyId,
       systemPrompt: COACH_SYSTEM,
-      userMessage: `Transcript:\n${transcript || "(no transcript yet)"}\n\nThe agent asks: ${body.question}\n\nCoach them.`,
+      userMessage: `Transcript:\n${transcript}\n\nThe agent asks: ${body.question}\n\nCoach them.`,
     });
     if (r.suppressed) {
       return NextResponse.json({ answer: null, suppressed: true });

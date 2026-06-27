@@ -77,7 +77,7 @@ export function SessionCoachTools({
         <SpawnPanel sessionId={sessionId} segments={segments} />
       )}
       {tool === "ask" && <AskCoachPanel sessionId={sessionId} />}
-      {tool === "decision" && <DecisionPanel />}
+      {tool === "decision" && <DecisionPanel sessionId={sessionId} />}
     </section>
   );
 }
@@ -179,8 +179,15 @@ function SpawnPanel({
     setSaved(false);
     try {
       // Reuse the existing spawn engine via the chat_messages context —
-      // the transcript IS a sequence of {author, body} turns.
-      const selectedMessages = segments.slice(0, 50).map((s) => ({
+      // the transcript IS a sequence of {author, body} turns. The engine
+      // caps at 50 turns; for a long call take a HEAD+TAIL sample (first
+      // 25 + last 25) so the close — often the most task-relevant part —
+      // isn't silently dropped (audit F2, 2026-06-27).
+      const sampled =
+        segments.length <= 50
+          ? segments
+          : [...segments.slice(0, 25), ...segments.slice(-25)];
+      const selectedMessages = sampled.map((s) => ({
         author: s.speaker,
         body: s.text,
       }));
@@ -244,7 +251,14 @@ function SpawnPanel({
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />}
           Draft a follow-up task from this session
         </button>
-      ) : (
+      ) : null}
+      {!draft && segments.length > 50 && (
+        <p className="text-[11px] text-muted mt-1.5">
+          Long call — the draft uses the first 25 and last 25 turns of{" "}
+          {segments.length} (the opening and the close).
+        </p>
+      )}
+      {draft && (
         <div className="space-y-2">
           <p className="text-sm font-semibold text-primary">{draft.title}</p>
           <p className="text-xs text-secondary whitespace-pre-wrap">
@@ -345,7 +359,7 @@ function AskCoachPanel({ sessionId }: { sessionId: string }) {
   );
 }
 
-function DecisionPanel() {
+function DecisionPanel({ sessionId }: { sessionId: string }) {
   const [situation, setSituation] = useState("");
   const [userDiagnosis, setDiagnosis] = useState("");
   const [userProposal, setProposal] = useState("");
@@ -375,6 +389,19 @@ function DecisionPanel() {
       if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
       if (d.suppressed) throw new Error("The dialogue was suppressed.");
       setResp(d as SystemResponse);
+      // Audit F1 (2026-06-27): persist the decision as an append-only
+      // asset (§1.1/§3.1), like the chat decision dialogue does.
+      // Fire-and-forget — the dialogue still shows if this fails.
+      void fetch(`/api/coach/sales-session/${sessionId}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          situation: situation.trim(),
+          userDiagnosis: userDiagnosis.trim(),
+          userProposal: userProposal.trim(),
+          systemResponse: d,
+        }),
+      }).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

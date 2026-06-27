@@ -229,6 +229,77 @@ export async function transcribeSpeech(args: {
   return (result.text ?? "").trim();
 }
 
+export type DiarizedSegment = { speakerId: string; text: string; start: number };
+
+/**
+ * Batch speech-to-text WITH speaker diarization (Live Sales Coach S1a).
+ * Same Scribe endpoint as transcribeSpeech, plus diarize=true + an
+ * optional speaker-count hint. Returns segments grouped by speaker
+ * (speaker_0 / speaker_1 / …) — the caller maps those to agent/customer
+ * after the agent's one-tap.
+ *
+ * Response shape verified against the ElevenLabs convert docs
+ * (2026-06-27): words[] each carry text + speaker_id + start + type.
+ * UNTESTED against a live call — needs a real key + recording.
+ */
+export async function transcribeWithDiarization(args: {
+  audio: Buffer;
+  mimeType: string;
+  numSpeakers?: number;
+}): Promise<DiarizedSegment[]> {
+  const apiKey = getApiKey();
+  const form = new FormData();
+  form.append(
+    "file",
+    new Blob([new Uint8Array(args.audio)], { type: args.mimeType }),
+    "audio"
+  );
+  form.append("model_id", "scribe_v1");
+  form.append("diarize", "true");
+  if (args.numSpeakers && args.numSpeakers > 1) {
+    form.append("num_speakers", String(args.numSpeakers));
+  }
+
+  const response = await fetch(STT_ENDPOINT, {
+    method: "POST",
+    headers: { "xi-api-key": apiKey, Accept: "application/json" },
+    body: form,
+  });
+  if (!response.ok) {
+    const err = await response.text().catch(() => "");
+    throw new Error(
+      `ElevenLabs diarized STT failed: ${response.status} ${err.slice(0, 300)}`
+    );
+  }
+
+  const result = (await response.json()) as {
+    words?: Array<{
+      text?: string;
+      speaker_id?: string;
+      start?: number;
+      type?: string;
+    }>;
+  };
+  const words = result.words ?? [];
+
+  // Group consecutive words by speaker into readable segments. Skip
+  // non-word tokens (spacing / audio_event).
+  const segments: DiarizedSegment[] = [];
+  for (const w of words) {
+    if (w.type && w.type !== "word") continue;
+    const text = (w.text ?? "").trim();
+    if (!text) continue;
+    const speakerId = w.speaker_id ?? "speaker_0";
+    const last = segments[segments.length - 1];
+    if (last && last.speakerId === speakerId) {
+      last.text += " " + text;
+    } else {
+      segments.push({ speakerId, text, start: w.start ?? 0 });
+    }
+  }
+  return segments;
+}
+
 export { DEFAULT_VOICE_ID };
 
 /**
