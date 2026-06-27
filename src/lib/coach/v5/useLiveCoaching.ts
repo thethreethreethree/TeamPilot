@@ -83,15 +83,29 @@ export function useLiveCoaching(sessionId: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
-      if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      // Plays to the agent's local output. The customer only stays unaware
-      // if the agent is on an in-ear earpiece (enforced at Start, F1) —
-      // the code can't guarantee the output device.
-      void audio.play().catch(() => {});
-      audio.onended = () => URL.revokeObjectURL(url);
+      if (!res.ok) {
+        // eslint-disable-next-line no-console
+        console.warn("[live-coaching] cue TTS request failed", res.status);
+        return;
+      }
+      // Play through the AudioContext (already unlocked by the Start click,
+      // a user gesture) rather than a fresh new Audio() — browser autoplay
+      // policy blocks programmatic Audio.play() that isn't tied to a
+      // gesture, which is the most likely cause of "no cue audio"
+      // (2026-06-27 diagnosis). Reuses the same ctx as mic capture.
+      const ctx = ctxRef.current;
+      if (!ctx) {
+        // eslint-disable-next-line no-console
+        console.warn("[live-coaching] no AudioContext to play the cue");
+        return;
+      }
+      if (ctx.state === "suspended") await ctx.resume();
+      const arrayBuf = await res.arrayBuffer();
+      const audioBuf = await ctx.decodeAudioData(arrayBuf);
+      const node = ctx.createBufferSource();
+      node.buffer = audioBuf;
+      node.connect(ctx.destination);
+      node.start();
     } catch (err) {
       // F3: never disrupt the call, but don't swallow silently.
       // eslint-disable-next-line no-console
@@ -129,6 +143,12 @@ export function useLiveCoaching(sessionId: string) {
         });
         if (!res.ok) return;
         const data = await res.json();
+        // Diagnosis: see whether the brain produced a cue or stayed silent.
+        // eslint-disable-next-line no-console
+        console.info("[live-coaching] cue result", {
+          shouldCue: data?.cue?.shouldCue,
+          hasText: Boolean(data?.cue?.cue),
+        });
         if (data?.cue?.shouldCue && data.cue.cue) {
           lastCueAtRef.current = Date.now(); // start the cooldown
           setCurrentCue(data.cue.cue);
@@ -243,6 +263,9 @@ export function useLiveCoaching(sessionId: string) {
       //    deprecated but works; AudioWorklet is the eventual upgrade.
       const ctx = new AudioContext();
       ctxRef.current = ctx;
+      // Resume on the Start gesture so it can also play cue audio later
+      // without hitting autoplay restrictions.
+      if (ctx.state === "suspended") await ctx.resume();
       const source = ctx.createMediaStreamSource(stream);
       const proc = ctx.createScriptProcessor(4096, 1, 1);
       procRef.current = proc;
