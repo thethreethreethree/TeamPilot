@@ -470,6 +470,27 @@ export async function debriefCoachV5(args: {
   });
 }
 
+/**
+ * Live Sales Coach — real-time cue generation. Latency-above-all
+ * (the founder's hard requirement: "a late tip is worthless"), so the
+ * token budget is deliberately tiny — a cue is one short line, not a
+ * paragraph. expectJson so the caller gets {shouldCue, mode, cue}.
+ */
+export async function liveSalesCue(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    // One short cue. Small budget = lower latency.
+    maxTokens: 160,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+  });
+}
+
 // ─────────────────────────────────────────────────────────────
 // Task Spawn Engine
 // ─────────────────────────────────────────────────────────────

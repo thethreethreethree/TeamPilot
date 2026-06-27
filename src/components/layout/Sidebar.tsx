@@ -29,6 +29,7 @@ import {
   Building2,
   FolderOpen,
   Search as SearchIcon,
+  Mic,
   X,
 } from "lucide-react";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
@@ -221,6 +222,19 @@ const productionNav: Array<{
       how: "Open conversations from the inbox. The Read Phase shows context first; reply, then capture resolution when done. The 7-day durability check shows up automatically. Browse Knowledge for institutional memory; Patterns for what's recurring; Leadership readouts for team-level health.",
       principle:
         "Support is the same discipline applied to customer-facing reasoning. The fact that the customer is external doesn't change the rule.",
+    },
+  },
+  {
+    label: "Sales Coach",
+    href: "/dashboard/sales-coach",
+    icon: Mic,
+    hint: {
+      whatItIs:
+        "Live Sales Coach. Real-time AI coaching during live customer conversations (in-person and online), then a post-conversation growth review. Records the diarized transcript + the cues delivered as immutable assets, and shows your reliance on live cues over time.",
+      why: "A scorecard tells you where you rank; it doesn't help you improve. The Live Sales Coach is a digital gym: it validates what you did well first, then frames growth as concrete next steps, and tracks you against your own past — so the live cues become training wheels that come off.",
+      how: "Start a session (online video or in-person), and your transcript, cues, and review attach to it. After the call, generate the growth review: strengths first, then opportunities with a concrete next step each. Watch your cue-reliance trend fall as the moves become yours.",
+      principle:
+        "Coach toward independence, not dependence: the goal is needing fewer cues over time, measured against your own past — never a ranking against others.",
     },
   },
   {
