@@ -57,6 +57,9 @@ export function useLiveCoaching(sessionId: string) {
   const [currentCue, setCurrentCue] = useState<string | null>(null);
   const [mode, setMode] = useState<CueMode>("suggestion");
   const [error, setError] = useState<string | null>(null);
+  // Visible cue lifecycle so failures show ON SCREEN, not just console
+  // (the audio-cue debugging, 2026-06-27).
+  const [cueStatus, setCueStatus] = useState<string>("");
   // F2: the recorded call audio, available after Stop, to feed the S1a
   // upload→diarize→label→review pipeline so a live session leaves a
   // persisted, reviewable record (§1.1). In-person only — the mic holds
@@ -78,14 +81,19 @@ export function useLiveCoaching(sessionId: string) {
   // Speak a cue privately to the agent (reuses Jeff's flash TTS).
   const speakCue = useCallback(async (text: string) => {
     try {
+      setCueStatus("Speaking…");
       const res = await fetch("/api/care/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
       if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        setCueStatus(
+          `Couldn't voice the cue (TTS ${res.status}). The text is shown above.`
+        );
         // eslint-disable-next-line no-console
-        console.warn("[live-coaching] cue TTS request failed", res.status);
+        console.warn("[live-coaching] cue TTS request failed", res.status, body.slice(0, 200));
         return;
       }
       // Play through the AudioContext (already unlocked by the Start click,
@@ -105,9 +113,13 @@ export function useLiveCoaching(sessionId: string) {
       const node = ctx.createBufferSource();
       node.buffer = audioBuf;
       node.connect(ctx.destination);
+      node.onended = () => setCueStatus("");
       node.start();
+      setCueStatus("🔊 Playing cue…");
     } catch (err) {
-      // F3: never disrupt the call, but don't swallow silently.
+      setCueStatus(
+        `Couldn't play the cue audio: ${err instanceof Error ? err.message : String(err)}. The text is shown above.`
+      );
       // eslint-disable-next-line no-console
       console.warn("[live-coaching] cue TTS failed", err);
     }
@@ -122,7 +134,7 @@ export function useLiveCoaching(sessionId: string) {
         // "Coach me now" shouldn't feel dead when there's nothing to read
         // yet (image 1: button did nothing).
         if (onDemand) {
-          setCurrentCue("Still listening — say a bit more and I'll jump in.");
+          setCueStatus("Still listening — say a bit more, then ask again.");
         }
         return;
       }
@@ -134,12 +146,17 @@ export function useLiveCoaching(sessionId: string) {
         return; // within cooldown — don't auto-cue over a fresh cue
       }
       cueInFlightRef.current = true;
+      if (onDemand) setCueStatus("Thinking…");
       try {
         const res = await fetch(`/api/coach/sales-session/${sessionId}/cue`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             mode: modeRef.current,
+            // force: the agent explicitly asked ("coach me now") — the
+            // brain must give a concrete suggestion, not defer to the
+            // understanding gate.
+            force: onDemand,
             // Undifferentiated live transcript (no realtime diarization);
             // the brain reads it as the conversation.
             liveTranscript: live.slice(-12).map((text) => ({
@@ -148,9 +165,11 @@ export function useLiveCoaching(sessionId: string) {
             })),
           }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (onDemand) setCueStatus(`Cue request failed (${res.status}).`);
+          return;
+        }
         const data = await res.json();
-        // Diagnosis: see whether the brain produced a cue or stayed silent.
         // eslint-disable-next-line no-console
         console.info("[live-coaching] cue result", {
           shouldCue: data?.cue?.shouldCue,
@@ -160,9 +179,12 @@ export function useLiveCoaching(sessionId: string) {
           lastCueAtRef.current = Date.now(); // start the cooldown
           setCurrentCue(data.cue.cue);
           void speakCue(data.cue.cue);
+        } else if (onDemand) {
+          // force was on, so this is rare — but don't leave the button dead.
+          setCueStatus("Coach had nothing pressing to add right now.");
         }
       } catch (err) {
-        // F3: never disrupt the call, but surface the cause.
+        if (onDemand) setCueStatus("Cue request failed — see console.");
         // eslint-disable-next-line no-console
         console.warn("[live-coaching] cue request failed", err);
       } finally {
@@ -394,6 +416,7 @@ export function useLiveCoaching(sessionId: string) {
     transcript,
     partial,
     currentCue,
+    cueStatus,
     mode,
     setMode: updateMode,
     error,

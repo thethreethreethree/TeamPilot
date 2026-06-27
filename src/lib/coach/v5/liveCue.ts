@@ -36,13 +36,23 @@ export async function generateLiveCue(args: {
   mode: CueMode;
   context?: SalesContext;
   segments: TranscriptSegment[];
+  /** force: the agent explicitly asked ("coach me now") — bypass the
+   *  understanding gate and always return a concrete suggestion. */
+  force?: boolean;
 }): Promise<LiveCueResult> {
   const silent: LiveCueResult = { shouldCue: false, mode: args.mode, cue: "" };
   try {
     if (args.segments.length < MIN_SEGMENTS) return silent;
     const recentSegments = args.segments.slice(-ROLLING_WINDOW);
 
-    const systemPrompt = buildLiveCueSystemPrompt(args.mode);
+    let systemPrompt = buildLiveCueSystemPrompt(args.mode);
+    if (args.force) {
+      systemPrompt +=
+        "\n\nIMPORTANT: The agent has EXPLICITLY asked for help right now. " +
+        "You MUST return shouldCue:true with ONE concrete, specific suggestion " +
+        "for this exact moment in the conversation. Do not stay silent and do " +
+        "not return an empty cue — give your single best move.";
+    }
     const userMessage = buildLiveCueUserMessage({
       context: args.context,
       recentSegments,
@@ -66,8 +76,11 @@ export async function generateLiveCue(args: {
 
     const cue = typeof o.cue === "string" ? o.cue.trim() : "";
     // Honour the understanding gate: an empty cue means stay silent,
-    // regardless of what shouldCue claims.
-    const shouldCue = o.shouldCue === true && cue.length > 0;
+    // regardless of what shouldCue claims. When forced (on-demand), any
+    // non-empty cue counts — the agent asked.
+    const shouldCue = args.force
+      ? cue.length > 0
+      : o.shouldCue === true && cue.length > 0;
     return { shouldCue, mode: args.mode, cue: shouldCue ? cue : "" };
   } catch {
     return silent;

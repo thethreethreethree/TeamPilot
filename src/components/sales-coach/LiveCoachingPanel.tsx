@@ -27,6 +27,7 @@ export function LiveCoachingPanel({
     transcript,
     partial,
     currentCue,
+    cueStatus,
     mode,
     setMode,
     error,
@@ -148,6 +149,11 @@ export function LiveCoachingPanel({
           <Sparkles className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
           <p className="text-sm text-primary leading-relaxed">{currentCue}</p>
         </div>
+      )}
+
+      {/* Visible cue lifecycle (thinking / speaking / couldn't play …). */}
+      {cueStatus && (
+        <p className="mt-2 text-[11px] text-muted">{cueStatus}</p>
       )}
 
       {/* Rolling transcript */}

@@ -27,6 +27,9 @@ import { generateLiveCue } from "@/lib/coach/v5/liveCue";
 
 const BodySchema = z.object({
   mode: z.enum(["suggestion", "guide_response"]),
+  // force: the agent explicitly asked ("coach me now") — bypass the
+  // understanding gate and always return a concrete suggestion.
+  force: z.boolean().optional(),
   // S1b realtime: an inline rolling transcript from the live websocket.
   // When present, the brain reads it directly — skipping the DB round
   // trip that would add latency on the hot path ("a late tip is
@@ -94,6 +97,7 @@ export async function POST(
     mode: body.mode,
     context: session.context,
     segments,
+    force: body.force,
   });
 
   // Record only delivered cues (append-only). A "stay silent" decision
