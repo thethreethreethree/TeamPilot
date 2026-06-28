@@ -30,6 +30,7 @@ import {
   Lightbulb,
   Loader2,
   Lock,
+  Unlock,
   MessageSquare,
   Reply,
   Sparkles,
@@ -849,6 +850,64 @@ export default function TeamChatTopicPage() {
                 Coach: {companyCoachOn ? "on (company)" : topic.coachEnabled ? "on" : "off"}
               </button>
             )}
+            {/* Lock — only the CREATOR, only a 2-person chat (migration
+                0071). Locked = only the two of you (humans) can see/enter;
+                even admins can't. The System still reads it (disclosed
+                below). */}
+            {topic.createdBy === currentUserId &&
+              topic.participantCount === 2 &&
+              !isClosed && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const next = !topic.locked;
+                    setTopic({ ...topic, locked: next });
+                    try {
+                      const res = await fetch(
+                        `/api/chat/topics/${topic.id}/lock`,
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ locked: next }),
+                        }
+                      );
+                      if (!res.ok) {
+                        const b = await res.json().catch(() => null);
+                        throw new Error(b?.error ?? "failed");
+                      }
+                      toast.success(
+                        next ? "Chat locked" : "Chat unlocked",
+                        next
+                          ? "Only the two of you can see this now."
+                          : "Visible to the company again."
+                      );
+                    } catch (e) {
+                      setTopic({ ...topic, locked: !next });
+                      toast.error(
+                        "Couldn't change the lock",
+                        e instanceof Error ? e.message : undefined
+                      );
+                    }
+                  }}
+                  title={
+                    topic.locked
+                      ? "Locked — only the two of you can see this. Click to unlock."
+                      : "Lock this 2-person chat so only the two of you can see it."
+                  }
+                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors border flex-shrink-0 whitespace-nowrap ${
+                    topic.locked
+                      ? "text-amber-300 border-amber-500/40 bg-amber-500/5"
+                      : "text-secondary border-default hover:border-strong"
+                  }`}
+                >
+                  {topic.locked ? (
+                    <Lock className="w-3 h-3" aria-hidden />
+                  ) : (
+                    <Unlock className="w-3 h-3" aria-hidden />
+                  )}
+                  {topic.locked ? "Locked" : "Lock chat"}
+                </button>
+              )}
             {/* Open as Decision Dialogue — admin-only, hidden while a
                 dialogue is in flight (the card itself becomes the
                 control surface). Also hidden when the topic is closed.
@@ -934,6 +993,21 @@ export default function TeamChatTopicPage() {
             </LearningHint>
           </div>
         </div>
+        {/* §A10 disclosure (migration 0071): a locked chat is private from
+            humans, but the System still reads it — say so, no shadow read. */}
+        {topic.locked && (
+          <div className="max-w-5xl mx-auto mt-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2">
+            <Lock
+              className="w-3.5 h-3.5 text-amber-300 shrink-0 mt-0.5"
+              aria-hidden
+            />
+            <p className="text-[11px] text-secondary leading-relaxed">
+              <span className="text-amber-200 font-semibold">Locked.</span> Only
+              the two of you can see or join this chat — not your teammates, not
+              admins. The System still reads it for coaching and diagnosis.
+            </p>
+          </div>
+        )}
         {showParticipants && (
           <div className="max-w-5xl mx-auto mt-3 pt-3 border-t border-default">
             <p className="text-[10px] text-muted uppercase tracking-widest mb-2">

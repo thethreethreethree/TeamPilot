@@ -33,6 +33,10 @@ export interface ChatTopic {
   /** Conversational Coach v1 opt-in flag — see migration 0019.
    *  Defaults to false; topics created before 0019 backfill to false. */
   coachEnabled: boolean;
+  /** Lockable 2-person topics (migration 0071). When true, only the two
+   *  participants (humans) can see/enter the topic; even admins can't.
+   *  The System still reads it (service-role) — disclosed in the UI. */
+  locked: boolean;
 }
 
 export interface ChatMessage {
@@ -105,6 +109,7 @@ const seedDemoState = (): DemoState => ({
       messageCount: 5,
       lastMessageAt: "2025-05-31T15:32:00Z",
       coachEnabled: false,
+      locked: false,
     },
     {
       id: "demo-topic-bottleneck",
@@ -124,6 +129,7 @@ const seedDemoState = (): DemoState => ({
       messageCount: 3,
       lastMessageAt: "2025-05-31T11:10:00Z",
       coachEnabled: false,
+      locked: false,
     },
     {
       id: "demo-topic-resolved",
@@ -144,6 +150,7 @@ const seedDemoState = (): DemoState => ({
       messageCount: 4,
       lastMessageAt: "2025-05-08T14:00:00Z",
       coachEnabled: false,
+      locked: false,
     },
   ],
   messages: {
@@ -418,7 +425,7 @@ export async function fetchTopics(): Promise<{
   const { data, error } = await supabase
     .from("chat_topic_with_counts")
     .select(
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, participant_count, message_count, last_message_at"
+      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, locked, participant_count, message_count, last_message_at"
     )
     .order("created_at", { ascending: false });
   if (error || !data) return { topics: [], mode: "live-empty" };
@@ -440,6 +447,7 @@ export async function fetchTopics(): Promise<{
     messageCount: Number(row.message_count ?? 0),
     lastMessageAt: row.last_message_at ?? null,
     coachEnabled: row.coach_enabled ?? false,
+    locked: row.locked ?? false,
   }));
   return {
     topics,
@@ -501,7 +509,7 @@ export async function fetchTopic(id: string): Promise<ChatTopic | null> {
   const { data } = await supabase
     .from("chat_topic_with_counts")
     .select(
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, participant_count, message_count, last_message_at"
+      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, locked, participant_count, message_count, last_message_at"
     )
     .eq("id", id)
     .maybeSingle();
@@ -523,6 +531,7 @@ export async function fetchTopic(id: string): Promise<ChatTopic | null> {
     messageCount: Number(data.message_count ?? 0),
     lastMessageAt: data.last_message_at ?? null,
     coachEnabled: data.coach_enabled ?? false,
+    locked: data.locked ?? false,
   };
 }
 
@@ -769,6 +778,7 @@ export function demoCreateTopic(args: {
     messageCount: 0,
     lastMessageAt: null,
       coachEnabled: false,
+      locked: false,
   };
   state.topics.unshift(topic);
   state.messages[topic.id] = [];
@@ -878,6 +888,7 @@ export async function createTopic(args: {
     messageCount: 0,
     lastMessageAt: null,
       coachEnabled: false,
+      locked: false,
   };
 }
 
