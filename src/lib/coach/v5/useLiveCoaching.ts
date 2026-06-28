@@ -60,6 +60,10 @@ export function useLiveCoaching(sessionId: string) {
   // Visible cue lifecycle so failures show ON SCREEN, not just console
   // (the audio-cue debugging, 2026-06-27).
   const [cueStatus, setCueStatus] = useState<string>("");
+  // Auto-coach toggle (founder request 2026-06-27): when ON, the coach
+  // cues automatically at pauses — no pressing "coach me now". When OFF,
+  // it stays quiet (transcript still runs). Default ON.
+  const [autoCoach, setAutoCoachState] = useState(true);
   // F2: the recorded call audio, available after Stop, to feed the S1a
   // upload→diarize→label→review pipeline so a live session leaves a
   // persisted, reviewable record (§1.1). In-person only — the mic holds
@@ -77,6 +81,7 @@ export function useLiveCoaching(sessionId: string) {
   const cueInFlightRef = useRef(false);
   const modeRef = useRef<CueMode>("suggestion");
   const lastCueAtRef = useRef(0); // F4 cooldown (ms epoch); 0 = never
+  const autoCoachRef = useRef(true); // mirrors autoCoach for ws closures
 
   // Speak a cue privately to the agent (reuses Jeff's flash TTS).
   const speakCue = useCallback(async (text: string) => {
@@ -406,10 +411,15 @@ export function useLiveCoaching(sessionId: string) {
           if (!text) return;
           transcriptRef.current = [...transcriptRef.current, text];
           setTranscript(transcriptRef.current);
-          // Auto-cue on the pause (debounced) — the brain decides whether
-          // to actually speak.
-          if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-          cueTimerRef.current = setTimeout(() => void invokeCue(), AUTO_CUE_DEBOUNCE_MS);
+          // Auto-cue on the pause (debounced) — only when auto-coach is
+          // ON. The brain still decides whether to actually speak.
+          if (autoCoachRef.current) {
+            if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+            cueTimerRef.current = setTimeout(
+              () => void invokeCue(),
+              AUTO_CUE_DEBOUNCE_MS
+            );
+          }
         }
       };
     } catch (err) {
@@ -424,6 +434,12 @@ export function useLiveCoaching(sessionId: string) {
     setMode(m);
   }, []);
 
+  const setAutoCoach = useCallback((on: boolean) => {
+    autoCoachRef.current = on;
+    setAutoCoachState(on);
+    if (!on && cueTimerRef.current) clearTimeout(cueTimerRef.current);
+  }, []);
+
   const clearRecording = useCallback(() => setRecordingBlob(null), []);
 
   return {
@@ -434,6 +450,8 @@ export function useLiveCoaching(sessionId: string) {
     partial,
     currentCue,
     cueStatus,
+    autoCoach,
+    setAutoCoach,
     mode,
     setMode: updateMode,
     error,

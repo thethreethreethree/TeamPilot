@@ -28,6 +28,8 @@ export function LiveCoachingPanel({
     partial,
     currentCue,
     cueStatus,
+    autoCoach,
+    setAutoCoach,
     mode,
     setMode,
     error,
@@ -113,14 +115,34 @@ export function LiveCoachingPanel({
           Guide my response
         </button>
         {live && (
-          <button
-            type="button"
-            onClick={() => requestCue()}
-            className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand hover:text-ember-400"
-          >
-            <Hand className="w-3.5 h-3.5" aria-hidden />
-            Coach me now
-          </button>
+          <div className="ml-auto flex items-center gap-3">
+            {/* Auto-coach toggle — stays ON (auto-cues at pauses) until you
+                turn it off; clear ON/OFF indicator (founder request). */}
+            <button
+              type="button"
+              onClick={() => setAutoCoach(!autoCoach)}
+              aria-pressed={autoCoach}
+              className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                autoCoach
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                  : "border-default text-muted hover:text-secondary"
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${autoCoach ? "bg-emerald-400 animate-pulse" : "bg-muted"}`}
+                aria-hidden
+              />
+              Auto-coach {autoCoach ? "ON" : "OFF"}
+            </button>
+            <button
+              type="button"
+              onClick={() => requestCue()}
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand hover:text-ember-400"
+            >
+              <Hand className="w-3.5 h-3.5" aria-hidden />
+              Coach me now
+            </button>
+          </div>
         )}
       </div>
 
