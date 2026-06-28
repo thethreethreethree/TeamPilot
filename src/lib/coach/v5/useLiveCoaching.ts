@@ -91,12 +91,16 @@ export function useLiveCoaching(sessionId: string) {
         body: JSON.stringify({ text }),
       });
       if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        setCueStatus(
-          `Couldn't voice the cue (TTS ${res.status}). The text is shown above.`
-        );
+        const raw = await res.text().catch(() => "");
+        let detail = raw.slice(0, 160);
+        try {
+          detail = (JSON.parse(raw)?.error as string) ?? detail;
+        } catch {
+          /* keep raw */
+        }
+        setCueStatus(`Couldn't voice the cue (TTS ${res.status}): ${detail}`);
         // eslint-disable-next-line no-console
-        console.warn("[live-coaching] cue TTS request failed", res.status, body.slice(0, 200));
+        console.warn("[live-coaching] cue TTS request failed", res.status, detail);
         return;
       }
       // Play through the AudioContext (already unlocked by the Start click,
