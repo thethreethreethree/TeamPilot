@@ -82,7 +82,10 @@ export function useLiveCoaching(sessionId: string) {
   const speakCue = useCallback(async (text: string) => {
     try {
       setCueStatus("Speaking…");
-      const res = await fetch("/api/care/tts", {
+      // Agent-authed TTS — NOT /api/care/tts (that needs a customer
+      // x-care-session token → 401 on the dashboard, the "no cue audio"
+      // root cause, 2026-06-27).
+      const res = await fetch("/api/coach/sales-session/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
