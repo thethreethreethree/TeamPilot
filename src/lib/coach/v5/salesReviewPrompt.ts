@@ -9,7 +9,22 @@ import { getSalesKnowledgeBase } from "./salesKnowledgeBase";
  * until the KB lands — so the coach is never broken, only less deeply
  * grounded (§3.4, §A21).
  */
-function methodologyBlock(): string {
+function methodologyBlock(corpusOverride?: string): string {
+  // Precedence (§5 per-company personality, §A21 one mechanism): the
+  // company's OWN saved corpus › the built-in books KB › the inline
+  // starter. The custom wrapper is deliberately GENERIC — it must not
+  // claim the 4 books when the source is the company's own corpus (§3.4).
+  const custom = corpusOverride?.trim();
+  if (custom) {
+    return `SALES KNOWLEDGE BASE — your team's own operational reference.
+Reason FROM these principles; match the conversation to the right move;
+adapt to what THIS conversation needed (§3.3 understanding gate). Do not
+grade against it as a rigid checklist.
+
+${custom}
+
+END OF SALES KNOWLEDGE BASE.`;
+  }
   const kb = getSalesKnowledgeBase();
   if (kb) {
     return `SALES KNOWLEDGE BASE — your operational reference. Reason FROM
@@ -104,14 +119,14 @@ transcript, and do not invent specifics. If the conversation is too thin
 to teach from, say so honestly rather than manufacturing a lesson.
 `.trim();
 
-export function buildSalesReviewSystemPrompt(): string {
+export function buildSalesReviewSystemPrompt(corpusOverride?: string): string {
   return `You are a Live Sales Coach delivering a post-conversation growth
 review to a sales agent. You have just read the full transcript of one
 of their live customer conversations.
 
 ${TONE_LAW}
 
-${methodologyBlock()}
+${methodologyBlock(corpusOverride)}
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {

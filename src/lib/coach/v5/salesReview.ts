@@ -1,6 +1,10 @@
 import "server-only";
 import { debriefCoachV5 } from "@/lib/claude";
-import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
+import {
+  getCurrentSalesCorpus,
+  type TranscriptSegment,
+  type SalesContext,
+} from "@/lib/data/salesCoach";
 import {
   buildSalesReviewSystemPrompt,
   buildSalesReviewUserMessage,
@@ -54,7 +58,13 @@ export async function generateSalesReview(args: {
       return EMPTY_REVIEW;
     }
 
-    const systemPrompt = buildSalesReviewSystemPrompt();
+    // The company's own saved corpus (if any) overrides the built-in
+    // methodology for THIS company's reviews (§5). Never throws — a corpus
+    // read failure falls back to the built-in via undefined.
+    const corpus = await getCurrentSalesCorpus(args.companyId).catch(
+      () => null
+    );
+    const systemPrompt = buildSalesReviewSystemPrompt(corpus?.content);
     const userMessage = buildSalesReviewUserMessage({
       sessionTitle: args.sessionTitle,
       context: args.context,

@@ -1,8 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, User, BookOpen, CheckCircle2, Hourglass } from "lucide-react";
+import {
+  Loader2,
+  User,
+  BookOpen,
+  CheckCircle2,
+  Hourglass,
+  Save,
+} from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * Sales Coach → Settings (Phase 4). Role-aware: every staff/admin gets
@@ -94,31 +102,7 @@ export default function SalesCoachSettingsPage() {
 
             {tab === "coaching" && isManager && ctx && (
               <div className="space-y-4">
-                <section className="rounded-xl border border-default bg-white/[0.01] p-4">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <BookOpen className="w-3.5 h-3.5 text-brand" aria-hidden />
-                    <h2 className="text-sm font-semibold text-primary">
-                      Coaching methodology
-                    </h2>
-                  </div>
-                  {ctx.corpus.loaded ? (
-                    <p className="inline-flex items-center gap-1.5 text-xs text-emerald-300">
-                      <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
-                      Knowledge base loaded · ~{ctx.corpus.words.toLocaleString()} words
-                    </p>
-                  ) : (
-                    <p className="text-xs text-amber-300">
-                      No knowledge base loaded — the coach is running on the
-                      built-in starter methodology only.
-                    </p>
-                  )}
-                  <p className="text-[11px] text-muted leading-relaxed mt-2">
-                    The coach reasons from this corpus (SPIN, Challenger, Voss,
-                    Navigate 2.0). In-app editing + swapping in your own
-                    books/strategy is coming; today it&apos;s managed in the
-                    repo (docs/SALES_KNOWLEDGE_BASE.md).
-                  </p>
-                </section>
+                <CorpusEditor />
 
                 <section className="rounded-xl border border-default bg-white/[0.01] p-4">
                   <div className="inline-flex items-center gap-1.5 text-[11px] text-muted rounded-md border border-default px-2 py-1 mb-2">
@@ -176,5 +160,140 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="text-xs text-muted">{label}</span>
       <span className="text-sm text-primary capitalize">{value}</span>
     </div>
+  );
+}
+
+type CorpusData = {
+  content: string;
+  isCustom: boolean;
+  updatedAt: string | null;
+  updatedByName: string | null;
+  effectiveSource: "custom" | "books" | "starter";
+};
+
+const SOURCE_LABEL: Record<CorpusData["effectiveSource"], string> = {
+  custom: "your team's own corpus",
+  books: "the built-in books (SPIN, Challenger, Voss, Navigate 2.0)",
+  starter: "the built-in starter methodology",
+};
+
+/**
+ * Editable methodology corpus (migration 0074). An admin writes/saves a
+ * company-specific methodology the post-call REVIEW coach reasons from,
+ * overriding the built-in books/starter (§5). Append-only: each save is a
+ * new version (§3.1). Honest about which source is ACTUALLY in use (§3.4).
+ */
+function CorpusEditor() {
+  const toast = useToast();
+  const [data, setData] = useState<CorpusData | null>(null);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/coach/sales-session/corpus").catch(
+        () => null
+      );
+      if (res && res.ok) {
+        const d: CorpusData = await res.json();
+        setData(d);
+        setText(d.content ?? "");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const dirty = data
+    ? text.trim() !== (data.content ?? "").trim()
+    : text.trim().length > 0;
+
+  const save = async () => {
+    if (!text.trim() || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/coach/sales-session/corpus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        throw new Error(b?.error ?? "failed");
+      }
+      toast.success("Methodology saved", "Future reviews will use it.");
+      await load();
+    } catch (e) {
+      toast.error("Couldn't save", e instanceof Error ? e.message : undefined);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+      <div className="flex items-center gap-1.5">
+        <BookOpen className="w-3.5 h-3.5 text-brand" aria-hidden />
+        <h2 className="text-sm font-semibold text-primary">
+          Coaching methodology
+        </h2>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-xs text-muted py-4">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+          Loading…
+        </div>
+      ) : (
+        <>
+          <p className="inline-flex items-center gap-1.5 text-xs text-secondary">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" aria-hidden />
+            Reviews currently use{" "}
+            {SOURCE_LABEL[data?.effectiveSource ?? "starter"]}.
+          </p>
+          {data?.isCustom && data.updatedAt && (
+            <p className="text-[11px] text-muted">
+              Last saved {new Date(data.updatedAt).toLocaleString()}
+              {data.updatedByName ? ` by ${data.updatedByName}` : ""}.
+            </p>
+          )}
+
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={14}
+            placeholder="Paste or write your team's sales methodology — the principles, moves, and language you want the post-call coach to reason from. Saving it overrides the built-in methodology for your team."
+            className="w-full bg-surface border border-default rounded-lg px-3 py-2.5 text-xs text-primary placeholder:text-muted font-mono leading-relaxed focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-y"
+          />
+
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] text-muted">
+              {data?.effectiveSource === "custom"
+                ? "Saving appends a new version (history is kept). Shapes the post-call review, not live cues."
+                : "Saving your own corpus overrides the built-in. Shapes the post-call review, not live cues."}
+            </p>
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={saving || !text.trim() || !dirty}
+              className="inline-flex items-center gap-1.5 shrink-0 bg-ember-400 hover:bg-ember-500 disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+            >
+              {saving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Save className="w-3.5 h-3.5" aria-hidden />
+              )}
+              {saving ? "Saving…" : "Save methodology"}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

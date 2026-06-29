@@ -279,3 +279,53 @@ export async function getCueRelianceSeries(
   }
   return out;
 }
+
+// ─── Editable methodology corpus (migration 0074) ──────────────────────
+
+export type SalesCorpus = {
+  content: string;
+  createdAt: string;
+  createdById: string | null;
+};
+
+/**
+ * The CURRENT (latest) custom methodology corpus for a company, or null
+ * if none saved. Read via service role — the review engine is a system
+ * operation. §3.1: this is the latest of the append-only versions, never
+ * a mutable row.
+ */
+export async function getCurrentSalesCorpus(
+  companyId: string
+): Promise<SalesCorpus | null> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("sales_coach_corpus_versions")
+    .select("content, created_at, created_by")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data || typeof data.content !== "string" || !data.content.trim()) {
+    return null;
+  }
+  return {
+    content: data.content,
+    createdAt: data.created_at as string,
+    createdById: (data.created_by as string | null) ?? null,
+  };
+}
+
+/** Append a new corpus version (immutable, §3.1). True on success. */
+export async function appendSalesCorpusVersion(args: {
+  companyId: string;
+  content: string;
+  createdBy: string;
+}): Promise<boolean> {
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("sales_coach_corpus_versions").insert({
+    company_id: args.companyId,
+    content: args.content,
+    created_by: args.createdBy,
+  });
+  return !error;
+}
