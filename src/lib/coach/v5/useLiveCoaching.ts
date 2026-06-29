@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { CueMode } from "@/lib/data/salesCoach";
+import type { CueMode, TranscriptSpeaker } from "@/lib/data/salesCoach";
 
 /**
  * useLiveCoaching — Live Sales Coach S1b (the realtime loop).
@@ -28,12 +28,32 @@ import type { CueMode } from "@/lib/data/salesCoach";
 export type LiveStatus = "idle" | "connecting" | "live" | "error";
 
 const REALTIME_WS = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
-// Debounce auto-cue after a committed transcript so we cue at natural
-// beats, not on every tiny commit (founder: "on pauses").
-const AUTO_CUE_DEBOUNCE_MS = 4000;
+// Endpointing: Scribe's VAD commits a transcript at end-of-utterance, so a
+// committed_transcript already means "they paused". This short SETTLE on
+// top coalesces burst-commits within one turn (e.g. "I think…" then "…next
+// month") before we cue — the tunable silence gate (Increment 3 tunes it).
+// Replaces the old blanket 4s debounce that cued regardless of who spoke.
+const TURN_SETTLE_MS = 700;
 // After a cue is delivered, suppress AUTO cues for this long so the coach
 // doesn't talk over the agent (§3.3). On-demand ("coach me") bypasses it.
 const CUE_COOLDOWN_MS = 25_000;
+
+// A single attributed turn of the conversation. Salesperson = "agent",
+// prospect = "customer" (the existing TranscriptSpeaker terms).
+type Turn = { text: string; speaker: TranscriptSpeaker };
+
+/**
+ * Speaker attribution — INCREMENT 1 (naive). Anchored salesperson-first
+ * (door-to-door, the salesperson opens), then strict alternation. This is
+ * a deliberate placeholder: it is wrong whenever one speaker takes two
+ * turns in a row or a backchannel ("mhm") lands. Increment 2 replaces THIS
+ * FUNCTION ONLY with the context classifier (anchor + alternation +
+ * product-aware) — kept isolated so the swap is localized and measurable
+ * against the post-call diarization (§3.5, §4).
+ */
+function attributeTurn(priorTurns: Turn[]): TranscriptSpeaker {
+  return priorTurns.length % 2 === 0 ? "agent" : "customer";
+}
 
 function floatTo16BitPCMBase64(input: Float32Array): string {
   const buf = new ArrayBuffer(input.length * 2);
@@ -52,7 +72,7 @@ function floatTo16BitPCMBase64(input: Float32Array): string {
 
 export function useLiveCoaching(sessionId: string) {
   const [status, setStatus] = useState<LiveStatus>("idle");
-  const [transcript, setTranscript] = useState<string[]>([]);
+  const [turns, setTurns] = useState<Turn[]>([]);
   const [partial, setPartial] = useState("");
   const [currentCue, setCurrentCue] = useState<string | null>(null);
   const [mode, setMode] = useState<CueMode>("suggestion");
@@ -76,7 +96,7 @@ export function useLiveCoaching(sessionId: string) {
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
-  const transcriptRef = useRef<string[]>([]);
+  const turnsRef = useRef<Turn[]>([]);
   const cueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cueInFlightRef = useRef(false);
   const modeRef = useRef<CueMode>("suggestion");
@@ -143,7 +163,7 @@ export function useLiveCoaching(sessionId: string) {
   const invokeCue = useCallback(
     async (onDemand = false) => {
       if (cueInFlightRef.current) return;
-      const live = transcriptRef.current;
+      const live = turnsRef.current;
       if (live.length < 2) {
         // "Coach me now" shouldn't feel dead when there's nothing to read
         // yet (image 1: button did nothing).
@@ -171,11 +191,11 @@ export function useLiveCoaching(sessionId: string) {
             // brain must give a concrete suggestion, not defer to the
             // understanding gate.
             force: onDemand,
-            // Undifferentiated live transcript (no realtime diarization);
-            // the brain reads it as the conversation.
-            liveTranscript: live.slice(-12).map((text) => ({
-              speaker: "unknown" as const,
-              text,
+            // Attributed turns (Increment 1 naive attribution) — the brain
+            // now reads WHO said what, not an undifferentiated stream.
+            liveTranscript: live.slice(-12).map((t) => ({
+              speaker: t.speaker,
+              text: t.text,
             })),
           }),
         });
@@ -252,8 +272,8 @@ export function useLiveCoaching(sessionId: string) {
   const start = useCallback(async () => {
     setError(null);
     setStatus("connecting");
-    setTranscript([]);
-    transcriptRef.current = [];
+    setTurns([]);
+    turnsRef.current = [];
     try {
       // 1. Mic.
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -409,15 +429,26 @@ export function useLiveCoaching(sessionId: string) {
           const text = (msg.text ?? "").trim();
           setPartial("");
           if (!text) return;
-          transcriptRef.current = [...transcriptRef.current, text];
-          setTranscript(transcriptRef.current);
-          // Auto-cue on the pause (debounced) — only when auto-coach is
-          // ON. The brain still decides whether to actually speak.
-          if (autoCoachRef.current) {
-            if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+          // Endpointing: this commit = a turn ended. Attribute it, then
+          // decide whether to jump in.
+          const speaker = attributeTurn(turnsRef.current);
+          turnsRef.current = [...turnsRef.current, { text, speaker }];
+          setTurns(turnsRef.current);
+          // eslint-disable-next-line no-console
+          console.info(
+            `[live-coaching] turn #${turnsRef.current.length} ${speaker}: "${text.slice(0, 80)}"`
+          );
+          // A new commit cancels any pending cue (if the salesperson just
+          // started, they didn't wait for it).
+          if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+          // Jump in ONLY when the PROSPECT just stopped — immediately, after
+          // a short settle to coalesce burst-commits. Not after the
+          // salesperson's own turn. The brain's §3.3 gate + cooldown still
+          // decide whether to actually speak.
+          if (autoCoachRef.current && speaker === "customer") {
             cueTimerRef.current = setTimeout(
               () => void invokeCue(),
-              AUTO_CUE_DEBOUNCE_MS
+              TURN_SETTLE_MS
             );
           }
         }
@@ -446,7 +477,7 @@ export function useLiveCoaching(sessionId: string) {
     recordingBlob,
     clearRecording,
     status,
-    transcript,
+    turns,
     partial,
     currentCue,
     cueStatus,

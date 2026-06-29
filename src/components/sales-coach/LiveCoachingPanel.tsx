@@ -24,7 +24,7 @@ export function LiveCoachingPanel({
     recordingBlob,
     clearRecording,
     status,
-    transcript,
+    turns,
     partial,
     currentCue,
     cueStatus,
@@ -178,21 +178,36 @@ export function LiveCoachingPanel({
         <p className="mt-2 text-[11px] text-muted">{cueStatus}</p>
       )}
 
-      {/* Rolling transcript */}
-      {(live || transcript.length > 0) && (
-        <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-default bg-base/40 p-3 space-y-1">
-          {transcript.length === 0 && !partial && (
+      {/* Rolling transcript — each turn tagged with who we think is
+          speaking. Increment 1 attribution is naive alternation; the labels
+          are shown so it's testable and obviously provisional (§3.4). */}
+      {(live || turns.length > 0) && (
+        <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-default bg-base/40 p-3 space-y-1.5">
+          {turns.length === 0 && !partial && (
             <p className="text-[11px] text-muted">Listening…</p>
           )}
-          {transcript.map((t, i) => (
-            <p key={i} className="text-xs text-secondary leading-relaxed">
-              {t}
+          {turns.map((t, i) => (
+            <p key={i} className="text-xs leading-relaxed">
+              <span
+                className={`font-semibold ${
+                  t.speaker === "customer" ? "text-brand" : "text-secondary"
+                }`}
+              >
+                {t.speaker === "customer" ? "Prospect" : "Salesperson"}:
+              </span>{" "}
+              <span className="text-secondary">{t.text}</span>
             </p>
           ))}
           {partial && (
             <p className="text-xs text-muted italic leading-relaxed">{partial}</p>
           )}
         </div>
+      )}
+      {(live || turns.length > 0) && (
+        <p className="text-[10px] text-muted mt-1.5">
+          Speaker labels are a first pass (alternation, salesperson-first) —
+          being refined. Cues fire when the prospect&apos;s turn ends.
+        </p>
       )}
 
       {/* F2: after Stop, the recorded call is processed into the saved,
