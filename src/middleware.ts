@@ -40,11 +40,24 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/dashboard") || path.startsWith("/onboarding");
 
   if (!user && isProtected) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    // Sales Coach deep-links bounce to the BRANDED login, not the
+    // Elostate one, so the product keeps its own entry.
+    const dest = path.startsWith("/dashboard/sales-coach")
+      ? "/sales-coach/login"
+      : "/login";
+    return NextResponse.redirect(new URL(dest, request.url));
   }
 
   if (user && path === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // Authenticated users shouldn't see the branded login form — send them
+  // into the Sales Coach shell.
+  if (user && path === "/sales-coach/login") {
+    return NextResponse.redirect(
+      new URL("/dashboard/sales-coach", request.url)
+    );
   }
 
   return response;

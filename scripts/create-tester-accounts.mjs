@@ -78,15 +78,19 @@ async function findOwnerCompany() {
   // signup attempt + the active account). We pick the auth user whose
   // profiles row is actually linked to a company, since that's by
   // definition the working account.
-  const userLookup = await rest(
-    `/auth/v1/admin/users?email=${encodeURIComponent(OWNER_EMAIL)}`
+  // NOTE: /auth/v1/admin/users?email= does NOT filter — it returns a
+  // LIST. Filter client-side by the actual email field (2026-06-28: the
+  // unfiltered loop wrongly wrote 10 profiles once; never trust ?email=).
+  const userLookup = await rest(`/auth/v1/admin/users?per_page=1000`);
+  const matches = (userLookup.body?.users ?? []).filter(
+    (u) => (u.email ?? "").toLowerCase() === OWNER_EMAIL.toLowerCase()
   );
-  if (!userLookup.ok || !userLookup.body?.users?.length) {
+  if (!userLookup.ok || matches.length === 0) {
     throw new Error(
       `Owner ${OWNER_EMAIL} not found in auth.users — sign in once before running this script.`
     );
   }
-  const ids = userLookup.body.users.map((u) => u.id);
+  const ids = matches.map((u) => u.id);
   const orFilter = ids.map((id) => `id.eq.${id}`).join(",");
   const profiles = await rest(
     `/rest/v1/profiles?or=(${orFilter})&select=id,company_id,full_name`
@@ -122,11 +126,13 @@ async function createAuthUser(email, password, full_name) {
   // Already exists — look it up so we can still ensure the profile.
   const msg = JSON.stringify(res.body ?? "");
   if (/already.*registered|already exists|duplicate/i.test(msg)) {
-    const existing = await rest(
-      `/auth/v1/admin/users?email=${encodeURIComponent(email)}`
+    // ?email= doesn't filter — fetch + match the real email field.
+    const existing = await rest(`/auth/v1/admin/users?per_page=1000`);
+    const match = (existing.body?.users ?? []).find(
+      (u) => (u.email ?? "").toLowerCase() === email.toLowerCase()
     );
-    if (existing.ok && existing.body?.users?.length) {
-      return { id: existing.body.users[0].id, created: false };
+    if (match) {
+      return { id: match.id, created: false };
     }
   }
   throw new Error(`createAuthUser(${email}) failed: ${msg}`);

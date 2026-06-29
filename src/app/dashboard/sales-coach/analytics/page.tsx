@@ -34,21 +34,39 @@ type Stats = {
   reviewsGenerated: number;
   recentGrowth: string[];
 };
+type TeamStats = {
+  sessionsTotal: number;
+  sessionsThisWeek: number;
+  activeCoaches: number;
+  cuesTotal: number;
+  reviewsGenerated: number;
+  avgCues: number;
+};
 
 export default function SalesCoachAnalyticsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [series, setSeries] = useState<ProgressPoint[]>([]);
+  // Team aggregate — only populated for managers (the endpoint 403s
+  // otherwise, so a non-manager simply never sees the team section).
+  const [team, setTeam] = useState<TeamStats | null>(null);
+  const [teamSeries, setTeamSeries] = useState<ProgressPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/coach/sales-session/dashboard").catch(
-        () => null
-      );
-      if (res && res.ok) {
-        const d = await res.json();
+      const [ownRes, teamRes] = await Promise.all([
+        fetch("/api/coach/sales-session/dashboard").catch(() => null),
+        fetch("/api/coach/sales-session/team-analytics").catch(() => null),
+      ]);
+      if (ownRes && ownRes.ok) {
+        const d = await ownRes.json();
         setStats(d.stats ?? null);
         setSeries(d.series ?? []);
+      }
+      if (teamRes && teamRes.ok) {
+        const t = await teamRes.json();
+        setTeam(t.team ?? null);
+        setTeamSeries(t.series ?? []);
       }
     } finally {
       setLoading(false);
@@ -74,6 +92,8 @@ export default function SalesCoachAnalyticsPage() {
     return { first: first.cueCount, last: last.cueCount, down: last.cueCount < first.cueCount };
   })();
 
+  const teamMaxCues = Math.max(1, ...teamSeries.map((s) => s.cueCount));
+
   return (
     <>
       <TopBar title="Analytics" subtitle="Your coaching over time" />
@@ -81,9 +101,9 @@ export default function SalesCoachAnalyticsPage() {
         <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
           <Users className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
           <p className="text-xs text-secondary leading-relaxed">
-            This is <span className="text-primary">your own</span> coaching,
-            tracked against your own past — never a ranking (§A18). Team-level
-            analytics arrives once your Sales Coach team is set up (Team).
+            Tracked against the <span className="text-primary">past</span>, never
+            as a ranking (§A18). Your own coaching is below
+            {team ? "; the team view is aggregate only — no per-person breakdown" : ""}.
           </p>
         </div>
 
@@ -94,6 +114,59 @@ export default function SalesCoachAnalyticsPage() {
           </div>
         ) : (
           <>
+            {/* TEAM aggregate — managers only. Anonymized: counts + an
+                unnamed trend, never a per-agent breakdown (§A18/§A10). */}
+            {team && (
+              <section className="rounded-xl border border-ember-400/30 bg-ember-400/[0.03] p-4 space-y-4">
+                <div className="flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-brand" aria-hidden />
+                  <h2 className="text-sm font-semibold text-primary">
+                    Team (aggregate)
+                  </h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Cell icon={GraduationCap} label="Sessions" value={team.sessionsTotal} sub={`${team.sessionsThisWeek} this week`} />
+                  <Cell icon={Users} label="Active coaches" value={team.activeCoaches} sub="Ran ≥1 session" />
+                  <Cell icon={MessageSquare} label="Cues delivered" value={team.cuesTotal} sub={`avg ${team.avgCues}/session`} />
+                  <Cell icon={Sparkles} label="Reviews" value={team.reviewsGenerated} sub="Generated" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <TrendingDown className="w-3.5 h-3.5 text-brand" aria-hidden />
+                    <h3 className="text-xs font-semibold text-primary">
+                      Team cue reliance over time
+                    </h3>
+                  </div>
+                  {teamSeries.length === 0 ? (
+                    <p className="text-xs text-muted">
+                      No completed team sessions yet. This fills in as the team
+                      finishes sessions.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex items-end gap-1 h-20">
+                        {teamSeries.map((s) => (
+                          <div
+                            key={s.sessionId}
+                            className="flex-1 min-w-[4px] bg-ember-400/30 rounded-t hover:bg-ember-400/50 transition-colors"
+                            style={{
+                              height: `${Math.max(4, (s.cueCount / teamMaxCues) * 100)}%`,
+                            }}
+                            title={`${new Date(s.startedAt).toLocaleDateString()} · ${s.cueCount} cues`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-muted mt-2">
+                        Each bar is one completed session (unattributed) —
+                        oldest → newest. The team trend, not anyone&apos;s
+                        scorecard.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* Aggregate stats */}
             <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Cell icon={GraduationCap} label="Sessions" value={stats?.sessionsTotal ?? 0} sub="All time" />
