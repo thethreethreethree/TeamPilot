@@ -41,7 +41,13 @@ type TeamStats = {
   cuesTotal: number;
   reviewsGenerated: number;
   avgCues: number;
+  capped: boolean;
 };
+
+// Below this many active coaches the team TREND is suppressed — with 1-2
+// coaches an "aggregate" trend is effectively one person's scorecard
+// (§A18/§A10). Headline counts still show (coarse aggregate).
+const MIN_COACHES_FOR_TREND = 3;
 
 export default function SalesCoachAnalyticsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -50,6 +56,9 @@ export default function SalesCoachAnalyticsPage() {
   // otherwise, so a non-manager simply never sees the team section).
   const [team, setTeam] = useState<TeamStats | null>(null);
   const [teamSeries, setTeamSeries] = useState<ProgressPoint[]>([]);
+  // The manager IS known but the team data failed to load — shown as an
+  // honest error, not as zeros (§3.4).
+  const [teamDegraded, setTeamDegraded] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -65,8 +74,12 @@ export default function SalesCoachAnalyticsPage() {
       }
       if (teamRes && teamRes.ok) {
         const t = await teamRes.json();
-        setTeam(t.team ?? null);
-        setTeamSeries(t.series ?? []);
+        if (t.degraded) {
+          setTeamDegraded(true);
+        } else {
+          setTeam(t.team ?? null);
+          setTeamSeries(t.series ?? []);
+        }
       }
     } finally {
       setLoading(false);
@@ -116,6 +129,14 @@ export default function SalesCoachAnalyticsPage() {
           <>
             {/* TEAM aggregate — managers only. Anonymized: counts + an
                 unnamed trend, never a per-agent breakdown (§A18/§A10). */}
+            {teamDegraded && (
+              <section className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
+                <p className="text-xs text-amber-300">
+                  Couldn&apos;t load team analytics right now — this is an
+                  error, not an empty team. Try again shortly.
+                </p>
+              </section>
+            )}
             {team && (
               <section className="rounded-xl border border-ember-400/30 bg-ember-400/[0.03] p-4 space-y-4">
                 <div className="flex items-center gap-1.5">
@@ -130,40 +151,56 @@ export default function SalesCoachAnalyticsPage() {
                   <Cell icon={MessageSquare} label="Cues delivered" value={team.cuesTotal} sub={`avg ${team.avgCues}/session`} />
                   <Cell icon={Sparkles} label="Reviews" value={team.reviewsGenerated} sub="Generated" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <TrendingDown className="w-3.5 h-3.5 text-brand" aria-hidden />
-                    <h3 className="text-xs font-semibold text-primary">
-                      Team cue reliance over time
-                    </h3>
-                  </div>
-                  {teamSeries.length === 0 ? (
-                    <p className="text-xs text-muted">
-                      No completed team sessions yet. This fills in as the team
-                      finishes sessions.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="flex items-end gap-1 h-20">
-                        {teamSeries.map((s) => (
-                          <div
-                            key={s.sessionId}
-                            className="flex-1 min-w-[4px] bg-ember-400/30 rounded-t hover:bg-ember-400/50 transition-colors"
-                            style={{
-                              height: `${Math.max(4, (s.cueCount / teamMaxCues) * 100)}%`,
-                            }}
-                            title={`${new Date(s.startedAt).toLocaleDateString()} · ${s.cueCount} cues`}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-[11px] text-muted mt-2">
-                        Each bar is one completed session (unattributed) —
-                        oldest → newest. The team trend, not anyone&apos;s
-                        scorecard.
+                {team.capped && (
+                  <p className="text-[11px] text-amber-300/80">
+                    Showing the most recent 500 sessions — cue total and
+                    active-coach count are over that window; session totals
+                    are all-time.
+                  </p>
+                )}
+                {team.activeCoaches < MIN_COACHES_FOR_TREND ? (
+                  <p className="text-xs text-muted">
+                    The team trend appears once at least {MIN_COACHES_FOR_TREND}{" "}
+                    coaches are active — below that it would just be one
+                    person&apos;s sessions, which is a scorecard, not a team
+                    view (§A18).
+                  </p>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <TrendingDown className="w-3.5 h-3.5 text-brand" aria-hidden />
+                      <h3 className="text-xs font-semibold text-primary">
+                        Team cue reliance over time
+                      </h3>
+                    </div>
+                    {teamSeries.length === 0 ? (
+                      <p className="text-xs text-muted">
+                        No completed team sessions yet. This fills in as the
+                        team finishes sessions.
                       </p>
-                    </>
-                  )}
-                </div>
+                    ) : (
+                      <>
+                        <div className="flex items-end gap-1 h-20">
+                          {teamSeries.map((s) => (
+                            <div
+                              key={s.sessionId}
+                              className="flex-1 min-w-[4px] bg-ember-400/30 rounded-t hover:bg-ember-400/50 transition-colors"
+                              style={{
+                                height: `${Math.max(4, (s.cueCount / teamMaxCues) * 100)}%`,
+                              }}
+                              title={`${new Date(s.startedAt).toLocaleDateString()} · ${s.cueCount} cues`}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-[11px] text-muted mt-2">
+                          Each bar is one completed session (unattributed) —
+                          oldest → newest. The team trend, not anyone&apos;s
+                          scorecard.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
               </section>
             )}
 

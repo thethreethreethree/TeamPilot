@@ -64,5 +64,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/login"],
+  matcher: [
+    "/dashboard/:path*",
+    "/onboarding/:path*",
+    "/login",
+    // So the authed-user redirect on the branded login (above) actually
+    // runs — without this entry the middleware never fires there.
+    "/sales-coach/login",
+  ],
 };
