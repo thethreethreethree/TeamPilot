@@ -38,20 +38,59 @@ const TURN_SETTLE_MS = 700;
 // doesn't talk over the agent (§3.3). On-demand ("coach me") bypasses it.
 const CUE_COOLDOWN_MS = 25_000;
 
+// Volume/proximity attribution (founder 2026-06-30): the salesperson wears
+// the mic, so their speech is LOUDER than the prospect across the room. NOT
+// voice-ID — it's loudness/distance. Per-frame RMS below this is treated as
+// silence/noise, not speech. Tunable defaults (Increment 3 tunes them).
+const VOICE_NOISE_FLOOR = 0.004;
+// When only the salesperson's level is known yet, an utterance quieter than
+// this fraction of it is taken to be the (farther) prospect.
+const QUIET_RATIO = 0.65;
+
 // A single attributed turn. Salesperson = "agent", prospect = "customer"
 // (the existing TranscriptSpeaker terms). `pending` = the instant
 // provisional label is showing; the content classifier hasn't returned yet.
 type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean };
 
 /**
- * INSTANT provisional label (Increment 2): anchored salesperson-first,
- * then alternation. Shown immediately so the transcript isn't blank while
- * the real, CONTENT-based attribution (/attribute) classifies the turn and
- * replaces this. Alternation is wrong on double-turns/backchannels — that's
- * exactly why content classification overrides it.
+ * Proximity verdict from an utterance's mean loudness — the INSTANT,
+ * content-independent provisional label (replaces the old alternation
+ * guess). The salesperson is nearer the mic → louder. Adaptive: anchors
+ * the first speaker as the salesperson (door-to-door, they open), learns
+ * each side's level (EMA), and classifies later turns by nearest level.
+ * Combined WITH (not replacing) the content classifier. Honest limit:
+ * assumes the mic is AGENT-WORN; a table-placed mic breaks it.
  */
-function provisionalSpeaker(priorTurns: Turn[]): TranscriptSpeaker {
-  return priorTurns.length % 2 === 0 ? "agent" : "customer";
+function volumeVerdict(
+  energy: number,
+  agentLevel: number | null,
+  customerLevel: number | null
+): {
+  speaker: TranscriptSpeaker;
+  agentLevel: number | null;
+  customerLevel: number | null;
+} {
+  if (energy <= 0) return { speaker: "agent", agentLevel, customerLevel };
+  // Anchor: first speaker = salesperson; seed the loud/near level.
+  if (agentLevel === null) {
+    return { speaker: "agent", agentLevel: energy, customerLevel };
+  }
+  let speaker: TranscriptSpeaker;
+  if (customerLevel === null) {
+    speaker = energy < agentLevel * QUIET_RATIO ? "customer" : "agent";
+  } else {
+    speaker =
+      Math.abs(energy - agentLevel) <= Math.abs(energy - customerLevel)
+        ? "agent"
+        : "customer";
+  }
+  const ema = (prev: number | null) =>
+    prev === null ? energy : prev * 0.7 + energy * 0.3;
+  return {
+    speaker,
+    agentLevel: speaker === "agent" ? ema(agentLevel) : agentLevel,
+    customerLevel: speaker === "customer" ? ema(customerLevel) : customerLevel,
+  };
 }
 
 function floatTo16BitPCMBase64(input: Float32Array): string {
@@ -101,6 +140,15 @@ export function useLiveCoaching(sessionId: string) {
   const modeRef = useRef<CueMode>("suggestion");
   const lastCueAtRef = useRef(0); // F4 cooldown (ms epoch); 0 = never
   const autoCoachRef = useRef(true); // mirrors autoCoach for ws closures
+  // Volume/proximity attribution: per-utterance energy accumulator + the
+  // learned loudness level for each side (salesperson near/loud, prospect
+  // far/quiet).
+  const utterEnergyRef = useRef<{ sum: number; count: number }>({
+    sum: 0,
+    count: 0,
+  });
+  const agentLevelRef = useRef<number | null>(null);
+  const customerLevelRef = useRef<number | null>(null);
 
   // Speak a cue privately to the agent (reuses Jeff's flash TTS).
   const speakCue = useCallback(async (text: string) => {
@@ -237,7 +285,12 @@ export function useLiveCoaching(sessionId: string) {
   // then — decides whether to jump in. The cue trigger is gated on the
   // CONTENT label, so a wrong provisional label never produces a wrong cue.
   const classifyTurn = useCallback(
-    async (index: number, text: string, priorSpeaker: TranscriptSpeaker) => {
+    async (
+      index: number,
+      text: string,
+      priorSpeaker: TranscriptSpeaker,
+      volHint: TranscriptSpeaker
+    ) => {
       const settleLabel = (speaker: TranscriptSpeaker | null) => {
         turnsRef.current = turnsRef.current.map((t, i) =>
           i === index
@@ -255,18 +308,27 @@ export function useLiveCoaching(sessionId: string) {
             recentTurns: before.map((t) => ({ speaker: t.speaker, text: t.text })),
             latestText: text,
             priorSpeaker,
+            // The proximity prior — loud=salesperson, quiet=prospect.
+            volumeHint: volHint,
           }),
         });
         let speaker: TranscriptSpeaker | null = null;
+        let dbg = res.ok ? "" : `http=${res.status}`;
         if (res.ok) {
-          const s = (await res.json())?.speaker;
-          if (s === "agent" || s === "customer") speaker = s;
+          const j = await res.json();
+          dbg = (j?.debug as string) ?? "";
+          if (j?.speaker === "agent" || j?.speaker === "customer") {
+            speaker = j.speaker;
+          }
         }
+        // Final label = content if the classifier produced one, else the
+        // volume verdict (the provisional already on the turn). So a null
+        // content result now falls back to LOUDNESS, not an alternation guess.
         settleLabel(speaker);
         const finalSpeaker = speaker ?? turnsRef.current[index]?.speaker;
         // eslint-disable-next-line no-console
         console.info(
-          `[live-coaching] turn #${index + 1} content=${speaker ?? "(kept provisional)"} → ${finalSpeaker}`
+          `[live-coaching] turn #${index + 1} vol=${volHint} content=${speaker ?? "(null→kept vol)"} → ${finalSpeaker} | ${dbg}`
         );
         // Jump in ONLY if the prospect spoke AND this is still the latest
         // turn (a newer commit supersedes — it'll run its own trigger).
@@ -326,6 +388,9 @@ export function useLiveCoaching(sessionId: string) {
     setStatus("connecting");
     setTurns([]);
     turnsRef.current = [];
+    utterEnergyRef.current = { sum: 0, count: 0 };
+    agentLevelRef.current = null;
+    customerLevelRef.current = null;
     try {
       // 1. Mic.
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -413,6 +478,19 @@ export function useLiveCoaching(sessionId: string) {
       proc.onaudioprocess = (e) => {
         if (ws.readyState !== WebSocket.OPEN) return;
         const input = e.inputBuffer.getChannelData(0);
+        // Per-frame RMS for proximity attribution. Only frames above the
+        // noise floor count, so silence between words doesn't dilute the
+        // utterance's loudness.
+        let sumSq = 0;
+        for (let i = 0; i < input.length; i += 1) {
+          const s = input[i] ?? 0;
+          sumSq += s * s;
+        }
+        const rms = Math.sqrt(sumSq / Math.max(1, input.length));
+        if (rms > VOICE_NOISE_FLOOR) {
+          utterEnergyRef.current.sum += rms;
+          utterEnergyRef.current.count += 1;
+        }
         try {
           ws.send(
             JSON.stringify({
@@ -480,27 +558,37 @@ export function useLiveCoaching(sessionId: string) {
         ) {
           const text = (msg.text ?? "").trim();
           setPartial("");
+          // Close out the utterance's loudness, whether or not there's text.
+          const acc = utterEnergyRef.current;
+          const energy = acc.count > 0 ? acc.sum / acc.count : 0;
+          utterEnergyRef.current = { sum: 0, count: 0 };
           if (!text) return;
-          // Endpointing: this commit = a turn ended. Show it instantly with
-          // a provisional label, then content-classify it (which sets the
-          // real label AND decides whether to jump in).
+          // Proximity verdict (instant, content-independent) — the provisional
+          // label AND the prior fed to the content classifier.
+          const v = volumeVerdict(
+            energy,
+            agentLevelRef.current,
+            customerLevelRef.current
+          );
+          agentLevelRef.current = v.agentLevel;
+          customerLevelRef.current = v.customerLevel;
           const priorSpeaker =
             turnsRef.current[turnsRef.current.length - 1]?.speaker ?? "agent";
           const index = turnsRef.current.length;
           turnsRef.current = [
             ...turnsRef.current,
-            { text, speaker: provisionalSpeaker(turnsRef.current), pending: true },
+            { text, speaker: v.speaker, pending: true },
           ];
           setTurns(turnsRef.current);
           // eslint-disable-next-line no-console
           console.info(
-            `[live-coaching] turn #${index + 1} committed: "${text.slice(0, 80)}"`
+            `[live-coaching] turn #${index + 1} committed (energy=${energy.toFixed(4)} vol=${v.speaker}): "${text.slice(0, 80)}"`
           );
           // A new commit cancels any pending cue (the salesperson didn't
-          // wait for it). The cue trigger now lives in classifyTurn, gated
-          // on the CONTENT label.
+          // wait for it). The cue trigger lives in classifyTurn, gated on
+          // the final (content-or-volume) label.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-          void classifyTurn(index, text, priorSpeaker);
+          void classifyTurn(index, text, priorSpeaker, v.speaker);
         }
       };
     } catch (err) {

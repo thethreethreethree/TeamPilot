@@ -210,8 +210,9 @@ export function LiveCoachingPanel({
       )}
       {(live || turns.length > 0) && (
         <p className="text-[10px] text-muted mt-1.5">
-          Speaker labels are classified by content (a dim &ldquo;…&rdquo; means
-          still classifying). Cues fire when the prospect&apos;s turn ends.
+          Speaker labels use loudness (you wear the mic, so you&apos;re louder)
+          + content (a dim &ldquo;…&rdquo; means content is still classifying).
+          Cues fire when the prospect&apos;s turn ends.
         </p>
       )}
 

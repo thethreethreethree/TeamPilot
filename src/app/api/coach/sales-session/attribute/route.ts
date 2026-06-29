@@ -23,6 +23,8 @@ import { classifyTurnSpeaker } from "@/lib/claude";
 const Body = z.object({
   latestText: z.string().min(1).max(2000),
   priorSpeaker: z.enum(["agent", "customer", "unknown"]).optional(),
+  // Proximity prior from loudness (salesperson wears the mic → louder).
+  volumeHint: z.enum(["agent", "customer"]).optional(),
   recentTurns: z
     .array(
       z.object({
@@ -81,7 +83,11 @@ SALESPERSON markers: pitches or describes that offering, asks discovery question
 PROSPECT markers: asks about price/terms/fit, describes THEIR own situation or needs, raises concerns or objections, "how does it…", "what about…".
 
 The previous utterance was the ${label(body.priorSpeaker)}. Speakers usually alternate, but NOT always — one person can take two turns in a row, and short backchannels ("mhm", "right") happen. Use CONTENT as the decider; alternation is only a weak tiebreaker.
-
+${
+  body.volumeHint
+    ? `\nACOUSTIC PRIOR: the salesperson wears the mic and is closer to it, so they are louder. The loudness of this utterance suggests the ${label(body.volumeHint)}. Treat this as a STRONG prior — agree with it unless the CONTENT clearly contradicts it.\n`
+    : ""
+}
 Respond with ONLY this JSON: {"speaker":"salesperson"} or {"speaker":"prospect"}.`;
 
   const convo = (body.recentTurns ?? [])
@@ -89,9 +95,19 @@ Respond with ONLY this JSON: {"speaker":"salesperson"} or {"speaker":"prospect"}
     .join("\n");
   const user = `Recent conversation:\n${convo || "(start of conversation)"}\n\nLATEST utterance to label:\n"${body.latestText}"`;
 
+  // Instrumented (diagnostic-logging-first): on a null result the caller
+  // keeps its provisional label, so we surface WHY it was null — model
+  // suppressed? empty product? unparseable output? — into the response so
+  // it shows in the agent's console, not swallowed.
   let speaker: "agent" | "customer" | null = null;
+  let raw = "";
+  let suppressed = false;
+  let err = "";
+  const productFound = product !== "a product or service";
   try {
     const r = await classifyTurnSpeaker({ systemPrompt: system, userMessage: user });
+    suppressed = r.suppressed;
+    raw = (r.text ?? "").slice(0, 120);
     if (!r.suppressed && r.text) {
       const json = r.text.match(/\{[\s\S]*\}/)?.[0] ?? r.text;
       const parsed = JSON.parse(json) as { speaker?: string };
@@ -99,9 +115,10 @@ Respond with ONLY this JSON: {"speaker":"salesperson"} or {"speaker":"prospect"}
       if (s.includes("prospect")) speaker = "customer";
       else if (s.includes("sales")) speaker = "agent";
     }
-  } catch {
-    // null → caller keeps its provisional label.
+  } catch (e) {
+    err = e instanceof Error ? e.message : String(e);
   }
 
-  return NextResponse.json({ speaker });
+  const debug = `suppressed=${suppressed} product=${productFound} err=${err || "none"} raw=${JSON.stringify(raw)}`;
+  return NextResponse.json({ speaker, debug });
 }
