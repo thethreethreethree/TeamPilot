@@ -125,10 +125,21 @@ export async function GET() {
   // not a ranking.
   const activeCoaches = new Set(windowSessions.map((s) => s.agent_id)).size;
 
-  // Cue total over the window — single count-head, no cue rows loaded.
+  // Cue total — prefer the EXACT company-scoped count (0073 added
+  // coaching_cues.company_id). Fall back to the windowed count if the
+  // column isn't there yet (migration not applied), so this never breaks
+  // during the deploy → migration window and self-heals once 0073 lands.
   const windowIds = windowSessions.map((s) => s.id as string);
   let cuesTotal = 0;
-  if (windowIds.length > 0) {
+  let cuesExact = false;
+  const exactCues = await admin
+    .from("coaching_cues")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", ctx.companyId);
+  if (!exactCues.error) {
+    cuesTotal = exactCues.count ?? 0;
+    cuesExact = true;
+  } else if (windowIds.length > 0) {
     const cuesRes = await admin
       .from("coaching_cues")
       .select("id", { count: "exact", head: true })
@@ -185,6 +196,7 @@ export async function GET() {
       reviewsGenerated,
       avgCues,
       capped,
+      cuesExact,
     },
     series,
   });

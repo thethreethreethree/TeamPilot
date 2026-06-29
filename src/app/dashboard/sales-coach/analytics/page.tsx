@@ -42,6 +42,7 @@ type TeamStats = {
   reviewsGenerated: number;
   avgCues: number;
   capped: boolean;
+  cuesExact: boolean;
 };
 
 // Below this many active coaches the team TREND is suppressed — with 1-2
@@ -153,9 +154,9 @@ export default function SalesCoachAnalyticsPage() {
                 </div>
                 {team.capped && (
                   <p className="text-[11px] text-amber-300/80">
-                    Showing the most recent 500 sessions — cue total and
-                    active-coach count are over that window; session totals
-                    are all-time.
+                    {team.cuesExact
+                      ? "Active-coach count is over the most recent 500 sessions; session and cue totals are all-time."
+                      : "Active-coach count and cue total are over the most recent 500 sessions; session totals are all-time."}
                   </p>
                 )}
                 {team.activeCoaches < MIN_COACHES_FOR_TREND ? (
