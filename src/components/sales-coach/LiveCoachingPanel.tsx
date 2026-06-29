@@ -190,10 +190,15 @@ export function LiveCoachingPanel({
             <p key={i} className="text-xs leading-relaxed">
               <span
                 className={`font-semibold ${
-                  t.speaker === "customer" ? "text-brand" : "text-secondary"
+                  t.pending
+                    ? "text-muted"
+                    : t.speaker === "customer"
+                      ? "text-brand"
+                      : "text-secondary"
                 }`}
               >
-                {t.speaker === "customer" ? "Prospect" : "Salesperson"}:
+                {t.speaker === "customer" ? "Prospect" : "Salesperson"}
+                {t.pending ? "…" : ""}:
               </span>{" "}
               <span className="text-secondary">{t.text}</span>
             </p>
@@ -205,8 +210,8 @@ export function LiveCoachingPanel({
       )}
       {(live || turns.length > 0) && (
         <p className="text-[10px] text-muted mt-1.5">
-          Speaker labels are a first pass (alternation, salesperson-first) —
-          being refined. Cues fire when the prospect&apos;s turn ends.
+          Speaker labels are classified by content (a dim &ldquo;…&rdquo; means
+          still classifying). Cues fire when the prospect&apos;s turn ends.
         </p>
       )}
 

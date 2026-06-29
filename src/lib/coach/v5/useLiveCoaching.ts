@@ -38,20 +38,19 @@ const TURN_SETTLE_MS = 700;
 // doesn't talk over the agent (§3.3). On-demand ("coach me") bypasses it.
 const CUE_COOLDOWN_MS = 25_000;
 
-// A single attributed turn of the conversation. Salesperson = "agent",
-// prospect = "customer" (the existing TranscriptSpeaker terms).
-type Turn = { text: string; speaker: TranscriptSpeaker };
+// A single attributed turn. Salesperson = "agent", prospect = "customer"
+// (the existing TranscriptSpeaker terms). `pending` = the instant
+// provisional label is showing; the content classifier hasn't returned yet.
+type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean };
 
 /**
- * Speaker attribution — INCREMENT 1 (naive). Anchored salesperson-first
- * (door-to-door, the salesperson opens), then strict alternation. This is
- * a deliberate placeholder: it is wrong whenever one speaker takes two
- * turns in a row or a backchannel ("mhm") lands. Increment 2 replaces THIS
- * FUNCTION ONLY with the context classifier (anchor + alternation +
- * product-aware) — kept isolated so the swap is localized and measurable
- * against the post-call diarization (§3.5, §4).
+ * INSTANT provisional label (Increment 2): anchored salesperson-first,
+ * then alternation. Shown immediately so the transcript isn't blank while
+ * the real, CONTENT-based attribution (/attribute) classifies the turn and
+ * replaces this. Alternation is wrong on double-turns/backchannels — that's
+ * exactly why content classification overrides it.
  */
-function attributeTurn(priorTurns: Turn[]): TranscriptSpeaker {
+function provisionalSpeaker(priorTurns: Turn[]): TranscriptSpeaker {
   return priorTurns.length % 2 === 0 ? "agent" : "customer";
 }
 
@@ -232,6 +231,59 @@ export function useLiveCoaching(sessionId: string) {
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
     void invokeCue(true); // on-demand bypasses the cooldown
   }, [invokeCue]);
+
+  // Content-classify a just-committed turn (Increment 2). Replaces the
+  // provisional label with the real, CONTENT-based one, then — and only
+  // then — decides whether to jump in. The cue trigger is gated on the
+  // CONTENT label, so a wrong provisional label never produces a wrong cue.
+  const classifyTurn = useCallback(
+    async (index: number, text: string, priorSpeaker: TranscriptSpeaker) => {
+      const settleLabel = (speaker: TranscriptSpeaker | null) => {
+        turnsRef.current = turnsRef.current.map((t, i) =>
+          i === index
+            ? { ...t, speaker: speaker ?? t.speaker, pending: false }
+            : t
+        );
+        setTurns(turnsRef.current);
+      };
+      try {
+        const before = turnsRef.current.slice(Math.max(0, index - 6), index);
+        const res = await fetch("/api/coach/sales-session/attribute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recentTurns: before.map((t) => ({ speaker: t.speaker, text: t.text })),
+            latestText: text,
+            priorSpeaker,
+          }),
+        });
+        let speaker: TranscriptSpeaker | null = null;
+        if (res.ok) {
+          const s = (await res.json())?.speaker;
+          if (s === "agent" || s === "customer") speaker = s;
+        }
+        settleLabel(speaker);
+        const finalSpeaker = speaker ?? turnsRef.current[index]?.speaker;
+        // eslint-disable-next-line no-console
+        console.info(
+          `[live-coaching] turn #${index + 1} content=${speaker ?? "(kept provisional)"} → ${finalSpeaker}`
+        );
+        // Jump in ONLY if the prospect spoke AND this is still the latest
+        // turn (a newer commit supersedes — it'll run its own trigger).
+        if (
+          finalSpeaker === "customer" &&
+          index === turnsRef.current.length - 1 &&
+          autoCoachRef.current
+        ) {
+          if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+          cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
+        }
+      } catch {
+        settleLabel(null); // keep provisional, clear the pending flag
+      }
+    },
+    [invokeCue]
+  );
 
   const stop = useCallback(() => {
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
@@ -429,28 +481,26 @@ export function useLiveCoaching(sessionId: string) {
           const text = (msg.text ?? "").trim();
           setPartial("");
           if (!text) return;
-          // Endpointing: this commit = a turn ended. Attribute it, then
-          // decide whether to jump in.
-          const speaker = attributeTurn(turnsRef.current);
-          turnsRef.current = [...turnsRef.current, { text, speaker }];
+          // Endpointing: this commit = a turn ended. Show it instantly with
+          // a provisional label, then content-classify it (which sets the
+          // real label AND decides whether to jump in).
+          const priorSpeaker =
+            turnsRef.current[turnsRef.current.length - 1]?.speaker ?? "agent";
+          const index = turnsRef.current.length;
+          turnsRef.current = [
+            ...turnsRef.current,
+            { text, speaker: provisionalSpeaker(turnsRef.current), pending: true },
+          ];
           setTurns(turnsRef.current);
           // eslint-disable-next-line no-console
           console.info(
-            `[live-coaching] turn #${turnsRef.current.length} ${speaker}: "${text.slice(0, 80)}"`
+            `[live-coaching] turn #${index + 1} committed: "${text.slice(0, 80)}"`
           );
-          // A new commit cancels any pending cue (if the salesperson just
-          // started, they didn't wait for it).
+          // A new commit cancels any pending cue (the salesperson didn't
+          // wait for it). The cue trigger now lives in classifyTurn, gated
+          // on the CONTENT label.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-          // Jump in ONLY when the PROSPECT just stopped — immediately, after
-          // a short settle to coalesce burst-commits. Not after the
-          // salesperson's own turn. The brain's §3.3 gate + cooldown still
-          // decide whether to actually speak.
-          if (autoCoachRef.current && speaker === "customer") {
-            cueTimerRef.current = setTimeout(
-              () => void invokeCue(),
-              TURN_SETTLE_MS
-            );
-          }
+          void classifyTurn(index, text, priorSpeaker);
         }
       };
     } catch (err) {
@@ -458,7 +508,7 @@ export function useLiveCoaching(sessionId: string) {
       setStatus("error");
       stop();
     }
-  }, [invokeCue, status, stop]);
+  }, [invokeCue, status, stop, classifyTurn]);
 
   const updateMode = useCallback((m: CueMode) => {
     modeRef.current = m;

@@ -491,6 +491,29 @@ export async function liveSalesCue(args: {
   });
 }
 
+/**
+ * Fast per-turn speaker attribution for live coaching (Increment 2).
+ * Content-based (NOT voice): labels the latest utterance salesperson vs
+ * prospect from the conversation content + the product being sold. Tiny
+ * budget = low latency.
+ *
+ * Deliberately NOT routed through the per-company brain gate: attribution
+ * is a mechanical utility, not guidance, so it must run even when month-1
+ * control suppresses cues (§3.4). Product context is injected into the
+ * prompt by the caller instead of via the brain composer.
+ */
+export async function classifyTurnSpeaker(args: {
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    expectJson: true,
+    maxTokens: 16, // just {"speaker":"prospect"}
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+  });
+}
+
 // ─────────────────────────────────────────────────────────────
 // Task Spawn Engine
 // ─────────────────────────────────────────────────────────────
