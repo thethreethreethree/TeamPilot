@@ -17,7 +17,13 @@ import { synthesizeSpeechStream } from "@/lib/care/voice/elevenlabs";
  * (root cause of "no cue audio", 2026-06-27).
  */
 
-const Body = z.object({ text: z.string().min(1).max(2000) });
+const Body = z.object({
+  text: z.string().min(1).max(2000),
+  // Optional preview override (Settings voice picker): synthesize a sample
+  // in a specific voice before saving it. When absent, the tenant's
+  // configured Sales Coach voice is resolved below.
+  voiceId: z.string().max(64).optional(),
+});
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
@@ -36,17 +42,26 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 
-  // Resolve the tenant's voice preference (NULL → deployment default).
-  let voiceId: string | null = null;
-  const companyId = await getCurrentCompanyId();
-  if (companyId) {
-    const admin = createAdminClient();
-    const { data: tenant } = await admin
-      .from("care_tenant_config")
-      .select("voice_id")
-      .eq("company_id", companyId)
-      .maybeSingle();
-    voiceId = (tenant?.voice_id as string | null) ?? null;
+  // Voice precedence: an explicit preview override wins; else the
+  // tenant's DEDICATED Sales Coach voice; else the C.A.R.E voice it
+  // follows by default; else the deployment default (NULL → default in
+  // synthesizeSpeechStream). Decoupled from Jeff once a dedicated voice
+  // is set (migration 0075).
+  let voiceId: string | null = body.voiceId ?? null;
+  if (!voiceId) {
+    const companyId = await getCurrentCompanyId();
+    if (companyId) {
+      const admin = createAdminClient();
+      const { data: tenant } = await admin
+        .from("care_tenant_config")
+        .select("sales_coach_voice_id, voice_id")
+        .eq("company_id", companyId)
+        .maybeSingle();
+      voiceId =
+        (tenant?.sales_coach_voice_id as string | null) ??
+        (tenant?.voice_id as string | null) ??
+        null;
+    }
   }
 
   let stream: ReadableStream<Uint8Array>;

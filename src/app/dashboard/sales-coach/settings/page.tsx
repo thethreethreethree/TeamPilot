@@ -6,8 +6,9 @@ import {
   User,
   BookOpen,
   CheckCircle2,
-  Hourglass,
   Save,
+  Volume2,
+  Check,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
@@ -104,20 +105,7 @@ export default function SalesCoachSettingsPage() {
               <div className="space-y-4">
                 <CorpusEditor />
 
-                <section className="rounded-xl border border-default bg-white/[0.01] p-4">
-                  <div className="inline-flex items-center gap-1.5 text-[11px] text-muted rounded-md border border-default px-2 py-1 mb-2">
-                    <Hourglass className="w-3 h-3" aria-hidden />
-                    Coming soon
-                  </div>
-                  <h2 className="text-sm font-semibold text-primary mb-1">
-                    Cue voice
-                  </h2>
-                  <p className="text-[11px] text-muted leading-relaxed">
-                    A Sales-Coach-specific cue voice. (Today the cue voice
-                    reuses the C.A.R.E voice setting, so it isn&apos;t exposed
-                    here yet — changing it would also change Jeff&apos;s voice.)
-                  </p>
-                </section>
+                <VoicePicker />
               </div>
             )}
           </>
@@ -290,6 +278,208 @@ function CorpusEditor() {
                 <Save className="w-3.5 h-3.5" aria-hidden />
               )}
               {saving ? "Saving…" : "Save methodology"}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+type Voice = { id: string; name: string; description: string };
+type VoiceData = {
+  salesCoachVoiceId: string | null;
+  careVoiceId: string | null;
+  effectiveVoiceId: string;
+  defaultVoiceId: string;
+  voices: Voice[];
+};
+
+const PREVIEW_TEXT = "Nice open — now ask one more question before you pitch.";
+
+/**
+ * Dedicated Sales Coach cue voice (migration 0075). Decoupled from
+ * C.A.R.E/Jeff: a manager picks a voice (or "follow C.A.R.E"), previews
+ * it (§A16 — presentation only), and saves. §3.4 — the picker reflects
+ * the actually-saved selection.
+ */
+function VoicePicker() {
+  const toast = useToast();
+  const [data, setData] = useState<VoiceData | null>(null);
+  const [selected, setSelected] = useState<string | null>(null); // null = follow C.A.R.E
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [previewing, setPreviewing] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/coach/sales-session/voice").catch(
+        () => null
+      );
+      if (res && res.ok) {
+        const d: VoiceData = await res.json();
+        setData(d);
+        setSelected(d.salesCoachVoiceId);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const dirty = data ? selected !== data.salesCoachVoiceId : false;
+
+  const preview = async (voiceId: string | null) => {
+    // "Follow C.A.R.E" (null) previews the voice it would actually use:
+    // the C.A.R.E voice, or the deployment default if none is set.
+    const vid =
+      voiceId ?? data?.careVoiceId ?? data?.defaultVoiceId ?? null;
+    setPreviewing(voiceId ?? "__follow__");
+    try {
+      const res = await fetch("/api/coach/sales-session/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          vid ? { text: PREVIEW_TEXT, voiceId: vid } : { text: PREVIEW_TEXT }
+        ),
+      });
+      if (!res.ok) throw new Error("preview failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      await audio.play();
+    } catch {
+      toast.error("Couldn't play a preview");
+    } finally {
+      setPreviewing(null);
+    }
+  };
+
+  const save = async () => {
+    if (saving || !dirty) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/coach/sales-session/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voiceId: selected }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        throw new Error(b?.error ?? "failed");
+      }
+      toast.success("Cue voice saved");
+      await load();
+    } catch (e) {
+      toast.error("Couldn't save", e instanceof Error ? e.message : undefined);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const options: Array<{
+    id: string | null;
+    name: string;
+    description: string;
+  }> = [
+    {
+      id: null,
+      name: "Follow C.A.R.E voice",
+      description: "Default — uses the same voice as your C.A.R.E assistant.",
+    },
+    ...(data?.voices ?? []),
+  ];
+
+  return (
+    <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+      <div className="flex items-center gap-1.5">
+        <Volume2 className="w-3.5 h-3.5 text-brand" aria-hidden />
+        <h2 className="text-sm font-semibold text-primary">Cue voice</h2>
+      </div>
+      <p className="text-[11px] text-muted leading-relaxed">
+        The voice the live coach speaks cues to the agent&apos;s earpiece.
+        Setting one here is independent of C.A.R.E/Jeff.
+      </p>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-xs text-muted py-4">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+          Loading…
+        </div>
+      ) : (
+        <>
+          <div className="rounded-lg border border-default divide-y divide-default overflow-hidden">
+            {options.map((opt) => {
+              const isSel = selected === opt.id;
+              const previewKey = opt.id ?? "__follow__";
+              return (
+                <div
+                  key={previewKey}
+                  className="flex items-center gap-2 px-3 py-2.5"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelected(opt.id)}
+                    className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                  >
+                    <span
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        isSel
+                          ? "border-ember-400 bg-ember-400"
+                          : "border-default"
+                      }`}
+                    >
+                      {isSel && (
+                        <Check
+                          className="w-2.5 h-2.5 text-[#09090B]"
+                          aria-hidden
+                        />
+                      )}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs text-primary truncate">
+                        {opt.name}
+                      </span>
+                      <span className="block text-[10px] text-muted truncate">
+                        {opt.description}
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void preview(opt.id)}
+                    disabled={previewing !== null}
+                    className="inline-flex items-center gap-1 text-[10px] text-secondary hover:text-primary border border-default rounded-md px-2 py-1 shrink-0 disabled:opacity-50"
+                  >
+                    {previewing === previewKey ? (
+                      <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
+                    ) : (
+                      <Volume2 className="w-3 h-3" aria-hidden />
+                    )}
+                    Preview
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={saving || !dirty}
+              className="inline-flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+            >
+              {saving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Save className="w-3.5 h-3.5" aria-hidden />
+              )}
+              {saving ? "Saving…" : "Save voice"}
             </button>
           </div>
         </>
