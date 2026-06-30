@@ -19,7 +19,9 @@ import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
 
 const CreateSchema = z.object({
   context: z.enum(["in_person", "video"]),
-  clientLabel: z.string().max(200).optional(),
+  // Required (founder 2026-07-01): every session must be titled before it can
+  // begin — an untitled session creates initial ambiguity in the history.
+  clientLabel: z.string().trim().min(1).max(200),
 });
 
 export async function POST(req: NextRequest) {
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
     companyId,
     agentId: auth.user.id,
     context: body.context,
-    clientLabel: body.clientLabel ?? null,
+    clientLabel: body.clientLabel,
   });
   if (!session) {
     return NextResponse.json(

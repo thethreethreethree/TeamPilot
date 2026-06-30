@@ -81,16 +81,20 @@ export default function SalesCoachHome() {
   }, [load]);
 
   const start = async () => {
+    // Every session must be titled before it can begin (founder 2026-07-01):
+    // an untitled session creates initial ambiguity in the history.
+    const label = clientLabel.trim();
+    if (!label) {
+      setError("Give the session a client / campaign title before starting.");
+      return;
+    }
     setStarting(true);
     setError(null);
     try {
       const res = await fetch("/api/coach/sales-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          context,
-          clientLabel: clientLabel.trim() || undefined,
-        }),
+        body: JSON.stringify({ context, clientLabel: label }),
       });
       if (!res.ok) {
         const b = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -167,13 +171,13 @@ export default function SalesCoachHome() {
                 type="text"
                 value={clientLabel}
                 onChange={(e) => setClientLabel(e.target.value)}
-                placeholder="Client / campaign (optional)"
+                placeholder="Client / campaign (required)"
                 className="flex-1 min-w-[12rem] text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong"
               />
               <button
                 type="button"
                 onClick={() => void start()}
-                disabled={starting}
+                disabled={starting || !clientLabel.trim()}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"
               >
                 {starting ? (
