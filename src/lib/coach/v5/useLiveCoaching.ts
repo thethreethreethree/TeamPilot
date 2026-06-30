@@ -127,6 +127,11 @@ export function useLiveCoaching(sessionId: string) {
   // persisted, reviewable record (§1.1). In-person only — the mic holds
   // both voices in a room; online video, it's agent-only.
   const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
+  // #1 fix (2026-06-30): the live attributed turns (volume+content
+  // speaker-separated) are persisted as the canonical transcript on Stop —
+  // batch diarization can't separate a single far mic, so it collapsed
+  // everything to "agent". True once the live transcript is saved.
+  const [transcriptSaved, setTranscriptSaved] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -234,10 +239,15 @@ export function useLiveCoaching(sessionId: string) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             mode: modeRef.current,
-            // force: the agent explicitly asked ("coach me now") — the
-            // brain must give a concrete suggestion, not defer to the
-            // understanding gate.
-            force: onDemand,
+            // force=true for BOTH auto and on-demand: when auto-coach is
+            // ON, the agent has opted into ACTIVE guidance, so the coach
+            // should proactively cue at prospect pauses — not sit behind
+            // the §3.3 "stay silent unless high-value" gate that made
+            // auto-coach feel dead (founder, 2026-06-30). force is softened
+            // (it may still honestly defer if there's truly nothing), and
+            // the 25s cooldown bounds AUTO frequency so it never spams.
+            // On-demand additionally bypasses the cooldown (below).
+            force: true,
             // Attributed turns (Increment 1 naive attribution) — the brain
             // now reads WHO said what, not an undifferentiated stream.
             liveTranscript: live.slice(-12).map((t) => ({
@@ -349,6 +359,30 @@ export function useLiveCoaching(sessionId: string) {
 
   const stop = useCallback(() => {
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+    // #1 fix: persist the live attributed transcript (speaker-separated)
+    // before teardown. This is the canonical transcript for in-person —
+    // append-only, best-effort. A failure just leaves the recording-upload
+    // fallback available.
+    const captured = turnsRef.current;
+    if (captured.length > 0) {
+      void fetch(`/api/coach/sales-session/${sessionId}/segments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          segments: captured.map((t, i) => ({
+            speaker: t.speaker,
+            text: t.text,
+            seq: i,
+          })),
+        }),
+      })
+        .then((r) => {
+          if (r.ok) setTranscriptSaved(true);
+        })
+        .catch(() => {
+          /* fallback: the recording-upload path stays available */
+        });
+    }
     // Stop the recorder FIRST (its onstop builds the blob) while the
     // stream is still live.
     try {
@@ -381,13 +415,14 @@ export function useLiveCoaching(sessionId: string) {
     wsRef.current = null;
     setStatus("idle");
     setPartial("");
-  }, []);
+  }, [sessionId]);
 
   const start = useCallback(async () => {
     setError(null);
     setStatus("connecting");
     setTurns([]);
     turnsRef.current = [];
+    setTranscriptSaved(false);
     utterEnergyRef.current = { sum: 0, count: 0 };
     agentLevelRef.current = null;
     customerLevelRef.current = null;
@@ -614,6 +649,7 @@ export function useLiveCoaching(sessionId: string) {
   return {
     recordingBlob,
     clearRecording,
+    transcriptSaved,
     status,
     turns,
     partial,

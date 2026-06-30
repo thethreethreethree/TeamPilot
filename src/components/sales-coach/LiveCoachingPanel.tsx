@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Radio, Square, Sparkles, Hand, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Radio, Square, Sparkles, Hand, Loader2, CheckCircle2 } from "lucide-react";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
 import { SessionRecordingUpload } from "./SessionRecordingUpload";
 
@@ -23,6 +23,7 @@ export function LiveCoachingPanel({
   const {
     recordingBlob,
     clearRecording,
+    transcriptSaved,
     status,
     turns,
     partial,
@@ -43,6 +44,12 @@ export function LiveCoachingPanel({
   // confirming they're on an in-ear earpiece (honest enforcement of an
   // instruction, not a false guarantee).
   const [earpieceOk, setEarpieceOk] = useState(false);
+
+  // When the live transcript is saved, refresh the page so the
+  // speaker-separated transcript + the review become available.
+  useEffect(() => {
+    if (transcriptSaved) onRecordingSaved?.();
+  }, [transcriptSaved, onRecordingSaved]);
 
   const live = status === "live";
 
@@ -216,13 +223,26 @@ export function LiveCoachingPanel({
         </p>
       )}
 
-      {/* F2: after Stop, the recorded call is processed into the saved,
-          reviewable transcript (S1a pipeline). In-person only — the mic
-          holds both voices in a room; online video it's agent-only. */}
-      {recordingBlob && !live && (
+      {/* #1 fix: after Stop, the LIVE attributed turns are saved as the
+          speaker-separated transcript (volume+content). Batch diarization
+          can't separate a single far mic, so this is the canonical path
+          in-person. */}
+      {transcriptSaved && !live && (
+        <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 flex items-start gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" aria-hidden />
+          <p className="text-xs text-secondary leading-relaxed">
+            Transcript saved — speaker-separated from the live conversation.
+            Generate your growth review above.
+          </p>
+        </div>
+      )}
+
+      {/* Fallback: only if the live transcript didn't save (e.g. nothing was
+          captured) do we offer the recording-upload + diarization path. */}
+      {!transcriptSaved && recordingBlob && !live && (
         <div className="mt-3">
           <p className="text-[11px] text-muted mb-2">
-            Save this call&apos;s transcript + review from the recording:
+            Live transcript didn&apos;t save — recover it from the recording:
           </p>
           <SessionRecordingUpload
             sessionId={sessionId}
@@ -236,9 +256,8 @@ export function LiveCoachingPanel({
       )}
 
       <p className="text-[11px] text-muted mt-2">
-        The live transcript here is for coaching only. The saved transcript +
-        growth review are generated from the call recording, captured
-        automatically and processed when you Stop.
+        The transcript + growth review are built from the live conversation,
+        separated by speaker and saved when you Stop.
       </p>
     </section>
   );
