@@ -557,7 +557,9 @@ function DecisionPanel({ sessionId }: { sessionId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/ai/decision-dialogue", {
+      // Sales-Coach decision-dialogue (reuses the engine, exempt from the
+      // §3.4 control window) — not the gated Elostate /api/ai endpoint.
+      const res = await fetch("/api/coach/sales-session/decision-dialogue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

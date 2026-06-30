@@ -127,9 +127,13 @@ export async function proposeDecisionDialogue(args: {
   userDiagnosis: string;
   userProposal: string;
   companyId?: string;
+  /** Shared helper: the SALES COACH caller (its dedicated endpoint) sets
+   *  this to run day-1; the Elostate decision-dialogue leaves it unset. */
+  controlExempt?: boolean;
 }): Promise<CallResult> {
   return call({
     companyId: args.companyId,
+    controlExempt: args.controlExempt,
     expectJson: true,
     maxTokens: 900,
     systemPrompt: `You are ELOSTATE operating under a guide-don't-overtake discipline.

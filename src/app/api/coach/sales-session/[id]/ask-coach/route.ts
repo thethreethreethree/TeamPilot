@@ -82,6 +82,8 @@ export async function POST(
       companyId,
       systemPrompt: COACH_SYSTEM,
       userMessage: `Transcript:\n${transcript}\n\nThe agent asks: ${body.question}\n\nCoach them.`,
+      // Sales Coach runs day-1 — exempt from the §3.4 control window.
+      controlExempt: true,
     });
     if (r.suppressed) {
       return NextResponse.json({ answer: null, suppressed: true });

@@ -36,6 +36,8 @@ export default function CoachAssessmentPage() {
   // §3.4: a server-side query failure is shown as an honest error, NOT as
   // an empty team (which would be indistinguishable from "no assessments").
   const [degraded, setDegraded] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +63,29 @@ export default function CoachAssessmentPage() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  // Backfill: regenerate dissects for sessions that have a transcript but no
+  // dissect yet (the M3 safety net). Batched — run until "0 remaining".
+  const runBackfill = useCallback(async () => {
+    setBackfilling(true);
+    setBackfillMsg(null);
+    try {
+      const res = await fetch(
+        "/api/coach/sales-session/backfill-dissects",
+        { method: "POST" }
+      );
+      if (!res.ok) throw new Error(`failed (${res.status})`);
+      const d = await res.json();
+      setBackfillMsg(
+        `Generated ${d.generated ?? 0}${d.thinOrFailed ? `, ${d.thinOrFailed} too thin/failed` : ""}. ${d.remaining ?? 0} still missing.`
+      );
+      await load();
+    } catch {
+      setBackfillMsg("Backfill failed — try again.");
+    } finally {
+      setBackfilling(false);
+    }
   }, [load]);
 
   const withContent = (team ?? []).filter((a) => a.dissectCount > 0);
@@ -106,6 +131,26 @@ export default function CoachAssessmentPage() {
                 <span className="text-primary">For coaching, not ranking</span>:
                 everyone is measured against their own growth, never each other.
               </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] text-muted">
+                {backfillMsg ??
+                  "Regenerate any dissects that didn't auto-generate (e.g. a closed tab)."}
+              </p>
+              <button
+                type="button"
+                onClick={() => void runBackfill()}
+                disabled={backfilling}
+                className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold border border-default text-secondary hover:text-primary px-3 py-1.5 rounded-lg disabled:opacity-50"
+              >
+                {backfilling ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <ClipboardCheck className="w-3.5 h-3.5" aria-hidden />
+                )}
+                {backfilling ? "Generating…" : "Generate missing"}
+              </button>
             </div>
 
             {withContent.length === 0 && (
