@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Radio, Square, Sparkles, Hand, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  Radio,
+  Square,
+  Sparkles,
+  Hand,
+  Loader2,
+  CheckCircle2,
+  Mic,
+} from "lucide-react";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
 import { SessionRecordingUpload } from "./SessionRecordingUpload";
 
@@ -24,6 +32,7 @@ export function LiveCoachingPanel({
     recordingBlob,
     clearRecording,
     transcriptSaved,
+    micLevel,
     status,
     turns,
     partial,
@@ -171,6 +180,39 @@ export function LiveCoachingPanel({
       )}
 
       {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
+
+      {/* Live mic-level meter — the same RMS that drives proximity
+          attribution, shown so the agent can see they're the louder voice. */}
+      {live && (
+        <div className="mt-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Mic className="w-3 h-3 text-muted" aria-hidden />
+            <span className="text-[10px] uppercase tracking-widest text-muted font-bold">
+              Mic level
+            </span>
+            <span className="text-[10px] text-muted ml-auto">
+              {micLevel > 0.05 ? "picking you up" : "quiet"}
+            </span>
+          </div>
+          <div
+            className="h-2.5 rounded-full bg-base/60 border border-default overflow-hidden"
+            role="meter"
+            aria-valuenow={Math.round(Math.min(1, micLevel) * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Microphone level"
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-ember-400 to-ember-500 transition-[width] duration-100 ease-out"
+              style={{ width: `${Math.round(Math.min(1, micLevel) * 100)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted mt-1">
+            You should be the louder voice — the coach uses loudness to tell
+            you apart from the prospect.
+          </p>
+        </div>
+      )}
 
       {/* Current cue */}
       {currentCue && (

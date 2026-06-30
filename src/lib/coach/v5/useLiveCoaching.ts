@@ -137,6 +137,10 @@ export function useLiveCoaching(sessionId: string) {
   // batch diarization can't separate a single far mic, so it collapsed
   // everything to "agent". True once the live transcript is saved.
   const [transcriptSaved, setTranscriptSaved] = useState(false);
+  // Live mic-level meter (0–1, smoothed) so the agent can SEE their volume —
+  // it's the same RMS that drives proximity attribution, so a high bar when
+  // they speak confirms they're the louder/near voice.
+  const [micLevel, setMicLevel] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -159,6 +163,7 @@ export function useLiveCoaching(sessionId: string) {
   });
   const agentLevelRef = useRef<number | null>(null);
   const customerLevelRef = useRef<number | null>(null);
+  const micLevelRef = useRef(0); // smoothing accumulator for the meter
 
   // Speak a cue privately to the agent (reuses Jeff's flash TTS).
   const speakCue = useCallback(async (text: string) => {
@@ -420,6 +425,8 @@ export function useLiveCoaching(sessionId: string) {
     wsRef.current = null;
     setStatus("idle");
     setPartial("");
+    micLevelRef.current = 0;
+    setMicLevel(0);
   }, [sessionId]);
 
   const start = useCallback(async () => {
@@ -431,6 +438,8 @@ export function useLiveCoaching(sessionId: string) {
     utterEnergyRef.current = { sum: 0, count: 0 };
     agentLevelRef.current = null;
     customerLevelRef.current = null;
+    micLevelRef.current = 0;
+    setMicLevel(0);
     try {
       // 1. Mic.
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -531,6 +540,11 @@ export function useLiveCoaching(sessionId: string) {
           utterEnergyRef.current.sum += rms;
           utterEnergyRef.current.count += 1;
         }
+        // Live meter (same RMS): scale so normal speech fills most of the
+        // bar, then EMA-smooth so it glides instead of flickering.
+        const lvl = Math.min(1, rms / 0.2);
+        micLevelRef.current = micLevelRef.current * 0.6 + lvl * 0.4;
+        setMicLevel(micLevelRef.current);
         try {
           ws.send(
             JSON.stringify({
@@ -655,6 +669,7 @@ export function useLiveCoaching(sessionId: string) {
     recordingBlob,
     clearRecording,
     transcriptSaved,
+    micLevel,
     status,
     turns,
     partial,
