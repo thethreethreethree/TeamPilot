@@ -399,6 +399,12 @@ export function useLiveCoaching(sessionId: string) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ sessionId }),
             }).catch(() => {});
+            // Auto-generate the distinct factual conversation summary too
+            // (founder 2026-06-30) — persisted + shown on the session.
+            void fetch(
+              `/api/coach/sales-session/${sessionId}/summarize`,
+              { method: "POST" }
+            ).catch(() => {});
           }
         })
         .catch(() => {

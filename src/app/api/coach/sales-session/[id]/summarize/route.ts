@@ -69,11 +69,59 @@ export async function POST(
     if (r.suppressed) {
       return NextResponse.json({ summary: null, suppressed: true });
     }
-    return NextResponse.json({ summary: r.text.trim() });
+    const summary = r.text.trim();
+    // Persist (append-only, §3.1/§1.1) so the session shows the summary
+    // without re-spending an LLM call, and so it's a durable per-
+    // conversation record (distinct from the Dissect evaluation).
+    if (companyId && summary) {
+      try {
+        await supabase.from("events").insert({
+          company_id: companyId,
+          actor: auth.user.id,
+          kind: "coach.session_summary_generated",
+          subject: `sales_session:${id}`,
+          payload: { summary, coach_version: "summary-v1" },
+        });
+      } catch {
+        /* best-effort — the summary still returns */
+      }
+    }
+    return NextResponse.json({ summary });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Summarize failed." },
       { status: 502 }
     );
   }
+}
+
+/**
+ * GET /api/coach/sales-session/[id]/summarize
+ *
+ * Read back the most recent persisted summary for a session (no LLM cost),
+ * so the session page can show the auto-generated summary.
+ */
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+  const { data } = await supabase
+    .from("events")
+    .select("payload")
+    .eq("kind", "coach.session_summary_generated")
+    .eq("subject", `sales_session:${id}`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const summary = (data?.payload as Record<string, unknown> | undefined)
+    ?.summary;
+  return NextResponse.json({
+    summary: typeof summary === "string" ? summary : null,
+  });
 }

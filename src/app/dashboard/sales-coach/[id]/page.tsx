@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Lightbulb,
   Square,
+  FileText,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
@@ -53,6 +54,7 @@ export default function SessionDetail() {
   const [session, setSession] = useState<Session | null>(null);
   const [transcript, setTranscript] = useState<Segment[]>([]);
   const [review, setReview] = useState<Review | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -60,9 +62,10 @@ export default function SessionDetail() {
 
   const load = useCallback(async () => {
     try {
-      const [sRes, rRes] = await Promise.all([
+      const [sRes, rRes, sumRes] = await Promise.all([
         fetch(`/api/coach/sales-session/${id}`).catch(() => null),
         fetch(`/api/coach/sales-session/review?sessionId=${id}`).catch(() => null),
+        fetch(`/api/coach/sales-session/${id}/summarize`).catch(() => null),
       ]);
       if (sRes && sRes.ok) {
         const d = await sRes.json();
@@ -72,6 +75,7 @@ export default function SessionDetail() {
         setError("Couldn't load the session.");
       }
       if (rRes && rRes.ok) setReview((await rRes.json()).review);
+      if (sumRes && sumRes.ok) setSummary((await sumRes.json()).summary ?? null);
     } finally {
       setLoading(false);
     }
@@ -131,6 +135,22 @@ export default function SessionDetail() {
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
           Back to sessions
         </Link>
+
+        {/* Auto-generated factual conversation summary (distinct from the
+            Dissect evaluation, §A11 — facts, not a verdict). */}
+        {summary && (
+          <section className="rounded-xl border border-default bg-white/[0.01] p-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
+              <h2 className="text-sm font-semibold text-primary">
+                Conversation summary
+              </h2>
+            </div>
+            <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
+              {summary}
+            </p>
+          </section>
+        )}
 
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">

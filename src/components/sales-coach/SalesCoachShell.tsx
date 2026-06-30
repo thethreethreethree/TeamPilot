@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   GraduationCap,
   Home,
+  MessageSquare,
   Mic,
   Settings,
   Users,
@@ -37,6 +38,11 @@ type NavItem = { label: string; href: string; icon: typeof Home };
 const NAV: NavItem[] = [
   { label: "Home", href: "/dashboard/sales-coach", icon: Home },
   { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic },
+  {
+    label: "Team Chat",
+    href: "/dashboard/sales-coach/team-chat",
+    icon: MessageSquare,
+  },
   { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
   { label: "Team", href: "/dashboard/sales-coach/team", icon: Users },
   {
