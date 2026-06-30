@@ -14,6 +14,7 @@ import {
   createTopic,
   type ChatTopic,
   type ChatsMode,
+  type ChatScope,
 } from "@/lib/data/chats";
 import {
   CheckCircle2,
@@ -27,7 +28,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchHotkey } from "@/components/ui/useSearchHotkey";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
@@ -54,6 +55,14 @@ export default function TeamChatListPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
+  // This SAME page renders both the Elostate chat (/dashboard/chats) and the
+  // Sales Coach team chat (/dashboard/sales-coach/team-chat). The route
+  // decides which scope it reads + creates into, keeping the two separate
+  // (migration 0076).
+  const pathname = usePathname();
+  const chatScope: ChatScope = pathname?.startsWith("/dashboard/sales-coach")
+    ? "sales_coach"
+    : "elostate";
 
   const [topics, setTopics] = useState<ChatTopic[]>([]);
   const [mode, setMode] = useState<ChatsMode>("demo-fixtures");
@@ -70,7 +79,7 @@ export default function TeamChatListPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetchTopics();
+      const res = await fetchTopics(chatScope);
       setTopics(res.topics);
       setMode(res.mode);
     } catch (e) {
@@ -436,6 +445,13 @@ function CreateTopicModal({
   const [tags, setTags] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  // Create into the scope of the surface we're on (keeps Sales Coach and
+  // Elostate topics separate, migration 0076).
+  const chatScope: ChatScope = usePathname()?.startsWith(
+    "/dashboard/sales-coach"
+  )
+    ? "sales_coach"
+    : "elostate";
 
   // ─── Similarity matching (§3.6 make-learning-visible) ───────────
   //
@@ -513,6 +529,7 @@ function CreateTopicModal({
       // Unified create: hits Supabase in live mode, localStorage in demo.
       // RLS validates company_id == auth_company_id() server-side.
       const created = await createTopic({
+        scope: chatScope,
         title: title.trim(),
         description: description.trim(),
         tags: tags

@@ -76,6 +76,10 @@ export interface ChatParticipant {
 
 export type ChatsMode = "demo-fixtures" | "live-empty" | "live-data";
 
+// The product surface a topic belongs to (migration 0076). Sales Coach
+// team chat and the Elostate main chat are kept separate by this scope.
+export type ChatScope = "elostate" | "sales_coach";
+
 // ─── Demo fixtures + localStorage state ──────────────────────
 
 const STORAGE_KEY = "execos.chat.v1";
@@ -408,7 +412,7 @@ export function demoUserId(): string {
 
 // ─── Public fetchers ────────────────────────────────────────
 
-export async function fetchTopics(): Promise<{
+export async function fetchTopics(scope: ChatScope = "elostate"): Promise<{
   topics: ChatTopic[];
   mode: ChatsMode;
 }> {
@@ -416,18 +420,24 @@ export async function fetchTopics(): Promise<{
     return { topics: readDemoState().topics, mode: "demo-fixtures" };
   }
   const supabase = createClient();
-  // Audit finding (system-wide): previously selected from
-  // chat_topics directly and hardcoded participantCount/
-  // messageCount/lastMessageAt to 0/0/null in the mapper.
-  // Migration 0048 added the chat_topic_with_counts view that
-  // joins the aggregate columns. Selecting from the view gives
-  // every topic its actual counts in a single round-trip.
-  const { data, error } = await supabase
+  // chat_topic_with_counts (migration 0048) joins the aggregate columns so
+  // every topic gets its real counts in one round-trip.
+  const COLS =
+    "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, locked, participant_count, message_count, last_message_at";
+  // Scope to the surface (Elostate vs Sales Coach, migration 0076). Fall
+  // back to UNSCOPED if the `scope` column isn't applied yet, so the chat
+  // never breaks in the deploy-before-migration window.
+  let { data, error } = await supabase
     .from("chat_topic_with_counts")
-    .select(
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, locked, participant_count, message_count, last_message_at"
-    )
+    .select(COLS)
+    .eq("scope", scope)
     .order("created_at", { ascending: false });
+  if (error) {
+    ({ data, error } = await supabase
+      .from("chat_topic_with_counts")
+      .select(COLS)
+      .order("created_at", { ascending: false }));
+  }
   if (error || !data) return { topics: [], mode: "live-empty" };
 
   const topics: ChatTopic[] = data.map((row) => ({
@@ -829,6 +839,7 @@ export async function createTopic(args: {
   title: string;
   description: string;
   tags: string[];
+  scope?: ChatScope;
 }): Promise<ChatTopic> {
   if (!supabaseEnabled) {
     return demoCreateTopic(args);
@@ -836,20 +847,30 @@ export async function createTopic(args: {
   const ctx = await loadUserContext();
   const supabase = createClient();
 
-  // Insert the topic. RLS validates company_id == auth_company_id().
-  const { data: topicRow, error: topicErr } = await supabase
+  const SEL =
+    "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled";
+  const base = {
+    company_id: ctx.companyId,
+    title: args.title,
+    description: args.description || null,
+    tags: args.tags,
+    created_by: ctx.userId,
+  };
+  // Insert the topic with its surface scope (migration 0076). RLS validates
+  // company_id == auth_company_id(). Fall back to an unscoped insert if the
+  // `scope` column isn't applied yet (topic then defaults to 'elostate').
+  let { data: topicRow, error: topicErr } = await supabase
     .from("chat_topics")
-    .insert({
-      company_id: ctx.companyId,
-      title: args.title,
-      description: args.description || null,
-      tags: args.tags,
-      created_by: ctx.userId,
-    })
-    .select(
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled"
-    )
+    .insert({ ...base, scope: args.scope ?? "elostate" })
+    .select(SEL)
     .single();
+  if (topicErr) {
+    ({ data: topicRow, error: topicErr } = await supabase
+      .from("chat_topics")
+      .insert(base)
+      .select(SEL)
+      .single());
+  }
   if (topicErr || !topicRow) {
     throw new Error(topicErr?.message ?? "Topic create failed.");
   }
