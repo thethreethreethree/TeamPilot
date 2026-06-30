@@ -34,9 +34,14 @@ const REALTIME_WS = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
 // month") before we cue — the tunable silence gate (Increment 3 tunes it).
 // Replaces the old blanket 4s debounce that cued regardless of who spoke.
 const TURN_SETTLE_MS = 700;
-// After a cue is delivered, suppress AUTO cues for this long so the coach
-// doesn't talk over the agent (§3.3). On-demand ("coach me") bypasses it.
-const CUE_COOLDOWN_MS = 25_000;
+// Minimal anti-double-fire guard ONLY (founder 2026-06-30: 25s was "way
+// too long" — the coach must cue on EVERY prospect turn-end with little
+// delay). The conversation paces itself: cues fire only on prospect turns,
+// and cueInFlight blocks overlap — so one cue per prospect turn is the
+// natural rate. This short window only stops a stray late commit from
+// re-firing the SAME turn's cue. On-demand ("coach me") bypasses it.
+// Tunable.
+const CUE_COOLDOWN_MS = 3000;
 
 // Volume/proximity attribution (founder 2026-06-30): the salesperson wears
 // the mic, so their speech is LOUDER than the prospect across the room. NOT
