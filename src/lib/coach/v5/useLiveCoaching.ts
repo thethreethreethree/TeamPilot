@@ -254,9 +254,11 @@ export function useLiveCoaching(sessionId: string) {
             // should proactively cue at prospect pauses — not sit behind
             // the §3.3 "stay silent unless high-value" gate that made
             // auto-coach feel dead (founder, 2026-06-30). force is softened
-            // (it may still honestly defer if there's truly nothing), and
-            // the 25s cooldown bounds AUTO frequency so it never spams.
-            // On-demand additionally bypasses the cooldown (below).
+            // (it may still honestly defer if there's truly nothing). The
+            // real spam-bound is structural: cues fire only on prospect
+            // turn-ends + cueInFlight blocks overlap = one cue per prospect
+            // turn. The 3s cooldown (CUE_COOLDOWN_MS) is just an anti-double-
+            // fire guard, not the pacing limit. On-demand bypasses it (below).
             force: true,
             // Attributed turns (Increment 1 naive attribution) — the brain
             // now reads WHO said what, not an undifferentiated stream.
@@ -394,16 +396,22 @@ export function useLiveCoaching(sessionId: string) {
             // Best-effort, fire-and-forget — runs on the just-saved
             // transcript. The dissect itself returns the honest empty state
             // if the session was too thin.
+            // keepalive: the request survives this page unloading / the tab
+            // closing right after Stop, so the auto-dissect isn't silently
+            // dropped mid-flight (§3.4 — don't let a failure masquerade as an
+            // empty Coach Assessment). Bodies are tiny, well under the 64KB
+            // keepalive cap.
             void fetch(`/api/coach/sales-session/dissect`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ sessionId }),
+              keepalive: true,
             }).catch(() => {});
             // Auto-generate the distinct factual conversation summary too
             // (founder 2026-06-30) — persisted + shown on the session.
             void fetch(
               `/api/coach/sales-session/${sessionId}/summarize`,
-              { method: "POST" }
+              { method: "POST", keepalive: true }
             ).catch(() => {});
           }
         })

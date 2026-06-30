@@ -68,11 +68,16 @@ export async function GET() {
   const admin = createAdminClient();
 
   // Company agents (alphabetical — order carries no meaning, §A18).
-  const { data: profs } = await admin
+  // §3.4: a failed query must NOT render as "no assessments yet" — degrade
+  // honestly so the page shows an error, not a fake empty team.
+  const { data: profs, error: profErr } = await admin
     .from("profiles")
     .select("id, full_name")
     .eq("company_id", ctx.companyId)
     .is("removed_at", null);
+  if (profErr) {
+    return NextResponse.json({ degraded: true });
+  }
   const agents = (profs ?? []) as { id: string; full_name: string | null }[];
   const byId = new Map(agents.map((a) => [a.id, a.full_name]));
   const agentIds = agents.map((a) => a.id);
@@ -84,13 +89,16 @@ export async function GET() {
     { strengths: string[]; growth: string[]; strategies: string[]; count: number; lastAt: string | null }
   >();
   if (agentIds.length > 0) {
-    const { data: events } = await admin
+    const { data: events, error: evErr } = await admin
       .from("events")
       .select("actor, payload, created_at")
       .eq("kind", "coach.dissect_generated")
       .in("actor", agentIds)
       .order("created_at", { ascending: false })
       .limit(300);
+    if (evErr) {
+      return NextResponse.json({ degraded: true });
+    }
 
     for (const e of events ?? []) {
       const actor = e.actor as string;

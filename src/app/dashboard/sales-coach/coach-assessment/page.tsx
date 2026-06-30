@@ -33,6 +33,9 @@ export default function CoachAssessmentPage() {
   const [team, setTeam] = useState<AgentAssessment[] | null>(null);
   const [isManager, setIsManager] = useState(true);
   const [loading, setLoading] = useState(true);
+  // §3.4: a server-side query failure is shown as an honest error, NOT as
+  // an empty team (which would be indistinguishable from "no assessments").
+  const [degraded, setDegraded] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -41,11 +44,15 @@ export default function CoachAssessmentPage() {
       ).catch(() => null);
       if (res && res.ok) {
         const d = await res.json();
-        setTeam(d.team ?? []);
+        if (d.degraded) {
+          setDegraded(true);
+        } else {
+          setTeam(d.team ?? []);
+        }
       } else if (res && res.status === 403) {
         setIsManager(false);
       } else {
-        setTeam([]);
+        setDegraded(true);
       }
     } finally {
       setLoading(false);
@@ -67,6 +74,13 @@ export default function CoachAssessmentPage() {
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
             Loading…
+          </div>
+        ) : degraded ? (
+          <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
+            <p className="text-xs text-amber-300">
+              Couldn&apos;t load the team assessment right now — this is an
+              error, not an empty team. Try again shortly.
+            </p>
           </div>
         ) : !isManager ? (
           <div className="rounded-xl border border-default bg-white/[0.01] p-5">

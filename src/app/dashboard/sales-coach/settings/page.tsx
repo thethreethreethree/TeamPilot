@@ -260,6 +260,15 @@ function CorpusEditor() {
             className="w-full bg-surface border border-default rounded-lg px-3 py-2.5 text-xs text-primary placeholder:text-muted font-mono leading-relaxed focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-y"
           />
 
+          {/* §3.4: advertise the 100k cap up front, not on rejection. */}
+          <p
+            className={`text-[10px] text-right ${
+              text.length > 100000 ? "text-red-400" : "text-muted"
+            }`}
+          >
+            {text.length.toLocaleString()} / 100,000 characters
+          </p>
+
           <div className="flex items-center justify-between gap-3">
             <p className="text-[11px] text-muted">
               {data?.effectiveSource === "custom"
@@ -269,7 +278,7 @@ function CorpusEditor() {
             <button
               type="button"
               onClick={() => void save()}
-              disabled={saving || !text.trim() || !dirty}
+              disabled={saving || !text.trim() || !dirty || text.length > 100000}
               className="inline-flex items-center gap-1.5 shrink-0 bg-ember-400 hover:bg-ember-500 disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
             >
               {saving ? (

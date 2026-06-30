@@ -40,6 +40,14 @@ export async function POST(
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
   const companyId = (await getCurrentCompanyId()) ?? undefined;
+  // §3.4 + §A21: match the dissect route's contract — no company context is a
+  // hard stop, so this never runs UNGATED (skipping the month-1 control gate)
+  // just because companyId happened to be null. (If you later decide factual
+  // summaries should be EXEMPT from the control gate per §A11, that's a
+  // deliberate change here — documented, not an accident of `?? undefined`.)
+  if (!companyId) {
+    return NextResponse.json({ error: "No company context." }, { status: 403 });
+  }
 
   const session = await getSession(id);
   if (!session) {

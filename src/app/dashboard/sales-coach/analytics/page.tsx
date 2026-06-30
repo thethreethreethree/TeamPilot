@@ -117,7 +117,9 @@ export default function SalesCoachAnalyticsPage() {
           <p className="text-xs text-secondary leading-relaxed">
             Tracked against the <span className="text-primary">past</span>, never
             as a ranking (§A18). Your own coaching is below
-            {team ? "; the team view is aggregate only — no per-person breakdown" : ""}.
+            {team ? "; the team view is aggregate only — no per-person breakdown" : ""}.{" "}
+            Your coach sees this same growth signal — for coaching, never
+            ranking (§A10).
           </p>
         </div>
 

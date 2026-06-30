@@ -424,20 +424,16 @@ export async function fetchTopics(scope: ChatScope = "elostate"): Promise<{
   // every topic gets its real counts in one round-trip.
   const COLS =
     "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, locked, participant_count, message_count, last_message_at";
-  // Scope to the surface (Elostate vs Sales Coach, migration 0076). Fall
-  // back to UNSCOPED if the `scope` column isn't applied yet, so the chat
-  // never breaks in the deploy-before-migration window.
-  let { data, error } = await supabase
+  // Scope to the surface (Elostate vs Sales Coach, migration 0076 — applied).
+  // No unscoped fallback: a transient error must NOT silently widen to an
+  // unscoped read (which would mix Elostate topics into the Sales Coach
+  // shell). An error fails honestly to an empty list (§1.5/§2), never to
+  // wrong-scoped data.
+  const { data, error } = await supabase
     .from("chat_topic_with_counts")
     .select(COLS)
     .eq("scope", scope)
     .order("created_at", { ascending: false });
-  if (error) {
-    ({ data, error } = await supabase
-      .from("chat_topic_with_counts")
-      .select(COLS)
-      .order("created_at", { ascending: false }));
-  }
   if (error || !data) return { topics: [], mode: "live-empty" };
 
   const topics: ChatTopic[] = data.map((row) => ({
@@ -856,21 +852,15 @@ export async function createTopic(args: {
     tags: args.tags,
     created_by: ctx.userId,
   };
-  // Insert the topic with its surface scope (migration 0076). RLS validates
-  // company_id == auth_company_id(). Fall back to an unscoped insert if the
-  // `scope` column isn't applied yet (topic then defaults to 'elostate').
-  let { data: topicRow, error: topicErr } = await supabase
+  // Insert the topic with its surface scope (migration 0076 — applied). RLS
+  // validates company_id == auth_company_id(). No unscoped-insert fallback:
+  // a Sales Coach topic must never silently land in 'elostate'. An error
+  // throws (surfaced), never silently mis-scopes (§1.5/§2).
+  const { data: topicRow, error: topicErr } = await supabase
     .from("chat_topics")
     .insert({ ...base, scope: args.scope ?? "elostate" })
     .select(SEL)
     .single();
-  if (topicErr) {
-    ({ data: topicRow, error: topicErr } = await supabase
-      .from("chat_topics")
-      .insert(base)
-      .select(SEL)
-      .single());
-  }
   if (topicErr || !topicRow) {
     throw new Error(topicErr?.message ?? "Topic create failed.");
   }
