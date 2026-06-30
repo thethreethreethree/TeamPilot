@@ -75,6 +75,8 @@ export async function generateSalesReview(args: {
       companyId: args.companyId,
       systemPrompt,
       userMessage,
+      // Sales Coach runs day-1 — exempt from the §3.4 control window.
+      controlExempt: true,
     });
     if (r.suppressed) return EMPTY_REVIEW;
 

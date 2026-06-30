@@ -241,13 +241,23 @@ export async function runBrainCall(args: {
   messages: LlmCallArgs["messages"];
   maxTokens?: number;
   expectJson?: boolean;
+  /**
+   * Exempt this call from the §3.4 month-1 control window. Set ONLY by the
+   * Sales Coach (founder decision 2026-06-30): the control window governs
+   * the Elostate diagnostic system that LEARNS a team over a month; the
+   * Sales Coach coaches from a methodology corpus (not a learned baseline),
+   * so it runs from day 1. Still composes with the brain — it skips only the
+   * suppression, not the composer. Elostate + C.A.R.E callers must NOT set
+   * this.
+   */
+  controlExempt?: boolean;
 }): Promise<LlmResult & { gate: ControlGate; brainVersion: number }> {
   const [brain, gate] = await Promise.all([
     loadBrain(args.companyId),
     loadControlGate(args.companyId),
   ]);
 
-  if (!gate.guidanceEnabled) {
+  if (!gate.guidanceEnabled && !args.controlExempt) {
     // §3.4 honesty: the System refuses to speak during the control window.
     // The "response" is a placeholder that surfaces honestly upstream.
     return {

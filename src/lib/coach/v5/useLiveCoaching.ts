@@ -377,7 +377,14 @@ export function useLiveCoaching(sessionId: string) {
     // fallback available.
     const captured = turnsRef.current;
     if (captured.length > 0) {
-      void fetch(`/api/coach/sales-session/${sessionId}/segments`, {
+      // ONE server-side finalize (M3 structural fix, founder 2026-06-30).
+      // The SERVER appends the transcript THEN generates + stores the Dissect
+      // and Summary — so the admin reliably gets the dissect even if the
+      // browser closes right after Stop. keepalive lets the request reach the
+      // server during page unload; once received, the server runs to
+      // completion independent of the client. Replaces the old client-side
+      // segments→dissect→summary fire-and-forget (which dropped on tab-close).
+      void fetch(`/api/coach/sales-session/${sessionId}/finalize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -387,33 +394,10 @@ export function useLiveCoaching(sessionId: string) {
             seq: i,
           })),
         }),
+        keepalive: true,
       })
         .then((r) => {
-          if (r.ok) {
-            setTranscriptSaved(true);
-            // Auto-generate the dissect so the admin's Coach Assessment
-            // view fills in without anyone clicking (founder 2026-06-30).
-            // Best-effort, fire-and-forget — runs on the just-saved
-            // transcript. The dissect itself returns the honest empty state
-            // if the session was too thin.
-            // keepalive: the request survives this page unloading / the tab
-            // closing right after Stop, so the auto-dissect isn't silently
-            // dropped mid-flight (§3.4 — don't let a failure masquerade as an
-            // empty Coach Assessment). Bodies are tiny, well under the 64KB
-            // keepalive cap.
-            void fetch(`/api/coach/sales-session/dissect`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sessionId }),
-              keepalive: true,
-            }).catch(() => {});
-            // Auto-generate the distinct factual conversation summary too
-            // (founder 2026-06-30) — persisted + shown on the session.
-            void fetch(
-              `/api/coach/sales-session/${sessionId}/summarize`,
-              { method: "POST", keepalive: true }
-            ).catch(() => {});
-          }
+          if (r.ok) setTranscriptSaved(true);
         })
         .catch(() => {
           /* fallback: the recording-upload path stays available */

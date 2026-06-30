@@ -1,5 +1,6 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getCurrentSalesCorpus,
   type TranscriptSegment,
@@ -73,6 +74,49 @@ export async function generateSalesDissect(args: {
   } catch {
     return EMPTY;
   }
+}
+
+/**
+ * Generate the dissect AND store it as an event (§3.1) when it has signal.
+ * One mechanism used by both the on-demand dissect route and the
+ * server-side finalize. Best-effort on the event store. Empty/thin sessions
+ * return the honest empty state and store nothing (§3.4 — no fabrication).
+ */
+export async function runAndStoreDissect(args: {
+  companyId: string;
+  actorId: string;
+  sessionId: string;
+  segments: TranscriptSegment[];
+  sessionTitle?: string;
+  context?: SalesContext;
+}): Promise<SalesDissect> {
+  const dissect = await generateSalesDissect({
+    companyId: args.companyId,
+    sessionTitle: args.sessionTitle,
+    context: args.context,
+    segments: args.segments,
+  });
+  if (dissect.hasSignal) {
+    try {
+      const admin = createAdminClient();
+      await admin.from("events").insert({
+        company_id: args.companyId,
+        actor: args.actorId,
+        kind: "coach.dissect_generated",
+        subject: `sales_session:${args.sessionId}`,
+        payload: {
+          strengths: dissect.strengths,
+          growth_areas: dissect.growthAreas,
+          standout_strategy: dissect.standoutStrategy,
+          overall: dissect.overall ?? null,
+          coach_version: "dissect-v1",
+        },
+      });
+    } catch {
+      /* best-effort — the dissect still returns */
+    }
+  }
+  return dissect;
 }
 
 function str(v: unknown): string {

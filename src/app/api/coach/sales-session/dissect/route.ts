@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { generateSalesDissect } from "@/lib/coach/v5/salesDissect";
+import { runAndStoreDissect } from "@/lib/coach/v5/salesDissect";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 
 /**
@@ -52,33 +52,15 @@ export async function POST(req: NextRequest) {
   }
   const segments = await getSessionTranscript(body.sessionId);
 
-  const dissect = await generateSalesDissect({
+  // One mechanism — same generate+store the server-side finalize uses (§A21).
+  const dissect = await runAndStoreDissect({
     companyId,
+    actorId: auth.user.id,
+    sessionId: body.sessionId,
+    segments,
     sessionTitle: session.clientLabel ?? undefined,
     context: session.context,
-    segments,
   });
-
-  // Append-only record (§3.1/§3.6). Best-effort; the dissect still returns.
-  if (dissect.hasSignal) {
-    try {
-      await supabase.from("events").insert({
-        company_id: companyId,
-        actor: auth.user.id,
-        kind: "coach.dissect_generated",
-        subject: `sales_session:${body.sessionId}`,
-        payload: {
-          strengths: dissect.strengths,
-          growth_areas: dissect.growthAreas,
-          standout_strategy: dissect.standoutStrategy,
-          overall: dissect.overall ?? null,
-          coach_version: "dissect-v1",
-        },
-      });
-    } catch {
-      /* event emit is best-effort */
-    }
-  }
 
   return NextResponse.json({ dissect });
 }

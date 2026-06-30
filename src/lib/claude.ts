@@ -19,6 +19,9 @@ type CallArgs = {
   userContent: string;
   maxTokens?: number;
   expectJson?: boolean;
+  /** Sales-Coach-only: exempt from the §3.4 month-1 control gate (see
+   *  runBrainCall). Elostate + C.A.R.E callers leave this unset. */
+  controlExempt?: boolean;
 };
 
 type CallResult = {
@@ -37,6 +40,7 @@ async function call(args: CallArgs): Promise<CallResult> {
       messages: [{ role: "user", content: args.userContent }],
       maxTokens: args.maxTokens,
       expectJson: args.expectJson,
+      controlExempt: args.controlExempt,
     });
     if (!r.gate.guidanceEnabled) {
       return {
@@ -459,6 +463,9 @@ export async function debriefCoachV5(args: {
   companyId?: string;
   systemPrompt: string;
   userMessage: string;
+  /** Shared helper: the SALES COACH caller (salesReview) sets this to run
+   *  day-1; the Elostate coach leaves it unset (stays gated). */
+  controlExempt?: boolean;
 }): Promise<CallResult> {
   return call({
     companyId: args.companyId,
@@ -467,6 +474,7 @@ export async function debriefCoachV5(args: {
     maxTokens: 700,
     systemPrompt: args.systemPrompt,
     userContent: args.userMessage,
+    controlExempt: args.controlExempt,
   });
 }
 
@@ -488,14 +496,16 @@ export async function liveSalesCue(args: {
     maxTokens: 160,
     systemPrompt: args.systemPrompt,
     userContent: args.userMessage,
+    // Sales Coach is exempt from the §3.4 control window (founder 2026-06-30).
+    controlExempt: true,
   });
 }
 
 /**
- * Deep full-conversation evaluation ("Dissect"). Same brain path as the
- * growth review (so month-1 control still gates it, §3.4), but a larger
- * budget because the output teaches in detail (strengths+why, growth+why,
- * standout strategy, overall).
+ * Deep full-conversation evaluation ("Dissect"). Composes with the brain,
+ * but exempt from the §3.4 control window — Sales Coach AI is active day 1
+ * (founder 2026-06-30); the control window is for the Elostate diagnostic
+ * system only.
  */
 export async function dissectCoachV5(args: {
   companyId?: string;
@@ -508,6 +518,7 @@ export async function dissectCoachV5(args: {
     maxTokens: 1100,
     systemPrompt: args.systemPrompt,
     userContent: args.userMessage,
+    controlExempt: true,
   });
 }
 
@@ -578,6 +589,9 @@ export async function generateCareReply(args: {
    *  in silence waiting for synthesis + playback. Every token
    *  is dead air. Defaults to "text". */
   medium?: "text" | "voice";
+  /** Shared helper: the SALES COACH caller (session summary) sets this to
+   *  run day-1; C.A.R.E itself leaves it unset (stays gated). */
+  controlExempt?: boolean;
 }): Promise<CallResult> {
   // Voice replies should be 1 sentence — see buildVoiceAddendum()
   // in src/lib/care/prompt.ts. 80 tokens caps generation at ~55
@@ -598,5 +612,6 @@ export async function generateCareReply(args: {
     maxTokens,
     systemPrompt: args.systemPrompt,
     userContent: args.userMessage,
+    controlExempt: args.controlExempt,
   });
 }

@@ -2,25 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { generateCareReply } from "@/lib/claude";
+import { runAndStoreSummary } from "@/lib/coach/v5/salesSummary";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 
 /**
  * POST /api/coach/sales-session/[id]/summarize
  *
- * Summarize feature on a session. Reuses the same LLM path C.A.R.E's
- * summarize uses (generateCareReply, §A21 — one engine, not a fork).
- * Per §A11 the summary surfaces FACTS (what was discussed, what the
- * customer wants/objects to, what was agreed, open items) — not a
- * verdict on the agent.
+ * On-demand summarize for a session. Generates + stores the distinct
+ * factual summary via runAndStoreSummary — the SAME mechanism the
+ * server-side finalize uses (§A21, one place). Per §A11 the summary
+ * surfaces FACTS, not a verdict on the agent.
  */
-
-const SUMMARY_SYSTEM = `You summarize a sales conversation transcript for the
-agent who had it. Surface FACTS, not judgments (§A11): what was discussed,
-what the customer said they want or objected to, what was agreed, and what
-is still open. Be concise and concrete. Do NOT grade the agent or editorialize
-— this is a factual recap they can act from. Plain prose, a few short
-paragraphs or bullets. No preamble.`;
 
 export async function POST(
   req: NextRequest,
@@ -64,43 +56,13 @@ export async function POST(
     );
   }
 
-  const transcript = segments
-    .map((s) => `${s.speaker.toUpperCase()}: ${s.text}`)
-    .join("\n");
-
-  try {
-    const r = await generateCareReply({
-      companyId,
-      systemPrompt: SUMMARY_SYSTEM,
-      userMessage: `Transcript:\n${transcript}\n\nWrite the summary.`,
-    });
-    if (r.suppressed) {
-      return NextResponse.json({ summary: null, suppressed: true });
-    }
-    const summary = r.text.trim();
-    // Persist (append-only, §3.1/§1.1) so the session shows the summary
-    // without re-spending an LLM call, and so it's a durable per-
-    // conversation record (distinct from the Dissect evaluation).
-    if (companyId && summary) {
-      try {
-        await supabase.from("events").insert({
-          company_id: companyId,
-          actor: auth.user.id,
-          kind: "coach.session_summary_generated",
-          subject: `sales_session:${id}`,
-          payload: { summary, coach_version: "summary-v1" },
-        });
-      } catch {
-        /* best-effort — the summary still returns */
-      }
-    }
-    return NextResponse.json({ summary });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Summarize failed." },
-      { status: 502 }
-    );
-  }
+  const summary = await runAndStoreSummary({
+    companyId,
+    actorId: auth.user.id,
+    sessionId: id,
+    segments,
+  });
+  return NextResponse.json({ summary });
 }
 
 /**
