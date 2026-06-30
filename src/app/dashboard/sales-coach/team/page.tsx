@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, ShieldCheck, Lock, Users } from "lucide-react";
+import { Loader2, ShieldCheck, Lock, Users, UserPlus } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
+import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 
 /**
  * Sales Coach → Team (Phase 3). A manager assigns company members as
@@ -30,6 +31,7 @@ export default function SalesCoachTeamPage() {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [isManager, setIsManager] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -102,13 +104,26 @@ export default function SalesCoachTeamPage() {
           </div>
         ) : (
           <>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-primary">Members</h2>
+              <button
+                type="button"
+                onClick={() => setInviteOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 text-[#09090B] px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" aria-hidden />
+                Add member
+              </button>
+            </div>
             <div className="flex items-start gap-2 rounded-lg border border-ember-400/30 bg-ember-400/5 p-3">
               <Users className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
               <p className="text-xs text-secondary leading-relaxed">
                 Assign company members as Sales Coach <span className="text-primary">staff</span>{" "}
                 or <span className="text-primary">admin</span>. This sets who the
                 product is for and who can manage it — independent of their
-                Elostate role.
+                Elostate role. New people join via{" "}
+                <span className="text-primary">Add member</span> (an Elostate
+                invite), then you assign their Sales Coach role here.
               </p>
             </div>
             <div className="rounded-xl border border-default bg-white/[0.01] divide-y divide-default overflow-hidden">
@@ -149,6 +164,12 @@ export default function SalesCoachTeamPage() {
                 </p>
               )}
             </div>
+
+            <InviteMemberDialog
+              open={inviteOpen}
+              onClose={() => setInviteOpen(false)}
+              onInvited={() => void load()}
+            />
           </>
         )}
       </div>
