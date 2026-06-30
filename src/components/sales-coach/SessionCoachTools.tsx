@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FileText,
   ListPlus,
@@ -8,6 +8,7 @@ import {
   GitBranch,
   Loader2,
   Check,
+  Microscope,
 } from "lucide-react";
 
 /**
@@ -24,7 +25,14 @@ import {
  */
 
 type Segment = { speaker: "agent" | "customer" | "unknown"; text: string };
-type Tool = "summarize" | "spawn" | "ask" | "decision" | null;
+type Tool = "summarize" | "spawn" | "ask" | "decision" | "dissect" | null;
+type DissectView = {
+  hasSignal: boolean;
+  strengths: { point: string; example: string; why: string }[];
+  growthAreas: { opportunity: string; nextStep: string; why: string }[];
+  standoutStrategy: { name: string; example: string; why: string } | null;
+  overall?: string;
+};
 type TaskDraft = { title: string; description: string; steps: string[] };
 type SystemResponse = {
   engagement?: string;
@@ -70,6 +78,12 @@ export function SessionCoachTools({
           active={tool === "decision"}
           onClick={() => setTool(tool === "decision" ? null : "decision")}
         />
+        <ToolButton
+          icon={Microscope}
+          label="Dissect"
+          active={tool === "dissect"}
+          onClick={() => setTool(tool === "dissect" ? null : "dissect")}
+        />
       </div>
 
       {tool === "summarize" && <SummarizePanel sessionId={sessionId} />}
@@ -78,6 +92,7 @@ export function SessionCoachTools({
       )}
       {tool === "ask" && <AskCoachPanel sessionId={sessionId} />}
       {tool === "decision" && <DecisionPanel sessionId={sessionId} />}
+      {tool === "dissect" && <DissectPanel sessionId={sessionId} />}
     </section>
   );
 }
@@ -114,6 +129,172 @@ function PanelBox({ children }: { children: React.ReactNode }) {
     <div className="mt-3 rounded-lg border border-default bg-base/40 p-3">
       {children}
     </div>
+  );
+}
+
+/**
+ * Dissect — a deep, full-conversation teaching evaluation. Reads back the
+ * last one on open (no LLM cost), runs/re-runs on demand. Standout strategy
+ * is shown FIRST as the thing to repeat; strengths before growth (tone law,
+ * §A18 — not a scorecard).
+ */
+function DissectPanel({ sessionId }: { sessionId: string }) {
+  const [loading, setLoading] = useState(false);
+  const [dissect, setDissect] = useState<DissectView | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/coach/sales-session/dissect?sessionId=${sessionId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d?.dissect) setDissect(d.dissect as DissectView);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setLoaded(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [sessionId]);
+
+  const run = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/coach/sales-session/dissect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        throw new Error(b?.error ?? `Failed (${res.status}).`);
+      }
+      const d = await res.json();
+      setDissect((d.dissect as DissectView) ?? null);
+      if (!d.dissect?.hasSignal) {
+        setError(
+          "Not enough of your side of the conversation to teach from yet."
+        );
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't run the dissect.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasContent = dissect?.hasSignal;
+
+  return (
+    <PanelBox>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-xs text-secondary">
+          A deep, full-conversation evaluation — what you did well, where to
+          grow, and your standout strategy.
+        </p>
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 shrink-0 bg-ember-400 hover:bg-ember-500 disabled:opacity-50 text-[#09090B] text-xs font-semibold px-3 py-1.5 rounded-lg"
+        >
+          {loading ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Microscope className="w-3.5 h-3.5" aria-hidden />
+          )}
+          {hasContent ? "Re-run" : "Dissect"}
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-red-300">{error}</p>}
+
+      {!hasContent && loaded && !loading && !error && (
+        <p className="text-[11px] text-muted">
+          Run a dissect once the conversation has enough of your side to teach
+          from. It reasons from your coaching methodology.
+        </p>
+      )}
+
+      {hasContent && (
+        <div className="space-y-4 mt-1">
+          {dissect.standoutStrategy && (
+            <div className="rounded-lg border border-ember-400/40 bg-ember-400/[0.06] p-3">
+              <p className="text-[10px] uppercase tracking-widest text-brand font-bold mb-1">
+                Your standout strategy
+              </p>
+              <p className="text-sm font-semibold text-primary">
+                {dissect.standoutStrategy.name}
+              </p>
+              {dissect.standoutStrategy.example && (
+                <p className="text-xs text-secondary italic mt-1">
+                  &ldquo;{dissect.standoutStrategy.example}&rdquo;
+                </p>
+              )}
+              {dissect.standoutStrategy.why && (
+                <p className="text-xs text-secondary mt-1">
+                  {dissect.standoutStrategy.why}
+                </p>
+              )}
+            </div>
+          )}
+
+          {dissect.strengths.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-emerald-300 font-bold mb-2">
+                What you did well
+              </p>
+              <div className="space-y-2.5">
+                {dissect.strengths.map((s, i) => (
+                  <div key={i} className="text-xs">
+                    <p className="text-primary font-medium">{s.point}</p>
+                    {s.example && (
+                      <p className="text-muted italic mt-0.5">
+                        &ldquo;{s.example}&rdquo;
+                      </p>
+                    )}
+                    {s.why && (
+                      <p className="text-secondary mt-0.5">{s.why}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {dissect.growthAreas.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-amber-300 font-bold mb-2">
+                Opportunities to grow
+              </p>
+              <div className="space-y-2.5">
+                {dissect.growthAreas.map((g, i) => (
+                  <div key={i} className="text-xs">
+                    <p className="text-primary font-medium">{g.opportunity}</p>
+                    {g.nextStep && (
+                      <p className="text-secondary mt-0.5">
+                        <span className="text-brand">Try next:</span> {g.nextStep}
+                      </p>
+                    )}
+                    {g.why && <p className="text-muted mt-0.5">{g.why}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {dissect.overall && (
+            <p className="text-xs text-secondary leading-relaxed border-t border-default pt-3">
+              {dissect.overall}
+            </p>
+          )}
+        </div>
+      )}
+    </PanelBox>
   );
 }
 

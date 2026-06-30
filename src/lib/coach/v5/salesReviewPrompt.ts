@@ -9,7 +9,7 @@ import { getSalesKnowledgeBase } from "./salesKnowledgeBase";
  * until the KB lands — so the coach is never broken, only less deeply
  * grounded (§3.4, §A21).
  */
-function methodologyBlock(corpusOverride?: string): string {
+export function methodologyBlock(corpusOverride?: string): string {
   // Precedence (§5 per-company personality, §A21 one mechanism): the
   // company's OWN saved corpus › the built-in books KB › the inline
   // starter. The custom wrapper is deliberately GENERIC — it must not
@@ -93,7 +93,7 @@ Judge what THIS conversation actually needed. A short check-in and a
 high-stakes negotiation call for different moves. Adapt.
 `.trim();
 
-const TONE_LAW = `
+export const TONE_LAW = `
 TONE LAW (non-negotiable, in this exact order):
 
 1. STRENGTHS FIRST. Open by acknowledging and validating what the agent

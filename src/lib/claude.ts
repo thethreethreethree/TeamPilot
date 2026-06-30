@@ -492,6 +492,26 @@ export async function liveSalesCue(args: {
 }
 
 /**
+ * Deep full-conversation evaluation ("Dissect"). Same brain path as the
+ * growth review (so month-1 control still gates it, §3.4), but a larger
+ * budget because the output teaches in detail (strengths+why, growth+why,
+ * standout strategy, overall).
+ */
+export async function dissectCoachV5(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 1100,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+  });
+}
+
+/**
  * Fast per-turn speaker attribution for live coaching (Increment 2).
  * Content-based (NOT voice): labels the latest utterance salesperson vs
  * prospect from the conversation content + the product being sold. Tiny
