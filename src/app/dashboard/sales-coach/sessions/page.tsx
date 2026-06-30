@@ -47,6 +47,11 @@ export default function SalesCoachSessionsPage() {
   const [isManager, setIsManager] = useState(false);
   const [loading, setLoading] = useState(true);
   const [degraded, setDegraded] = useState(false);
+  // F3: a permission/auth error is NOT transient — shown distinctly.
+  const [noAccess, setNoAccess] = useState(false);
+  // F1: when the badge query failed, we don't claim "no dissect" — we say
+  // the review/dissect status is unavailable.
+  const [badgesAvailable, setBadgesAvailable] = useState(true);
 
   const [search, setSearch] = useState("");
   const [context, setContext] = useState<"all" | "in_person" | "video">("all");
@@ -64,7 +69,11 @@ export default function SalesCoachSessionsPage() {
         else {
           setSessions(d.sessions ?? []);
           setIsManager(!!d.isManager);
+          setBadgesAvailable(d.badgesAvailable !== false);
         }
+      } else if (res && (res.status === 401 || res.status === 403)) {
+        // Permission/auth — retrying won't help (§3.4: not "transient").
+        setNoAccess(true);
       } else {
         setDegraded(true);
       }
@@ -94,6 +103,12 @@ export default function SalesCoachSessionsPage() {
       return true;
     });
   }, [sessions, context, status, period, search]);
+
+  const anyFilter =
+    search.trim() !== "" ||
+    context !== "all" ||
+    status !== "all" ||
+    period !== "all";
 
   return (
     <>
@@ -148,6 +163,13 @@ export default function SalesCoachSessionsPage() {
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
             Loading…
           </div>
+        ) : noAccess ? (
+          <div className="rounded-xl border border-default bg-white/[0.01] p-4">
+            <p className="text-xs text-secondary">
+              You don&apos;t have access to a Sales Coach workspace here. Ask an
+              admin if this looks wrong.
+            </p>
+          </div>
         ) : degraded ? (
           <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
             <p className="text-xs text-amber-300">
@@ -186,19 +208,39 @@ export default function SalesCoachSessionsPage() {
                     {isManager && s.agentName ? ` · ${s.agentName}` : ""}
                   </span>
                 </span>
-                <span className="hidden sm:flex items-center gap-1.5 shrink-0">
-                  {s.hasReview && <Badge icon={Star} label="Review" />}
-                  {s.hasDissect && <Badge icon={Sparkles} label="Dissect" />}
-                  {s.hasSummary && <Badge icon={FileText} label="Summary" />}
-                </span>
+                {badgesAvailable && (
+                  <span className="hidden sm:flex items-center gap-1.5 shrink-0">
+                    {s.hasReview && <Badge icon={Star} label="Review" />}
+                    {s.hasDissect && <Badge icon={Sparkles} label="Dissect" />}
+                    {s.hasSummary && <Badge icon={FileText} label="Summary" />}
+                  </span>
+                )}
               </Link>
             ))}
           </div>
         )}
 
-        {!loading && !degraded && (sessions ?? []).length >= 300 && (
+        {/* F1: don't claim "no dissect" when the badge query failed. */}
+        {!loading && !noAccess && !degraded && !badgesAvailable && (
+          <p className="text-[10px] text-amber-300/80 text-center">
+            Review / dissect status is unavailable right now.
+          </p>
+        )}
+
+        {/* F4: the cap is real — say so, and that filtering happens WITHIN it. */}
+        {!loading && !noAccess && !degraded && (sessions ?? []).length >= 300 && (
           <p className="text-[10px] text-muted text-center">
-            Showing the 300 most recent sessions.
+            {anyFilter
+              ? "Filtered within the 300 most recent sessions — older matches aren't loaded."
+              : "Showing the 300 most recent sessions."}
+          </p>
+        )}
+
+        {/* F2 (§A10): disclose upward visibility to the agent (not to managers,
+            who are the coach). */}
+        {!loading && !noAccess && !degraded && !isManager && (
+          <p className="text-[10px] text-muted text-center">
+            Your coach can see your sessions — for coaching, not ranking.
           </p>
         )}
       </div>

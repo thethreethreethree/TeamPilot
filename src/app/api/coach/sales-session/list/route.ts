@@ -67,8 +67,12 @@ export async function GET() {
   const dissect = new Set<string>();
   const summary = new Set<string>();
   const review = new Set<string>();
+  // §3.4: if the badge query fails (incl. a too-long subject .in()), do NOT
+  // render every session as un-dissected — flag it so the page says the
+  // status is unavailable rather than asserting a false "nothing generated".
+  let badgesAvailable = true;
   if (subjects.length > 0) {
-    const { data: events } = await admin
+    const { data: events, error: eErr } = await admin
       .from("events")
       .select("kind, subject")
       .in("kind", [
@@ -77,6 +81,7 @@ export async function GET() {
         "coach.sales_review_generated",
       ])
       .in("subject", subjects);
+    if (eErr) badgesAvailable = false;
     for (const e of events ?? []) {
       const sid = String(e.subject ?? "").replace("sales_session:", "");
       if (e.kind === "coach.dissect_generated") dissect.add(sid);
@@ -113,5 +118,9 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({ isManager: ctx.isManager, sessions: rows });
+  return NextResponse.json({
+    isManager: ctx.isManager,
+    sessions: rows,
+    badgesAvailable,
+  });
 }
