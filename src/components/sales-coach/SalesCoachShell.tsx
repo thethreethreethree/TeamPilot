@@ -8,6 +8,7 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   GraduationCap,
   Home,
   Mic,
@@ -38,6 +39,11 @@ const NAV: NavItem[] = [
   { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic },
   { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
   { label: "Team", href: "/dashboard/sales-coach/team", icon: Users },
+  {
+    label: "Coach Assessment",
+    href: "/dashboard/sales-coach/coach-assessment",
+    icon: ClipboardCheck,
+  },
   { label: "Settings", href: "/dashboard/sales-coach/settings", icon: Settings },
 ];
 

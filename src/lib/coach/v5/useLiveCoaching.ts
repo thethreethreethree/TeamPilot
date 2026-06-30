@@ -387,7 +387,19 @@ export function useLiveCoaching(sessionId: string) {
         }),
       })
         .then((r) => {
-          if (r.ok) setTranscriptSaved(true);
+          if (r.ok) {
+            setTranscriptSaved(true);
+            // Auto-generate the dissect so the admin's Coach Assessment
+            // view fills in without anyone clicking (founder 2026-06-30).
+            // Best-effort, fire-and-forget — runs on the just-saved
+            // transcript. The dissect itself returns the honest empty state
+            // if the session was too thin.
+            void fetch(`/api/coach/sales-session/dissect`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId }),
+            }).catch(() => {});
+          }
         })
         .catch(() => {
           /* fallback: the recording-upload path stays available */
