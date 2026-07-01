@@ -156,6 +156,8 @@ export async function setSessionStatus(args: {
   sessionId: string;
   status: Exclude<SalesSessionStatus, "active">;
   audioAssetUrl?: string | null;
+  // Who triggered the transition; defaults to the session's agent.
+  actorId?: string | null;
 }): Promise<SalesSession | null> {
   const sb = createServiceRoleClient();
   const patch: Record<string, unknown> = { status: args.status };
@@ -172,6 +174,19 @@ export async function setSessionStatus(args: {
       `[salesCoach.setSessionStatus] failed session=${args.sessionId}: ${error?.message ?? "no row"}`
     );
     return null;
+  }
+  // F2 (§3.1) — the lifecycle transition on the append-only record, mirroring
+  // setSessionOutcome. Best-effort: the column write is the visible result.
+  try {
+    await sb.from("events").insert({
+      company_id: data.company_id,
+      actor: args.actorId ?? (data.agent_id as string),
+      kind: "coach.session_status_changed",
+      subject: `sales_session:${args.sessionId}`,
+      payload: { status: args.status },
+    });
+  } catch {
+    /* best-effort — the status column is already set */
   }
   return mapSession(data);
 }

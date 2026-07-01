@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { classifyTurnSpeaker } from "@/lib/claude";
+import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
 
 /**
  * POST /api/coach/sales-session/attribute (Live Sales Coach — Increment 2)
@@ -62,16 +63,25 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
 
   // The product-aware signal: what is this company selling?
+  // F1 (§1.5/§3.4) — prefer the Sales Coach "Product & brand details" field
+  // (0078), the coach's product source. Fall back to the legacy CARE
+  // ai_product_context for tenants that never filled it in.
   let product = "a product or service";
   const companyId = await getCurrentCompanyId();
   if (companyId) {
-    const admin = createAdminClient();
-    const { data } = await admin
-      .from("care_tenant_config")
-      .select("ai_product_context")
-      .eq("company_id", companyId)
-      .maybeSingle();
-    const p = (data?.ai_product_context as string | null)?.trim();
+    const corpus = await getCurrentSalesCorpus(companyId, "product").catch(
+      () => null
+    );
+    let p = corpus?.content?.trim();
+    if (!p) {
+      const admin = createAdminClient();
+      const { data } = await admin
+        .from("care_tenant_config")
+        .select("ai_product_context")
+        .eq("company_id", companyId)
+        .maybeSingle();
+      p = (data?.ai_product_context as string | null)?.trim() || undefined;
+    }
     if (p) product = p.slice(0, 1200);
   }
 
