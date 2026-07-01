@@ -1,24 +1,18 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { getSessionTranscript } from "@/lib/data/salesCoach";
-import { runAndStoreDissect } from "@/lib/coach/v5/salesDissect";
+import { runDissectBackfill } from "@/lib/coach/v5/dissectBackfill";
 
 /**
  * POST /api/coach/sales-session/backfill-dissects
  *
  * The M3 safety net (founder 2026-06-30: admins must get the complete
- * dissect for EVERY substantive session). Finds Sales Coach sessions that
- * have content (ended/reviewed) but NO coach.dissect_generated event, and
- * regenerates the dissect for a BATCH of them — attributed to the SESSION'S
- * agent (§A18), so Coach Assessment aggregates it under the right person.
+ * dissect for EVERY substantive session). Manager-gated, company-scoped,
+ * on-demand ("Generate missing" button). Processes a BATCH per call and
+ * returns how many remain, so the admin runs it until remaining = 0.
  *
- * Manager-gated. Batched (LLM cost + function timeout, §5): processes up to
- * BATCH per call and returns how many remain, so the admin / a cron runs it
- * until remaining = 0. Thin sessions short-circuit before any LLM call
- * (§3.4 — no fabrication) and are simply re-checked next run.
- *
- * Cron-ready: the same POST can be called on a schedule (operator config).
+ * The sweep logic itself lives in runDissectBackfill (§A21 — shared with the
+ * all-company cron at /backfill-dissects-cron). This route supplies the
+ * auth + the company scope + the manual batch size; the core does the work.
  */
 const BATCH = 6;
 
@@ -56,60 +50,16 @@ export async function POST() {
     );
   }
 
-  const admin = createAdminClient();
-
-  // Sessions with content (ended/reviewed), most recent first.
-  const { data: sessionsData, error: sErr } = await admin
-    .from("coaching_sessions")
-    .select("id, agent_id, client_label, context, status")
-    .eq("company_id", ctx.companyId)
-    .in("status", ["ended", "reviewed"])
-    .order("started_at", { ascending: false })
-    .limit(300);
-  if (sErr) {
-    return NextResponse.json({ error: "Couldn't load sessions." }, { status: 500 });
-  }
-  const sessions = sessionsData ?? [];
-
-  // Which sessions already have a dissect event?
-  const { data: dissectEvents, error: eErr } = await admin
-    .from("events")
-    .select("subject")
-    .eq("company_id", ctx.companyId)
-    .eq("kind", "coach.dissect_generated");
-  if (eErr) {
-    return NextResponse.json({ error: "Couldn't load dissects." }, { status: 500 });
-  }
-  const dissected = new Set(
-    (dissectEvents ?? []).map((e) =>
-      String(e.subject ?? "").replace("sales_session:", "")
-    )
-  );
-
-  const missing = sessions.filter((s) => !dissected.has(s.id as string));
-  const batch = missing.slice(0, BATCH);
-
-  let generated = 0;
-  let thinOrFailed = 0;
-  for (const s of batch) {
-    const segments = await getSessionTranscript(s.id as string);
-    const dissect = await runAndStoreDissect({
+  try {
+    const result = await runDissectBackfill({
       companyId: ctx.companyId,
-      actorId: s.agent_id as string,
-      sessionId: s.id as string,
-      segments,
-      sessionTitle: (s.client_label as string | null) ?? undefined,
-      context: s.context as "in_person" | "video",
-    }).catch(() => null);
-    if (dissect?.hasSignal) generated += 1;
-    else thinOrFailed += 1;
+      cap: BATCH,
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Backfill failed." },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({
-    missingTotal: missing.length,
-    processed: batch.length,
-    generated,
-    thinOrFailed,
-    remaining: Math.max(0, missing.length - batch.length),
-  });
 }

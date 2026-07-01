@@ -299,6 +299,22 @@ export async function getSessionTranscript(
   return (data ?? []).map(mapSegment);
 }
 
+/** Service-role transcript read for contexts with NO user session (the
+ *  backfill cron). getSessionTranscript uses the RLS user client, which
+ *  returns nothing under a cron's Bearer-only auth — this reads the same
+ *  rows via the admin client. Access is gated upstream by the caller. */
+export async function getSessionTranscriptAdmin(
+  sessionId: string
+): Promise<TranscriptSegment[]> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("coaching_transcript_segments")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("seq", { ascending: true });
+  return (data ?? []).map(mapSegment);
+}
+
 /** An agent's sessions, most recent first (RLS-scoped). */
 export async function listAgentSessions(
   agentId: string,
