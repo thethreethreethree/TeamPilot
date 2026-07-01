@@ -77,11 +77,17 @@ export function LiveCoachingPanel({
           <span className="text-[10px] uppercase tracking-widest text-muted font-mono">
             {status}
           </span>
-          {/* §3.6: show the coach's read of the phase, so its restraint is
-              legible (it's watching + choosing silence, not asleep). */}
+          {/* §3.6: show the coach's LAST read of the phase, so its restraint
+              is legible (it's watching + choosing silence, not asleep).
+              F3 (audit 2026-07-01): this refreshes only when the brain is
+              consulted (on turns), so during a silence it's the last read,
+              not a live assertion — the label + title say so honestly. */}
           {live && phase && (
-            <span className="text-[10px] uppercase tracking-widest text-brand font-mono">
-              · {phase.replace("_", " ")}
+            <span
+              className="text-[10px] uppercase tracking-widest text-brand/80 font-mono"
+              title="The coach's last read of the moment — updates as the conversation moves, not continuously."
+            >
+              · {phase.replace("_", " ")} <span className="text-muted">(last read)</span>
             </span>
           )}
         </div>

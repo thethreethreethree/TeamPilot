@@ -673,9 +673,20 @@ export function useLiveCoaching(sessionId: string) {
           // the final (content-or-volume) label.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
           void classifyTurn(index, text, priorSpeaker, v.speaker);
-          // Speech happened → reset the stall timer. If it goes quiet for
-          // STALL_MS and the last read phase wasn't a close (sacred), offer
-          // the brain a chance to nudge (it still decides).
+          // Speech happened → reset the stall timer. After STALL_MS of
+          // silence, consult the brain with the stall flag — it reads the
+          // last AGENT turn and is the AUTHORITATIVE guard on the sacred
+          // post-close silence (audit F1, 2026-07-01).
+          //
+          // The lastPhaseRef check below is ONLY a cheap best-effort
+          // pre-filter, NOT the protection: lastPhaseRef is written solely
+          // on customer turn-ends (invokeCue), so after an agent close the
+          // customer hasn't answered yet it is stale (not "close") and this
+          // check passes — the brain is what actually holds the silence.
+          // We deliberately do NOT also suppress on "agent spoke last":
+          // that would kill the legitimate lull-nudge (a stall with no
+          // pending ask), which is the tester's SPEAK case. Only content —
+          // the brain — can tell a close from a coachable lull.
           if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
           stallTimerRef.current = setTimeout(() => {
             if (autoCoachRef.current && lastPhaseRef.current !== "close") {

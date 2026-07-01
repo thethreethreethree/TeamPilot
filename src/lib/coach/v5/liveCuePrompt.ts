@@ -19,6 +19,15 @@ import type { TranscriptSegment, CueMode, SalesContext } from "@/lib/data/salesC
  *     the agent is mid-conversation.
  *   - §3.4: never fabricate. If the transcript is too thin to read the
  *     situation, stay silent.
+ *
+ * KNOWN LIMITATION (audit F2, 2026-07-01, UNVERIFIED): the "filler_spike"
+ * trigger reads disfluencies ("um", "uh", "like", "you know") from the
+ * transcript. It only functions if the STT (ElevenLabs Scribe v2 Realtime)
+ * actually PRESERVES those disfluencies — some models strip them. There is
+ * no disfluency toggle in the realtime ws params, so this cannot be
+ * guaranteed in code. If Scribe strips fillers, filler_spike silently never
+ * fires (the other triggers are unaffected). Needs a real-call check;
+ * until then, do not assume this trigger works.
  */
 
 const METHODOLOGY = `
@@ -112,7 +121,9 @@ export function buildLiveCueUserMessage(args: {
     .map((s) => `${speakerLabel(s.speaker)}: ${s.text}`)
     .join("\n");
   const stall = args.stalled
-    ? `\n\nNOTE: the conversation has gone quiet for a while with no new speech (a possible STALL). If the last thing that happened was a close/ask, this silence is SACRED — stay silent. Otherwise consider whether a gentle re-engagement genuinely helps.`
+    ? `\n\nNOTE: the conversation has gone quiet with no new speech (a possible STALL). You are the AUTHORITATIVE guard on the sacred silence — decide from the transcript, nothing else can. Before anything, LOOK AT THE LAST AGENT TURN above:
+- If the AGENT just made a close, an ask, an offer, or a strong pitch the customer is now weighing, THIS IS THE SACRED POST-CLOSE / DECISION SILENCE — the customer is thinking. DO NOT break it. Set phase "close", trigger "none", shouldCue false.
+- ONLY if there is a genuine dead lull with NO pending ask (the customer trailed off, or a weak exchange died) consider ONE gentle re-engagement. When unsure, stay silent.`
     : "";
   return `${ctx}Conversation so far (most recent turns):
 
