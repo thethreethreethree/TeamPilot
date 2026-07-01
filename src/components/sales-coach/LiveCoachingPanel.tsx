@@ -91,9 +91,11 @@ export function LiveCoachingPanel({
               · {phase.replace("_", " ")} <span className="text-muted">(last read)</span>
             </span>
           )}
-          {/* Build 4 — the SIGNAL-BASED confidence read (§3.6). Coarse, and
-              honest (§4): a hover shows the components + that it is NOT yet
-              validated against outcomes. */}
+          {/* Build 4 — the SIGNAL-BASED confidence read (§3.6). F1 (tone-law):
+              the rep-facing label is SUPPORTIVE/actionable, never a bare "you
+              are unsteady" verdict shown back at them mid-call. F2 (§4): the
+              "signal" marker is VISIBLE (not hover-only), so the unvalidated
+              status shows without a hover / on touch. */}
           {live && confidence?.hasEnough && (
             <span
               className={`text-[10px] uppercase tracking-widest font-mono ${
@@ -111,7 +113,13 @@ export function LiveCoachingPanel({
                 confidence.repTalkShare * 100
               )}% of recent words.`}
             >
-              · {confidence.level}
+              ·{" "}
+              {confidence.level === "steady"
+                ? "steady"
+                : confidence.level === "wavering"
+                  ? "find your rhythm"
+                  : "slow + steady"}{" "}
+              <span className="text-muted normal-case">· signal</span>
             </span>
           )}
         </div>
