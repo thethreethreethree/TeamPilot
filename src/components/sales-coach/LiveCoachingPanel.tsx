@@ -228,43 +228,45 @@ export function LiveCoachingPanel({
             </button>
           </div>
         )}
-        {/* Build 5 — earpiece tap control: how-to + a "tap received" verify
-            flash. §3.4 honest: still experimental + device-dependent. */}
-        {live && tapsSupported && (
-          <div className="mt-2 rounded-lg border border-default bg-white/[0.01] px-3 py-2">
-            <div className="flex items-center gap-1.5">
-              <Hand className="w-3 h-3 text-brand" aria-hidden />
-              <span className="text-[11px] font-semibold text-secondary">
-                Earpiece taps
-              </span>
-              <span className="text-[9px] uppercase tracking-widest text-muted">
-                experimental
-              </span>
-              {tapFlash && (
-                <span className="text-[10px] text-emerald-400 ml-auto">
-                  ✓ tap received
-                </span>
-              )}
-            </div>
-            <ul className="mt-1 text-[10px] text-muted leading-relaxed">
-              <li>
-                • <span className="text-secondary">Tap</span> (or double-tap)
-                your earbud → <span className="text-secondary">Coach me now</span>,
-                hands-free.
-              </li>
-              <li>
-                • <span className="text-secondary">Triple-tap</span> → toggle{" "}
-                <span className="text-secondary">Auto-coach</span> on/off (quiet).
-              </li>
-            </ul>
-            <p className="mt-1 text-[9px] text-muted/80">
-              Works only if your earbuds send media controls to the browser —
-              varies by device. Watch for “✓ tap received” to confirm it&apos;s
-              reaching the app.
-            </p>
-          </div>
-        )}
       </div>
+
+      {/* Build 5 — earpiece tap control on its OWN row so it doesn't crowd the
+          controls band (founder 2026-07-01). Content + UX unchanged — moved
+          out of the mode-toggle flex row, that's the whole fix. */}
+      {live && tapsSupported && (
+        <div className="mt-2 rounded-lg border border-default bg-white/[0.01] px-3 py-2">
+          <div className="flex items-center gap-1.5">
+            <Hand className="w-3 h-3 text-brand" aria-hidden />
+            <span className="text-[11px] font-semibold text-secondary">
+              Earpiece taps
+            </span>
+            <span className="text-[9px] uppercase tracking-widest text-muted">
+              experimental
+            </span>
+            {tapFlash && (
+              <span className="text-[10px] text-emerald-400 ml-auto">
+                ✓ tap received
+              </span>
+            )}
+          </div>
+          <ul className="mt-1 text-[10px] text-muted leading-relaxed">
+            <li>
+              • <span className="text-secondary">Tap</span> (or double-tap) your
+              earbud → <span className="text-secondary">Coach me now</span>,
+              hands-free.
+            </li>
+            <li>
+              • <span className="text-secondary">Triple-tap</span> → toggle{" "}
+              <span className="text-secondary">Auto-coach</span> on/off (quiet).
+            </li>
+          </ul>
+          <p className="mt-1 text-[9px] text-muted/80">
+            Works only if your earbuds send media controls to the browser —
+            varies by device. Watch for “✓ tap received” to confirm it&apos;s
+            reaching the app.
+          </p>
+        </div>
+      )}
 
       {/* F1: honest enforcement — gate Start on an earpiece acknowledgement. */}
       {!live && (
