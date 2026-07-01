@@ -1,6 +1,10 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import { getCurrentSalesCorpus, type SalesSession } from "@/lib/data/salesCoach";
+import {
+  DEFAULT_METHODOLOGY,
+  sessionContextLines,
+} from "@/lib/coach/v5/prepShared";
 
 /**
  * Live Sales Coach — "pre-knock prep" (Live Coach Step 3, the buildable
@@ -36,13 +40,6 @@ const EMPTY_PREP: SalesPrep = {
   failed: false,
 };
 
-const DEFAULT_METHODOLOGY = `
-SALES METHODOLOGY (reason FROM it; adapt to THIS call):
-- DISCOVERY before pitch: open on their situation, not your offer.
-- RAPPORT: trust precedes persuasion; treat concerns as legitimate.
-- OBJECTIONS are information — acknowledge, understand, then address.
-- VALUE before the ask: don't close before the value has landed.
-`.trim();
 
 function buildPrepSystemPrompt(
   corpus?: string | null,
@@ -78,15 +75,8 @@ OUTPUT — respond with ONLY this JSON:
 }
 
 function buildPrepUserMessage(s: SalesSession): string {
-  const lines = [
-    s.clientLabel ? `Client / campaign: ${s.clientLabel}` : null,
-    `Context: ${s.context === "in_person" ? "in-person, door-to-door" : "online video call"}`,
-    s.territory ? `Where: ${s.territory}` : null,
-    s.approach ? `How approaching: ${s.approach}` : null,
-    s.offer ? `Offer: ${s.offer}` : null,
-  ].filter(Boolean);
   return `This call:
-${lines.join("\n")}
+${sessionContextLines(s).join("\n")}
 
 Give the pre-knock briefing. JSON only.`;
 }

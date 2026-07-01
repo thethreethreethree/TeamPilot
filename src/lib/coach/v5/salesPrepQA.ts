@@ -1,6 +1,10 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import { getCurrentSalesCorpus, type SalesSession } from "@/lib/data/salesCoach";
+import {
+  DEFAULT_METHODOLOGY,
+  sessionContextLines,
+} from "@/lib/coach/v5/prepShared";
 
 /**
  * Prep Time — the interactive "ask the coach" (Sessions build 2). BEFORE a
@@ -21,12 +25,6 @@ export type PrepAnswer = {
   // F3-style (§3.4) — a real generation failure, distinct from an empty ask.
   failed: boolean;
 };
-
-const DEFAULT_METHODOLOGY = `
-- DISCOVERY before pitch; RAPPORT before persuasion.
-- OBJECTIONS are information — acknowledge, understand, then address.
-- VALUE before the ask.
-`.trim();
 
 function buildQASystemPrompt(
   corpus?: string | null,
@@ -56,14 +54,7 @@ Respond with plain text (no JSON) — just your answer.`;
 }
 
 function sessionContext(s: SalesSession): string {
-  const lines = [
-    s.clientLabel ? `Client / campaign: ${s.clientLabel}` : null,
-    `Context: ${s.context === "in_person" ? "in-person, door-to-door" : "online video call"}`,
-    s.territory ? `Where: ${s.territory}` : null,
-    s.approach ? `How approaching: ${s.approach}` : null,
-    s.offer ? `Offer: ${s.offer}` : null,
-  ].filter(Boolean);
-  return lines.join("\n");
+  return sessionContextLines(s).join("\n");
 }
 
 export async function answerPrepQuestion(args: {

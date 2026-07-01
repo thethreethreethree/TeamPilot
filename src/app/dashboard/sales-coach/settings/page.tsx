@@ -307,8 +307,8 @@ type ProductData = {
 
 /**
  * Editable PRODUCT / brand details (migration 0078). An admin describes what
- * the team sells; this WILL be the coach's product source for Prep Time +
- * product-aware coaching (build 2 — not yet wired). Append-only versions
+ * the team sells; this is the coach's product source for Prep Time +
+ * product-aware coaching (wired in build 2). Append-only versions
  * (§3.1), mirroring the methodology
  * editor above (§A21 — same store, second kind).
  */
@@ -387,8 +387,8 @@ function ProductEditor() {
           <p className="text-xs text-secondary leading-relaxed">
             What your team sells — the offer, pricing, key benefits, common
             objections, and anything a rep should have at their fingertips. The
-            coach will use this for Prep Time (coming soon); saving it now means
-            it&apos;s ready the moment that ships.
+            coach uses this for Prep Time — the pre-call briefing and when a rep
+            asks it what they&apos;re selling.
           </p>
           {data?.isSet && data.updatedAt && (
             <p className="text-[11px] text-muted">

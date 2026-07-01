@@ -313,7 +313,7 @@ export default function SessionDetail() {
                 ) : (
                   <Lightbulb className="w-3.5 h-3.5" aria-hidden />
                 )}
-                {prep ? "Re-prep" : "Prep me before you knock"}
+                {prep ? "Re-prep" : "Prep me"}
               </button>
               {session?.status === "active" && (
                 <button
@@ -413,8 +413,7 @@ export default function SessionDetail() {
                   </h2>
                 </div>
                 <p className="text-xs text-secondary leading-relaxed">
-                  Before you go — ask for advice or the details of what
-                  you&apos;re selling.
+                  Ask for advice or the details of what you&apos;re selling.
                 </p>
                 <div className="flex items-center gap-2">
                   <input
