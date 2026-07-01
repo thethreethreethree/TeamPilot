@@ -33,6 +33,14 @@ const BodySchema = z.object({
   // stall: the client's silence timer fired (a long quiet with no new
   // speech). The brain still decides — a post-close silence stays sacred.
   stall: z.boolean().optional(),
+  // stress (build 3): MEASURED signals on the rep's latest turn — filler
+  // density and/or a pace spike vs their baseline. A hint; the brain decides.
+  stress: z
+    .object({
+      fillerSpike: z.boolean(),
+      paceSpike: z.boolean(),
+    })
+    .optional(),
   // S1b realtime: an inline rolling transcript from the live websocket.
   // When present, the brain reads it directly — skipping the DB round
   // trip that would add latency on the hot path ("a late tip is
@@ -102,6 +110,7 @@ export async function POST(
     segments,
     force: body.force,
     stalled: body.stall,
+    stress: body.stress,
   });
 
   // Record only delivered cues (append-only). A "stay silent" decision

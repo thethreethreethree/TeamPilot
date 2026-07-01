@@ -80,8 +80,14 @@ HIGH-VALUE TRIGGERS (only these warrant a cue):
 - "filler_spike"  — the rep's recent turns are heavy with filler ("um",
                     "uh", "like", "you know") — a stress/confidence signal;
                     a short steadying nudge.
+- "pace_spike"    — the rep's speaking has sped up sharply (rushing/nervy);
+                    a short "slow down, breathe" steadying nudge.
 - "stall"         — a long silence with no close attempt; a gentle re-engage.
 - "none"          — no trigger. STAY SILENT.
+
+A MEASURED-STRESS note below (filler and/or pace spike, computed from the
+transcript) is a strong hint that filler_spike/pace_spike applies — but you
+still decide: if the rep is mid-flow and effective despite it, stay silent.
 
 NEVER cue: while the customer is mid-thought, right after a close attempt,
 during rapport/small-talk, or when the rep is in flow and doing fine.
@@ -95,7 +101,7 @@ LATENCY + LENGTH: one short line. No preamble. The agent is mid-sentence.
 OUTPUT — respond with ONLY this JSON:
 {
   "phase": "opener"|"small_talk"|"discovery"|"pitch"|"objection"|"close"|"stall"|"unknown",
-  "trigger": "objection"|"buying_signal"|"filler_spike"|"stall"|"none",
+  "trigger": "objection"|"buying_signal"|"filler_spike"|"pace_spike"|"stall"|"none",
   "shouldCue": boolean,   // true ONLY when phase + trigger align per the rules
   "cue": "the one-line cue, or empty string if shouldCue is false"
 }`;
@@ -113,6 +119,8 @@ export function buildLiveCueUserMessage(args: {
   /** The conversation has gone quiet for a while (a possible stall). The
    *  brain still decides — a post-close silence must stay sacred. */
   stalled?: boolean;
+  /** MEASURED stress on the rep's latest turn (build 3). */
+  stress?: { fillerSpike: boolean; paceSpike: boolean };
 }): string {
   const ctx = args.context
     ? `Context: ${args.context === "in_person" ? "in-person, door-to-door" : "online video call"}\n\n`
@@ -120,6 +128,14 @@ export function buildLiveCueUserMessage(args: {
   const rolling = args.recentSegments
     .map((s) => `${speakerLabel(s.speaker)}: ${s.text}`)
     .join("\n");
+  const stressBits: string[] = [];
+  if (args.stress?.fillerSpike)
+    stressBits.push("filler words just spiked (measured)");
+  if (args.stress?.paceSpike)
+    stressBits.push("speaking pace just jumped vs their baseline (measured)");
+  const stress = stressBits.length
+    ? `\n\nMEASURED STRESS on the rep's latest turn: ${stressBits.join(" + ")}. This is a strong hint for filler_spike / pace_spike — a SHORT steadying nudge — but only if the rep isn't handling it fine on their own (§3.3).`
+    : "";
   const stall = args.stalled
     ? `\n\nNOTE: the conversation has gone quiet with no new speech (a possible STALL). You are the AUTHORITATIVE guard on the sacred silence — decide from the transcript, nothing else can. Before anything, LOOK AT THE LAST AGENT TURN above:
 - If the AGENT just made a close, an ask, an offer, or a strong pitch the customer is now weighing, THIS IS THE SACRED POST-CLOSE / DECISION SILENCE — the customer is thinking. DO NOT break it. Set phase "close", trigger "none", shouldCue false.
@@ -127,7 +143,7 @@ export function buildLiveCueUserMessage(args: {
     : "";
   return `${ctx}Conversation so far (most recent turns):
 
-${rolling}${stall}
+${rolling}${stall}${stress}
 
 Read the phase, decide whether to cue, and if so give one short cue. JSON only.`;
 }

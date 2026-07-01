@@ -2,6 +2,13 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { CueMode, TranscriptSpeaker } from "@/lib/data/salesCoach";
+import {
+  isFillerSpike,
+  turnWpm,
+  updatePaceBaseline,
+  isPaceSpike,
+  type PaceBaseline,
+} from "@/lib/coach/v5/liveStress";
 
 /**
  * useLiveCoaching — Live Sales Coach S1b (the realtime loop).
@@ -175,6 +182,11 @@ export function useLiveCoaching(sessionId: string) {
   // to keep the stall timer from breaking a sacred post-close silence.
   const lastPhaseRef = useRef<string | null>(null);
   const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Build 3 — measurable stress. utteranceStart marks when the CURRENT
+  // utterance began (first partial after a commit) → wall-clock speaking
+  // duration for pace. paceBaseline is the rep's OWN rolling WPM norm.
+  const utteranceStartRef = useRef<number | null>(null);
+  const paceBaselineRef = useRef<PaceBaseline>({ mean: 0, count: 0 });
 
   // Speak a cue privately to the agent (reuses Jeff's flash TTS).
   const speakCue = useCallback(async (text: string) => {
@@ -233,9 +245,14 @@ export function useLiveCoaching(sessionId: string) {
   }, []);
 
   // onDemand bypasses the cooldown + forces a response (the agent asked).
-  // stall = the client's silence timer fired.
+  // stall = the client's silence timer fired. stress = MEASURED filler/pace
+  // spike on the rep's turn (build 3); still cooldown-gated + brain-decided.
   const invokeCue = useCallback(
-    async (onDemand = false, stall = false) => {
+    async (
+      onDemand = false,
+      stall = false,
+      stress?: { fillerSpike: boolean; paceSpike: boolean }
+    ) => {
       if (cueInFlightRef.current) return;
       const live = turnsRef.current;
       if (live.length < 2) {
@@ -270,6 +287,8 @@ export function useLiveCoaching(sessionId: string) {
             // The client's stall timer fired (long silence). The brain still
             // decides — a post-close silence stays sacred.
             stall,
+            // Measured stress on the rep's latest turn (build 3), or omitted.
+            stress,
             // Attributed turns — the brain reads WHO said what.
             liveTranscript: live.slice(-12).map((t) => ({
               speaker: t.speaker,
@@ -469,6 +488,8 @@ export function useLiveCoaching(sessionId: string) {
     setMicLevel(0);
     lastPhaseRef.current = null;
     setPhase(null);
+    utteranceStartRef.current = null;
+    paceBaselineRef.current = { mean: 0, count: 0 };
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     try {
       // 1. Mic.
@@ -636,6 +657,11 @@ export function useLiveCoaching(sessionId: string) {
         }
         if (msg.message_type === "partial_transcript") {
           setPartial(msg.text ?? "");
+          // Build 3 — mark when this utterance began (first partial after the
+          // last commit) so a commit can measure its speaking duration.
+          if (utteranceStartRef.current === null && (msg.text ?? "").trim()) {
+            utteranceStartRef.current = Date.now();
+          }
         } else if (
           msg.message_type === "committed_transcript" ||
           msg.message_type === "committed_transcript_with_timestamps"
@@ -673,6 +699,34 @@ export function useLiveCoaching(sessionId: string) {
           // the final (content-or-volume) label.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
           void classifyTurn(index, text, priorSpeaker, v.speaker);
+
+          // Build 3 — MEASURED stress on the rep's OWN turns. Close out this
+          // utterance's speaking duration (first partial → this commit) and,
+          // for an agent turn, measure filler density + pace vs the rep's own
+          // baseline. A spike fires a SHORT steadying cue — still cooldown-
+          // gated + brain-decided (§3.3), never spam. (§3.4 — pace is an
+          // approximation from wall-clock duration, not word timestamps.)
+          const uttStart = utteranceStartRef.current;
+          utteranceStartRef.current = null;
+          if (v.speaker === "agent") {
+            const fillerSpike = isFillerSpike(text);
+            let paceSpike = false;
+            if (uttStart !== null) {
+              const durationSec = (Date.now() - uttStart) / 1000;
+              const wpm = turnWpm(text, durationSec);
+              if (wpm !== null) {
+                // Judge against the PRIOR baseline, then fold this turn in.
+                paceSpike = isPaceSpike(wpm, paceBaselineRef.current);
+                paceBaselineRef.current = updatePaceBaseline(
+                  paceBaselineRef.current,
+                  wpm
+                );
+              }
+            }
+            if ((fillerSpike || paceSpike) && autoCoachRef.current) {
+              void invokeCue(false, false, { fillerSpike, paceSpike });
+            }
+          }
           // Speech happened → reset the stall timer. After STALL_MS of
           // silence, consult the brain with the stall flag — it reads the
           // last AGENT turn and is the AUTHORITATIVE guard on the sacred

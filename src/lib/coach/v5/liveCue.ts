@@ -32,6 +32,7 @@ export type CueTrigger =
   | "objection"
   | "buying_signal"
   | "filler_spike"
+  | "pace_spike"
   | "stall"
   | "none";
 
@@ -59,6 +60,7 @@ const TRIGGERS = new Set<string>([
   "objection",
   "buying_signal",
   "filler_spike",
+  "pace_spike",
   "stall",
   "none",
 ]);
@@ -79,6 +81,9 @@ export async function generateLiveCue(args: {
   force?: boolean;
   /** The conversation has gone quiet for a while (a possible stall). */
   stalled?: boolean;
+  /** MEASURED stress on the rep's latest turn (build 3) — filler density
+   *  and/or a pace spike vs their baseline. The brain still decides. */
+  stress?: { fillerSpike: boolean; paceSpike: boolean };
 }): Promise<LiveCueResult> {
   const silent: LiveCueResult = {
     shouldCue: false,
@@ -109,6 +114,7 @@ export async function generateLiveCue(args: {
       context: args.context,
       recentSegments,
       stalled: args.stalled,
+      stress: args.stress,
     });
 
     const r = await liveSalesCue({
