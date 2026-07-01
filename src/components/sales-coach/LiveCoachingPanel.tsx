@@ -39,6 +39,7 @@ export function LiveCoachingPanel({
     currentCue,
     cueStatus,
     phase,
+    confidence,
     autoCoach,
     setAutoCoach,
     mode,
@@ -88,6 +89,29 @@ export function LiveCoachingPanel({
               title="The coach's last read of the moment — updates as the conversation moves, not continuously."
             >
               · {phase.replace("_", " ")} <span className="text-muted">(last read)</span>
+            </span>
+          )}
+          {/* Build 4 — the SIGNAL-BASED confidence read (§3.6). Coarse, and
+              honest (§4): a hover shows the components + that it is NOT yet
+              validated against outcomes. */}
+          {live && confidence?.hasEnough && (
+            <span
+              className={`text-[10px] uppercase tracking-widest font-mono ${
+                confidence.level === "steady"
+                  ? "text-emerald-300/80"
+                  : confidence.level === "wavering"
+                    ? "text-amber-300/80"
+                    : "text-red-300/80"
+              }`}
+              title={`Signal-based read (NOT yet validated against outcomes). Fillers: ${
+                confidence.fillerHigh ? "high" : "ok"
+              } · Pace: ${
+                confidence.rushing ? "rushing" : "steady"
+              } · You're speaking ${Math.round(
+                confidence.repTalkShare * 100
+              )}% of recent words.`}
+            >
+              · {confidence.level}
             </span>
           )}
         </div>

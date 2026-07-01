@@ -9,6 +9,10 @@ import {
   isPaceSpike,
   type PaceBaseline,
 } from "@/lib/coach/v5/liveStress";
+import {
+  computeConfidence,
+  type ConfidenceRead,
+} from "@/lib/coach/v5/liveConfidence";
 
 /**
  * useLiveCoaching — Live Sales Coach S1b (the realtime loop).
@@ -160,6 +164,8 @@ export function useLiveCoaching(sessionId: string) {
   // The coach's current read of the conversation phase (§3.6 — make its
   // understanding visible). Null until the brain has read a moment.
   const [phase, setPhase] = useState<string | null>(null);
+  // Build 4 — the current signal-based confidence read (§3.6), or null.
+  const [confidence, setConfidence] = useState<ConfidenceRead | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -193,6 +199,9 @@ export function useLiveCoaching(sessionId: string) {
   // duration for pace. paceBaseline is the rep's OWN rolling WPM norm.
   const utteranceStartRef = useRef<number | null>(null);
   const paceBaselineRef = useRef<PaceBaseline>({ mean: 0, count: 0 });
+  // Build 4 — confidence read: a rolling window of the rep's recent stress
+  // flags, aggregated (with talk-ratio) into a coarse, signal-based read.
+  const recentStressRef = useRef<{ filler: boolean; pace: boolean }[]>([]);
 
   // Speak a cue privately to the agent (reuses Jeff's flash TTS).
   const speakCue = useCallback(async (text: string) => {
@@ -497,6 +506,8 @@ export function useLiveCoaching(sessionId: string) {
     utteranceStartRef.current = null;
     paceBaselineRef.current = { mean: 0, count: 0 };
     lastStressCueAtRef.current = 0;
+    recentStressRef.current = [];
+    setConfidence(null);
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     try {
       // 1. Mic.
@@ -740,6 +751,31 @@ export function useLiveCoaching(sessionId: string) {
               lastStressCueAtRef.current = Date.now();
               void invokeCue(false, false, { fillerSpike, paceSpike });
             }
+            // Build 4 — record this rep turn's flags in the rolling window.
+            recentStressRef.current = [
+              ...recentStressRef.current,
+              { filler: fillerSpike, pace: paceSpike },
+            ].slice(-6);
+          }
+
+          // Build 4 — refresh the confidence read on EVERY turn (talk-ratio
+          // shifts on customer turns too). Coarse + signal-based (§3.6/§4).
+          {
+            const recent = turnsRef.current.slice(-10);
+            let repW = 0;
+            let custW = 0;
+            for (const t of recent) {
+              const w = t.text.trim() ? t.text.trim().split(/\s+/).length : 0;
+              if (t.speaker === "agent") repW += w;
+              else if (t.speaker === "customer") custW += w;
+            }
+            setConfidence(
+              computeConfidence({
+                recentStress: recentStressRef.current,
+                repWords: repW,
+                customerWords: custW,
+              })
+            );
           }
           // Speech happened → reset the stall timer. After STALL_MS of
           // silence, consult the brain with the stall flag — it reads the
@@ -794,6 +830,7 @@ export function useLiveCoaching(sessionId: string) {
     currentCue,
     cueStatus,
     phase,
+    confidence,
     autoCoach,
     setAutoCoach,
     mode,
