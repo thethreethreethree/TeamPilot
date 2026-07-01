@@ -54,8 +54,9 @@ export default function SalesCoachHome() {
   const [sessions, setSessions] = useState<Session[] | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [series, setSeries] = useState<ProgressPoint[]>([]);
-  // Phase 4 — cross-session why patterns (§3.6 make-learning-visible).
-  const [patterns, setPatterns] = useState<{
+  // Phase 4 — cross-session why patterns (§3.6). F1: served from a STORED set
+  // (no LLM on load); regenerated only on an explicit refresh (POST).
+  type WhyPatternSet = {
     hasEnoughData: boolean;
     whysAnalyzed: number;
     patterns: {
@@ -65,7 +66,45 @@ export default function SalesCoachHome() {
       kind: "strength" | "growth";
     }[];
     note: string;
+    failed: boolean;
+  };
+  const [patternsState, setPatternsState] = useState<{
+    stored: WhyPatternSet | null;
+    whysAvailable: number;
+    gateMet: boolean;
+    stale: boolean;
   } | null>(null);
+  const [patternsBusy, setPatternsBusy] = useState(false);
+  const [patternsError, setPatternsError] = useState<string | null>(null);
+  const refreshPatterns = async () => {
+    setPatternsBusy(true);
+    setPatternsError(null);
+    try {
+      const res = await fetch("/api/coach/sales-session/why-patterns", {
+        method: "POST",
+      });
+      if (!res.ok) {
+        setPatternsError(`Couldn't build your patterns (HTTP ${res.status}).`);
+        return;
+      }
+      const d = await res.json();
+      const p = d.patterns as WhyPatternSet | undefined;
+      if (p?.failed) {
+        setPatternsError("Couldn't build your patterns right now — try again.");
+      } else if (p?.hasEnoughData) {
+        setPatternsState({
+          stored: p,
+          whysAvailable: p.whysAnalyzed,
+          gateMet: true,
+          stale: false,
+        });
+      }
+    } catch {
+      setPatternsError("Couldn't build your patterns.");
+    } finally {
+      setPatternsBusy(false);
+    }
+  };
   const [context, setContext] = useState<"in_person" | "video">("video");
   const [clientLabel, setClientLabel] = useState("");
   // Phase 2 capture (optional) — WHERE / HOW / WHAT, entered up front.
@@ -90,7 +129,7 @@ export default function SalesCoachHome() {
         setStats(d.stats ?? null);
         setSeries(d.series ?? []);
       }
-      if (pRes && pRes.ok) setPatterns((await pRes.json()).patterns ?? null);
+      if (pRes && pRes.ok) setPatternsState(await pRes.json());
     } catch {
       setSessions([]);
     }
@@ -313,25 +352,56 @@ export default function SalesCoachHome() {
           </section>
 
           {/* Phase 4 — what the coach is learning about you across sessions
-              (§3.6 make-learning-visible; §4 — gated, no fabricated pattern
-              until enough whys+outcomes exist). */}
-          {patterns && (
+              (§3.6 make-learning-visible; §4 — gated). F1: served from a STORED
+              set; the LLM runs only on an explicit refresh below. */}
+          {patternsState && (
             <section className="rounded-xl border border-default bg-white/[0.01] p-4">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Brain className="w-3.5 h-3.5 text-brand" aria-hidden />
-                <h2 className="text-sm font-semibold text-primary">
-                  What your coach is learning about you
-                </h2>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Brain className="w-3.5 h-3.5 text-brand" aria-hidden />
+                  <h2 className="text-sm font-semibold text-primary">
+                    What your coach is learning about you
+                  </h2>
+                </div>
+                {(patternsState.stored || patternsState.gateMet) && (
+                  <button
+                    type="button"
+                    onClick={() => void refreshPatterns()}
+                    disabled={patternsBusy}
+                    className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg border disabled:opacity-50 ${
+                      patternsState.stale || !patternsState.stored
+                        ? "border-ember-400/50 text-brand"
+                        : "border-default text-secondary hover:text-primary"
+                    }`}
+                  >
+                    {patternsBusy ? (
+                      <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
+                    ) : (
+                      <Brain className="w-3 h-3" aria-hidden />
+                    )}
+                    {patternsState.stored ? "Refresh" : "See what I'm learning"}
+                  </button>
+                )}
               </div>
-              {patterns.hasEnoughData && patterns.patterns.length > 0 ? (
+
+              {patternsError && (
+                <p className="text-[11px] text-amber-300 mb-2">{patternsError}</p>
+              )}
+
+              {patternsState.stored && patternsState.stored.patterns.length > 0 ? (
                 <div className="space-y-3">
-                  {patterns.note && (
+                  {patternsState.stored.note && (
                     <p className="text-xs text-secondary leading-relaxed">
-                      {patterns.note}
+                      {patternsState.stored.note}
+                    </p>
+                  )}
+                  {patternsState.stale && (
+                    <p className="text-[10px] text-brand/80">
+                      New sessions since this was built — refresh to update.
                     </p>
                   )}
                   <ul className="space-y-2">
-                    {patterns.patterns.map((p, i) => (
+                    {patternsState.stored.patterns.map((p, i) => (
                       <li
                         key={i}
                         className="rounded-lg border border-default bg-white/[0.01] p-3"
@@ -358,14 +428,21 @@ export default function SalesCoachHome() {
                     ))}
                   </ul>
                   <p className="text-[10px] text-muted">
-                    Patterns from your own reads across {patterns.whysAnalyzed}{" "}
-                    sessions — tied to what actually happened, not guesses. For your
-                    growth, never a ranking.
+                    Patterns from your own reads across{" "}
+                    {patternsState.stored.whysAnalyzed} sessions — tied to what
+                    actually happened, not guesses. For your growth, never a ranking.
                   </p>
                 </div>
+              ) : patternsState.gateMet ? (
+                <p className="text-xs text-secondary leading-relaxed">
+                  You&apos;ve got enough sessions now — build the patterns your
+                  coach is seeing across them.
+                </p>
               ) : (
                 <p className="text-xs text-muted leading-relaxed">
-                  {patterns.note}
+                  Keep going — the coach needs a few more sessions with recorded
+                  outcomes and your own reads before real patterns can be trusted
+                  (not guessed).
                 </p>
               )}
             </section>

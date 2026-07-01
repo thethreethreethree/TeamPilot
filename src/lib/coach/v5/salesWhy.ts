@@ -1,6 +1,7 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
+import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 
 /**
  * Live Sales Coach — the WHY engine (Sessions Phase 3). Retrospective
@@ -27,6 +28,9 @@ export type SessionWhy = {
   evidence: string[]; // transcript-grounded moments supporting it
   repInputReflection: string; // §3.3 — how this read relates to the rep's
   alternativeRead: string | null; // §4 — another plausible driver, held loosely
+  // F3 (§3.4) — true when generation actually FAILED (LLM/parse error), so the
+  // UI can say "couldn't generate, try again" instead of "not enough signal".
+  failed: boolean;
 };
 
 const EMPTY_WHY: SessionWhy = {
@@ -35,18 +39,12 @@ const EMPTY_WHY: SessionWhy = {
   evidence: [],
   repInputReflection: "",
   alternativeRead: null,
+  failed: false,
 };
 
-const MIN_SEGMENTS = 4;
-
-// Human labels for the outcome enum (mirrors SALES_OUTCOMES).
-const OUTCOME_LABELS: Record<string, string> = {
-  sold: "Sold",
-  follow_up: "Follow-up",
-  no_sale: "No sale",
-  no_contact: "No contact",
-  undecided: "Undecided",
-};
+// F6 (§3.2) — gate on AGENT turns, matching the dissect (MIN_AGENT_SEGMENTS),
+// so a thin or one-sided transcript can't pass a raw total-segment count.
+const MIN_AGENT_SEGMENTS = 3;
 
 function buildWhySystemPrompt(): string {
   return `You are a sales coach doing a retrospective root-cause read of ONE
@@ -99,11 +97,11 @@ function buildWhyUserMessage(args: {
     ? `Context: ${args.context === "in_person" ? "in-person, door-to-door" : "online video call"}\n`
     : "";
   const title = args.sessionTitle ? `Session: ${args.sessionTitle}\n` : "";
-  const outcomeLabel = OUTCOME_LABELS[args.outcome] ?? args.outcome;
+  const outcomeText = outcomeLabel(args.outcome);
   const transcript = args.segments
     .map((s) => `${speakerLabel(s.speaker)}: ${s.text}`)
     .join("\n");
-  return `${title}${ctx}OUTCOME: ${outcomeLabel}
+  return `${title}${ctx}OUTCOME: ${outcomeText}
 
 THE REP'S OWN HYPOTHESIS (they spoke first — build on this):
 "${args.repHypothesis}"
@@ -145,6 +143,7 @@ function parseWhy(text: string): SessionWhy | null {
     evidence: hasSignal ? evidence : [],
     repInputReflection: hasSignal ? repInputReflection : "",
     alternativeRead: hasSignal ? alt : null,
+    failed: false,
   };
 }
 
@@ -157,8 +156,11 @@ export async function generateSessionWhy(args: {
   segments: TranscriptSegment[];
 }): Promise<SessionWhy> {
   try {
-    // §3.2 gate — need real conversation to read a cause.
-    if (args.segments.length < MIN_SEGMENTS) return EMPTY_WHY;
+    // §3.2 gate (F6) — need enough of the REP's own turns to read a cause.
+    const agentSegments = args.segments.filter(
+      (s) => s.speaker === "agent"
+    ).length;
+    if (agentSegments < MIN_AGENT_SEGMENTS) return EMPTY_WHY;
     const systemPrompt = buildWhySystemPrompt();
     const userMessage = buildWhyUserMessage(args);
     const r = await dissectCoachV5({
@@ -167,8 +169,10 @@ export async function generateSessionWhy(args: {
       userMessage,
     });
     if (r.suppressed) return EMPTY_WHY;
-    return parseWhy(r.text) ?? EMPTY_WHY;
+    // F3 (§3.4) — an unparseable response is a FAILURE, not "no signal".
+    return parseWhy(r.text) ?? { ...EMPTY_WHY, failed: true };
   } catch {
-    return EMPTY_WHY;
+    // F3 (§3.4) — a real error, distinct from the honest empty state.
+    return { ...EMPTY_WHY, failed: true };
   }
 }

@@ -23,6 +23,9 @@ export type SalesPrep = {
   opening: string;
   likelyObjections: PrepObjection[];
   keyValue: string;
+  // F3 (§3.4) — true when generation FAILED (error/parse), so the UI can
+  // distinguish "couldn't build the prep" from "nothing to prep from".
+  failed: boolean;
 };
 
 const EMPTY_PREP: SalesPrep = {
@@ -30,6 +33,7 @@ const EMPTY_PREP: SalesPrep = {
   opening: "",
   likelyObjections: [],
   keyValue: "",
+  failed: false,
 };
 
 const DEFAULT_METHODOLOGY = `
@@ -105,7 +109,13 @@ function parsePrep(text: string): SalesPrep | null {
         .filter((x): x is PrepObjection => x !== null)
     : [];
   const hasContent = Boolean(opening || keyValue || objections.length > 0);
-  return { hasContent, opening, likelyObjections: objections, keyValue };
+  return {
+    hasContent,
+    opening,
+    likelyObjections: objections,
+    keyValue,
+    failed: false,
+  };
 }
 
 export async function generatePrep(args: {
@@ -122,8 +132,10 @@ export async function generatePrep(args: {
       userMessage,
     });
     if (r.suppressed) return EMPTY_PREP;
-    return parsePrep(r.text) ?? EMPTY_PREP;
+    // F3 (§3.4) — an unparseable response is a FAILURE, not "nothing to prep".
+    return parsePrep(r.text) ?? { ...EMPTY_PREP, failed: true };
   } catch {
-    return EMPTY_PREP;
+    // F3 (§3.4) — a real error, distinct from the honest empty state.
+    return { ...EMPTY_PREP, failed: true };
   }
 }

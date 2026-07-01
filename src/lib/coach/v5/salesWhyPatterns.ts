@@ -1,6 +1,7 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 
 /**
  * Live Sales Coach — cross-session WHY patterns (Sessions Phase 4). Reads a
@@ -22,7 +23,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // §4/§3.2 data-sufficiency gate: below this many recorded whys, patterns
 // would be noise, so none are surfaced.
-const MIN_WHYS = 4;
+export const MIN_WHYS = 4;
+// F1 — stored pattern sets live as append-only per-agent events.
+const PATTERNS_KIND = "coach.why_patterns_generated";
 // Bound the look-back (recent sessions); the pattern is about the rep NOW.
 const SCAN_LIMIT = 60;
 
@@ -38,14 +41,9 @@ export type WhyPatterns = {
   whysAnalyzed: number;
   patterns: WhyPattern[];
   note: string; // §3.6 what the coach is learning; or the honest "keep going"
-};
-
-const OUTCOME_LABELS: Record<string, string> = {
-  sold: "Sold",
-  follow_up: "Follow-up",
-  no_sale: "No sale",
-  no_contact: "No contact",
-  undecided: "Undecided",
+  // F3 (§3.4) — true when generation FAILED (error/parse), distinct from the
+  // honest below-gate state.
+  failed: boolean;
 };
 
 function buildPatternSystemPrompt(): string {
@@ -113,55 +111,71 @@ function parsePatterns(text: string): { patterns: WhyPattern[]; note: string } |
   return { patterns, note };
 }
 
+const belowGate = (whysAnalyzed: number, failed = false): WhyPatterns => ({
+  hasEnoughData: false,
+  whysAnalyzed,
+  patterns: [],
+  note: failed
+    ? "Couldn't build your patterns right now — try again in a moment."
+    : "Keep going — the coach needs a few more sessions with recorded outcomes and your own reads before real patterns can be trusted (not guessed).",
+  failed,
+});
+
+/**
+ * F1 — the CHEAP gather (no LLM): the rep's (why -> outcome) pairs. Reused by
+ * the route to count available whys on load WITHOUT paying for an LLM call.
+ * F5 — pairs on the outcome SNAPSHOT stored in the why event, falling back to
+ * the current session outcome for older events (pre-snapshot).
+ */
+export async function gatherWhyPairs(args: {
+  companyId: string;
+  agentId: string;
+}): Promise<{ driver: string; outcome: string }[]> {
+  const admin = createAdminClient();
+  const { data: sessionsData } = await admin
+    .from("coaching_sessions")
+    .select("id, outcome")
+    .eq("agent_id", args.agentId)
+    .eq("company_id", args.companyId)
+    .not("outcome", "is", null)
+    .order("started_at", { ascending: false })
+    .limit(SCAN_LIMIT);
+  const sessions = sessionsData ?? [];
+  if (sessions.length === 0) return [];
+
+  const outcomeBySession = new Map<string, string>();
+  for (const s of sessions) {
+    outcomeBySession.set(s.id as string, (s.outcome as string) ?? "");
+  }
+  const subjects = sessions.map((s) => `sales_session:${s.id}`);
+
+  const { data: whyEvents } = await admin
+    .from("events")
+    .select("subject, payload")
+    .eq("kind", "coach.session_why_generated")
+    .in("subject", subjects);
+
+  const pairs: { driver: string; outcome: string }[] = [];
+  for (const e of whyEvents ?? []) {
+    const payload = e.payload as
+      | { primaryDriver?: string; outcome?: string }
+      | null;
+    const driver = payload?.primaryDriver;
+    if (!driver) continue;
+    const sid = String(e.subject ?? "").replace("sales_session:", "");
+    // F5 — the snapshot outcome; fall back to the current column for old events.
+    const outcome = payload?.outcome ?? outcomeBySession.get(sid) ?? "";
+    pairs.push({ driver, outcome });
+  }
+  return pairs;
+}
+
 export async function generateWhyPatterns(args: {
   companyId: string;
   agentId: string;
 }): Promise<WhyPatterns> {
-  const belowGate = (whysAnalyzed: number): WhyPatterns => ({
-    hasEnoughData: false,
-    whysAnalyzed,
-    patterns: [],
-    note:
-      "Keep going — the coach needs a few more sessions with recorded outcomes and your own reads before real patterns can be trusted (not guessed).",
-  });
-
   try {
-    const admin = createAdminClient();
-
-    // The rep's own sessions that have an outcome recorded.
-    const { data: sessionsData } = await admin
-      .from("coaching_sessions")
-      .select("id, outcome")
-      .eq("agent_id", args.agentId)
-      .eq("company_id", args.companyId)
-      .not("outcome", "is", null)
-      .order("started_at", { ascending: false })
-      .limit(SCAN_LIMIT);
-    const sessions = sessionsData ?? [];
-    if (sessions.length === 0) return belowGate(0);
-
-    const outcomeBySession = new Map<string, string>();
-    for (const s of sessions) {
-      outcomeBySession.set(s.id as string, (s.outcome as string) ?? "");
-    }
-    const subjects = sessions.map((s) => `sales_session:${s.id}`);
-
-    // Their System-generated why for each of those sessions (Phase 3).
-    const { data: whyEvents } = await admin
-      .from("events")
-      .select("subject, payload")
-      .eq("kind", "coach.session_why_generated")
-      .in("subject", subjects);
-
-    const pairs: { driver: string; outcome: string }[] = [];
-    for (const e of whyEvents ?? []) {
-      const driver = (e.payload as { primaryDriver?: string } | null)
-        ?.primaryDriver;
-      if (!driver) continue;
-      const sid = String(e.subject ?? "").replace("sales_session:", "");
-      const outcome = outcomeBySession.get(sid) ?? "";
-      pairs.push({ driver, outcome });
-    }
+    const pairs = await gatherWhyPairs(args);
 
     // §4/§3.2 gate — not enough to trust a pattern.
     if (pairs.length < MIN_WHYS) return belowGate(pairs.length);
@@ -171,7 +185,7 @@ export async function generateWhyPatterns(args: {
 ${pairs
   .map(
     (p, i) =>
-      `${i + 1}. why: "${p.driver}"  ->  outcome: ${OUTCOME_LABELS[p.outcome] ?? (p.outcome || "unknown")}`
+      `${i + 1}. why: "${p.driver}"  ->  outcome: ${outcomeLabel(p.outcome) || "unknown"}`
   )
   .join("\n")}
 
@@ -182,18 +196,61 @@ Surface the recurring patterns tied to outcomes. JSON only.`;
       systemPrompt: buildPatternSystemPrompt(),
       userMessage,
     });
+    // Suppression is control-gating, not a failure — Sales Coach is exempt so
+    // this is an edge case; treat as below-gate (honest, not "failed").
     if (r.suppressed) return belowGate(pairs.length);
 
     const parsed = parsePatterns(r.text);
-    if (!parsed) return belowGate(pairs.length);
+    // F3 (§3.4) — an unparseable response is a FAILURE, not "not enough data".
+    if (!parsed) return belowGate(pairs.length, true);
 
     return {
       hasEnoughData: true,
       whysAnalyzed: pairs.length,
       patterns: parsed.patterns,
       note: parsed.note,
+      failed: false,
     };
   } catch {
-    return belowGate(0);
+    // F3 (§3.4) — a real error, distinct from the honest below-gate state.
+    return belowGate(0, true);
   }
+}
+
+/**
+ * F1 — persist a generated pattern set as an append-only per-agent event so
+ * the dashboard serves it on load WITHOUT an LLM call; regenerated only on an
+ * explicit refresh. Only real (has-signal) sets are stored — never a gate or
+ * failed state.
+ */
+export async function storeWhyPatterns(args: {
+  companyId: string;
+  agentId: string;
+  result: WhyPatterns;
+}): Promise<void> {
+  if (!args.result.hasEnoughData) return;
+  const admin = createAdminClient();
+  await admin.from("events").insert({
+    company_id: args.companyId,
+    actor: args.agentId,
+    kind: PATTERNS_KIND,
+    subject: `sales_agent:${args.agentId}`,
+    payload: args.result,
+  });
+}
+
+/** F1 — the latest stored pattern set for a rep (no LLM), or null. */
+export async function readStoredWhyPatterns(
+  agentId: string
+): Promise<WhyPatterns | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("events")
+    .select("payload")
+    .eq("kind", PATTERNS_KIND)
+    .eq("subject", `sales_agent:${agentId}`)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const row = (data ?? [])[0];
+  return row ? (row.payload as WhyPatterns) : null;
 }

@@ -12,6 +12,7 @@ import {
   Star,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 
 /**
  * Sales Coach → Sessions (Phase 1). The full, filterable session history.
@@ -37,13 +38,6 @@ type Row = {
   hasReview: boolean;
 };
 
-const OUTCOME_LABELS: Record<string, string> = {
-  sold: "Sold",
-  follow_up: "Follow-up",
-  no_sale: "No sale",
-  no_contact: "No contact",
-  undecided: "Undecided",
-};
 
 function duration(start: string, end: string | null): string {
   if (!end) return "—";
@@ -222,7 +216,7 @@ export default function SalesCoachSessionsPage() {
                 </span>
                 {s.outcome && (
                   <span className="shrink-0 text-[10px] text-secondary border border-default rounded-full px-2 py-0.5">
-                    {OUTCOME_LABELS[s.outcome] ?? s.outcome}
+                    {outcomeLabel(s.outcome)}
                   </span>
                 )}
                 {badgesAvailable && (

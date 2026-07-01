@@ -58,13 +58,26 @@ export async function runDissectBackfill(args: {
   if (sErr) throw new Error(`sessions: ${sErr.message}`);
   const sessions = sessionsData ?? [];
 
+  // F4 (§5) — bound the events diff to EXACTLY the sessions scanned (never a
+  // full all-companies scan of every dissect event ever). Mirrors the
+  // Sessions-list route's bounded .in("subject", subjects) diff.
+  const emptyResult: DissectBackfillResult = {
+    missingTotal: 0,
+    processed: 0,
+    generated: 0,
+    thinOrFailed: 0,
+    remaining: 0,
+    scanBounded: sessions.length >= scanLimit,
+  };
+  if (sessions.length === 0) return emptyResult;
+  const subjects = sessions.map((s) => `sales_session:${s.id}`);
+
   // Which of these already have a dissect event.
-  let eq = admin
+  const { data: dissectEvents, error: eErr } = await admin
     .from("events")
     .select("subject")
-    .eq("kind", "coach.dissect_generated");
-  if (args.companyId) eq = eq.eq("company_id", args.companyId);
-  const { data: dissectEvents, error: eErr } = await eq;
+    .eq("kind", "coach.dissect_generated")
+    .in("subject", subjects);
   if (eErr) throw new Error(`events: ${eErr.message}`);
   const dissected = new Set(
     (dissectEvents ?? []).map((e) =>

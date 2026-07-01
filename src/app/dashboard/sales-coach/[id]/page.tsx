@@ -17,6 +17,11 @@ import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { LiveCoachingPanel } from "@/components/sales-coach/LiveCoachingPanel";
+import {
+  OUTCOME_LABELS,
+  OUTCOME_ORDER,
+  type SalesOutcome,
+} from "@/lib/coach/v5/outcomeLabels";
 
 /**
  * /dashboard/sales-coach/[id] — session review surface.
@@ -33,12 +38,6 @@ type Segment = {
   text: string;
   seq: number;
 };
-type SalesOutcome =
-  | "sold"
-  | "follow_up"
-  | "no_sale"
-  | "no_contact"
-  | "undecided";
 type Session = {
   id: string;
   context: "in_person" | "video";
@@ -52,21 +51,6 @@ type Session = {
   outcome: SalesOutcome | null;
 };
 
-// Human labels — kept in sync with SALES_OUTCOMES (salesCoach.ts).
-const OUTCOME_LABELS: Record<SalesOutcome, string> = {
-  sold: "Sold",
-  follow_up: "Follow-up",
-  no_sale: "No sale",
-  no_contact: "No contact",
-  undecided: "Undecided",
-};
-const OUTCOME_ORDER: SalesOutcome[] = [
-  "sold",
-  "follow_up",
-  "no_sale",
-  "no_contact",
-  "undecided",
-];
 type Strength = { point: string; example: string };
 type Growth = { opportunity: string; nextStep: string };
 type Review = {
@@ -158,6 +142,7 @@ export default function SessionDetail() {
     opening: string;
     likelyObjections: { objection: string; reframe: string }[];
     keyValue: string;
+    failed: boolean;
   } | null>(null);
   const [prepping, setPrepping] = useState(false);
   const getPrep = async () => {
@@ -207,10 +192,13 @@ export default function SessionDetail() {
     evidence: string[];
     repInputReflection: string;
     alternativeRead: string | null;
+    failed: boolean;
   } | null>(null);
   const [whyBusy, setWhyBusy] = useState(false);
-  const submitWhy = async () => {
-    const h = whyDraft.trim();
+  // Accepts an explicit hypothesis so a retry / post-reload regeneration can
+  // reuse the already-recorded read (F3) without the draft box being present.
+  const submitWhy = async (hypothesisArg?: string) => {
+    const h = (hypothesisArg ?? whyDraft).trim();
     if (h.length < 3) return;
     setWhyBusy(true);
     setError(null);
@@ -372,6 +360,10 @@ export default function SessionDetail() {
                     A direction to prepare you — not a script. The call is yours.
                   </p>
                 </section>
+              ) : prep.failed ? (
+                <p className="text-xs text-amber-300">
+                  Couldn&apos;t build the prep right now — try again in a moment.
+                </p>
               ) : (
                 <p className="text-xs text-muted">
                   Not enough to prep from yet — add an offer when you start the
@@ -515,12 +507,51 @@ export default function SessionDetail() {
                         holds shows up across your sessions over time.
                       </p>
                     </div>
+                  ) : systemWhy.failed ? (
+                    <div className="pt-2 border-t border-default space-y-2">
+                      <p className="text-[11px] text-amber-300">
+                        Couldn&apos;t generate the coach&apos;s read right now.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void submitWhy(repHypothesis ?? undefined)}
+                        disabled={whyBusy}
+                        className="inline-flex items-center gap-1.5 text-xs border border-default text-secondary hover:text-primary disabled:opacity-50 px-3 py-1.5 rounded-lg"
+                      >
+                        {whyBusy ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <HelpCircle className="w-3.5 h-3.5" aria-hidden />
+                        )}
+                        Try again
+                      </button>
+                    </div>
                   ) : (
                     <p className="text-[11px] text-muted pt-2 border-t border-default">
                       Not enough in the transcript to read a cause honestly —
                       your own read above is the record.
                     </p>
                   ))}
+
+                {/* Regenerate: a recorded read but no coach read yet (e.g. a
+                    reload after a failed/thin generation that wasn't stored). */}
+                {repHypothesis && !systemWhy && (
+                  <div className="pt-2 border-t border-default">
+                    <button
+                      type="button"
+                      onClick={() => void submitWhy(repHypothesis)}
+                      disabled={whyBusy}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-1.5 rounded-lg"
+                    >
+                      {whyBusy ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <HelpCircle className="w-3.5 h-3.5" aria-hidden />
+                      )}
+                      Get the coach&apos;s read
+                    </button>
+                  </div>
+                )}
               </section>
             )}
 

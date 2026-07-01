@@ -100,6 +100,15 @@ export async function POST(
       { status: 404 }
     );
   }
+  // F2 (§3.3) — rep-first is the REP's own read. Only the session's agent may
+  // record its why; a manager who can SEE the session cannot submit a why as
+  // if it were the rep's (that would subvert the mechanism + pollute Phase 4).
+  if (session.agentId !== auth.user.id) {
+    return NextResponse.json(
+      { error: "Only the rep who ran this session can record its why." },
+      { status: 403 }
+    );
+  }
   // §3.2/§3.5 gate — no consequence recorded, no why to explain.
   if (!session.outcome) {
     return NextResponse.json(
@@ -132,13 +141,16 @@ export async function POST(
 
   // Store the System's why only when it has signal (§3.4 — no empty verdict
   // on the record). The rep's hypothesis is always kept regardless.
+  // F5 (§3.5/§3.1) — snapshot the outcome AT GENERATION TIME into the event,
+  // so Phase 4 pairs the why with the outcome it actually reasoned about,
+  // even if the outcome is later corrected.
   if (systemWhy.hasSignal) {
     await admin.from("events").insert({
       company_id: companyId,
       actor: auth.user.id,
       kind: SYS_KIND,
       subject: `sales_session:${id}`,
-      payload: systemWhy,
+      payload: { ...systemWhy, outcome: session.outcome },
     });
   }
 
