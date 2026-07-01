@@ -57,10 +57,14 @@ export function useTapControls(args: {
   active: boolean;
   onCoachMe: () => void; // a tap → "coach me now"
   onToggleQuiet: () => void; // triple-tap → quiet toggle
-}): { supported: boolean } {
+}): { supported: boolean; lastTapAt: number } {
   const [supported] = useState(
     () => typeof navigator !== "undefined" && "mediaSession" in navigator
   );
+  // Timestamp of the last tap the app ACTUALLY received — lets the UI show a
+  // "tap received" confirmation so the rep can VERIFY taps reach us (separate
+  // from whether a cue then fires). 0 = none yet.
+  const [lastTapAt, setLastTapAt] = useState(0);
   // Keep the latest callbacks without re-running the effect on every render.
   const cbRef = useRef(args);
   cbRef.current = args;
@@ -94,6 +98,7 @@ export function useTapControls(args: {
       // TAP_DEBOUNCE_MS keeps the session alive but does NOT re-fire the cue.
       const coachMe = () => {
         const now = Date.now();
+        setLastTapAt(now); // record EVERY received tap (even if debounced)
         if (now - lastTapRef.current < TAP_DEBOUNCE_MS) {
           keepAlive();
           return;
@@ -107,6 +112,7 @@ export function useTapControls(args: {
       ms.setActionHandler("nexttrack", coachMe);
       // Triple-tap (previoustrack on many earbuds) → quiet toggle.
       ms.setActionHandler("previoustrack", () => {
+        setLastTapAt(Date.now());
         cbRef.current.onToggleQuiet();
         keepAlive();
       });
@@ -129,5 +135,5 @@ export function useTapControls(args: {
     };
   }, [args.active, supported]);
 
-  return { supported };
+  return { supported, lastTapAt };
 }
