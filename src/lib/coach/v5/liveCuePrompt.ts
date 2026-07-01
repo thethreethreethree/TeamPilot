@@ -47,22 +47,47 @@ never does.
 
 ${modeBlock}
 
-THE UNDERSTANDING GATE (§3.3) — decide FIRST whether to speak at all:
-- Read what is actually happening in the last few turns.
-- Cue ONLY when there is a clear, high-value move the agent is missing
-  or about to fumble. If the agent is doing fine, STAY SILENT.
-- A late or noisy cue is worse than no cue. When in doubt, stay silent.
-- You are training wheels meant to come off: do not cue for the sake of
-  cueing.
+STEP 1 — READ THE PHASE (§3.2 understanding gate: know what's happening
+BEFORE deciding to speak). Identify the conversation's phase:
+- "opener"     — the approach / first moments. Let the rep work. SILENT.
+- "small_talk" — rapport building. Trust precedes persuasion. SILENT.
+- "discovery"  — the rep is learning the customer's needs. SILENT unless
+                 the rep is clearly fumbling (see triggers).
+- "pitch"      — the rep is presenting. SILENT unless the customer objects.
+- "objection"  — the customer is pushing back / hesitating. THIS is when
+                 help matters — activate.
+- "close"      — a close / ask has been made. After a close attempt,
+                 SILENCE IS SACRED — NEVER break it. SILENT.
+- "stall"      — a long awkward silence with no close attempt, or the
+                 conversation has died. A gentle nudge may help.
+
+STEP 2 — DECIDE (§3.3 guide-don't-overtake — you NEVER take over): cue ONLY
+when the PHASE and a high-value TRIGGER align. Otherwise STAY SILENT.
+Over-cueing is the opposite of the goal; when in doubt, silent.
+
+HIGH-VALUE TRIGGERS (only these warrant a cue):
+- "objection"     — a specific objection the rep is missing or fumbling.
+- "buying_signal" — the customer signalled readiness the rep is about to miss.
+- "filler_spike"  — the rep's recent turns are heavy with filler ("um",
+                    "uh", "like", "you know") — a stress/confidence signal;
+                    a short steadying nudge.
+- "stall"         — a long silence with no close attempt; a gentle re-engage.
+- "none"          — no trigger. STAY SILENT.
+
+NEVER cue: while the customer is mid-thought, right after a close attempt,
+during rapport/small-talk, or when the rep is in flow and doing fine.
 
 ${METHODOLOGY}
 
-LATENCY + LENGTH: one short line. No preamble, no explanation in the cue
-itself. The agent is mid-sentence.
+LATENCY + LENGTH: one short line. No preamble. The agent is mid-sentence.
+§3.4: never fabricate. If you can't read it, phase "unknown", trigger
+"none", stay silent.
 
 OUTPUT — respond with ONLY this JSON:
 {
-  "shouldCue": boolean,   // false = stay silent this moment
+  "phase": "opener"|"small_talk"|"discovery"|"pitch"|"objection"|"close"|"stall"|"unknown",
+  "trigger": "objection"|"buying_signal"|"filler_spike"|"stall"|"none",
+  "shouldCue": boolean,   // true ONLY when phase + trigger align per the rules
   "cue": "the one-line cue, or empty string if shouldCue is false"
 }`;
 }
@@ -76,6 +101,9 @@ function speakerLabel(speaker: TranscriptSegment["speaker"]): string {
 export function buildLiveCueUserMessage(args: {
   context?: SalesContext;
   recentSegments: TranscriptSegment[];
+  /** The conversation has gone quiet for a while (a possible stall). The
+   *  brain still decides — a post-close silence must stay sacred. */
+  stalled?: boolean;
 }): string {
   const ctx = args.context
     ? `Context: ${args.context === "in_person" ? "in-person, door-to-door" : "online video call"}\n\n`
@@ -83,9 +111,12 @@ export function buildLiveCueUserMessage(args: {
   const rolling = args.recentSegments
     .map((s) => `${speakerLabel(s.speaker)}: ${s.text}`)
     .join("\n");
+  const stall = args.stalled
+    ? `\n\nNOTE: the conversation has gone quiet for a while with no new speech (a possible STALL). If the last thing that happened was a close/ask, this silence is SACRED — stay silent. Otherwise consider whether a gentle re-engagement genuinely helps.`
+    : "";
   return `${ctx}Conversation so far (most recent turns):
 
-${rolling}
+${rolling}${stall}
 
-Decide whether to cue right now, and if so give one short cue. JSON only.`;
+Read the phase, decide whether to cue, and if so give one short cue. JSON only.`;
 }

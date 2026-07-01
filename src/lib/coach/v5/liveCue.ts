@@ -19,11 +19,49 @@ import {
  * appendCue (for the cue-reliance signal).
  */
 
+export type CuePhase =
+  | "opener"
+  | "small_talk"
+  | "discovery"
+  | "pitch"
+  | "objection"
+  | "close"
+  | "stall"
+  | "unknown";
+export type CueTrigger =
+  | "objection"
+  | "buying_signal"
+  | "filler_spike"
+  | "stall"
+  | "none";
+
 export type LiveCueResult = {
   shouldCue: boolean;
   mode: CueMode;
   cue: string;
+  // The coach's read of the moment (§3.2 understanding gate; §3.6 make it
+  // visible). Present even when it stays silent.
+  phase: CuePhase;
+  trigger: CueTrigger;
 };
+
+const PHASES = new Set<string>([
+  "opener",
+  "small_talk",
+  "discovery",
+  "pitch",
+  "objection",
+  "close",
+  "stall",
+  "unknown",
+]);
+const TRIGGERS = new Set<string>([
+  "objection",
+  "buying_signal",
+  "filler_spike",
+  "stall",
+  "none",
+]);
 
 /** Only consider the most recent N segments — latency + relevance: the
  *  coach reacts to the live moment, not the whole call. */
@@ -39,8 +77,16 @@ export async function generateLiveCue(args: {
   /** force: the agent explicitly asked ("coach me now") — bypass the
    *  understanding gate and always return a concrete suggestion. */
   force?: boolean;
+  /** The conversation has gone quiet for a while (a possible stall). */
+  stalled?: boolean;
 }): Promise<LiveCueResult> {
-  const silent: LiveCueResult = { shouldCue: false, mode: args.mode, cue: "" };
+  const silent: LiveCueResult = {
+    shouldCue: false,
+    mode: args.mode,
+    cue: "",
+    phase: "unknown",
+    trigger: "none",
+  };
   try {
     if (args.segments.length < MIN_SEGMENTS) return silent;
     const recentSegments = args.segments.slice(-ROLLING_WINDOW);
@@ -62,6 +108,7 @@ export async function generateLiveCue(args: {
     const userMessage = buildLiveCueUserMessage({
       context: args.context,
       recentSegments,
+      stalled: args.stalled,
     });
 
     const r = await liveSalesCue({
@@ -80,6 +127,15 @@ export async function generateLiveCue(args: {
     if (typeof raw !== "object" || raw === null) return silent;
     const o = raw as Record<string, unknown>;
 
+    const phase: CuePhase =
+      typeof o.phase === "string" && PHASES.has(o.phase)
+        ? (o.phase as CuePhase)
+        : "unknown";
+    const trigger: CueTrigger =
+      typeof o.trigger === "string" && TRIGGERS.has(o.trigger)
+        ? (o.trigger as CueTrigger)
+        : "none";
+
     const cue = typeof o.cue === "string" ? o.cue.trim() : "";
     // Honour the understanding gate: an empty cue means stay silent,
     // regardless of what shouldCue claims. When forced (on-demand), any
@@ -87,7 +143,13 @@ export async function generateLiveCue(args: {
     const shouldCue = args.force
       ? cue.length > 0
       : o.shouldCue === true && cue.length > 0;
-    return { shouldCue, mode: args.mode, cue: shouldCue ? cue : "" };
+    return {
+      shouldCue,
+      mode: args.mode,
+      cue: shouldCue ? cue : "",
+      phase,
+      trigger,
+    };
   } catch {
     return silent;
   }

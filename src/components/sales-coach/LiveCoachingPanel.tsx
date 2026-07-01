@@ -38,6 +38,7 @@ export function LiveCoachingPanel({
     partial,
     currentCue,
     cueStatus,
+    phase,
     autoCoach,
     setAutoCoach,
     mode,
@@ -76,6 +77,13 @@ export function LiveCoachingPanel({
           <span className="text-[10px] uppercase tracking-widest text-muted font-mono">
             {status}
           </span>
+          {/* §3.6: show the coach's read of the phase, so its restraint is
+              legible (it's watching + choosing silence, not asleep). */}
+          {live && phase && (
+            <span className="text-[10px] uppercase tracking-widest text-brand font-mono">
+              · {phase.replace("_", " ")}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {!live ? (

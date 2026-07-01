@@ -42,6 +42,10 @@ const TURN_SETTLE_MS = 700;
 // re-firing the SAME turn's cue. On-demand ("coach me") bypasses it.
 // Tunable.
 const CUE_COOLDOWN_MS = 3000;
+// Stall detection (tester feedback 2026-07-01): if the conversation goes
+// quiet this long with no new speech, offer the brain a chance to nudge —
+// but only if the last read phase wasn't a close (that silence is sacred).
+const STALL_MS = 45_000;
 
 // Volume/proximity attribution (founder 2026-06-30): the salesperson wears
 // the mic, so their speech is LOUDER than the prospect across the room. NOT
@@ -141,6 +145,9 @@ export function useLiveCoaching(sessionId: string) {
   // it's the same RMS that drives proximity attribution, so a high bar when
   // they speak confirms they're the louder/near voice.
   const [micLevel, setMicLevel] = useState(0);
+  // The coach's current read of the conversation phase (§3.6 — make its
+  // understanding visible). Null until the brain has read a moment.
+  const [phase, setPhase] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -164,6 +171,10 @@ export function useLiveCoaching(sessionId: string) {
   const agentLevelRef = useRef<number | null>(null);
   const customerLevelRef = useRef<number | null>(null);
   const micLevelRef = useRef(0); // smoothing accumulator for the meter
+  // The coach's last read of the phase — shown to the agent (§3.6) and used
+  // to keep the stall timer from breaking a sacred post-close silence.
+  const lastPhaseRef = useRef<string | null>(null);
+  const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Speak a cue privately to the agent (reuses Jeff's flash TTS).
   const speakCue = useCallback(async (text: string) => {
@@ -221,9 +232,10 @@ export function useLiveCoaching(sessionId: string) {
     }
   }, []);
 
-  // onDemand bypasses the F4 cooldown (the agent explicitly asked).
+  // onDemand bypasses the cooldown + forces a response (the agent asked).
+  // stall = the client's silence timer fired.
   const invokeCue = useCallback(
-    async (onDemand = false) => {
+    async (onDemand = false, stall = false) => {
       if (cueInFlightRef.current) return;
       const live = turnsRef.current;
       if (live.length < 2) {
@@ -249,19 +261,16 @@ export function useLiveCoaching(sessionId: string) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             mode: modeRef.current,
-            // force=true for BOTH auto and on-demand: when auto-coach is
-            // ON, the agent has opted into ACTIVE guidance, so the coach
-            // should proactively cue at prospect pauses — not sit behind
-            // the §3.3 "stay silent unless high-value" gate that made
-            // auto-coach feel dead (founder, 2026-06-30). force is softened
-            // (it may still honestly defer if there's truly nothing). The
-            // real spam-bound is structural: cues fire only on prospect
-            // turn-ends + cueInFlight blocks overlap = one cue per prospect
-            // turn. The 3s cooldown (CUE_COOLDOWN_MS) is just an anti-double-
-            // fire guard, not the pacing limit. On-demand bypasses it (below).
-            force: true,
-            // Attributed turns (Increment 1 naive attribution) — the brain
-            // now reads WHO said what, not an undifferentiated stream.
+            // §3.3 RESTRAINT (tester feedback 2026-07-01, reversing the
+            // 2026-06-30 force-every-turn): AUTO cues go through the
+            // understanding gate — the brain reads the phase and stays
+            // silent unless phase + a high-value trigger align. Only
+            // on-demand ("coach me now") forces a response.
+            force: onDemand,
+            // The client's stall timer fired (long silence). The brain still
+            // decides — a post-close silence stays sacred.
+            stall,
+            // Attributed turns — the brain reads WHO said what.
             liveTranscript: live.slice(-12).map((t) => ({
               speaker: t.speaker,
               text: t.text,
@@ -273,15 +282,22 @@ export function useLiveCoaching(sessionId: string) {
           return;
         }
         const data = await res.json();
+        const c = data?.cue ?? {};
+        // Capture the coach's read of the moment (§3.6 make it visible),
+        // even when it stays silent, and remember the phase so the stall
+        // timer never breaks a sacred post-close silence.
+        if (typeof c.phase === "string") {
+          lastPhaseRef.current = c.phase;
+          setPhase(c.phase);
+        }
         // eslint-disable-next-line no-console
-        console.info("[live-coaching] cue result", {
-          shouldCue: data?.cue?.shouldCue,
-          hasText: Boolean(data?.cue?.cue),
-        });
-        if (data?.cue?.shouldCue && data.cue.cue) {
+        console.info(
+          `[live-coaching] cue phase=${c.phase ?? "?"} trigger=${c.trigger ?? "?"} shouldCue=${!!c.shouldCue}`
+        );
+        if (c.shouldCue && c.cue) {
           lastCueAtRef.current = Date.now(); // start the cooldown
-          setCurrentCue(data.cue.cue);
-          void speakCue(data.cue.cue);
+          setCurrentCue(c.cue);
+          void speakCue(c.cue);
         } else if (onDemand) {
           // force was on, so this is rare — but don't leave the button dead.
           setCueStatus("Coach had nothing pressing to add right now.");
@@ -371,6 +387,7 @@ export function useLiveCoaching(sessionId: string) {
 
   const stop = useCallback(() => {
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+    if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     // #1 fix: persist the live attributed transcript (speaker-separated)
     // before teardown. This is the canonical transcript for in-person —
     // append-only, best-effort. A failure just leaves the recording-upload
@@ -450,6 +467,9 @@ export function useLiveCoaching(sessionId: string) {
     customerLevelRef.current = null;
     micLevelRef.current = 0;
     setMicLevel(0);
+    lastPhaseRef.current = null;
+    setPhase(null);
+    if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     try {
       // 1. Mic.
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -653,6 +673,15 @@ export function useLiveCoaching(sessionId: string) {
           // the final (content-or-volume) label.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
           void classifyTurn(index, text, priorSpeaker, v.speaker);
+          // Speech happened → reset the stall timer. If it goes quiet for
+          // STALL_MS and the last read phase wasn't a close (sacred), offer
+          // the brain a chance to nudge (it still decides).
+          if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+          stallTimerRef.current = setTimeout(() => {
+            if (autoCoachRef.current && lastPhaseRef.current !== "close") {
+              void invokeCue(false, true);
+            }
+          }, STALL_MS);
         }
       };
     } catch (err) {
@@ -685,6 +714,7 @@ export function useLiveCoaching(sessionId: string) {
     partial,
     currentCue,
     cueStatus,
+    phase,
     autoCoach,
     setAutoCoach,
     mode,

@@ -30,6 +30,9 @@ const BodySchema = z.object({
   // force: the agent explicitly asked ("coach me now") — bypass the
   // understanding gate and always return a concrete suggestion.
   force: z.boolean().optional(),
+  // stall: the client's silence timer fired (a long quiet with no new
+  // speech). The brain still decides — a post-close silence stays sacred.
+  stall: z.boolean().optional(),
   // S1b realtime: an inline rolling transcript from the live websocket.
   // When present, the brain reads it directly — skipping the DB round
   // trip that would add latency on the hot path ("a late tip is
@@ -98,6 +101,7 @@ export async function POST(
     context: session.context,
     segments,
     force: body.force,
+    stalled: body.stall,
   });
 
   // Record only delivered cues (append-only). A "stay silent" decision
