@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Radio,
   Square,
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Mic,
 } from "lucide-react";
+import { useTapControls } from "@/lib/coach/v5/useTapControls";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
 import { SessionRecordingUpload } from "./SessionRecordingUpload";
 
@@ -63,6 +64,18 @@ export function LiveCoachingPanel({
   }, [transcriptSaved, onRecordingSaved]);
 
   const live = status === "live";
+
+  // Build 5 — earpiece tap control (§3.3, rep-controlled). A tap → coach me;
+  // triple-tap → quiet toggle. Device-dependent + unverifiable (§3.4).
+  const toggleQuiet = useCallback(
+    () => setAutoCoach(!autoCoach),
+    [setAutoCoach, autoCoach]
+  );
+  const { supported: tapsSupported } = useTapControls({
+    active: live,
+    onCoachMe: requestCue,
+    onToggleQuiet: toggleQuiet,
+  });
 
   return (
     <section className="rounded-xl border border-default bg-white/[0.01] p-4">
@@ -205,6 +218,13 @@ export function LiveCoachingPanel({
               Coach me now
             </button>
           </div>
+        )}
+        {/* Build 5 — earpiece tap control (§3.4 honest: device-dependent). */}
+        {live && tapsSupported && (
+          <p className="text-[10px] text-muted mt-2">
+            Earpiece taps: tap = coach me · triple-tap = quiet — if your earbuds
+            map taps to media controls (device-dependent, varies by earbud).
+          </p>
         )}
       </div>
 
