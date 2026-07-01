@@ -307,8 +307,9 @@ type ProductData = {
 
 /**
  * Editable PRODUCT / brand details (migration 0078). An admin describes what
- * the team sells; this is the coach's product source for Prep Time + product-
- * aware coaching. Append-only versions (§3.1), mirroring the methodology
+ * the team sells; this WILL be the coach's product source for Prep Time +
+ * product-aware coaching (build 2 — not yet wired). Append-only versions
+ * (§3.1), mirroring the methodology
  * editor above (§A21 — same store, second kind).
  */
 function ProductEditor() {
@@ -355,7 +356,10 @@ function ProductEditor() {
         const b = await res.json().catch(() => null);
         throw new Error(b?.error ?? "failed");
       }
-      toast.success("Product details saved", "The coach can use them for prep.");
+      toast.success(
+        "Product details saved",
+        "History is kept — the coach will use these once Prep Time ships."
+      );
       await load();
     } catch (e) {
       toast.error("Couldn't save", e instanceof Error ? e.message : undefined);
@@ -383,7 +387,8 @@ function ProductEditor() {
           <p className="text-xs text-secondary leading-relaxed">
             What your team sells — the offer, pricing, key benefits, common
             objections, and anything a rep should have at their fingertips. The
-            coach draws on this for Prep Time.
+            coach will use this for Prep Time (coming soon); saving it now means
+            it&apos;s ready the moment that ships.
           </p>
           {data?.isSet && data.updatedAt && (
             <p className="text-[11px] text-muted">

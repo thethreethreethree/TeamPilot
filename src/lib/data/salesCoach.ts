@@ -386,21 +386,7 @@ export type SalesCorpus = {
  */
 export type SalesCorpusKind = "methodology" | "product";
 
-export async function getCurrentSalesCorpus(
-  companyId: string,
-  // Defaults to methodology so every existing caller (review/dissect/prep)
-  // is unchanged; product knowledge (0078) is the second kind.
-  kind: SalesCorpusKind = "methodology"
-): Promise<SalesCorpus | null> {
-  const sb = createServiceRoleClient();
-  const { data } = await sb
-    .from("sales_coach_corpus_versions")
-    .select("content, created_at, created_by")
-    .eq("company_id", companyId)
-    .eq("kind", kind)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+function mapCorpusRow(data: Record<string, unknown> | null): SalesCorpus | null {
   if (!data || typeof data.content !== "string" || !data.content.trim()) {
     return null;
   }
@@ -409,6 +395,42 @@ export async function getCurrentSalesCorpus(
     createdAt: data.created_at as string,
     createdById: (data.created_by as string | null) ?? null,
   };
+}
+
+export async function getCurrentSalesCorpus(
+  companyId: string,
+  // Defaults to methodology so every existing caller (review/dissect/prep)
+  // is unchanged; product knowledge (0078) is the second kind.
+  kind: SalesCorpusKind = "methodology"
+): Promise<SalesCorpus | null> {
+  const sb = createServiceRoleClient();
+  const { data, error } = await sb
+    .from("sales_coach_corpus_versions")
+    .select("content, created_at, created_by")
+    .eq("company_id", companyId)
+    .eq("kind", kind)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // F1 (§1.5) — during the 0078 migration window the `kind` column may not
+  // exist yet, so the filtered query errors. Legacy rows are ALL methodology,
+  // so for the methodology read an UNFILTERED query is the correct read —
+  // keep the live corpus working through the window. For 'product' there is no
+  // legacy data, so an error just means "none yet" (returning a methodology
+  // row here would be wrong). Falls away once 0078 is applied.
+  if (error) {
+    if (kind !== "methodology") return null;
+    const { data: legacy } = await sb
+      .from("sales_coach_corpus_versions")
+      .select("content, created_at, created_by")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return mapCorpusRow(legacy);
+  }
+  return mapCorpusRow(data);
 }
 
 /** Append a new corpus version (immutable, §3.1). True on success. */
