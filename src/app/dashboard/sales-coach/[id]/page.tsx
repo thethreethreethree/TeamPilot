@@ -144,6 +144,31 @@ export default function SessionDetail() {
     }
   };
 
+  // Step 3 — pre-knock prep. A short briefing from the session's captured
+  // offer/approach + the corpus. On-demand, not stored (momentary prep).
+  const [prep, setPrep] = useState<{
+    hasContent: boolean;
+    opening: string;
+    likelyObjections: { objection: string; reframe: string }[];
+    keyValue: string;
+  } | null>(null);
+  const [prepping, setPrepping] = useState(false);
+  const getPrep = async () => {
+    setPrepping(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/coach/sales-session/${id}/prep`, {
+        method: "POST",
+      });
+      if (res.ok) setPrep((await res.json()).prep);
+      else setError(`Couldn't build the prep (HTTP ${res.status}).`);
+    } catch {
+      setError("Couldn't build the prep.");
+    } finally {
+      setPrepping(false);
+    }
+  };
+
   // Phase 2 — record the OUTCOME (the downstream consequence, §3.5). Append-
   // only server-side; re-recording is a correction, not a rewrite of history.
   const [savingOutcome, setSavingOutcome] = useState<SalesOutcome | null>(null);
@@ -211,6 +236,20 @@ export default function SessionDetail() {
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Step 3 — pre-knock prep: prepare BEFORE the conversation. */}
+              <button
+                type="button"
+                onClick={() => void getPrep()}
+                disabled={prepping}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-default text-secondary hover:text-primary disabled:opacity-60"
+              >
+                {prepping ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Lightbulb className="w-3.5 h-3.5" aria-hidden />
+                )}
+                {prep ? "Re-prep" : "Prep me before you knock"}
+              </button>
               {session?.status === "active" && (
                 <button
                   type="button"
@@ -236,6 +275,62 @@ export default function SessionDetail() {
                 {review ? "Regenerate growth review" : "Generate growth review"}
               </button>
             </div>
+
+            {/* Step 3 — pre-knock prep card. §3.3: prepares the rep (opening +
+                likely objections + key value), does not script them. */}
+            {prep &&
+              (prep.hasContent ? (
+                <section className="rounded-xl border border-ember-400/30 bg-ember-400/[0.04] p-4 space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <Lightbulb className="w-3.5 h-3.5 text-brand" aria-hidden />
+                    <h2 className="text-sm font-semibold text-primary">
+                      Before you knock
+                    </h2>
+                  </div>
+                  {prep.opening && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1">
+                        Open with
+                      </p>
+                      <p className="text-xs text-secondary leading-relaxed">
+                        {prep.opening}
+                      </p>
+                    </div>
+                  )}
+                  {prep.likelyObjections.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1">
+                        If they say…
+                      </p>
+                      <ul className="space-y-1.5">
+                        {prep.likelyObjections.map((o, i) => (
+                          <li key={i} className="text-xs text-secondary leading-relaxed">
+                            <span className="text-primary">“{o.objection}”</span> — {o.reframe}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {prep.keyValue && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1">
+                        Land this
+                      </p>
+                      <p className="text-xs text-secondary leading-relaxed">
+                        {prep.keyValue}
+                      </p>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted pt-1 border-t border-default">
+                    A direction to prepare you — not a script. The call is yours.
+                  </p>
+                </section>
+              ) : (
+                <p className="text-xs text-muted">
+                  Not enough to prep from yet — add an offer when you start the
+                  session for a sharper briefing.
+                </p>
+              ))}
 
             {/* Phase 2 — outcome + captured details. §1.5.1 L3: once the call
                 has ended, recording what happened is the natural next step
