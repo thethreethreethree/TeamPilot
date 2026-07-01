@@ -46,6 +46,13 @@ function makeSilentWavUrl(): string {
   return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
 }
 
+// F1 (audit 2026-07-01) — debounce the coach-me tap: earbuds can emit stray/
+// repeated media events, and requestCue bypasses the cue cooldown, so without
+// this a flurry of taps could stack on-demand cues (§5 cost / §3.3 over-cue).
+// cueInFlightRef already blocks the concurrent burst; this closes the
+// sequential/laggy residual.
+const TAP_DEBOUNCE_MS = 2000;
+
 export function useTapControls(args: {
   active: boolean;
   onCoachMe: () => void; // a tap → "coach me now"
@@ -57,6 +64,7 @@ export function useTapControls(args: {
   // Keep the latest callbacks without re-running the effect on every render.
   const cbRef = useRef(args);
   cbRef.current = args;
+  const lastTapRef = useRef(0); // F1 — last coach-me tap (ms epoch)
 
   useEffect(() => {
     if (!args.active || !supported) return;
@@ -82,8 +90,15 @@ export function useTapControls(args: {
       });
       ms.playbackState = "playing";
       // Any common tap (single/double) → coach me; keep the session alive so a
-      // "pause" gesture doesn't tear it down.
+      // "pause" gesture doesn't tear it down. F1 — debounced: a tap within
+      // TAP_DEBOUNCE_MS keeps the session alive but does NOT re-fire the cue.
       const coachMe = () => {
+        const now = Date.now();
+        if (now - lastTapRef.current < TAP_DEBOUNCE_MS) {
+          keepAlive();
+          return;
+        }
+        lastTapRef.current = now;
         cbRef.current.onCoachMe();
         keepAlive();
       };

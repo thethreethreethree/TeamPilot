@@ -219,11 +219,12 @@ export function LiveCoachingPanel({
             </button>
           </div>
         )}
-        {/* Build 5 — earpiece tap control (§3.4 honest: device-dependent). */}
+        {/* Build 5 — earpiece tap control. F2 (§3.4): honest that the whole
+            mechanism is UNTESTED, not merely device-dependent. */}
         {live && tapsSupported && (
           <p className="text-[10px] text-muted mt-2">
-            Earpiece taps: tap = coach me · triple-tap = quiet — if your earbuds
-            map taps to media controls (device-dependent, varies by earbud).
+            Experimental: on supported earbuds a tap may trigger “coach me” and
+            a triple-tap “quiet” — untested, and the mapping varies by device.
           </p>
         )}
       </div>
