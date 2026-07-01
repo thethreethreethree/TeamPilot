@@ -11,6 +11,7 @@ import {
   Lightbulb,
   Square,
   FileText,
+  HelpCircle,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
@@ -89,10 +90,11 @@ export default function SessionDetail() {
 
   const load = useCallback(async () => {
     try {
-      const [sRes, rRes, sumRes] = await Promise.all([
+      const [sRes, rRes, sumRes, wRes] = await Promise.all([
         fetch(`/api/coach/sales-session/${id}`).catch(() => null),
         fetch(`/api/coach/sales-session/review?sessionId=${id}`).catch(() => null),
         fetch(`/api/coach/sales-session/${id}/summarize`).catch(() => null),
+        fetch(`/api/coach/sales-session/${id}/why`).catch(() => null),
       ]);
       if (sRes && sRes.ok) {
         const d = await sRes.json();
@@ -103,6 +105,11 @@ export default function SessionDetail() {
       }
       if (rRes && rRes.ok) setReview((await rRes.json()).review);
       if (sumRes && sumRes.ok) setSummary((await sumRes.json()).summary ?? null);
+      if (wRes && wRes.ok) {
+        const w = await wRes.json();
+        setRepHypothesis(w.repHypothesis ?? null);
+        setSystemWhy(w.systemWhy ?? null);
+      }
     } finally {
       setLoading(false);
     }
@@ -187,6 +194,46 @@ export default function SessionDetail() {
       setError("Couldn't record the outcome.");
     } finally {
       setSavingOutcome(null);
+    }
+  };
+
+  // Phase 3 — the WHY. §3.3 rep-first: the rep's hypothesis is REQUIRED
+  // before the System's read is generated. Both are append-only events.
+  const [whyDraft, setWhyDraft] = useState("");
+  const [repHypothesis, setRepHypothesis] = useState<string | null>(null);
+  const [systemWhy, setSystemWhy] = useState<{
+    hasSignal: boolean;
+    primaryDriver: string;
+    evidence: string[];
+    repInputReflection: string;
+    alternativeRead: string | null;
+  } | null>(null);
+  const [whyBusy, setWhyBusy] = useState(false);
+  const submitWhy = async () => {
+    const h = whyDraft.trim();
+    if (h.length < 3) return;
+    setWhyBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/coach/sales-session/${id}/why`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hypothesis: h }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setRepHypothesis(d.repHypothesis);
+        setSystemWhy(d.systemWhy);
+      } else {
+        const b = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setError(b?.error ?? `Couldn't generate the why (HTTP ${res.status}).`);
+      }
+    } catch {
+      setError("Couldn't generate the why.");
+    } finally {
+      setWhyBusy(false);
     }
   };
 
@@ -381,6 +428,99 @@ export default function SessionDetail() {
                     )}
                   </div>
                 )}
+              </section>
+            )}
+
+            {/* Phase 3 — the WHY. §3.3: the rep goes FIRST; the coach's read
+                is gated behind the rep's and builds on it. Gated on a recorded
+                outcome (§3.2/§3.5 — no consequence, no why). */}
+            {session && session.outcome && (
+              <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <HelpCircle className="w-3.5 h-3.5 text-brand" aria-hidden />
+                  <h2 className="text-sm font-semibold text-primary">
+                    Why this outcome?
+                  </h2>
+                </div>
+
+                {repHypothesis ? (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1">
+                      Your read
+                    </p>
+                    <p className="text-xs text-secondary leading-relaxed">
+                      {repHypothesis}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-secondary leading-relaxed">
+                      Before the coach weighs in — what do{" "}
+                      <span className="text-primary">you</span> think drove this
+                      outcome?
+                    </p>
+                    <textarea
+                      value={whyDraft}
+                      onChange={(e) => setWhyDraft(e.target.value)}
+                      placeholder="Your honest read — even a hunch."
+                      rows={2}
+                      className="w-full text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void submitWhy()}
+                      disabled={whyBusy || whyDraft.trim().length < 3}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      {whyBusy ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <HelpCircle className="w-3.5 h-3.5" aria-hidden />
+                      )}
+                      Get the coach&apos;s read
+                    </button>
+                  </div>
+                )}
+
+                {systemWhy &&
+                  (systemWhy.hasSignal ? (
+                    <div className="pt-2 border-t border-default space-y-2">
+                      <p className="text-[10px] uppercase tracking-widest text-brand font-bold">
+                        The coach&apos;s read — a hypothesis
+                      </p>
+                      <p className="text-xs text-primary leading-relaxed">
+                        {systemWhy.primaryDriver}
+                      </p>
+                      {systemWhy.repInputReflection && (
+                        <p className="text-[11px] text-secondary italic leading-relaxed">
+                          {systemWhy.repInputReflection}
+                        </p>
+                      )}
+                      {systemWhy.evidence.length > 0 && (
+                        <ul className="space-y-1">
+                          {systemWhy.evidence.map((e, i) => (
+                            <li key={i} className="text-[11px] text-muted leading-relaxed">
+                              — {e}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {systemWhy.alternativeRead && (
+                        <p className="text-[11px] text-secondary leading-relaxed">
+                          Or possibly: {systemWhy.alternativeRead}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-muted pt-1">
+                        A hypothesis from one call — not a verdict. What actually
+                        holds shows up across your sessions over time.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted pt-2 border-t border-default">
+                      Not enough in the transcript to read a cause honestly —
+                      your own read above is the record.
+                    </p>
+                  ))}
               </section>
             )}
 
