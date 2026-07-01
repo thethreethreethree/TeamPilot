@@ -124,7 +124,14 @@ export async function POST(
   // them. Deferred to avoid a migration-ordering window during live
   // debugging; do the migration when ready.
   if (result.shouldCue) {
-    await appendCue({ sessionId: id, mode: result.mode, text: result.cue });
+    await appendCue({
+      sessionId: id,
+      mode: result.mode,
+      text: result.cue,
+      // F1 (§4/§1.1) — persist WHY it fired, for build-4 validation.
+      trigger: result.trigger,
+      signal: body.stress ?? null,
+    });
   }
 
   return NextResponse.json({ cue: result });

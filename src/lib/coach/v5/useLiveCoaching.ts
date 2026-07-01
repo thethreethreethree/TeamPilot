@@ -49,6 +49,11 @@ const TURN_SETTLE_MS = 700;
 // re-firing the SAME turn's cue. On-demand ("coach me") bypasses it.
 // Tunable.
 const CUE_COOLDOWN_MS = 3000;
+// F2 (audit 2026-07-01) — the stress cue gets its OWN, much longer cooldown:
+// nudging a nervous rep about their nerves every few seconds would INCREASE
+// stress (§3.3 over-cue) and hit the LLM on every spike (§5). Gated client-
+// side BEFORE the call, so one steadying nudge per episode, cost bounded.
+const STRESS_COOLDOWN_MS = 45000;
 // Stall detection (tester feedback 2026-07-01): if the conversation goes
 // quiet this long with no new speech, offer the brain a chance to nudge —
 // but only if the last read phase wasn't a close (that silence is sacred).
@@ -167,6 +172,7 @@ export function useLiveCoaching(sessionId: string) {
   const cueInFlightRef = useRef(false);
   const modeRef = useRef<CueMode>("suggestion");
   const lastCueAtRef = useRef(0); // F4 cooldown (ms epoch); 0 = never
+  const lastStressCueAtRef = useRef(0); // F2 — stress-cue cooldown (ms epoch)
   const autoCoachRef = useRef(true); // mirrors autoCoach for ws closures
   // Volume/proximity attribution: per-utterance energy accumulator + the
   // learned loudness level for each side (salesperson near/loud, prospect
@@ -490,6 +496,7 @@ export function useLiveCoaching(sessionId: string) {
     setPhase(null);
     utteranceStartRef.current = null;
     paceBaselineRef.current = { mean: 0, count: 0 };
+    lastStressCueAtRef.current = 0;
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     try {
       // 1. Mic.
@@ -723,7 +730,14 @@ export function useLiveCoaching(sessionId: string) {
                 );
               }
             }
-            if ((fillerSpike || paceSpike) && autoCoachRef.current) {
+            if (
+              (fillerSpike || paceSpike) &&
+              autoCoachRef.current &&
+              Date.now() - lastStressCueAtRef.current >= STRESS_COOLDOWN_MS
+            ) {
+              // Throttle on ATTEMPT (F2) — one nudge per episode, bounds LLM
+              // cost even when the brain then chooses to stay silent.
+              lastStressCueAtRef.current = Date.now();
               void invokeCue(false, false, { fillerSpike, paceSpike });
             }
           }

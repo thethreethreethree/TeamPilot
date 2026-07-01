@@ -253,18 +253,39 @@ export async function appendCue(args: {
   mode: CueMode;
   text: string;
   latencyMs?: number | null;
+  // Audit F1 (§4/§1.1) — WHY this cue fired, so build 4 can validate against
+  // outcomes. trigger = objection|filler_spike|pace_spike|stall|…; signal =
+  // the measured stress signal (build 3), when present.
+  trigger?: string | null;
+  signal?: unknown;
 }): Promise<Cue | null> {
   const sb = createServiceRoleClient();
-  const { data, error } = await sb
+  const base = {
+    session_id: args.sessionId,
+    mode: args.mode,
+    text: args.text,
+    latency_ms: args.latencyMs ?? null,
+  };
+  let { data, error } = await sb
     .from("coaching_cues")
     .insert({
-      session_id: args.sessionId,
-      mode: args.mode,
-      text: args.text,
-      latency_ms: args.latencyMs ?? null,
+      ...base,
+      trigger: args.trigger ?? null,
+      signal: (args.signal ?? null) as never,
     })
     .select("*")
     .single();
+  // F1 defensive (§1.5) — the trigger/signal columns may not exist yet
+  // (pre-0079). Fall back to the legacy insert so the §3.5 cue-reliance
+  // signal keeps recording through the migration window. Self-heals once
+  // 0079 is applied.
+  if (error) {
+    ({ data, error } = await sb
+      .from("coaching_cues")
+      .insert(base)
+      .select("*")
+      .single());
+  }
   if (error || !data) {
     // eslint-disable-next-line no-console
     console.error(

@@ -52,8 +52,9 @@ export function fillerStats(text: string): {
   const lower = ` ${text.toLowerCase().replace(/[.,!?;:]/g, " ")} `;
   let fillers = 0;
   for (const f of FILLERS) {
-    // Count word-boundary occurrences of the filler token/phrase.
-    const re = new RegExp(`\\s${f.replace(/ /g, "\\s+")}\\s`, "g");
+    // F3 (§3.4) — word-boundary match that does NOT consume the surrounding
+    // whitespace, so consecutive fillers ("um um") are BOTH counted.
+    const re = new RegExp(`\\b${f.replace(/ /g, "\\s+")}\\b`, "g");
     const m = lower.match(re);
     if (m) fillers += m.length;
   }
