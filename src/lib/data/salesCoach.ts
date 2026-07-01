@@ -384,14 +384,20 @@ export type SalesCorpus = {
  * operation. §3.1: this is the latest of the append-only versions, never
  * a mutable row.
  */
+export type SalesCorpusKind = "methodology" | "product";
+
 export async function getCurrentSalesCorpus(
-  companyId: string
+  companyId: string,
+  // Defaults to methodology so every existing caller (review/dissect/prep)
+  // is unchanged; product knowledge (0078) is the second kind.
+  kind: SalesCorpusKind = "methodology"
 ): Promise<SalesCorpus | null> {
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("sales_coach_corpus_versions")
     .select("content, created_at, created_by")
     .eq("company_id", companyId)
+    .eq("kind", kind)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -410,12 +416,14 @@ export async function appendSalesCorpusVersion(args: {
   companyId: string;
   content: string;
   createdBy: string;
+  kind?: SalesCorpusKind;
 }): Promise<boolean> {
   const sb = createServiceRoleClient();
   const { error } = await sb.from("sales_coach_corpus_versions").insert({
     company_id: args.companyId,
     content: args.content,
     created_by: args.createdBy,
+    kind: args.kind ?? "methodology",
   });
   return !error;
 }

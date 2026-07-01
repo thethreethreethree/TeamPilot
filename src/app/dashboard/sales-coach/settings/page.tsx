@@ -9,6 +9,7 @@ import {
   Save,
   Volume2,
   Check,
+  Package,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
@@ -104,6 +105,8 @@ export default function SalesCoachSettingsPage() {
             {tab === "coaching" && isManager && ctx && (
               <div className="space-y-4">
                 <CorpusEditor />
+
+                <ProductEditor />
 
                 <VoicePicker />
               </div>
@@ -287,6 +290,140 @@ function CorpusEditor() {
                 <Save className="w-3.5 h-3.5" aria-hidden />
               )}
               {saving ? "Saving…" : "Save methodology"}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+type ProductData = {
+  content: string;
+  isSet: boolean;
+  updatedAt: string | null;
+  updatedByName: string | null;
+};
+
+/**
+ * Editable PRODUCT / brand details (migration 0078). An admin describes what
+ * the team sells; this is the coach's product source for Prep Time + product-
+ * aware coaching. Append-only versions (§3.1), mirroring the methodology
+ * editor above (§A21 — same store, second kind).
+ */
+function ProductEditor() {
+  const toast = useToast();
+  const [data, setData] = useState<ProductData | null>(null);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/coach/sales-session/product").catch(
+        () => null
+      );
+      if (res && res.ok) {
+        const d: ProductData = await res.json();
+        setData(d);
+        setText(d.content ?? "");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const dirty = data
+    ? text.trim() !== (data.content ?? "").trim()
+    : text.trim().length > 0;
+
+  const save = async () => {
+    if (!text.trim() || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/coach/sales-session/product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        throw new Error(b?.error ?? "failed");
+      }
+      toast.success("Product details saved", "The coach can use them for prep.");
+      await load();
+    } catch (e) {
+      toast.error("Couldn't save", e instanceof Error ? e.message : undefined);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+      <div className="flex items-center gap-1.5">
+        <Package className="w-3.5 h-3.5 text-brand" aria-hidden />
+        <h2 className="text-sm font-semibold text-primary">
+          Product &amp; brand details
+        </h2>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-xs text-muted py-4">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+          Loading…
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-secondary leading-relaxed">
+            What your team sells — the offer, pricing, key benefits, common
+            objections, and anything a rep should have at their fingertips. The
+            coach draws on this for Prep Time.
+          </p>
+          {data?.isSet && data.updatedAt && (
+            <p className="text-[11px] text-muted">
+              Last saved {new Date(data.updatedAt).toLocaleString()}
+              {data.updatedByName ? ` by ${data.updatedByName}` : ""}.
+            </p>
+          )}
+
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={12}
+            placeholder="Describe the product/offer: what it is, who it's for, pricing, the strongest benefits, and the objections you hear most. The coach uses this to prep the rep on what they're selling."
+            className="w-full bg-surface border border-default rounded-lg px-3 py-2.5 text-xs text-primary placeholder:text-muted font-mono leading-relaxed focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-y"
+          />
+
+          <p
+            className={`text-[10px] text-right ${
+              text.length > 100000 ? "text-red-400" : "text-muted"
+            }`}
+          >
+            {text.length.toLocaleString()} / 100,000 characters
+          </p>
+
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] text-muted">
+              Saving appends a new version (history is kept).
+            </p>
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={saving || !text.trim() || !dirty || text.length > 100000}
+              className="inline-flex items-center gap-1.5 shrink-0 bg-ember-400 hover:bg-ember-500 disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+            >
+              {saving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Save className="w-3.5 h-3.5" aria-hidden />
+              )}
+              {saving ? "Saving…" : "Save details"}
             </button>
           </div>
         </>
