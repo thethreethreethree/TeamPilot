@@ -84,6 +84,8 @@ export async function generateLiveCue(args: {
   /** MEASURED stress on the rep's latest turn (build 3) — filler density
    *  and/or a pace spike vs their baseline. The brain still decides. */
   stress?: { fillerSpike: boolean; paceSpike: boolean };
+  /** Option 3 — the rep's signal-based confidence read, as a HINT. */
+  confidenceLevel?: "steady" | "wavering" | "unsteady";
 }): Promise<LiveCueResult> {
   const silent: LiveCueResult = {
     shouldCue: false,
@@ -115,6 +117,7 @@ export async function generateLiveCue(args: {
       recentSegments,
       stalled: args.stalled,
       stress: args.stress,
+      confidenceLevel: args.confidenceLevel,
     });
 
     const r = await liveSalesCue({

@@ -41,6 +41,8 @@ const BodySchema = z.object({
       paceSpike: z.boolean(),
     })
     .optional(),
+  // Option 3 (build): the rep's signal-based confidence read, as a HINT.
+  confidence: z.enum(["steady", "wavering", "unsteady"]).optional(),
   // S1b realtime: an inline rolling transcript from the live websocket.
   // When present, the brain reads it directly — skipping the DB round
   // trip that would add latency on the hot path ("a late tip is
@@ -111,6 +113,7 @@ export async function POST(
     force: body.force,
     stalled: body.stall,
     stress: body.stress,
+    confidenceLevel: body.confidence,
   });
 
   // Record only delivered cues (append-only). A "stay silent" decision

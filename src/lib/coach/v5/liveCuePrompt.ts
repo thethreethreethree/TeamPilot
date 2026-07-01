@@ -121,6 +121,8 @@ export function buildLiveCueUserMessage(args: {
   stalled?: boolean;
   /** MEASURED stress on the rep's latest turn (build 3). */
   stress?: { fillerSpike: boolean; paceSpike: boolean };
+  /** Option 3 — the rep's signal-based confidence read, as a HINT. */
+  confidenceLevel?: "steady" | "wavering" | "unsteady";
 }): string {
   const ctx = args.context
     ? `Context: ${args.context === "in_person" ? "in-person, door-to-door" : "online video call"}\n\n`
@@ -136,6 +138,11 @@ export function buildLiveCueUserMessage(args: {
   const stress = stressBits.length
     ? `\n\nMEASURED STRESS on the rep's latest turn: ${stressBits.join(" + ")}. This is a strong hint for filler_spike / pace_spike — a SHORT steadying nudge — but only if the rep isn't handling it fine on their own (§3.3).`
     : "";
+  // Option 3 — confidence as a HINT (§3.3 you still decide; §4 it is a
+  // signal-based read, NOT validated — weight it, don't obey it).
+  const confidence = args.confidenceLevel
+    ? `\n\nCONFIDENCE READ (signal-based, not validated): the rep looks "${args.confidenceLevel}". If STEADY, lean toward SILENCE — trust them unless the trigger is genuinely high-value (a real objection / buying signal). If WAVERING or UNSTEADY, they may need support sooner. This is a nudge to your judgement, not a rule.`
+    : "";
   const stall = args.stalled
     ? `\n\nNOTE: the conversation has gone quiet with no new speech (a possible STALL). You are the AUTHORITATIVE guard on the sacred silence — decide from the transcript, nothing else can. Before anything, LOOK AT THE LAST AGENT TURN above:
 - If the AGENT just made a close, an ask, an offer, or a strong pitch the customer is now weighing, THIS IS THE SACRED POST-CLOSE / DECISION SILENCE — the customer is thinking. DO NOT break it. Set phase "close", trigger "none", shouldCue false.
@@ -143,7 +150,7 @@ export function buildLiveCueUserMessage(args: {
     : "";
   return `${ctx}Conversation so far (most recent turns):
 
-${rolling}${stall}${stress}
+${rolling}${stall}${stress}${confidence}
 
 Read the phase, decide whether to cue, and if so give one short cue. JSON only.`;
 }

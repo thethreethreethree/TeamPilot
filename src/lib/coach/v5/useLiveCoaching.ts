@@ -202,6 +202,8 @@ export function useLiveCoaching(sessionId: string) {
   // Build 4 — confidence read: a rolling window of the rep's recent stress
   // flags, aggregated (with talk-ratio) into a coarse, signal-based read.
   const recentStressRef = useRef<{ filler: boolean; pace: boolean }[]>([]);
+  // Latest confidence read, for the cue brain (Option 3 — a hint, not a gate).
+  const confidenceRef = useRef<ConfidenceRead | null>(null);
 
   // Speak a cue privately to the agent (reuses Jeff's flash TTS).
   const speakCue = useCallback(async (text: string) => {
@@ -304,6 +306,11 @@ export function useLiveCoaching(sessionId: string) {
             stall,
             // Measured stress on the rep's latest turn (build 3), or omitted.
             stress,
+            // Option 3 — the rep's overall confidence read as a HINT (not a
+            // gate): steady → lean silent; wavering/unsteady → lean supportive.
+            confidence: confidenceRef.current?.hasEnough
+              ? confidenceRef.current.level
+              : undefined,
             // Attributed turns — the brain reads WHO said what.
             liveTranscript: live.slice(-12).map((t) => ({
               speaker: t.speaker,
@@ -769,13 +776,13 @@ export function useLiveCoaching(sessionId: string) {
               if (t.speaker === "agent") repW += w;
               else if (t.speaker === "customer") custW += w;
             }
-            setConfidence(
-              computeConfidence({
-                recentStress: recentStressRef.current,
-                repWords: repW,
-                customerWords: custW,
-              })
-            );
+            const conf = computeConfidence({
+              recentStress: recentStressRef.current,
+              repWords: repW,
+              customerWords: custW,
+            });
+            confidenceRef.current = conf;
+            setConfidence(conf);
           }
           // Speech happened → reset the stall timer. After STALL_MS of
           // silence, consult the brain with the stall flag — it reads the
