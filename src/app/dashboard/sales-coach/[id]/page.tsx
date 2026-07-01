@@ -161,6 +161,36 @@ export default function SessionDetail() {
     }
   };
 
+  // Prep Time (build 2) — the rep asks the coach a free-form question before
+  // the call (advice, or "what am I selling?"), answered from the product +
+  // methodology corpus. §3.3 — on-demand, the rep asked.
+  const [prepQuestion, setPrepQuestion] = useState("");
+  const [prepAnswer, setPrepAnswer] = useState<{
+    answer: string;
+    hasAnswer: boolean;
+    failed: boolean;
+  } | null>(null);
+  const [prepQABusy, setPrepQABusy] = useState(false);
+  const askCoach = async () => {
+    const q = prepQuestion.trim();
+    if (q.length < 2) return;
+    setPrepQABusy(true);
+    setPrepAnswer(null);
+    try {
+      const res = await fetch(`/api/coach/sales-session/${id}/prep-qa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q }),
+      });
+      if (res.ok) setPrepAnswer((await res.json()).result);
+      else setPrepAnswer({ answer: "", hasAnswer: false, failed: true });
+    } catch {
+      setPrepAnswer({ answer: "", hasAnswer: false, failed: true });
+    } finally {
+      setPrepQABusy(false);
+    }
+  };
+
   // Phase 2 — record the OUTCOME (the downstream consequence, §3.5). Append-
   // only server-side; re-recording is a correction, not a rewrite of history.
   const [savingOutcome, setSavingOutcome] = useState<SalesOutcome | null>(null);
@@ -370,6 +400,63 @@ export default function SessionDetail() {
                   session for a sharper briefing.
                 </p>
               ))}
+
+            {/* Prep Time (build 2) — ask the coach before the call. §3.3 —
+                on-demand help; the rep asked. Grounded in the product details
+                (Settings) + methodology; §3.4 — no invented product facts. */}
+            {session && (
+              <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <Lightbulb className="w-3.5 h-3.5 text-brand" aria-hidden />
+                  <h2 className="text-sm font-semibold text-primary">
+                    Ask the coach
+                  </h2>
+                </div>
+                <p className="text-xs text-secondary leading-relaxed">
+                  Before you go — ask for advice or the details of what
+                  you&apos;re selling.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={prepQuestion}
+                    onChange={(e) => setPrepQuestion(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void askCoach();
+                    }}
+                    placeholder="e.g. What am I selling? How do I handle a price objection?"
+                    className="flex-1 min-w-0 text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void askCoach()}
+                    disabled={prepQABusy || prepQuestion.trim().length < 2}
+                    className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-2 rounded-lg transition-colors"
+                  >
+                    {prepQABusy ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <HelpCircle className="w-3.5 h-3.5" aria-hidden />
+                    )}
+                    Ask
+                  </button>
+                </div>
+                {prepAnswer &&
+                  (prepAnswer.failed ? (
+                    <p className="text-[11px] text-amber-300 pt-1 border-t border-default">
+                      Couldn&apos;t answer right now — try again in a moment.
+                    </p>
+                  ) : prepAnswer.hasAnswer ? (
+                    <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap pt-2 border-t border-default">
+                      {prepAnswer.answer}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted pt-1 border-t border-default">
+                      No answer came back — try rephrasing.
+                    </p>
+                  ))}
+              </section>
+            )}
 
             {/* Phase 2 — outcome + captured details. §1.5.1 L3: once the call
                 has ended, recording what happened is the natural next step

@@ -44,14 +44,20 @@ SALES METHODOLOGY (reason FROM it; adapt to THIS call):
 - VALUE before the ask: don't close before the value has landed.
 `.trim();
 
-function buildPrepSystemPrompt(corpus?: string | null): string {
+function buildPrepSystemPrompt(
+  corpus?: string | null,
+  product?: string | null
+): string {
   const methodology = corpus?.trim() ? corpus.trim() : DEFAULT_METHODOLOGY;
+  const productBlock = product?.trim()
+    ? `\n\nPRODUCT / OFFER DETAILS (what the rep is actually selling — ground the prep in THIS; NEVER invent product specifics beyond it):\n${product.trim()}`
+    : `\n\n(No product details on file — prep from the methodology + the session's offer field only; do NOT invent product specifics.)`;
   return `You are a sales coach giving a rep a SHORT pre-knock briefing — the
 30 seconds before they knock or dial. You PREPARE them; you do NOT script
 them (§3.3 — guide, never overtake). Reason FROM the methodology below and
 adapt to THIS call's specifics.
 
-${methodology}
+${methodology}${productBlock}
 
 Give exactly:
 - opening: ONE natural way to open for this offer/context — a direction, not
@@ -123,8 +129,11 @@ export async function generatePrep(args: {
   session: SalesSession;
 }): Promise<SalesPrep> {
   try {
-    const corpus = await getCurrentSalesCorpus(args.companyId).catch(() => null);
-    const systemPrompt = buildPrepSystemPrompt(corpus?.content);
+    const [corpus, product] = await Promise.all([
+      getCurrentSalesCorpus(args.companyId).catch(() => null),
+      getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
+    ]);
+    const systemPrompt = buildPrepSystemPrompt(corpus?.content, product?.content);
     const userMessage = buildPrepUserMessage(args.session);
     const r = await dissectCoachV5({
       companyId: args.companyId,
