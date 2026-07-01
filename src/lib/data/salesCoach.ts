@@ -22,6 +22,23 @@ export type SalesSessionStatus = "active" | "ended" | "reviewed";
 export type TranscriptSpeaker = "agent" | "customer" | "unknown";
 export type CueMode = "suggestion" | "guide_response";
 
+// Phase 2 capture — the downstream result of a call. §3.5: the consequence
+// the differentiated metric anchors to. Small, revisable set (founder may
+// extend); no_contact = door not answered / prospect unreachable.
+export type SalesOutcome =
+  | "sold"
+  | "follow_up"
+  | "no_sale"
+  | "no_contact"
+  | "undecided";
+export const SALES_OUTCOMES: SalesOutcome[] = [
+  "sold",
+  "follow_up",
+  "no_sale",
+  "no_contact",
+  "undecided",
+];
+
 export type SalesSession = {
   id: string;
   companyId: string;
@@ -32,6 +49,11 @@ export type SalesSession = {
   audioAssetUrl: string | null;
   startedAt: string;
   endedAt: string | null;
+  // Phase 2 capture (all optional). when = startedAt; why = derived (Phase 3).
+  territory: string | null; // WHERE
+  approach: string | null; // HOW
+  offer: string | null; // WHAT
+  outcome: SalesOutcome | null; // downstream result (recorded after the call)
 };
 
 export type TranscriptSegment = {
@@ -63,6 +85,10 @@ function mapSession(row: Record<string, unknown>): SalesSession {
     audioAssetUrl: (row.audio_asset_url as string | null) ?? null,
     startedAt: row.started_at as string,
     endedAt: (row.ended_at as string | null) ?? null,
+    territory: (row.territory as string | null) ?? null,
+    approach: (row.approach as string | null) ?? null,
+    offer: (row.offer as string | null) ?? null,
+    outcome: (row.outcome as SalesOutcome | null) ?? null,
   };
 }
 
@@ -95,6 +121,10 @@ export async function createSession(args: {
   agentId: string;
   context: SalesContext;
   clientLabel?: string | null;
+  // Phase 2 capture, all optional (only the title is required).
+  territory?: string | null;
+  approach?: string | null;
+  offer?: string | null;
 }): Promise<SalesSession | null> {
   const sb = createServiceRoleClient();
   const { data, error } = await sb
@@ -104,6 +134,9 @@ export async function createSession(args: {
       agent_id: args.agentId,
       context: args.context,
       client_label: args.clientLabel ?? null,
+      territory: args.territory ?? null,
+      approach: args.approach ?? null,
+      offer: args.offer ?? null,
     })
     .select("*")
     .single();
@@ -139,6 +172,47 @@ export async function setSessionStatus(args: {
       `[salesCoach.setSessionStatus] failed session=${args.sessionId}: ${error?.message ?? "no row"}`
     );
     return null;
+  }
+  return mapSession(data);
+}
+
+/** Record the call OUTCOME (Phase 2 capture). Updates the column (the
+ *  derived current state, for display/filter) AND appends an immutable
+ *  `coach.session_outcome_recorded` event (§3.1) so the §3.5 consequence
+ *  measurement + the Phase 3 WHY engine replay the full history — including
+ *  a correction (record then re-record appends a second event; the column
+ *  holds the latest). */
+export async function setSessionOutcome(args: {
+  sessionId: string;
+  outcome: SalesOutcome;
+  actorId: string;
+}): Promise<SalesSession | null> {
+  const sb = createServiceRoleClient();
+  const { data, error } = await sb
+    .from("coaching_sessions")
+    .update({ outcome: args.outcome })
+    .eq("id", args.sessionId)
+    .select("*")
+    .single();
+  if (error || !data) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesCoach.setSessionOutcome] failed session=${args.sessionId}: ${error?.message ?? "no row"}`
+    );
+    return null;
+  }
+  // Append-only record of the consequence (§3.1/§3.5). Best-effort: the
+  // column write is the user-visible result; a failed event must not undo it.
+  try {
+    await sb.from("events").insert({
+      company_id: data.company_id,
+      actor: args.actorId,
+      kind: "coach.session_outcome_recorded",
+      subject: `sales_session:${args.sessionId}`,
+      payload: { outcome: args.outcome },
+    });
+  } catch {
+    /* best-effort — the outcome column is already set */
   }
   return mapSession(data);
 }

@@ -32,13 +32,40 @@ type Segment = {
   text: string;
   seq: number;
 };
+type SalesOutcome =
+  | "sold"
+  | "follow_up"
+  | "no_sale"
+  | "no_contact"
+  | "undecided";
 type Session = {
   id: string;
   context: "in_person" | "video";
   clientLabel: string | null;
   status: "active" | "ended" | "reviewed";
   startedAt: string;
+  // Phase 2 capture.
+  territory: string | null;
+  approach: string | null;
+  offer: string | null;
+  outcome: SalesOutcome | null;
 };
+
+// Human labels — kept in sync with SALES_OUTCOMES (salesCoach.ts).
+const OUTCOME_LABELS: Record<SalesOutcome, string> = {
+  sold: "Sold",
+  follow_up: "Follow-up",
+  no_sale: "No sale",
+  no_contact: "No contact",
+  undecided: "Undecided",
+};
+const OUTCOME_ORDER: SalesOutcome[] = [
+  "sold",
+  "follow_up",
+  "no_sale",
+  "no_contact",
+  "undecided",
+];
 type Strength = { point: string; example: string };
 type Growth = { opportunity: string; nextStep: string };
 type Review = {
@@ -117,6 +144,27 @@ export default function SessionDetail() {
     }
   };
 
+  // Phase 2 — record the OUTCOME (the downstream consequence, §3.5). Append-
+  // only server-side; re-recording is a correction, not a rewrite of history.
+  const [savingOutcome, setSavingOutcome] = useState<SalesOutcome | null>(null);
+  const recordOutcome = async (outcome: SalesOutcome) => {
+    setSavingOutcome(outcome);
+    setError(null);
+    try {
+      const res = await fetch(`/api/coach/sales-session/${id}/outcome`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome }),
+      });
+      if (res.ok) setSession((await res.json()).session);
+      else setError(`Couldn't record the outcome (HTTP ${res.status}).`);
+    } catch {
+      setError("Couldn't record the outcome.");
+    } finally {
+      setSavingOutcome(null);
+    }
+  };
+
   return (
     <>
       <TopBar
@@ -188,6 +236,58 @@ export default function SessionDetail() {
                 {review ? "Regenerate growth review" : "Generate growth review"}
               </button>
             </div>
+
+            {/* Phase 2 — outcome + captured details. §1.5.1 L3: once the call
+                has ended, recording what happened is the natural next step
+                (shown only post-call, never blocking Stop). §3.5: the outcome
+                is the consequence the coach measures against — not agreement. */}
+            {session && session.status !== "active" && (
+              <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+                <h2 className="text-sm font-semibold text-primary">Call outcome</h2>
+                <div className="flex flex-wrap gap-1.5">
+                  {OUTCOME_ORDER.map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      onClick={() => void recordOutcome(o)}
+                      disabled={savingOutcome !== null}
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                        session.outcome === o
+                          ? "border-ember-400/50 bg-ember-400/10 text-brand"
+                          : "border-default text-secondary hover:text-primary"
+                      }`}
+                    >
+                      {OUTCOME_LABELS[o]}
+                    </button>
+                  ))}
+                </div>
+                {session.outcome === null && (
+                  <p className="text-[11px] text-muted">
+                    Not recorded yet — logging the result is what lets your coach
+                    measure what actually works, not just what sounded good.
+                  </p>
+                )}
+                {(session.territory || session.approach || session.offer) && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted pt-2 border-t border-default">
+                    {session.territory && (
+                      <span>
+                        Where: <span className="text-secondary">{session.territory}</span>
+                      </span>
+                    )}
+                    {session.approach && (
+                      <span>
+                        How: <span className="text-secondary">{session.approach}</span>
+                      </span>
+                    )}
+                    {session.offer && (
+                      <span>
+                        What: <span className="text-secondary">{session.offer}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* Review (strengths first — the tone law) */}
             {review?.hasSignal && (

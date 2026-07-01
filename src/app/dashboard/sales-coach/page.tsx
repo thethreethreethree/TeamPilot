@@ -55,6 +55,11 @@ export default function SalesCoachHome() {
   const [series, setSeries] = useState<ProgressPoint[]>([]);
   const [context, setContext] = useState<"in_person" | "video">("video");
   const [clientLabel, setClientLabel] = useState("");
+  // Phase 2 capture (optional) — WHERE / HOW / WHAT, entered up front.
+  const [territory, setTerritory] = useState("");
+  const [approach, setApproach] = useState("");
+  const [offer, setOffer] = useState("");
+  const [showCapture, setShowCapture] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,7 +99,13 @@ export default function SalesCoachHome() {
       const res = await fetch("/api/coach/sales-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ context, clientLabel: label }),
+        body: JSON.stringify({
+          context,
+          clientLabel: label,
+          territory: territory.trim() || undefined,
+          approach: approach.trim() || undefined,
+          offer: offer.trim() || undefined,
+        }),
       });
       if (!res.ok) {
         const b = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -188,6 +199,36 @@ export default function SalesCoachHome() {
                 Start session
               </button>
             </div>
+            {/* Phase 2 capture — optional WHERE/HOW/WHAT, tucked behind a
+                toggle so it never blocks the primary title+start flow (L4).
+                WHEN is the start time; the outcome (WHY's result) is recorded
+                after the call, on the session page. */}
+            <button
+              type="button"
+              onClick={() => setShowCapture((v) => !v)}
+              className="mt-3 text-[11px] text-muted hover:text-secondary transition-colors"
+            >
+              {showCapture ? "− Hide details" : "+ Add details (where / how / what) — optional"}
+            </button>
+            {showCapture && (
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <CaptureInput
+                  value={territory}
+                  onChange={setTerritory}
+                  placeholder="Where (territory / area)"
+                />
+                <CaptureInput
+                  value={approach}
+                  onChange={setApproach}
+                  placeholder="How (referral / cold / follow-up)"
+                />
+                <CaptureInput
+                  value={offer}
+                  onChange={setOffer}
+                  placeholder="What (the offer pitched)"
+                />
+              </div>
+            )}
             {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
           </section>
 
@@ -333,6 +374,26 @@ export default function SalesCoachHome() {
         </div>
       </div>
     </>
+  );
+}
+
+function CaptureInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+    />
   );
 }
 

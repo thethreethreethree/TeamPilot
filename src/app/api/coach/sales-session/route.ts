@@ -22,6 +22,11 @@ const CreateSchema = z.object({
   // Required (founder 2026-07-01): every session must be titled before it can
   // begin — an untitled session creates initial ambiguity in the history.
   clientLabel: z.string().trim().min(1).max(200),
+  // Phase 2 capture, all OPTIONAL (only the title is required). when =
+  // started_at; where/how/what entered up front; why is derived (Phase 3).
+  territory: z.string().trim().max(200).optional(), // WHERE
+  approach: z.string().trim().max(200).optional(), // HOW
+  offer: z.string().trim().max(500).optional(), // WHAT
 });
 
 export async function POST(req: NextRequest) {
@@ -50,6 +55,9 @@ export async function POST(req: NextRequest) {
     agentId: auth.user.id,
     context: body.context,
     clientLabel: body.clientLabel,
+    territory: body.territory || null,
+    approach: body.approach || null,
+    offer: body.offer || null,
   });
   if (!session) {
     return NextResponse.json(

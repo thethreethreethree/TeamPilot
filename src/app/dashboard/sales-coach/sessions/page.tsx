@@ -28,10 +28,21 @@ type Row = {
   status: "active" | "ended" | "reviewed";
   startedAt: string;
   endedAt: string | null;
+  territory: string | null;
+  offer: string | null;
+  outcome: string | null;
   agentName: string | null;
   hasDissect: boolean;
   hasSummary: boolean;
   hasReview: boolean;
+};
+
+const OUTCOME_LABELS: Record<string, string> = {
+  sold: "Sold",
+  follow_up: "Follow-up",
+  no_sale: "No sale",
+  no_contact: "No contact",
+  undecided: "Undecided",
 };
 
 function duration(start: string, end: string | null): string {
@@ -205,9 +216,15 @@ export default function SalesCoachSessionsPage() {
                   <span className="block text-[10px] text-muted">
                     {new Date(s.startedAt).toLocaleString()} ·{" "}
                     {duration(s.startedAt, s.endedAt)} · {s.status}
+                    {s.territory ? ` · ${s.territory}` : ""}
                     {isManager && s.agentName ? ` · ${s.agentName}` : ""}
                   </span>
                 </span>
+                {s.outcome && (
+                  <span className="shrink-0 text-[10px] text-secondary border border-default rounded-full px-2 py-0.5">
+                    {OUTCOME_LABELS[s.outcome] ?? s.outcome}
+                  </span>
+                )}
                 {badgesAvailable && (
                   <span className="hidden sm:flex items-center gap-1.5 shrink-0">
                     {s.hasReview && <Badge icon={Star} label="Review" />}

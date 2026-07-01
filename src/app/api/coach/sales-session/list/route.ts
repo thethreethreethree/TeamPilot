@@ -47,7 +47,9 @@ export async function GET() {
 
   let query = admin
     .from("coaching_sessions")
-    .select("id, agent_id, client_label, context, status, started_at, ended_at")
+    .select(
+      "id, agent_id, client_label, context, status, started_at, ended_at, territory, offer, outcome"
+    )
     .eq("company_id", ctx.companyId)
     .order("started_at", { ascending: false })
     .limit(300);
@@ -109,6 +111,9 @@ export async function GET() {
       status: s.status as "active" | "ended" | "reviewed",
       startedAt: s.started_at as string,
       endedAt: (s.ended_at as string | null) ?? null,
+      territory: (s.territory as string | null) ?? null,
+      offer: (s.offer as string | null) ?? null,
+      outcome: (s.outcome as string | null) ?? null,
       agentName: ctx.isManager
         ? (names.get(s.agent_id as string) ?? "Unnamed")
         : null,
