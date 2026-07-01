@@ -240,9 +240,6 @@ export function LiveCoachingPanel({
             <span className="text-[11px] font-semibold text-secondary">
               Earpiece taps
             </span>
-            <span className="text-[9px] uppercase tracking-widest text-muted">
-              experimental
-            </span>
             {tapFlash && (
               <span className="text-[10px] text-emerald-400 ml-auto">
                 ✓ tap received
@@ -261,9 +258,8 @@ export function LiveCoachingPanel({
             </li>
           </ul>
           <p className="mt-1 text-[9px] text-muted/80">
-            Works only if your earbuds send media controls to the browser —
-            varies by device. Watch for “✓ tap received” to confirm it&apos;s
-            reaching the app.
+            Works on earbuds that send media controls to the browser (varies by
+            device). The “✓” shows when a tap reaches the app.
           </p>
         </div>
       )}
