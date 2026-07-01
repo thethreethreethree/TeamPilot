@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Lightbulb,
   MessageSquare,
+  Brain,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 
@@ -53,6 +54,18 @@ export default function SalesCoachHome() {
   const [sessions, setSessions] = useState<Session[] | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [series, setSeries] = useState<ProgressPoint[]>([]);
+  // Phase 4 — cross-session why patterns (§3.6 make-learning-visible).
+  const [patterns, setPatterns] = useState<{
+    hasEnoughData: boolean;
+    whysAnalyzed: number;
+    patterns: {
+      pattern: string;
+      frequency: string;
+      outcomeAssociation: string;
+      kind: "strength" | "growth";
+    }[];
+    note: string;
+  } | null>(null);
   const [context, setContext] = useState<"in_person" | "video">("video");
   const [clientLabel, setClientLabel] = useState("");
   // Phase 2 capture (optional) — WHERE / HOW / WHAT, entered up front.
@@ -65,9 +78,10 @@ export default function SalesCoachHome() {
 
   const load = useCallback(async () => {
     try {
-      const [sRes, dRes] = await Promise.all([
+      const [sRes, dRes, pRes] = await Promise.all([
         fetch("/api/coach/sales-session").catch(() => null),
         fetch("/api/coach/sales-session/dashboard").catch(() => null),
+        fetch("/api/coach/sales-session/why-patterns").catch(() => null),
       ]);
       if (sRes && sRes.ok) setSessions((await sRes.json()).sessions ?? []);
       else setSessions([]);
@@ -76,6 +90,7 @@ export default function SalesCoachHome() {
         setStats(d.stats ?? null);
         setSeries(d.series ?? []);
       }
+      if (pRes && pRes.ok) setPatterns((await pRes.json()).patterns ?? null);
     } catch {
       setSessions([]);
     }
@@ -296,6 +311,65 @@ export default function SalesCoachHome() {
               </p>
             )}
           </section>
+
+          {/* Phase 4 — what the coach is learning about you across sessions
+              (§3.6 make-learning-visible; §4 — gated, no fabricated pattern
+              until enough whys+outcomes exist). */}
+          {patterns && (
+            <section className="rounded-xl border border-default bg-white/[0.01] p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Brain className="w-3.5 h-3.5 text-brand" aria-hidden />
+                <h2 className="text-sm font-semibold text-primary">
+                  What your coach is learning about you
+                </h2>
+              </div>
+              {patterns.hasEnoughData && patterns.patterns.length > 0 ? (
+                <div className="space-y-3">
+                  {patterns.note && (
+                    <p className="text-xs text-secondary leading-relaxed">
+                      {patterns.note}
+                    </p>
+                  )}
+                  <ul className="space-y-2">
+                    {patterns.patterns.map((p, i) => (
+                      <li
+                        key={i}
+                        className="rounded-lg border border-default bg-white/[0.01] p-3"
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className={`text-[9px] uppercase tracking-widest font-bold ${
+                              p.kind === "strength"
+                                ? "text-emerald-300"
+                                : "text-amber-300"
+                            }`}
+                          >
+                            {p.kind === "strength" ? "Working for you" : "Costing you"}
+                          </span>
+                          <span className="text-[10px] text-muted">{p.frequency}</span>
+                        </div>
+                        <p className="text-xs text-primary leading-relaxed">
+                          {p.pattern}
+                        </p>
+                        <p className="text-[11px] text-secondary leading-relaxed mt-0.5">
+                          {p.outcomeAssociation}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[10px] text-muted">
+                    Patterns from your own reads across {patterns.whysAnalyzed}{" "}
+                    sessions — tied to what actually happened, not guesses. For your
+                    growth, never a ranking.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted leading-relaxed">
+                  {patterns.note}
+                </p>
+              )}
+            </section>
+          )}
 
           {/* Growth opportunities to practice (§3.6 — visible, specific) */}
           {stats && stats.recentGrowth.length > 0 && (
