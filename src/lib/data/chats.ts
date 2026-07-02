@@ -424,16 +424,41 @@ export async function fetchTopics(scope: ChatScope = "elostate"): Promise<{
   // every topic gets its real counts in one round-trip.
   const COLS =
     "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, locked, participant_count, message_count, last_message_at";
-  // Scope to the surface (Elostate vs Sales Coach, migration 0076 — applied).
-  // No unscoped fallback: a transient error must NOT silently widen to an
-  // unscoped read (which would mix Elostate topics into the Sales Coach
-  // shell). An error fails honestly to an empty list (§1.5/§2), never to
-  // wrong-scoped data.
-  const { data, error } = await supabase
+  // Scope to the surface (Elostate vs Sales Coach, migration 0076). A transient
+  // error must NOT silently widen to an unscoped read (which would mix Elostate
+  // topics into the Sales Coach shell) — so on any NON-schema error we still
+  // fail closed to an empty list (§1.5/§2).
+  let { data, error } = await supabase
     .from("chat_topic_with_counts")
     .select(COLS)
     .eq("scope", scope)
     .order("created_at", { ascending: false });
+  // SELF-HEAL (2026-07-03): if migrations 0071 (locked) / 0076 (scope) are NOT
+  // applied on this DB, the scope filter / locked column don't exist and
+  // Postgres returns 42703 (undefined_column) — a total chat outage that reads
+  // as "all my chats vanished" (the app can't see any topic). Migration 0076's
+  // own header documents a fallback "until this is applied"; the code had
+  // dropped it. Restore it, but NARROWLY: only on 42703 (never a transient
+  // error), and only for the Elostate surface — because with no scope column,
+  // NO 'sales_coach' topic can exist yet, so an unscoped read returns exactly
+  // the Elostate topics (no scope mixing, §1.5/§2 upheld). The real fix is to
+  // apply 0071/0076; this keeps chat alive in the deploy-before-migration gap.
+  if (error && (error as { code?: string }).code === "42703") {
+    if (scope !== "elostate") {
+      // No scope column ⇒ no sales_coach topics can exist. Honest empty.
+      return { topics: [], mode: "live-empty" };
+    }
+    const COLS_PREMIGRATION =
+      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, participant_count, message_count, last_message_at";
+    const fb = await supabase
+      .from("chat_topic_with_counts")
+      .select(COLS_PREMIGRATION)
+      .order("created_at", { ascending: false });
+    // Cast through unknown: the fallback rows lack `locked`, which the mapping
+    // reads as `row.locked ?? false` → false. Shapes are otherwise identical.
+    data = (fb.data as unknown as typeof data) ?? null;
+    error = fb.error;
+  }
   if (error || !data) return { topics: [], mode: "live-empty" };
 
   const topics: ChatTopic[] = data.map((row) => ({
@@ -852,15 +877,22 @@ export async function createTopic(args: {
     tags: args.tags,
     created_by: ctx.userId,
   };
-  // Insert the topic with its surface scope (migration 0076 — applied). RLS
-  // validates company_id == auth_company_id(). No unscoped-insert fallback:
-  // a Sales Coach topic must never silently land in 'elostate'. An error
-  // throws (surfaced), never silently mis-scopes (§1.5/§2).
-  const { data: topicRow, error: topicErr } = await supabase
+  // Insert the topic with its surface scope (migration 0076). RLS validates
+  // company_id == auth_company_id().
+  let ins = await supabase
     .from("chat_topics")
     .insert({ ...base, scope: args.scope ?? "elostate" })
     .select(SEL)
     .single();
+  // SELF-HEAL (2026-07-03): pre-0076 DBs have no `scope` column, so the insert
+  // returns 42703 (undefined_column) — new topics can't be created ("not
+  // saving"). Retry WITHOUT scope: pre-migration, 'elostate' is the only
+  // surface that exists, so a scope-less insert IS an Elostate topic — no
+  // mis-scoping (§1.5/§2). Only on 42703; a real error still throws below.
+  if (ins.error && (ins.error as { code?: string }).code === "42703") {
+    ins = await supabase.from("chat_topics").insert(base).select(SEL).single();
+  }
+  const { data: topicRow, error: topicErr } = ins;
   if (topicErr || !topicRow) {
     throw new Error(topicErr?.message ?? "Topic create failed.");
   }
