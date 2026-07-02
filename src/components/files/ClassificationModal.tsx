@@ -591,7 +591,7 @@ export function ClassificationModal({
           <button
             type="button"
             onClick={save}
-            disabled={saving || !title.trim()}
+            disabled={saving || (batchCount <= 1 && !title.trim())}
             className="bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold text-xs px-4 py-1.5 rounded-md flex items-center gap-1.5"
           >
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />}
