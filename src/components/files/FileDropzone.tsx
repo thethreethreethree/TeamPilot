@@ -105,9 +105,11 @@ export function FileDropzone({
   onFileSelected?: (file: File) => void;
   /** Batch variant of onFileSelected (large-file / folder upload): when
    *  provided, ALL picked files are handed to the parent at once (each with
-   *  its relative PATH so a folder can be zipped with structure). Takes
-   *  precedence over onFileSelected. */
-  onFilesSelected?: (items: PickedFile[]) => void;
+   *  its relative PATH). `isFolder` is EXPLICIT intent — true when this came
+   *  from the folder picker or a dropped directory — so the parent doesn't
+   *  have to sniff paths to know it's a folder. Takes precedence over
+   *  onFileSelected. */
+  onFilesSelected?: (items: PickedFile[], isFolder: boolean) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -184,16 +186,25 @@ export function FileDropzone({
   );
 
   const handleFiles = useCallback(
-    (files: FileList | null) => {
+    (files: FileList | null, isFolder = false) => {
       if (!files || files.length === 0) return;
       const all = Array.from(files);
       // Batch pre-upload classify (large files / folders): hand ALL files to
-      // the parent with their relative paths (webkitRelativePath from the
-      // folder picker; the bare filename for loose files).
+      // the parent with their relative paths. isFolder is explicit (folder
+      // picker); also treat "any path has a subdirectory" as a folder.
       if (onFilesSelected) {
-        onFilesSelected(
-          all.map((f) => ({ file: f, path: f.webkitRelativePath || f.name }))
-        );
+        const items = all.map((f) => ({
+          file: f,
+          path: f.webkitRelativePath || f.name,
+        }));
+        const folder = isFolder || items.some((i) => i.path.includes("/"));
+        // eslint-disable-next-line no-console
+        console.log("[dropzone] picked", {
+          isFolder: folder,
+          count: items.length,
+          paths: items.slice(0, 5).map((i) => i.path),
+        });
+        onFilesSelected(items, folder);
         return;
       }
       // Single pre-upload classify: defer one file to the parent's modal.
@@ -270,12 +281,19 @@ export function FileDropzone({
             if (entry) entries.push(entry);
           }
           const fallback = e.dataTransfer.files;
+          const hasDir = entries.some((en) => en.isDirectory);
           if (entries.length) {
             void (async () => {
               const files = (
                 await Promise.all(entries.map(entryToFiles))
               ).flat();
-              if (files.length) onFilesSelected(files);
+              // eslint-disable-next-line no-console
+              console.log("[dropzone] dropped", {
+                hasDir,
+                count: files.length,
+                paths: files.slice(0, 5).map((f) => f.path),
+              });
+              if (files.length) onFilesSelected(files, hasDir);
               else handleFiles(fallback);
             })();
             return;
@@ -312,7 +330,7 @@ export function FileDropzone({
           type="file"
           multiple
           className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
+          onChange={(e) => handleFiles(e.target.files, true)}
         />
       )}
       <div className="flex flex-col items-center text-center gap-2">

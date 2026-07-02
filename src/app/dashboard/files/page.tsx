@@ -59,11 +59,12 @@ export default function FilesLibraryPage() {
   // upload. Each file uploads DIRECT to storage via a signed URL (large-file
   // fix), then its record is created with the shared classification.
   const [pendingItems, setPendingItems] = useState<PickedFile[]>([]);
-  // A folder upload = any picked item whose path has a subdirectory. Those get
-  // zipped (structure preserved) into ONE asset; loose files stay per-file.
-  const isFolderUpload = pendingItems.some((i) => i.path.includes("/"));
-  const folderName =
-    pendingItems[0]?.path.split("/")[0] || "folder";
+  // EXPLICIT folder intent from the dropzone (folder picker / dropped
+  // directory) — the reliable signal. Path-sniffing is only a fallback.
+  const [explicitFolder, setExplicitFolder] = useState(false);
+  const isFolderUpload =
+    explicitFolder || pendingItems.some((i) => i.path.includes("/"));
+  const folderName = pendingItems[0]?.path.split("/")[0] || "folder";
   const toast = useToast();
 
   const refresh = useCallback(async () => {
@@ -180,6 +181,13 @@ export default function FilesLibraryPage() {
   const uploadDraft = async (draft: ClassificationDraft) => {
     if (pendingItems.length === 0) return;
     const supabase = createClient();
+    // eslint-disable-next-line no-console
+    console.log("[upload] uploadDraft", {
+      isFolderUpload,
+      explicitFolder,
+      count: pendingItems.length,
+      paths: pendingItems.slice(0, 5).map((i) => i.path),
+    });
 
     // FOLDER → zip (structure preserved via each file's path) into ONE asset.
     if (isFolderUpload) {
@@ -338,7 +346,12 @@ export default function FilesLibraryPage() {
           principle="The 3 fields are not metadata. They ARE the team's asset memory."
         >
           <div className="mb-6">
-            <FileDropzone onFilesSelected={(items) => setPendingItems(items)} />
+            <FileDropzone
+              onFilesSelected={(items, isFolder) => {
+                setPendingItems(items);
+                setExplicitFolder(isFolder);
+              }}
+            />
           </div>
         </LearningHint>
 
@@ -462,7 +475,10 @@ export default function FilesLibraryPage() {
       {pendingItems.length > 0 && (
         <ClassificationModal
           open
-          onClose={() => setPendingItems([])}
+          onClose={() => {
+            setPendingItems([]);
+            setExplicitFolder(false);
+          }}
           initial={{
             // A FOLDER becomes ONE zipped asset → single mode, title = folder
             // name. Loose files → batch (filenames as titles).
