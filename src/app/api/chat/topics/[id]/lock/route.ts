@@ -8,12 +8,14 @@ import { rateLimit } from "@/lib/api/rateLimit";
 /**
  * POST /api/chat/topics/[id]/lock (migration 0071)
  *
- * Lock / unlock a 2-person topic. Only the CREATOR can do it, and only
- * on a topic with exactly 2 active participants (founder spec). When
- * locked, the topic + its context are visible only to the two
- * participants (RLS) — even admins are excluded — and no one else can
- * join. The lock restricts ACCESS only; it deletes nothing (§3.1). The
- * System still reads it (service-role bypasses RLS) — disclosed in the UI.
+ * Lock / unlock a small topic. The CREATOR can lock a chat with 2 OR FEWER
+ * active participants (including a solo topic), no admin approval (founder
+ * 2026-07-03, widening 0071's exactly-2 rule). 3+ participants require admin
+ * permission — a separate, not-yet-built step. When locked, the topic + its
+ * context are visible only to its members (RLS) — even admins are excluded —
+ * and no one else can join. The lock restricts ACCESS only; it deletes nothing
+ * (§3.1). The System still reads it (service-role bypasses RLS) — disclosed in
+ * the UI.
  */
 
 const Body = z.object({ locked: z.boolean() });
@@ -57,17 +59,19 @@ export async function POST(
     );
   }
 
-  // Only a 2-person chat (exactly 2 ACTIVE participants).
+  // Creator lock is for a chat with 2 OR FEWER active participants (incl. a
+  // solo topic). 3+ participants need admin permission — a separate, not-yet-
+  // built step — so reject creator locks there for now (founder 2026-07-03).
   const { count } = await admin
     .from("chat_participants")
     .select("user_id", { count: "exact", head: true })
     .eq("topic_id", id)
     .is("left_at", null);
-  if ((count ?? 0) !== 2) {
+  if ((count ?? 0) > 2) {
     return NextResponse.json(
       {
         error:
-          "Locking is only available for a chat with exactly two people.",
+          "Locking a chat with 3 or more people needs admin permission.",
       },
       { status: 400 }
     );

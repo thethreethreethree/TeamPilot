@@ -850,12 +850,14 @@ export default function TeamChatTopicPage() {
                 Coach: {companyCoachOn ? "on (company)" : topic.coachEnabled ? "on" : "off"}
               </button>
             )}
-            {/* Lock — only the CREATOR, only a 2-person chat (migration
-                0071). Locked = only the two of you (humans) can see/enter;
-                even admins can't. The System still reads it (disclosed
-                below). */}
+            {/* Lock — the CREATOR can lock a chat with 2 OR FEWER participants
+                (incl. a solo topic), no admin approval (founder 2026-07-03,
+                widening migration 0071's exactly-2 rule). Locked = only its
+                members (humans) can see/enter; even admins can't. The System
+                still reads it (disclosed below). 3+ participant locks are
+                admin-gated — a separate, not-yet-built step. */}
             {topic.createdBy === currentUserId &&
-              topic.participantCount === 2 &&
+              topic.participantCount <= 2 &&
               !isClosed && (
                 <button
                   type="button"
@@ -878,7 +880,9 @@ export default function TeamChatTopicPage() {
                       toast.success(
                         next ? "Chat locked" : "Chat unlocked",
                         next
-                          ? "Only the two of you can see this now."
+                          ? topic.participantCount <= 1
+                            ? "Only you can see this now."
+                            : "Only the two of you can see this now."
                           : "Visible to the company again."
                       );
                     } catch (e) {
@@ -891,8 +895,10 @@ export default function TeamChatTopicPage() {
                   }}
                   title={
                     topic.locked
-                      ? "Locked — only the two of you can see this. Click to unlock."
-                      : "Lock this 2-person chat so only the two of you can see it."
+                      ? topic.participantCount <= 1
+                        ? "Locked — only you can see this. Click to unlock."
+                        : "Locked — only the two of you can see this. Click to unlock."
+                      : "Lock this chat so only its members can see it — not teammates, not admins."
                   }
                   className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors border flex-shrink-0 whitespace-nowrap ${
                     topic.locked
@@ -1003,7 +1009,7 @@ export default function TeamChatTopicPage() {
             />
             <p className="text-[11px] text-secondary leading-relaxed">
               <span className="text-amber-200 font-semibold">Locked.</span> Only
-              the two of you can see or join this chat — not your teammates, not
+              its members can see or join this chat — not your teammates, not
               admins. The System still reads it for coaching and diagnosis.
             </p>
           </div>
