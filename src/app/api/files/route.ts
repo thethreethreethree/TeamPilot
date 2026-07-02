@@ -7,6 +7,8 @@ import {
   buildStoragePath,
   uploadAssetBytes,
   validateUploadCandidate,
+  getAssetObjectInfo,
+  deleteAssetBytes,
 } from "@/lib/storage/assets";
 import {
   CASUAL_DAILY_CAP,
@@ -113,11 +115,26 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    // F1 (tenant isolation) — a record may only reference THIS company's
+    // objects. buildStoragePath always prefixes the companyId, so legit
+    // uploads pass; anything else is rejected (no cross-tenant references).
+    if (!preUploadedPath.startsWith(`${auth.companyId}/`)) {
+      return NextResponse.json({ error: "Invalid storage path." }, { status: 403 });
+    }
+    // F2 — trust the OBJECT, not the client's claim: confirm it exists and
+    // read its REAL size from storage (also reinforces F1 — no phantom paths).
+    const info = await getAssetObjectInfo(preUploadedPath);
+    if (!info) {
+      return NextResponse.json(
+        { error: "Uploaded object not found — upload via the signed URL first." },
+        { status: 400 }
+      );
+    }
     fileName =
       typeof body.originalFilename === "string" && body.originalFilename.trim()
         ? body.originalFilename
         : "file";
-    fileSize = typeof body.sizeBytes === "number" ? body.sizeBytes : 0;
+    fileSize = info.sizeBytes; // REAL size from storage, not the client claim
     fileType =
       typeof body.mimeType === "string" && body.mimeType
         ? body.mimeType
@@ -222,8 +239,11 @@ export async function POST(req: NextRequest) {
     sizeBytes: fileSize,
     mimeType: fileType,
     uploadedVia: "agent_dashboard",
+    filename: fileName, // F2 — extension blocklist (claimed MIME isn't trusted)
   });
   if (!v.ok) {
+    // F3 — a signed-URL object is already in storage; don't orphan it.
+    if (preUploadedPath) await deleteAssetBytes(preUploadedPath);
     return NextResponse.json({ error: v.detail, reason: v.reason }, { status: 400 });
   }
 
@@ -249,6 +269,8 @@ export async function POST(req: NextRequest) {
   if (isPurposeless) {
     const used = await countPurposelessUploadsToday(auth.userId);
     if (used >= CASUAL_DAILY_CAP) {
+      // F3 — a signed-URL object is already in storage; don't orphan it.
+      if (preUploadedPath) await deleteAssetBytes(preUploadedPath);
       return NextResponse.json(
         {
           error:
@@ -310,12 +332,15 @@ export async function POST(req: NextRequest) {
     // Surface the actual Supabase error message (e.g. RLS denial,
     // FK violation, column missing) instead of an opaque 500.
     const detail = err instanceof Error ? err.message : String(err);
+    // F3 — the object is in storage but has no record; don't orphan it.
+    await deleteAssetBytes(storagePath);
     return NextResponse.json(
       { error: `Failed to write file row after upload: ${detail}` },
       { status: 500 }
     );
   }
   if (!row) {
+    await deleteAssetBytes(storagePath); // F3 — clean the orphaned object.
     return NextResponse.json(
       { error: "Failed to write file row after upload." },
       { status: 500 }

@@ -37,6 +37,15 @@ export const BLOCKED_MIME_PREFIXES = [
   "application/gzip",
 ];
 
+/** Extension blocklist (audit F2) — the signed-URL path can't trust the
+ *  client-claimed MIME, so block by filename extension too. Mirrors the MIME
+ *  blocklist (video / executables / archives). */
+export const BLOCKED_EXTENSIONS = [
+  ".mp4", ".mov", ".avi", ".mkv", ".webm", ".wmv", ".flv", ".m4v",
+  ".exe", ".dll", ".msi", ".bat", ".cmd", ".com", ".scr", ".sh", ".app",
+  ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2",
+];
+
 /** Allow list for agent dashboard uploads. */
 export const AGENT_ALLOWED_MIME_PREFIXES = [
   "image/",
@@ -64,9 +73,22 @@ export function validateUploadCandidate(args: {
   sizeBytes: number;
   mimeType: string;
   uploadedVia: "agent_dashboard" | "customer_widget";
+  // Audit F2 — check the filename extension too (the claimed MIME is not
+  // trustworthy on the signed-URL path).
+  filename?: string;
 }): UploadValidationOk | UploadValidationFail {
   if (args.sizeBytes <= 0) {
     return { ok: false, reason: "empty", detail: "File is empty." };
+  }
+  if (args.filename) {
+    const lower = args.filename.toLowerCase();
+    if (BLOCKED_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+      return {
+        ok: false,
+        reason: "blocked_type",
+        detail: `File extension of "${args.filename}" is blocked.`,
+      };
+    }
   }
   const cap =
     args.uploadedVia === "agent_dashboard" ? AGENT_MAX_BYTES : CUSTOMER_MAX_BYTES;
@@ -201,6 +223,32 @@ export async function createSignedUploadTarget(args: {
     return { ok: false, error: msg };
   }
   return { ok: true, storagePath, token: data.token };
+}
+
+/**
+ * Read the REAL metadata of an uploaded object (audit F2): the signed-URL
+ * path can't trust the client-claimed size, so the server reads the actual
+ * size from storage after upload. Also confirms the object EXISTS (reinforces
+ * F1 — a record can't point at a phantom path). Returns null if not found.
+ */
+export async function getAssetObjectInfo(
+  storagePath: string
+): Promise<{ sizeBytes: number; contentType: string | null } | null> {
+  const sb = createAdminClient();
+  const lastSlash = storagePath.lastIndexOf("/");
+  const dir = lastSlash >= 0 ? storagePath.slice(0, lastSlash) : "";
+  const base = lastSlash >= 0 ? storagePath.slice(lastSlash + 1) : storagePath;
+  const { data, error } = await sb.storage
+    .from(ASSETS_BUCKET)
+    .list(dir, { search: base, limit: 100 });
+  if (error || !data) return null;
+  const entry = data.find((e) => e.name === base);
+  if (!entry) return null;
+  const meta = (entry.metadata ?? {}) as { size?: number; mimetype?: string };
+  return {
+    sizeBytes: typeof meta.size === "number" ? meta.size : 0,
+    contentType: meta.mimetype ?? null,
+  };
 }
 
 export async function deleteAssetBytes(

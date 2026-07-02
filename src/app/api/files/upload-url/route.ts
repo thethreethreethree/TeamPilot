@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     sizeBytes: body.sizeBytes,
     mimeType,
     uploadedVia: "agent_dashboard",
+    filename: body.filename, // F2 — reject blocked extensions up front too
   });
   if (!v.ok) {
     return NextResponse.json({ error: v.detail, reason: v.reason }, { status: 400 });
