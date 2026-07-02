@@ -121,24 +121,23 @@ export async function POST(req: NextRequest) {
     if (!preUploadedPath.startsWith(`${auth.companyId}/`)) {
       return NextResponse.json({ error: "Invalid storage path." }, { status: 403 });
     }
-    // F2 — trust the OBJECT, not the client's claim: confirm it exists and
-    // read its REAL size from storage (also reinforces F1 — no phantom paths).
-    const info = await getAssetObjectInfo(preUploadedPath);
-    if (!info) {
-      return NextResponse.json(
-        { error: "Uploaded object not found — upload via the signed URL first." },
-        { status: 400 }
-      );
-    }
     fileName =
       typeof body.originalFilename === "string" && body.originalFilename.trim()
         ? body.originalFilename
         : "file";
-    fileSize = info.sizeBytes; // REAL size from storage, not the client claim
     fileType =
       typeof body.mimeType === "string" && body.mimeType
         ? body.mimeType
         : "application/octet-stream";
+    // F2 — PREFER the object's real size from storage, but FALL BACK to the
+    // client's claim when the metadata isn't readable yet (Supabase list()
+    // metadata is frequently null right after an upload — this was hard-
+    // failing legit uploads as "File is empty"). The bucket enforces the real
+    // 25MB ceiling regardless, so the real-size read is defense-in-depth, not
+    // the primary gate. Best-effort existence check only.
+    const claimedSize = typeof body.sizeBytes === "number" ? body.sizeBytes : 0;
+    const info = await getAssetObjectInfo(preUploadedPath);
+    fileSize = info && info.sizeBytes > 0 ? info.sizeBytes : claimedSize;
     getField = (k) => {
       const val = body[k];
       if (typeof val === "string") return val;

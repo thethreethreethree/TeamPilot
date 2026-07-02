@@ -130,6 +130,9 @@ export default function FilesLibraryPage() {
     // Throws on the first failure so the modal surfaces it inline; files
     // already uploaded before the failure are kept (partial success).
     for (const file of pendingFiles) {
+      // Skip genuinely empty / system entries (folders often carry 0-byte
+      // placeholders) — they can't be uploaded and would fail the batch.
+      if (file.size <= 0) continue;
       // 1. Mint a signed upload target (validates size/type up front).
       const urlRes = await fetch("/api/files/upload-url", {
         method: "POST",
@@ -175,6 +178,9 @@ export default function FilesLibraryPage() {
         throw new Error(d?.error ?? `Save failed for "${file.name}" (${metaRes.status}).`);
       }
       uploaded += 1;
+    }
+    if (uploaded === 0) {
+      throw new Error("No uploadable files — the selection was empty or 0-byte.");
     }
     const classified =
       draft.departmentIds.length > 0 &&
