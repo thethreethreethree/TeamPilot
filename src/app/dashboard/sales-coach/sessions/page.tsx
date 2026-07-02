@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
+import { DeckCard, DeckPill } from "@/components/sales-coach/ui/deck";
 
 /**
  * Sales Coach → Sessions (Phase 1). The full, filterable session history.
@@ -66,12 +67,23 @@ export default function SalesCoachSessionsPage() {
   const [period, setPeriod] = useState<"all" | "30d" | "7d">("all");
 
   const load = useCallback(async () => {
+    setLoading(true);
+    // Server-side filters (backlog): context/status/period go to the DB query
+    // so filtering isn't trapped inside the 300-row cap. Text search stays
+    // client-side (matches client + agent name) — see `filtered`.
+    const qs = new URLSearchParams();
+    if (context !== "all") qs.set("context", context);
+    if (status !== "all") qs.set("status", status);
+    if (period !== "all") qs.set("period", period);
     try {
-      const res = await fetch("/api/coach/sales-session/list").catch(() => null);
+      const res = await fetch(
+        `/api/coach/sales-session/list?${qs.toString()}`
+      ).catch(() => null);
       if (res && res.ok) {
         const d = await res.json();
         if (d.degraded) setDegraded(true);
         else {
+          setDegraded(false);
           setSessions(d.sessions ?? []);
           setIsManager(!!d.isManager);
           setBadgesAvailable(d.badgesAvailable !== false);
@@ -85,21 +97,16 @@ export default function SalesCoachSessionsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [context, status, period]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  // context/status/period are applied SERVER-SIDE now (see load). Only the
+  // text search (client + agent name) remains a client-side refinement.
   const filtered = useMemo(() => {
     return (sessions ?? []).filter((s) => {
-      if (context !== "all" && s.context !== context) return false;
-      if (status !== "all" && s.status !== status) return false;
-      if (period !== "all") {
-        const days = period === "7d" ? 7 : 30;
-        if (new Date(s.startedAt).getTime() < Date.now() - days * 86_400_000)
-          return false;
-      }
       if (search.trim()) {
         const q = search.toLowerCase();
         const hay = `${s.clientLabel ?? ""} ${s.agentName ?? ""}`.toLowerCase();
@@ -107,7 +114,7 @@ export default function SalesCoachSessionsPage() {
       }
       return true;
     });
-  }, [sessions, context, status, period, search]);
+  }, [sessions, search]);
 
   const anyFilter =
     search.trim() !== "" ||
@@ -118,9 +125,9 @@ export default function SalesCoachSessionsPage() {
   return (
     <>
       <TopBar title="Sessions" subtitle="Your coaching history" />
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-4 bg-base">
         {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-2">
+        <DeckCard className="p-2.5 flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[180px]">
             <Search
               className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted"
@@ -130,7 +137,7 @@ export default function SalesCoachSessionsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={isManager ? "Search client or agent…" : "Search client…"}
-              className="w-full bg-surface border border-default rounded-lg pl-8 pr-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
+              className="w-full bg-black/30 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
             />
           </div>
           <Select
@@ -161,7 +168,7 @@ export default function SalesCoachSessionsPage() {
               ["7d", "Last 7 days"],
             ]}
           />
-        </div>
+        </DeckCard>
 
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
@@ -169,7 +176,7 @@ export default function SalesCoachSessionsPage() {
             Loading…
           </div>
         ) : noAccess ? (
-          <div className="rounded-xl border border-default bg-white/[0.01] p-4">
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
             <p className="text-xs text-secondary">
               You don&apos;t have access to a Sales Coach workspace here. Ask an
               admin if this looks wrong.
@@ -189,7 +196,7 @@ export default function SalesCoachSessionsPage() {
               : "No sessions match these filters."}
           </p>
         ) : (
-          <div className="rounded-xl border border-default bg-white/[0.01] divide-y divide-default overflow-hidden">
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm divide-y divide-default overflow-hidden">
             {filtered.map((s) => (
               <Link
                 key={s.id}
@@ -215,8 +222,8 @@ export default function SalesCoachSessionsPage() {
                   </span>
                 </span>
                 {s.outcome && (
-                  <span className="shrink-0 text-[10px] text-secondary border border-default rounded-full px-2 py-0.5">
-                    {outcomeLabel(s.outcome)}
+                  <span className="shrink-0">
+                    <DeckPill>{outcomeLabel(s.outcome)}</DeckPill>
                   </span>
                 )}
                 {badgesAvailable && (
@@ -242,7 +249,7 @@ export default function SalesCoachSessionsPage() {
         {!loading && !noAccess && !degraded && (sessions ?? []).length >= 300 && (
           <p className="text-[10px] text-muted text-center">
             {anyFilter
-              ? "Filtered within the 300 most recent sessions — older matches aren't loaded."
+              ? "Filtered on the server — up to the 300 most recent matches (text search refines within them)."
               : "Showing the 300 most recent sessions."}
           </p>
         )}
@@ -272,7 +279,7 @@ function Select({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="bg-surface border border-default rounded-lg px-2.5 py-2 text-xs text-secondary focus:outline-none focus:border-ember-400/50"
+      className="bg-black/30 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-secondary focus:outline-none focus:border-ember-400/50"
     >
       {options.map(([v, label]) => (
         <option key={v} value={v}>

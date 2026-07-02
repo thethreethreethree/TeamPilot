@@ -34,7 +34,7 @@ async function resolve() {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const ctx = await resolve();
   if (!ctx.ok) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -42,6 +42,18 @@ export async function GET() {
   if (!ctx.companyId) {
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
+
+  // Server-side filters (backlog: move context/status/period into the DB query
+  // so filtering is no longer trapped inside the 300-row cap — A21: this
+  // EXTENDS the existing query, it doesn't fork it). TEXT SEARCH stays entirely
+  // client-side: it matches client-label AND agent-name, and agent names live
+  // in a separate profiles join — pushing a client_label ilike server-side would
+  // make an agent-name search return zero rows with nothing to recover from.
+  // Unknown/absent filter values are ignored (honest no-op, not an error).
+  const params = new URL(req.url).searchParams;
+  const fContext = params.get("context");
+  const fStatus = params.get("status");
+  const fPeriod = params.get("period");
 
   const admin = createAdminClient();
 
@@ -56,6 +68,18 @@ export async function GET() {
   // Staff: only their own sessions.
   if (!ctx.isManager) {
     query = query.eq("agent_id", ctx.userId);
+  }
+  // Apply the server-side filters (validated against the known enums).
+  if (fContext === "in_person" || fContext === "video") {
+    query = query.eq("context", fContext);
+  }
+  if (fStatus === "active" || fStatus === "ended" || fStatus === "reviewed") {
+    query = query.eq("status", fStatus);
+  }
+  if (fPeriod === "7d" || fPeriod === "30d") {
+    const days = fPeriod === "7d" ? 7 : 30;
+    const since = new Date(Date.now() - days * 86_400_000).toISOString();
+    query = query.gte("started_at", since);
   }
   const { data: sessionsData, error: sErr } = await query;
   if (sErr) {

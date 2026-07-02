@@ -13,7 +13,9 @@ import {
   AlertTriangle,
   ChevronRight,
   Repeat,
+  FileText,
 } from "lucide-react";
+import { DeckCard } from "@/components/sales-coach/ui/deck";
 
 /**
  * After Pitch Summary — the rep's private "between doors" debrief (AMD-006
@@ -91,7 +93,21 @@ type Session = {
   territory: string | null;
   approach: string | null;
   offer: string | null;
+  startedAt?: string;
+  endedAt?: string | null;
 };
+
+/** Conversation length for the header ("2m 43s"). Null until the call has
+ *  ended (start + end both known) — no fabricated duration (§3.4). */
+function durationLabel(start?: string, end?: string | null): string | null {
+  if (!start || !end) return null;
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const total = Math.round(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
 
 /** Next-door label: increment a trailing number so "Door 17" → "Door 18",
  *  else reuse the label. Keeps the rep flowing without a form (AMD-006 L3). */
@@ -112,6 +128,9 @@ export default function AfterPitchPage() {
   // A manager sees the same growth substance with scores stripped, and no
   // Start Next Door (they aren't the one walking to the next door).
   const [isOwner, setIsOwner] = useState(true);
+  // The neutral factual "what happened" replay — reuses the existing session
+  // summary engine (A21: compose, don't fork a second summarizer).
+  const [whatHappened, setWhatHappened] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -144,11 +163,14 @@ export default function AfterPitchPage() {
 
   const load = useCallback(async () => {
     try {
-      const [sRes, apRes] = await Promise.all([
+      const [sRes, apRes, sumRes] = await Promise.all([
         fetch(`/api/coach/sales-session/${id}`).catch(() => null),
         fetch(`/api/coach/sales-session/${id}/after-pitch`).catch(() => null),
+        fetch(`/api/coach/sales-session/${id}/summarize`).catch(() => null),
       ]);
       if (sRes && sRes.ok) setSession((await sRes.json()).session);
+      if (sumRes && sumRes.ok)
+        setWhatHappened((await sumRes.json()).summary ?? null);
       let existing: Summary | null = null;
       if (apRes && apRes.ok) {
         const d = await apRes.json();
@@ -203,6 +225,7 @@ export default function AfterPitchPage() {
       ? "Online video"
       : "In-person"
     : "";
+  const dur = durationLabel(session?.startedAt, session?.endedAt);
 
   return (
     <div className="min-h-screen bg-base">
@@ -224,6 +247,7 @@ export default function AfterPitchPage() {
             {session && (
               <p className="text-[11px] text-brand mt-1">
                 {session.clientLabel ?? "Session"} · {ctxLabel}
+                {dur ? ` · ${dur}` : ""}
               </p>
             )}
           </div>
@@ -264,6 +288,19 @@ export default function AfterPitchPage() {
         ) : (
           <>
             <Timeline moments={summary.moments} />
+            {whatHappened && (
+              <DeckCard className="p-4">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
+                  <h2 className="text-sm font-semibold text-primary">
+                    What happened
+                  </h2>
+                </div>
+                <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
+                  {whatHappened}
+                </p>
+              </DeckCard>
+            )}
             <BreakdownBlock moments={summary.moments} />
             <Narrative narrative={summary.narrative} />
             <Scoreboard scores={summary.scores} />

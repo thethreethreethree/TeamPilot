@@ -81,14 +81,14 @@ export default function SalesCoachTeamPage() {
   return (
     <>
       <TopBar title="Team" subtitle="Sales Coach access & roles" />
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl mx-auto w-full space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl mx-auto w-full space-y-4 bg-base">
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
             Loading…
           </div>
         ) : !isManager ? (
-          <div className="rounded-xl border border-default bg-white/[0.01] p-5">
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-5">
             <div className="inline-flex items-center gap-1.5 text-[11px] text-muted rounded-md border border-default px-2 py-1 mb-3">
               <Lock className="w-3 h-3" aria-hidden />
               Admin only
@@ -109,7 +109,7 @@ export default function SalesCoachTeamPage() {
               <button
                 type="button"
                 onClick={() => setInviteOpen(true)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 text-[#09090B] px-3 py-1.5 rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] text-[#09090B] px-3 py-1.5 rounded-lg transition-colors"
               >
                 <UserPlus className="w-3.5 h-3.5" aria-hidden />
                 Add member
@@ -126,7 +126,7 @@ export default function SalesCoachTeamPage() {
                 invite), then you assign their Sales Coach role here.
               </p>
             </div>
-            <div className="rounded-xl border border-default bg-white/[0.01] divide-y divide-default overflow-hidden">
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm divide-y divide-default overflow-hidden">
               {(members ?? []).map((m) => (
                 <div key={m.id} className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">

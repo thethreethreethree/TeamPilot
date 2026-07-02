@@ -111,7 +111,7 @@ export default function SalesCoachAnalyticsPage() {
   return (
     <>
       <TopBar title="Analytics" subtitle="Your coaching over time" />
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-6 bg-base">
         <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
           <Users className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
           <p className="text-xs text-secondary leading-relaxed">
@@ -216,7 +216,7 @@ export default function SalesCoachAnalyticsPage() {
             </section>
 
             {/* Cue-reliance trend (§3.5) — the core analytic */}
-            <section className="rounded-xl border border-default bg-white/[0.01] p-4">
+            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
               <div className="flex items-center gap-1.5 mb-3">
                 <TrendingDown className="w-3.5 h-3.5 text-brand" aria-hidden />
                 <h2 className="text-sm font-semibold text-primary">
@@ -274,7 +274,7 @@ export default function SalesCoachAnalyticsPage() {
                 <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
                   Recurring growth opportunities
                 </h2>
-                <div className="rounded-xl border border-default bg-white/[0.02] divide-y divide-default overflow-hidden">
+                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm divide-y divide-default overflow-hidden">
                   {stats.recentGrowth.map((g, i) => (
                     <div key={i} className="flex items-start gap-2.5 px-4 py-3">
                       <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />

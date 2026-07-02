@@ -94,7 +94,7 @@ export default function CoachAssessmentPage() {
   return (
     <>
       <TopBar title="Coach Assessment" subtitle="How the team is growing" />
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl mx-auto w-full space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl mx-auto w-full space-y-4 bg-base">
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -108,7 +108,7 @@ export default function CoachAssessmentPage() {
             </p>
           </div>
         ) : !isManager ? (
-          <div className="rounded-xl border border-default bg-white/[0.01] p-5">
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-5">
             <div className="inline-flex items-center gap-1.5 text-[11px] text-muted rounded-md border border-default px-2 py-1 mb-3">
               <Lock className="w-3 h-3" aria-hidden />
               Admin only
@@ -163,7 +163,7 @@ export default function CoachAssessmentPage() {
             {withContent.map((a) => (
               <section
                 key={a.agentId}
-                className="rounded-xl border border-default bg-white/[0.01] p-4"
+                className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4"
               >
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <h2 className="text-sm font-semibold text-primary">

@@ -56,7 +56,7 @@ export default function SalesCoachSettingsPage() {
   return (
     <>
       <TopBar title="Settings" subtitle="Sales Coach" />
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-3xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-3xl mx-auto w-full bg-base">
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -147,7 +147,7 @@ function TabButton({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-default bg-white/[0.01] px-4 py-3">
+    <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
       <span className="text-xs text-muted">{label}</span>
       <span className="text-sm text-primary capitalize">{value}</span>
     </div>
@@ -228,7 +228,7 @@ function CorpusEditor() {
   };
 
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
       <div className="flex items-center gap-1.5">
         <BookOpen className="w-3.5 h-3.5 text-brand" aria-hidden />
         <h2 className="text-sm font-semibold text-primary">
@@ -266,7 +266,7 @@ function CorpusEditor() {
           {/* §3.4: advertise the 100k cap up front, not on rejection. */}
           <p
             className={`text-[10px] text-right ${
-              text.length > 100000 ? "text-red-400" : "text-muted"
+              text.length > 100000 ? "text-ember-400" : "text-muted"
             }`}
           >
             {text.length.toLocaleString()} / 100,000 characters
@@ -282,7 +282,7 @@ function CorpusEditor() {
               type="button"
               onClick={() => void save()}
               disabled={saving || !text.trim() || !dirty || text.length > 100000}
-              className="inline-flex items-center gap-1.5 shrink-0 bg-ember-400 hover:bg-ember-500 disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 shrink-0 bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
             >
               {saving ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -369,7 +369,7 @@ function ProductEditor() {
   };
 
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
       <div className="flex items-center gap-1.5">
         <Package className="w-3.5 h-3.5 text-brand" aria-hidden />
         <h2 className="text-sm font-semibold text-primary">
@@ -407,7 +407,7 @@ function ProductEditor() {
 
           <p
             className={`text-[10px] text-right ${
-              text.length > 100000 ? "text-red-400" : "text-muted"
+              text.length > 100000 ? "text-ember-400" : "text-muted"
             }`}
           >
             {text.length.toLocaleString()} / 100,000 characters
@@ -421,7 +421,7 @@ function ProductEditor() {
               type="button"
               onClick={() => void save()}
               disabled={saving || !text.trim() || !dirty || text.length > 100000}
-              className="inline-flex items-center gap-1.5 shrink-0 bg-ember-400 hover:bg-ember-500 disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 shrink-0 bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
             >
               {saving ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -547,7 +547,7 @@ function VoicePicker() {
   ];
 
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
       <div className="flex items-center gap-1.5">
         <Volume2 className="w-3.5 h-3.5 text-brand" aria-hidden />
         <h2 className="text-sm font-semibold text-primary">Cue voice</h2>
@@ -623,7 +623,7 @@ function VoicePicker() {
               type="button"
               onClick={() => void save()}
               disabled={saving || !dirty}
-              className="inline-flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
             >
               {saving ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
