@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
   let fileType: string;
   let fileBlob: File | null = null; // multipart path: bytes to upload
   let preUploadedPath: string | null = null; // signed-URL path: already in storage
+  let allowArchive = false; // scoped: the UI's own folder-zip
   let getField: (k: string) => string | null;
 
   if (contentType.includes("application/json")) {
@@ -138,6 +139,7 @@ export async function POST(req: NextRequest) {
     const claimedSize = typeof body.sizeBytes === "number" ? body.sizeBytes : 0;
     const info = await getAssetObjectInfo(preUploadedPath);
     fileSize = info && info.sizeBytes > 0 ? info.sizeBytes : claimedSize;
+    allowArchive = body.archive === true; // scoped folder-zip allowance
     getField = (k) => {
       const val = body[k];
       if (typeof val === "string") return val;
@@ -239,6 +241,7 @@ export async function POST(req: NextRequest) {
     mimeType: fileType,
     uploadedVia: "agent_dashboard",
     filename: fileName, // F2 — extension blocklist (claimed MIME isn't trusted)
+    allowArchive, // scoped folder-zip (JSON branch only; false otherwise)
   });
   if (!v.ok) {
     // F3 — a signed-URL object is already in storage; don't orphan it.

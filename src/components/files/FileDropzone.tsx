@@ -48,11 +48,15 @@ function readAllDirEntries(
   });
 }
 
-async function entryToFiles(entry: FileSystemEntry): Promise<File[]> {
+export type PickedFile = { file: File; path: string };
+
+async function entryToFiles(entry: FileSystemEntry): Promise<PickedFile[]> {
   if (entry.isFile) {
     return new Promise((resolve) => {
       (entry as FileSystemFileEntry).file(
-        (f) => resolve([f]),
+        // fullPath is like "/folder/sub/file.js" — strip the leading slash so
+        // the zip preserves the folder structure.
+        (f) => resolve([{ file: f, path: entry.fullPath.replace(/^\//, "") }]),
         () => resolve([])
       );
     });
@@ -100,9 +104,10 @@ export function FileDropzone({
    *  omitted, behaviour is unchanged: upload fires immediately. */
   onFileSelected?: (file: File) => void;
   /** Batch variant of onFileSelected (large-file / folder upload): when
-   *  provided, ALL picked files are handed to the parent at once for a shared
-   *  classify-then-upload. Takes precedence over onFileSelected. */
-  onFilesSelected?: (files: File[]) => void;
+   *  provided, ALL picked files are handed to the parent at once (each with
+   *  its relative PATH so a folder can be zipped with structure). Takes
+   *  precedence over onFileSelected. */
+  onFilesSelected?: (items: PickedFile[]) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -183,9 +188,12 @@ export function FileDropzone({
       if (!files || files.length === 0) return;
       const all = Array.from(files);
       // Batch pre-upload classify (large files / folders): hand ALL files to
-      // the parent for a shared classify-then-upload.
+      // the parent with their relative paths (webkitRelativePath from the
+      // folder picker; the bare filename for loose files).
       if (onFilesSelected) {
-        onFilesSelected(all);
+        onFilesSelected(
+          all.map((f) => ({ file: f, path: f.webkitRelativePath || f.name }))
+        );
         return;
       }
       // Single pre-upload classify: defer one file to the parent's modal.

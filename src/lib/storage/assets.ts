@@ -84,9 +84,28 @@ export function validateUploadCandidate(args: {
   // Audit F2 — check the filename extension too (the claimed MIME is not
   // trustworthy on the signed-URL path).
   filename?: string;
+  // Scoped exception (founder 2026-07-01): a FOLDER upload is zipped into one
+  // .zip asset. Archives are otherwise blocked; allowArchive skips the archive
+  // type/extension block for that path only (size is still enforced). The UI
+  // sets this only for its own generated folder-zip.
+  allowArchive?: boolean;
 }): UploadValidationOk | UploadValidationFail {
   if (args.sizeBytes <= 0) {
     return { ok: false, reason: "empty", detail: "File is empty." };
+  }
+  const cap =
+    args.uploadedVia === "agent_dashboard" ? AGENT_MAX_BYTES : CUSTOMER_MAX_BYTES;
+  if (args.sizeBytes > cap) {
+    return {
+      ok: false,
+      reason: "too_large",
+      detail: `File exceeds the ${cap / (1024 * 1024)} MB cap.`,
+    };
+  }
+  // Scoped folder-archive: size is enforced above; skip the type/extension
+  // gate for the UI's own generated .zip (archives stay blocked elsewhere).
+  if (args.allowArchive) {
+    return { ok: true };
   }
   if (args.filename) {
     const lower = args.filename.toLowerCase();
@@ -97,15 +116,6 @@ export function validateUploadCandidate(args: {
         detail: `File extension of "${args.filename}" is blocked.`,
       };
     }
-  }
-  const cap =
-    args.uploadedVia === "agent_dashboard" ? AGENT_MAX_BYTES : CUSTOMER_MAX_BYTES;
-  if (args.sizeBytes > cap) {
-    return {
-      ok: false,
-      reason: "too_large",
-      detail: `File exceeds the ${cap / (1024 * 1024)} MB cap.`,
-    };
   }
   const mime = args.mimeType.toLowerCase();
   if (BLOCKED_MIME_PREFIXES.some((p) => mime.startsWith(p))) {

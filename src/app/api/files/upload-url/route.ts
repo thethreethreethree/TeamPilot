@@ -24,6 +24,8 @@ const Body = z.object({
   filename: z.string().min(1).max(400),
   sizeBytes: z.number().int().nonnegative(),
   mimeType: z.string().max(200).optional(),
+  // Scoped: the UI's own folder-zip (archives are otherwise blocked).
+  archive: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -50,6 +52,7 @@ export async function POST(req: NextRequest) {
     mimeType,
     uploadedVia: "agent_dashboard",
     filename: body.filename, // F2 — reject blocked extensions up front too
+    allowArchive: body.archive === true,
   });
   if (!v.ok) {
     return NextResponse.json({ error: v.detail, reason: v.reason }, { status: 400 });

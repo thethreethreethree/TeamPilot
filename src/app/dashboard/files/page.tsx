@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { useCompanyName } from "@/lib/hooks/useCompany";
-import { FileDropzone } from "@/components/files/FileDropzone";
+import { FileDropzone, type PickedFile } from "@/components/files/FileDropzone";
 import { createClient } from "@/lib/supabase/client";
+import { zipSync } from "fflate";
 import { FileCard, type FileCardData } from "@/components/files/FileCard";
 import {
   ClassificationModal,
@@ -57,7 +58,12 @@ export default function FilesLibraryPage() {
   // A batch (1 file, many files, or a folder) held for shared classify-then-
   // upload. Each file uploads DIRECT to storage via a signed URL (large-file
   // fix), then its record is created with the shared classification.
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingItems, setPendingItems] = useState<PickedFile[]>([]);
+  // A folder upload = any picked item whose path has a subdirectory. Those get
+  // zipped (structure preserved) into ONE asset; loose files stay per-file.
+  const isFolderUpload = pendingItems.some((i) => i.path.includes("/"));
+  const folderName =
+    pendingItems[0]?.path.split("/")[0] || "folder";
   const toast = useToast();
 
   const refresh = useCallback(async () => {
@@ -122,61 +128,99 @@ export default function FilesLibraryPage() {
   // the server skips the casual lane entirely — so a classified upload
   // never counts against (or is blocked by) the 3/day casual cap.
   // Throws on failure so the modal surfaces the error inline.
+  // One file → signed-URL upload (3 steps). Throws on any failure.
+  const uploadOneFile = async (
+    supabase: ReturnType<typeof createClient>,
+    file: File,
+    draft: ClassificationDraft,
+    opts: { title: string; archive?: boolean }
+  ) => {
+    const urlRes = await fetch("/api/files/upload-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: file.name,
+        sizeBytes: file.size,
+        mimeType: file.type || "application/octet-stream",
+        archive: opts.archive || undefined,
+      }),
+    });
+    if (!urlRes.ok) {
+      const d = await urlRes.json().catch(() => null);
+      throw new Error(d?.error ?? `couldn't start (${urlRes.status})`);
+    }
+    const { bucket, storagePath, token } = await urlRes.json();
+    const { error: upErr } = await supabase.storage
+      .from(bucket)
+      .uploadToSignedUrl(storagePath, token, file);
+    if (upErr) throw new Error(`storage: ${upErr.message}`);
+    const metaRes = await fetch("/api/files", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storagePath,
+        originalFilename: file.name,
+        sizeBytes: file.size,
+        mimeType: file.type || "application/octet-stream",
+        title: opts.title,
+        description: draft.description || undefined,
+        department_ids: draft.departmentIds,
+        task_ids: draft.taskIds,
+        tags: draft.tags,
+        access_role: draft.accessRole,
+        archive: opts.archive || undefined,
+      }),
+    });
+    if (!metaRes.ok) {
+      const d = await metaRes.json().catch(() => null);
+      throw new Error(d?.error ?? `save failed (${metaRes.status})`);
+    }
+  };
+
   const uploadDraft = async (draft: ClassificationDraft) => {
-    if (pendingFiles.length === 0) return;
+    if (pendingItems.length === 0) return;
     const supabase = createClient();
-    const batch = pendingFiles.length > 1;
+
+    // FOLDER → zip (structure preserved via each file's path) into ONE asset.
+    if (isFolderUpload) {
+      const entries: Record<string, Uint8Array> = {};
+      for (const { file, path } of pendingItems) {
+        if (file.size <= 0) continue; // skip 0-byte/system entries
+        entries[path] = new Uint8Array(await file.arrayBuffer());
+      }
+      if (Object.keys(entries).length === 0) {
+        throw new Error("Folder has no uploadable files.");
+      }
+      const zipped = zipSync(entries); // Uint8Array — structure preserved
+      const name = `${(draft.title || folderName).trim()}.zip`;
+      const zipFile = new File([zipped], name, { type: "application/zip" });
+      await uploadOneFile(supabase, zipFile, draft, {
+        title: (draft.title || folderName).trim(),
+        archive: true, // scoped folder-zip allowance
+      });
+      const classified =
+        draft.departmentIds.length > 0 &&
+        draft.taskIds.length > 0 &&
+        draft.description.trim().length > 0;
+      toast.success(
+        "Folder uploaded",
+        (classified ? "Classified — one team asset. " : "Uploaded as casual. ") +
+          "The folder is preserved inside the .zip."
+      );
+      await refresh();
+      return;
+    }
+
+    // LOOSE files → each its own asset (resilient batch: skip + report).
+    const batch = pendingItems.length > 1;
     let uploaded = 0;
-    // Throws on the first failure so the modal surfaces it inline; files
-    // already uploaded before the failure are kept (partial success).
-    // Resilient batch: a single bad file (unsupported type, error) is SKIPPED
-    // and reported, not allowed to abort the whole folder upload.
     const skipped: { name: string; reason: string }[] = [];
-    for (const file of pendingFiles) {
-      // Skip genuinely empty / system entries (folders carry 0-byte files).
+    for (const { file } of pendingItems) {
       if (file.size <= 0) continue;
       try {
-        // 1. Mint a signed upload target (validates size/type up front).
-        const urlRes = await fetch("/api/files/upload-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            filename: file.name,
-            sizeBytes: file.size,
-            mimeType: file.type || "application/octet-stream",
-          }),
+        await uploadOneFile(supabase, file, draft, {
+          title: batch ? file.name : draft.title || file.name,
         });
-        if (!urlRes.ok) {
-          const d = await urlRes.json().catch(() => null);
-          throw new Error(d?.error ?? `couldn't start (${urlRes.status})`);
-        }
-        const { bucket, storagePath, token } = await urlRes.json();
-        // 2. Upload the bytes DIRECT to storage (bypasses the 4.5MB cap).
-        const { error: upErr } = await supabase.storage
-          .from(bucket)
-          .uploadToSignedUrl(storagePath, token, file);
-        if (upErr) throw new Error(`storage: ${upErr.message}`);
-        // 3. Create the record with the SHARED classification (filename title).
-        const metaRes = await fetch("/api/files", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            storagePath,
-            originalFilename: file.name,
-            sizeBytes: file.size,
-            mimeType: file.type || "application/octet-stream",
-            title: batch ? file.name : draft.title || file.name,
-            description: draft.description || undefined,
-            department_ids: draft.departmentIds,
-            task_ids: draft.taskIds,
-            tags: draft.tags,
-            access_role: draft.accessRole,
-          }),
-        });
-        if (!metaRes.ok) {
-          const d = await metaRes.json().catch(() => null);
-          throw new Error(d?.error ?? `save failed (${metaRes.status})`);
-        }
         uploaded += 1;
       } catch (e) {
         skipped.push({
@@ -294,7 +338,7 @@ export default function FilesLibraryPage() {
           principle="The 3 fields are not metadata. They ARE the team's asset memory."
         >
           <div className="mb-6">
-            <FileDropzone onFilesSelected={(files) => setPendingFiles(files)} />
+            <FileDropzone onFilesSelected={(items) => setPendingItems(items)} />
           </div>
         </LearningHint>
 
@@ -415,17 +459,20 @@ export default function FilesLibraryPage() {
           in pendingFile; this modal collects classification BEFORE the
           upload, so a classified file never burns the casual cap and a
           capped user is never dead-ended. onSubmitDraft does the upload. */}
-      {pendingFiles.length > 0 && (
+      {pendingItems.length > 0 && (
         <ClassificationModal
           open
-          onClose={() => setPendingFiles([])}
+          onClose={() => setPendingItems([])}
           initial={{
-            title:
-              pendingFiles.length === 1
-                ? (pendingFiles[0]?.name.replace(/\.[^.]+$/, "") ?? "")
+            // A FOLDER becomes ONE zipped asset → single mode, title = folder
+            // name. Loose files → batch (filenames as titles).
+            title: isFolderUpload
+              ? folderName
+              : pendingItems.length === 1
+                ? (pendingItems[0]?.file.name.replace(/\.[^.]+$/, "") ?? "")
                 : "",
           }}
-          batchCount={pendingFiles.length}
+          batchCount={isFolderUpload ? 1 : pendingItems.length}
           departments={departments}
           tasks={tasks}
           teamMembers={team}
