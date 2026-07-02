@@ -419,6 +419,73 @@ export function demoUserId(): string {
 
 // ─── Public fetchers ────────────────────────────────────────
 
+// Base-table columns (guaranteed present on chat_topics once 0071/0076 ran).
+const TOPIC_BASE_COLS_FULL =
+  "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, locked";
+// Pre-0071/0076 subset (no scope/locked) — the deepest fallback.
+const TOPIC_BASE_COLS_LEGACY =
+  "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled";
+
+/** Map a chat_topics BASE-table row to a ChatTopic. Aggregate counts live only
+ *  in the chat_topic_with_counts view, so they default to 0/null here — the
+ *  degraded read used when that view is broken/missing. */
+function mapBaseTopicRow(row: Record<string, unknown>): ChatTopic {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    description: (row.description as string | null) ?? null,
+    status: row.status as ChatTopic["status"],
+    problemId: (row.problem_id as string | null) ?? null,
+    createdBy: (row.created_by as string | null) ?? null,
+    createdAt: row.created_at as string,
+    closedAt: (row.closed_at as string | null) ?? null,
+    closedBy: (row.closed_by as string | null) ?? null,
+    closeSummary: (row.close_summary as string | null) ?? null,
+    closeDurability: (row.close_durability as ChatTopic["closeDurability"]) ?? null,
+    tags: (row.tags as string[] | null) ?? [],
+    participantCount: 0,
+    messageCount: 0,
+    lastMessageAt: null,
+    coachEnabled: (row.coach_enabled as boolean | null) ?? false,
+    locked: (row.locked as boolean | null) ?? false,
+  };
+}
+
+/**
+ * Read topics straight from the chat_topics BASE TABLE, bypassing the
+ * chat_topic_with_counts VIEW. Used ONLY when the view read fails (the view is
+ * fragile — it must be rebuilt on every column change and re-set
+ * security_invoker; a stale/missing view takes all of chat down while the rows
+ * are perfectly fine). RLS still applies (same company scoping). Returns null
+ * if the base read ALSO fails, so the caller can surface the original error.
+ */
+async function readTopicsFromBaseTable(
+  supabase: ReturnType<typeof createClient>,
+  scope: ChatScope
+): Promise<{ topics: ChatTopic[]; mode: ChatsMode } | null> {
+  const full = await supabase
+    .from("chat_topics")
+    .select(TOPIC_BASE_COLS_FULL)
+    .eq("scope", scope)
+    .order("created_at", { ascending: false });
+  let rows = full.data as Record<string, unknown>[] | null;
+  let err = full.error;
+  if (err && (err as { code?: string }).code === "42703") {
+    // scope/locked columns truly absent (pre-0071/0076): 'elostate' is the only
+    // surface that can have rows; read unscoped without those columns.
+    if (scope !== "elostate") return { topics: [], mode: "live-empty" };
+    const legacy = await supabase
+      .from("chat_topics")
+      .select(TOPIC_BASE_COLS_LEGACY)
+      .order("created_at", { ascending: false });
+    rows = legacy.data as Record<string, unknown>[] | null;
+    err = legacy.error;
+  }
+  if (err || !rows) return null;
+  const topics = rows.map(mapBaseTopicRow);
+  return { topics, mode: topics.length === 0 ? "live-empty" : "live-data" };
+}
+
 export async function fetchTopics(scope: ChatScope = "elostate"): Promise<{
   topics: ChatTopic[];
   mode: ChatsMode;
@@ -438,36 +505,25 @@ export async function fetchTopics(scope: ChatScope = "elostate"): Promise<{
   // error must NOT silently widen to an unscoped read (which would mix Elostate
   // topics into the Sales Coach shell) — so on any NON-schema error we still
   // fail closed to an empty list (§1.5/§2).
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from("chat_topic_with_counts")
     .select(COLS)
     .eq("scope", scope)
     .order("created_at", { ascending: false });
-  // SELF-HEAL (2026-07-03): if migrations 0071 (locked) / 0076 (scope) are NOT
-  // applied on this DB, the scope filter / locked column don't exist and
-  // Postgres returns 42703 (undefined_column) — a total chat outage that reads
-  // as "all my chats vanished" (the app can't see any topic). Migration 0076's
-  // own header documents a fallback "until this is applied"; the code had
-  // dropped it. Restore it, but NARROWLY: only on 42703 (never a transient
-  // error), and only for the Elostate surface — because with no scope column,
-  // NO 'sales_coach' topic can exist yet, so an unscoped read returns exactly
-  // the Elostate topics (no scope mixing, §1.5/§2 upheld). The real fix is to
-  // apply 0071/0076; this keeps chat alive in the deploy-before-migration gap.
-  if (error && (error as { code?: string }).code === "42703") {
-    if (scope !== "elostate") {
-      // No scope column ⇒ no sales_coach topics can exist. Honest empty.
-      return { topics: [], mode: "live-empty" };
-    }
-    const COLS_PREMIGRATION =
-      "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, participant_count, message_count, last_message_at";
-    const fb = await supabase
-      .from("chat_topic_with_counts")
-      .select(COLS_PREMIGRATION)
-      .order("created_at", { ascending: false });
-    // Cast through unknown: the fallback rows lack `locked`, which the mapping
-    // reads as `row.locked ?? false` → false. Shapes are otherwise identical.
-    data = (fb.data as unknown as typeof data) ?? null;
-    error = fb.error;
+  // RESILIENCE (2026-07-03): chat_topic_with_counts is a VIEW that must be
+  // rebuilt on every chat_topics column change (and re-set security_invoker).
+  // If it's stale / not-rebuilt / missing, the read above errors and ALL of
+  // chat goes dark though the rows are fine (this is the outage that presented
+  // as "my previous chats are gone"). On ANY view error, read the BASE TABLE
+  // chat_topics directly so the chats reappear — aggregate counts, which live
+  // only in the view, default to 0/null (degraded but usable; far better than
+  // a blank "Could not load"). Rebuilding the view restores the counts. If the
+  // base read ALSO fails, fall through and surface the original error honestly
+  // (F2, below). The base read still honours RLS (same company scoping) and,
+  // via its own 42703 guard, the pre-0071/0076 state — so no scope mixing.
+  if (error) {
+    const base = await readTopicsFromBaseTable(supabase, scope);
+    if (base) return base;
   }
   // F2 (§3.4, A14): a real error is NOT emptiness. Log the actual cause
   // (diagnostic — appears in the browser console) AND return a distinct
