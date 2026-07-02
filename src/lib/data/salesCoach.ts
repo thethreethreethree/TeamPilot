@@ -509,6 +509,24 @@ export async function getLatestAfterPitchSummary(
   return data?.payload ?? null;
 }
 
+/** Service-role read of the latest summary (bypasses the owner-only RLS).
+ *  Used by the route ONLY after it has verified the caller is the session's
+ *  rep OR a same-company manager — and for a manager the route STRIPS the
+ *  private scores before returning (A18). Never expose this raw. */
+export async function getLatestAfterPitchSummaryAdmin(
+  sessionId: string
+): Promise<unknown | null> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("after_pitch_summaries")
+    .select("payload")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.payload ?? null;
+}
+
 /** An agent's sessions, most recent first (RLS-scoped). */
 export async function listAgentSessions(
   agentId: string,

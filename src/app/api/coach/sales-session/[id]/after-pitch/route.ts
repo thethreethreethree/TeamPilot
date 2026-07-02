@@ -4,27 +4,74 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import {
   getSession,
   saveAfterPitchSummary,
-  getLatestAfterPitchSummary,
+  getLatestAfterPitchSummaryAdmin,
 } from "@/lib/data/salesCoach";
 import { generateAfterPitchSummary } from "@/lib/coach/v5/afterPitch";
 
 /**
- * After Pitch Summary — the rep's private "between doors" debrief.
+ * After Pitch Summary — the rep's "between doors" debrief.
  *
  *   POST /api/coach/sales-session/[id]/after-pitch  → generate + store
  *   GET  /api/coach/sales-session/[id]/after-pitch  → read back latest
  *
- * PRIVACY (A18, founder 2026-07-02 — scores are self-assessment): this
- * summary is the OWNING REP's alone. Both verbs require the caller to BE the
- * session's agent (session.agentId === auth.uid), enforced here AND by the
- * owner-only RLS on after_pitch_summaries (0080). A manager cannot generate or
- * read another rep's private scoreboard.
+ * VISIBILITY (founder 2026-07-02, two decisions reconciled):
+ *   - The REP (session owner) sees the FULL summary, including their private
+ *     scoreboard.
+ *   - ADMINS / MANAGERS in the same company see the summary too — so they can
+ *     assess growth and provide guidance — but the private self-assessment
+ *     SCORES are STRIPPED for them (A18: the scores are a mirror for the rep,
+ *     not a manager scorecard; managers get the coaching substance —
+ *     narrative, timeline, breakdown, cue-loop, focus — not the numbers).
  *
- * Composition (A16/A21): the assembler REUSES the existing growth-review; this
- * route stores the rep-private artifact and, separately, emits a company-
- * visible event carrying ONLY coarse counts (never the scores) so §3.6
- * learning-visibility works without leaking the private numbers.
+ * Structural privacy: the stored row stays owner-only by RLS (0080). Managers
+ * never read it directly — the ONLY manager path is THIS route, which reads via
+ * service role and strips `scores` before returning. `isManager` mirrors the
+ * established sales-coach rule (company CEO/COO/admin OR sales_coach_role admin).
  */
+
+const MANAGER_COMPANY_ROLES = ["CEO", "COO", "admin"];
+
+type Viewer = {
+  userId: string;
+  isOwner: boolean;
+  isManager: boolean;
+};
+
+/** Resolve the caller's relationship to the session. Returns null if not
+ *  authenticated or not allowed to see the session at all. */
+async function resolveViewer(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sessionCompanyId: string,
+  sessionAgentId: string
+): Promise<Viewer | null> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, company_id, sales_coach_role")
+    .eq("id", auth.user.id)
+    .maybeSingle();
+
+  const sameCompany = profile?.company_id === sessionCompanyId;
+  const isManager =
+    sameCompany &&
+    (MANAGER_COMPANY_ROLES.includes(profile?.role as string) ||
+      profile?.sales_coach_role === "admin");
+  const isOwner = auth.user.id === sessionAgentId;
+
+  if (!isOwner && !isManager) return null;
+  return { userId: auth.user.id, isOwner, isManager };
+}
+
+/** Strip the private scores for non-owner (manager) views (A18). */
+function forViewer(summary: unknown, isOwner: boolean): unknown {
+  if (isOwner) return summary;
+  if (summary && typeof summary === "object") {
+    return { ...(summary as Record<string, unknown>), scores: [] };
+  }
+  return summary;
+}
 
 export async function POST(
   req: NextRequest,
@@ -38,12 +85,7 @@ export async function POST(
   if (limited) return limited;
 
   const { id } = await context.params;
-
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth?.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  }
 
   const session = await getSession(id);
   if (!session) {
@@ -52,10 +94,10 @@ export async function POST(
       { status: 404 }
     );
   }
-  // Private-to-owner: only the rep gets their own After Pitch Summary.
-  if (session.agentId !== auth.user.id) {
+  const viewer = await resolveViewer(supabase, session.companyId, session.agentId);
+  if (!viewer) {
     return NextResponse.json(
-      { error: "This summary is private to the rep." },
+      { error: "Not authorized to view this summary." },
       { status: 403 }
     );
   }
@@ -68,21 +110,20 @@ export async function POST(
   });
 
   if (summary.hasSignal) {
-    // Store the rep-private artifact (RLS owner-only). Best-effort — the
-    // summary still returns even if the store fails.
+    // The summary is ALWAYS owned by the rep (agent_id = session.agentId),
+    // even when a manager triggers generation — the row stays rep-private.
     await saveAfterPitchSummary({
       sessionId: id,
       companyId: session.companyId,
-      agentId: auth.user.id,
+      agentId: session.agentId,
       payload: summary,
     });
-    // Company-visible event — COARSE COUNTS ONLY, never the private scores
-    // (§3.6 make-learning-visible without breaking A18 privacy). Best-effort.
+    // Company-visible event — COARSE COUNTS ONLY, never the private scores.
     try {
       const breakdown = summary.moments.some((m) => m.isBreakdown);
       await supabase.from("events").insert({
         company_id: session.companyId,
-        actor: auth.user.id,
+        actor: viewer.userId,
         kind: "coach.after_pitch_summary_generated",
         subject: `sales_session:${id}`,
         payload: {
@@ -98,7 +139,10 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ summary });
+  return NextResponse.json({
+    summary: forViewer(summary, viewer.isOwner),
+    isOwner: viewer.isOwner,
+  });
 }
 
 export async function GET(
@@ -106,15 +150,21 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth?.user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  const session = await getSession(id);
+  if (!session) {
+    // 404 also covers "not allowed to read the session" (RLS returned null).
+    return NextResponse.json({ summary: null, isOwner: false });
+  }
+  const viewer = await resolveViewer(supabase, session.companyId, session.agentId);
+  if (!viewer) {
+    return NextResponse.json({ summary: null, isOwner: false });
   }
 
-  // getLatestAfterPitchSummary reads via the RLS user client — a non-owner
-  // gets null by policy, which is the privacy contract.
-  const summary = await getLatestAfterPitchSummary(id);
-  return NextResponse.json({ summary: summary ?? null });
+  const stored = await getLatestAfterPitchSummaryAdmin(id);
+  return NextResponse.json({
+    summary: stored ? forViewer(stored, viewer.isOwner) : null,
+    isOwner: viewer.isOwner,
+  });
 }

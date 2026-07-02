@@ -108,6 +108,10 @@ export default function AfterPitchPage() {
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
+  // The rep sees their full summary (incl. private scores) + Start Next Door.
+  // A manager sees the same growth substance with scores stripped, and no
+  // Start Next Door (they aren't the one walking to the next door).
+  const [isOwner, setIsOwner] = useState(true);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -128,7 +132,9 @@ export default function AfterPitchPage() {
         setError(`Couldn't build the summary (HTTP ${res.status}).`);
         return;
       }
-      setSummary((await res.json()).summary);
+      const d = await res.json();
+      setSummary(d.summary);
+      setIsOwner(d.isOwner ?? true);
     } catch {
       setError("Couldn't build the summary.");
     } finally {
@@ -144,7 +150,11 @@ export default function AfterPitchPage() {
       ]);
       if (sRes && sRes.ok) setSession((await sRes.json()).session);
       let existing: Summary | null = null;
-      if (apRes && apRes.ok) existing = (await apRes.json()).summary;
+      if (apRes && apRes.ok) {
+        const d = await apRes.json();
+        existing = d.summary;
+        setIsOwner(d.isOwner ?? true);
+      }
       setSummary(existing);
       setLoading(false);
       // Auto-generate on arrival if none stored yet — "ready before the next
@@ -262,27 +272,38 @@ export default function AfterPitchPage() {
           </>
         )}
 
-        {/* Continuity — always present so the rep can keep moving (AMD-006 L3) */}
+        {/* Continuity. The REP gets one-tap Start Next Door (AMD-006 L3). A
+            MANAGER is viewing to coach — no next door for them; scores are the
+            rep's private self-assessment and aren't shown to managers (A18). */}
         {!loading && (
           <div className="space-y-2 pt-1">
-            <button
-              type="button"
-              onClick={() => void startNextDoor()}
-              disabled={starting || !session}
-              className="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-4 py-3 rounded-xl transition-colors"
-            >
-              {starting ? (
-                <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-              ) : (
-                <ChevronRight className="w-4 h-4" aria-hidden />
-              )}
-              Start Next Door
-            </button>
+            {isOwner ? (
+              <button
+                type="button"
+                onClick={() => void startNextDoor()}
+                disabled={starting || !session}
+                className="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-4 py-3 rounded-xl transition-colors"
+              >
+                {starting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                ) : (
+                  <ChevronRight className="w-4 h-4" aria-hidden />
+                )}
+                Start Next Door
+              </button>
+            ) : (
+              summary?.hasSignal && (
+                <p className="text-[10px] text-muted text-center px-4">
+                  Manager view — for coaching this rep&apos;s growth. Their
+                  self-assessment scores stay private to them.
+                </p>
+              )
+            )}
             <Link
               href={`/dashboard/sales-coach/${id}`}
               className="block text-center text-xs text-secondary hover:text-primary py-1"
             >
-              Replay conversation
+              {isOwner ? "Replay conversation" : "Back to session"}
             </Link>
           </div>
         )}
