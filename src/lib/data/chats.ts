@@ -74,7 +74,14 @@ export interface ChatParticipant {
   lastSeenAt: string | null;
 }
 
-export type ChatsMode = "demo-fixtures" | "live-empty" | "live-data";
+export type ChatsMode =
+  | "demo-fixtures"
+  | "live-empty"
+  | "live-data"
+  // F2 (2026-07-03): a READ ERROR is NOT "empty". Distinguishing them is what
+  // stops a failed query masquerading as "you have no chats" / data loss
+  // (§3.4, A14). The UI renders this as an honest error, not the empty state.
+  | "live-error";
 
 // The product surface a topic belongs to (migration 0076). Sales Coach
 // team chat and the Elostate main chat are kept separate by this scope.
@@ -415,6 +422,9 @@ export function demoUserId(): string {
 export async function fetchTopics(scope: ChatScope = "elostate"): Promise<{
   topics: ChatTopic[];
   mode: ChatsMode;
+  // Present only when mode === "live-error": a short "code: message" the UI
+  // can display so the real cause is visible, not hidden behind an empty list.
+  error?: string;
 }> {
   if (!supabaseEnabled) {
     return { topics: readDemoState().topics, mode: "demo-fixtures" };
@@ -459,7 +469,24 @@ export async function fetchTopics(scope: ChatScope = "elostate"): Promise<{
     data = (fb.data as unknown as typeof data) ?? null;
     error = fb.error;
   }
-  if (error || !data) return { topics: [], mode: "live-empty" };
+  // F2 (§3.4, A14): a real error is NOT emptiness. Log the actual cause
+  // (diagnostic — appears in the browser console) AND return a distinct
+  // live-error the UI surfaces, so a failed read never masquerades as
+  // "you have no chats". Genuine no-rows (data present, length 0) still
+  // falls through to live-empty below.
+  if (error) {
+    const code = (error as { code?: string }).code ?? "error";
+    // eslint-disable-next-line no-console
+    console.error(
+      `[chat] fetchTopics failed scope=${scope} code=${code}: ${error.message}`
+    );
+    return {
+      topics: [],
+      mode: "live-error",
+      error: `${code}: ${error.message}`,
+    };
+  }
+  if (!data) return { topics: [], mode: "live-empty" };
 
   const topics: ChatTopic[] = data.map((row) => ({
     id: row.id,

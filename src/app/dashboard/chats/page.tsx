@@ -82,6 +82,16 @@ export default function TeamChatListPage() {
       const res = await fetchTopics(chatScope);
       setTopics(res.topics);
       setMode(res.mode);
+      // F2 (§3.4, A14): a read error is surfaced honestly via the existing
+      // loadError card — it is NOT rendered as the "Start your first
+      // conversation" empty state. The code+message tells us the real cause.
+      if (res.mode === "live-error") {
+        setLoadError(
+          res.error
+            ? `Could not load topics — ${res.error}`
+            : "Could not load topics (database error)."
+        );
+      }
     } catch (e) {
       setLoadError(
         e instanceof Error
