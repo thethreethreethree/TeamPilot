@@ -26,6 +26,46 @@ export type UploadResult = {
   error?: string;
 };
 
+// Folder DRAG support: dataTransfer.files does NOT expand directories — a
+// dragged folder arrives as a single 0-byte entry. These walk the dropped
+// filesystem entries (webkitGetAsEntry) so a dragged folder yields its real
+// files. webkitGetAsEntry must be called synchronously in the drop handler.
+function readAllDirEntries(
+  reader: FileSystemDirectoryReader
+): Promise<FileSystemEntry[]> {
+  return new Promise((resolve) => {
+    const out: FileSystemEntry[] = [];
+    const read = () =>
+      reader.readEntries((batch) => {
+        if (!batch.length) {
+          resolve(out);
+          return;
+        }
+        out.push(...batch);
+        read();
+      }, () => resolve(out));
+    read();
+  });
+}
+
+async function entryToFiles(entry: FileSystemEntry): Promise<File[]> {
+  if (entry.isFile) {
+    return new Promise((resolve) => {
+      (entry as FileSystemFileEntry).file(
+        (f) => resolve([f]),
+        () => resolve([])
+      );
+    });
+  }
+  if (entry.isDirectory) {
+    const reader = (entry as FileSystemDirectoryEntry).createReader();
+    const entries = await readAllDirEntries(reader);
+    const nested = await Promise.all(entries.map(entryToFiles));
+    return nested.flat();
+  }
+  return [];
+}
+
 export function FileDropzone({
   onUploadComplete,
   contextHint,
@@ -210,6 +250,29 @@ export function FileDropzone({
       onDrop={(e) => {
         e.preventDefault();
         setDragOver(false);
+        // Batch mode: expand any dropped FOLDERS via the filesystem-entry API
+        // (dataTransfer.files gives a folder as one 0-byte entry). Capture the
+        // entries SYNCHRONOUSLY (valid only during the event), then recurse.
+        const items = e.dataTransfer.items;
+        if (onFilesSelected && items && items.length) {
+          const entries: FileSystemEntry[] = [];
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const entry = item?.webkitGetAsEntry?.();
+            if (entry) entries.push(entry);
+          }
+          const fallback = e.dataTransfer.files;
+          if (entries.length) {
+            void (async () => {
+              const files = (
+                await Promise.all(entries.map(entryToFiles))
+              ).flat();
+              if (files.length) onFilesSelected(files);
+              else handleFiles(fallback);
+            })();
+            return;
+          }
+        }
         handleFiles(e.dataTransfer.files);
       }}
       onClick={() => inputRef.current?.click()}
