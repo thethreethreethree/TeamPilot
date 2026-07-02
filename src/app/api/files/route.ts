@@ -85,32 +85,85 @@ export async function POST(req: NextRequest) {
   if (!auth) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  let form: FormData;
-  try {
-    form = await req.formData();
-  } catch {
-    return NextResponse.json({ error: "Expected multipart/form-data." }, { status: 400 });
+  // Two upload paths (§1.5), sharing the routing/validate/cap/record path:
+  //  (1) SIGNED-URL (JSON) — the client uploaded bytes DIRECT to storage via a
+  //      signed URL (large files / folders) and POSTs metadata + storagePath,
+  //      bypassing the ~4.5 MB serverless body limit.
+  //  (2) MULTIPART (legacy: task/chat/C.A.R.E small uploads) — file in-body.
+  const contentType = req.headers.get("content-type") ?? "";
+  let fileName: string;
+  let fileSize: number;
+  let fileType: string;
+  let fileBlob: File | null = null; // multipart path: bytes to upload
+  let preUploadedPath: string | null = null; // signed-URL path: already in storage
+  let getField: (k: string) => string | null;
+
+  if (contentType.includes("application/json")) {
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ error: "Expected JSON body." }, { status: 400 });
+    }
+    preUploadedPath =
+      typeof body.storagePath === "string" ? body.storagePath : null;
+    if (!preUploadedPath) {
+      return NextResponse.json(
+        { error: "Missing 'storagePath' — upload via the signed URL first." },
+        { status: 400 }
+      );
+    }
+    fileName =
+      typeof body.originalFilename === "string" && body.originalFilename.trim()
+        ? body.originalFilename
+        : "file";
+    fileSize = typeof body.sizeBytes === "number" ? body.sizeBytes : 0;
+    fileType =
+      typeof body.mimeType === "string" && body.mimeType
+        ? body.mimeType
+        : "application/octet-stream";
+    getField = (k) => {
+      const val = body[k];
+      if (typeof val === "string") return val;
+      if (Array.isArray(val)) return val.join(",");
+      return null;
+    };
+  } else {
+    let form: FormData;
+    try {
+      form = await req.formData();
+    } catch {
+      return NextResponse.json(
+        { error: "Expected multipart/form-data." },
+        { status: 400 }
+      );
+    }
+    const file = form.get("file");
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "Missing 'file' part." }, { status: 400 });
+    }
+    fileBlob = file;
+    fileName = file.name;
+    fileSize = file.size;
+    fileType = file.type || "application/octet-stream";
+    getField = (k) => form.get(k) as string | null;
   }
-  const file = form.get("file");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Missing 'file' part." }, { status: 400 });
-  }
-  const title = ((form.get("title") as string | null) ?? file.name).trim();
-  const description = (form.get("description") as string | null)?.trim() ?? null;
+
+  const title = (getField("title") ?? fileName).trim();
+  const description = getField("description")?.trim() ?? null;
   const accessRole =
-    ((form.get("access_role") as string | null) as
+    (getField("access_role") as
       | "everyone"
       | "admins"
       | "ceo_admins"
       | "specific_people"
       | null) ?? "everyone";
-  const linkedTopicId = (form.get("linked_topic_id") as string | null) ?? null;
-  const linkedConversationId =
-    (form.get("linked_conversation_id") as string | null) ?? null;
-  const linkedTaskIdRaw = (form.get("linked_task_id") as string | null) ?? null;
-  const departmentIdsRaw = (form.get("department_ids") as string | null) ?? "";
-  const taskIdsRaw = (form.get("task_ids") as string | null) ?? "";
-  const tagsRaw = (form.get("tags") as string | null) ?? "";
+  const linkedTopicId = getField("linked_topic_id");
+  const linkedConversationId = getField("linked_conversation_id");
+  const linkedTaskIdRaw = getField("linked_task_id");
+  const departmentIdsRaw = getField("department_ids") ?? "";
+  const taskIdsRaw = getField("task_ids") ?? "";
+  const tagsRaw = getField("tags") ?? "";
   const departmentIds = departmentIdsRaw
     .split(",")
     .map((s) => s.trim())
@@ -143,8 +196,8 @@ export async function POST(req: NextRequest) {
     const routed = await autoRouteFile({
       uploaderId: auth.userId,
       companyId: auth.companyId,
-      fileName: file.name,
-      mimeType: file.type || "application/octet-stream",
+      fileName,
+      mimeType: fileType,
       linkedTaskId: linkedTaskIdRaw,
       linkedTopicId,
       linkedConversationId,
@@ -166,8 +219,8 @@ export async function POST(req: NextRequest) {
 
   // Validate size + type
   const v = validateUploadCandidate({
-    sizeBytes: file.size,
-    mimeType: file.type || "application/octet-stream",
+    sizeBytes: fileSize,
+    mimeType: fileType,
     uploadedVia: "agent_dashboard",
   });
   if (!v.ok) {
@@ -211,22 +264,28 @@ export async function POST(req: NextRequest) {
   // Reserve a file id so we can use it as both the storage
   // object name and the row PK.
   const fileId = randomUUID();
-  const storagePath = buildStoragePath({
-    companyId: auth.companyId,
-    fileId,
-    originalFilename: file.name,
-  });
-  const bytes = await file.arrayBuffer();
-  const up = await uploadAssetBytes({
-    storagePath,
-    bytes,
-    contentType: file.type || "application/octet-stream",
-  });
-  if (!up.ok) {
-    return NextResponse.json(
-      { error: `Storage upload failed: ${up.error}` },
-      { status: 500 }
-    );
+  // Signed-URL path: bytes are ALREADY in storage at preUploadedPath — reuse
+  // it and skip the through-function upload. Multipart path: upload now.
+  const storagePath =
+    preUploadedPath ??
+    buildStoragePath({
+      companyId: auth.companyId,
+      fileId,
+      originalFilename: fileName,
+    });
+  if (!preUploadedPath && fileBlob) {
+    const bytes = await fileBlob.arrayBuffer();
+    const up = await uploadAssetBytes({
+      storagePath,
+      bytes,
+      contentType: fileType,
+    });
+    if (!up.ok) {
+      return NextResponse.json(
+        { error: `Storage upload failed: ${up.error}` },
+        { status: 500 }
+      );
+    }
   }
 
   let row;
@@ -236,9 +295,9 @@ export async function POST(req: NextRequest) {
       uploaderId: auth.userId,
       customerSessionToken: null,
       storagePath,
-      mimeType: file.type || "application/octet-stream",
-      sizeBytes: file.size,
-      originalFilename: file.name,
+      mimeType: fileType,
+      sizeBytes: fileSize,
+      originalFilename: fileName,
       title: routedTitle,
       description: routedDescription,
       accessRole,

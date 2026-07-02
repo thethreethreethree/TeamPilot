@@ -50,9 +50,13 @@ export function ClassificationModal({
   onSaved,
   casualRemaining,
   onSubmitDraft,
+  batchCount = 1,
 }: {
   open: boolean;
   onClose: () => void;
+  /** >1 when classifying a multi-file / folder batch: the classification is
+   *  shared, and each file keeps its own filename as its title. */
+  batchCount?: number;
   /** The file being classified. Omitted in DRAFT mode (pre-upload),
    *  where the file does not exist yet — see onSubmitDraft. */
   fileId?: string;
@@ -216,7 +220,9 @@ export function ClassificationModal({
   };
 
   const save = async () => {
-    if (!title.trim()) {
+    // In a batch each file keeps its own filename as its title, so the single
+    // title field isn't required (it isn't even shown).
+    if (batchCount <= 1 && !title.trim()) {
       setError("Title is required.");
       return;
     }
@@ -348,19 +354,28 @@ export function ClassificationModal({
           </div>
         )}
 
-        <div>
-          <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">
-            Title <span className="text-red-300">*</span>
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value.slice(0, 120))}
-            placeholder="e.g., June budget report — finance team review"
-            className="w-full bg-surface border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
-          />
-          <p className="text-[10px] text-muted mt-0.5">{title.length}/120</p>
-        </div>
+        {batchCount > 1 ? (
+          // Batch/folder: shared classification, per-file filenames as titles.
+          <div className="rounded-md border border-ember-400/30 bg-ember-400/[0.04] px-3 py-2 text-xs text-secondary">
+            Classifying <span className="text-primary font-semibold">{batchCount} files</span>{" "}
+            together — they share the department, task, description, tags, and
+            access below. Each file keeps its own filename as its title.
+          </div>
+        ) : (
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">
+              Title <span className="text-red-300">*</span>
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value.slice(0, 120))}
+              placeholder="e.g., June budget report — finance team review"
+              className="w-full bg-surface border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
+            />
+            <p className="text-[10px] text-muted mt-0.5">{title.length}/120</p>
+          </div>
+        )}
 
         <div>
           <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">

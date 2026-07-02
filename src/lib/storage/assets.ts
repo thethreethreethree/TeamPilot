@@ -170,6 +170,39 @@ export async function signAssetUrl(args: {
   return data.signedUrl;
 }
 
+/**
+ * Create a SIGNED UPLOAD target so the browser can upload bytes DIRECT to
+ * Storage (client → storage), bypassing the ~4.5 MB Vercel serverless
+ * request-body limit that "Failed to fetch" on large files. The caller then
+ * POSTs only metadata + this storagePath to /api/files. The bucket's own size
+ * limit (25 MB) + validateUploadCandidate still apply. Reuses buildStoragePath
+ * so the object layout is identical to the through-function path (§A21).
+ */
+export async function createSignedUploadTarget(args: {
+  companyId: string;
+  fileId: string;
+  originalFilename: string;
+}): Promise<
+  { ok: true; storagePath: string; token: string } | { ok: false; error: string }
+> {
+  const storagePath = buildStoragePath(args);
+  const sb = createAdminClient();
+  const { data, error } = await sb.storage
+    .from(ASSETS_BUCKET)
+    .createSignedUploadUrl(storagePath);
+  if (error || !data?.token) {
+    const msg = error?.message || "Could not create upload URL.";
+    if (/bucket not found|bucket does not exist/i.test(msg)) {
+      return {
+        ok: false,
+        error: `Storage bucket '${ASSETS_BUCKET}' does not exist. Create it via Supabase Dashboard → Storage → New bucket → '${ASSETS_BUCKET}', Public OFF.`,
+      };
+    }
+    return { ok: false, error: msg };
+  }
+  return { ok: true, storagePath, token: data.token };
+}
+
 export async function deleteAssetBytes(
   storagePath: string
 ): Promise<boolean> {

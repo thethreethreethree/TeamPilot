@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Paperclip, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
@@ -36,6 +36,7 @@ export function FileDropzone({
   linkedTaskId,
   endpoint,
   onFileSelected,
+  onFilesSelected,
 }: {
   onUploadComplete?: (result: UploadResult) => void;
   /** Label tweak for in-context dropzones (e.g. "Attach to this task"). */
@@ -58,13 +59,28 @@ export function FileDropzone({
    *  file lands classified and never burns the casual cap). When
    *  omitted, behaviour is unchanged: upload fires immediately. */
   onFileSelected?: (file: File) => void;
+  /** Batch variant of onFileSelected (large-file / folder upload): when
+   *  provided, ALL picked files are handed to the parent at once for a shared
+   *  classify-then-upload. Takes precedence over onFileSelected. */
+  onFilesSelected?: (files: File[]) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
   const toast = useToast();
+
+  // webkitdirectory (folder select) is non-standard + untyped by React — set
+  // it on the folder input via the DOM once mounted.
+  useEffect(() => {
+    const el = folderInputRef.current;
+    if (el) {
+      el.setAttribute("webkitdirectory", "");
+      el.setAttribute("directory", "");
+    }
+  });
 
   const upload = useCallback(
     async (file: File) => {
@@ -125,18 +141,23 @@ export function FileDropzone({
   const handleFiles = useCallback(
     (files: FileList | null) => {
       if (!files || files.length === 0) return;
-      // Pre-upload classify: defer to the parent instead of uploading.
-      // One file at a time in this mode (the modal classifies one).
-      if (onFileSelected) {
-        const first = Array.from(files)[0];
-        if (first) onFileSelected(first);
+      const all = Array.from(files);
+      // Batch pre-upload classify (large files / folders): hand ALL files to
+      // the parent for a shared classify-then-upload.
+      if (onFilesSelected) {
+        onFilesSelected(all);
         return;
       }
-      for (const f of Array.from(files)) {
+      // Single pre-upload classify: defer one file to the parent's modal.
+      if (onFileSelected) {
+        if (all[0]) onFileSelected(all[0]);
+        return;
+      }
+      for (const f of all) {
         void upload(f);
       }
     },
-    [upload, onFileSelected]
+    [upload, onFileSelected, onFilesSelected]
   );
 
   if (hiddenLabel) {
@@ -208,9 +229,21 @@ export function FileDropzone({
       <input
         ref={inputRef}
         type="file"
+        multiple={!!onFilesSelected}
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />
+      {/* Folder picker (large-file/folder upload). webkitdirectory is set via
+          ref — it's a non-standard attribute React doesn't type. */}
+      {onFilesSelected && (
+        <input
+          ref={folderInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+      )}
       <div className="flex flex-col items-center text-center gap-2">
         {uploading ? (
           <>
@@ -234,8 +267,20 @@ export function FileDropzone({
             </p>
             <p className="text-[11px] text-muted max-w-md">
               {contextHint ??
-                "25MB max. Images, PDF, docs. Videos and archives blocked. Files without department + task + description count toward your 3/day casual cap."}
+                "25MB max per file. Images, PDF, docs. Videos and archives blocked. Files without department + task + description count toward your 3/day casual cap."}
             </p>
+            {onFilesSelected && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  folderInputRef.current?.click();
+                }}
+                className="mt-1 text-[11px] text-brand hover:text-ember-400 underline"
+              >
+                or choose a folder
+              </button>
+            )}
           </>
         )}
         {error && (
