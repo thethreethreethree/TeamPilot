@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
   ArrowLeft,
   BarChart3,
@@ -138,6 +139,15 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {children}
       </main>
+
+      {/* Learning Mode lightbulb — the dashboard layout renders one too, but it
+          sits at z-40 BEHIND this z-[60] shell overlay, so it's invisible in
+          Sales Coach. Render it here (inside the shell's stacking context) so
+          the lightbulb is reachable, exactly like Elostate (§A21 — SAME
+          provider/context from the parent dashboard layout, no second
+          provider; the Ask Jeff panel + hint popovers already surface above the
+          shell via z-[60] / a body portal). */}
+      <LearningModeFab />
     </div>
   );
 }

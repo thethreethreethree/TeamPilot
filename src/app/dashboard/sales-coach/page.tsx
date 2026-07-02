@@ -29,6 +29,7 @@ import {
   DeckPill,
   Sparkline,
 } from "@/components/sales-coach/ui/deck";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /dashboard/sales-coach — Sales Coach product home.
@@ -282,34 +283,74 @@ export default function SalesCoachHome() {
         {/* What compounded this week */}
         <SectionLabel icon={Sparkles}>What your coach helped with</SectionLabel>
         <div className="grid grid-cols-2 gap-2.5">
-          <DeckStat
-            icon={GraduationCap}
-            label="Sessions / week"
-            value={stats?.sessionsThisWeek ?? 0}
-            sub={`${stats?.sessionsTotal ?? 0} total`}
-            tone="brand"
-          />
-          <DeckStat
-            icon={Sparkles}
-            label="Growth reviews"
-            value={stats?.reviewsGenerated ?? 0}
-            sub="From your calls"
-            tone="emerald"
-          />
-          <DeckStat
-            icon={MessageSquare}
-            label="Live cues"
-            value={stats?.cuesTotal ?? 0}
-            sub="All sessions"
-            tone="muted"
-          />
-          <DeckStat
-            icon={Lightbulb}
-            label="Growth ops"
-            value={stats?.recentGrowth.length ?? 0}
-            sub="To practice"
-            tone="amber"
-          />
+          <LearningHint
+            as="block"
+            category="Sales Coach · Activity"
+            title="Sessions this week"
+            whatItIs="How many coaching sessions you've run this week, with your all-time total underneath."
+            why="A coaching habit compounds door by door. This is your activity pulse — not a quota, but a signal of whether the coach is actually being used. A week at zero is a coach going to waste."
+            how="Aim for a steady rhythm rather than a burst. Watch for weeks that drop to zero — that's the coach going unused, not a break earned."
+            principle="Skill is built between doors, not in one heroic session."
+          >
+            <DeckStat
+              icon={GraduationCap}
+              label="Sessions / week"
+              value={stats?.sessionsThisWeek ?? 0}
+              sub={`${stats?.sessionsTotal ?? 0} total`}
+              tone="brand"
+            />
+          </LearningHint>
+          <LearningHint
+            as="block"
+            category="Sales Coach · Learning"
+            title="Growth reviews"
+            whatItIs="The number of post-call growth reviews the coach has generated from your conversations."
+            why="The review is where learning actually happens — the honest read of what worked and the one thing to fix next. A session without a review is time logged but the lesson never pulled."
+            how="Run a review after each call. If reviews lag far behind sessions, the transcripts exist but no one is extracting the growth."
+            principle="A call you don't review is a call you can only repeat, not improve."
+          >
+            <DeckStat
+              icon={Sparkles}
+              label="Growth reviews"
+              value={stats?.reviewsGenerated ?? 0}
+              sub="From your calls"
+              tone="emerald"
+            />
+          </LearningHint>
+          <LearningHint
+            as="block"
+            category="Sales Coach · Reliance"
+            title="Live cues delivered"
+            whatItIs="How many in-the-moment cues the coach has whispered during live calls, across all sessions."
+            why="Cues help in the moment — but the goal is fewer over time. A high, flat count means reps still lean on the earpiece; a falling count means the moves are becoming their own."
+            how="Watch the trend, not the raw number — pair it with the cue-reliance panel below to see whether reliance is actually dropping."
+            principle="The coach succeeds when it's needed less, not more."
+          >
+            <DeckStat
+              icon={MessageSquare}
+              label="Live cues"
+              value={stats?.cuesTotal ?? 0}
+              sub="All sessions"
+              tone="muted"
+            />
+          </LearningHint>
+          <LearningHint
+            as="block"
+            category="Sales Coach · Growth"
+            title="Growth opportunities"
+            whatItIs="The count of specific, practiceable growth opportunities the coach has surfaced for you to work on."
+            why="Vague feedback ('get better at closing') doesn't change behavior; one concrete next step does. This is the pile of concrete fixes waiting to be practiced."
+            how="Pick one and take it into your next door. Don't try to fix twelve things at once — behavior changes one focus at a time."
+            principle="One fix, practiced, beats twelve noted and forgotten."
+          >
+            <DeckStat
+              icon={Lightbulb}
+              label="Growth ops"
+              value={stats?.recentGrowth.length ?? 0}
+              sub="To practice"
+              tone="amber"
+            />
+          </LearningHint>
         </div>
 
         {/* Cue reliance — the training wheels (§3.5) */}

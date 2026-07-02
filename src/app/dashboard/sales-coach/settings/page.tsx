@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
+import { LearningModePanel } from "@/components/settings/LearningModePanel";
 
 /**
  * Sales Coach → Settings (Phase 4). Role-aware: every staff/admin gets
@@ -99,6 +100,11 @@ export default function SalesCoachSettingsPage() {
                   per-staff preferences (default cue mode, notifications) are
                   coming.
                 </p>
+                {/* Learning Mode — the SAME per-user preference Elostate uses
+                    (§A21: same LearningModePanel + provider + profiles.
+                    learning_mode_enabled). Toggling here flips it everywhere,
+                    including Elostate. */}
+                <LearningModePanel />
               </div>
             )}
 
