@@ -199,65 +199,115 @@ export default function SalesCoachHome() {
       <TopBar title="Sales Coach" subtitle="Your coaching, made visible" />
       <DeckShell>
         {/* §3.6 + §A18 reframe — this is a digital gym, not a scorecard. */}
-        <DeckCard glow className="p-3.5 flex items-start gap-2.5">
-          <ShieldCheck className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
-          <p className="text-[11px] text-secondary leading-relaxed">
-            This isn&apos;t a scorecard or a ranking. It&apos;s your selling,
-            made visible — what the coach helped with and whether you&apos;re
-            needing fewer cues over time, measured against your{" "}
-            <span className="text-primary">own</span> past.
-          </p>
-        </DeckCard>
+        <LearningHint
+          as="block"
+          category="Sales Coach · Philosophy"
+          title="Made visible, not ranked"
+          whatItIs="The framing for this whole surface: it shows your selling made visible — what the coach helped with and whether you lean on fewer cues over time — measured against your OWN past."
+          why="A coaching tool becomes surveillance the moment it's used to rank people. This reframe is deliberate: everything here is for growth against yourself, never a leaderboard. The label is what decides whether the data helps or punishes."
+          how="Read every number here as a trend against your own history, not against a teammate. If you're a manager, use it to coach a person up — never to compare people."
+          principle="Visibility serves growth, or it becomes surveillance — the framing decides which."
+        >
+          <DeckCard glow className="p-3.5 flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
+            <p className="text-[11px] text-secondary leading-relaxed">
+              This isn&apos;t a scorecard or a ranking. It&apos;s your selling,
+              made visible — what the coach helped with and whether you&apos;re
+              needing fewer cues over time, measured against your{" "}
+              <span className="text-primary">own</span> past.
+            </p>
+          </DeckCard>
+        </LearningHint>
 
         {/* Start a session */}
         <DeckCard className="p-4">
           <h2 className="text-sm font-semibold text-primary mb-3">
             Start a coaching session
           </h2>
-          <div className="grid grid-cols-2 gap-2 mb-2.5">
-            <DeckGhostButton
-              active={context === "video"}
-              onClick={() => setContext("video")}
-            >
-              <Video className="w-3.5 h-3.5" aria-hidden />
-              Online video
-            </DeckGhostButton>
-            <DeckGhostButton
-              active={context === "in_person"}
-              onClick={() => setContext("in_person")}
-            >
-              <DoorOpen className="w-3.5 h-3.5" aria-hidden />
-              In-person
-            </DeckGhostButton>
-          </div>
-          <input
-            type="text"
-            value={clientLabel}
-            onChange={(e) => setClientLabel(e.target.value)}
-            placeholder="Client / campaign (required)"
-            className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
-          />
-          <DeckButton
-            onClick={() => void start()}
-            disabled={starting || !clientLabel.trim()}
-            className="w-full"
+          <LearningHint
+            as="block"
+            category="Sales Coach · Session"
+            title="In-person vs. video"
+            whatItIs="Whether this session is an in-person conversation (a door, a field visit) or a remote video call."
+            why="The coach adapts to the channel — doorstep timing and body language in person; framing and pacing on video. Set right, the cues and the review fit how the conversation actually happens."
+            how="Pick the one that matches this call before you start. It's also what lets you later compare your in-person close rate against your video close rate."
+            principle="Coach the channel you're actually in."
           >
-            {starting ? (
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-            ) : (
-              <Mic className="w-4 h-4" aria-hidden />
-            )}
-            Start session
-          </DeckButton>
+            <div className="grid grid-cols-2 gap-2 mb-2.5">
+              <DeckGhostButton
+                active={context === "video"}
+                onClick={() => setContext("video")}
+              >
+                <Video className="w-3.5 h-3.5" aria-hidden />
+                Online video
+              </DeckGhostButton>
+              <DeckGhostButton
+                active={context === "in_person"}
+                onClick={() => setContext("in_person")}
+              >
+                <DoorOpen className="w-3.5 h-3.5" aria-hidden />
+                In-person
+              </DeckGhostButton>
+            </div>
+          </LearningHint>
+          <LearningHint
+            as="block"
+            category="Sales Coach · Session"
+            title="Client / campaign label"
+            whatItIs="A short label for who or what this session is about — a client name, a campaign, or a door number."
+            why="It's how you find this exact conversation later to learn from it. A pile of untitled sessions is a history you can't navigate."
+            how="Give it something you'll recognize ('Door 17', 'Acme renewal'). It's required — the session won't start without it. A trailing number auto-increments when you use 'Start Next Door'."
+            principle="A conversation you can't find later is a lesson you can't revisit."
+          >
+            <input
+              type="text"
+              value={clientLabel}
+              onChange={(e) => setClientLabel(e.target.value)}
+              placeholder="Client / campaign (required)"
+              className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
+            />
+          </LearningHint>
+          <LearningHint
+            as="block"
+            category="Sales Coach · Session"
+            title="Start session"
+            whatItIs="Begins a coaching session and opens its page, where you run live coaching or upload a recording, then review it."
+            why="This is the front door of the whole loop — capture → coach → review → next door. No session, no coaching."
+            how="Add a client label, then start. You'll land on the session page to begin live coaching or attach a recording."
+            principle="The coaching only compounds if you actually start the door."
+          >
+            <DeckButton
+              onClick={() => void start()}
+              disabled={starting || !clientLabel.trim()}
+              className="w-full"
+            >
+              {starting ? (
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+              ) : (
+                <Mic className="w-4 h-4" aria-hidden />
+              )}
+              Start session
+            </DeckButton>
+          </LearningHint>
           {/* Phase 2 capture — optional WHERE/HOW/WHAT behind a toggle so it
               never blocks the primary title+start flow (L4). */}
-          <button
-            type="button"
-            onClick={() => setShowCapture((v) => !v)}
-            className="mt-3 text-[11px] text-muted hover:text-secondary transition-colors"
+          <LearningHint
+            as="inline-block"
+            category="Sales Coach · Session"
+            title="Optional session details"
+            whatItIs="An optional expander to capture WHERE (territory), HOW (approach), and WHAT (the offer) for this session, before the call."
+            why="Not required, but they let the coach reason about context — tailoring prep to the offer, or letting you later see whether a referral approach outperforms a cold one. Kept optional so they never block starting."
+            how="Expand it only when you want richer context; skip it entirely to start fast."
+            principle="Context sharpens coaching — but never at the cost of just getting started."
           >
-            {showCapture ? "− Hide details" : "+ Add details (where / how / what) — optional"}
-          </button>
+            <button
+              type="button"
+              onClick={() => setShowCapture((v) => !v)}
+              className="mt-3 text-[11px] text-muted hover:text-secondary transition-colors"
+            >
+              {showCapture ? "− Hide details" : "+ Add details (where / how / what) — optional"}
+            </button>
+          </LearningHint>
           {showCapture && (
             <div className="mt-2 grid grid-cols-1 gap-2">
               <CaptureInput
@@ -354,6 +404,15 @@ export default function SalesCoachHome() {
         </div>
 
         {/* Cue reliance — the training wheels (§3.5) */}
+        <LearningHint
+          as="block"
+          category="Sales Coach · Reliance"
+          title="Your reliance on live cues"
+          whatItIs="The trend of how many live cues you needed per session over time, with a sparkline of your recent sessions."
+          why="This is the training-wheels gauge. The coach isn't meant to whisper forever — it's meant to make the moves yours. A falling line is the real win; a flat, high line means the skill hasn't transferred yet."
+          how="Watch the direction, not a single session. If it's climbing, the reviews aren't sticking — pick one growth opportunity and drill it before your next call."
+          principle="The coach is succeeding when you need it less."
+        >
         <DeckCard className="p-4">
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-1.5">
@@ -387,6 +446,7 @@ export default function SalesCoachHome() {
             </p>
           )}
         </DeckCard>
+        </LearningHint>
 
         {/* Phase 4 — what the coach is learning about you across sessions
             (§3.6 make-learning-visible; §4 — gated). Served from a STORED set;
@@ -401,19 +461,29 @@ export default function SalesCoachHome() {
                 </h2>
               </div>
               {(patternsState.stored || patternsState.gateMet) && (
-                <DeckGhostButton
-                  onClick={() => void refreshPatterns()}
-                  disabled={patternsBusy}
-                  active={patternsState.stale || !patternsState.stored}
-                  className="!px-2.5 !py-1 !text-[11px]"
+                <LearningHint
+                  as="inline-block"
+                  category="Sales Coach · Learning"
+                  title="What your coach is learning about you"
+                  whatItIs="Builds (or refreshes) the cross-session patterns the coach sees across your calls — what's working for you and what's costing you, each tied to your recorded outcomes and your own reads."
+                  why="One call is noise; patterns across many are signal. This is where the coach proves it's learning YOU, not repeating generic advice. It's gated — it won't invent patterns before there's enough real data."
+                  how="Click to build it, or Refresh after new sessions. Treat each pattern as a hypothesis to test on your next doors, not a verdict."
+                  principle="A coach that can't show what it's learned about you hasn't learned anything."
                 >
-                  {patternsBusy ? (
-                    <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
-                  ) : (
-                    <Brain className="w-3 h-3" aria-hidden />
-                  )}
-                  {patternsState.stored ? "Refresh" : "See what I'm learning"}
-                </DeckGhostButton>
+                  <DeckGhostButton
+                    onClick={() => void refreshPatterns()}
+                    disabled={patternsBusy}
+                    active={patternsState.stale || !patternsState.stored}
+                    className="!px-2.5 !py-1 !text-[11px]"
+                  >
+                    {patternsBusy ? (
+                      <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
+                    ) : (
+                      <Brain className="w-3 h-3" aria-hidden />
+                    )}
+                    {patternsState.stored ? "Refresh" : "See what I'm learning"}
+                  </DeckGhostButton>
+                </LearningHint>
               )}
             </div>
 
@@ -487,14 +557,24 @@ export default function SalesCoachHome() {
             <SectionLabel icon={Lightbulb}>
               Growth opportunities to practice
             </SectionLabel>
-            <DeckCard className="divide-y divide-white/[0.06] overflow-hidden">
-              {stats.recentGrowth.map((g, i) => (
-                <div key={i} className="flex items-start gap-2.5 px-4 py-3">
-                  <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
-                  <p className="text-xs text-secondary leading-relaxed">{g}</p>
-                </div>
-              ))}
-            </DeckCard>
+            <LearningHint
+              as="block"
+              category="Sales Coach · Growth"
+              title="Growth opportunities to practice"
+              whatItIs="Specific, practiceable next steps the coach has pulled from your recent reviews — the concrete fixes waiting to be worked on."
+              why="Vague feedback doesn't change behavior; a concrete next step does. This is the actionable residue of your reviews — the difference between 'noted' and 'improved'."
+              how="Pick ONE and take it into your next door. Don't try to fix them all at once — behavior changes one focus at a time."
+              principle="One fix, practiced, beats twelve noted and forgotten."
+            >
+              <DeckCard className="divide-y divide-white/[0.06] overflow-hidden">
+                {stats.recentGrowth.map((g, i) => (
+                  <div key={i} className="flex items-start gap-2.5 px-4 py-3">
+                    <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+                    <p className="text-xs text-secondary leading-relaxed">{g}</p>
+                  </div>
+                ))}
+              </DeckCard>
+            </LearningHint>
           </>
         )}
 
@@ -503,9 +583,39 @@ export default function SalesCoachHome() {
           <>
             <SectionLabel icon={Mic}>Where your sessions stand</SectionLabel>
             <div className="grid grid-cols-3 gap-2.5">
-              <DeckStat icon={Mic} label="In progress" value={stats.activeCount} sub="Live now" tone="brand" />
-              <DeckStat icon={ArrowRight} label="Awaiting" value={stats.awaitingReview} sub="Not reviewed" tone="amber" />
-              <DeckStat icon={CheckCircle2} label="Reviewed" value={stats.reviewedCount} sub="Done" tone="emerald" />
+              <LearningHint
+                as="block"
+                category="Sales Coach · Pipeline"
+                title="In progress"
+                whatItIs="Sessions that are live right now — started and not yet ended."
+                why="A session left 'in progress' is a call whose lesson is frozen — it can't be reviewed until it ends. A pile of these means calls are started but never closed out."
+                how="End a session when the call is done so it can move to review. If this stays above zero, someone forgot to hit Stop."
+                principle="A call that never ends never becomes a lesson."
+              >
+                <DeckStat icon={Mic} label="In progress" value={stats.activeCount} sub="Live now" tone="brand" />
+              </LearningHint>
+              <LearningHint
+                as="block"
+                category="Sales Coach · Pipeline"
+                title="Awaiting review"
+                whatItIs="Sessions that have ended but don't have a growth review yet."
+                why="This is your backlog of un-pulled lessons — calls you already had but haven't learned from. The transcript's there; the growth isn't."
+                how="Open each and generate its review. Keep this number low — the value is in the review, not the recording."
+                principle="An un-reviewed call is potential, not progress."
+              >
+                <DeckStat icon={ArrowRight} label="Awaiting" value={stats.awaitingReview} sub="Not reviewed" tone="amber" />
+              </LearningHint>
+              <LearningHint
+                as="block"
+                category="Sales Coach · Pipeline"
+                title="Reviewed"
+                whatItIs="Sessions that have a completed growth review."
+                why="These are the calls you've actually learned from — the compounding stack. The ratio of reviewed to awaiting tells you whether the coaching loop is closing or leaking."
+                how="Aim for reviewed to keep pace with sessions. A growing 'awaiting' next to a flat 'reviewed' means lessons are evaporating."
+                principle="Reviewed is where the growth actually banked."
+              >
+                <DeckStat icon={CheckCircle2} label="Reviewed" value={stats.reviewedCount} sub="Done" tone="emerald" />
+              </LearningHint>
             </div>
           </>
         )}
@@ -524,6 +634,15 @@ export default function SalesCoachHome() {
             </p>
           </DeckCard>
         ) : (
+          <LearningHint
+            as="block"
+            category="Sales Coach · Sessions"
+            title="Your sessions"
+            whatItIs="Your recent coaching sessions — each row shows the context (video / in-person), the client label, when it started, and its status (active / ended / reviewed)."
+            why="This is your history — the calls you can return to and learn from. The status pill tells you at a glance which still need a review."
+            how="Tap a row to open that session — run its review, read the transcript, or open the After Pitch summary. Chase down anything still 'ended' but not reviewed."
+            principle="History only helps if you actually return to it."
+          >
           <DeckCard className="divide-y divide-white/[0.06] overflow-hidden">
             {sessions.map((s) => {
               const tone =
@@ -561,6 +680,7 @@ export default function SalesCoachHome() {
               );
             })}
           </DeckCard>
+          </LearningHint>
         )}
       </DeckShell>
     </>

@@ -10,6 +10,7 @@ import {
   Star,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Sales Coach → Coach Assessment (admin). Per-agent coaching signal pulled
@@ -101,66 +102,133 @@ export default function CoachAssessmentPage() {
             Loading…
           </div>
         ) : degraded ? (
-          <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
-            <p className="text-xs text-amber-300">
-              Couldn&apos;t load the team assessment right now — this is an
-              error, not an empty team. Try again shortly.
-            </p>
-          </div>
-        ) : !isManager ? (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-5">
-            <div className="inline-flex items-center gap-1.5 text-[11px] text-muted rounded-md border border-default px-2 py-1 mb-3">
-              <Lock className="w-3 h-3" aria-hidden />
-              Admin only
+          <LearningHint
+            as="block"
+            category="Sales Coach · Assessment"
+            title="Load error, not empty team"
+            whatItIs="An honest error state: the assessment query failed, so the page shows this instead of a blank team."
+            why="An empty team and a failed load look identical, but mean opposite things. Showing the error keeps you from coaching off a false 'nobody's growing' when the truth is 'we couldn't load it.'"
+            how="Treat this as temporary — retry shortly. Don't read it as a real state of the team."
+            principle="A silent empty screen can lie; an honest error can't."
+          >
+            <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
+              <p className="text-xs text-amber-300">
+                Couldn&apos;t load the team assessment right now — this is an
+                error, not an empty team. Try again shortly.
+              </p>
             </div>
-            <h2 className="text-sm font-semibold text-primary mb-1">
-              Coach Assessment is admin-only
-            </h2>
-            <p className="text-xs text-secondary leading-relaxed">
-              This is the admin&apos;s coaching overview of the team. Your own
-              growth lives under Analytics.
-            </p>
-          </div>
+          </LearningHint>
+        ) : !isManager ? (
+          <LearningHint
+            as="block"
+            category="Sales Coach · Assessment"
+            title="Admin-only overview"
+            whatItIs="An access gate: the team coaching overview is visible to admins only. Reps see their own growth under Analytics instead."
+            why="One rep seeing another rep's coaching signal would turn a private growth tool into a comparison — the exact ranking dynamic this feature refuses. The gate protects that."
+            how="If you're a rep, head to Analytics for your own read. If you should have admin access and don't, that's a permissions issue to raise."
+            principle="Growth data stays private per person, or it quietly becomes a leaderboard."
+          >
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-5">
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-muted rounded-md border border-default px-2 py-1 mb-3">
+                <Lock className="w-3 h-3" aria-hidden />
+                Admin only
+              </div>
+              <h2 className="text-sm font-semibold text-primary mb-1">
+                Coach Assessment is admin-only
+              </h2>
+              <p className="text-xs text-secondary leading-relaxed">
+                This is the admin&apos;s coaching overview of the team. Your own
+                growth lives under Analytics.
+              </p>
+            </div>
+          </LearningHint>
         ) : (
           <>
-            <div className="flex items-start gap-2 rounded-lg border border-ember-400/30 bg-ember-400/5 p-3">
-              <ClipboardCheck className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
-              <p className="text-xs text-secondary leading-relaxed">
-                Each person&apos;s coaching signal from their own conversations —
-                auto-built from their Dissects when sessions end.{" "}
-                <span className="text-primary">For coaching, not ranking</span>:
-                everyone is measured against their own growth, never each other.
-              </p>
-            </div>
+            <LearningHint
+              as="block"
+              category="Sales Coach · Assessment"
+              title="For coaching, not ranking"
+              whatItIs="The governing rule of this whole page: each person's coaching signal is drawn only from their own conversations, and everyone is measured against their own growth — never against each other."
+              why="A leaderboard makes reps optimize for looking good instead of getting better, and it punishes the people who need coaching most. Measuring each person against themselves is what keeps this a growth tool, not a scoreboard."
+              how="Read each agent's card on its own terms — 'is this person growing?' — not by comparing one agent's card to another's."
+              principle="The moment you rank people, they start managing the rank instead of the work."
+            >
+              <div className="flex items-start gap-2 rounded-lg border border-ember-400/30 bg-ember-400/5 p-3">
+                <ClipboardCheck className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
+                <p className="text-xs text-secondary leading-relaxed">
+                  Each person&apos;s coaching signal from their own conversations —
+                  auto-built from their Dissects when sessions end.{" "}
+                  <span className="text-primary">For coaching, not ranking</span>:
+                  everyone is measured against their own growth, never each other.
+                </p>
+              </div>
+            </LearningHint>
 
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[11px] text-muted">
-                {backfillMsg ??
-                  "Regenerate any dissects that didn't auto-generate (e.g. a closed tab)."}
-              </p>
-              <button
-                type="button"
-                onClick={() => void runBackfill()}
-                disabled={backfilling}
-                className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold border border-default text-secondary hover:text-primary px-3 py-1.5 rounded-lg disabled:opacity-50"
+              <LearningHint
+                as="block"
+                category="Sales Coach · Assessment"
+                title="Backfill status"
+                whatItIs="Reports what the last 'Generate missing' run did — how many assessments it built, how many were too thin to use, and how many are still missing."
+                why="A backfill that silently 'succeeds' with zero output hides a problem. Reporting the real counts — including thin/failed ones — keeps you honest about how complete the team's data actually is."
+                how="If it says sessions are still missing, run 'Generate missing' again until it reaches zero."
+                principle="Trust the count that admits what it couldn't do, not the one that only reports success."
               >
-                {backfilling ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <ClipboardCheck className="w-3.5 h-3.5" aria-hidden />
-                )}
-                {backfilling ? "Generating…" : "Generate missing"}
-              </button>
+                <p className="text-[11px] text-muted">
+                  {backfillMsg ??
+                    "Regenerate any dissects that didn't auto-generate (e.g. a closed tab)."}
+                </p>
+              </LearningHint>
+              <LearningHint
+                as="inline-block"
+                category="Sales Coach · Assessment"
+                title="Generate missing"
+                whatItIs="Regenerates the Dissect for any completed session that has a transcript but never got assessed — usually because a rep closed the tab before it finished."
+                why="Assessments normally build themselves when a session ends. This safety net exists so a dropped connection doesn't silently leave a rep's growth data with a hole in it."
+                how="Run it when the status text says sessions are still missing; it works in batches, so run it again until it reports 0 remaining."
+                principle="A gap in the data reads as 'no growth' — better to backfill it than to coach from a false blank."
+              >
+                <button
+                  type="button"
+                  onClick={() => void runBackfill()}
+                  disabled={backfilling}
+                  className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold border border-default text-secondary hover:text-primary px-3 py-1.5 rounded-lg disabled:opacity-50"
+                >
+                  {backfilling ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <ClipboardCheck className="w-3.5 h-3.5" aria-hidden />
+                  )}
+                  {backfilling ? "Generating…" : "Generate missing"}
+                </button>
+              </LearningHint>
             </div>
 
             {withContent.length === 0 && (
-              <p className="text-xs text-muted py-8 text-center">
-                No assessments yet. They appear here as the team finishes
-                sessions (each completed session is dissected automatically).
-              </p>
+              <LearningHint
+                as="block"
+                category="Sales Coach · Assessment"
+                title="No assessments yet"
+                whatItIs="An honest empty state: no one has finished a dissected session yet, so there's genuinely nothing to coach from."
+                why="This is the real 'nothing here yet,' distinct from the load error above. It tells you the data pipeline is fine — the team just hasn't generated signal yet."
+                how="Wait for the team to finish sessions; each completed one is dissected automatically and will populate here. Nothing to do."
+                principle="An honest 'nothing yet' is data too — it says the system works and the work hasn't happened."
+              >
+                <p className="text-xs text-muted py-8 text-center">
+                  No assessments yet. They appear here as the team finishes
+                  sessions (each completed session is dissected automatically).
+                </p>
+              </LearningHint>
             )}
 
-            {withContent.map((a) => (
+            {withContent.map((a, cardIdx) => {
+              const isFirstCard = cardIdx === 0;
+              const dissectBadge = (
+                <span className="text-[10px] text-muted">
+                  {a.dissectCount} session{a.dissectCount === 1 ? "" : "s"} dissected
+                </span>
+              );
+              return (
               <section
                 key={a.agentId}
                 className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4"
@@ -169,69 +237,175 @@ export default function CoachAssessmentPage() {
                   <h2 className="text-sm font-semibold text-primary">
                     {a.agentName}
                   </h2>
-                  <span className="text-[10px] text-muted">
-                    {a.dissectCount} session{a.dissectCount === 1 ? "" : "s"} dissected
-                  </span>
+                  {isFirstCard ? (
+                    <LearningHint
+                      as="inline-block"
+                      category="Sales Coach · Assessment"
+                      title="Sessions dissected"
+                      whatItIs="How many of this rep's conversations the coach has assessed so far — the evidence base behind everything on their card."
+                      why="A read built on two calls is not the same as one built on twenty. Showing the count tells you how much to trust the pattern, instead of over-reading a fluke."
+                      how="Weight a card with more sessions more heavily; on a low count, treat the strengths and focuses as early signals, not settled facts."
+                      principle="Coach the pattern, not the anecdote — and the count tells you which one you're looking at."
+                    >
+                      {dissectBadge}
+                    </LearningHint>
+                  ) : (
+                    dissectBadge
+                  )}
                 </div>
 
-                {a.strategies.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-1.5">
-                    {a.strategies.map((s, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1 text-[10px] text-brand border border-ember-400/40 bg-ember-400/[0.06] rounded-full px-2 py-0.5"
-                      >
-                        <Star className="w-2.5 h-2.5" aria-hidden />
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {a.strategies.length > 0 &&
+                  (isFirstCard ? (
+                    <LearningHint
+                      as="block"
+                      category="Sales Coach · Assessment"
+                      title="Strategy tags"
+                      whatItIs="The recurring approaches this rep leans on, surfaced from their own conversations — their signature moves, in their own patterns."
+                      why="Naming a rep's actual strategies lets you coach with their style instead of against it. Generic advice ignores how this specific person already sells."
+                      how="Use these to frame your coaching: build on the strategies that are working, and notice which ones might be behind a recurring focus area."
+                      principle="Coach the seller you have, not a generic one — their patterns are the starting point."
+                    >
+                      <div className="mb-3 flex flex-wrap gap-1.5">
+                        {a.strategies.map((s, i) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 text-[10px] text-brand border border-ember-400/40 bg-ember-400/[0.06] rounded-full px-2 py-0.5"
+                          >
+                            <Star className="w-2.5 h-2.5" aria-hidden />
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </LearningHint>
+                  ) : (
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {a.strategies.map((s, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 text-[10px] text-brand border border-ember-400/40 bg-ember-400/[0.06] rounded-full px-2 py-0.5"
+                        >
+                          <Star className="w-2.5 h-2.5" aria-hidden />
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  ))}
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-emerald-300 font-bold mb-2">
-                      <ThumbsUp className="w-3 h-3" aria-hidden />
-                      Doing well
-                    </p>
-                    {a.strengths.length === 0 ? (
-                      <p className="text-[11px] text-muted">—</p>
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {a.strengths.map((s, i) => (
-                          <li key={i} className="text-xs text-secondary leading-relaxed">
-                            {s}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  <div>
-                    <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-amber-300 font-bold mb-2">
-                      <Lightbulb className="w-3 h-3" aria-hidden />
-                      Coaching focus
-                    </p>
-                    {a.growthAreas.length === 0 ? (
-                      <p className="text-[11px] text-muted">—</p>
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {a.growthAreas.map((g, i) => (
-                          <li key={i} className="text-xs text-secondary leading-relaxed">
-                            {g}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
+                  {isFirstCard ? (
+                    <LearningHint
+                      as="block"
+                      category="Sales Coach · Assessment"
+                      title="Doing well"
+                      whatItIs="What this rep is consistently getting right across their conversations, pulled from their own Dissects — not generic praise."
+                      why="Coaching that only names faults teaches reps to hide their calls. Leading with real strengths is what makes the growth advice beside it safe to hear and act on."
+                      how="Open your coaching conversation here — name a strength first, then the focus lands as a build, not an attack."
+                      principle="Coach from what's working, or the person stops showing you the work."
+                    >
+                      <div>
+                        <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-emerald-300 font-bold mb-2">
+                          <ThumbsUp className="w-3 h-3" aria-hidden />
+                          Doing well
+                        </p>
+                        {a.strengths.length === 0 ? (
+                          <p className="text-[11px] text-muted">—</p>
+                        ) : (
+                          <ul className="space-y-1.5">
+                            {a.strengths.map((s, i) => (
+                              <li key={i} className="text-xs text-secondary leading-relaxed">
+                                {s}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </LearningHint>
+                  ) : (
+                    <div>
+                      <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-emerald-300 font-bold mb-2">
+                        <ThumbsUp className="w-3 h-3" aria-hidden />
+                        Doing well
+                      </p>
+                      {a.strengths.length === 0 ? (
+                        <p className="text-[11px] text-muted">—</p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {a.strengths.map((s, i) => (
+                            <li key={i} className="text-xs text-secondary leading-relaxed">
+                              {s}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                  {isFirstCard ? (
+                    <LearningHint
+                      as="block"
+                      category="Sales Coach · Assessment"
+                      title="Coaching focus"
+                      whatItIs="Where this rep has the most room to grow, drawn from patterns across their own calls — the place your coaching time pays off most."
+                      why="This is 'focus,' not 'faults,' on purpose. Framing growth as a direction to work rather than a verdict is what keeps the rep leaning in instead of defending."
+                      how="Pick the one focus that recurs most and coach it against a concrete next call — don't try to fix the whole list at once."
+                      principle="A focus points somewhere to go; a verdict just says where you failed. Coach the first."
+                    >
+                      <div>
+                        <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-amber-300 font-bold mb-2">
+                          <Lightbulb className="w-3 h-3" aria-hidden />
+                          Coaching focus
+                        </p>
+                        {a.growthAreas.length === 0 ? (
+                          <p className="text-[11px] text-muted">—</p>
+                        ) : (
+                          <ul className="space-y-1.5">
+                            {a.growthAreas.map((g, i) => (
+                              <li key={i} className="text-xs text-secondary leading-relaxed">
+                                {g}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </LearningHint>
+                  ) : (
+                    <div>
+                      <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-amber-300 font-bold mb-2">
+                        <Lightbulb className="w-3 h-3" aria-hidden />
+                        Coaching focus
+                      </p>
+                      {a.growthAreas.length === 0 ? (
+                        <p className="text-[11px] text-muted">—</p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {a.growthAreas.map((g, i) => (
+                            <li key={i} className="text-xs text-secondary leading-relaxed">
+                              {g}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </div>
               </section>
-            ))}
+              );
+            })}
 
             {noContent.length > 0 && (
-              <p className="text-[11px] text-muted">
-                No sessions yet:{" "}
-                {noContent.map((a) => a.agentName).join(", ")}.
-              </p>
+              <LearningHint
+                as="block"
+                category="Sales Coach · Assessment"
+                title="Team members with no sessions yet"
+                whatItIs="The people on the team who haven't run a dissected session, so they have no coaching card above yet."
+                why="Listing them makes the gap visible instead of silent. A rep who has never been assessed is easy to forget — and 'never coached' is exactly who you'd want to notice."
+                how="Use this as a nudge — reach out to the reps here to get their first sessions captured so they start appearing above."
+                principle="The person with no data isn't doing fine — they're just invisible until you look."
+              >
+                <p className="text-[11px] text-muted">
+                  No sessions yet:{" "}
+                  {noContent.map((a) => a.agentName).join(", ")}.
+                </p>
+              </LearningHint>
             )}
           </>
         )}

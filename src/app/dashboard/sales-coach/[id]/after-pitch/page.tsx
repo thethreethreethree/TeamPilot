@@ -16,6 +16,7 @@ import {
   FileText,
 } from "lucide-react";
 import { DeckCard } from "@/components/sales-coach/ui/deck";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * After Pitch Summary — the rep's private "between doors" debrief (AMD-006
@@ -289,17 +290,27 @@ export default function AfterPitchPage() {
           <>
             <Timeline moments={summary.moments} />
             {whatHappened && (
-              <DeckCard className="p-4">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
-                  <h2 className="text-sm font-semibold text-primary">
-                    What happened
-                  </h2>
-                </div>
-                <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
-                  {whatHappened}
-                </p>
-              </DeckCard>
+              <LearningHint
+                as="block"
+                category="Sales Coach · After Pitch"
+                title="What happened"
+                whatItIs="A neutral, factual replay of the conversation — what was actually said, without judgement."
+                why="Before you can learn from a call you have to see it as it happened, not as you remember it. Memory edits under pressure; the transcript doesn't."
+                how="Read this first to re-ground yourself in the real call, then let the breakdown and scores below tell you what to do about it."
+                principle="You can only improve the call you actually see, not the one you wish you'd had."
+              >
+                <DeckCard className="p-4">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
+                    <h2 className="text-sm font-semibold text-primary">
+                      What happened
+                    </h2>
+                  </div>
+                  <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
+                    {whatHappened}
+                  </p>
+                </DeckCard>
+              </LearningHint>
             )}
             <BreakdownBlock moments={summary.moments} />
             <Narrative narrative={summary.narrative} />
@@ -315,19 +326,29 @@ export default function AfterPitchPage() {
         {!loading && (
           <div className="space-y-2 pt-1">
             {isOwner ? (
-              <button
-                type="button"
-                onClick={() => void startNextDoor()}
-                disabled={starting || !session}
-                className="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 px-4 py-3 rounded-xl transition-colors"
+              <LearningHint
+                as="block"
+                category="Sales Coach · After Pitch"
+                title="Start Next Door"
+                whatItIs="Opens your next session in one tap, carrying this call's context (territory, approach, offer) forward."
+                why="The debrief is only worth doing if it changes the very next call. This closes the loop between reviewing and doing so nothing stalls you on the driveway."
+                how="Read your Next Door Focus above, then tap this to walk into the next door with that one fix in mind."
+                principle="Learning that doesn't reach the next door is just a nice feeling — the point is the next knock."
               >
-                {starting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-                ) : (
-                  <ChevronRight className="w-4 h-4" aria-hidden />
-                )}
-                Start Next Door
-              </button>
+                <button
+                  type="button"
+                  onClick={() => void startNextDoor()}
+                  disabled={starting || !session}
+                  className="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 px-4 py-3 rounded-xl transition-colors"
+                >
+                  {starting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" aria-hidden />
+                  )}
+                  Start Next Door
+                </button>
+              </LearningHint>
             ) : (
               summary?.hasSignal && (
                 <p className="text-[10px] text-muted text-center px-4">
@@ -336,12 +357,22 @@ export default function AfterPitchPage() {
                 </p>
               )
             )}
-            <Link
-              href={`/dashboard/sales-coach/${id}`}
-              className="block text-center text-xs text-secondary hover:text-primary py-1"
+            <LearningHint
+              as="block"
+              category="Sales Coach · After Pitch"
+              title={isOwner ? "Replay conversation" : "Back to session"}
+              whatItIs="Returns you to the full session so you can re-read the exchange line by line."
+              why="A summary compresses; sometimes the fix is in an exact phrase. Going back to the source keeps your read honest instead of relying on the condensed version."
+              how="Use this when a moment in the breakdown or cue loop above needs the surrounding context to make sense."
+              principle="When the summary and your memory disagree, the transcript is the tiebreaker."
             >
-              {isOwner ? "Replay conversation" : "Back to session"}
-            </Link>
+              <Link
+                href={`/dashboard/sales-coach/${id}`}
+                className="block text-center text-xs text-secondary hover:text-primary py-1"
+              >
+                {isOwner ? "Replay conversation" : "Back to session"}
+              </Link>
+            </LearningHint>
           </div>
         )}
       </div>
@@ -353,9 +384,18 @@ export default function AfterPitchPage() {
 function Timeline({ moments }: { moments: Moment[] }) {
   if (moments.length === 0) return null;
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
-      <div className="flex items-start gap-3 overflow-x-auto pb-1">
-        {moments.map((m, i) => (
+    <LearningHint
+      as="block"
+      category="Sales Coach · After Pitch"
+      title="Conversation timeline"
+      whatItIs="The shape of the whole call at a glance — each dot is a moment (opener, discovery, objection, close). The burnt-amber dot with a ring is where the call broke down."
+      why="Sales calls turn on a few pivotal moments, not every sentence. Seeing the arc lets you find the moment that mattered instead of re-litigating the whole conversation."
+      how="Scan left to right for the ringed amber dot — that's the breakdown detailed just below. The timestamps orient you to when each moment happened."
+      principle="Every call has a hinge moment; find it and you find where to improve."
+    >
+      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
+        <div className="flex items-start gap-3 overflow-x-auto pb-1">
+          {moments.map((m, i) => (
           <div key={i} className="flex-1 min-w-[64px] text-center">
             <div className="relative flex items-center justify-center h-3 mb-2">
               {/* connector */}
@@ -383,9 +423,10 @@ function Timeline({ moments }: { moments: Moment[] }) {
               {m.label}
             </p>
           </div>
-        ))}
-      </div>
-    </section>
+          ))}
+        </div>
+      </section>
+    </LearningHint>
   );
 }
 
@@ -394,8 +435,17 @@ function BreakdownBlock({ moments }: { moments: Moment[] }) {
   const b = moments.find((m) => m.isBreakdown);
   if (!b) return null;
   return (
-    <section className="rounded-xl overflow-hidden border border-ember-700/50">
-      <div className="bg-ember-800 px-4 py-2.5 flex items-center gap-2">
+    <LearningHint
+      as="block"
+      category="Sales Coach · After Pitch"
+      title="Where it broke down"
+      whatItIs="The single moment the call turned against you — the customer line, your response, and why it lost momentum."
+      why="One clear breakdown you can name and fix beats a vague sense the call 'went badly.' Naming the exact moment is what makes it coachable."
+      how="Read what the customer said and what you said, then compare against the correction card below to see the version that lands better."
+      principle="You can't fix a call you can only describe as 'off' — name the moment, then change it."
+    >
+      <section className="rounded-xl overflow-hidden border border-ember-700/50">
+        <div className="bg-ember-800 px-4 py-2.5 flex items-center gap-2">
         <AlertTriangle className="w-4 h-4 text-ember-50 shrink-0" aria-hidden />
         <p className="text-xs font-bold text-ember-50">
           {b.timestampLabel ? `${b.timestampLabel} · ` : ""}
@@ -419,20 +469,31 @@ function BreakdownBlock({ moments }: { moments: Moment[] }) {
           </div>
         )}
         {b.correction && (
-          <div className="rounded-lg border border-ember-400/40 bg-ember-400/[0.06] p-3 space-y-1.5">
-            <p className="text-[10px] uppercase tracking-widest text-brand font-bold">
-              What lands better
-            </p>
-            <p className="text-xs text-primary leading-relaxed">
-              “{b.correction.correctLine}”
-            </p>
-            <p className="text-[11px] text-secondary leading-relaxed">
-              {b.correction.whyItWorks}
-            </p>
-          </div>
+          <LearningHint
+            as="block"
+            category="Sales Coach · After Pitch"
+            title="What lands better"
+            whatItIs="The specific line that would have worked at the breakdown moment — with the reasoning for why it holds the customer."
+            why="A critique that only says 'that was wrong' leaves you nowhere. Showing the better line, and why it works, is what actually transfers the skill."
+            how="Say the corrected line out loud a couple of times so it's ready the next time you hit the same objection — the 'why' is what lets you adapt it, not just parrot it."
+            principle="The correction only counts if you can say it at the next door, not just nod at it here."
+          >
+            <div className="rounded-lg border border-ember-400/40 bg-ember-400/[0.06] p-3 space-y-1.5">
+              <p className="text-[10px] uppercase tracking-widest text-brand font-bold">
+                What lands better
+              </p>
+              <p className="text-xs text-primary leading-relaxed">
+                “{b.correction.correctLine}”
+              </p>
+              <p className="text-[11px] text-secondary leading-relaxed">
+                {b.correction.whyItWorks}
+              </p>
+            </div>
+          </LearningHint>
         )}
-      </div>
-    </section>
+        </div>
+      </section>
+    </LearningHint>
   );
 }
 
@@ -440,17 +501,35 @@ function BreakdownBlock({ moments }: { moments: Moment[] }) {
 function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
   if (!narrative.hasSignal) return null;
   return (
-    <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
-      <h2 className="text-sm font-semibold text-primary">Your read</h2>
-      {narrative.strengths.length > 0 && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" aria-hidden />
-            <h3 className="text-[10px] uppercase tracking-widest font-bold text-emerald-300">
-              What you did well
-            </h3>
-          </div>
-          <ul className="space-y-1.5">
+    <LearningHint
+      as="block"
+      category="Sales Coach · After Pitch"
+      title="Your read — the growth review"
+      whatItIs="The honest narrative read of the call: what you did well, then where to grow, in that order."
+      why="This is where learning actually happens. Strengths come first on purpose — an honest read has to keep what worked, or you'll fix the wrong things and lose your edge."
+      how="Read the strengths to know what to protect, then the opportunities to know what to change — each with a concrete next step, not just a critique."
+      principle="A call you don't review is a call you can only repeat, not improve."
+    >
+      <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-primary">Your read</h2>
+        {narrative.strengths.length > 0 && (
+          <LearningHint
+            as="block"
+            category="Sales Coach · After Pitch"
+            title="What you did well"
+            whatItIs="The specific things that worked in this call, each tied to an actual moment from the conversation."
+            why="Growth advice that only lists faults teaches you to distrust your instincts. Naming what worked tells you what to keep doing under pressure."
+            how="Note these as your repeatable strengths — the moves to lean on again at the next door."
+            principle="Protect what works before you fix what doesn't."
+          >
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" aria-hidden />
+              <h3 className="text-[10px] uppercase tracking-widest font-bold text-emerald-300">
+                What you did well
+              </h3>
+            </div>
+            <ul className="space-y-1.5">
             {narrative.strengths.map((s, i) => (
               <li key={i} className="text-xs text-secondary leading-relaxed">
                 <span className="text-primary font-medium">{s.point}</span>
@@ -461,18 +540,28 @@ function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
                 )}
               </li>
             ))}
-          </ul>
-        </div>
-      )}
-      {narrative.growthAreas.length > 0 && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-400" aria-hidden />
-            <h3 className="text-[10px] uppercase tracking-widest font-bold text-amber-300">
-              Opportunities to grow
-            </h3>
+            </ul>
           </div>
-          <ul className="space-y-1.5">
+          </LearningHint>
+        )}
+        {narrative.growthAreas.length > 0 && (
+          <LearningHint
+            as="block"
+            category="Sales Coach · After Pitch"
+            title="Opportunities to grow"
+            whatItIs="Where the call could improve — each opportunity paired with a concrete next step, not just a criticism."
+            why="A gap without a next step is just discouragement. Pairing each one with an action is what turns a weakness into a plan."
+            how="Pick the one that shows up most often across your calls and work it first — you don't have to fix all of these at once."
+            principle="An opportunity without a next step is a complaint; with one, it's a plan."
+          >
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-400" aria-hidden />
+              <h3 className="text-[10px] uppercase tracking-widest font-bold text-amber-300">
+                Opportunities to grow
+              </h3>
+            </div>
+            <ul className="space-y-1.5">
             {narrative.growthAreas.map((g, i) => (
               <li key={i} className="text-xs text-secondary leading-relaxed">
                 <span className="text-primary font-medium">{g.opportunity}</span>
@@ -481,15 +570,17 @@ function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
                 </span>
               </li>
             ))}
-          </ul>
-        </div>
-      )}
-      {narrative.closing && (
-        <p className="text-xs text-secondary italic border-t border-default pt-2.5">
-          {narrative.closing}
-        </p>
-      )}
-    </section>
+            </ul>
+          </div>
+          </LearningHint>
+        )}
+        {narrative.closing && (
+          <p className="text-xs text-secondary italic border-t border-default pt-2.5">
+            {narrative.closing}
+          </p>
+        )}
+      </section>
+    </LearningHint>
   );
 }
 
@@ -497,13 +588,43 @@ function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
 function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
   if (scores.length === 0) return null;
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-primary">Your scores</h2>
-        <span className="text-[10px] text-muted">Private to you</span>
-      </div>
-      <div className="grid grid-cols-5 gap-1.5">
-        {scores.map((c) => (
+    <LearningHint
+      as="block"
+      category="Sales Coach · After Pitch"
+      title="Your scores"
+      whatItIs="A private self-assessment of this one call across a few dimensions — a mirror against your own growth, not a ranking against anyone else."
+      why="Scores focus attention, but only if they stay honest. These are private to you so they can be an honest mirror instead of a number you're tempted to defend or game."
+      how="Read each score with its rationale below — the number is only meaningful with the evidence that produced it. Track your own trend over calls, not any leaderboard."
+      principle="A score you have to defend to someone else stops being an honest mirror."
+    >
+      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <LearningHint
+            as="inline-block"
+            category="Sales Coach · After Pitch"
+            title="Private to you"
+            whatItIs="A privacy marker: these scores are visible only to you, never to your manager or teammates."
+            why="Self-assessment only stays honest when it's unobserved. If a manager could see these, you'd start scoring for them instead of for the truth — and the mirror would break."
+            how="Score yourself candidly here. What your coach sees is your growth narrative, not these numbers."
+            principle="The moment a self-score has an audience, it stops measuring you and starts performing."
+          >
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+              Your scores
+              <span className="text-[10px] text-muted font-normal">Private to you</span>
+            </span>
+          </LearningHint>
+        </div>
+        <LearningHint
+          as="block"
+          category="Sales Coach · After Pitch"
+          title="Score strip"
+          whatItIs="The five dimensions of the call scored at a glance — each cell is one aspect of how the conversation went."
+          why="A single overall number hides where you actually stand. Breaking it into dimensions tells you which specific skill to work, not just 'do better.'"
+          how="Scan for your lowest cell, then read its rationale below to see exactly what pulled it down."
+          principle="One overall score tells you how you feel; the dimensions tell you what to change."
+        >
+        <div className="grid grid-cols-5 gap-1.5">
+          {scores.map((c) => (
           <div
             key={c.key}
             className="rounded-lg border border-default bg-surface/40 p-2 text-center"
@@ -513,11 +634,21 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
             </p>
             <p className="text-sm font-bold text-primary mt-1">{c.display}</p>
           </div>
-        ))}
-      </div>
-      {/* Every number carries its evidence — no naked verdicts (A11). */}
-      <ul className="space-y-1.5 pt-1">
-        {scores.map((c) => (
+          ))}
+        </div>
+        </LearningHint>
+        {/* Every number carries its evidence — no naked verdicts (A11). */}
+        <LearningHint
+          as="block"
+          category="Sales Coach · After Pitch"
+          title="Why each score"
+          whatItIs="The evidence behind every number — the rationale, and where possible the exact line from the call that earned it."
+          why="A naked score is a verdict you can't learn from or trust. Tying each number to real evidence is what keeps this honest instead of arbitrary."
+          how="When a score surprises you, read its rationale and citation here — that's the part you can actually act on."
+          principle="A score without its reason is an opinion; a score with its evidence is a lesson."
+        >
+        <ul className="space-y-1.5 pt-1">
+          {scores.map((c) => (
           <li key={c.key} className="text-[11px] leading-relaxed">
             <span className="text-secondary font-medium">{c.label}</span>
             <span className="text-muted"> — {c.rationale}</span>
@@ -527,13 +658,25 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
               </span>
             )}
           </li>
-        ))}
-      </ul>
-      <p className="text-[10px] text-muted pt-1 border-t border-default">
-        A mirror of this one call against your own growth — not a ranking. Only
-        you see these.
-      </p>
-    </section>
+          ))}
+        </ul>
+        </LearningHint>
+        <LearningHint
+          as="block"
+          category="Sales Coach · After Pitch"
+          title="Not a ranking"
+          whatItIs="The framing that governs this whole scoreboard: it measures this call against your own growth, and only you see it."
+          why="The instant scores become a ranking, they stop measuring improvement and start measuring status — and honest self-assessment dies. This line is the guardrail that keeps the scoreboard a growth tool."
+          how="Read your scores as 'better or worse than my last call,' never 'better or worse than my teammate.'"
+          principle="Compare yourself to your last door, not to the person at the next one."
+        >
+          <p className="text-[10px] text-muted pt-1 border-t border-default">
+            A mirror of this one call against your own growth — not a ranking. Only
+            you see these.
+          </p>
+        </LearningHint>
+      </section>
+    </LearningHint>
   );
 }
 
@@ -550,13 +693,22 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
     return { text: "Not used", cls: "text-muted border-default" };
   };
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
-      <div className="flex items-center gap-1.5">
-        <Radio className="w-3.5 h-3.5 text-brand" aria-hidden />
-        <h2 className="text-sm font-semibold text-primary">What the coach cued</h2>
-      </div>
-      <ul className="space-y-2">
-        {entries.map((e, i) => {
+    <LearningHint
+      as="block"
+      category="Sales Coach · After Pitch"
+      title="What the coach cued"
+      whatItIs="The live prompts the coach gave you mid-call, and whether you used each one — Used, Partly, or Not used."
+      why="A cue you ignored and a cue you used teach different lessons. Closing the loop between advice and action is how you find out which coaching actually reaches you in the moment."
+      how="Look at the 'Not used' rows without guilt — they show where in-the-moment help isn't landing yet, which is the most useful thing to practise."
+      principle="Guidance only counts when it changes what you do while the door is still open."
+    >
+      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+        <div className="flex items-center gap-1.5">
+          <Radio className="w-3.5 h-3.5 text-brand" aria-hidden />
+          <h2 className="text-sm font-semibold text-primary">What the coach cued</h2>
+        </div>
+        <ul className="space-y-2">
+          {entries.map((e, i) => {
           const b = badge(e);
           return (
             <li
@@ -578,19 +730,38 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
                   {b.text}
                 </span>
               </div>
-              {e.determination && (
-                <p className="text-[10px] text-muted mt-1">
-                  {e.source === "rep_marked"
-                    ? "You marked this."
-                    : "Inferred from what you said next."}
-                  {e.evidence ? ` — “${e.evidence}”` : ""}
-                </p>
-              )}
+              {e.determination &&
+                (i === 0 ? (
+                  <LearningHint
+                    as="block"
+                    category="Sales Coach · After Pitch"
+                    title="Marked vs. inferred"
+                    whatItIs="How the coach knows whether you used a cue. 'You marked this' means you confirmed it yourself; 'Inferred from what you said next' is the engine's best read of the transcript — a guess, not a confirmation."
+                    why="Presenting an inference as a fact you confirmed would be a quiet lie. Labelling the engine's reads as inferred keeps the coach honest about the limits of what it actually knows."
+                    how="Trust the 'You marked this' rows outright; treat the inferred ones as a starting read you can correct if it got you wrong."
+                    principle="An honest coach tells you when it's guessing instead of dressing a guess up as a fact."
+                  >
+                    <p className="text-[10px] text-muted mt-1">
+                      {e.source === "rep_marked"
+                        ? "You marked this."
+                        : "Inferred from what you said next."}
+                      {e.evidence ? ` — “${e.evidence}”` : ""}
+                    </p>
+                  </LearningHint>
+                ) : (
+                  <p className="text-[10px] text-muted mt-1">
+                    {e.source === "rep_marked"
+                      ? "You marked this."
+                      : "Inferred from what you said next."}
+                    {e.evidence ? ` — “${e.evidence}”` : ""}
+                  </p>
+                ))}
             </li>
           );
         })}
-      </ul>
-    </section>
+        </ul>
+      </section>
+    </LearningHint>
   );
 }
 
@@ -598,19 +769,38 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
 function FocusCard({ focus }: { focus: Summary["focus"] }) {
   if (!focus) {
     return (
-      <section className="rounded-xl border border-ember-400/40 bg-ember-400/[0.06] p-4">
-        <div className="flex items-center gap-1.5 mb-1">
-          <Target className="w-4 h-4 text-brand" aria-hidden />
-          <h2 className="text-sm font-bold text-primary">Next Door Focus</h2>
-        </div>
-        <p className="text-xs text-secondary leading-relaxed">
-          No single fix stood out this time — keep doing what worked.
-        </p>
-      </section>
+      <LearningHint
+        as="block"
+        category="Sales Coach · After Pitch"
+        title="Next Door Focus"
+        whatItIs="The one thing to carry into your next call. This time, nothing stood out — so the guidance is to keep doing what worked."
+        why="Manufacturing a 'fix' when the call went well would train you to distrust good instincts. An honest coach says 'keep going' when that's the truth."
+        how="Walk into the next door repeating what worked, not hunting for a problem that isn't there."
+        principle="Not every call needs a fix — inventing one is its own mistake."
+      >
+        <section className="rounded-xl border border-ember-400/40 bg-ember-400/[0.06] p-4">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Target className="w-4 h-4 text-brand" aria-hidden />
+            <h2 className="text-sm font-bold text-primary">Next Door Focus</h2>
+          </div>
+          <p className="text-xs text-secondary leading-relaxed">
+            No single fix stood out this time — keep doing what worked.
+          </p>
+        </section>
+      </LearningHint>
     );
   }
   return (
-    <section className="rounded-xl border border-ember-400/50 bg-ember-400/[0.08] p-4 space-y-1.5">
+    <LearningHint
+      as="block"
+      category="Sales Coach · After Pitch"
+      title="Next Door Focus"
+      whatItIs="The single most important thing to fix on your very next call — one focus, with a concrete next step."
+      why="A debrief that hands you ten things to fix changes nothing. Narrowing to one keeps the next door achievable, and one real change per call compounds fast."
+      how="Hold just this one thing in mind at the next door. Ignore the rest for now — you'll surface the next focus after that call."
+      principle="One fix you actually apply beats ten you only nodded at."
+    >
+      <section className="rounded-xl border border-ember-400/50 bg-ember-400/[0.08] p-4 space-y-1.5">
       <div className="flex items-center gap-1.5">
         <Target className="w-4 h-4 text-brand" aria-hidden />
         <h2 className="text-sm font-bold text-primary">Next Door Focus</h2>
@@ -624,6 +814,7 @@ function FocusCard({ focus }: { focus: Summary["focus"] }) {
         </span>{" "}
         {focus.why}
       </p>
-    </section>
+      </section>
+    </LearningHint>
   );
 }

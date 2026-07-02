@@ -18,6 +18,7 @@ import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { LiveCoachingPanel } from "@/components/sales-coach/LiveCoachingPanel";
+import { LearningHint } from "@/components/learning/LearningHint";
 import {
   OUTCOME_LABELS,
   OUTCOME_ORDER,
@@ -278,17 +279,26 @@ export default function SessionDetail() {
         {/* Auto-generated factual conversation summary (distinct from the
             Dissect evaluation, §A11 — facts, not a verdict). */}
         {summary && (
-          <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
-            <div className="flex items-center gap-1.5 mb-2">
-              <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
-              <h2 className="text-sm font-semibold text-primary">
-                Conversation summary
-              </h2>
-            </div>
-            <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
-              {summary}
-            </p>
-          </section>
+          <LearningHint
+            as="block"
+            category="Sales Coach · Review"
+            title="Conversation summary"
+            whatItIs="A plain factual recap of what was actually said in the call — the facts of the conversation, not a verdict on how you did."
+            why="Before you can judge a call you have to remember it accurately. The summary keeps the facts and the evaluation separate on purpose: this section is the neutral record so the growth review's judgement can't quietly rewrite what happened."
+            how="Read it to reload the call in your head before you record an outcome or read the growth review. If it doesn't match your memory, trust the transcript below and re-check."
+            principle="Keep the facts of a call separate from the verdict on it — an honest record is what a fair review stands on.">
+            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
+                <h2 className="text-sm font-semibold text-primary">
+                  Conversation summary
+                </h2>
+              </div>
+              <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
+                {summary}
+              </p>
+            </section>
+          </LearningHint>
         )}
 
         {loading ? (
@@ -303,55 +313,91 @@ export default function SessionDetail() {
             {/* Actions */}
             <div className="flex items-center gap-2 flex-wrap">
               {/* Step 3 — pre-knock prep: prepare BEFORE the conversation. */}
-              <button
-                type="button"
-                onClick={() => void getPrep()}
-                disabled={prepping}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-default text-secondary hover:text-primary disabled:opacity-60"
-              >
-                {prepping ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <Lightbulb className="w-3.5 h-3.5" aria-hidden />
-                )}
-                {prep ? "Re-prep" : "Prep me"}
-              </button>
-              {session?.status === "active" && (
+              <LearningHint
+                as="inline-block"
+                category="Sales Coach · Session"
+                title="Prep me"
+                whatItIs="Generates a short pre-call briefing — an opening line, the objections you're likely to hit with reframes, and the one value point to land — built from this session's captured offer/approach and your past calls."
+                why="Reps who knock cold repeat the same fumbles; reps who spend thirty seconds orienting first sound like they belong there. The prep exists to get your head in the call before you're in it — not to hand you a script to read."
+                how="Tap it before you knock. Read it, internalize the direction, then close the phone and run the call in your own words. Re-prep if the offer or approach changes."
+                principle="A direction to prepare you is worth more than a script to recite — the call is still yours to run.">
                 <button
                   type="button"
-                  onClick={() => void endSession()}
-                  disabled={ending}
+                  onClick={() => void getPrep()}
+                  disabled={prepping}
                   className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-default text-secondary hover:text-primary disabled:opacity-60"
                 >
-                  <Square className="w-3 h-3" aria-hidden />
-                  End session
+                  {prepping ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Lightbulb className="w-3.5 h-3.5" aria-hidden />
+                  )}
+                  {prep ? "Re-prep" : "Prep me"}
                 </button>
+              </LearningHint>
+              {session?.status === "active" && (
+                <LearningHint
+                  as="inline-block"
+                  category="Sales Coach · Session"
+                  title="End session"
+                  whatItIs="Marks this live session as ended. It stops the session being 'active' and unlocks the post-call steps — recording the outcome, the why, and the growth review."
+                  why="A call that never gets closed out sits half-finished: no outcome logged, no review pulled, no lesson extracted. Ending the session is the gate that turns a live call into something you can learn from."
+                  how="Tap it when the conversation is genuinely over. It never interrupts you mid-call — the post-call tools only appear after you've ended, so you're never blocked while the door is still open."
+                  principle="Closing the session is what converts a call you had into a call you can improve on.">
+                  <button
+                    type="button"
+                    onClick={() => void endSession()}
+                    disabled={ending}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-default text-secondary hover:text-primary disabled:opacity-60"
+                  >
+                    <Square className="w-3 h-3" aria-hidden />
+                    End session
+                  </button>
+                </LearningHint>
               )}
-              <button
-                type="button"
-                onClick={() => void generateReview()}
-                disabled={generating || transcript.length === 0}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
-              >
-                {generating ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5" aria-hidden />
-                )}
-                {review ? "Regenerate growth review" : "Generate growth review"}
-              </button>
+              <LearningHint
+                as="inline-block"
+                category="Sales Coach · Review"
+                title="Generate growth review"
+                whatItIs="Runs the post-call review engine over this session's transcript and returns an honest read: what you did well first, then the specific opportunities to grow with a concrete next step for each."
+                why="The review is where learning actually happens — the honest read of what worked and the one thing to fix next. A session without a review is time logged but the lesson never pulled. It needs a transcript, so it stays disabled until there's one."
+                how="Run it after each call. If your reviews lag far behind your sessions, the transcripts exist but no one is extracting the growth. Regenerate if the transcript changed."
+                principle="A call you don't review is a call you can only repeat, not improve.">
+                <button
+                  type="button"
+                  onClick={() => void generateReview()}
+                  disabled={generating || transcript.length === 0}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  {generating ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" aria-hidden />
+                  )}
+                  {review ? "Regenerate growth review" : "Generate growth review"}
+                </button>
+              </LearningHint>
               {/* After Pitch Summary — the rep's private "between doors" debrief
                   (timeline + private scores + one focus + Start Next Door). L3
                   composition: reachable from the session the moment there's a
                   transcript to summarize. */}
               {transcript.length > 0 && (
-                <Link
-                  href={`/dashboard/sales-coach/${id}/after-pitch`}
-                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-ember-400/40 text-brand hover:bg-ember-400/10 transition-colors"
-                >
-                  <Target className="w-3.5 h-3.5" aria-hidden />
-                  After Pitch Summary
-                </Link>
+                <LearningHint
+                  as="inline-block"
+                  category="Sales Coach · Review"
+                  title="After Pitch Summary"
+                  whatItIs="Opens your private between-doors debrief for this call: a timeline of the conversation, private self-scores, one focus to carry forward, and a Start Next Door hand-off."
+                  why="Door-to-door improvement is won in the ten seconds between doors, not in a report you read that night. This is the fast private reset that keeps you moving while the last call is still fresh — one focus, not ten."
+                  how="Open it right after a door, set your one focus, then hit Start Next Door. Keep it private and honest — the scores are for you, not a manager."
+                  principle="Reps improve door by door — a tight debrief between them compounds faster than a long one at the end of the day.">
+                  <Link
+                    href={`/dashboard/sales-coach/${id}/after-pitch`}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-ember-400/40 text-brand hover:bg-ember-400/10 transition-colors"
+                  >
+                    <Target className="w-3.5 h-3.5" aria-hidden />
+                    After Pitch Summary
+                  </Link>
+                </LearningHint>
               )}
             </div>
 
@@ -359,7 +405,15 @@ export default function SessionDetail() {
                 likely objections + key value), does not script them. */}
             {prep &&
               (prep.hasContent ? (
-                <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
+                <LearningHint
+                  as="block"
+                  category="Sales Coach · Session"
+                  title="Before you knock"
+                  whatItIs="Your pre-call briefing: an opening to lead with, the objections you're likely to face with a reframe for each, and the one value point to make sure you land."
+                  why="Walking in cold is how good reps still lose easy calls — not from bad delivery, from not deciding beforehand how they'd open or answer the obvious pushback. This gives you a direction to prepare against so the call isn't the first time you think about it."
+                  how="Read the three parts, then close it and run the call in your own voice. Treat 'If they say…' as sparring practice, not a script — you'll rarely hear the objection worded exactly this way."
+                  principle="Prepare a direction, don't memorize a script — the reframe that works is the one that sounds like you.">
+                  <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
                   <div className="flex items-center gap-1.5">
                     <Lightbulb className="w-3.5 h-3.5 text-brand" aria-hidden />
                     <h2 className="text-sm font-semibold text-primary">
@@ -403,7 +457,8 @@ export default function SessionDetail() {
                   <p className="text-[10px] text-muted pt-1 border-t border-default">
                     A direction to prepare you — not a script. The call is yours.
                   </p>
-                </section>
+                  </section>
+                </LearningHint>
               ) : prep.failed ? (
                 <p className="text-xs text-amber-300">
                   Couldn&apos;t build the prep right now — try again in a moment.
@@ -419,6 +474,14 @@ export default function SessionDetail() {
                 on-demand help; the rep asked. Grounded in the product details
                 (Settings) + methodology; §3.4 — no invented product facts. */}
             {session && (
+              <LearningHint
+                as="block"
+                category="Sales Coach · Session"
+                title="Ask the coach"
+                whatItIs="A free-form question box you can use before or around a call. It answers from your actual product details and the coaching methodology — 'what am I selling?', 'how do I handle a price objection?', and the like."
+                why="Reps freeze when they're unsure what they're even offering or how to answer the obvious pushback. This is on-demand help you asked for — it won't interrupt you, and it only speaks to real product facts, so it can't invent a feature that will get you caught out at the door."
+                how="Type a real question and tap Ask (or press Enter). Ask about the offer when you're fuzzy on it, or about handling a specific objection when you want a reframe before you knock."
+                principle="Help you asked for beats help pushed on you — and an answer grounded in real product facts beats a confident guess.">
               <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
                 <div className="flex items-center gap-1.5">
                   <Lightbulb className="w-3.5 h-3.5 text-brand" aria-hidden />
@@ -430,29 +493,47 @@ export default function SessionDetail() {
                   Ask for advice or the details of what you&apos;re selling.
                 </p>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={prepQuestion}
-                    onChange={(e) => setPrepQuestion(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void askCoach();
-                    }}
-                    placeholder="e.g. What am I selling? How do I handle a price objection?"
-                    className="flex-1 min-w-0 text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void askCoach()}
-                    disabled={prepQABusy || prepQuestion.trim().length < 2}
-                    className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-2 rounded-lg transition-colors"
-                  >
-                    {prepQABusy ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <HelpCircle className="w-3.5 h-3.5" aria-hidden />
-                    )}
-                    Ask
-                  </button>
+                  <LearningHint
+                    as="block"
+                    category="Sales Coach · Session"
+                    title="Your question"
+                    whatItIs="The input where you type what you want to ask the coach. Enter submits it; the answer appears below."
+                    why="A vague question gets a vague answer. Naming the exact thing you're stuck on — this offer, this objection — is what makes the grounded answer useful instead of generic."
+                    how="Be specific: 'how do I reframe it costs too much for a homeowner?' beats 'sales tips'. Press Enter to send."
+                    principle="The sharper the question, the more usable the answer.">
+                    <input
+                      type="text"
+                      value={prepQuestion}
+                      onChange={(e) => setPrepQuestion(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void askCoach();
+                      }}
+                      placeholder="e.g. What am I selling? How do I handle a price objection?"
+                      className="flex-1 min-w-0 text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+                    />
+                  </LearningHint>
+                  <LearningHint
+                    as="inline-block"
+                    category="Sales Coach · Session"
+                    title="Ask"
+                    whatItIs="Sends your question to the coach and returns an answer drawn from your product details and the methodology."
+                    why="Stays disabled until you've typed something real, so you can't fire off an empty question. The answer is advice grounded in facts, not a script to read — you still decide what to do with it."
+                    how="Tap it once your question is written. If nothing useful comes back, rephrase more specifically and ask again."
+                    principle="Grounded advice you can accept or reject keeps the call yours — the coach guides, you decide.">
+                    <button
+                      type="button"
+                      onClick={() => void askCoach()}
+                      disabled={prepQABusy || prepQuestion.trim().length < 2}
+                      className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-2 rounded-lg transition-colors"
+                    >
+                      {prepQABusy ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <HelpCircle className="w-3.5 h-3.5" aria-hidden />
+                      )}
+                      Ask
+                    </button>
+                  </LearningHint>
                 </div>
                 {prepAnswer &&
                   (prepAnswer.failed ? (
@@ -469,6 +550,7 @@ export default function SessionDetail() {
                     </p>
                   ))}
               </section>
+              </LearningHint>
             )}
 
             {/* Phase 2 — outcome + captured details. §1.5.1 L3: once the call
@@ -476,6 +558,14 @@ export default function SessionDetail() {
                 (shown only post-call, never blocking Stop). §3.5: the outcome
                 is the consequence the coach measures against — not agreement. */}
             {session && session.status !== "active" && (
+              <LearningHint
+                as="block"
+                category="Sales Coach · Outcome"
+                title="Call outcome"
+                whatItIs="Where you record what actually happened on the call — booked, follow-up, not interested, and so on. Recording is append-only: re-selecting logs a correction, it never erases the earlier read."
+                why="This is the single most important thing you can log. The coach measures itself against real results, not against whether its advice sounded good — and it can only do that if you tell it what happened. An unlogged outcome is a call the system can't learn from."
+                how="Tap the result the moment the call is over, while it's honest and fresh. Don't skip the ones that stung — the losses are exactly the data that makes the coaching sharper. It only appears after the session ends, so it never blocks you mid-call."
+                principle="Log the consequence, not the compliment — what actually works only shows up when you record what actually happened.">
               <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
                 <h2 className="text-sm font-semibold text-primary">Call outcome</h2>
                 <div className="flex flex-wrap gap-1.5">
@@ -521,6 +611,7 @@ export default function SessionDetail() {
                   </div>
                 )}
               </section>
+              </LearningHint>
             )}
 
             {/* Phase 3 — the WHY. §3.3: the rep goes FIRST; the coach's read

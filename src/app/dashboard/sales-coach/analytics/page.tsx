@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Sales Coach → Analytics (Phase 2).
@@ -112,16 +113,26 @@ export default function SalesCoachAnalyticsPage() {
     <>
       <TopBar title="Analytics" subtitle="Your coaching over time" />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-6 bg-base">
-        <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
-          <Users className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
-          <p className="text-xs text-secondary leading-relaxed">
-            Tracked against the <span className="text-primary">past</span>, never
-            as a ranking (§A18). Your own coaching is below
-            {team ? "; the team view is aggregate only — no per-person breakdown" : ""}.{" "}
-            Your coach sees this same growth signal — for coaching, never
-            ranking (§A10).
-          </p>
-        </div>
+        <LearningHint
+          as="block"
+          category="Sales Coach · Analytics"
+          title="Measured against your past, not ranked"
+          whatItIs="The framing for Analytics: your coaching over time, tracked against your OWN history — and, for managers, an aggregate team view with no per-person breakdown."
+          why="Analytics is where a coaching tool is most tempting to misuse as a leaderboard. This surface refuses that: individual trends are yours; the team view is anonymized aggregate only. Your coach sees the same signal — to coach, never to rank."
+          how="Read your own charts as a trend against your past. Managers: use the team aggregate to see whether the whole team's reliance is falling — never to compare named people."
+          principle="The number that ranks people is the number that gets gamed and feared."
+        >
+          <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
+            <Users className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
+            <p className="text-xs text-secondary leading-relaxed">
+              Tracked against the <span className="text-primary">past</span>, never
+              as a ranking (§A18). Your own coaching is below
+              {team ? "; the team view is aggregate only — no per-person breakdown" : ""}.{" "}
+              Your coach sees this same growth signal — for coaching, never
+              ranking (§A10).
+            </p>
+          </div>
+        </LearningHint>
 
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
@@ -141,6 +152,15 @@ export default function SalesCoachAnalyticsPage() {
               </section>
             )}
             {team && (
+              <LearningHint
+                as="block"
+                category="Sales Coach · Analytics"
+                title="Team (aggregate)"
+                whatItIs="The manager-only team view: total sessions, active coaches, cues, reviews, and an UNATTRIBUTED cue-reliance trend across everyone — no per-person breakdown."
+                why="A team lead needs to know whether coaching is landing without turning it into surveillance. It's deliberately anonymized — the trend is suppressed below 3 active coaches (with 1-2 it would just be one person's scorecard). Aggregate helps; per-person ranking harms (§A18)."
+                how="Watch whether the team's overall cue reliance trends down. To help a specific rep, coach them from their own session pages — not from a ranking here (there isn't one)."
+                principle="See the team's health without exposing any individual to comparison."
+              >
               <section className="rounded-xl border border-ember-400/30 bg-ember-400/[0.03] p-4 space-y-4">
                 <div className="flex items-center gap-1.5">
                   <Users className="w-4 h-4 text-brand" aria-hidden />
@@ -205,17 +225,51 @@ export default function SalesCoachAnalyticsPage() {
                   </div>
                 )}
               </section>
+              </LearningHint>
             )}
 
             {/* Aggregate stats */}
             <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Cell icon={GraduationCap} label="Sessions" value={stats?.sessionsTotal ?? 0} sub="All time" />
-              <Cell icon={Sparkles} label="Reviews" value={stats?.reviewsGenerated ?? 0} sub="Generated" />
-              <Cell icon={MessageSquare} label="Cues delivered" value={stats?.cuesTotal ?? 0} sub={`avg ${avgCues}/session`} />
-              <Cell icon={Lightbulb} label="Growth areas" value={stats?.recentGrowth.length ?? 0} sub="To practice" />
+              <LearningHint as="block" category="Sales Coach · Analytics" title="Sessions (all time)"
+                whatItIs="Your total number of coaching sessions ever — the size of your practice history."
+                why="It's the denominator for everything else here. A big history with few reviews means lessons went unpulled; the raw count alone isn't growth."
+                how="Read it next to Reviews — the gap between them is your un-learned backlog."
+                principle="Volume isn't progress; reviewed volume is.">
+                <Cell icon={GraduationCap} label="Sessions" value={stats?.sessionsTotal ?? 0} sub="All time" />
+              </LearningHint>
+              <LearningHint as="block" category="Sales Coach · Analytics" title="Reviews generated"
+                whatItIs="How many of your sessions have a growth review."
+                why="Reviews are where the learning is extracted. Reviews far below sessions means you're recording calls but not mining them."
+                how="Aim for reviews to track sessions closely — the gap is lessons left on the table."
+                principle="A call you don't review is a call you can only repeat.">
+                <Cell icon={Sparkles} label="Reviews" value={stats?.reviewsGenerated ?? 0} sub="Generated" />
+              </LearningHint>
+              <LearningHint as="block" category="Sales Coach · Analytics" title="Cues delivered"
+                whatItIs="Total live cues across your sessions, with the average per session."
+                why="The average is the real signal: a falling average means the coach's help is becoming yours. A flat, high average means the skill hasn't transferred yet."
+                how="Watch the average trend down over time; the cue-reliance chart below shows it session by session."
+                principle="The coach is winning when the average falls.">
+                <Cell icon={MessageSquare} label="Cues delivered" value={stats?.cuesTotal ?? 0} sub={`avg ${avgCues}/session`} />
+              </LearningHint>
+              <LearningHint as="block" category="Sales Coach · Analytics" title="Growth areas to practice"
+                whatItIs="The count of recurring, practiceable growth areas surfaced from your reviews."
+                why="Recurring areas are the patterns worth drilling — the fixes that would move your numbers the most."
+                how="Pick one recurring area and drill it across your next doors until it stops recurring."
+                principle="The recurring miss is the highest-leverage fix.">
+                <Cell icon={Lightbulb} label="Growth areas" value={stats?.recentGrowth.length ?? 0} sub="To practice" />
+              </LearningHint>
             </section>
 
             {/* Cue-reliance trend (§3.5) — the core analytic */}
+            <LearningHint
+              as="block"
+              category="Sales Coach · Analytics"
+              title="Cue reliance over time"
+              whatItIs="A bar per completed session showing how many live cues you needed, oldest → newest — the core coaching analytic."
+              why="This is the training-wheels-coming-off chart. Bars trending down is the whole point: the moves are becoming yours. It's honest about sparsity — it needs ≥3 sessions before it calls a trend."
+              how="Look for the downward slope over time, not one session. If it's climbing, your reviews aren't sticking — drill one growth area."
+              principle="Fewer cues over time is the measure of a coach that worked."
+            >
             <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
               <div className="flex items-center gap-1.5 mb-3">
                 <TrendingDown className="w-3.5 h-3.5 text-brand" aria-hidden />
@@ -267,9 +321,19 @@ export default function SalesCoachAnalyticsPage() {
                 </>
               )}
             </section>
+            </LearningHint>
 
             {/* Growth opportunities */}
             {stats && stats.recentGrowth.length > 0 && (
+              <LearningHint
+                as="block"
+                category="Sales Coach · Analytics"
+                title="Recurring growth opportunities"
+                whatItIs="Growth opportunities that keep showing up across your reviews — the patterns, not one-offs."
+                why="A one-off is noise; a recurring miss is a habit costing you deals. These are the highest-leverage things to fix."
+                how="Drill the top recurring one until it stops appearing here."
+                principle="Fix the recurring miss and the one-offs mostly take care of themselves."
+              >
               <section>
                 <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
                   Recurring growth opportunities
@@ -283,6 +347,7 @@ export default function SalesCoachAnalyticsPage() {
                   ))}
                 </div>
               </section>
+              </LearningHint>
             )}
           </>
         )}
