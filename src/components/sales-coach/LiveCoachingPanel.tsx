@@ -89,11 +89,11 @@ export function LiveCoachingPanel({
   }, [lastTapAt]);
 
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Radio
-            className={`w-4 h-4 ${live ? "text-red-400 animate-pulse" : "text-muted"}`}
+            className={`w-4 h-4 ${live ? "text-ember-400 animate-pulse" : "text-muted"}`}
             aria-hidden
           />
           <h2 className="text-sm font-semibold text-primary">
@@ -127,7 +127,7 @@ export function LiveCoachingPanel({
                   ? "text-emerald-300/80"
                   : confidence.level === "wavering"
                     ? "text-amber-300/80"
-                    : "text-red-300/80"
+                    : "text-amber-400/80"
               }`}
               title={`Signal-based read (NOT yet validated against outcomes). Fillers: ${
                 confidence.fillerHigh ? "high" : "ok"
@@ -236,7 +236,7 @@ export function LiveCoachingPanel({
           controls band (founder 2026-07-01). Content + UX unchanged — moved
           out of the mode-toggle flex row, that's the whole fix. */}
       {live && tapsSupported && (
-        <div className="mt-2 rounded-lg border border-default bg-white/[0.01] px-3 py-2">
+        <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
           <div className="flex items-center gap-1.5">
             <Hand className="w-3 h-3 text-brand" aria-hidden />
             <span className="text-[11px] font-semibold text-secondary">
@@ -283,7 +283,7 @@ export function LiveCoachingPanel({
         </label>
       )}
 
-      {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
+      {error && <p className="text-xs text-amber-300 mt-2">{error}</p>}
 
       {/* Live mic-level meter — the same RMS that drives proximity
           attribution, shown so the agent can see they're the louder voice. */}
@@ -321,7 +321,7 @@ export function LiveCoachingPanel({
       {/* Current cue + "used it" confirm (0080 cue loop). The rep's tap is
           first-party truth the After Pitch Summary prefers over inference. */}
       {currentCue && (
-        <div className="mt-3 rounded-lg border border-ember-400/30 bg-ember-400/[0.06] p-3">
+        <div className="mt-3 rounded-xl border border-ember-400/30 bg-ember-400/[0.06] shadow-[0_0_28px_-12px_rgba(250,204,21,0.45)] p-3">
           <div className="flex items-start gap-2">
             <Sparkles className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
             <p className="text-sm text-primary leading-relaxed">{currentCue}</p>

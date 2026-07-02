@@ -19,6 +19,16 @@ import {
   Brain,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import {
+  DeckShell,
+  DeckCard,
+  DeckStat,
+  DeckButton,
+  DeckGhostButton,
+  SectionLabel,
+  DeckPill,
+  Sparkline,
+} from "@/components/sales-coach/ui/deck";
 
 /**
  * /dashboard/sales-coach — Sales Coach product home.
@@ -186,344 +196,332 @@ export default function SalesCoachHome() {
   return (
     <>
       <TopBar title="Sales Coach" subtitle="Your coaching, made visible" />
-      <div className="flex-1 overflow-y-auto bg-white/[0.01]">
-        <div className="px-4 md:px-8 py-6 max-w-6xl mx-auto w-full space-y-6">
-          {/* §3.6 + §A18 reframe — this is a digital gym, not a scorecard. */}
-          <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
-            <ShieldCheck className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
-            <p className="text-xs text-secondary leading-relaxed">
-              This isn&apos;t a scorecard or a ranking. It&apos;s your selling,
-              made visible — what the coach helped with and whether you&apos;re
-              needing fewer cues over time, measured against your{" "}
-              <span className="text-primary">own</span> past. Per §3.6, a value
-              curve only counts if you can see it.
-            </p>
-          </div>
+      <DeckShell>
+        {/* §3.6 + §A18 reframe — this is a digital gym, not a scorecard. */}
+        <DeckCard glow className="p-3.5 flex items-start gap-2.5">
+          <ShieldCheck className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
+          <p className="text-[11px] text-secondary leading-relaxed">
+            This isn&apos;t a scorecard or a ranking. It&apos;s your selling,
+            made visible — what the coach helped with and whether you&apos;re
+            needing fewer cues over time, measured against your{" "}
+            <span className="text-primary">own</span> past.
+          </p>
+        </DeckCard>
 
-          {/* Start a session */}
-          <section className="rounded-xl border border-default bg-white/[0.01] p-4">
-            <h2 className="text-sm font-semibold text-primary mb-3">
-              Start a coaching session
-            </h2>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setContext("video")}
-                  className={`inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border transition-colors ${
-                    context === "video"
-                      ? "border-ember-400/50 bg-ember-400/10 text-brand"
-                      : "border-default text-secondary hover:text-primary"
-                  }`}
-                >
-                  <Video className="w-3.5 h-3.5" aria-hidden />
-                  Online video
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setContext("in_person")}
-                  className={`inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border transition-colors ${
-                    context === "in_person"
-                      ? "border-ember-400/50 bg-ember-400/10 text-brand"
-                      : "border-default text-secondary hover:text-primary"
-                  }`}
-                >
-                  <DoorOpen className="w-3.5 h-3.5" aria-hidden />
-                  In-person
-                </button>
-              </div>
-              <input
-                type="text"
-                value={clientLabel}
-                onChange={(e) => setClientLabel(e.target.value)}
-                placeholder="Client / campaign (required)"
-                className="flex-1 min-w-[12rem] text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong"
-              />
-              <button
-                type="button"
-                onClick={() => void start()}
-                disabled={starting || !clientLabel.trim()}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"
-              >
-                {starting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <Mic className="w-3.5 h-3.5" aria-hidden />
-                )}
-                Start session
-              </button>
-            </div>
-            {/* Phase 2 capture — optional WHERE/HOW/WHAT, tucked behind a
-                toggle so it never blocks the primary title+start flow (L4).
-                WHEN is the start time; the outcome (WHY's result) is recorded
-                after the call, on the session page. */}
-            <button
-              type="button"
-              onClick={() => setShowCapture((v) => !v)}
-              className="mt-3 text-[11px] text-muted hover:text-secondary transition-colors"
+        {/* Start a session */}
+        <DeckCard className="p-4">
+          <h2 className="text-sm font-semibold text-primary mb-3">
+            Start a coaching session
+          </h2>
+          <div className="grid grid-cols-2 gap-2 mb-2.5">
+            <DeckGhostButton
+              active={context === "video"}
+              onClick={() => setContext("video")}
             >
-              {showCapture ? "− Hide details" : "+ Add details (where / how / what) — optional"}
-            </button>
-            {showCapture && (
-              <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <CaptureInput
-                  value={territory}
-                  onChange={setTerritory}
-                  placeholder="Where (territory / area)"
-                />
-                <CaptureInput
-                  value={approach}
-                  onChange={setApproach}
-                  placeholder="How (referral / cold / follow-up)"
-                />
-                <CaptureInput
-                  value={offer}
-                  onChange={setOffer}
-                  placeholder="What (the offer pitched)"
-                />
-              </div>
+              <Video className="w-3.5 h-3.5" aria-hidden />
+              Online video
+            </DeckGhostButton>
+            <DeckGhostButton
+              active={context === "in_person"}
+              onClick={() => setContext("in_person")}
+            >
+              <DoorOpen className="w-3.5 h-3.5" aria-hidden />
+              In-person
+            </DeckGhostButton>
+          </div>
+          <input
+            type="text"
+            value={clientLabel}
+            onChange={(e) => setClientLabel(e.target.value)}
+            placeholder="Client / campaign (required)"
+            className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
+          />
+          <DeckButton
+            onClick={() => void start()}
+            disabled={starting || !clientLabel.trim()}
+            className="w-full"
+          >
+            {starting ? (
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+            ) : (
+              <Mic className="w-4 h-4" aria-hidden />
             )}
-            {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
-          </section>
-
-          {/* What compounded this week */}
-          <section>
-            <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
-              What your coach helped with
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <StatCell
-                icon={GraduationCap}
-                label="Sessions this week"
-                value={stats?.sessionsThisWeek ?? 0}
-                subtitle={`${stats?.sessionsTotal ?? 0} total`}
-                tone="brand"
+            Start session
+          </DeckButton>
+          {/* Phase 2 capture — optional WHERE/HOW/WHAT behind a toggle so it
+              never blocks the primary title+start flow (L4). */}
+          <button
+            type="button"
+            onClick={() => setShowCapture((v) => !v)}
+            className="mt-3 text-[11px] text-muted hover:text-secondary transition-colors"
+          >
+            {showCapture ? "− Hide details" : "+ Add details (where / how / what) — optional"}
+          </button>
+          {showCapture && (
+            <div className="mt-2 grid grid-cols-1 gap-2">
+              <CaptureInput
+                value={territory}
+                onChange={setTerritory}
+                placeholder="Where (territory / area)"
               />
-              <StatCell
-                icon={Sparkles}
-                label="Growth reviews"
-                value={stats?.reviewsGenerated ?? 0}
-                subtitle="Generated from your calls"
-                tone="emerald"
+              <CaptureInput
+                value={approach}
+                onChange={setApproach}
+                placeholder="How (referral / cold / follow-up)"
               />
-              <StatCell
-                icon={MessageSquare}
-                label="Live cues delivered"
-                value={stats?.cuesTotal ?? 0}
-                subtitle="Across all sessions"
-                tone="muted"
-              />
-              <StatCell
-                icon={Lightbulb}
-                label="Growth opportunities"
-                value={stats?.recentGrowth.length ?? 0}
-                subtitle="Surfaced to practice"
-                tone="amber"
+              <CaptureInput
+                value={offer}
+                onChange={setOffer}
+                placeholder="What (the offer pitched)"
               />
             </div>
-          </section>
+          )}
+          {error && <p className="text-xs text-amber-300 mt-2">{error}</p>}
+        </DeckCard>
 
-          {/* Cue reliance — the training wheels (§3.5) */}
-          <section className="rounded-xl border border-default bg-white/[0.01] p-4">
-            <div className="flex items-center gap-1.5 mb-2">
+        {/* What compounded this week */}
+        <SectionLabel icon={Sparkles}>What your coach helped with</SectionLabel>
+        <div className="grid grid-cols-2 gap-2.5">
+          <DeckStat
+            icon={GraduationCap}
+            label="Sessions / week"
+            value={stats?.sessionsThisWeek ?? 0}
+            sub={`${stats?.sessionsTotal ?? 0} total`}
+            tone="brand"
+          />
+          <DeckStat
+            icon={Sparkles}
+            label="Growth reviews"
+            value={stats?.reviewsGenerated ?? 0}
+            sub="From your calls"
+            tone="emerald"
+          />
+          <DeckStat
+            icon={MessageSquare}
+            label="Live cues"
+            value={stats?.cuesTotal ?? 0}
+            sub="All sessions"
+            tone="muted"
+          />
+          <DeckStat
+            icon={Lightbulb}
+            label="Growth ops"
+            value={stats?.recentGrowth.length ?? 0}
+            sub="To practice"
+            tone="amber"
+          />
+        </div>
+
+        {/* Cue reliance — the training wheels (§3.5) */}
+        <DeckCard className="p-4">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-1.5">
               <TrendingDown className="w-3.5 h-3.5 text-brand" aria-hidden />
               <h2 className="text-sm font-semibold text-primary">
                 Your reliance on live cues
               </h2>
             </div>
-            {trend ? (
+            {series.length > 1 && (
+              <span className="text-brand">
+                <Sparkline data={series.map((p) => p.cueCount)} />
+              </span>
+            )}
+          </div>
+          {trend ? (
+            <p className="text-xs text-secondary leading-relaxed">
+              Across your sessions, live cues went from{" "}
+              <span className="text-primary font-semibold">{trend.first}</span>{" "}
+              to{" "}
+              <span className="text-primary font-semibold">{trend.last}</span>{" "}
+              per session.{" "}
+              {trend.down
+                ? "You're needing fewer cues over time — the training wheels are coming off."
+                : "Keep going — the goal is fewer cues over time as the moves become yours."}
+            </p>
+          ) : (
+            <p className="text-xs text-muted leading-relaxed">
+              Not enough completed sessions yet to show a trend. After a few,
+              you&apos;ll see whether you&apos;re needing fewer live cues over
+              time — against your own past, never anyone else&apos;s.
+            </p>
+          )}
+        </DeckCard>
+
+        {/* Phase 4 — what the coach is learning about you across sessions
+            (§3.6 make-learning-visible; §4 — gated). Served from a STORED set;
+            the LLM runs only on an explicit refresh below. */}
+        {patternsState && (
+          <DeckCard className="p-4">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <Brain className="w-3.5 h-3.5 text-brand" aria-hidden />
+                <h2 className="text-sm font-semibold text-primary">
+                  What your coach is learning about you
+                </h2>
+              </div>
+              {(patternsState.stored || patternsState.gateMet) && (
+                <DeckGhostButton
+                  onClick={() => void refreshPatterns()}
+                  disabled={patternsBusy}
+                  active={patternsState.stale || !patternsState.stored}
+                  className="!px-2.5 !py-1 !text-[11px]"
+                >
+                  {patternsBusy ? (
+                    <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
+                  ) : (
+                    <Brain className="w-3 h-3" aria-hidden />
+                  )}
+                  {patternsState.stored ? "Refresh" : "See what I'm learning"}
+                </DeckGhostButton>
+              )}
+            </div>
+
+            {patternsError && (
+              <p className="text-[11px] text-amber-300 mb-2">{patternsError}</p>
+            )}
+
+            {patternsState.stored && patternsState.stored.patterns.length > 0 ? (
+              <div className="space-y-3">
+                {patternsState.stored.note && (
+                  <p className="text-xs text-secondary leading-relaxed">
+                    {patternsState.stored.note}
+                  </p>
+                )}
+                {patternsState.stale && (
+                  <p className="text-[10px] text-brand/80">
+                    New sessions since this was built — refresh to update.
+                  </p>
+                )}
+                <ul className="space-y-2">
+                  {patternsState.stored.patterns.map((p, i) => (
+                    <li
+                      key={i}
+                      className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`text-[9px] uppercase tracking-widest font-bold ${
+                            p.kind === "strength"
+                              ? "text-emerald-300"
+                              : "text-amber-300"
+                          }`}
+                        >
+                          {p.kind === "strength" ? "Working for you" : "Costing you"}
+                        </span>
+                        <span className="text-[10px] text-muted">{p.frequency}</span>
+                      </div>
+                      <p className="text-xs text-primary leading-relaxed">
+                        {p.pattern}
+                      </p>
+                      <p className="text-[11px] text-secondary leading-relaxed mt-0.5">
+                        {p.outcomeAssociation}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[10px] text-muted">
+                  Patterns from your own reads across{" "}
+                  {patternsState.stored.whysAnalyzed} sessions — tied to what
+                  actually happened, not guesses. For your growth, never a ranking.
+                </p>
+              </div>
+            ) : patternsState.gateMet ? (
               <p className="text-xs text-secondary leading-relaxed">
-                Across your sessions, live cues went from{" "}
-                <span className="text-primary font-semibold">{trend.first}</span>{" "}
-                to{" "}
-                <span className="text-primary font-semibold">{trend.last}</span>{" "}
-                per session.{" "}
-                {trend.down
-                  ? "You're needing fewer cues over time — the training wheels are coming off."
-                  : "Keep going — the goal is fewer cues over time as the moves become yours."}
+                You&apos;ve got enough sessions now — build the patterns your
+                coach is seeing across them.
               </p>
             ) : (
               <p className="text-xs text-muted leading-relaxed">
-                Not enough completed sessions yet to show a trend. After a few,
-                you&apos;ll see whether you&apos;re needing fewer live cues over
-                time — against your own past, never anyone else&apos;s.
+                Keep going — the coach needs a few more sessions with recorded
+                outcomes and your own reads before real patterns can be trusted
+                (not guessed).
               </p>
             )}
-          </section>
+          </DeckCard>
+        )}
 
-          {/* Phase 4 — what the coach is learning about you across sessions
-              (§3.6 make-learning-visible; §4 — gated). F1: served from a STORED
-              set; the LLM runs only on an explicit refresh below. */}
-          {patternsState && (
-            <section className="rounded-xl border border-default bg-white/[0.01] p-4">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-1.5">
-                  <Brain className="w-3.5 h-3.5 text-brand" aria-hidden />
-                  <h2 className="text-sm font-semibold text-primary">
-                    What your coach is learning about you
-                  </h2>
+        {/* Growth opportunities to practice (§3.6 — visible, specific) */}
+        {stats && stats.recentGrowth.length > 0 && (
+          <>
+            <SectionLabel icon={Lightbulb}>
+              Growth opportunities to practice
+            </SectionLabel>
+            <DeckCard className="divide-y divide-white/[0.06] overflow-hidden">
+              {stats.recentGrowth.map((g, i) => (
+                <div key={i} className="flex items-start gap-2.5 px-4 py-3">
+                  <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+                  <p className="text-xs text-secondary leading-relaxed">{g}</p>
                 </div>
-                {(patternsState.stored || patternsState.gateMet) && (
-                  <button
-                    type="button"
-                    onClick={() => void refreshPatterns()}
-                    disabled={patternsBusy}
-                    className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg border disabled:opacity-50 ${
-                      patternsState.stale || !patternsState.stored
-                        ? "border-ember-400/50 text-brand"
-                        : "border-default text-secondary hover:text-primary"
-                    }`}
-                  >
-                    {patternsBusy ? (
-                      <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
+              ))}
+            </DeckCard>
+          </>
+        )}
+
+        {/* Current load */}
+        {stats && (
+          <>
+            <SectionLabel icon={Mic}>Where your sessions stand</SectionLabel>
+            <div className="grid grid-cols-3 gap-2.5">
+              <DeckStat icon={Mic} label="In progress" value={stats.activeCount} sub="Live now" tone="brand" />
+              <DeckStat icon={ArrowRight} label="Awaiting" value={stats.awaitingReview} sub="Not reviewed" tone="amber" />
+              <DeckStat icon={CheckCircle2} label="Reviewed" value={stats.reviewedCount} sub="Done" tone="emerald" />
+            </div>
+          </>
+        )}
+
+        {/* Sessions */}
+        <SectionLabel icon={ArrowRight}>Your sessions</SectionLabel>
+        {sessions === null ? (
+          <div className="flex items-center gap-2 text-xs text-muted py-8 justify-center">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+            Loading…
+          </div>
+        ) : sessions.length === 0 ? (
+          <DeckCard className="p-6">
+            <p className="text-xs text-muted text-center">
+              No sessions yet. Start one above.
+            </p>
+          </DeckCard>
+        ) : (
+          <DeckCard className="divide-y divide-white/[0.06] overflow-hidden">
+            {sessions.map((s) => {
+              const tone =
+                s.status === "reviewed"
+                  ? "emerald"
+                  : s.status === "active"
+                    ? "brand"
+                    : "amber";
+              return (
+                <Link
+                  key={s.id}
+                  href={`/dashboard/sales-coach/${s.id}`}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {s.context === "video" ? (
+                      <Video className="w-4 h-4 text-muted shrink-0" aria-hidden />
                     ) : (
-                      <Brain className="w-3 h-3" aria-hidden />
+                      <DoorOpen className="w-4 h-4 text-muted shrink-0" aria-hidden />
                     )}
-                    {patternsState.stored ? "Refresh" : "See what I'm learning"}
-                  </button>
-                )}
-              </div>
-
-              {patternsError && (
-                <p className="text-[11px] text-amber-300 mb-2">{patternsError}</p>
-              )}
-
-              {patternsState.stored && patternsState.stored.patterns.length > 0 ? (
-                <div className="space-y-3">
-                  {patternsState.stored.note && (
-                    <p className="text-xs text-secondary leading-relaxed">
-                      {patternsState.stored.note}
-                    </p>
-                  )}
-                  {patternsState.stale && (
-                    <p className="text-[10px] text-brand/80">
-                      New sessions since this was built — refresh to update.
-                    </p>
-                  )}
-                  <ul className="space-y-2">
-                    {patternsState.stored.patterns.map((p, i) => (
-                      <li
-                        key={i}
-                        className="rounded-lg border border-default bg-white/[0.01] p-3"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className={`text-[9px] uppercase tracking-widest font-bold ${
-                              p.kind === "strength"
-                                ? "text-emerald-300"
-                                : "text-amber-300"
-                            }`}
-                          >
-                            {p.kind === "strength" ? "Working for you" : "Costing you"}
-                          </span>
-                          <span className="text-[10px] text-muted">{p.frequency}</span>
-                        </div>
-                        <p className="text-xs text-primary leading-relaxed">
-                          {p.pattern}
-                        </p>
-                        <p className="text-[11px] text-secondary leading-relaxed mt-0.5">
-                          {p.outcomeAssociation}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-[10px] text-muted">
-                    Patterns from your own reads across{" "}
-                    {patternsState.stored.whysAnalyzed} sessions — tied to what
-                    actually happened, not guesses. For your growth, never a ranking.
-                  </p>
-                </div>
-              ) : patternsState.gateMet ? (
-                <p className="text-xs text-secondary leading-relaxed">
-                  You&apos;ve got enough sessions now — build the patterns your
-                  coach is seeing across them.
-                </p>
-              ) : (
-                <p className="text-xs text-muted leading-relaxed">
-                  Keep going — the coach needs a few more sessions with recorded
-                  outcomes and your own reads before real patterns can be trusted
-                  (not guessed).
-                </p>
-              )}
-            </section>
-          )}
-
-          {/* Growth opportunities to practice (§3.6 — visible, specific) */}
-          {stats && stats.recentGrowth.length > 0 && (
-            <section>
-              <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
-                Growth opportunities to practice
-              </h2>
-              <div className="rounded-xl border border-default bg-white/[0.02] divide-y divide-default overflow-hidden">
-                {stats.recentGrowth.map((g, i) => (
-                  <div key={i} className="flex items-start gap-2.5 px-4 py-3">
-                    <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
-                    <p className="text-xs text-secondary leading-relaxed">{g}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Current load */}
-          {stats && (
-            <section>
-              <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
-                Where your sessions stand
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <StatCell icon={Mic} label="In progress" value={stats.activeCount} subtitle="Live now" tone="brand" />
-                <StatCell icon={ArrowRight} label="Awaiting review" value={stats.awaitingReview} subtitle="Ended, not yet reviewed" tone="amber" />
-                <StatCell icon={CheckCircle2} label="Reviewed" value={stats.reviewedCount} subtitle="Growth review done" tone="emerald" />
-              </div>
-            </section>
-          )}
-
-          {/* Sessions */}
-          <section>
-            <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
-              Your sessions
-            </h2>
-            {sessions === null ? (
-              <div className="flex items-center gap-2 text-xs text-muted py-8 justify-center">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                Loading…
-              </div>
-            ) : sessions.length === 0 ? (
-              <p className="text-xs text-muted py-6 text-center">
-                No sessions yet. Start one above.
-              </p>
-            ) : (
-              <div className="rounded-xl border border-default bg-white/[0.01] divide-y divide-default overflow-hidden">
-                {sessions.map((s) => (
-                  <Link
-                    key={s.id}
-                    href={`/dashboard/sales-coach/${s.id}`}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {s.context === "video" ? (
-                        <Video className="w-4 h-4 text-muted shrink-0" aria-hidden />
-                      ) : (
-                        <DoorOpen className="w-4 h-4 text-muted shrink-0" aria-hidden />
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-sm text-primary truncate">
-                          {s.clientLabel ?? "Untitled session"}
-                        </p>
-                        <p className="text-[10px] text-muted">
-                          {s.status} · {new Date(s.startedAt).toLocaleString()}
-                        </p>
-                      </div>
+                    <div className="min-w-0">
+                      <p className="text-sm text-primary truncate">
+                        {s.clientLabel ?? "Untitled session"}
+                      </p>
+                      <p className="text-[10px] text-muted">
+                        {new Date(s.startedAt).toLocaleString()}
+                      </p>
                     </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-muted shrink-0" aria-hidden />
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-      </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <DeckPill tone={tone}>{s.status}</DeckPill>
+                    <ArrowRight className="w-3.5 h-3.5 text-muted" aria-hidden />
+                  </div>
+                </Link>
+              );
+            })}
+          </DeckCard>
+        )}
+      </DeckShell>
     </>
   );
 }
@@ -543,40 +541,7 @@ function CaptureInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+      className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
     />
-  );
-}
-
-function StatCell({
-  icon: Icon,
-  label,
-  value,
-  subtitle,
-  tone,
-}: {
-  icon: typeof GraduationCap;
-  label: string;
-  value: number;
-  subtitle: string;
-  tone: "brand" | "emerald" | "amber" | "muted";
-}) {
-  const toneCls =
-    tone === "brand"
-      ? "border-ember-400/30 bg-ember-400/5 text-brand"
-      : tone === "emerald"
-        ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
-        : tone === "amber"
-          ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
-          : "border-default bg-surface/40 text-secondary";
-  return (
-    <div className={`rounded-xl border p-4 ${toneCls} h-full`}>
-      <div className="flex items-center gap-1.5 mb-2">
-        <Icon className="w-3.5 h-3.5" aria-hidden />
-        <p className="text-[10px] uppercase tracking-widest font-bold">{label}</p>
-      </div>
-      <p className="text-2xl font-bold text-primary mb-0.5">{value}</p>
-      <p className="text-[10px] text-muted">{subtitle}</p>
-    </div>
   );
 }

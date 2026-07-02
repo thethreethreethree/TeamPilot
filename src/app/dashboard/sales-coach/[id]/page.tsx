@@ -266,7 +266,7 @@ export default function SessionDetail() {
             : "Live Sales Coach"
         }
       />
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-3xl mx-auto w-full space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 py-6 max-w-md mx-auto w-full space-y-5 bg-base">
         <Link
           href="/dashboard/sales-coach"
           className="inline-flex items-center gap-1.5 text-xs text-secondary hover:text-primary"
@@ -278,7 +278,7 @@ export default function SessionDetail() {
         {/* Auto-generated factual conversation summary (distinct from the
             Dissect evaluation, §A11 — facts, not a verdict). */}
         {summary && (
-          <section className="rounded-xl border border-default bg-white/[0.01] p-4">
+          <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
             <div className="flex items-center gap-1.5 mb-2">
               <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
               <h2 className="text-sm font-semibold text-primary">
@@ -298,7 +298,7 @@ export default function SessionDetail() {
           </div>
         ) : (
           <>
-            {error && <p className="text-xs text-red-300">{error}</p>}
+            {error && <p className="text-xs text-amber-300">{error}</p>}
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -359,7 +359,7 @@ export default function SessionDetail() {
                 likely objections + key value), does not script them. */}
             {prep &&
               (prep.hasContent ? (
-                <section className="rounded-xl border border-ember-400/30 bg-ember-400/[0.04] p-4 space-y-3">
+                <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
                   <div className="flex items-center gap-1.5">
                     <Lightbulb className="w-3.5 h-3.5 text-brand" aria-hidden />
                     <h2 className="text-sm font-semibold text-primary">
@@ -419,7 +419,7 @@ export default function SessionDetail() {
                 on-demand help; the rep asked. Grounded in the product details
                 (Settings) + methodology; §3.4 — no invented product facts. */}
             {session && (
-              <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
                 <div className="flex items-center gap-1.5">
                   <Lightbulb className="w-3.5 h-3.5 text-brand" aria-hidden />
                   <h2 className="text-sm font-semibold text-primary">
@@ -476,7 +476,7 @@ export default function SessionDetail() {
                 (shown only post-call, never blocking Stop). §3.5: the outcome
                 is the consequence the coach measures against — not agreement. */}
             {session && session.status !== "active" && (
-              <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
                 <h2 className="text-sm font-semibold text-primary">Call outcome</h2>
                 <div className="flex flex-wrap gap-1.5">
                   {OUTCOME_ORDER.map((o) => (
@@ -527,7 +527,7 @@ export default function SessionDetail() {
                 is gated behind the rep's and builds on it. Gated on a recorded
                 outcome (§3.2/§3.5 — no consequence, no why). */}
             {session && session.outcome && (
-              <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
                 <div className="flex items-center gap-1.5">
                   <HelpCircle className="w-3.5 h-3.5 text-brand" aria-hidden />
                   <h2 className="text-sm font-semibold text-primary">
@@ -657,7 +657,7 @@ export default function SessionDetail() {
 
             {/* Review (strengths first — the tone law) */}
             {review?.hasSignal && (
-              <section className="rounded-xl border border-ember-400/30 bg-ember-400/[0.04] p-4 space-y-4">
+              <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-4">
                 <h2 className="text-sm font-semibold text-primary">
                   Your growth review
                 </h2>

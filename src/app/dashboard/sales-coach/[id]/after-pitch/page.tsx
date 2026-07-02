@@ -242,13 +242,13 @@ export default function AfterPitchPage() {
             <button
               type="button"
               onClick={() => void generate()}
-              className="text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-semibold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] px-3 py-1.5 rounded-lg transition-colors"
             >
               Try again
             </button>
           </div>
         ) : !summary || !summary.hasSignal ? (
-          <div className="rounded-xl border border-default bg-white/[0.01] p-5 text-center space-y-3">
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-5 text-center space-y-3">
             <p className="text-xs text-muted">
               Not enough of the conversation yet to write an honest summary.
               Capture or upload the call, then check back.
@@ -256,7 +256,7 @@ export default function AfterPitchPage() {
             <button
               type="button"
               onClick={() => void generate()}
-              className="text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-semibold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] px-3 py-1.5 rounded-lg transition-colors"
             >
               Rebuild summary
             </button>
@@ -282,7 +282,7 @@ export default function AfterPitchPage() {
                 type="button"
                 onClick={() => void startNextDoor()}
                 disabled={starting || !session}
-                className="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-4 py-3 rounded-xl transition-colors"
+                className="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 px-4 py-3 rounded-xl transition-colors"
               >
                 {starting ? (
                   <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
@@ -316,7 +316,7 @@ export default function AfterPitchPage() {
 function Timeline({ moments }: { moments: Moment[] }) {
   if (moments.length === 0) return null;
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
       <div className="flex items-start gap-3 overflow-x-auto pb-1">
         {moments.map((m, i) => (
           <div key={i} className="flex-1 min-w-[64px] text-center">
@@ -403,7 +403,7 @@ function BreakdownBlock({ moments }: { moments: Moment[] }) {
 function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
   if (!narrative.hasSignal) return null;
   return (
-    <section className="rounded-xl border border-ember-400/30 bg-ember-400/[0.04] p-4 space-y-3">
+    <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
       <h2 className="text-sm font-semibold text-primary">Your read</h2>
       {narrative.strengths.length > 0 && (
         <div>
@@ -460,7 +460,7 @@ function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
 function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
   if (scores.length === 0) return null;
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-primary">Your scores</h2>
         <span className="text-[10px] text-muted">Private to you</span>
@@ -513,7 +513,7 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
     return { text: "Not used", cls: "text-muted border-default" };
   };
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4 space-y-3">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
       <div className="flex items-center gap-1.5">
         <Radio className="w-3.5 h-3.5 text-brand" aria-hidden />
         <h2 className="text-sm font-semibold text-primary">What the coach cued</h2>
