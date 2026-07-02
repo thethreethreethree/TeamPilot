@@ -74,6 +74,22 @@ export type Cue = {
   latencyMs: number | null;
 };
 
+// After Pitch Summary (0080) — the closed cue→behaviour loop. `source` is
+// load-bearing (§3.4): 'rep_marked' is a rep-confirmed follow (the live "used
+// it" tap); 'inferred' is the post-call engine's read of what the rep did
+// after the cue, and must never be presented as confirmed.
+export type CueOutcomeDetermination = "followed" | "partial" | "ignored";
+export type CueOutcomeSource = "rep_marked" | "inferred";
+export type CueOutcome = {
+  id: string;
+  cueId: string;
+  sessionId: string;
+  determination: CueOutcomeDetermination;
+  source: CueOutcomeSource;
+  evidence: string | null;
+  createdAt: string;
+};
+
 function mapSession(row: Record<string, unknown>): SalesSession {
   return {
     id: row.id as string,
@@ -349,6 +365,148 @@ export async function getSessionTranscriptAdmin(
     .eq("session_id", sessionId)
     .order("seq", { ascending: true });
   return (data ?? []).map(mapSegment);
+}
+
+function mapCueOutcome(row: Record<string, unknown>): CueOutcome {
+  return {
+    id: row.id as string,
+    cueId: row.cue_id as string,
+    sessionId: row.session_id as string,
+    determination: row.determination as CueOutcomeDetermination,
+    source: row.source as CueOutcomeSource,
+    evidence: (row.evidence as string | null) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+/** Delivered cues for a session, oldest → newest (RLS-scoped user read).
+ *  Used by surfaces; the After Pitch assembler uses the admin read below. */
+export async function getSessionCues(sessionId: string): Promise<Cue[]> {
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("coaching_cues")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("delivered_at", { ascending: true });
+  return (data ?? []).map(mapCue);
+}
+
+/** Service-role cue read for the post-call summary assembler (no user
+ *  session in some contexts, mirrors getSessionTranscriptAdmin). Access is
+ *  gated upstream by the route (caller must be the session's agent). */
+export async function getSessionCuesAdmin(sessionId: string): Promise<Cue[]> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("coaching_cues")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("delivered_at", { ascending: true });
+  return (data ?? []).map(mapCue);
+}
+
+/** Append one cue outcome (immutable, §3.1). Service role — written by the
+ *  live "used it" tap route (source='rep_marked') and by the post-call
+ *  inference (source='inferred'). */
+export async function appendCueOutcome(args: {
+  cueId: string;
+  sessionId: string;
+  determination: CueOutcomeDetermination;
+  source: CueOutcomeSource;
+  evidence?: string | null;
+  createdBy?: string | null;
+}): Promise<CueOutcome | null> {
+  const sb = createServiceRoleClient();
+  const { data, error } = await sb
+    .from("coaching_cue_outcomes")
+    .insert({
+      cue_id: args.cueId,
+      session_id: args.sessionId,
+      determination: args.determination,
+      source: args.source,
+      evidence: args.evidence ?? null,
+      created_by: args.createdBy ?? null,
+    })
+    .select("*")
+    .single();
+  if (error || !data) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesCoach.appendCueOutcome] failed cue=${args.cueId}: ${error?.message ?? "no row"}`
+    );
+    return null;
+  }
+  return mapCueOutcome(data);
+}
+
+/** Latest outcome per cue for a session (service role, for the assembler).
+ *  Append-only means a cue may have multiple outcomes (e.g. a rep_marked tap
+ *  plus a later inferred read); the LATEST wins, and a rep_marked confirmation
+ *  is preferred over an inference for the same cue. */
+export async function getSessionCueOutcomesAdmin(
+  sessionId: string
+): Promise<CueOutcome[]> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("coaching_cue_outcomes")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false });
+  const rows = (data ?? []).map(mapCueOutcome);
+  // Collapse to the current determination per cue: prefer a rep_marked
+  // confirmation; otherwise the most recent (rows are newest-first).
+  const byCue = new Map<string, CueOutcome>();
+  for (const o of rows) {
+    const existing = byCue.get(o.cueId);
+    if (!existing) {
+      byCue.set(o.cueId, o);
+    } else if (existing.source !== "rep_marked" && o.source === "rep_marked") {
+      byCue.set(o.cueId, o);
+    }
+  }
+  return Array.from(byCue.values());
+}
+
+/** Persist an assembled After Pitch Summary (append-only, §3.1). Service
+ *  role — the row's privacy is enforced on READ by the owner-only RLS policy
+ *  (0080); the route verifies the caller is the session's agent before this
+ *  runs. Returns true on success. */
+export async function saveAfterPitchSummary(args: {
+  sessionId: string;
+  companyId: string;
+  agentId: string;
+  payload: unknown;
+}): Promise<boolean> {
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("after_pitch_summaries").insert({
+    session_id: args.sessionId,
+    company_id: args.companyId,
+    agent_id: args.agentId,
+    payload: args.payload as never,
+  });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesCoach.saveAfterPitchSummary] failed session=${args.sessionId}: ${error.message}`
+    );
+  }
+  return !error;
+}
+
+/** Read back the latest After Pitch Summary for a session (RLS owner-only —
+ *  a manager reading this gets null by policy, which is the privacy contract).
+ *  Returns the stored payload or null. */
+export async function getLatestAfterPitchSummary(
+  sessionId: string
+): Promise<unknown | null> {
+  const sb = await createServerClient();
+  const { data } = await sb
+    .from("after_pitch_summaries")
+    .select("payload")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.payload ?? null;
 }
 
 /** An agent's sessions, most recent first (RLS-scoped). */

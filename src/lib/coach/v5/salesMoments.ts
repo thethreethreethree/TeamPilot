@@ -1,0 +1,202 @@
+import "server-only";
+import { dissectCoachV5 } from "@/lib/claude";
+import {
+  getCurrentSalesCorpus,
+  type TranscriptSegment,
+  type SalesContext,
+} from "@/lib/data/salesCoach";
+import {
+  buildSalesMomentsSystemPrompt,
+  buildSalesMomentsUserMessage,
+} from "./salesMomentsPrompt";
+
+/**
+ * After Pitch Summary — MOMENT REDUCER engine.
+ *
+ * Reduces a diarized transcript to the timeline hero (3-5 key moments,
+ * ≤1 breakdown). Composes with the existing coach engines (§A21 — same LLM
+ * path, same honest empty-state contract as generateSalesReview). Never
+ * throws; on failure or thin input returns the honest empty state (§3.4).
+ *
+ * TIMESTAMP HONESTY (§3.4): the model returns which SEGMENT each moment
+ * anchors on (atSeq). THIS engine — not the model — computes the clock offset
+ * from that segment's spoken_at relative to the first segment. When spoken_at
+ * is absent (e.g. a live-saved transcript stores seq only), timestampLabel is
+ * null and the surface shows the ordered moment WITHOUT a fabricated time.
+ */
+
+export type MomentKind =
+  | "opener"
+  | "discovery"
+  | "objection"
+  | "breakdown"
+  | "close"
+  | "other";
+
+export type MomentCorrection = { correctLine: string; whyItWorks: string };
+
+export type SalesMoment = {
+  atSeq: number;
+  /** "1:04" when spoken_at is known for this segment, else null (§3.4). */
+  timestampLabel: string | null;
+  kind: MomentKind;
+  label: string;
+  customerLine: string | null;
+  repLine: string | null;
+  note: string | null;
+  isBreakdown: boolean;
+  /** Present only on the breakdown moment. */
+  correction: MomentCorrection | null;
+};
+
+export type SalesMoments = {
+  hasSignal: boolean;
+  moments: SalesMoment[];
+};
+
+const EMPTY: SalesMoments = { hasSignal: false, moments: [] };
+
+const MIN_SEGMENTS = 4; // fewer than this and there aren't distinct moments
+
+function mmss(deltaMs: number): string {
+  const total = Math.max(0, Math.round(deltaMs / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+export async function generateSalesMoments(args: {
+  companyId: string;
+  context?: SalesContext;
+  outcome?: string | null;
+  segments: TranscriptSegment[];
+}): Promise<SalesMoments> {
+  try {
+    if (args.segments.length < MIN_SEGMENTS) return EMPTY;
+
+    const corpus = await getCurrentSalesCorpus(args.companyId).catch(() => null);
+    const systemPrompt = buildSalesMomentsSystemPrompt(corpus?.content);
+    const userMessage = buildSalesMomentsUserMessage({
+      context: args.context,
+      outcome: args.outcome,
+      segments: args.segments,
+    });
+
+    const r = await dissectCoachV5({
+      companyId: args.companyId,
+      systemPrompt,
+      userMessage,
+    });
+    if (r.suppressed) return EMPTY;
+
+    return parseMoments(r.text, args.segments) ?? EMPTY;
+  } catch {
+    return EMPTY;
+  }
+}
+
+function parseMoments(
+  text: string,
+  segments: TranscriptSegment[]
+): SalesMoments | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (o.hasSignal === false) return EMPTY;
+  if (!Array.isArray(o.moments)) return EMPTY;
+
+  // Index segments by seq for atSeq validation + timestamp computation.
+  const bySeq = new Map<number, TranscriptSegment>();
+  for (const s of segments) bySeq.set(s.seq, s);
+
+  // The earliest known spoken_at is the timeline origin. If none is known,
+  // every timestampLabel stays null (honest — we don't fabricate a clock).
+  let originMs: number | null = null;
+  for (const s of segments) {
+    if (s.spokenAt) {
+      const t = Date.parse(s.spokenAt);
+      if (!Number.isNaN(t)) {
+        originMs = originMs === null ? t : Math.min(originMs, t);
+      }
+    }
+  }
+
+  const kinds: MomentKind[] = [
+    "opener",
+    "discovery",
+    "objection",
+    "breakdown",
+    "close",
+    "other",
+  ];
+  const out: SalesMoment[] = [];
+  let breakdownTaken = false;
+
+  for (const item of o.moments) {
+    if (!item || typeof item !== "object") continue;
+    const m = item as Record<string, unknown>;
+    const atSeq = typeof m.atSeq === "number" ? m.atSeq : NaN;
+    const seg = bySeq.get(atSeq);
+    if (!seg) continue; // atSeq must reference a real segment (§3.4)
+
+    const kind = kinds.includes(m.kind as MomentKind)
+      ? (m.kind as MomentKind)
+      : "other";
+    const label =
+      typeof m.label === "string" && m.label.trim() ? m.label.trim() : kind;
+    const customerLine =
+      typeof m.customerLine === "string" && m.customerLine.trim()
+        ? m.customerLine.trim()
+        : null;
+    const repLine =
+      typeof m.repLine === "string" && m.repLine.trim()
+        ? m.repLine.trim()
+        : null;
+    const note =
+      typeof m.note === "string" && m.note.trim() ? m.note.trim() : null;
+
+    // At most ONE breakdown (the pivotal one). A second flagged breakdown is
+    // demoted to 'other' — the timeline highlights a single turning point.
+    let isBreakdown = m.isBreakdown === true && !breakdownTaken;
+    if (isBreakdown) breakdownTaken = true;
+
+    let correction: MomentCorrection | null = null;
+    if (isBreakdown && m.correction && typeof m.correction === "object") {
+      const c = m.correction as Record<string, unknown>;
+      const correctLine =
+        typeof c.correctLine === "string" ? c.correctLine.trim() : "";
+      const whyItWorks =
+        typeof c.whyItWorks === "string" ? c.whyItWorks.trim() : "";
+      if (correctLine && whyItWorks) correction = { correctLine, whyItWorks };
+    }
+
+    // Compute the clock offset from real spoken_at (never invented).
+    let timestampLabel: string | null = null;
+    if (originMs !== null && seg.spokenAt) {
+      const t = Date.parse(seg.spokenAt);
+      if (!Number.isNaN(t)) timestampLabel = mmss(t - originMs);
+    }
+
+    out.push({
+      atSeq,
+      timestampLabel,
+      kind: isBreakdown ? "breakdown" : kind,
+      label,
+      customerLine,
+      repLine,
+      note,
+      isBreakdown,
+      correction,
+    });
+  }
+
+  if (out.length === 0) return EMPTY;
+  // Chronological by segment order.
+  out.sort((a, b) => a.atSeq - b.atSeq);
+  return { hasSignal: true, moments: out.slice(0, 5) };
+}

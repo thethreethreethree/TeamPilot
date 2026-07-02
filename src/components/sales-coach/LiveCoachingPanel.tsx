@@ -38,6 +38,8 @@ export function LiveCoachingPanel({
     turns,
     partial,
     currentCue,
+    cueMarked,
+    markCueUsed,
     cueStatus,
     phase,
     confidence,
@@ -316,11 +318,31 @@ export function LiveCoachingPanel({
         </div>
       )}
 
-      {/* Current cue */}
+      {/* Current cue + "used it" confirm (0080 cue loop). The rep's tap is
+          first-party truth the After Pitch Summary prefers over inference. */}
       {currentCue && (
-        <div className="mt-3 rounded-lg border border-ember-400/30 bg-ember-400/[0.06] p-3 flex items-start gap-2">
-          <Sparkles className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
-          <p className="text-sm text-primary leading-relaxed">{currentCue}</p>
+        <div className="mt-3 rounded-lg border border-ember-400/30 bg-ember-400/[0.06] p-3">
+          <div className="flex items-start gap-2">
+            <Sparkles className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
+            <p className="text-sm text-primary leading-relaxed">{currentCue}</p>
+          </div>
+          <div className="mt-2 flex justify-end">
+            {cueMarked ? (
+              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-300">
+                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+                Marked used
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void markCueUsed()}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-ember-400 border border-ember-400/40 rounded-md px-2 py-0.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+                I used this
+              </button>
+            )}
+          </div>
         </div>
       )}
 

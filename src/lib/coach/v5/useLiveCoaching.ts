@@ -138,6 +138,10 @@ export function useLiveCoaching(sessionId: string) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [partial, setPartial] = useState("");
   const [currentCue, setCurrentCue] = useState<string | null>(null);
+  // After Pitch Summary cue loop (0080): the rep can confirm they USED the
+  // current cue (source='rep_marked'), which the summary prefers over any
+  // inference. cueMarked reflects that the current cue was confirmed.
+  const [cueMarked, setCueMarked] = useState(false);
   const [mode, setMode] = useState<CueMode>("suggestion");
   const [error, setError] = useState<string | null>(null);
   // Visible cue lifecycle so failures show ON SCREEN, not just console
@@ -178,6 +182,7 @@ export function useLiveCoaching(sessionId: string) {
   const cueInFlightRef = useRef(false);
   const modeRef = useRef<CueMode>("suggestion");
   const lastCueAtRef = useRef(0); // F4 cooldown (ms epoch); 0 = never
+  const currentCueIdRef = useRef<string | null>(null); // DB id of the shown cue
   const lastStressCueAtRef = useRef(0); // F2 — stress-cue cooldown (ms epoch)
   const autoCoachRef = useRef(true); // mirrors autoCoach for ws closures
   // Volume/proximity attribution: per-utterance energy accumulator + the
@@ -337,6 +342,9 @@ export function useLiveCoaching(sessionId: string) {
         );
         if (c.shouldCue && c.cue) {
           lastCueAtRef.current = Date.now(); // start the cooldown
+          // Track the persisted cue id so the rep can mark it "used" (0080).
+          currentCueIdRef.current = (data?.cueId as string | null) ?? null;
+          setCueMarked(false);
           setCurrentCue(c.cue);
           void speakCue(c.cue);
         } else if (onDemand) {
@@ -358,6 +366,24 @@ export function useLiveCoaching(sessionId: string) {
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
     void invokeCue(true); // on-demand bypasses the cooldown
   }, [invokeCue]);
+
+  // Rep confirms they USED the current cue → records a rep_marked outcome
+  // (0080). First-party truth the After Pitch Summary prefers over inference.
+  // Best-effort: a failure just leaves the post-call inference to fill in.
+  const markCueUsed = useCallback(async () => {
+    const cueId = currentCueIdRef.current;
+    if (!cueId) return;
+    setCueMarked(true); // optimistic — the confirmation is the visible result
+    try {
+      await fetch(`/api/coach/sales-session/${sessionId}/cue-outcome`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cueId, determination: "followed" }),
+      });
+    } catch {
+      /* best-effort; inference still closes the loop post-call */
+    }
+  }, [sessionId]);
 
   // Content-classify a just-committed turn (Increment 2). Replaces the
   // provisional label with the real, CONTENT-based one, then — and only
@@ -835,6 +861,8 @@ export function useLiveCoaching(sessionId: string) {
     turns,
     partial,
     currentCue,
+    cueMarked,
+    markCueUsed,
     cueStatus,
     phase,
     confidence,

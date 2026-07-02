@@ -12,6 +12,7 @@ import {
   Square,
   FileText,
   HelpCircle,
+  Target,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
@@ -339,6 +340,19 @@ export default function SessionDetail() {
                 )}
                 {review ? "Regenerate growth review" : "Generate growth review"}
               </button>
+              {/* After Pitch Summary — the rep's private "between doors" debrief
+                  (timeline + private scores + one focus + Start Next Door). L3
+                  composition: reachable from the session the moment there's a
+                  transcript to summarize. */}
+              {transcript.length > 0 && (
+                <Link
+                  href={`/dashboard/sales-coach/${id}/after-pitch`}
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-ember-400/40 text-brand hover:bg-ember-400/10 transition-colors"
+                >
+                  <Target className="w-3.5 h-3.5" aria-hidden />
+                  After Pitch Summary
+                </Link>
+              )}
             </div>
 
             {/* Step 3 — pre-knock prep card. §3.3: prepares the rep (opening +

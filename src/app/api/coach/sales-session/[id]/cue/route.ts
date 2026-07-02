@@ -126,8 +126,9 @@ export async function POST(
   // boolean column on coaching_cues so getCueRelianceSeries can separate
   // them. Deferred to avoid a migration-ordering window during live
   // debugging; do the migration when ready.
+  let cueId: string | null = null;
   if (result.shouldCue) {
-    await appendCue({
+    const appended = await appendCue({
       sessionId: id,
       mode: result.mode,
       text: result.cue,
@@ -135,7 +136,10 @@ export async function POST(
       trigger: result.trigger,
       signal: body.stress ?? null,
     });
+    // Return the persisted cue id so the client can record a rep_marked
+    // "used it" outcome against THIS cue (After Pitch Summary cue loop, 0080).
+    cueId = appended?.id ?? null;
   }
 
-  return NextResponse.json({ cue: result });
+  return NextResponse.json({ cue: result, cueId });
 }
