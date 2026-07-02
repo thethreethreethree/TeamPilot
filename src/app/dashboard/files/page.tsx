@@ -181,13 +181,6 @@ export default function FilesLibraryPage() {
   const uploadDraft = async (draft: ClassificationDraft) => {
     if (pendingItems.length === 0) return;
     const supabase = createClient();
-    // eslint-disable-next-line no-console
-    console.log("[upload] uploadDraft", {
-      isFolderUpload,
-      explicitFolder,
-      count: pendingItems.length,
-      paths: pendingItems.slice(0, 5).map((i) => i.path),
-    });
 
     // FOLDER → zip (structure preserved via each file's path) into ONE asset.
     if (isFolderUpload) {

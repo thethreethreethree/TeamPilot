@@ -198,12 +198,6 @@ export function FileDropzone({
           path: f.webkitRelativePath || f.name,
         }));
         const folder = isFolder || items.some((i) => i.path.includes("/"));
-        // eslint-disable-next-line no-console
-        console.log("[dropzone] picked", {
-          isFolder: folder,
-          count: items.length,
-          paths: items.slice(0, 5).map((i) => i.path),
-        });
         onFilesSelected(items, folder);
         return;
       }
@@ -287,12 +281,6 @@ export function FileDropzone({
               const files = (
                 await Promise.all(entries.map(entryToFiles))
               ).flat();
-              // eslint-disable-next-line no-console
-              console.log("[dropzone] dropped", {
-                hasDir,
-                count: files.length,
-                paths: files.slice(0, 5).map((f) => f.path),
-              });
               if (files.length) onFilesSelected(files, hasDir);
               else handleFiles(fallback);
             })();
