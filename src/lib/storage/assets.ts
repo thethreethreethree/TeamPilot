@@ -56,6 +56,14 @@ export const AGENT_ALLOWED_MIME_PREFIXES = [
   "application/vnd.ms-powerpoint",
   "text/",
   "audio/",
+  // Code/data text types (folder uploads of projects, e.g. a browser
+  // extension: manifest.json, .js, .xml). Safe — stored as files, never
+  // executed; dangerous types stay blocked by BLOCKED_MIME_PREFIXES /
+  // BLOCKED_EXTENSIONS. Founder-approved 2026-07-01.
+  "application/json",
+  "application/javascript",
+  "application/xml",
+  "font/",
 ];
 
 /** Stricter allow list for customer-widget uploads. */

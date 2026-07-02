@@ -129,66 +129,84 @@ export default function FilesLibraryPage() {
     let uploaded = 0;
     // Throws on the first failure so the modal surfaces it inline; files
     // already uploaded before the failure are kept (partial success).
+    // Resilient batch: a single bad file (unsupported type, error) is SKIPPED
+    // and reported, not allowed to abort the whole folder upload.
+    const skipped: { name: string; reason: string }[] = [];
     for (const file of pendingFiles) {
-      // Skip genuinely empty / system entries (folders often carry 0-byte
-      // placeholders) — they can't be uploaded and would fail the batch.
+      // Skip genuinely empty / system entries (folders carry 0-byte files).
       if (file.size <= 0) continue;
-      // 1. Mint a signed upload target (validates size/type up front).
-      const urlRes = await fetch("/api/files/upload-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          sizeBytes: file.size,
-          mimeType: file.type || "application/octet-stream",
-        }),
-      });
-      if (!urlRes.ok) {
-        const d = await urlRes.json().catch(() => null);
-        throw new Error(d?.error ?? `Couldn't start "${file.name}" (${urlRes.status}).`);
+      try {
+        // 1. Mint a signed upload target (validates size/type up front).
+        const urlRes = await fetch("/api/files/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            sizeBytes: file.size,
+            mimeType: file.type || "application/octet-stream",
+          }),
+        });
+        if (!urlRes.ok) {
+          const d = await urlRes.json().catch(() => null);
+          throw new Error(d?.error ?? `couldn't start (${urlRes.status})`);
+        }
+        const { bucket, storagePath, token } = await urlRes.json();
+        // 2. Upload the bytes DIRECT to storage (bypasses the 4.5MB cap).
+        const { error: upErr } = await supabase.storage
+          .from(bucket)
+          .uploadToSignedUrl(storagePath, token, file);
+        if (upErr) throw new Error(`storage: ${upErr.message}`);
+        // 3. Create the record with the SHARED classification (filename title).
+        const metaRes = await fetch("/api/files", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            storagePath,
+            originalFilename: file.name,
+            sizeBytes: file.size,
+            mimeType: file.type || "application/octet-stream",
+            title: batch ? file.name : draft.title || file.name,
+            description: draft.description || undefined,
+            department_ids: draft.departmentIds,
+            task_ids: draft.taskIds,
+            tags: draft.tags,
+            access_role: draft.accessRole,
+          }),
+        });
+        if (!metaRes.ok) {
+          const d = await metaRes.json().catch(() => null);
+          throw new Error(d?.error ?? `save failed (${metaRes.status})`);
+        }
+        uploaded += 1;
+      } catch (e) {
+        skipped.push({
+          name: file.name,
+          reason: e instanceof Error ? e.message : "failed",
+        });
       }
-      const { bucket, storagePath, token } = await urlRes.json();
-      // 2. Upload the bytes DIRECT to storage (bypasses the 4.5MB function cap).
-      const { error: upErr } = await supabase.storage
-        .from(bucket)
-        .uploadToSignedUrl(storagePath, token, file);
-      if (upErr) {
-        throw new Error(`Storage upload failed for "${file.name}": ${upErr.message}`);
-      }
-      // 3. Create the record with the SHARED classification. In a batch each
-      //    file keeps its own filename as its title.
-      const metaRes = await fetch("/api/files", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storagePath,
-          originalFilename: file.name,
-          sizeBytes: file.size,
-          mimeType: file.type || "application/octet-stream",
-          title: batch ? file.name : draft.title || file.name,
-          description: draft.description || undefined,
-          department_ids: draft.departmentIds,
-          task_ids: draft.taskIds,
-          tags: draft.tags,
-          access_role: draft.accessRole,
-        }),
-      });
-      if (!metaRes.ok) {
-        const d = await metaRes.json().catch(() => null);
-        throw new Error(d?.error ?? `Save failed for "${file.name}" (${metaRes.status}).`);
-      }
-      uploaded += 1;
+    }
+    if (skipped.length) {
+      // eslint-disable-next-line no-console
+      console.warn("[files] skipped in batch:", skipped);
     }
     if (uploaded === 0) {
-      throw new Error("No uploadable files — the selection was empty or 0-byte.");
+      const first = skipped[0];
+      throw new Error(
+        first
+          ? `Nothing uploaded — e.g. ${first.name}: ${first.reason}${skipped.length > 1 ? ` (+${skipped.length - 1} more)` : ""}`
+          : "No uploadable files — the selection was empty."
+      );
     }
     const classified =
       draft.departmentIds.length > 0 &&
       draft.taskIds.length > 0 &&
       draft.description.trim().length > 0;
     toast.success(
-      uploaded > 1 ? `Uploaded ${uploaded} files` : "Uploaded",
-      classified ? "Classified — team assets now." : "Uploaded as casual."
+      uploaded === 1 ? "Uploaded" : `Uploaded ${uploaded} files`,
+      (classified ? "Classified — team assets now." : "Uploaded as casual.") +
+        (skipped.length
+          ? ` ${skipped.length} skipped (unsupported type or error).`
+          : "")
     );
     await refresh();
   };
