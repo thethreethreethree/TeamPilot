@@ -69,32 +69,36 @@ export function NavProgressBar() {
 
   useEffect(() => {
     if (active) {
+      // Start visibly filled so even an instant transition shows a chunk.
       setVisible(true);
-      setWidth(8);
-      const t1 = setTimeout(() => setWidth(65), 120);
-      const t2 = setTimeout(() => setWidth(88), 450);
+      setWidth(25);
+      const t1 = setTimeout(() => setWidth(55), 150);
+      const t2 = setTimeout(() => setWidth(80), 500);
+      const t3 = setTimeout(() => setWidth(92), 1200);
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);
+        clearTimeout(t3);
       };
     }
-    // Completion: finish the bar, then fade it out.
+    // Completion: snap to 100% and HOLD long enough to be seen (a fast nav
+    // was closing in ~280ms before — too quick to notice), then fade.
     setWidth(100);
     const t = setTimeout(() => {
       setVisible(false);
       setWidth(0);
-    }, 280);
+    }, 550);
     return () => clearTimeout(t);
   }, [active]);
 
   if (!visible) return null;
   return (
     <div
-      className="pointer-events-none absolute top-0 inset-x-0 h-0.5 z-[70]"
+      className="pointer-events-none absolute top-0 inset-x-0 h-1 z-[70]"
       aria-hidden
     >
       <div
-        className="h-full bg-gradient-to-r from-ember-300 to-ember-500 shadow-[0_0_8px_rgba(250,204,21,0.7)] transition-[width] duration-300 ease-out"
+        className="h-full rounded-r-full bg-gradient-to-r from-ember-200 via-ember-400 to-ember-500 shadow-[0_0_14px_3px_rgba(250,204,21,0.95)] transition-[width] duration-300 ease-out"
         style={{ width: `${width}%` }}
       />
     </div>
