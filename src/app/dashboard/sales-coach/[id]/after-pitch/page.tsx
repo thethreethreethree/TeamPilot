@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -314,30 +314,14 @@ export default function AfterPitchPage() {
                 principle="You can only improve the call you actually see, not the one you wish you'd had."
               >
                 <DeckCard className="p-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowWhatHappened((v) => !v)}
-                    aria-expanded={showWhatHappened}
-                    className="w-full flex items-center justify-between gap-2 text-left"
-                  >
-                    <span className="flex items-center gap-1.5">
+                  <CollapseToggle
+                    title="What happened"
+                    icon={
                       <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
-                      <span className="text-sm font-semibold text-primary">
-                        What happened
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-1.5 shrink-0">
-                      {!showWhatHappened && (
-                        <span className="text-[10px] text-muted">Tap to read</span>
-                      )}
-                      <ChevronDown
-                        className={`w-4 h-4 text-muted transition-transform ${
-                          showWhatHappened ? "rotate-180" : ""
-                        }`}
-                        aria-hidden
-                      />
-                    </span>
-                  </button>
+                    }
+                    open={showWhatHappened}
+                    onToggle={() => setShowWhatHappened((v) => !v)}
+                  />
                   {showWhatHappened && (
                     <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap mt-2.5">
                       {whatHappened}
@@ -429,6 +413,47 @@ export default function AfterPitchPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+/* ─── Shared collapse affordance ─────────────────────────────────────
+   Authored ONCE (A13 — this is the 3rd collapsible section; author the
+   space by category, not per-incident) and reused by every collapsible
+   card so the tap affordance stays identical (A18 label consistency,
+   A21 one idiom). Same click behaviour as the original "What happened"
+   toggle — mirroring the founder's reference, not redesigning it. */
+function CollapseToggle({
+  title,
+  icon,
+  open,
+  onToggle,
+}: {
+  title: string;
+  icon?: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="w-full flex items-center justify-between gap-2 text-left"
+    >
+      <span className="flex items-center gap-1.5">
+        {icon}
+        <span className="text-sm font-semibold text-primary">{title}</span>
+      </span>
+      <span className="flex items-center gap-1.5 shrink-0">
+        {!open && <span className="text-[10px] text-muted">Tap to read</span>}
+        <ChevronDown
+          className={`w-4 h-4 text-muted transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+          aria-hidden
+        />
+      </span>
+    </button>
   );
 }
 
@@ -648,10 +673,17 @@ function CorrectLineCard({ moments }: { moments: Moment[] }) {
 
 /* ─── Narrative (reused growth review — tone law: strengths first) ─ */
 function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
+  const [open, setOpen] = useState(false);
   if (!narrative.hasSignal) return null;
   return (
       <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-primary">Your read</h2>
+        <CollapseToggle
+          title="Your read"
+          open={open}
+          onToggle={() => setOpen((v) => !v)}
+        />
+        {open && (
+        <>
         {narrative.strengths.length > 0 && (
           <LearningHint
             as="block"
@@ -718,6 +750,8 @@ function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
           <p className="text-xs text-secondary italic border-t border-default pt-2.5">
             {narrative.closing}
           </p>
+        )}
+        </>
         )}
       </section>
   );
@@ -811,6 +845,7 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
 
 /* ─── Cue loop (what the coach cued → did you use it) ────────────── */
 function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
+  const [open, setOpen] = useState(false);
   if (entries.length === 0) return null;
   const badge = (e: CueLoopEntry) => {
     if (!e.determination)
@@ -826,16 +861,19 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
       as="block"
       category="Sales Coach · After Pitch"
       title="What the coach cued"
-      whatItIs="The live prompts the coach gave you mid-call, and whether you used each one — Used, Partly, or Not used."
+      whatItIs="The live prompts the coach gave you mid-call, and whether you used each one — Used, Partly, or Not used. Collapsed by default; tap the header to expand."
       why="A cue you ignored and a cue you used teach different lessons. Closing the loop between advice and action is how you find out which coaching actually reaches you in the moment."
-      how="Look at the 'Not used' rows without guilt — they show where in-the-moment help isn't landing yet, which is the most useful thing to practise."
+      how="Tap to expand, then look at the 'Not used' rows without guilt — they show where in-the-moment help isn't landing yet, which is the most useful thing to practise."
       principle="Guidance only counts when it changes what you do while the door is still open."
     >
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
-        <div className="flex items-center gap-1.5">
-          <Radio className="w-3.5 h-3.5 text-brand" aria-hidden />
-          <h2 className="text-sm font-semibold text-primary">What the coach cued</h2>
-        </div>
+        <CollapseToggle
+          title="What the coach cued"
+          icon={<Radio className="w-3.5 h-3.5 text-brand" aria-hidden />}
+          open={open}
+          onToggle={() => setOpen((v) => !v)}
+        />
+        {open && (
         <ul className="space-y-2">
           {entries.map((e, i) => {
           const b = badge(e);
@@ -871,6 +909,7 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
           );
         })}
         </ul>
+        )}
       </section>
     </LearningHint>
   );
