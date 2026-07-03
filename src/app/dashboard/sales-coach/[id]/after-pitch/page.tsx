@@ -676,7 +676,11 @@ function CorrectLineCard({ moments }: { moments: Moment[] }) {
 
 /* ─── Narrative (reused growth review — tone law: strengths first) ─ */
 function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
-  const [open, setOpen] = useState(false);
+  // Default OPEN so the substance is visible, not hidden behind a tap — the
+  // collapse toggle stays for anyone who wants to fold it (founder 2026-07-03,
+  // "bring back all the content, just easier to read"). Only "What happened"
+  // (the long transcript recap) stays collapsed-by-default.
+  const [open, setOpen] = useState(true);
   if (!narrative.hasSignal) return null;
   return (
       <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
@@ -762,7 +766,9 @@ function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
 
 /* ─── Private scoreboard (self-assessment, evidenced — A11/A18) ──── */
 function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
-  const [reviewOpen, setReviewOpen] = useState(false);
+  // Default OPEN — the rating rationale reads as "gone" when collapsed; show
+  // it, keep the toggle (founder 2026-07-03).
+  const [reviewOpen, setReviewOpen] = useState(true);
   if (scores.length === 0) return null;
   return (
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
@@ -864,7 +870,8 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
 
 /* ─── Cue loop (what the coach cued → did you use it) ────────────── */
 function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
-  const [open, setOpen] = useState(false);
+  // Default OPEN — visible, collapse toggle retained (founder 2026-07-03).
+  const [open, setOpen] = useState(true);
   if (entries.length === 0) return null;
   const badge = (e: CueLoopEntry) => {
     if (!e.determination)
