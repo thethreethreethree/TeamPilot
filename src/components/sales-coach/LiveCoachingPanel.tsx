@@ -38,6 +38,8 @@ export function LiveCoachingPanel({
     confidence,
     autoCoach,
     setAutoCoach,
+    agentSpeaking,
+    toggleAgentSpeaking,
     mode,
     setMode,
     error,
@@ -68,6 +70,7 @@ export function LiveCoachingPanel({
   );
   const { supported: tapsSupported, lastTapAt } = useTapControls({
     active: live,
+    onAgentSpeaking: toggleAgentSpeaking,
     onCoachMe: requestCue,
     onToggleQuiet: toggleQuiet,
   });
@@ -192,6 +195,25 @@ export function LiveCoachingPanel({
         </button>
         {live && (
           <div className="ml-auto flex items-center gap-3">
+            {/* "I'm speaking" toggle (founder 2026-07-03) — locks the current
+                turns to the agent for a clean script split. Also the manual
+                fallback for the single-tap gesture, which is device-dependent. */}
+            <button
+              type="button"
+              onClick={toggleAgentSpeaking}
+              aria-pressed={agentSpeaking}
+              className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                agentSpeaking
+                  ? "border-ember-400/50 bg-ember-400/10 text-brand"
+                  : "border-default text-muted hover:text-secondary"
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${agentSpeaking ? "bg-ember-400 animate-pulse" : "bg-muted"}`}
+                aria-hidden
+              />
+              {agentSpeaking ? "You're speaking" : "I'm speaking"}
+            </button>
             {/* Auto-coach toggle — stays ON (auto-cues at pauses) until you
                 turn it off; clear ON/OFF indicator (founder request). */}
             <button
@@ -240,9 +262,14 @@ export function LiveCoachingPanel({
           </div>
           <ul className="mt-1 text-[10px] text-muted leading-relaxed">
             <li>
-              • <span className="text-secondary">Tap</span> (or double-tap) your
-              earbud → <span className="text-secondary">Coach me now</span>,
-              hands-free.
+              • <span className="text-secondary">Single tap</span> → toggle{" "}
+              <span className="text-secondary">I&apos;m speaking</span> — marks
+              your turns for a clean script split.
+            </li>
+            <li>
+              • <span className="text-secondary">Double tap</span> →{" "}
+              <span className="text-secondary">activate the coach</span> now
+              (Suggestion / Guide my response) — no delay.
             </li>
             <li>
               • <span className="text-secondary">Triple-tap</span> → toggle{" "}
@@ -250,8 +277,10 @@ export function LiveCoachingPanel({
             </li>
           </ul>
           <p className="mt-1 text-[9px] text-muted/80">
-            Works on earbuds that send media controls to the browser (varies by
-            device). The “✓” shows when a tap reaches the app.
+            Works on earbuds that send media controls to the browser. Which
+            physical tap triggers which action depends on the earbud (§3.4) — use
+            the on-screen buttons if a gesture doesn’t map. The “✓” shows when a
+            tap reaches the app.
           </p>
         </div>
       )}

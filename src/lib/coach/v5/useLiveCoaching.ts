@@ -151,6 +151,11 @@ export function useLiveCoaching(sessionId: string) {
   // cues automatically at pauses — no pressing "coach me now". When OFF,
   // it stays quiet (transcript still runs). Default ON.
   const [autoCoach, setAutoCoachState] = useState(true);
+  // Manual speaker override (founder 2026-07-03): a TOGGLE the rep drives with
+  // a single earbud tap. When ON, every committed utterance is locked to
+  // "agent" — a hard override of the loudness/content guess — for clean script
+  // separation on the rep's turns. OFF = the automatic attribution runs.
+  const [agentSpeaking, setAgentSpeaking] = useState(false);
   // F2: the recorded call audio, available after Stop, to feed the S1a
   // upload→diarize→label→review pipeline so a live session leaves a
   // persisted, reviewable record (§1.1). In-person only — the mic holds
@@ -185,6 +190,7 @@ export function useLiveCoaching(sessionId: string) {
   const currentCueIdRef = useRef<string | null>(null); // DB id of the shown cue
   const lastStressCueAtRef = useRef(0); // F2 — stress-cue cooldown (ms epoch)
   const autoCoachRef = useRef(true); // mirrors autoCoach for ws closures
+  const agentSpeakingRef = useRef(false); // mirrors agentSpeaking for ws closure
   // Volume/proximity attribution: per-utterance energy accumulator + the
   // learned loudness level for each side (salesperson near/loud, prospect
   // far/quiet).
@@ -733,12 +739,17 @@ export function useLiveCoaching(sessionId: string) {
           );
           agentLevelRef.current = v.agentLevel;
           customerLevelRef.current = v.customerLevel;
+          // Manual override: when the rep has toggled "I'm speaking" (a single
+          // earbud tap), lock this utterance to agent and skip the content
+          // re-attribution below — the rep's explicit signal beats the guess.
+          const locked = agentSpeakingRef.current;
+          if (locked) v.speaker = "agent";
           const priorSpeaker =
             turnsRef.current[turnsRef.current.length - 1]?.speaker ?? "agent";
           const index = turnsRef.current.length;
           turnsRef.current = [
             ...turnsRef.current,
-            { text, speaker: v.speaker, pending: true },
+            { text, speaker: v.speaker, pending: !locked },
           ];
           setTurns(turnsRef.current);
           // eslint-disable-next-line no-console
@@ -749,7 +760,7 @@ export function useLiveCoaching(sessionId: string) {
           // wait for it). The cue trigger lives in classifyTurn, gated on
           // the final (content-or-volume) label.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-          void classifyTurn(index, text, priorSpeaker, v.speaker);
+          if (!locked) void classifyTurn(index, text, priorSpeaker, v.speaker);
 
           // Build 3 — MEASURED stress on the rep's OWN turns. Close out this
           // utterance's speaking duration (first partial → this commit) and,
@@ -852,7 +863,16 @@ export function useLiveCoaching(sessionId: string) {
 
   const clearRecording = useCallback(() => setRecordingBlob(null), []);
 
+  // Toggle the manual "agent is speaking" lock (single earbud tap / button).
+  const toggleAgentSpeaking = useCallback(() => {
+    const next = !agentSpeakingRef.current;
+    agentSpeakingRef.current = next;
+    setAgentSpeaking(next);
+  }, []);
+
   return {
+    agentSpeaking,
+    toggleAgentSpeaking,
     recordingBlob,
     clearRecording,
     transcriptSaved,

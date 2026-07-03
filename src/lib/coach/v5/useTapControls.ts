@@ -46,17 +46,19 @@ function makeSilentWavUrl(): string {
   return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
 }
 
-// F1 (audit 2026-07-01) — debounce the coach-me tap: earbuds can emit stray/
-// repeated media events, and requestCue bypasses the cue cooldown, so without
-// this a flurry of taps could stack on-demand cues (§5 cost / §3.3 over-cue).
-// cueInFlightRef already blocks the concurrent burst; this closes the
-// sequential/laggy residual.
-const TAP_DEBOUNCE_MS = 2000;
+// Hardware double-delivery guard (NOT a usage restriction). The OS/browser can
+// deliver ONE physical media-key press as two events; this swallows the
+// duplicate so a single gesture fires its action once. It replaces the old 2s
+// "quiet" debounce that blocked fast re-activation — dropped 2026-07-03 so the
+// rep can activate without delay (§3.3, the rep asked; the engine's auto-cue
+// cooldown is already bypassed on-demand, so nothing else gates manual use).
+const DEDUP_MS = 250;
 
 export function useTapControls(args: {
   active: boolean;
-  onCoachMe: () => void; // a tap → "coach me now"
-  onToggleQuiet: () => void; // triple-tap → quiet toggle
+  onAgentSpeaking: () => void; // single tap (play/pause) → toggle "I'm speaking"
+  onCoachMe: () => void; // double tap (nexttrack) → activate the coach
+  onToggleQuiet: () => void; // triple tap (previoustrack) → quiet toggle
 }): { supported: boolean; lastTapAt: number } {
   const [supported] = useState(
     () => typeof navigator !== "undefined" && "mediaSession" in navigator
@@ -68,7 +70,10 @@ export function useTapControls(args: {
   // Keep the latest callbacks without re-running the effect on every render.
   const cbRef = useRef(args);
   cbRef.current = args;
-  const lastTapRef = useRef(0); // F1 — last coach-me tap (ms epoch)
+  // Per-action last-fire (ms epoch) for the dedup guard — separate so toggling
+  // "speaking" never swallows an activation and vice-versa.
+  const lastSpeakingRef = useRef(0);
+  const lastCoachRef = useRef(0);
 
   useEffect(() => {
     if (!args.active || !supported) return;
@@ -93,23 +98,27 @@ export function useTapControls(args: {
         artist: "Live coaching",
       });
       ms.playbackState = "playing";
-      // Any common tap (single/double) → coach me; keep the session alive so a
-      // "pause" gesture doesn't tear it down. F1 — debounced: a tap within
-      // TAP_DEBOUNCE_MS keeps the session alive but does NOT re-fire the cue.
-      const coachMe = () => {
+      // Fire an action once per physical gesture (dedup guard), always keeping
+      // the media session alive so a "pause" gesture doesn't tear it down.
+      const fire = (ref: { current: number }, cb: () => void) => {
         const now = Date.now();
-        setLastTapAt(now); // record EVERY received tap (even if debounced)
-        if (now - lastTapRef.current < TAP_DEBOUNCE_MS) {
+        setLastTapAt(now); // record EVERY received tap (even a deduped one)
+        if (now - ref.current < DEDUP_MS) {
           keepAlive();
           return;
         }
-        lastTapRef.current = now;
-        cbRef.current.onCoachMe();
+        ref.current = now;
+        cb();
         keepAlive();
       };
-      ms.setActionHandler("play", coachMe);
-      ms.setActionHandler("pause", coachMe);
-      ms.setActionHandler("nexttrack", coachMe);
+      // Single tap (play/pause on most earbuds) → toggle "agent is speaking".
+      const onSpeaking = () => fire(lastSpeakingRef, cbRef.current.onAgentSpeaking);
+      ms.setActionHandler("play", onSpeaking);
+      ms.setActionHandler("pause", onSpeaking);
+      // Double tap (nexttrack) → activate the coach — no delay, fires instantly.
+      ms.setActionHandler("nexttrack", () =>
+        fire(lastCoachRef, cbRef.current.onCoachMe)
+      );
       // Triple-tap (previoustrack on many earbuds) → quiet toggle.
       ms.setActionHandler("previoustrack", () => {
         setLastTapAt(Date.now());
