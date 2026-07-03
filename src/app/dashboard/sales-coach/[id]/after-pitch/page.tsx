@@ -14,6 +14,10 @@ import {
   ChevronRight,
   Repeat,
   FileText,
+  Award,
+  Sparkles,
+  TrendingUp,
+  Quote,
 } from "lucide-react";
 import { DeckCard } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -241,14 +245,16 @@ export default function AfterPitchPage() {
             Back to session
           </Link>
           <div className="text-center pt-1">
-            <h1 className="text-lg font-bold text-primary">After Pitch Summary</h1>
-            <p className="text-[11px] text-muted mt-0.5">
-              Your breakdown + one thing for the next door
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <h1 className="text-lg font-bold text-primary">
+                After Pitch Summary
+              </h1>
+              <Award className="w-5 h-5 text-brand shrink-0" aria-hidden />
+            </div>
             {session && (
               <p className="text-[11px] text-brand mt-1">
-                {session.clientLabel ?? "Session"} · {ctxLabel}
-                {dur ? ` · ${dur}` : ""}
+                {session.clientLabel ?? "Session"}
+                {dur ? ` · ${dur} conversation` : ` · ${ctxLabel}`}
               </p>
             )}
           </div>
@@ -312,11 +318,24 @@ export default function AfterPitchPage() {
                 </DeckCard>
               </LearningHint>
             )}
+            {/* Mockup's core flow: breakdown → 3-up key moves → correct
+                line → score strip. */}
             <BreakdownBlock moments={summary.moments} />
-            <Narrative narrative={summary.narrative} />
+            <KeyMoves
+              moments={summary.moments}
+              cueLoop={summary.cueLoop}
+              focus={summary.focus}
+            />
+            <CorrectLineCard moments={summary.moments} />
             <Scoreboard scores={summary.scores} />
+            {/* Richer detail kept below the fold (§1.5 — don't delete working
+                surfaces the mockup happens not to show). Focus lives in the
+                3-up above when there's a breakdown; otherwise its own card. */}
+            <Narrative narrative={summary.narrative} />
             <CueLoop entries={summary.cueLoop} />
-            <FocusCard focus={summary.focus} />
+            {!summary.moments.some((m) => m.isBreakdown) && (
+              <FocusCard focus={summary.focus} />
+            )}
           </>
         )}
 
@@ -375,6 +394,11 @@ export default function AfterPitchPage() {
             </LearningHint>
           </div>
         )}
+
+        {/* Footer — mockup's signature line, honest: no fabricated version. */}
+        <p className="text-center text-[10px] text-muted pt-2">
+          Sales Coach · Personalized coaching
+        </p>
       </div>
     </div>
   );
@@ -388,30 +412,40 @@ function Timeline({ moments }: { moments: Moment[] }) {
       as="block"
       category="Sales Coach · After Pitch"
       title="Conversation timeline"
-      whatItIs="The shape of the whole call at a glance — each dot is a moment (opener, discovery, objection, close). The burnt-amber dot with a ring is where the call broke down."
+      whatItIs="The shape of the whole call at a glance — each dot is a moment (opener, discovery, objection, close). The bright, glowing amber dot is where the call broke down."
       why="Sales calls turn on a few pivotal moments, not every sentence. Seeing the arc lets you find the moment that mattered instead of re-litigating the whole conversation."
-      how="Scan left to right for the ringed amber dot — that's the breakdown detailed just below. The timestamps orient you to when each moment happened."
+      how="Scan left to right for the glowing amber dot — that's the breakdown detailed just below. The timestamps orient you to when each moment happened."
       principle="Every call has a hinge moment; find it and you find where to improve."
     >
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
-        <div className="flex items-start gap-3 overflow-x-auto pb-1">
+        <div className="flex items-start gap-2 overflow-x-auto pb-1">
           {moments.map((m, i) => (
-          <div key={i} className="flex-1 min-w-[64px] text-center">
-            <div className="relative flex items-center justify-center h-3 mb-2">
-              {/* connector */}
+          <div key={i} className="flex-1 min-w-[62px] text-center">
+            <div className="relative flex items-center justify-center h-4 mb-2">
+              {/* continuous track — a segment left and right of each node so
+                  the dots read as one connected timeline (mockup). */}
               {i > 0 && (
-                <span className="absolute right-1/2 top-1/2 h-px w-full -translate-y-1/2 bg-default" />
+                <span className="absolute right-1/2 top-1/2 h-px w-full -translate-y-1/2 bg-white/12" />
               )}
+              {i < moments.length - 1 && (
+                <span className="absolute left-1/2 top-1/2 h-px w-full -translate-y-1/2 bg-white/12" />
+              )}
+              {/* breakdown = the brightest node (mockup's highlight) but kept
+                  in our ember accent, not the PDF's yellow (docs/BRAND.md). */}
               <span
-                className={`relative z-10 w-3 h-3 rounded-full ${
+                className={`relative z-10 rounded-full ${
                   m.isBreakdown
-                    ? "bg-ember-800 ring-2 ring-ember-500/50"
-                    : "bg-ember-400"
+                    ? "w-4 h-4 bg-ember-400 ring-4 ring-ember-400/25 shadow-[0_0_14px_-1px_rgba(250,204,21,0.8)]"
+                    : "w-2.5 h-2.5 bg-white/25"
                 }`}
               />
             </div>
             {m.timestampLabel && (
-              <p className="text-[11px] font-bold text-primary">
+              <p
+                className={`text-[11px] font-bold ${
+                  m.isBreakdown ? "text-brand" : "text-primary"
+                }`}
+              >
                 {m.timestampLabel}
               </p>
             )}
@@ -439,48 +473,145 @@ function BreakdownBlock({ moments }: { moments: Moment[] }) {
       as="block"
       category="Sales Coach · After Pitch"
       title="Where it broke down"
-      whatItIs="The single moment the call turned against you — the customer line, your response, and why it lost momentum."
+      whatItIs="The single moment the call turned against you — when it happened and what shifted the customer away."
       why="One clear breakdown you can name and fix beats a vague sense the call 'went badly.' Naming the exact moment is what makes it coachable."
-      how="Read what the customer said and what you said, then compare against the correction card below to see the version that lands better."
+      how="Read what happened here, then the three cards just below break it into what you said, the better move, and the one strategy to carry forward."
       principle="You can't fix a call you can only describe as 'off' — name the moment, then change it."
     >
       <section className="rounded-xl overflow-hidden border border-ember-700/50">
         <div className="bg-ember-800 px-4 py-2.5 flex items-center gap-2">
-        <AlertTriangle className="w-4 h-4 text-ember-50 shrink-0" aria-hidden />
-        <p className="text-xs font-bold text-ember-50">
-          {b.timestampLabel ? `${b.timestampLabel} · ` : ""}
-          {b.label}
-        </p>
-      </div>
-      <div className="bg-ember-800/[0.08] p-4 space-y-3">
-        {b.note && <p className="text-xs text-secondary leading-relaxed">{b.note}</p>}
-        {(b.customerLine || b.repLine) && (
-          <div className="space-y-1 text-[11px]">
-            {b.customerLine && (
-              <p className="text-muted">
-                Customer: <span className="text-secondary italic">“{b.customerLine}”</span>
-              </p>
-            )}
-            {b.repLine && (
-              <p className="text-muted">
-                You: <span className="text-secondary italic">“{b.repLine}”</span>
-              </p>
-            )}
+          <AlertTriangle className="w-4 h-4 text-ember-50 shrink-0" aria-hidden />
+          <p className="text-xs font-bold text-ember-50">
+            {b.timestampLabel ? `${b.timestampLabel} · ` : ""}
+            {b.label}
+          </p>
+        </div>
+        <div className="bg-ember-800/[0.08] p-4">
+          <p className="text-xs text-secondary leading-relaxed">
+            {b.note ??
+              (b.customerLine
+                ? `Customer: “${b.customerLine}”`
+                : "The call lost momentum here.")}
+          </p>
+        </div>
+      </section>
+    </LearningHint>
+  );
+}
+
+/* ─── Key moves (mockup's 3-up: You said / AI suggested / Strategy) ─
+   Every cell is real, single-sourced data — NO fabricated benchmark.
+   The mockup's "Outcome: top reps convert X% higher" is replaced by a
+   forward-looking Strategy upgrade drawn from the same focus the engine
+   already computes (§A21 compose, don't fork; §3.4 no invented stats). */
+function KeyMoves({
+  moments,
+  cueLoop,
+  focus,
+}: {
+  moments: Moment[];
+  cueLoop: CueLoopEntry[];
+  focus: Summary["focus"];
+}) {
+  const b = moments.find((m) => m.isBreakdown);
+  // Needs the breakdown moment (You said / AI suggested hang off it). With no
+  // breakdown, the standalone Focus card carries the strategy instead.
+  if (!b) return null;
+  const youSaid = b.repLine;
+  const suggested = cueLoop[0]?.cueText ?? b.correction?.correctLine ?? null;
+  const strategy = focus?.focus ?? "Keep doing what worked — nothing broke.";
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <LearningHint
+        as="block"
+        category="Sales Coach · After Pitch"
+        title="You said"
+        whatItIs="The exact line you used at the moment the call turned — pulled verbatim from the transcript, not paraphrased."
+        why="Seeing your own words at the hinge moment is what makes the lesson stick. A paraphrase lets you off the hook; the real line is the thing to change."
+        how="Read it next to the AI-suggested move to feel the difference between what you did and what lands better."
+        principle="Change starts with seeing exactly what you said, not a kinder version of it."
+      >
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 h-full">
+          <div className="flex items-center gap-1 mb-1.5">
+            <Quote className="w-3 h-3 text-muted" aria-hidden />
+            <p className="text-[9px] uppercase tracking-wide text-muted font-bold">
+              You said
+            </p>
           </div>
-        )}
-        {b.correction && (
-            <div className="rounded-lg border border-ember-400/40 bg-ember-400/[0.06] p-3 space-y-1.5">
-              <p className="text-[10px] uppercase tracking-widest text-brand font-bold">
-                What lands better
-              </p>
-              <p className="text-xs text-primary leading-relaxed">
-                “{b.correction.correctLine}”
-              </p>
-              <p className="text-[11px] text-secondary leading-relaxed">
-                {b.correction.whyItWorks}
-              </p>
-            </div>
-        )}
+          <p className="text-[11px] text-secondary leading-snug">
+            {youSaid ? `“${youSaid}”` : "—"}
+          </p>
+        </div>
+      </LearningHint>
+      <LearningHint
+        as="block"
+        category="Sales Coach · After Pitch"
+        title="AI suggested"
+        whatItIs="The move the coach would have made at that moment — the specific alternative to what you said."
+        why="A critique that only says 'that was wrong' teaches nothing. Handing you the concrete better line is what turns the breakdown into a repeatable skill."
+        how="Say this version out loud once. The point isn't to memorise it — it's to feel the shape of the better move so it's there next door."
+        principle="The fix has to be a line you could actually say, not just a note that you erred."
+      >
+        <div className="rounded-xl border border-ember-400/30 bg-ember-400/[0.05] p-3 h-full">
+          <div className="flex items-center gap-1 mb-1.5">
+            <Sparkles className="w-3 h-3 text-brand" aria-hidden />
+            <p className="text-[9px] uppercase tracking-wide text-brand font-bold">
+              AI suggested
+            </p>
+          </div>
+          <p className="text-[11px] text-secondary leading-snug">
+            {suggested ? `“${suggested}”` : "—"}
+          </p>
+        </div>
+      </LearningHint>
+      <LearningHint
+        as="block"
+        category="Sales Coach · After Pitch"
+        title="Strategy upgrade"
+        whatItIs="One short piece of advice to carry into your very next pitch — forward-looking, not a score on this one."
+        why="A debrief only pays off if it changes the next conversation. This is the single strategic adjustment worth taking to the next door, drawn from how this call actually went — never an invented benchmark."
+        how="Hold just this one thing in mind at the next door. It's the same focus as the Next Door card below, condensed to a glance."
+        principle="The point of reviewing a call is the next call — carry one upgrade, not ten regrets."
+      >
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 h-full">
+          <div className="flex items-center gap-1 mb-1.5">
+            <TrendingUp className="w-3 h-3 text-emerald-400" aria-hidden />
+            <p className="text-[9px] uppercase tracking-wide text-emerald-300 font-bold">
+              Strategy upgrade
+            </p>
+          </div>
+          <p className="text-[11px] text-secondary leading-snug">{strategy}</p>
+        </div>
+      </LearningHint>
+    </div>
+  );
+}
+
+/* ─── Correct line (the deliverable rewrite + why it works) ──────── */
+function CorrectLineCard({ moments }: { moments: Moment[] }) {
+  const b = moments.find((m) => m.isBreakdown);
+  if (!b?.correction) return null;
+  return (
+    <LearningHint
+      as="block"
+      category="Sales Coach · After Pitch"
+      title="Correct line"
+      whatItIs="The full version of the line to use instead — the exact words, plus what they do to the conversation."
+      why="The three-up above shows the move at a glance; this is the whole line spelled out so you could deliver it verbatim, and the 'why' tells you what it changes so you can adapt it in your own voice."
+      how="Read the line, then the why beneath it. Aim to reproduce the effect — moving the customer to think — not to recite the words."
+      principle="A correction you understand the effect of is one you can use everywhere, not just this once."
+    >
+      <section className="rounded-xl overflow-hidden border border-ember-400/40">
+        <div className="bg-ember-400/[0.1] px-4 py-2">
+          <p className="text-xs font-bold text-brand">Correct line</p>
+        </div>
+        <div className="bg-ember-400/[0.04] p-4 space-y-1.5">
+          <p className="text-xs text-primary leading-relaxed">
+            {b.correction.correctLine}
+          </p>
+          <p className="text-[11px] text-secondary leading-relaxed border-t border-default pt-2">
+            {b.correction.whyItWorks}
+          </p>
         </div>
       </section>
     </LearningHint>
