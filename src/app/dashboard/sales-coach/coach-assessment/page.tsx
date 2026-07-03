@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 
 /**
  * Sales Coach → Coach Assessment (admin). Per-agent coaching signal pulled
@@ -188,19 +189,15 @@ export default function CoachAssessmentPage() {
                 how="Run it when the status text says sessions are still missing; it works in batches, so run it again until it reports 0 remaining."
                 principle="A gap in the data reads as 'no growth' — better to backfill it than to coach from a false blank."
               >
-                <button
-                  type="button"
+                <LoadingButton
+                  pending={backfilling}
                   onClick={() => void runBackfill()}
-                  disabled={backfilling}
+                  icon={<ClipboardCheck className="w-3.5 h-3.5" aria-hidden />}
+                  pendingLabel="Generating…"
                   className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold border border-default text-secondary hover:text-primary px-3 py-1.5 rounded-lg disabled:opacity-50"
                 >
-                  {backfilling ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <ClipboardCheck className="w-3.5 h-3.5" aria-hidden />
-                  )}
-                  {backfilling ? "Generating…" : "Generate missing"}
-                </button>
+                  Generate missing
+                </LoadingButton>
               </LearningHint>
             </div>
 

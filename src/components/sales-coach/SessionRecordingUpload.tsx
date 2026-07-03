@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Upload, Loader2, UserCheck } from "lucide-react";
+import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 
 /**
  * SessionRecordingUpload — Live Sales Coach S1a.
@@ -157,19 +158,15 @@ export function SessionRecordingUpload({
             We separate the two voices, then you tap which one is you.
           </p>
         </div>
-        <button
-          type="button"
+        <LoadingButton
+          pending={phase === "uploading"}
           onClick={() => fileRef.current?.click()}
-          disabled={phase === "uploading"}
+          icon={<Upload className="w-3.5 h-3.5" aria-hidden />}
+          pendingLabel="Transcribing…"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"
         >
-          {phase === "uploading" ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-          ) : (
-            <Upload className="w-3.5 h-3.5" aria-hidden />
-          )}
-          {phase === "uploading" ? "Transcribing…" : "Upload recording"}
-        </button>
+          Upload recording
+        </LoadingButton>
         <input
           ref={fileRef}
           type="file"

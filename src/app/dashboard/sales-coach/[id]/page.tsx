@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
+import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { LiveCoachingPanel } from "@/components/sales-coach/LiveCoachingPanel";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -321,19 +322,14 @@ export default function SessionDetail() {
                 why="Reps who knock cold repeat the same fumbles; reps who spend thirty seconds orienting first sound like they belong there. The prep exists to get your head in the call before you're in it — not to hand you a script to read."
                 how="Tap it before you knock. Read it, internalize the direction, then close the phone and run the call in your own words. Re-prep if the offer or approach changes."
                 principle="A direction to prepare you is worth more than a script to recite — the call is still yours to run.">
-                <button
-                  type="button"
+                <LoadingButton
+                  pending={prepping}
                   onClick={() => void getPrep()}
-                  disabled={prepping}
+                  icon={<Lightbulb className="w-3.5 h-3.5" aria-hidden />}
                   className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-default text-secondary hover:text-primary disabled:opacity-60"
                 >
-                  {prepping ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <Lightbulb className="w-3.5 h-3.5" aria-hidden />
-                  )}
                   {prep ? "Re-prep" : "Prep me"}
-                </button>
+                </LoadingButton>
               </LearningHint>
               {session?.status === "active" && (
                 <LearningHint
@@ -344,15 +340,14 @@ export default function SessionDetail() {
                   why="A call that never gets closed out sits half-finished: no outcome logged, no review pulled, no lesson extracted. Ending the session is the gate that turns a live call into something you can learn from."
                   how="Tap it when the conversation is genuinely over. It never interrupts you mid-call — the post-call tools only appear after you've ended, so you're never blocked while the door is still open."
                   principle="Closing the session is what converts a call you had into a call you can improve on.">
-                  <button
-                    type="button"
+                  <LoadingButton
+                    pending={ending}
                     onClick={() => void endSession()}
-                    disabled={ending}
+                    icon={<Square className="w-3 h-3" aria-hidden />}
                     className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-default text-secondary hover:text-primary disabled:opacity-60"
                   >
-                    <Square className="w-3 h-3" aria-hidden />
                     End session
-                  </button>
+                  </LoadingButton>
                 </LearningHint>
               )}
               <LearningHint
@@ -363,19 +358,15 @@ export default function SessionDetail() {
                 why="The review is where learning actually happens — the honest read of what worked and the one thing to fix next. A session without a review is time logged but the lesson never pulled. It needs a transcript, so it stays disabled until there's one."
                 how="Run it after each call. If your reviews lag far behind your sessions, the transcripts exist but no one is extracting the growth. Regenerate if the transcript changed."
                 principle="A call you don't review is a call you can only repeat, not improve.">
-                <button
-                  type="button"
+                <LoadingButton
+                  pending={generating}
                   onClick={() => void generateReview()}
-                  disabled={generating || transcript.length === 0}
+                  disabled={transcript.length === 0}
+                  icon={<Sparkles className="w-3.5 h-3.5" aria-hidden />}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
                 >
-                  {generating ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <Sparkles className="w-3.5 h-3.5" aria-hidden />
-                  )}
                   {review ? "Regenerate growth review" : "Generate growth review"}
-                </button>
+                </LoadingButton>
               </LearningHint>
               {/* After Pitch Summary — the rep's private "between doors" debrief
                   (timeline + private scores + one focus + Start Next Door). L3
@@ -512,19 +503,15 @@ export default function SessionDetail() {
                     why="Stays disabled until you've typed something real, so you can't fire off an empty question. The answer is advice grounded in facts, not a script to read — you still decide what to do with it."
                     how="Tap it once your question is written. If nothing useful comes back, rephrase more specifically and ask again."
                     principle="Grounded advice you can accept or reject keeps the call yours — the coach guides, you decide.">
-                    <button
-                      type="button"
+                    <LoadingButton
+                      pending={prepQABusy}
                       onClick={() => void askCoach()}
-                      disabled={prepQABusy || prepQuestion.trim().length < 2}
+                      disabled={prepQuestion.trim().length < 2}
+                      icon={<HelpCircle className="w-3.5 h-3.5" aria-hidden />}
                       className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-2 rounded-lg transition-colors"
                     >
-                      {prepQABusy ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                      ) : (
-                        <HelpCircle className="w-3.5 h-3.5" aria-hidden />
-                      )}
                       Ask
-                    </button>
+                    </LoadingButton>
                   </LearningHint>
                 </div>
                 {prepAnswer &&
@@ -640,19 +627,15 @@ export default function SessionDetail() {
                       rows={2}
                       className="w-full text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none"
                     />
-                    <button
-                      type="button"
+                    <LoadingButton
+                      pending={whyBusy}
                       onClick={() => void submitWhy()}
-                      disabled={whyBusy || whyDraft.trim().length < 3}
+                      disabled={whyDraft.trim().length < 3}
+                      icon={<HelpCircle className="w-3.5 h-3.5" aria-hidden />}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
                     >
-                      {whyBusy ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                      ) : (
-                        <HelpCircle className="w-3.5 h-3.5" aria-hidden />
-                      )}
                       Get the coach&apos;s read
-                    </button>
+                    </LoadingButton>
                   </div>
                 )}
 
@@ -694,19 +677,14 @@ export default function SessionDetail() {
                       <p className="text-[11px] text-amber-300">
                         Couldn&apos;t generate the coach&apos;s read right now.
                       </p>
-                      <button
-                        type="button"
+                      <LoadingButton
+                        pending={whyBusy}
                         onClick={() => void submitWhy(repHypothesis ?? undefined)}
-                        disabled={whyBusy}
+                        icon={<HelpCircle className="w-3.5 h-3.5" aria-hidden />}
                         className="inline-flex items-center gap-1.5 text-xs border border-default text-secondary hover:text-primary disabled:opacity-50 px-3 py-1.5 rounded-lg"
                       >
-                        {whyBusy ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                        ) : (
-                          <HelpCircle className="w-3.5 h-3.5" aria-hidden />
-                        )}
                         Try again
-                      </button>
+                      </LoadingButton>
                     </div>
                   ) : (
                     <p className="text-[11px] text-muted pt-2 border-t border-default">
@@ -719,19 +697,14 @@ export default function SessionDetail() {
                     reload after a failed/thin generation that wasn't stored). */}
                 {repHypothesis && !systemWhy && (
                   <div className="pt-2 border-t border-default">
-                    <button
-                      type="button"
+                    <LoadingButton
+                      pending={whyBusy}
                       onClick={() => void submitWhy(repHypothesis)}
-                      disabled={whyBusy}
+                      icon={<HelpCircle className="w-3.5 h-3.5" aria-hidden />}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-1.5 rounded-lg"
                     >
-                      {whyBusy ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                      ) : (
-                        <HelpCircle className="w-3.5 h-3.5" aria-hidden />
-                      )}
                       Get the coach&apos;s read
-                    </button>
+                    </LoadingButton>
                   </div>
                 )}
               </section>

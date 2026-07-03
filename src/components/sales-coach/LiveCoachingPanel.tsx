@@ -1,18 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  Radio,
-  Square,
-  Sparkles,
-  Hand,
-  Loader2,
-  CheckCircle2,
-  Mic,
-} from "lucide-react";
+import { Radio, Square, Sparkles, Hand, CheckCircle2, Mic } from "lucide-react";
 import { useTapControls } from "@/lib/coach/v5/useTapControls";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
 import { SessionRecordingUpload } from "./SessionRecordingUpload";
+import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 
 /**
  * LiveCoachingPanel — Live Sales Coach S1b surface.
@@ -149,19 +142,16 @@ export function LiveCoachingPanel({
         </div>
         <div className="flex items-center gap-2">
           {!live ? (
-            <button
-              type="button"
+            <LoadingButton
+              pending={status === "connecting"}
               onClick={() => void start()}
-              disabled={status === "connecting" || !earpieceOk}
+              disabled={!earpieceOk}
+              icon={<Radio className="w-3.5 h-3.5" aria-hidden />}
+              pendingLabel="Connecting…"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"
             >
-              {status === "connecting" ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-              ) : (
-                <Radio className="w-3.5 h-3.5" aria-hidden />
-              )}
-              {status === "connecting" ? "Connecting…" : "Start live coaching"}
-            </button>
+              Start live coaching
+            </LoadingButton>
           ) : (
             <button
               type="button"

@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  FileText,
-  MessageCircleQuestion,
-  Loader2,
-  Microscope,
-} from "lucide-react";
+import { FileText, MessageCircleQuestion, Microscope } from "lucide-react";
+import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 
 /**
  * SessionCoachTools — C.A.R.E features applied to a Live Sales Coach
@@ -167,19 +163,14 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
           A deep, full-conversation evaluation — what you did well, where to
           grow, and your standout strategy.
         </p>
-        <button
-          type="button"
+        <LoadingButton
+          pending={loading}
           onClick={() => void run()}
-          disabled={loading}
+          icon={<Microscope className="w-3.5 h-3.5" aria-hidden />}
           className="inline-flex items-center gap-1.5 shrink-0 bg-ember-400 hover:bg-ember-500 disabled:opacity-50 text-[#09090B] text-xs font-semibold px-3 py-1.5 rounded-lg"
         >
-          {loading ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-          ) : (
-            <Microscope className="w-3.5 h-3.5" aria-hidden />
-          )}
           {hasContent ? "Re-run" : "Dissect"}
-        </button>
+        </LoadingButton>
       </div>
 
       {error && <p className="text-xs text-red-300">{error}</p>}
@@ -294,15 +285,13 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
 
   return (
     <PanelBox>
-      <button
-        type="button"
+      <LoadingButton
+        pending={loading}
         onClick={() => void run()}
-        disabled={loading}
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-ember-400 disabled:opacity-60"
       >
-        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />}
         {summary ? "Re-summarize" : "Summarize this session"}
-      </button>
+      </LoadingButton>
       {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
       {summary && (
         <p className="text-xs text-secondary leading-relaxed mt-2 whitespace-pre-wrap">
@@ -351,15 +340,14 @@ function AskCoachPanel({ sessionId }: { sessionId: string }) {
         rows={2}
         className="w-full text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none"
       />
-      <button
-        type="button"
+      <LoadingButton
+        pending={loading}
         onClick={() => void ask()}
-        disabled={loading || question.trim().length < 3}
+        disabled={question.trim().length < 3}
         className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-ember-400 disabled:opacity-50"
       >
-        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />}
         Ask
-      </button>
+      </LoadingButton>
       {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
       {answer && (
         <p className="text-xs text-secondary leading-relaxed mt-2 whitespace-pre-wrap">

@@ -15,6 +15,7 @@ import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { LearningModePanel } from "@/components/settings/LearningModePanel";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 
 /**
  * Sales Coach → Settings (Phase 4). Role-aware: every staff/admin gets
@@ -366,19 +367,16 @@ function CorpusEditor() {
                 ? "Saving appends a new version (history is kept). Shapes the post-call review, not live cues."
                 : "Saving your own corpus overrides the built-in. Shapes the post-call review, not live cues."}
             </p>
-            <button
-              type="button"
+            <LoadingButton
+              pending={saving}
               onClick={() => void save()}
-              disabled={saving || !text.trim() || !dirty || text.length > 100000}
+              disabled={!text.trim() || !dirty || text.length > 100000}
+              icon={<Save className="w-3.5 h-3.5" aria-hidden />}
+              pendingLabel="Saving…"
               className="inline-flex items-center gap-1.5 shrink-0 bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
             >
-              {saving ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-              ) : (
-                <Save className="w-3.5 h-3.5" aria-hidden />
-              )}
-              {saving ? "Saving…" : "Save methodology"}
-            </button>
+              Save methodology
+            </LoadingButton>
           </div>
         </>
       )}
@@ -524,19 +522,16 @@ function ProductEditor() {
               how="Edit the text, then save. The coach picks up the latest version for prep and product questions."
               principle="Keep the product truth current; the coach is only as accurate as what you last saved."
             >
-              <button
-                type="button"
+              <LoadingButton
+                pending={saving}
                 onClick={() => void save()}
-                disabled={saving || !text.trim() || !dirty || text.length > 100000}
+                disabled={!text.trim() || !dirty || text.length > 100000}
+                icon={<Save className="w-3.5 h-3.5" aria-hidden />}
+                pendingLabel="Saving…"
                 className="inline-flex items-center gap-1.5 shrink-0 bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
               >
-                {saving ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <Save className="w-3.5 h-3.5" aria-hidden />
-                )}
-                {saving ? "Saving…" : "Save details"}
-              </button>
+                Save details
+              </LoadingButton>
             </LearningHint>
           </div>
         </>
@@ -718,19 +713,15 @@ function VoicePicker() {
                       </span>
                     </span>
                   </button>
-                  <button
-                    type="button"
+                  <LoadingButton
+                    pending={previewing === previewKey}
                     onClick={() => void preview(opt.id)}
                     disabled={previewing !== null}
+                    icon={<Volume2 className="w-3 h-3" aria-hidden />}
                     className="inline-flex items-center gap-1 text-[10px] text-secondary hover:text-primary border border-default rounded-md px-2 py-1 shrink-0 disabled:opacity-50"
                   >
-                    {previewing === previewKey ? (
-                      <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
-                    ) : (
-                      <Volume2 className="w-3 h-3" aria-hidden />
-                    )}
                     Preview
-                  </button>
+                  </LoadingButton>
                 </div>
               );
             })}
@@ -746,19 +737,16 @@ function VoicePicker() {
               how="Pick + preview, then save. The live coach uses it on the next session's cues."
               principle="What's saved is what the rep hears — preview is not commitment."
             >
-              <button
-                type="button"
+              <LoadingButton
+                pending={saving}
                 onClick={() => void save()}
-                disabled={saving || !dirty}
+                disabled={!dirty}
+                icon={<Save className="w-3.5 h-3.5" aria-hidden />}
+                pendingLabel="Saving…"
                 className="inline-flex items-center gap-1.5 bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
               >
-                {saving ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <Save className="w-3.5 h-3.5" aria-hidden />
-                )}
-                {saving ? "Saving…" : "Save voice"}
-              </button>
+                Save voice
+              </LoadingButton>
             </LearningHint>
           </div>
         </>

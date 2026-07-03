@@ -21,6 +21,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { DeckCard } from "@/components/sales-coach/ui/deck";
+import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
@@ -366,19 +367,15 @@ export default function AfterPitchPage() {
                 how="Read your Next Door Focus above, then tap this to walk into the next door with that one fix in mind."
                 principle="Learning that doesn't reach the next door is just a nice feeling — the point is the next knock."
               >
-                <button
-                  type="button"
+                <LoadingButton
+                  pending={starting}
                   onClick={() => void startNextDoor()}
-                  disabled={starting || !session}
+                  disabled={!session}
+                  icon={<ChevronRight className="w-4 h-4" aria-hidden />}
                   className="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 px-4 py-3 rounded-xl transition-colors"
                 >
-                  {starting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" aria-hidden />
-                  )}
                   Start Next Door
-                </button>
+                </LoadingButton>
               </LearningHint>
             ) : (
               summary?.hasSignal && (
