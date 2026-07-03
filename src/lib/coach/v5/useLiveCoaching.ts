@@ -527,6 +527,11 @@ export function useLiveCoaching(sessionId: string) {
     setPartial("");
     micLevelRef.current = 0;
     setMicLevel(0);
+    // "I'm speaking" is a live, moment-to-moment state — reset it on stop so it
+    // never carries stale-ON into the next session and mislabels its first
+    // turns (proactive audit, §1.5.2).
+    agentSpeakingRef.current = false;
+    setAgentSpeaking(false);
   }, [sessionId]);
 
   const start = useCallback(async () => {
