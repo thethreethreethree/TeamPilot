@@ -469,15 +469,6 @@ function BreakdownBlock({ moments }: { moments: Moment[] }) {
           </div>
         )}
         {b.correction && (
-          <LearningHint
-            as="block"
-            category="Sales Coach · After Pitch"
-            title="What lands better"
-            whatItIs="The specific line that would have worked at the breakdown moment — with the reasoning for why it holds the customer."
-            why="A critique that only says 'that was wrong' leaves you nowhere. Showing the better line, and why it works, is what actually transfers the skill."
-            how="Say the corrected line out loud a couple of times so it's ready the next time you hit the same objection — the 'why' is what lets you adapt it, not just parrot it."
-            principle="The correction only counts if you can say it at the next door, not just nod at it here."
-          >
             <div className="rounded-lg border border-ember-400/40 bg-ember-400/[0.06] p-3 space-y-1.5">
               <p className="text-[10px] uppercase tracking-widest text-brand font-bold">
                 What lands better
@@ -489,7 +480,6 @@ function BreakdownBlock({ moments }: { moments: Moment[] }) {
                 {b.correction.whyItWorks}
               </p>
             </div>
-          </LearningHint>
         )}
         </div>
       </section>
@@ -501,15 +491,6 @@ function BreakdownBlock({ moments }: { moments: Moment[] }) {
 function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
   if (!narrative.hasSignal) return null;
   return (
-    <LearningHint
-      as="block"
-      category="Sales Coach · After Pitch"
-      title="Your read — the growth review"
-      whatItIs="The honest narrative read of the call: what you did well, then where to grow, in that order."
-      why="This is where learning actually happens. Strengths come first on purpose — an honest read has to keep what worked, or you'll fix the wrong things and lose your edge."
-      how="Read the strengths to know what to protect, then the opportunities to know what to change — each with a concrete next step, not just a critique."
-      principle="A call you don't review is a call you can only repeat, not improve."
-    >
       <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
         <h2 className="text-sm font-semibold text-primary">Your read</h2>
         {narrative.strengths.length > 0 && (
@@ -580,7 +561,6 @@ function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
           </p>
         )}
       </section>
-    </LearningHint>
   );
 }
 
@@ -588,15 +568,6 @@ function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
 function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
   if (scores.length === 0) return null;
   return (
-    <LearningHint
-      as="block"
-      category="Sales Coach · After Pitch"
-      title="Your scores"
-      whatItIs="A private self-assessment of this one call across a few dimensions — a mirror against your own growth, not a ranking against anyone else."
-      why="Scores focus attention, but only if they stay honest. These are private to you so they can be an honest mirror instead of a number you're tempted to defend or game."
-      how="Read each score with its rationale below — the number is only meaningful with the evidence that produced it. Track your own trend over calls, not any leaderboard."
-      principle="A score you have to defend to someone else stops being an honest mirror."
-    >
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
         <div className="flex items-center justify-between">
           <LearningHint
@@ -676,7 +647,6 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
           </p>
         </LearningHint>
       </section>
-    </LearningHint>
   );
 }
 
@@ -730,32 +700,14 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
                   {b.text}
                 </span>
               </div>
-              {e.determination &&
-                (i === 0 ? (
-                  <LearningHint
-                    as="block"
-                    category="Sales Coach · After Pitch"
-                    title="Marked vs. inferred"
-                    whatItIs="How the coach knows whether you used a cue. 'You marked this' means you confirmed it yourself; 'Inferred from what you said next' is the engine's best read of the transcript — a guess, not a confirmation."
-                    why="Presenting an inference as a fact you confirmed would be a quiet lie. Labelling the engine's reads as inferred keeps the coach honest about the limits of what it actually knows."
-                    how="Trust the 'You marked this' rows outright; treat the inferred ones as a starting read you can correct if it got you wrong."
-                    principle="An honest coach tells you when it's guessing instead of dressing a guess up as a fact."
-                  >
-                    <p className="text-[10px] text-muted mt-1">
-                      {e.source === "rep_marked"
-                        ? "You marked this."
-                        : "Inferred from what you said next."}
-                      {e.evidence ? ` — “${e.evidence}”` : ""}
-                    </p>
-                  </LearningHint>
-                ) : (
-                  <p className="text-[10px] text-muted mt-1">
-                    {e.source === "rep_marked"
-                      ? "You marked this."
-                      : "Inferred from what you said next."}
-                    {e.evidence ? ` — “${e.evidence}”` : ""}
-                  </p>
-                ))}
+              {e.determination && (
+                <p className="text-[10px] text-muted mt-1">
+                  {e.source === "rep_marked"
+                    ? "You marked this."
+                    : "Inferred from what you said next."}
+                  {e.evidence ? ` — “${e.evidence}”` : ""}
+                </p>
+              )}
             </li>
           );
         })}

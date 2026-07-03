@@ -474,14 +474,6 @@ export default function SessionDetail() {
                 on-demand help; the rep asked. Grounded in the product details
                 (Settings) + methodology; §3.4 — no invented product facts. */}
             {session && (
-              <LearningHint
-                as="block"
-                category="Sales Coach · Session"
-                title="Ask the coach"
-                whatItIs="A free-form question box you can use before or around a call. It answers from your actual product details and the coaching methodology — 'what am I selling?', 'how do I handle a price objection?', and the like."
-                why="Reps freeze when they're unsure what they're even offering or how to answer the obvious pushback. This is on-demand help you asked for — it won't interrupt you, and it only speaks to real product facts, so it can't invent a feature that will get you caught out at the door."
-                how="Type a real question and tap Ask (or press Enter). Ask about the offer when you're fuzzy on it, or about handling a specific objection when you want a reframe before you knock."
-                principle="Help you asked for beats help pushed on you — and an answer grounded in real product facts beats a confident guess.">
               <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
                 <div className="flex items-center gap-1.5">
                   <Lightbulb className="w-3.5 h-3.5 text-brand" aria-hidden />
@@ -550,7 +542,6 @@ export default function SessionDetail() {
                     </p>
                   ))}
               </section>
-              </LearningHint>
             )}
 
             {/* Phase 2 — outcome + captured details. §1.5.1 L3: once the call
