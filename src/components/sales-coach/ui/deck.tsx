@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import { PendingContent } from "@/components/sales-coach/ui/LoadingButton";
 
 /**
  * Command Deck — the Sales Coach mobile design language.
@@ -142,21 +143,38 @@ export function DeckButton({
   disabled,
   type = "button",
   className = "",
+  pending = false,
+  pendingLabel,
+  icon,
+  spinnerClassName = "w-4 h-4",
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   type?: "button" | "submit";
   className?: string;
+  /** Loading state — same affordance as LoadingButton (A13/A21). */
+  pending?: boolean;
+  pendingLabel?: ReactNode;
+  icon?: ReactNode;
+  spinnerClassName?: string;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled}
+      disabled={pending || disabled}
+      aria-busy={pending}
       className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-[#09090B] transition-all bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] active:scale-[0.99] disabled:opacity-50 disabled:shadow-none disabled:active:scale-100 ${className}`}
     >
-      {children}
+      <PendingContent
+        pending={pending}
+        icon={icon}
+        pendingLabel={pendingLabel}
+        spinnerClassName={spinnerClassName}
+      >
+        {children}
+      </PendingContent>
     </button>
   );
 }
@@ -168,25 +186,42 @@ export function DeckGhostButton({
   disabled,
   active = false,
   className = "",
+  pending = false,
+  pendingLabel,
+  icon,
+  spinnerClassName = "w-3 h-3",
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   active?: boolean;
   className?: string;
+  /** Loading state — same affordance as LoadingButton (A13/A21). */
+  pending?: boolean;
+  pendingLabel?: ReactNode;
+  icon?: ReactNode;
+  spinnerClassName?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
+      disabled={pending || disabled}
+      aria-busy={pending}
       className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
         active
           ? "border-ember-400/50 bg-ember-400/10 text-brand"
           : "border-white/10 text-secondary hover:text-primary hover:border-white/20"
       } ${className}`}
     >
-      {children}
+      <PendingContent
+        pending={pending}
+        icon={icon}
+        pendingLabel={pendingLabel}
+        spinnerClassName={spinnerClassName}
+      >
+        {children}
+      </PendingContent>
     </button>
   );
 }

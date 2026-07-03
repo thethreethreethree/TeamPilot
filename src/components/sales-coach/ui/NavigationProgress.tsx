@@ -70,11 +70,14 @@ export function NavProgressBar() {
   useEffect(() => {
     if (active) {
       // Start visibly filled so even an instant transition shows a chunk.
+      // F5: width only ever INCREASES during a nav — a rapid second nav that
+      // starts while the bar is completing (at 100%) must not snap back to 25%
+      // and flicker. Math.max keeps it monotonic.
       setVisible(true);
-      setWidth(25);
-      const t1 = setTimeout(() => setWidth(55), 150);
-      const t2 = setTimeout(() => setWidth(80), 500);
-      const t3 = setTimeout(() => setWidth(92), 1200);
+      setWidth((w) => Math.max(w, 25));
+      const t1 = setTimeout(() => setWidth((w) => Math.max(w, 55)), 150);
+      const t2 = setTimeout(() => setWidth((w) => Math.max(w, 80)), 500);
+      const t3 = setTimeout(() => setWidth((w) => Math.max(w, 92)), 1200);
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);

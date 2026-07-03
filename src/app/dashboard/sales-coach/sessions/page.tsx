@@ -14,6 +14,7 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import { DeckCard, DeckPill } from "@/components/sales-coach/ui/deck";
+import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
@@ -287,6 +288,7 @@ export default function SalesCoachSessionsPage() {
                   href={`/dashboard/sales-coach/${s.id}`}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors"
                 >
+                  <LinkProgress />
                   <span className="shrink-0 text-muted">
                     {s.context === "video" ? (
                       <Video className="w-4 h-4" aria-hidden />

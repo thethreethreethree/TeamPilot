@@ -718,6 +718,7 @@ function VoicePicker() {
                     onClick={() => void preview(opt.id)}
                     disabled={previewing !== null}
                     icon={<Volume2 className="w-3 h-3" aria-hidden />}
+                    spinnerClassName="w-3 h-3"
                     className="inline-flex items-center gap-1 text-[10px] text-secondary hover:text-primary border border-default rounded-md px-2 py-1 shrink-0 disabled:opacity-50"
                   >
                     Preview

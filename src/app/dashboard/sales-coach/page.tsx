@@ -29,6 +29,7 @@ import {
   DeckPill,
   Sparkline,
 } from "@/components/sales-coach/ui/deck";
+import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
@@ -277,15 +278,12 @@ export default function SalesCoachHome() {
             principle="The coaching only compounds if you actually start the door."
           >
             <DeckButton
+              pending={starting}
               onClick={() => void start()}
-              disabled={starting || !clientLabel.trim()}
+              disabled={!clientLabel.trim()}
+              icon={<Mic className="w-4 h-4" aria-hidden />}
               className="w-full"
             >
-              {starting ? (
-                <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-              ) : (
-                <Mic className="w-4 h-4" aria-hidden />
-              )}
               Start session
             </DeckButton>
           </LearningHint>
@@ -471,16 +469,12 @@ export default function SalesCoachHome() {
                   principle="A coach that can't show what it's learned about you hasn't learned anything."
                 >
                   <DeckGhostButton
+                    pending={patternsBusy}
                     onClick={() => void refreshPatterns()}
-                    disabled={patternsBusy}
                     active={patternsState.stale || !patternsState.stored}
+                    icon={<Brain className="w-3 h-3" aria-hidden />}
                     className="!px-2.5 !py-1 !text-[11px]"
                   >
-                    {patternsBusy ? (
-                      <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
-                    ) : (
-                      <Brain className="w-3 h-3" aria-hidden />
-                    )}
                     {patternsState.stored ? "Refresh" : "See what I'm learning"}
                   </DeckGhostButton>
                 </LearningHint>
@@ -657,6 +651,7 @@ export default function SalesCoachHome() {
                   href={`/dashboard/sales-coach/${s.id}`}
                   className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors"
                 >
+                  <LinkProgress />
                   <div className="flex items-center gap-2.5 min-w-0">
                     {s.context === "video" ? (
                       <Video className="w-4 h-4 text-muted shrink-0" aria-hidden />

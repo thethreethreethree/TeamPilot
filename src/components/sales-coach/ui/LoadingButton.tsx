@@ -23,10 +23,43 @@ import { Loader2 } from "lucide-react";
  * `pendingLabel`. Spread props (className, onClick, …) pass straight through,
  * so it preserves each button's existing styling exactly.
  */
+/**
+ * The spinner-or-icon + label content, authored ONCE (A13) and shared by
+ * LoadingButton AND the deck primitives (DeckButton/DeckGhostButton) so the
+ * loading affordance is identical everywhere instead of copied per button.
+ * `spinnerClassName` lets a caller match the spinner to the icon it replaces
+ * (audit F2 — the spinner was hardcoded w-3.5 and mismatched w-4/w-3 icons).
+ */
+export function PendingContent({
+  pending,
+  icon,
+  pendingLabel,
+  spinnerClassName = "w-3.5 h-3.5",
+  children,
+}: {
+  pending: boolean;
+  icon?: ReactNode;
+  pendingLabel?: ReactNode;
+  spinnerClassName?: string;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      {pending ? (
+        <Loader2 className={`${spinnerClassName} animate-spin`} aria-hidden />
+      ) : (
+        icon ?? null
+      )}
+      {pending ? pendingLabel ?? children : children}
+    </>
+  );
+}
+
 export function LoadingButton({
   pending,
   pendingLabel,
   icon,
+  spinnerClassName,
   children,
   disabled,
   type = "button",
@@ -38,6 +71,8 @@ export function LoadingButton({
   pendingLabel?: ReactNode;
   /** Optional idle icon; the spinner replaces it while pending. */
   icon?: ReactNode;
+  /** Spinner size/classes — default w-3.5 h-3.5; override to match the icon. */
+  spinnerClassName?: string;
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
@@ -46,12 +81,14 @@ export function LoadingButton({
       disabled={pending || disabled}
       aria-busy={pending}
     >
-      {pending ? (
-        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-      ) : (
-        icon ?? null
-      )}
-      {pending ? pendingLabel ?? children : children}
+      <PendingContent
+        pending={pending}
+        icon={icon}
+        pendingLabel={pendingLabel}
+        spinnerClassName={spinnerClassName}
+      >
+        {children}
+      </PendingContent>
     </button>
   );
 }

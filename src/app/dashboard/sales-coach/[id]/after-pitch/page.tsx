@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { DeckCard } from "@/components/sales-coach/ui/deck";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
@@ -250,6 +251,7 @@ export default function AfterPitchPage() {
             href={`/dashboard/sales-coach/${id}`}
             className="inline-flex items-center gap-1.5 text-xs text-secondary hover:text-primary"
           >
+            <LinkProgress />
             <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
             Back to session
           </Link>
@@ -372,6 +374,7 @@ export default function AfterPitchPage() {
                   onClick={() => void startNextDoor()}
                   disabled={!session}
                   icon={<ChevronRight className="w-4 h-4" aria-hidden />}
+                  spinnerClassName="w-4 h-4"
                   className="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 px-4 py-3 rounded-xl transition-colors"
                 >
                   Start Next Door
@@ -398,6 +401,7 @@ export default function AfterPitchPage() {
                 href={`/dashboard/sales-coach/${id}`}
                 className="block text-center text-xs text-secondary hover:text-primary py-1"
               >
+                <LinkProgress />
                 {isOwner ? "Replay conversation" : "Back to session"}
               </Link>
             </LearningHint>

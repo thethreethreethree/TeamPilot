@@ -17,6 +17,7 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { LiveCoachingPanel } from "@/components/sales-coach/LiveCoachingPanel";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -344,6 +345,7 @@ export default function SessionDetail() {
                     pending={ending}
                     onClick={() => void endSession()}
                     icon={<Square className="w-3 h-3" aria-hidden />}
+                    spinnerClassName="w-3 h-3"
                     className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-default text-secondary hover:text-primary disabled:opacity-60"
                   >
                     End session
@@ -385,6 +387,7 @@ export default function SessionDetail() {
                     href={`/dashboard/sales-coach/${id}/after-pitch`}
                     className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-ember-400/40 text-brand hover:bg-ember-400/10 transition-colors"
                   >
+                    <LinkProgress />
                     <Target className="w-3.5 h-3.5" aria-hidden />
                     After Pitch Summary
                   </Link>
