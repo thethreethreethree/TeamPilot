@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
+  NavProgressProvider,
+  NavProgressBar,
+  LinkProgress,
+} from "@/components/sales-coach/ui/NavigationProgress";
+import {
   ArrowLeft,
   BarChart3,
   ChevronLeft,
@@ -59,6 +64,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
+    <NavProgressProvider>
     <div className="fixed inset-0 z-[60] flex bg-base overflow-hidden">
       {collapsed ? (
         <button
@@ -116,6 +122,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
                       : "text-white/70 hover:text-white hover:bg-white/5"
                   }`}
                 >
+                  <LinkProgress />
                   <Icon className="w-4 h-4 shrink-0" aria-hidden />
                   {item.label}
                 </Link>
@@ -136,7 +143,11 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
         </aside>
       )}
 
-      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      <main className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
+        {/* Route-transition progress bar, pinned to the top of the content
+            area (founder 2026-07-03). Driven by the sidebar links' pending
+            state via useLinkStatus. */}
+        <NavProgressBar />
         {children}
       </main>
 
@@ -149,5 +160,6 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
           shell via z-[60] / a body portal). */}
       <LearningModeFab />
     </div>
+    </NavProgressProvider>
   );
 }
