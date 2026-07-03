@@ -471,7 +471,9 @@ function Timeline({ moments }: { moments: Moment[] }) {
       principle="Every call has a hinge moment; find it and you find where to improve."
     >
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
-        <div className="flex items-start gap-2 overflow-x-auto pb-1">
+        {/* pt-3 so the breakdown dot's ring+glow clears the clip — overflow-x
+            forces overflow-y:auto, which was cutting the circle at the top. */}
+        <div className="flex items-start gap-2 overflow-x-auto pt-3 pb-1">
           {moments.map((m, i) => (
           <div key={i} className="flex-1 min-w-[62px] text-center">
             <div className="relative flex items-center justify-center h-4 mb-2">
@@ -792,9 +794,12 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
           {scores.map((c) => (
           <div
             key={c.key}
-            className="rounded-lg border border-default bg-surface/40 p-2 text-center"
+            className="rounded-lg border border-default bg-surface/40 p-2 text-center flex flex-col"
           >
-            <p className="text-[9px] uppercase tracking-wide text-muted font-bold leading-tight">
+            {/* Fixed 2-line label box so a wrapping label (e.g. "Talk /
+                Listen") doesn't push its number lower than the rest — every
+                number lands on the same baseline. */}
+            <p className="text-[9px] uppercase tracking-wide text-muted font-bold leading-tight min-h-[1.5rem] flex items-center justify-center">
               {c.label}
             </p>
             <p className="text-sm font-bold text-primary mt-1">{c.display}</p>
