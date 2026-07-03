@@ -89,23 +89,54 @@ type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean };
 function volumeVerdict(
   energy: number,
   agentLevel: number | null,
-  customerLevel: number | null
+  customerLevel: number | null,
+  override: TranscriptSpeaker | null = null
 ): {
   speaker: TranscriptSpeaker;
   agentLevel: number | null;
   customerLevel: number | null;
 } {
-  if (energy <= 0) return { speaker: "agent", agentLevel, customerLevel };
-  // Anchor: first speaker = salesperson; seed the loud/near level.
+  if (energy <= 0) return { speaker: override ?? "agent", agentLevel, customerLevel };
+  // (a) Ground truth — the rep toggled "I'm speaking". Trust the label AND
+  // anchor that side's level HARD (0.5 weight vs 0.3 for a guess) so every
+  // later unmarked turn's near/far decision is measured against the rep's REAL
+  // level, not a first-speaker assumption (§1 — the correction trains the
+  // auto path). NOTE (§4): a candidate improvement — unvalidated until the
+  // accuracy log + a live call confirm it.
+  if (override) {
+    const ground = (prev: number | null) =>
+      prev === null ? energy : prev * 0.5 + energy * 0.5;
+    return {
+      speaker: override,
+      agentLevel: override === "agent" ? ground(agentLevel) : agentLevel,
+      customerLevel:
+        override === "customer" ? ground(customerLevel) : customerLevel,
+    };
+  }
+  // Anchor: seed the loud/near level from the first utterance (provisional).
   if (agentLevel === null) {
     return { speaker: "agent", agentLevel: energy, customerLevel };
   }
+  let aLevel = agentLevel;
+  let cLevel = customerLevel;
+  // (b) Louder = agent. In-person the rep holds the mic (near/loud); the
+  // prospect is across the doorstep (far/quiet). If the "customer" cluster is
+  // clearly louder than the "agent" one, the first-speaker seed was inverted
+  // (e.g. the prospect opened the door) — swap so the agent is the louder
+  // voice. The 1.15 margin stops it flapping when the two are close. NOTE
+  // (§4): a fallible physical prior (a loud prospect breaks it) — candidate,
+  // not proven; the content classifier + toggle carry the ambiguous cases.
+  if (cLevel !== null && cLevel > aLevel * 1.15) {
+    const t = aLevel;
+    aLevel = cLevel;
+    cLevel = t;
+  }
   let speaker: TranscriptSpeaker;
-  if (customerLevel === null) {
-    speaker = energy < agentLevel * QUIET_RATIO ? "customer" : "agent";
+  if (cLevel === null) {
+    speaker = energy < aLevel * QUIET_RATIO ? "customer" : "agent";
   } else {
     speaker =
-      Math.abs(energy - agentLevel) <= Math.abs(energy - customerLevel)
+      Math.abs(energy - aLevel) <= Math.abs(energy - cLevel)
         ? "agent"
         : "customer";
   }
@@ -113,8 +144,8 @@ function volumeVerdict(
     prev === null ? energy : prev * 0.7 + energy * 0.3;
   return {
     speaker,
-    agentLevel: speaker === "agent" ? ema(agentLevel) : agentLevel,
-    customerLevel: speaker === "customer" ? ema(customerLevel) : customerLevel,
+    agentLevel: speaker === "agent" ? ema(aLevel) : aLevel,
+    customerLevel: speaker === "customer" ? ema(cLevel) : cLevel,
   };
 }
 
@@ -131,6 +162,45 @@ function floatTo16BitPCMBase64(input: Float32Array): string {
     binary += String.fromCharCode(bytes[i] ?? 0);
   }
   return btoa(binary);
+}
+
+/** A short earcon to the rep's output when they toggle "I'm speaking" (founder
+ *  2026-07-03) — the rep holds the earbud as a mic, off-ear, so a tap gives no
+ *  visual/tactile confirmation. ON = a quick rising tone; OFF = a falling one,
+ *  so the STATE is distinguishable by ear. Kept short + moderate (the earbud is
+ *  near the prospect — §3.4). Best-effort; silent if Web Audio is unavailable. */
+function playToggleBeep(on: boolean) {
+  try {
+    const AC =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    void ctx.resume?.().catch(() => {});
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const t0 = ctx.currentTime;
+    osc.frequency.setValueAtTime(on ? 620 : 880, t0);
+    osc.frequency.linearRampToValueAtTime(on ? 940 : 500, t0 + 0.14);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+    osc.start(t0);
+    osc.stop(t0 + 0.2);
+    osc.onended = () => {
+      try {
+        void ctx.close();
+      } catch {
+        /* no-op */
+      }
+    };
+  } catch {
+    /* audio unavailable — no-op */
+  }
 }
 
 export function useLiveCoaching(sessionId: string) {
@@ -191,6 +261,10 @@ export function useLiveCoaching(sessionId: string) {
   const lastStressCueAtRef = useRef(0); // F2 — stress-cue cooldown (ms epoch)
   const autoCoachRef = useRef(true); // mirrors autoCoach for ws closures
   const agentSpeakingRef = useRef(false); // mirrors agentSpeaking for ws closure
+  // Separation-accuracy tally (§4/§3.6): auto-guess vs the toggle's ground
+  // truth — turns "is separation better?" into a number we can watch.
+  const sepAgreeRef = useRef(0);
+  const sepTotalRef = useRef(0);
   // Volume/proximity attribution: per-utterance energy accumulator + the
   // learned loudness level for each side (salesperson near/loud, prospect
   // far/quiet).
@@ -735,20 +809,37 @@ export function useLiveCoaching(sessionId: string) {
           const energy = acc.count > 0 ? acc.sum / acc.count : 0;
           utterEnergyRef.current = { sum: 0, count: 0 };
           if (!text) return;
+          const locked = agentSpeakingRef.current;
+          // Accuracy measurement (§4/§3.6): when the rep has confirmed "I'm
+          // speaking" (ground truth = agent), compare what the AUTO verdict
+          // WOULD have guessed — so separation accuracy is a watchable number,
+          // not a hunch. Pure read; volumeVerdict doesn't mutate.
+          if (locked) {
+            const autoGuess = volumeVerdict(
+              energy,
+              agentLevelRef.current,
+              customerLevelRef.current
+            ).speaker;
+            sepTotalRef.current += 1;
+            if (autoGuess === "agent") sepAgreeRef.current += 1;
+            // eslint-disable-next-line no-console
+            console.info(
+              `[live-coaching] speaker-sep accuracy ${sepAgreeRef.current}/${sepTotalRef.current} (auto=${autoGuess} vs truth=agent)`
+            );
+          }
           // Proximity verdict (instant, content-independent) — the provisional
-          // label AND the prior fed to the content classifier.
+          // label AND the prior fed to the content classifier. When locked, the
+          // toggle is passed as ground truth so it LABELS this turn agent AND
+          // anchors the rep's level (§1 close-the-loop). Re-attribution below
+          // is skipped when locked — the rep's explicit signal beats the guess.
           const v = volumeVerdict(
             energy,
             agentLevelRef.current,
-            customerLevelRef.current
+            customerLevelRef.current,
+            locked ? "agent" : null
           );
           agentLevelRef.current = v.agentLevel;
           customerLevelRef.current = v.customerLevel;
-          // Manual override: when the rep has toggled "I'm speaking" (a single
-          // earbud tap), lock this utterance to agent and skip the content
-          // re-attribution below — the rep's explicit signal beats the guess.
-          const locked = agentSpeakingRef.current;
-          if (locked) v.speaker = "agent";
           const priorSpeaker =
             turnsRef.current[turnsRef.current.length - 1]?.speaker ?? "agent";
           const index = turnsRef.current.length;
@@ -873,6 +964,9 @@ export function useLiveCoaching(sessionId: string) {
     const next = !agentSpeakingRef.current;
     agentSpeakingRef.current = next;
     setAgentSpeaking(next);
+    // Audible confirmation to the earphones — distinct rising (ON) / falling
+    // (OFF) tone so the rep knows the state without seeing the screen.
+    playToggleBeep(next);
   }, []);
 
   return {
