@@ -18,6 +18,7 @@ import {
   Sparkles,
   TrendingUp,
   Quote,
+  ChevronDown,
 } from "lucide-react";
 import { DeckCard } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -140,6 +141,9 @@ export default function AfterPitchPage() {
   const [generating, setGenerating] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "What happened" is the longest block; collapsed by default so it doesn't
+  // eat the viewport and bury the breakdown/scores below it (founder 2026-07-03).
+  const [showWhatHappened, setShowWhatHappened] = useState(false);
 
   const generate = useCallback(async () => {
     setGenerating(true);
@@ -233,7 +237,11 @@ export default function AfterPitchPage() {
   const dur = durationLabel(session?.startedAt, session?.endedAt);
 
   return (
-    <div className="min-h-screen bg-base">
+    // flex-1 + overflow-y-auto: the shell's <main> is overflow-hidden, so this
+    // page MUST own its scroll region or content past one screen is clipped and
+    // unscrollable (the "can't scroll down" bug). min-h-screen did not — and
+    // this matches every sibling Sales Coach page's scroll idiom (A21).
+    <div className="flex-1 overflow-y-auto bg-base">
       <div className="mx-auto w-full max-w-md px-4 py-6 space-y-5">
         {/* Header */}
         <div className="space-y-2">
@@ -300,21 +308,41 @@ export default function AfterPitchPage() {
                 as="block"
                 category="Sales Coach · After Pitch"
                 title="What happened"
-                whatItIs="A neutral, factual replay of the conversation — what was actually said, without judgement."
-                why="Before you can learn from a call you have to see it as it happened, not as you remember it. Memory edits under pressure; the transcript doesn't."
-                how="Read this first to re-ground yourself in the real call, then let the breakdown and scores below tell you what to do about it."
+                whatItIs="A neutral, factual replay of the conversation — what was actually said, without judgement. Collapsed by default; tap the row to expand it."
+                why="Before you can learn from a call you have to see it as it happened, not as you remember it. Memory edits under pressure; the transcript doesn't. It stays collapsed so the recap never buries the breakdown and scores that tell you what to do next."
+                how="Tap to expand the full recap when you want to re-ground in the real call; leave it collapsed to go straight to the breakdown and scores below."
                 principle="You can only improve the call you actually see, not the one you wish you'd had."
               >
                 <DeckCard className="p-4">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
-                    <h2 className="text-sm font-semibold text-primary">
-                      What happened
-                    </h2>
-                  </div>
-                  <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
-                    {whatHappened}
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowWhatHappened((v) => !v)}
+                    aria-expanded={showWhatHappened}
+                    className="w-full flex items-center justify-between gap-2 text-left"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
+                      <span className="text-sm font-semibold text-primary">
+                        What happened
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {!showWhatHappened && (
+                        <span className="text-[10px] text-muted">Tap to read</span>
+                      )}
+                      <ChevronDown
+                        className={`w-4 h-4 text-muted transition-transform ${
+                          showWhatHappened ? "rotate-180" : ""
+                        }`}
+                        aria-hidden
+                      />
+                    </span>
+                  </button>
+                  {showWhatHappened && (
+                    <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap mt-2.5">
+                      {whatHappened}
+                    </p>
+                  )}
                 </DeckCard>
               </LearningHint>
             )}
