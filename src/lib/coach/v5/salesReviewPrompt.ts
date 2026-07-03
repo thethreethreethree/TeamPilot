@@ -44,8 +44,8 @@ END OF SALES KNOWLEDGE BASE.`;
  * Live Sales Coach — post-call review prompts.
  *
  * The review obeys the founder's TONE LAW (a hard rule, not a
- * preference): acknowledge + validate what the agent did well FIRST,
- * with specific examples pulled from the transcript; THEN address growth
+ * preference): acknowledge + validate what the agent did well FIRST, as
+ * punchy headlines with no separate examples; THEN address growth
  * areas with kindness, framed as opportunities, each tied to a concrete
  * learnable next step. NEVER lead with criticism. The goal is the agent
  * learning over time, not a scorecard (§3.3 guide-don't-overtake, §3.4
@@ -198,7 +198,7 @@ export function buildSalesReviewUserMessage(args: {
 
 ${transcript}
 
-Write the growth review now, obeying the TONE LAW. Strengths first, with
-specific examples from the transcript above. Then growth opportunities,
-each with a concrete next step. JSON only.`;
+Write the growth review now, obeying the TONE LAW. Strengths first as
+punchy headlines (no examples). Then short growth opportunities, each with
+a concrete next step. JSON only.`;
 }
