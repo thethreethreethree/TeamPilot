@@ -120,11 +120,8 @@ function toStrengthArray(v: unknown): SalesReviewStrength[] {
     if (item && typeof item === "object") {
       const o = item as Record<string, unknown>;
       const point = typeof o.point === "string" ? o.point.trim() : "";
-      // Head-of-sales directive (2026-07-03): "What you did well" shows the
-      // headline only — no explanation/quote. Force example empty so the UI
-      // never renders one, regardless of what the model returns (belt +
-      // suspenders with the prompt; also strips any older stored example).
-      if (point) out.push({ point, example: "" });
+      const example = typeof o.example === "string" ? o.example.trim() : "";
+      if (point) out.push({ point, example });
     }
   }
   return out;

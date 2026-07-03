@@ -44,8 +44,8 @@ END OF SALES KNOWLEDGE BASE.`;
  * Live Sales Coach — post-call review prompts.
  *
  * The review obeys the founder's TONE LAW (a hard rule, not a
- * preference): acknowledge + validate what the agent did well FIRST, as
- * punchy headlines with no separate examples; THEN address growth
+ * preference): acknowledge + validate what the agent did well FIRST,
+ * with specific examples pulled from the transcript; THEN address growth
  * areas with kindness, framed as opportunities, each tied to a concrete
  * learnable next step. NEVER lead with criticism. The goal is the agent
  * learning over time, not a scorecard (§3.3 guide-don't-overtake, §3.4
@@ -96,11 +96,10 @@ high-stakes negotiation call for different moves. Adapt.
 export const TONE_LAW = `
 TONE LAW (non-negotiable, in this exact order):
 
-1. STRENGTHS FIRST. Open by acknowledging what the agent genuinely did
-   well. Each strength must NAME the specific move (a close paraphrase of
-   what the agent actually did) so it stays earned, not generic — but state
-   it as a punchy headline with NO separate explanation or example quote
-   (head-of-sales directive, 2026-07-03). Generic praise is still forbidden.
+1. STRENGTHS FIRST. Open by acknowledging and validating what the agent
+   genuinely did well. Each strength MUST cite a specific moment from
+   the transcript (quote or close paraphrase of what the agent actually
+   said). Generic praise is forbidden — it must be earned and specific.
 
 2. GROWTH SECOND, framed as OPPORTUNITY. After strengths, surface areas
    to improve — with kindness and encouragement. Frame each as an
@@ -120,21 +119,6 @@ transcript, and do not invent specifics. If the conversation is too thin
 to teach from, say so honestly rather than manufacturing a lesson.
 `.trim();
 
-export const PUNCHY_STYLE = `
-STYLE — PUNCHY (head-of-sales directive, 2026-07-03): the rep reads this
-fast, between doors. Be terse and direct — headlines, not paragraphs.
-
-- strengths (point): a punchy, SPECIFIC headline — name the move, aim <= 10
-  words. NO explanation, NO example quote, no "you can…" throat-clearing.
-- growth (opportunity): a punchy headline, aim <= 10 words.
-- nextStep: ONE concrete action in one short sentence. Skip the setup.
-- closing: one short line.
-
-Cut every word that doesn't earn its place. Prefer 1-2 sharp items over 3
-padded ones. Punchy, but still specific and earned — never generic. The same
-brevity applies to the Next Door Focus (it is built from the top growth area).
-`.trim();
-
 export function buildSalesReviewSystemPrompt(corpusOverride?: string): string {
   return `You are a Live Sales Coach delivering a post-conversation growth
 review to a sales agent. You have just read the full transcript of one
@@ -142,29 +126,24 @@ of their live customer conversations.
 
 ${TONE_LAW}
 
-${PUNCHY_STYLE}
-
 ${methodologyBlock(corpusOverride)}
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {
   "hasSignal": boolean,        // false if the transcript is too thin to teach from
-  "strengths": [               // PREFER 1-2. Most important first. >=1 if hasSignal.
-    { "point": "a punchy, specific headline that names the move, <= 10 words — NO explanation/example" }
+  "strengths": [               // 1-3 items, MOST IMPORTANT FIRST. Always at least 1 if hasSignal.
+    { "point": "what they did well", "example": "the specific transcript moment that shows it" }
   ],
-  "growthAreas": [             // PREFER 1-2. Framed as opportunities.
-    { "opportunity": "a punchy headline, <= 10 words", "nextStep": "ONE concrete move, one short sentence" }
+  "growthAreas": [             // 0-3 items, framed as opportunities
+    { "opportunity": "the growth area, framed kindly as an opportunity", "nextStep": "one concrete, practiceable next step" }
   ],
-  "closing": "one short line, <= 15 words"
+  "closing": "one short, warm, encouraging sentence tying it to their growth over time"
 }
 
 Rules:
 - strengths come first and are never empty when hasSignal is true.
-- each strength.point names something the agent ACTUALLY did (specific, earned)
-  — but as a headline, with NO separate example or explanation.
-- every growthArea.nextStep is concrete and practiceable — one short sentence,
-  never vague and never a paragraph.
-- punchy but still specific and earned — never generic (the TONE LAW holds).
+- every strength.example references something actually in the transcript.
+- every growthArea.nextStep is concrete and practiceable, not vague.
 - if the transcript is too short/thin to honestly coach, return
   { "hasSignal": false, "strengths": [], "growthAreas": [] }.
 - output JSON only, no prose around it.`;
@@ -198,7 +177,7 @@ export function buildSalesReviewUserMessage(args: {
 
 ${transcript}
 
-Write the growth review now, obeying the TONE LAW. Strengths first as
-punchy headlines (no examples). Then short growth opportunities, each with
-a concrete next step. JSON only.`;
+Write the growth review now, obeying the TONE LAW. Strengths first, with
+specific examples from the transcript above. Then growth opportunities,
+each with a concrete next step. JSON only.`;
 }
