@@ -804,14 +804,9 @@ export default function SessionDetail() {
             {/* S1a — upload a recording → diarize → one-tap label */}
             <SessionRecordingUpload sessionId={id} onLabeled={() => void load()} />
 
-            {/* The four C.A.R.E features on this session */}
-            <SessionCoachTools
-              sessionId={id}
-              segments={transcript.map((s) => ({
-                speaker: s.speaker,
-                text: s.text,
-              }))}
-            />
+            {/* Coach tools on this session: Summarize, Ask coach, Dissect.
+                Spawn task + Decision dialogue removed here (founder 2026-07-03). */}
+            <SessionCoachTools sessionId={id} />
 
             {/* Transcript */}
             <section>
