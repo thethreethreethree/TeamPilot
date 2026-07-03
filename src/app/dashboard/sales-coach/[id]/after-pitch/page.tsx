@@ -759,6 +759,7 @@ function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
 
 /* ─── Private scoreboard (self-assessment, evidenced — A11/A18) ──── */
 function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
+  const [reviewOpen, setReviewOpen] = useState(false);
   if (scores.length === 0) return null;
   return (
       <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
@@ -784,7 +785,7 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
           title="Score strip"
           whatItIs="The five dimensions of the call scored at a glance — each cell is one aspect of how the conversation went."
           why="A single overall number hides where you actually stand. Breaking it into dimensions tells you which specific skill to work, not just 'do better.'"
-          how="Scan for your lowest cell, then read its rationale below to see exactly what pulled it down."
+          how="Scan for your lowest cell, then tap Score Assessment Review below to read exactly what pulled it down."
           principle="One overall score tells you how you feel; the dimensions tell you what to change."
         >
         <div className="grid grid-cols-5 gap-1.5">
@@ -801,29 +802,41 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
           ))}
         </div>
         </LearningHint>
-        {/* Every number carries its evidence — no naked verdicts (A11). */}
+        {/* Every number carries its evidence — no naked verdicts (A11).
+            Collapsed behind "Score Assessment Review" just under the ratings
+            (founder 2026-07-03), same tap-to-expand logic as "What happened"
+            via the shared CollapseToggle (A13/A21). */}
         <LearningHint
           as="block"
           category="Sales Coach · After Pitch"
-          title="Why each score"
-          whatItIs="The evidence behind every number — the rationale, and where possible the exact line from the call that earned it."
-          why="A naked score is a verdict you can't learn from or trust. Tying each number to real evidence is what keeps this honest instead of arbitrary."
-          how="When a score surprises you, read its rationale and citation here — that's the part you can actually act on."
+          title="Score Assessment Review"
+          whatItIs="The evidence behind every number — the rationale, and where possible the exact line from the call that earned it. Collapsed by default; tap to expand."
+          why="A naked score is a verdict you can't learn from or trust. Tying each number to real evidence is what keeps this honest instead of arbitrary. It sits collapsed so the strip stays scannable and you open the detail only when you want it."
+          how="Tap Score Assessment Review, then read the rationale and citation for any score that surprised you — that's the part you can actually act on."
           principle="A score without its reason is an opinion; a score with its evidence is a lesson."
         >
-        <ul className="space-y-1.5 pt-1">
-          {scores.map((c) => (
-          <li key={c.key} className="text-[11px] leading-relaxed">
-            <span className="text-secondary font-medium">{c.label}</span>
-            <span className="text-muted"> — {c.rationale}</span>
-            {c.citation && (
-              <span className="block text-[10px] text-muted italic mt-0.5">
-                “{c.citation}”
-              </span>
-            )}
-          </li>
-          ))}
-        </ul>
+        <div>
+          <CollapseToggle
+            title="Score Assessment Review"
+            open={reviewOpen}
+            onToggle={() => setReviewOpen((v) => !v)}
+          />
+          {reviewOpen && (
+          <ul className="space-y-1.5 pt-1 mt-1">
+            {scores.map((c) => (
+            <li key={c.key} className="text-[11px] leading-relaxed">
+              <span className="text-secondary font-medium">{c.label}</span>
+              <span className="text-muted"> — {c.rationale}</span>
+              {c.citation && (
+                <span className="block text-[10px] text-muted italic mt-0.5">
+                  “{c.citation}”
+                </span>
+              )}
+            </li>
+            ))}
+          </ul>
+          )}
+        </div>
         </LearningHint>
         <LearningHint
           as="block"
