@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { InstallInstructions } from "@/components/pwa/InstallInstructions";
 
 export const metadata: Metadata = {
-  title: "Install ELOSTATE Sales Coach on your iPhone",
+  title: "Install ELOSTATE Sales Coach on your phone",
   description:
     "Add ELOSTATE Sales Coach to your home screen in a few taps — no app store, no signup wall.",
 };

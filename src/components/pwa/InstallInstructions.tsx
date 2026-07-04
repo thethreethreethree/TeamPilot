@@ -12,6 +12,9 @@ import {
   RotateCw,
   ArrowRight,
   ArrowLeft,
+  MoreVertical,
+  Smartphone,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -73,13 +76,17 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
             <h1 className="text-2xl font-extrabold leading-tight tracking-tight">
               Install{" "}
               <span className="text-brand">{app.displayName}</span> on your
-              iPhone
+              phone
             </h1>
           </div>
           <p className="text-sm text-secondary leading-relaxed mb-6">
             A few taps and {app.displayName} lives on your home screen — no app
             store, no download.
           </p>
+
+          {/* ── iPhone · Safari — the founder's reference flow, kept verbatim
+              (founder 2026-07-05: this flow is for iPhone/Safari). ── */}
+          <PlatformLabel label="On iPhone · Safari" />
 
           {/* Step 1 */}
           <Step
@@ -160,6 +167,90 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
               <MockRow icon={Star} label="Add to Favorites" />
               <MockRow icon={PlusSquare} label="Add to Home Screen" targeted />
               <MockRow icon={SquarePen} label="Markup" />
+            </div>
+          </Step>
+
+          {/* ── Android · Chrome — the reference covers iPhone only, so Android
+              gets Chrome's standard install flow (founder 2026-07-05: "that's
+              only for iphone/safari not android"). ── */}
+          <PlatformLabel label="On Android · Chrome" className="mt-7" />
+
+          {/* Android Step 1 */}
+          <Step
+            n={1}
+            text={
+              <>
+                Open {app.displayName} in Chrome and tap the{" "}
+                <span className="text-brand font-semibold">⋮</span> menu in the
+                top-right.
+              </>
+            }
+          >
+            <div className="flex items-center gap-2 rounded-xl border border-ember-400/40 bg-black/40 px-3 py-2.5">
+              <span className="flex items-center gap-1.5 min-w-0 flex-1 text-xs text-secondary">
+                <Lock className="w-3 h-3 text-brand shrink-0" aria-hidden />
+                <span className="truncate font-mono">{app.url}</span>
+              </span>
+              <Target>
+                <MoreVertical className="w-4 h-4 text-brand" aria-hidden />
+              </Target>
+            </div>
+          </Step>
+
+          {/* Android Step 2 */}
+          <Step
+            n={2}
+            text={
+              <>
+                Tap{" "}
+                <span className="text-brand font-semibold">
+                  &ldquo;Install app&rdquo;
+                </span>{" "}
+                (or &ldquo;Add to Home screen&rdquo;).
+              </>
+            }
+          >
+            <div className="rounded-xl border border-ember-400/40 bg-black/40 divide-y divide-white/[0.06] overflow-hidden">
+              <MockRow icon={Share} label="Share…" />
+              <MockRow icon={Download} label="Install app" targeted />
+              <MockRow icon={PlusSquare} label="Add to Home screen" />
+            </div>
+          </Step>
+
+          {/* Android Step 3 */}
+          <Step
+            n={3}
+            last
+            text={
+              <>
+                Tap{" "}
+                <span className="text-brand font-semibold">
+                  &ldquo;Install&rdquo;
+                </span>{" "}
+                to confirm.
+              </>
+            }
+          >
+            <div className="flex items-center gap-3 rounded-xl border border-ember-400/40 bg-black/40 px-3 py-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={app.iconSrc}
+                alt=""
+                width={32}
+                height={32}
+                className="w-8 h-8 rounded-lg shrink-0"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm text-primary font-semibold truncate">
+                  {app.displayName}
+                </span>
+                <span className="block text-[10px] text-muted font-mono truncate">
+                  {app.url}
+                </span>
+              </span>
+              <Target>
+                <span className="text-xs font-bold text-brand px-1">Install</span>
+              </Target>
             </div>
           </Step>
 
@@ -255,5 +346,24 @@ function Target({ children }: { children: React.ReactNode }) {
     <span className="relative inline-flex items-center justify-center rounded-lg ring-2 ring-ember-400 bg-ember-400/15 px-1.5 py-1 shrink-0">
       {children}
     </span>
+  );
+}
+
+/** A gold platform divider label, e.g. "On iPhone · Safari". */
+function PlatformLabel({
+  label,
+  className = "",
+}: {
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-center gap-2 mb-3 ${className}`}>
+      <Smartphone className="w-3.5 h-3.5 text-brand shrink-0" aria-hidden />
+      <span className="text-[11px] uppercase tracking-widest text-brand font-bold">
+        {label}
+      </span>
+      <span className="flex-1 h-px bg-ember-400/20" />
+    </div>
   );
 }
