@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Brain,
   Lightbulb,
+  ChevronDown,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
@@ -249,7 +250,9 @@ export default function SalesCoachSessionsPage() {
             history it produces (founder 2026-07-04). §A21 shared panel. */}
         <StartSessionPanel />
         {/* ── Coaching insights (moved from Home 2026-07-04) ──────────── */}
-        {/* Cue reliance — the training wheels (§3.5) */}
+        {/* Cue reliance — the training wheels (§3.5). Desktop-only; removed
+            from the mobile app per founder 2026-07-04 (§2, mobile scope). */}
+        <div className="hidden md:block">
         <LearningHint
           as="block"
           category="Sales Coach · Reliance"
@@ -293,9 +296,12 @@ export default function SalesCoachSessionsPage() {
           )}
         </DeckCard>
         </LearningHint>
+        </div>
 
-        {/* What the coach is learning about you (§3.6; §4 — gated). */}
+        {/* What the coach is learning about you (§3.6; §4 — gated).
+            Desktop-only; removed from the mobile app (founder 2026-07-04). */}
         {patternsState && (
+          <div className="hidden md:block">
           <DeckCard className="p-4">
             <div className="flex items-center justify-between gap-2 mb-2">
               <div className="flex items-center gap-1.5">
@@ -389,14 +395,16 @@ export default function SalesCoachSessionsPage() {
               </p>
             )}
           </DeckCard>
+          </div>
         )}
 
-        {/* Growth opportunities to practice (§3.6 — visible, specific) */}
+        {/* Growth opportunities to practice (§3.6 — visible, specific).
+            Collapsed by default on the mobile app (founder 2026-07-04). */}
         {stats && stats.recentGrowth.length > 0 && (
-          <>
-            <SectionLabel icon={Lightbulb}>
-              Growth opportunities to practice
-            </SectionLabel>
+          <MobileCollapsibleSection
+            icon={Lightbulb}
+            label="Growth opportunities to practice"
+          >
             <LearningHint
               as="block"
               category="Sales Coach · Growth"
@@ -415,13 +423,13 @@ export default function SalesCoachSessionsPage() {
                 ))}
               </DeckCard>
             </LearningHint>
-          </>
+          </MobileCollapsibleSection>
         )}
 
-        {/* Where your sessions stand — pipeline counts, above the list. */}
+        {/* Where your sessions stand — pipeline counts. Collapsed by default
+            on the mobile app (founder 2026-07-04). */}
         {stats && (
-          <>
-            <SectionLabel icon={Mic}>Where your sessions stand</SectionLabel>
+          <MobileCollapsibleSection icon={Mic} label="Where your sessions stand">
             <div className="grid grid-cols-3 gap-2.5">
               <LearningHint
                 as="block"
@@ -457,7 +465,7 @@ export default function SalesCoachSessionsPage() {
                 <DeckStat icon={CheckCircle2} label="Reviewed" value={stats.reviewedCount} sub="Done" tone="emerald" />
               </LearningHint>
             </div>
-          </>
+          </MobileCollapsibleSection>
         )}
 
         {/* Filter bar */}
@@ -548,6 +556,10 @@ export default function SalesCoachSessionsPage() {
           </LearningHint>
         </DeckCard>
 
+        {/* Session history — desktop always; on the mobile app only once the
+            agent searches or filters (founder 2026-07-04: list removed from
+            the mobile app, search kept). §2 mobile scope. */}
+        <div className={anyFilter ? "block" : "hidden md:block"}>
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -656,6 +668,14 @@ export default function SalesCoachSessionsPage() {
             </div>
           </LearningHint>
         )}
+        </div>
+        {/* Mobile idle hint — the list is removed on the mobile app, but the
+            search is kept; results appear once the agent searches or filters. */}
+        {!anyFilter && (
+          <p className="md:hidden text-xs text-muted py-8 text-center">
+            Search above to find a past session.
+          </p>
+        )}
 
         {/* F1: don't claim "no dissect" when the badge query failed. */}
         {!loading && !noAccess && !degraded && !badgesAvailable && (
@@ -682,6 +702,47 @@ export default function SalesCoachSessionsPage() {
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * MobileCollapsibleSection — on the mobile app the section starts collapsed
+ * and the agent taps to expand; on desktop it's always open (the toggle is
+ * md:hidden and the body is md:block). Founder 2026-07-04: "make it collapse
+ * by default, sales agent can click to expand" — mobile only, desktop
+ * unchanged (§2 mobile scope; §A18 the affordance invites the expand action).
+ */
+function MobileCollapsibleSection({
+  icon,
+  label,
+  children,
+}: {
+  icon: typeof Mic;
+  label: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <SectionLabel icon={icon}>{label}</SectionLabel>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="md:hidden inline-flex items-center gap-1 text-[11px] text-muted hover:text-secondary transition-colors shrink-0"
+        >
+          {open ? "Hide" : "Show"}
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden
+          />
+        </button>
+      </div>
+      <div className={`${open ? "block" : "hidden"} md:block mt-2`}>
+        {children}
+      </div>
+    </div>
   );
 }
 
