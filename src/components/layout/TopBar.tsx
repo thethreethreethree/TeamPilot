@@ -33,10 +33,6 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
 
   const openMenu = () => {
     if (typeof window !== "undefined") {
-      // TEMP diagnostic (2026-07-04 hamburger-dead investigation). If this
-      // line does NOT appear on tap, the handler isn't attached (hydration
-      // failure / stale bundle). Remove once root cause is named.
-      console.log("[sidebar-diag] hamburger tapped → dispatch toggle-sidebar");
       window.dispatchEvent(new CustomEvent("elostate:toggle-sidebar"));
     }
   };
