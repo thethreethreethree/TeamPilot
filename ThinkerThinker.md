@@ -759,25 +759,3 @@ A22's own test: does the next multi-commit feature closure produce a session-rea
 
 A22 was caught when the founder forced *"please review thinkerthinker.MD and Claude.MD and see which of the problem constitution that you have actively been ignoring/violating"* — which is post-hoc but represents the agent finally doing what A19 should have produced without escalation. The catch metric improves only when the agent self-produces the session-read manifest before the founder asks for one.
 
-
----
-
-## A23 · Live operation relaxes holistic-first ("act now, adapt as I go"); the retrospective restores it
-
-**Tags:** methodology evolution · sales coach · discipline under temptation · holistic discipline
-**Captured:** 2026-07-03
-
-**Context.** Founder directive while tuning the Live Sales Coach: *"Sales Coach will have some exemption from ThinkerThinker.md and Claude.md when it comes to the holistic problem-solving element. The sales rep needs to work on an ACT NOW, ADAPT AS I GO methodology."* A door-to-door rep cannot holistically understand a stranger before acting — they open, read the reaction, and adjust in seconds. Coaching them to "understand everything before you act" is wrong for the live moment. Scope confirmed with the founder as a **temporal split**, not a blanket exemption.
-
-**Insight.** This is NOT an exemption FROM the method — it is a recognition of WHERE each half of §1.5 applies, split by TIME:
-- §1.5 has two halves: HOLISTIC (trace the ripples before acting) and ORGANIC (*"iterative and adaptive: propose, observe, adjust; do not deliver rigid one-shot answers to problems still being understood"*).
-- In the LIVE moment (the pitch), the Organic half DOMINATES and Holistic-first is impossible — you are reading a human in real time, not analyzing a record. "Act now, adapt as I go" IS the Organic half.
-- AFTER the call (review / dissect / Next Door Focus), the Holistic half and §0 understanding are RESTORED — now there is a record to look back on (§1.2 retrospective) and the honesty to tell the truth about it (§3.4). The rep could not reflect live, so the coach reflects after.
-- One line: **the rep acts-now-adapts-live; the coach reflects-holistically-after.** Same method, split by when it applies.
-
-**The boundary (what is NOT exempt — the §5 guard).** The exemption is temporal and bounded. It does NOT relax: (1) how the AGENT builds the Sales Coach software — diagnose before patching, trace code ripples, full §0/§1.5 discipline; (2) the honesty of the post-call review — punchy ≠ fabricated (§3.4); (3) §3.3 guide-don't-overtake. A blanket "Sales Coach ignores the constitution" would be the exact §5 builder-under-pressure loosening; the temporal scope is the structural defense against that.
-
-**Constitutional bearing.** Candidate amendment to §1.5 (Organic + Holistic): for real-time / live-operation domains, the Organic half dominates and Holistic-first is deferred to the retrospective phase. Deferred per §4 (+ §7.2 alternative-tested) — ratify into CLAUDE.md only once the Sales Coach measurably performs better under this framing (does an act-now live coach + holistic post-call review beat an analyze-first live coach? the separation-accuracy log + outcome/resolution metrics are the instrument). Until measured, it is a candidate, not a constitutional edit.
-
-**Future-use note.** When building ANY live / real-time coaching or operation surface (live cues, in-moment guidance), favor fast, decisive, forward guidance — a concrete next move over a caution, "do X" over "analyze X". When building ANY retrospective / review surface (post-call review, dissect, audit), restore full holistic + honest analysis. Never let the live exemption leak into (a) the review's honesty or (b) the builder's own discipline — those two leaks are what would turn a sound temporal split into a §5 shortcut. Applied 2026-07-03 to `liveCuePrompt.ts` (act-now philosophy block); the post-call `salesReview` / `salesDissect` were deliberately left holistic.
-
