@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { formatDate, formatTime } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
@@ -17,6 +18,12 @@ interface TopBarProps {
  */
 export default function TopBar({ title, subtitle }: TopBarProps) {
   const [now, setNow] = useState<Date | null>(null);
+  // The hamburger toggles the ELOSTATE dashboard sidebar. Sales Coach runs in
+  // its own full-screen shell with its own nav (desktop sidebar / mobile bottom
+  // tab bar), so that sidebar isn't there — the button did nothing. Hide it on
+  // Sales Coach routes (founder 2026-07-04: "hamburger not working").
+  const pathname = usePathname() ?? "";
+  const inSalesCoach = pathname.startsWith("/dashboard/sales-coach");
 
   useEffect(() => {
     setNow(new Date());
@@ -54,17 +61,19 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
       className="pt-[env(safe-area-inset-top)] min-h-11 md:min-h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-3 md:px-6 sticky top-0 z-30 gap-2 md:gap-3"
     >
       <div className="flex items-center gap-2 min-w-0">
-        <button
-          type="button"
-          onClick={openMenu}
-          aria-label="Open menu"
-          // p-2.5 + 5x5 icon = ~40px tap target (close to WCAG 44).
-          // Previously p-1.5 made the hit area ~28px which fat-finger
-          // hits adjacent elements on touch.
-          className="md:hidden p-2.5 -ml-1 rounded-lg text-muted hover:text-primary hover:bg-surface-raised flex-shrink-0"
-        >
-          <Menu className="w-5 h-5" aria-hidden />
-        </button>
+        {!inSalesCoach && (
+          <button
+            type="button"
+            onClick={openMenu}
+            aria-label="Open menu"
+            // p-2.5 + 5x5 icon = ~40px tap target (close to WCAG 44).
+            // Previously p-1.5 made the hit area ~28px which fat-finger
+            // hits adjacent elements on touch.
+            className="md:hidden p-2.5 -ml-1 rounded-lg text-muted hover:text-primary hover:bg-surface-raised flex-shrink-0"
+          >
+            <Menu className="w-5 h-5" aria-hidden />
+          </button>
+        )}
         <div className="min-w-0">
           <h1 className="text-sm md:text-lg font-semibold text-primary truncate leading-tight">
             {title}
