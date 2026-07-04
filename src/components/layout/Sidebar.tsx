@@ -463,7 +463,15 @@ export default function Sidebar() {
   // on dashboard routes per user request.
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   useEffect(() => {
-    const onToggle = () => setMobileOpen((v) => !v);
+    // TEMP diagnostic (2026-07-04 hamburger-dead investigation). If "listener
+    // attached" is absent, the Sidebar never mounted; if "toggle received" is
+    // absent on tap, the event isn't reaching it. Remove once cause is named.
+    console.log("[sidebar-diag] Sidebar listener attached");
+    const onToggle = () =>
+      setMobileOpen((v) => {
+        console.log("[sidebar-diag] toggle received; mobileOpen", v, "→", !v);
+        return !v;
+      });
     const onClose = () => setMobileOpen(false);
     window.addEventListener("elostate:toggle-sidebar", onToggle);
     window.addEventListener("elostate:close-sidebar", onClose);
