@@ -16,7 +16,13 @@ export const metadata: Metadata = {
 export default function InstallPage() {
   return (
     <InstallInstructions
-      app={{ displayName: "ELOSTATE", url: "elostate.com", iconSrc: "/icon.svg" }}
+      app={{
+        displayName: "ELOSTATE",
+        url: "elostate.com",
+        iconSrc: "/icon.svg",
+        backHref: "/login",
+        backLabel: "Back to sign in",
+      }}
     />
   );
 }

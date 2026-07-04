@@ -22,6 +22,8 @@ export default function SalesCoachInstallPage() {
         displayName: "ELOSTATE Sales Coach",
         url: "elostate.com",
         iconSrc: "/sales-coach-icon.svg",
+        backHref: "/sales-coach/login",
+        backLabel: "Back to sign in",
       }}
     />
   );

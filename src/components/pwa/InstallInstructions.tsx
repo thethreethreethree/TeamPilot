@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   RotateCw,
   ArrowRight,
+  ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 
 /**
  * InstallInstructions — iOS "Add to Home Screen" walkthrough card.
@@ -36,6 +38,10 @@ export type InstallAppConfig = {
   url: string;
   /** Public path to the app icon SVG, e.g. "/sales-coach-icon.svg". */
   iconSrc: string;
+  /** Where the footer "back" link goes, so the page isn't a dead end. */
+  backHref: string;
+  /** Label for the back link, e.g. "Back to sign in". */
+  backLabel: string;
 };
 
 export function InstallInstructions({ app }: { app: InstallAppConfig }) {
@@ -72,7 +78,7 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
           </div>
           <p className="text-sm text-secondary leading-relaxed mb-6">
             A few taps and {app.displayName} lives on your home screen — no app
-            store, no signup wall.
+            store, no download.
           </p>
 
           {/* Step 1 */}
@@ -163,6 +169,19 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
               Open it at
             </p>
             <p className="text-sm font-mono text-brand mt-0.5">{app.url}</p>
+          </div>
+
+          {/* Onward link — the page is reached from sign-in / the install
+              prompt, so give the reader a way back instead of a dead end
+              (audit F4; AMD-006 §1.5.1 layer-3 continuity). */}
+          <div className="mt-4 text-center">
+            <Link
+              href={app.backHref}
+              className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-brand transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
+              {app.backLabel}
+            </Link>
           </div>
         </div>
       </div>

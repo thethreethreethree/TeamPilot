@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Download, Share, Smartphone, X } from "lucide-react";
+import {
+  detectPwaPlatform,
+  isPwaInstalled,
+  type PwaPlatform,
+} from "@/lib/pwa/platform";
 
 /**
  * InstallTeamChatBanner — surface for installing the Team Chat PWA
@@ -35,7 +40,9 @@ import { Download, Share, Smartphone, X } from "lucide-react";
 
 const DISMISS_KEY = "team-chat-install-banner-dismissed";
 
-type Platform = "chrome" | "ios-safari" | "other";
+// Platform type + detection now live in the shared util so this banner and
+// InstallPrompt agree on "is this iOS Safari / already installed?" (§A21).
+type Platform = PwaPlatform;
 
 // beforeinstallprompt is non-standard but widely supported in
 // Chromium browsers. We type-narrow to the methods we actually use.
@@ -46,29 +53,6 @@ interface BeforeInstallPromptEvent extends Event {
     outcome: "accepted" | "dismissed";
     platform: string;
   }>;
-}
-
-function detectPlatform(): Platform {
-  if (typeof window === "undefined") return "other";
-  const ua = window.navigator.userAgent;
-  // iOS Safari detection — both iPhone/iPad and the "Safari" string
-  // are required; Chrome on iOS reports as "CriOS" which doesn't
-  // benefit from the Add to Home Screen flow we describe.
-  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream;
-  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
-  if (isIOS && isSafari) return "ios-safari";
-  // Chromium-based browsers fire beforeinstallprompt — we lean on that
-  // event itself as the detection signal rather than UA sniffing.
-  return "chrome";
-}
-
-function isAlreadyInstalled(): boolean {
-  if (typeof window === "undefined") return false;
-  // Modern check + iOS legacy check
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
 }
 
 export function InstallTeamChatBanner() {
@@ -90,8 +74,8 @@ export function InstallTeamChatBanner() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setPlatform(detectPlatform());
-    setInstalled(isAlreadyInstalled());
+    setPlatform(detectPwaPlatform());
+    setInstalled(isPwaInstalled());
 
     const handleBeforeInstall = (e: Event) => {
       // Prevent the auto-prompt — we want to surface install via the

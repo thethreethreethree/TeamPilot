@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Download, X } from "lucide-react";
+import { detectPwaPlatform, isPwaInstalled } from "@/lib/pwa/platform";
 
 /**
  * InstallPrompt — PWA install affordance for the welcome (landing)
@@ -62,10 +63,7 @@ export function InstallPrompt({
     }
 
     // Already installed? Don't show the prompt.
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia("(display-mode: standalone)").matches
-    ) {
+    if (isPwaInstalled()) {
       setInstalled(true);
     }
 
@@ -76,19 +74,11 @@ export function InstallPrompt({
       setDismissed(true);
     }
 
-    // iOS detection: iPhone/iPod/iPad UA, plus iPadOS 13+ which reports as
-    // "MacIntel" but is touch-capable. Standalone (already installed) is
-    // excluded via the check above.
-    const ua = window.navigator.userAgent.toLowerCase();
-    const iOS =
-      /iphone|ipad|ipod/.test(ua) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      // Safari's non-standard flag for home-screen apps.
-      (window.navigator as Navigator & { standalone?: boolean }).standalone ===
-        true;
-    if (iOS && !standalone) setIsIos(true);
+    // Only offer the manual walkthrough on real iOS Safari — the Share → Add
+    // to Home Screen flow is Safari-specific, so the shared detector excludes
+    // iOS Chrome/Firefox/Edge (audit F2, §A21 — same detector as the Team Chat
+    // banner). The `installed` gate above keeps standalone out of this branch.
+    if (detectPwaPlatform() === "ios-safari") setIsIos(true);
 
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
