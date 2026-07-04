@@ -155,6 +155,17 @@ export default function SalesCoachLoginPage() {
               Sign in to ELOSTATE instead
             </Link>
           </p>
+          {/* iOS install entry point — this page has no InstallPrompt, so a
+              persistent link keeps the /sales-coach/install walkthrough
+              reachable on iPhone (AMD-006 L3 — don't strand it). */}
+          <p className="text-center text-xs mt-3">
+            <Link
+              href="/sales-coach/install"
+              className="text-muted hover:text-brand transition-colors underline-offset-2 hover:underline"
+            >
+              Install Sales Coach on iPhone
+            </Link>
+          </p>
           <p className="mt-6 text-[10px] text-muted text-center">
             By continuing you agree to our{" "}
             <Link href="/terms" className="text-brand hover:underline">
