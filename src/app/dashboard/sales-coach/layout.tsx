@@ -1,7 +1,23 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { SalesCoachShell } from "@/components/sales-coach/SalesCoachShell";
+
+// Sales Coach gets its OWN installable PWA identity (founder 2026-07-04):
+// installing from any Sales Coach page uses this manifest — name "Sales Coach",
+// its own icon, launching straight into the coach. Overrides the app-wide
+// ELOSTATE manifest for these routes.
+export const metadata: Metadata = {
+  manifest: "/sales-coach.webmanifest",
+  applicationName: "Sales Coach",
+  appleWebApp: {
+    capable: true,
+    title: "Sales Coach",
+    statusBarStyle: "black-translucent",
+  },
+  icons: { apple: "/sales-coach-icon.svg" },
+};
 
 /**
  * Layout for every route under /dashboard/sales-coach/*.

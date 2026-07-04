@@ -21,6 +21,8 @@ import {
   Mic,
   Settings,
   Users,
+  Video,
+  User,
 } from "lucide-react";
 
 /**
@@ -59,25 +61,41 @@ const NAV: NavItem[] = [
   { label: "Settings", href: "/dashboard/sales-coach/settings", icon: Settings },
 ];
 
+// Mobile bottom tab bar (founder 2026-07-04 PWA design). Per the founder's
+// annotated mockup: the "Practice" slot → Analytics, "Feedback" slot → Team
+// Chat (Roleplay + Pitch Performance are Home cards, not tabs). Team is dropped
+// on mobile (lives on the website version).
+const MOBILE_TABS: NavItem[] = [
+  { label: "Home", href: "/dashboard/sales-coach", icon: Home },
+  { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
+  { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Video },
+  {
+    label: "Team Chat",
+    href: "/dashboard/sales-coach/team-chat",
+    icon: MessageSquare,
+  },
+  { label: "Account", href: "/dashboard/sales-coach/settings", icon: User },
+];
+
 export function SalesCoachShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const [collapsed, setCollapsed] = useState(false);
 
   return (
     <NavProgressProvider>
-    <div className="fixed inset-0 z-[60] flex bg-base overflow-hidden">
+    <div className="fixed inset-0 z-[60] flex flex-col md:flex-row bg-base overflow-hidden">
       {collapsed ? (
         <button
           type="button"
           onClick={() => setCollapsed(false)}
           aria-label="Expand Sales Coach navigation"
           title="Expand navigation"
-          className="w-6 flex-shrink-0 bg-ember-400/[0.08] border-r border-ember-400/40 flex items-center justify-center text-brand hover:text-primary hover:bg-ember-400/20 transition-colors"
+          className="w-6 flex-shrink-0 bg-ember-400/[0.08] border-r border-ember-400/40 hidden md:flex items-center justify-center text-brand hover:text-primary hover:bg-ember-400/20 transition-colors"
         >
           <ChevronRight className="w-4 h-4" aria-hidden />
         </button>
       ) : (
-        <aside className="w-56 flex-shrink-0 bg-[#0B1620] text-white/90 border-r border-white/[0.06] flex flex-col h-full">
+        <aside className="w-56 flex-shrink-0 bg-[#0B1620] text-white/90 border-r border-white/[0.06] hidden md:flex flex-col h-full">
           {/* Brand */}
           <div className="px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
             <div className="flex items-start gap-2">
@@ -158,6 +176,32 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
           provider/context from the parent dashboard layout, no second
           provider; the Ask Jeff panel + hint popovers already surface above the
           shell via z-[60] / a body portal). */}
+      {/* Mobile bottom tab bar — the PWA nav (founder 2026-07-04). A flex
+          sibling below <main> in the mobile column layout, so content sits
+          above it with no overlap; hidden on desktop (the sidebar takes over). */}
+      <nav className="md:hidden flex-shrink-0 flex items-stretch justify-around bg-[#0B1620] border-t border-white/[0.08] pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))]">
+        {MOBILE_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const active =
+            pathname === tab.href ||
+            (tab.href !== "/dashboard/sales-coach" &&
+              pathname.startsWith(tab.href + "/"));
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium transition-colors ${
+                active ? "text-brand" : "text-white/50 hover:text-white/80"
+              }`}
+            >
+              <LinkProgress />
+              <Icon className="w-5 h-5" aria-hidden />
+              {tab.label}
+            </Link>
+          );
+        })}
+      </nav>
+
       <LearningModeFab />
     </div>
     </NavProgressProvider>

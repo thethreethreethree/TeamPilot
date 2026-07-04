@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Mic,
   Video,
@@ -11,6 +12,10 @@ import {
   Sparkles,
   Lightbulb,
   MessageSquare,
+  Star,
+  Bot,
+  Target,
+  Library,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import {
@@ -47,6 +52,8 @@ type Stats = {
 export default function SalesCoachHome() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
+  // The rep's name for the mobile "Welcome, [name]" header (PWA home).
+  const [name, setName] = useState<string | null>(null);
   const [context, setContext] = useState<"in_person" | "video">("video");
   const [clientLabel, setClientLabel] = useState("");
   // Phase 2 capture (optional) — WHERE / HOW / WHAT, entered up front.
@@ -58,19 +65,23 @@ export default function SalesCoachHome() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    // Only the coach-helped stat tiles remain on Home; the reliance trend,
-    // patterns, growth ops, pipeline counts + session list moved to Sessions
-    // (founder 2026-07-04). So Home fetches just the dashboard stats now.
+    // Home fetches the dashboard stats (desktop tiles + mobile PITCHES pill)
+    // and the rep's name (mobile Welcome header). The reliance trend, patterns,
+    // growth ops, pipeline counts + session list moved to Sessions (2026-07-04).
     try {
-      const dRes = await fetch(
-        "/api/coach/sales-session/dashboard"
-      ).catch(() => null);
+      const [dRes, idRes] = await Promise.all([
+        fetch("/api/coach/sales-session/dashboard").catch(() => null),
+        fetch("/api/me/identity").catch(() => null),
+      ]);
       if (dRes && dRes.ok) {
         const d = await dRes.json();
         setStats(d.stats ?? null);
       }
+      if (idRes && idRes.ok) {
+        setName((await idRes.json()).fullName ?? null);
+      }
     } catch {
-      /* stats stay null — the tiles show 0, an honest empty (§3.4) */
+      /* stats/name stay null — the tiles show 0, an honest empty (§3.4) */
     }
   }, []);
 
@@ -114,6 +125,124 @@ export default function SalesCoachHome() {
 
   return (
     <>
+      {/* ── Mobile PWA home — the 2×2 launchpad (founder 2026-07-04) ─────── */}
+      <div className="md:hidden flex-1 overflow-y-auto bg-base px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-4">
+        {/* Welcome */}
+        <div className="text-center pt-1 pb-5">
+          <h1 className="text-2xl font-bold text-brand inline-flex items-center gap-2">
+            Welcome
+            <Star className="w-5 h-5 fill-ember-400 text-ember-400" aria-hidden />
+          </h1>
+          <p className="text-2xl font-bold text-brand leading-tight">
+            {name ?? "back"}
+          </p>
+        </div>
+
+        {/* 2×2 feature grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <MobileCard
+            href="/dashboard/sales-coach/analytics"
+            icon={Mic}
+            title="Pitch Performance"
+            sub="Analyze recent calls & feedback"
+          />
+          <MobileCard
+            href="/dashboard/sales-coach/sessions"
+            icon={Bot}
+            title="Live AI Coach & Sessions"
+            sub="Join live or start AI-coached sessions."
+          />
+          <MobileCard
+            href="/dashboard/sales-coach/roleplay"
+            icon={Target}
+            title="Roleplay Practice"
+            sub="Build your skills with simulated pitches"
+          />
+          <MobileCard
+            href="/dashboard/sales-coach/strategy"
+            icon={Library}
+            title="Strategy Library"
+            sub="Find top-performing correct lines and sales strategies"
+          />
+        </div>
+
+        {/* Stat pills — Pitches is real; Roleplays is honestly 0 until Roleplay
+            Practice ships (§3.4). */}
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
+            <span className="text-[11px] uppercase tracking-widest text-muted font-bold">
+              Pitches
+            </span>
+            <span className="text-lg font-bold text-primary">
+              {stats?.sessionsTotal ?? 0}
+            </span>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
+            <span className="text-[11px] uppercase tracking-widest text-muted font-bold">
+              Roleplays
+            </span>
+            <span className="text-lg font-bold text-primary">0</span>
+          </div>
+        </div>
+
+        {/* Start CTA — reveals the existing capture form (a title is required
+            before a session can begin, § our rule). */}
+        <div className="mt-4">
+          {!showCapture ? (
+            <DeckButton
+              icon={<Mic className="w-4 h-4" aria-hidden />}
+              onClick={() => setShowCapture(true)}
+              className="w-full"
+            >
+              Start Next Pitch Session
+            </DeckButton>
+          ) : (
+            <div className="rounded-xl border border-ember-400/40 bg-white/[0.02] p-3 space-y-2.5">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setContext("video")}
+                  className={`flex-1 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
+                    context === "video"
+                      ? "border-ember-400/50 bg-ember-400/10 text-brand"
+                      : "border-default text-secondary"
+                  }`}
+                >
+                  Online video
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContext("in_person")}
+                  className={`flex-1 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
+                    context === "in_person"
+                      ? "border-ember-400/50 bg-ember-400/10 text-brand"
+                      : "border-default text-secondary"
+                  }`}
+                >
+                  In-person
+                </button>
+              </div>
+              <CaptureInput
+                value={clientLabel}
+                onChange={setClientLabel}
+                placeholder="Client / campaign (required)"
+              />
+              {error && <p className="text-[11px] text-amber-300">{error}</p>}
+              <DeckButton
+                pending={starting}
+                icon={<Mic className="w-4 h-4" aria-hidden />}
+                onClick={() => void start()}
+                className="w-full"
+              >
+                Start session
+              </DeckButton>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Desktop dashboard (unchanged) ───────────────────────────────── */}
+      <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0">
       <TopBar title="Sales Coach" subtitle="Your coaching, made visible" />
       <DeckShell>
         {/* §3.6 + §A18 reframe — this is a digital gym, not a scorecard. */}
@@ -319,7 +448,34 @@ export default function SalesCoachHome() {
         </div>
 
       </DeckShell>
+      </div>
     </>
+  );
+}
+
+/** A tappable feature card on the mobile PWA home (founder 2026-07-04). */
+function MobileCard({
+  href,
+  icon: Icon,
+  title,
+  sub,
+}: {
+  href: string;
+  icon: typeof Mic;
+  title: string;
+  sub: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-2xl border border-ember-400/40 bg-white/[0.02] shadow-[0_0_30px_-16px_rgba(250,204,21,0.5)] p-3.5 flex flex-col items-center justify-center text-center gap-2 aspect-[3/3.4] active:scale-[0.98] transition-transform"
+    >
+      <Icon className="w-9 h-9 text-brand" strokeWidth={1.5} aria-hidden />
+      <span className="text-sm font-bold text-primary leading-tight">
+        {title}
+      </span>
+      <span className="text-[10px] text-muted leading-snug">{sub}</span>
+    </Link>
   );
 }
 

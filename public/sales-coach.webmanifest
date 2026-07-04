@@ -1,0 +1,26 @@
+{
+  "name": "Sales Coach",
+  "short_name": "Sales Coach",
+  "description": "Live sales coaching and post-call growth reviews.",
+  "start_url": "/dashboard/sales-coach",
+  "scope": "/dashboard/sales-coach",
+  "display": "standalone",
+  "background_color": "#09090B",
+  "theme_color": "#FACC15",
+  "orientation": "portrait",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/sales-coach-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/sales-coach-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
