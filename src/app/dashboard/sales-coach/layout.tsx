@@ -16,7 +16,9 @@ export const metadata: Metadata = {
     title: "Sales Coach",
     statusBarStyle: "black-translucent",
   },
-  icons: { apple: "/sales-coach-icon.svg" },
+  // PNG apple-touch-icon — iOS reliably renders PNG for the home-screen icon
+  // (SVG support is version-dependent); audit F1. Rendered from the SVG.
+  icons: { apple: "/sales-coach-apple.png" },
 };
 
 /**

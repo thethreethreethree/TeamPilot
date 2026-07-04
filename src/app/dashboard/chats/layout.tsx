@@ -62,10 +62,10 @@ export const metadata: Metadata = {
     "apple-mobile-web-app-status-bar-style": "default",
     "apple-mobile-web-app-title": "Team Chat",
     // The apple-touch-icon meta tag tells iOS which icon to use when
-    // the user adds the page to their home screen. SVG works on iOS
-    // 16+; for broader compatibility we'd add PNG variants here, but
-    // SVG is sufficient for the modern iOS install path.
-    "apple-touch-icon": "/icon-team-chat.svg",
+    // the user adds the page to their home screen. Use PNG — iOS renders
+    // PNG reliably on every version, whereas SVG apple-touch-icon support
+    // is version-dependent (audit F1). Rendered from the SVG.
+    "apple-touch-icon": "/icon-team-chat-apple.png",
   },
 };
 
