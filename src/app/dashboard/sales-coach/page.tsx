@@ -16,6 +16,7 @@ import {
   Bot,
   Target,
   Library,
+  ArrowLeft,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import {
@@ -127,6 +128,21 @@ export default function SalesCoachHome() {
     <>
       {/* ── Mobile PWA home — the 2×2 launchpad (founder 2026-07-04) ─────── */}
       <div className="md:hidden flex-1 overflow-y-auto bg-base px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-4">
+        {/* Exit back to the main ELOSTATE app. The desktop sidebar carries
+            this at its footer, but that sidebar is hidden on mobile — so the
+            mobile user had no way out (audit F1). Home is a bottom-tab, so
+            surfacing it on the hub makes ELOSTATE reachable from any Sales
+            Coach page in ≤2 taps. Mirrors C.A.R.E's "Back to ELOSTATE"
+            (§1.5.1 layer-3 continuity; §A21 cross-product parity). */}
+        <div className="flex justify-start">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white/80 rounded-lg px-2 py-1 -ml-1 hover:bg-white/5 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
+            Back to ELOSTATE
+          </Link>
+        </div>
         {/* Welcome */}
         <div className="text-center pt-1 pb-5">
           <h1 className="text-2xl font-bold text-brand inline-flex items-center gap-2">
