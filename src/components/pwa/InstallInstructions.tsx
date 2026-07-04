@@ -15,6 +15,8 @@ import {
   MoreVertical,
   Smartphone,
   Download,
+  History,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -211,9 +213,11 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
             }
           >
             <div className="rounded-xl border border-ember-400/40 bg-black/40 divide-y divide-white/[0.06] overflow-hidden">
+              <MockRow icon={History} label="History" />
+              <MockRow icon={Star} label="Bookmarks" />
               <MockRow icon={Share} label="Share…" />
               <MockRow icon={Download} label="Install app" targeted />
-              <MockRow icon={PlusSquare} label="Add to Home screen" />
+              <MockRow icon={Plus} label="Add to Home screen" />
             </div>
           </Step>
 

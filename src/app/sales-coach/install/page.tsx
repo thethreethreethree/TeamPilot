@@ -20,7 +20,9 @@ export default function SalesCoachInstallPage() {
     <InstallInstructions
       app={{
         displayName: "ELOSTATE Sales Coach",
-        url: "elostate.com",
+        // Full path so iOS/Android capture the Sales Coach manifest (its icon +
+        // /dashboard/sales-coach start_url), not ELOSTATE's (founder 2026-07-05).
+        url: "elostate.com/dashboard/sales-coach",
         iconSrc: "/sales-coach-icon.svg",
         backHref: "/sales-coach/login",
         backLabel: "Back to sign in",
