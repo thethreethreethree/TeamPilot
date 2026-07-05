@@ -445,11 +445,14 @@ async function runAiFirstResponder(args: {
         .from("support_conversations")
         .update({ ai_responding: false })
         .eq("id", args.conversationId);
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          `[care] email AI loop breaker tripped conv=${args.conversationId} recentAiReplies=${recentAiReplies}`
-        );
-      }
+      // Always log — a tripped loop breaker means a customer just stopped
+      // getting AI replies; an operator must be able to see WHY in prod, not
+      // only in dev (§3.6 make-learning-visible). Fires once per conversation
+      // (we just flipped ai_responding off), so it can't spam. A structured
+      // §3.1 event is the follow-up; a greppable warn is the floor.
+      console.warn(
+        `[care] email AI loop breaker tripped conv=${args.conversationId} recentAiReplies=${recentAiReplies}`
+      );
       return;
     }
 
@@ -477,11 +480,14 @@ async function runAiFirstResponder(args: {
           .eq("author_type", "ai")
           .gte("created_at", senderSince);
         if ((senderAiReplies ?? 0) >= AI_SENDER_MAX) {
-          if (process.env.NODE_ENV !== "production") {
-            console.warn(
-              `[care] email AI sender-flood guard tripped customer=${args.customerId} senderAiReplies=${senderAiReplies}`
-            );
-          }
+          // Always log (§3.6) — a flood is a cost/abuse event operators need
+          // visible in prod. Unlike the loop breaker this doesn't flip a flag
+          // (it's cross-conversation), so it can recur as the window slides;
+          // that intermittence IS the signal of an ongoing flood. Sampling is
+          // the follow-up if a sustained flood ever makes this noisy.
+          console.warn(
+            `[care] email AI sender-flood guard tripped customer=${args.customerId} senderAiReplies=${senderAiReplies}`
+          );
           return;
         }
       }
