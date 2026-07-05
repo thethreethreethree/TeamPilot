@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runDissectBackfill } from "@/lib/coach/v5/dissectBackfill";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * POST /api/coach/sales-session/backfill-dissects
@@ -35,7 +36,20 @@ async function resolve() {
   };
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // Each call fans out up to BATCH (6) LLM dissect calls. Admin-gated below,
+  // but a double-fired "Generate missing" button or a client retry loop could
+  // still stack overlapping batches — cap per-user so it can't. 10/min lets an
+  // admin drain the queue at 60 dissects/min while blocking rapid-fire abuse
+  // (§A21 — parity with the 27 sibling coach LLM routes; §3.4 — don't spend on
+  // duplicate work a stuck button would trigger).
+  const limited = rateLimit(req, {
+    id: "coach-backfill-dissects",
+    windowMs: 60_000,
+    max: 10,
+  });
+  if (limited) return limited;
+
   const ctx = await resolve();
   if (!ctx.ok) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
