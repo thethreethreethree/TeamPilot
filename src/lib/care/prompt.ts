@@ -209,20 +209,52 @@ export function buildCareUserMessage(args: {
  * Heuristic for whether the AI's response indicates it wants to
  * hand off. The Care route uses this to flip ai_responding=false on
  * the conversation row so the next customer message doesn't trigger
- * another AI reply — the agent owns it now.
+ * another AI reply — the agent owns it now (§3.3 — the AI must
+ * actually cede the thread when it says it will).
  *
- * Pattern: the prompt instructs the AI to say "I'm going to bring
- * in a teammate" or equivalent when escalating. We check for the
- * essential signal phrases.
+ * This is a RECALL-oriented heuristic with a known ceiling: the prompt
+ * tells the AI to escalate "warmly" without prescribing exact words, so
+ * no fixed phrase list can catch every natural phrasing. The list below
+ * covers the common handoff vocabulary (teammate / colleague / specialist
+ * crossed with bring/get/connect/hand/loop/pull/escalate), INCLUDING the
+ * "pull(ing) in a teammate" wording this codebase's own fallback messages
+ * use — which the original 6-phrase list missed. Phrases are kept
+ * multi-word and handoff-specific so precision stays high (e.g. a bare
+ * "our team will" is deliberately NOT matched — "our team will keep
+ * improving" is not a handoff).
+ *
+ * The robust structural fix (deferred — it changes customer-visible
+ * output, so it needs founder sign-off): have the prompt end a handoff
+ * turn with a canonical sentinel the route strips before display, so the
+ * generator and detector are coupled instead of guessing. See §A16.
  */
+const HANDOFF_PHRASES = [
+  "bring in a teammate",
+  "bring in a colleague",
+  "bring in a specialist",
+  "pull in a teammate",
+  "pulling in a teammate",
+  "pull in a colleague",
+  "pulling in a colleague",
+  "get you to someone",
+  "get you to a teammate",
+  "get you to a colleague",
+  "connect you with",
+  "connect you to",
+  "hand you off",
+  "hand you over",
+  "hand this off",
+  "hand this over",
+  "loop in a human",
+  "loop in a teammate",
+  "loop in a colleague",
+  "escalate this to",
+  "escalate you to",
+  "someone from our team will",
+  "someone from the team will",
+] as const;
+
 export function detectHandoffSignal(aiResponse: string): boolean {
   const normalized = aiResponse.toLowerCase();
-  return (
-    normalized.includes("bring in a teammate") ||
-    normalized.includes("get you to someone") ||
-    normalized.includes("connect you with") ||
-    normalized.includes("hand you off") ||
-    normalized.includes("loop in a human") ||
-    normalized.includes("someone from our team will")
-  );
+  return HANDOFF_PHRASES.some((p) => normalized.includes(p));
 }
