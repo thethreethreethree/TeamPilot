@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import { DeckCard, SectionLabel, DeckPill } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -156,8 +157,16 @@ export default function SalesCoachStrategyPage() {
                       {data.booksGrounded
                         ? " The coach uses proven sales methodology in the meantime."
                         : ""}{" "}
-                      An admin can add your company&apos;s strategy in Sales
-                      Coach settings.
+                      An admin can add your company&apos;s strategy in{" "}
+                      <Link
+                        href="/dashboard/sales-coach/settings"
+                        className="text-brand hover:underline"
+                      >
+                        Sales Coach settings
+                      </Link>
+                      . {/* §1.5.1 L3 — link the fix, don't just name it. The
+                          settings page gates by manager role, so a rep who taps
+                          it lands on an honest access boundary, not a dead end. */}
                     </p>
                   )}
                 </DeckCard>
