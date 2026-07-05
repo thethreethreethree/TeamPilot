@@ -827,8 +827,12 @@ export function useLiveCoaching(sessionId: string) {
           const energy = acc.count > 0 ? acc.sum / acc.count : 0;
           utterEnergyRef.current = { sum: 0, count: 0 };
           // Close out the utterance's pitch too — clears the buffer every commit
-          // (matching the energy reset) so frames don't bleed across turns.
-          const pitch = pitchSepRef.current.labelTurn();
+          // (matching the energy reset) so frames don't bleed across turns. When
+          // the rep holds "I'm speaking" this turn is ground-truth agent, so the
+          // agent cluster is updated directly, never the nearest (audit F5).
+          const pitch = pitchSepRef.current.labelTurn(
+            agentSpeakingRef.current ? "agent" : undefined
+          );
           if (!text) return;
           const locked = agentSpeakingRef.current;
           // Accuracy measurement (§4/§3.6): when the rep has confirmed "I'm
@@ -863,12 +867,15 @@ export function useLiveCoaching(sessionId: string) {
           agentLevelRef.current = v.agentLevel;
           customerLevelRef.current = v.customerLevel;
           // Compose the provisional label (§A16): the manual toggle wins when
-          // locked; otherwise a CONFIDENT pitch cluster overrides the loudness
-          // guess (pitch separates better than proximity when the voices
-          // differ), and content attribution below still settles the final.
+          // locked; otherwise a confident pitch cluster overrides the loudness
+          // guess — but ONLY once the agent cluster is anchored (audit F2),
+          // because until then pitch's agent/customer assignment is unproven and
+          // could be inverted. Content attribution below still settles the final.
+          const pitchTrusted =
+            pitchSepRef.current.isAnchored() && pitch.confidence >= PITCH_TRUST;
           const provisional: TranscriptSpeaker = locked
             ? "agent"
-            : pitch.speaker && pitch.confidence >= PITCH_TRUST
+            : pitchTrusted && pitch.speaker
               ? pitch.speaker
               : v.speaker;
           const priorSpeaker =

@@ -75,4 +75,27 @@ describe("PitchSeparator", () => {
     expect(agentF0).not.toBeNull();
     expect(Math.abs(agentF0! - 130)).toBeLessThan(6);
   });
+
+  it("isAnchored flips only after the manual anchor is used (F2)", () => {
+    const sep = new PitchSeparator();
+    expect(sep.isAnchored()).toBe(false);
+    sep.pushFrame(detectF0(tone(130), SR), false);
+    expect(sep.isAnchored()).toBe(false);
+    sep.pushFrame(detectF0(tone(130), SR), true);
+    expect(sep.isAnchored()).toBe(true);
+  });
+
+  it("a ground-truth-agent turn never corrupts the customer cluster (F5)", () => {
+    const sep = new PitchSeparator();
+    runTurn(sep, 120); // agent cluster ~120
+    runTurn(sep, 220); // customer cluster ~220
+    const customerBefore = sep.centroids().customerF0!;
+    // A turn whose pitch (215) sits near the CUSTOMER band, but the rep held
+    // "I'm speaking" — nearest-assignment WOULD wrongly update customer; the
+    // ground-truth override must send it to the agent cluster instead.
+    for (let k = 0; k < 12; k++) sep.pushFrame(detectF0(tone(215), SR), false);
+    const lbl = sep.labelTurn("agent");
+    expect(lbl.speaker).toBe("agent");
+    expect(sep.centroids().customerF0).toBe(customerBefore); // untouched
+  });
 });

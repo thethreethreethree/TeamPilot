@@ -43,6 +43,11 @@ const CLARITY_GATE = 0.7;
 // MPM "first peak" acceptance relative to the max NSDF peak.
 const PEAK_K = 0.85;
 
+// Reused across frames so the real-time audio callback doesn't allocate an NSDF
+// buffer every frame (audit F3). Module-level is safe — JS is single-threaded,
+// and detectF0 only ever reads the [minLag..maxLag] slice it wrote this call.
+let nsdfScratch = new Float32Array(0);
+
 /**
  * Estimate the fundamental frequency (Hz) of a mono PCM frame, or null when
  * the frame is too quiet or has no clear periodicity (unvoiced).
@@ -64,8 +69,9 @@ export function detectF0(
   const minLag = Math.max(1, Math.floor(sampleRate / MAX_F0));
   if (maxLag <= minLag) return null;
 
-  // Normalized Square Difference Function (McLeod).
-  const nsdf = new Float32Array(maxLag + 1);
+  // Normalized Square Difference Function (McLeod). Reuse the scratch buffer.
+  if (nsdfScratch.length < maxLag + 1) nsdfScratch = new Float32Array(maxLag + 1);
+  const nsdf = nsdfScratch;
   for (let lag = minLag; lag <= maxLag; lag++) {
     let acf = 0;
     let m = 0;
@@ -141,11 +147,21 @@ export class PitchSeparator {
   private frameF0s: number[] = [];
   private agentCentroid: number | null = null;
   private customerCentroid: number | null = null;
+  // True once the manual "I'm speaking" anchor has grounded the agent cluster.
+  // Until then the cluster→speaker ASSIGNMENT is a guess (it could be inverted),
+  // so callers must not let pitch override loudness yet (audit F2).
+  private anchored = false;
 
   reset(): void {
     this.frameF0s = [];
     this.agentCentroid = null;
     this.customerCentroid = null;
+    this.anchored = false;
+  }
+
+  /** True once a ground-truth agent frame has anchored the agent cluster. */
+  isAnchored(): boolean {
+    return this.anchored;
   }
 
   /**
@@ -157,6 +173,7 @@ export class PitchSeparator {
     if (f0 == null) return;
     this.frameF0s.push(f0);
     if (isAgentAnchor) {
+      this.anchored = true;
       this.agentCentroid =
         this.agentCentroid == null
           ? f0
@@ -174,13 +191,36 @@ export class PitchSeparator {
    * cluster, and clear the per-utterance buffer. Confidence reflects how far
    * apart the two clusters are — low when they're near-identical (§3.4).
    */
-  labelTurn(): PitchLabel {
+  labelTurn(groundTruth?: PitchSpeaker): PitchLabel {
     const f0 = median(this.frameF0s);
     this.frameF0s = [];
     if (f0 == null) {
       return {
         speaker: null,
         confidence: 0,
+        agentF0: this.agentCentroid,
+        customerF0: this.customerCentroid,
+      };
+    }
+
+    // Ground-truth override (audit F5): when the rep held "I'm speaking", this
+    // turn IS the agent — assign + update the AGENT cluster, never the nearest,
+    // so a near-identical customer cluster can't be corrupted with agent pitch.
+    if (groundTruth) {
+      if (groundTruth === "agent") {
+        this.agentCentroid =
+          this.agentCentroid == null
+            ? f0
+            : this.agentCentroid * (1 - CENTROID_ALPHA) + f0 * CENTROID_ALPHA;
+      } else {
+        this.customerCentroid =
+          this.customerCentroid == null
+            ? f0
+            : this.customerCentroid * (1 - CENTROID_ALPHA) + f0 * CENTROID_ALPHA;
+      }
+      return {
+        speaker: groundTruth,
+        confidence: this.confidenceFor(),
         agentF0: this.agentCentroid,
         customerF0: this.customerCentroid,
       };
