@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentSalesCorpus,
   listAgentSessions,
 } from "@/lib/data/salesCoach";
 import { getSalesKnowledgeBase } from "@/lib/coach/v5/salesKnowledgeBase";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Sales Coach → Strategy Library (founder 2026-07-05, decision 2026-07-06).
@@ -35,7 +36,16 @@ type CorrectLine = {
   at: string;
 };
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Consistency with the sibling coach routes (audit F1, A13) — a cheap read,
+  // so a lenient cap.
+  const limited = rateLimit(req, {
+    id: "coach-strategy-library",
+    windowMs: 60_000,
+    max: 30,
+  });
+  if (limited) return limited;
+
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) {
@@ -64,10 +74,12 @@ export async function GET() {
     .select("payload, session_id, created_at")
     .eq("agent_id", auth.user.id)
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
 
-  // Session labels/outcomes for context, fetched once (avoid N+1).
-  const sessions = await listAgentSessions(auth.user.id, 100).catch(() => []);
+  // Session labels/outcomes for context, fetched once (avoid N+1). Window
+  // matched to the summaries query so a correct line's label isn't dropped
+  // for a rep with many sessions (audit F7).
+  const sessions = await listAgentSessions(auth.user.id, 200).catch(() => []);
   const bySession = new Map(sessions.map((s) => [s.id, s]));
 
   const seenSession = new Set<string>();

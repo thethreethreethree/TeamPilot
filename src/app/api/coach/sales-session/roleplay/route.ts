@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
 import { dissectCoachV5 } from "@/lib/claude";
 import { readBody } from "@/lib/api/validate";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Sales Coach → Roleplay Practice (founder 2026-07-05; text-first per the
@@ -130,6 +131,16 @@ function parseReview(text: string): RoleplayReview {
 }
 
 export async function POST(req: NextRequest) {
+  // Each turn + the review is an LLM call; cap per-user so a held Enter can't
+  // spin unbounded cost. Mirrors the 27 sibling coach routes (audit F1, A13).
+  // 30/min is far above a real typed conversation, so it only blocks abuse.
+  const limited = rateLimit(req, {
+    id: "coach-sales-roleplay",
+    windowMs: 60_000,
+    max: 30,
+  });
+  if (limited) return limited;
+
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 

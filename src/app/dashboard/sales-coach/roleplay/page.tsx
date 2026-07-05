@@ -44,6 +44,8 @@ const PERSONAS: { label: string; hint: string }[] = [
   { label: "Friendly but non-committal", hint: "Pleasant, won't commit" },
 ];
 
+const STORAGE_KEY = "sc-roleplay-inprogress";
+
 export default function SalesCoachRoleplayPage() {
   const [phase, setPhase] = useState<Phase>("setup");
   const [context, setContext] = useState<"in_person" | "video">("in_person");
@@ -66,7 +68,52 @@ export default function SalesCoachRoleplayPage() {
     });
   }, [messages, sending]);
 
+  // In-progress recovery (audit F2, AMD-006 L3): keep the live conversation in
+  // sessionStorage so an accidental bottom-tab tap or a reload doesn't destroy
+  // the practice. This is transient session recovery, NOT a stored history —
+  // it's cleared when the roleplay ends or restarts, so it stays consistent
+  // with the deliberate "ephemeral, not persisted" design.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw) as {
+        context?: "in_person" | "video";
+        persona?: string;
+        custom?: string;
+        messages?: Msg[];
+      };
+      if (Array.isArray(s.messages) && s.messages.length > 0) {
+        if (s.context) setContext(s.context);
+        if (s.persona) setPersona(s.persona);
+        if (typeof s.custom === "string") setCustom(s.custom);
+        setMessages(s.messages);
+        setPhase("chat");
+      }
+    } catch {
+      /* ignore — recovery is best-effort */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (phase === "chat" && messages.length > 0) {
+        sessionStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ context, persona, custom, messages })
+        );
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [phase, messages, context, persona, custom]);
+
   const start = () => {
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
     setMessages([]);
     setReview(null);
     setError(null);
@@ -119,6 +166,12 @@ export default function SalesCoachRoleplayPage() {
       const { review: rev } = await post("review", messages);
       setReview(rev as Review);
       setPhase("review");
+      // Roleplay is done — drop the in-progress recovery copy.
+      try {
+        sessionStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -316,6 +369,13 @@ export default function SalesCoachRoleplayPage() {
         {phase === "review" && review && (
           <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-2xl mx-auto w-full space-y-4">
             <SectionLabel icon={Sparkles}>Practice review</SectionLabel>
+            {/* F4 (A21): honestly mark this as the lighter practice review —
+                a roleplay has no diarized/timed call, so it can't produce the
+                real After Pitch timeline + scores. */}
+            <p className="text-[11px] text-muted -mt-1.5">
+              A quick practice read. Your real calls get the full timeline and
+              score in the After Pitch Summary.
+            </p>
 
             {review.summary ? (
               <DeckCard className="p-4">
