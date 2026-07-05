@@ -1,0 +1,7 @@
+ACTIVE
+================================================================================
+LUDUZO autonomous build — HARD MODE (A23)
+  • ACTIVE → agent may NOT stop (every stop blocked).
+  • STOP   → founder's command; agent may stop. (HALT/STAND DOWN/END/DONE/CEASE too.)
+TO STOP: change first line ACTIVE → STOP, or delete this file. Nothing else stops it.
+================================================================================
