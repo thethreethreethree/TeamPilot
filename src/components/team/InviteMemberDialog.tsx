@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * InviteMemberDialog — shared invite modal mounted in-place wherever
@@ -121,28 +122,46 @@ export function InviteMemberDialog({
     <Modal open={open} onClose={close} title="Invite member" size="md">
       {!inviteUrl ? (
         <div className="space-y-3" aria-busy={submitting}>
-          <Field label="Email" required>
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              autoComplete="email"
-              placeholder="teammate@company.com"
-              autoFocus
-            />
-          </Field>
-          <Field label="Role">
-            <Select
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <LearningHint
+            as="block"
+            category="Team · Invite"
+            title="Invitee email"
+            whatItIs="The email address of the teammate you're inviting — it identifies who the invitation belongs to and pre-fills the 'Send by email' option later."
+            why="The invite is tied to a specific person, not an open link anyone can claim. It also stops you re-inviting someone who's already a member, so you don't create duplicate seats."
+            how="Enter their work email and create the invitation. You'll then get a link to send them — the System doesn't auto-email, so delivery is your choice."
+            principle="An invitation addressed to a person is safer than a link anyone can pick up.">
+            <Field label="Email" required>
+              <Input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                autoComplete="email"
+                placeholder="teammate@company.com"
+                autoFocus
+              />
+            </Field>
+          </LearningHint>
+          <LearningHint
+            as="block"
+            category="Team · Invite"
+            title="Role"
+            whatItIs="The role this person will hold when they accept — CEO, COO, Lead, or Member. It sets their baseline access across the platform."
+            why="Roles decide what a teammate can see and do. Setting it at invite time means they land with the right access from their first login, instead of joining under-permissioned and waiting on a fix."
+            how="Pick the role that matches how they'll actually work with the team. It can be changed later by an admin if their responsibilities shift."
+            principle="Set access at the door, so no one starts locked out of their own work.">
+            <Field label="Role">
+              <Select
+                value={role}
+                onChange={(e) => setRole(e.target.value as Role)}
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </LearningHint>
           {error && (
             <p className="text-xs text-red-400" role="alert">
               {error}
@@ -161,15 +180,24 @@ export function InviteMemberDialog({
             >
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={submitting}
-              className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
-            >
-              {submitting ? "Creating…" : "Create invitation"}
-              {!submitting && <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />}
-            </button>
+            <LearningHint
+              as="inline-block"
+              category="Team · Invite"
+              title="Create invitation"
+              whatItIs="Generates a unique, expiring invite code for this email and role, then hands you a link to deliver."
+              why="Creating and delivering are kept separate on purpose: the System is honest that it doesn't send email itself. It gives you a real, deliverable link rather than pretending a message went out."
+              how="Click to create. The dialog then shows a 'Send by email' shortcut and a 'Copy link' option — pick whichever delivery path suits you."
+              principle="Don't claim to send what you can only hand over — honesty about capability beats a fake confirmation.">
+              <button
+                type="button"
+                onClick={submit}
+                disabled={submitting}
+                className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
+              >
+                {submitting ? "Creating…" : "Create invitation"}
+                {!submitting && <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />}
+              </button>
+            </LearningHint>
           </div>
         </div>
       ) : (
@@ -181,23 +209,41 @@ export function InviteMemberDialog({
               delivery path:
             </p>
             <div className="flex items-center gap-2 flex-wrap">
-              <a
-                href={mailto}
-                className="flex items-center gap-1.5 text-xs bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-2 rounded-lg transition-colors"
-                title="Open in your mail client"
-              >
-                <Send className="w-3 h-3" aria-hidden />
-                Send by email
-              </a>
-              <button
-                type="button"
-                onClick={copy}
-                className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-2.5 py-2 rounded-lg transition-colors"
-                title="Copy invite link to clipboard"
-              >
-                <Copy className="w-3 h-3" aria-hidden />
-                {copied ? "Copied" : "Copy link"}
-              </button>
+              <LearningHint
+                as="inline-block"
+                category="Team · Invite"
+                title="Send by email"
+                whatItIs="Opens your own mail app with the invitee's address, a subject, and the invite link already filled in."
+                why="It uses your existing mail client rather than a server-side sender, so the message comes from your real address — more likely to be trusted and less likely to be filtered as spam than an automated system email."
+                how="Click to open the draft, then send it yourself. If your machine has no mail handler set, use 'Copy link' instead."
+                principle="Deliver from a real, trusted sender rather than a faceless automated one.">
+                <a
+                  href={mailto}
+                  className="flex items-center gap-1.5 text-xs bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-2 rounded-lg transition-colors"
+                  title="Open in your mail client"
+                >
+                  <Send className="w-3 h-3" aria-hidden />
+                  Send by email
+                </a>
+              </LearningHint>
+              <LearningHint
+                as="inline-block"
+                category="Team · Invite"
+                title="Copy link"
+                whatItIs="Copies the raw invite URL to your clipboard so you can deliver it however you like — Slack, DM, text, anywhere."
+                why="Not every channel is email. This is the universal fallback: it works when there's no mail handler, and it lets you reach people where they actually respond fastest."
+                how="Click to copy — the button confirms with 'Copied'. Paste it into whatever channel the person watches most."
+                principle="Give the invite a delivery path that works even when the obvious one doesn't.">
+                <button
+                  type="button"
+                  onClick={copy}
+                  className="flex items-center gap-1.5 text-xs text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-2.5 py-2 rounded-lg transition-colors"
+                  title="Copy invite link to clipboard"
+                >
+                  <Copy className="w-3 h-3" aria-hidden />
+                  {copied ? "Copied" : "Copy link"}
+                </button>
+              </LearningHint>
             </div>
             <div className="mt-3 flex items-center gap-2">
               <Mail className="w-3 h-3 text-muted flex-shrink-0" aria-hidden />

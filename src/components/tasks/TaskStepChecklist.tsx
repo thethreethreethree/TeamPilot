@@ -23,6 +23,7 @@ import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * TaskStepChecklist — Pillar 2 (Accountability) + Pillar 3 (Guidance)
@@ -202,6 +203,15 @@ export function TaskStepChecklist({
       </div>
 
       {totalCount > 0 && (
+        <LearningHint
+          as="block"
+          category="Tasks · Steps"
+          title="Momentum, not a grade"
+          whatItIs="A bar and count showing how many steps you've completed out of the total on this task."
+          why="It's deliberately framed as momentum, never a rating. A completion count tells you where the work stands; it does not judge your pace or rank you. The moment a count becomes a verdict, people start gaming it instead of doing the work."
+          how="Read it as a progress signal. If it stalls, that's a cue to open the Coach on the step that's stuck — not a mark against you."
+          principle="Measure progress to move it, not to score it."
+        >
         <div
           className="h-1.5 rounded-full bg-surface overflow-hidden"
           role="progressbar"
@@ -215,6 +225,7 @@ export function TaskStepChecklist({
             style={{ width: `${pct}%` }}
           />
         </div>
+        </LearningHint>
       )}
 
       {/* Empty state — A7-compliant: an offered next step, not a
@@ -226,6 +237,15 @@ export function TaskStepChecklist({
           tasks, name the first concrete action below.
         </div>
       ) : (
+        <LearningHint
+          as="block"
+          category="Tasks · Steps"
+          title="Steps"
+          whatItIs="Each concrete action for this task as its own checkable row — toggle it done, edit the wording, delete it while incomplete, or open the Coach on it."
+          why="Breaking work into named actions is what turns an intention into progress. Checking a step records who did it and when on the permanent event chain, so the history stays intact and honest — completed steps can't be quietly deleted."
+          how="Check a step as you finish it. Open the Coach on any step to think it through in the task's full context. Add the next action at the bottom."
+          principle="A vague task stalls; a task broken into steps moves."
+        >
         <ol className="space-y-2">
           {steps.map((step) => {
             const done = step.completedAt !== null;
@@ -337,12 +357,22 @@ export function TaskStepChecklist({
             );
           })}
         </ol>
+        </LearningHint>
       )}
 
       {/* Add-step composer. Plain textarea; pressing Enter (no
           shift) commits. The Coach can open on the saved step right
           after — keeping a Coach mounted on a draft would A11-leak
           ("Coach said no" before the step exists). */}
+      <LearningHint
+        as="block"
+        category="Tasks · Steps"
+        title="Add a step"
+        whatItIs="A box to name the next concrete action and add it to the list."
+        why="The work only advances if the next action is named. An empty step list is where momentum quietly dies — this is how you keep feeding it the next move."
+        how="Type the next concrete action and press Enter (or Add). Keep each one small and doable."
+        principle="Always know — and name — the next concrete action."
+      >
       <div className="flex items-start gap-2 border-t border-default pt-3">
         <Plus className="w-3.5 h-3.5 text-muted mt-2 shrink-0" aria-hidden />
         <textarea
@@ -367,6 +397,7 @@ export function TaskStepChecklist({
           {adding ? "Adding…" : "Add"}
         </button>
       </div>
+      </LearningHint>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Lock, ShieldCheck } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Field, Textarea } from "@/components/ui/Field";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { closeTopic, type ChatTopic } from "@/lib/data/chats";
 import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
@@ -95,6 +96,15 @@ export function CloseTopicModal({
               </div>
             </>
           )}
+          <LearningHint
+            as="block"
+            category="Chat · Close topic"
+            title="The close summary"
+            whatItIs="A written record of what was actually decided — the argument for the resolution. The 20-character minimum is enforced on purpose."
+            why="A topic closed without a reason leaves a measurement hole: later you can't judge 'held vs reopened' against anything. The summary is the load-bearing claim the team measures the outcome against, so it can't be skipped."
+            how="Write plainly what the call was and why. Enough that someone rereading it in a month knows exactly what was concluded."
+            principle="A decision without a written reason isn't a resolution — it's a guess you can't check later."
+          >
           <Textarea
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
@@ -102,6 +112,7 @@ export function CloseTopicModal({
             placeholder="Plain language. What was actually concluded? What was the call?"
             autoFocus
           />
+          </LearningHint>
           <div className="flex items-center justify-end mt-1">
             <p
               className={`text-[10px] tabular-nums ${
@@ -121,6 +132,15 @@ export function CloseTopicModal({
           >
             Cancel
           </button>
+          <LearningHint
+            as="inline-block"
+            category="Chat · Close topic"
+            title="Close the topic"
+            whatItIs="Marks the topic resolved and writes a permanent resolution record. If the topic is linked to a problem, this also marks that problem resolved."
+            why="Closing records an action, not yet a consequence — the outcome (held vs reopened) gets reviewed later. History stays intact, so the System can draw on this resolution for similar topics."
+            how="Write a summary of at least 20 characters, then close. The button stays locked until the summary is substantive enough to be worth recording."
+            principle="Close on a clear reason, and the review that follows has something honest to measure."
+          >
           <button
             type="button"
             onClick={submit}
@@ -130,6 +150,7 @@ export function CloseTopicModal({
             <Lock className="w-3.5 h-3.5" aria-hidden="true" />
             {submitting ? "Closing…" : "Close topic"}
           </button>
+          </LearningHint>
         </div>
       </div>
     </Modal>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BookOpen, Loader2, MessageCircle, Send } from "lucide-react";
 import Modal from "@/components/ui/Modal";
+import { LearningHint } from "@/components/learning/LearningHint";
 import type {
   CoachAnalysisRequest,
   CoachAnalysisResponse,
@@ -199,6 +200,15 @@ export function ReviewSentMessageModal({
         {/* The sent message — pinned at the top so the user knows what
             the Coach is reading. Quoted treatment to signal "this is
             what you wrote." */}
+        <LearningHint
+          as="block"
+          category="Chat · Coach Review"
+          title="The message Coach is reading"
+          whatItIs="The message you already sent, pinned here so you can see exactly what Coach is reviewing — read in the context of whatever came after it."
+          why="You can't rewrite a sent message, and that's the point. Retrospective review is where the durable lesson lives — the growth contract Coach exists to serve, without any pressure to have gotten it right."
+          how="Reread it as your reader received it, then take in what Coach noticed. This is reflection, not correction."
+          principle="The message is gone; the lesson isn't. Review is where sent words become next time's skill."
+        >
         <div className="rounded-lg bg-surface border border-default p-3">
           <p className="text-[10px] uppercase tracking-widest font-mono text-muted mb-1">
             What you sent
@@ -207,6 +217,7 @@ export function ReviewSentMessageModal({
             &ldquo;{sentMessage}&rdquo;
           </p>
         </div>
+        </LearningHint>
 
         {state.kind === "loading" && (
           <div className="flex items-center gap-2 text-[11px] text-muted uppercase tracking-widest font-mono">
@@ -242,6 +253,15 @@ export function ReviewSentMessageModal({
                   </p>
                 </div>
 
+                <LearningHint
+                  as="block"
+                  category="Chat · Coach Review"
+                  title="What to try next time"
+                  whatItIs="A version Coach would have suggested, with the reason it reads better and the principle behind it — offered as a lesson, not a rewrite, since the message is already out."
+                  why="There's no accept button here on purpose. The value isn't fixing this message; it's carrying the pattern into the next one. Teaching, not undo."
+                  how="Compare it against what you sent and notice the specific move that changed. Ask a follow-up if the reasoning isn't clear yet."
+                  principle="You improve on the next message, not the last one."
+                >
                 <div className="rounded-lg bg-surface border border-default p-2.5 space-y-2">
                   <p className="text-[10px] uppercase tracking-widest font-mono text-brand">
                     Next time you might try
@@ -264,6 +284,7 @@ export function ReviewSentMessageModal({
                     )}
                   </p>
                 </div>
+                </LearningHint>
               </>
             )}
 
@@ -296,6 +317,15 @@ export function ReviewSentMessageModal({
             )}
 
             {!state.followingUp && state.latestStarters.length > 0 && (
+              <LearningHint
+                as="block"
+                category="Chat · Coach Review"
+                title="Ask Coach a follow-up"
+                whatItIs="Suggested questions about this review — tap one to explore the lesson further. They refresh as the conversation goes."
+                why="A retrospective is only worth as much as what you take from it. These make it cheap to dig into the 'why' instead of nodding and moving on."
+                how="Tap a suggestion or type your own below. Coach stays anchored to the message you're reviewing."
+                principle="Reflection compounds only when you interrogate it."
+              >
               <div className="pt-2 border-t border-ember-400/15">
                 <p className="text-[10px] uppercase tracking-widest font-mono text-muted mb-1.5">
                   {state.turns.length === 0 ? "You could ask me" : "Or ask"}
@@ -313,12 +343,23 @@ export function ReviewSentMessageModal({
                   ))}
                 </div>
               </div>
+              </LearningHint>
             )}
 
+            <LearningHint
+              as="block"
+              category="Chat · Coach Review"
+              title="Ask about this message"
+              whatItIs="A free-form input to ask Coach anything about the message you sent and how it landed."
+              why="Your real question about a past message is usually more specific than any canned prompt. Asking it is how the review becomes yours."
+              how="Type and press Enter (Shift+Enter for a newline). Coach answers in the thread above."
+              principle="The honest question after the fact is where the growth is."
+            >
             <ReviewInput
               disabled={state.followingUp}
               onSend={(q) => void sendFollowUp(q)}
             />
+            </LearningHint>
           </>
         )}
 

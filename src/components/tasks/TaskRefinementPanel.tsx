@@ -9,6 +9,7 @@ import type {
   SpawnContextPayload,
   SpawnedTaskDraft,
 } from "@/lib/taskSpawn/types";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * TaskRefinementPanel — shared review surface for the Task Spawn
@@ -191,6 +192,15 @@ export default function TaskRefinementPanel({
             <label className="block text-xs font-semibold uppercase tracking-wide text-muted mb-1">
               Title
             </label>
+            <LearningHint
+              as="block"
+              category="Tasks · Spawn"
+              title="Task title"
+              whatItIs="The one-line name of the task the engine drafted from your context — editable before you save."
+              why="The title is how this task will be recognized in every list from now on. The engine's guess is a starting point; you know the framing your team will actually understand."
+              how="Tighten it to something specific and recognizable. You're the one who commits — nothing saves until you say so."
+              principle="Name the work the way the people doing it will recognize it."
+            >
             <input
               type="text"
               value={draft.title}
@@ -200,12 +210,22 @@ export default function TaskRefinementPanel({
               maxLength={400}
               className="w-full rounded-md bg-black/30 border border-white/10 px-3 py-2 text-base md:text-sm text-primary focus:outline-none focus:border-white/30"
             />
+            </LearningHint>
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-muted mb-1">
               Description
             </label>
+            <LearningHint
+              as="block"
+              category="Tasks · Spawn"
+              title="Description"
+              whatItIs="The fuller explanation of the task, drafted from your context and open for you to edit."
+              why="The engine only sees what you fed it. This is where you graft in what it couldn't know — the people, the deadline, the internal constraint — before the task lands."
+              how="Add the context the draft is missing. The engine guides; you decide what's true."
+              principle="The machine drafts from what it saw; you complete it from what you know."
+            >
             <textarea
               value={draft.description}
               onChange={(e) =>
@@ -215,6 +235,7 @@ export default function TaskRefinementPanel({
               rows={4}
               className="w-full rounded-md bg-black/30 border border-white/10 px-3 py-2 text-base md:text-sm text-primary focus:outline-none focus:border-white/30 resize-y"
             />
+            </LearningHint>
           </div>
 
           <div>
@@ -222,6 +243,15 @@ export default function TaskRefinementPanel({
               <ListChecks className="w-3.5 h-3.5" />
               Steps
             </label>
+            <LearningHint
+              as="block"
+              category="Tasks · Spawn"
+              title="Steps"
+              whatItIs="The concrete actions the engine broke the task into — each editable, removable, and you can add your own."
+              why="A task without steps is just a wish. These are the drafted first moves; refining them now means the task arrives ready to work, not needing to be figured out later."
+              how="Edit any step, remove ones that don't fit, or add the action the engine missed. Order them the way the work actually happens."
+              principle="A plan you can start is worth more than a plan that's merely correct."
+            >
             <ol className="space-y-2">
               {draft.steps.map((step, idx) => (
                 <li key={idx} className="flex items-start gap-2">
@@ -264,6 +294,7 @@ export default function TaskRefinementPanel({
                 + add step
               </button>
             )}
+            </LearningHint>
           </div>
 
           <div className="border-t border-white/10 pt-4">
@@ -276,6 +307,15 @@ export default function TaskRefinementPanel({
               technical review, not the rollout&rdquo; or &ldquo;cut the
               communication step, the team already knows&rdquo;.
             </p>
+            <LearningHint
+              as="block"
+              category="Tasks · Spawn"
+              title="Adjust the draft"
+              whatItIs="A natural-language box to tell the engine what to change, then re-draft the whole task from your instruction."
+              why="Editing each field by hand is slow when the framing itself is off. This lets you redirect the whole draft in a sentence — 'focus it on the technical review, not the rollout' — and let the engine rework it."
+              how="Describe what should change, then Refine. Keep iterating until the draft fits; it never saves on its own."
+              principle="Steer the whole draft with intent, not just the words one field at a time."
+            >
             <textarea
               value={adjustmentPrompt}
               onChange={(e) => setAdjustmentPrompt(e.target.value)}
@@ -284,6 +324,7 @@ export default function TaskRefinementPanel({
               placeholder="What should change in the next revision?"
               className="w-full rounded-md bg-black/30 border border-white/10 px-3 py-2 text-base md:text-sm text-primary focus:outline-none focus:border-white/30 resize-y"
             />
+            </LearningHint>
             <button
               type="button"
               onClick={() => void generate({ withAdjustment: true })}
@@ -310,6 +351,15 @@ export default function TaskRefinementPanel({
             >
               Cancel
             </button>
+            <LearningHint
+              as="inline-block"
+              category="Tasks · Spawn"
+              title="Save task"
+              whatItIs="Commits the draft as a real task, linked back to the decision or messages it came from."
+              why="Nothing here is saved until you press this — you're always the one who commits (the engine never auto-saves). Saving keeps the source chain intact, so the task remembers where it came from."
+              how="Save once the title and steps read right. You'll land back where you were, task created."
+              principle="The human commits the work — the engine only ever proposes."
+            >
             <button
               type="button"
               onClick={() => void save()}
@@ -324,6 +374,7 @@ export default function TaskRefinementPanel({
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Save task
             </button>
+            </LearningHint>
           </div>
         </div>
       )}

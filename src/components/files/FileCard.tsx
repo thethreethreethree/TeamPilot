@@ -9,6 +9,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Asset System v1 — compact file card.
@@ -152,6 +153,15 @@ export function FileCard({
           {file.uploaderName ?? "Unknown"} ·{" "}
           {new Date(file.createdAt).toLocaleDateString()}
         </div>
+        <LearningHint
+          as="inline-block"
+          category="Files · File actions"
+          title="File actions"
+          whatItIs="Per-file controls: open/download, edit classification, and delete. The card above shows the file's lane, size, access, and its department, task, and tag chips at a glance."
+          why="Editing classification after the fact is how a casual file gets promoted to a real asset, and how a mis-filed one gets corrected — the gate isn't a one-shot at upload. Delete is a soft-delete; the record is preserved for the event history."
+          how="Download to open, the pencil to reclassify, the trash to deprecate. Reclassify anything that landed casual but turned out worth keeping."
+          principle="Classification is editable — a file's asset value can be recognized late."
+        >
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -185,6 +195,7 @@ export function FileCard({
             </button>
           )}
         </div>
+        </LearningHint>
       </div>
     </div>
   );

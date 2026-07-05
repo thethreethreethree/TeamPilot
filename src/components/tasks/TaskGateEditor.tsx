@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Pencil, Save, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * TaskGateEditor — persistent, always-editable Understanding-Gate
@@ -135,6 +136,15 @@ export function TaskGateEditor({
           )}
         </div>
         {!editing ? (
+          <LearningHint
+            as="inline-block"
+            category="Tasks · Gate"
+            title="Edit the gate"
+            whatItIs="Opens the Understanding-Gate answers for editing. Every edit is timestamped on the record."
+            why="Understanding isn't fixed — as the work reveals itself, the gate should be updated to match. The 'last edited' stamp is a fact, not a judgment: it tells you when your understanding last moved, never that you edit too often."
+            how="Open it when your read of the task changes. Keep the gate honest to what you now know, not to what you first assumed."
+            principle="Understanding is allowed to change — pretending it didn't is the danger."
+          >
           <button
             type="button"
             onClick={() => setEditing(true)}
@@ -143,6 +153,7 @@ export function TaskGateEditor({
             <Pencil className="w-3 h-3" aria-hidden />
             Edit
           </button>
+          </LearningHint>
         ) : (
           <div className="flex items-center gap-1">
             <button
@@ -154,6 +165,15 @@ export function TaskGateEditor({
               <X className="w-3 h-3" aria-hidden />
               Cancel
             </button>
+            <LearningHint
+              as="inline-block"
+              category="Tasks · Gate"
+              title="Save the gate"
+              whatItIs="Persists your edited gate answers and stamps the change on the permanent event chain."
+              why="The save is what puts the updated understanding on the record — including when it changed. Real-mode requires all three fields, because a partial structured gate claims a completeness it doesn't have."
+              how="Save once the answers are honestly filled. The 'what' is always required; real-mode also needs resources and roles."
+              principle="An understanding worth having is worth putting on the record."
+            >
             <button
               type="button"
               onClick={() => void save()}
@@ -167,11 +187,21 @@ export function TaskGateEditor({
               )}
               Save
             </button>
+            </LearningHint>
           </div>
         )}
       </div>
 
       {editing ? (
+        <LearningHint
+          as="block"
+          category="Tasks · Gate"
+          title="Fill the gate honestly"
+          whatItIs="The editable answers to the Understanding Gate — 'what we're accomplishing' is always required; real-mode also asks for resources and roles."
+          why="The first answer carries the whole task; that's why it's required. A gate filled with a placeholder is worse than an empty one — it looks like understanding without being it. Answering plainly is what makes the rest of the work aimable."
+          how="Write what's actually true, not what sounds complete. If you can't name the outcome, that's the real problem to solve first."
+          principle="A gate you fake is a misdiagnosis you'll pay for later."
+        >
         <div className="space-y-2 text-xs">
           <Field
             label="What we're accomplishing"
@@ -196,7 +226,17 @@ export function TaskGateEditor({
             </>
           )}
         </div>
+        </LearningHint>
       ) : (
+        <LearningHint
+          as="block"
+          category="Tasks · Gate"
+          title="Understanding (gate answers)"
+          whatItIs="The task's core understanding on the record: what it's accomplishing, and in real-mode, the resources and roles."
+          why="This is the Understanding Gate — the task's answer to 'do we actually know what we're doing here?' Work that starts without it tends to be confident and wrong. Naming the understanding first is what keeps the doing aimed at the right target."
+          how="Read these before you act on the task. If any feels vague or stale, edit it — a fuzzy gate is a signal worth chasing."
+          principle="Understanding precedes solving — name it before you build."
+        >
         <div className="space-y-2 text-xs">
           <ReadRow label="What we're accomplishing" value={gateWhat} />
           {gateMode === "real" && (
@@ -209,6 +249,7 @@ export function TaskGateEditor({
             </>
           )}
         </div>
+        </LearningHint>
       )}
     </div>
   );

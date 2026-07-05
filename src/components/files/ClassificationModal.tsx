@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import { Loader2, Tag, X } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Asset System v1 — the classification gate UI.
@@ -377,6 +378,15 @@ export function ClassificationModal({
           </div>
         )}
 
+        <LearningHint
+          as="block"
+          category="Files · Classification"
+          title="Short description"
+          whatItIs="A 3-5 line summary of what this file is. One of the three fields the Understanding Gate requires before a file becomes a classified team asset."
+          why="A file named 'final_v2.pdf' with no description is unfindable in two weeks — even by the person who uploaded it. The description is what makes a file answerable to a search, not just stored."
+          how="Write what the file is about and when someone would need it. Skip it and the file falls to the casual lane and counts against your 3/day cap."
+          principle="A file nobody can describe is a file nobody will find."
+        >
         <div>
           <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">
             Short description
@@ -392,7 +402,17 @@ export function ClassificationModal({
             {description.length}/500 · Required for classified lane.
           </p>
         </div>
+        </LearningHint>
 
+        <LearningHint
+          as="block"
+          category="Files · Classification"
+          title="Departments"
+          whatItIs="Which department(s) this file belongs to. One of the three gate fields; at least one is required for the classified lane. You can create a new department inline without leaving this modal."
+          why="Department is the top level of the auto-folder tree — with no department the file has no home and can't be browsed to, only stumbled on. Inline creation exists so a no-departments user isn't dead-ended at the casual cap."
+          how="Tap the departments this file serves. None fit? Type a name and Create — it's selected automatically."
+          principle="The classification fields ARE the folders. No department means no folder."
+        >
         <div>
           <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">
             Departments {departmentIds.length === 0 && <span className="text-red-300/60">(at least 1 for classified)</span>}
@@ -450,7 +470,17 @@ export function ClassificationModal({
             <p className="text-[11px] text-red-300 mt-1">{deptError}</p>
           )}
         </div>
+        </LearningHint>
 
+        <LearningHint
+          as="block"
+          category="Files · Classification"
+          title="Related tasks"
+          whatItIs="The task(s) this file supports. The second gate field and the second level of the folder tree, nested under each department."
+          why="Linking a file to its task is what lets the file resurface exactly when that work reopens — instead of being re-hunted or re-made from scratch. A file tied to nothing is an orphan."
+          how="Select every task this file feeds. At least one is needed for the classified lane."
+          principle="A file linked to its work answers a question before it's asked."
+        >
         <div>
           <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">
             Related tasks {taskIds.length === 0 && <span className="text-red-300/60">(at least 1 for classified)</span>}
@@ -476,7 +506,17 @@ export function ClassificationModal({
             </div>
           )}
         </div>
+        </LearningHint>
 
+        <LearningHint
+          as="block"
+          category="Files · Classification"
+          title="Tags"
+          whatItIs="Free-text keywords for retrieval — lowercased, up to 40 chars each. Optional; tags don't affect which lane the file lands in."
+          why="Departments and tasks are structural; tags catch the cross-cutting terms people actually search by ('invoice', 'q3', 'onboarding') that don't map to a single department or task."
+          how="Type a word and press Enter or comma. Add the terms a teammate would type into search months from now."
+          principle="Tag for the search you'll run later, not the file you see now."
+        >
         <div>
           <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">
             Tags (chips)
@@ -515,7 +555,17 @@ export function ClassificationModal({
             className="w-full bg-surface border border-default rounded-md px-3 py-1.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
           />
         </div>
+        </LearningHint>
 
+        <LearningHint
+          as="block"
+          category="Files · Access"
+          title="Who can see this file"
+          whatItIs="The visibility scope: everyone, admins, CEO + admins, or specific people. You (the uploader) always retain access to your own file."
+          why="Default-everyone keeps assets shared and discoverable; restricting is a deliberate exception for sensitive files. Over-restricting quietly rebuilds the file silos this library exists to dissolve."
+          how="Leave it on Everyone unless the content is genuinely sensitive. 'Specific people' can be configured right after upload from the file's edit action."
+          principle="Restrict by exception, not by default — a hidden asset teaches no one."
+        >
         <div>
           <label className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1 block">
             Who can see this file?
@@ -573,6 +623,7 @@ export function ClassificationModal({
             </div>
           )}
         </div>
+        </LearningHint>
 
         {error && (
           <div className="text-xs text-red-300 bg-red-500/[0.06] border border-red-500/30 rounded-md px-3 py-2">

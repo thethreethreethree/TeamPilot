@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
+import { LearningHint } from "@/components/learning/LearningHint";
 import type { ChatTopic, DurabilityReview } from "@/lib/data/chats";
 
 /**
@@ -88,6 +89,15 @@ export function ReviewOutcomeModal({
             </span>
           )}
         </p>
+        <LearningHint
+          as="block"
+          category="Chat · Outcome"
+          title="Did the resolution actually hold?"
+          whatItIs="Four honest outcomes for a closed topic — held, partial, reopened, or not yet measurable. Each has a fixed constitutional meaning you're choosing between."
+          why="Closing a topic records the action; this records the consequence. 'Held vs reopened' is the only honest measure of whether a resolution worked — and measuring consequence instead of activity is the product's edge over tools that grade themselves."
+          how="Pick the one that matches reality, not the one that looks best. 'Held' is the only full success; 'reopened' is a signal worth acting on, not a failure to hide."
+          principle="Measure what happened, not what you hoped would happen."
+        >
         <div className="grid grid-cols-1 gap-2">
           {DURABILITY_OPTIONS.map((opt) => {
             const isActive = selected === opt.value;
@@ -133,6 +143,7 @@ export function ReviewOutcomeModal({
             );
           })}
         </div>
+        </LearningHint>
         <div className="flex items-center justify-between pt-2">
           <p className="text-[10px] text-secondary italic">
             Each non-unknown choice fires a §3.5 consequence signal.
@@ -145,6 +156,15 @@ export function ReviewOutcomeModal({
             >
               Cancel
             </button>
+            <LearningHint
+              as="inline-block"
+              category="Chat · Outcome"
+              title="Record the outcome"
+              whatItIs="Fires a §3.5 consequence signal with your chosen outcome — appended to the permanent record, never overwriting a prior judgement."
+              why="Every non-unknown choice becomes durable evidence the System learns from. Recording honestly, even 'reopened', is what keeps the System's model of your team true instead of flattering."
+              how="Select an outcome above, then record it. Choosing a different value later appends a new judgement; the earlier one stays on the record."
+              principle="An honest consequence recorded beats a comfortable one assumed."
+            >
             <button
               onClick={() => void submit()}
               disabled={!selected || submitting || selected === current}
@@ -165,6 +185,7 @@ export function ReviewOutcomeModal({
                 </>
               )}
             </button>
+            </LearningHint>
           </div>
         </div>
       </div>

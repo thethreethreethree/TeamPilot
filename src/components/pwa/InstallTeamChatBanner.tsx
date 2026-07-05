@@ -7,6 +7,7 @@ import {
   isPwaInstalled,
   type PwaPlatform,
 } from "@/lib/pwa/platform";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * InstallTeamChatBanner — surface for installing the Team Chat PWA
@@ -167,14 +168,23 @@ export function InstallTeamChatBanner() {
 
         {platform === "chrome" && installEvent && (
           <div className="mt-2 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => void install()}
-              className="flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-3 py-1.5 rounded-md transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" aria-hidden />
-              Install
-            </button>
+            <LearningHint
+              as="inline-block"
+              category="PWA · Team Chat"
+              title="Install Team Chat"
+              whatItIs="Installs Team Chat as a standalone app via the browser's native install dialog — home-screen icon, fullscreen window, and the push notifications that only a real installed app can receive."
+              why="Team Chat is most useful when it can reach you: installed, it can deliver push notifications and open in one tap instead of hunting for a tab. That's the difference between a chat you check and one that reaches you."
+              how="Click Install and confirm in the browser prompt. 'Not now' dismisses the banner and remembers your choice so it won't keep nagging."
+              principle="Notifications only matter if the app is installed to receive them.">
+              <button
+                type="button"
+                onClick={() => void install()}
+                className="flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 px-3 py-1.5 rounded-md transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" aria-hidden />
+                Install
+              </button>
+            </LearningHint>
             <button
               type="button"
               onClick={dismiss}
@@ -187,13 +197,22 @@ export function InstallTeamChatBanner() {
 
         {platform === "ios-safari" && (
           <div className="mt-2">
-            <button
-              type="button"
-              onClick={() => setIosExpanded((v) => !v)}
-              className="text-xs font-semibold text-brand hover:text-ember-500"
-            >
-              {iosExpanded ? "Hide instructions" : "How to install on iPhone"}
-            </button>
+            <LearningHint
+              as="inline-block"
+              category="PWA · Team Chat"
+              title="How to install on iPhone"
+              whatItIs="Expands step-by-step instructions for adding Team Chat to your iPhone home screen through Safari's Share sheet."
+              why="iOS doesn't offer the one-tap install other browsers do — the only route is the manual Share → Add to Home Screen flow. These steps, with the actual Share icon shown, make that path findable instead of a hidden secret."
+              how="Tap to expand, then follow the three steps. Tap again to collapse them once you're done."
+              principle="When a platform hides the path, show it plainly rather than assume people know it.">
+              <button
+                type="button"
+                onClick={() => setIosExpanded((v) => !v)}
+                className="text-xs font-semibold text-brand hover:text-ember-500"
+              >
+                {iosExpanded ? "Hide instructions" : "How to install on iPhone"}
+              </button>
+            </LearningHint>
             {iosExpanded && (
               <ol className="mt-2 text-xs text-secondary leading-relaxed space-y-1.5 list-decimal list-inside">
                 <li>

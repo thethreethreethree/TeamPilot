@@ -14,6 +14,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * FeedbackScreenshotEditor — opens after the tester captures a screenshot,
@@ -312,6 +313,15 @@ export function FeedbackScreenshotEditor({
     >
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-default bg-base">
+        <LearningHint
+          as="block"
+          category="Feedback · Annotate"
+          title="Annotation tools"
+          whatItIs="Five ways to mark the screenshot — arrow, text label, highlight, box, circle — plus Select. You draw directly on the image at full resolution."
+          why="A screenshot shows the whole page; an annotation shows the one thing you mean. The difference is a reader who fixes the right element versus one who writes back to ask which element. Marks are stored in the image's natural pixels so they stay accurate whatever size the reader views it at."
+          how="Pick a tool, then drag on the image. Arrow points, box and circle enclose, highlight tints, text drops a label you type into. Ctrl/Cmd+Z undoes the last mark."
+          principle="A screenshot says 'here's the page'; a mark says 'here's the thing.'"
+        >
         <div className="flex flex-wrap items-center gap-1">
           {TOOLS.map((t) => {
             const Icon = t.Icon;
@@ -336,6 +346,7 @@ export function FeedbackScreenshotEditor({
             );
           })}
         </div>
+        </LearningHint>
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -368,6 +379,14 @@ export function FeedbackScreenshotEditor({
             <X className="w-3.5 h-3.5" aria-hidden />
             <span className="hidden sm:inline">Cancel</span>
           </button>
+          <LearningHint
+            category="Feedback · Annotate"
+            title="Done"
+            whatItIs="Bakes your marks permanently into the screenshot at full resolution and returns it to the report. Empty text labels are dropped rather than saved."
+            why="The marks are flattened into the image itself so the rest of the pipeline needs no special viewer — a triager sees the annotated picture through the same path as any screenshot. Baking is one-way: reopening the editor starts fresh on top of the already-marked image."
+            how="Click when the marks say what you mean. Nothing to add? The image still returns clean. Empty labels are discarded so a blank box never ships as noise."
+            principle="An annotation is only worth keeping once it's fixed to the thing it points at."
+          >
           <button
             type="button"
             onClick={handleDone}
@@ -378,6 +397,7 @@ export function FeedbackScreenshotEditor({
             <Check className="w-3.5 h-3.5" aria-hidden />
             {saving ? "Saving…" : "Done"}
           </button>
+          </LearningHint>
         </div>
       </div>
 

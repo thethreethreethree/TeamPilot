@@ -10,6 +10,7 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * LLM connection status panel.
@@ -116,20 +117,29 @@ export function LlmConnectionPanel() {
       </p>
 
       {/* Provider matrix — what's actually configured in env */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <ProviderTile
-          name="DeepSeek"
-          subtitle="Primary"
-          configured={!!caps?.providers.deepseek}
-          active={caps?.activeProvider === "deepseek"}
-        />
-        <ProviderTile
-          name="Anthropic"
-          subtitle="Alternate"
-          configured={!!caps?.providers.anthropic}
-          active={caps?.activeProvider === "anthropic"}
-        />
-      </div>
+      <LearningHint
+        as="block"
+        category="Settings · LLM"
+        title="Provider matrix"
+        whatItIs="A live read-out of which model providers actually have a key configured in the environment, and which one is currently active."
+        why="The intelligence layer runs on a real provider key — if none is set, nothing downstream can work. This shows the true state read from the server, not a hopeful assumption, so you're never debugging a feature when the real problem is a missing key."
+        how="A green dot means the key is present; the 'Active' tag marks the provider requests will use. If a tile you expect reads 'Not configured', add its key to the environment and restart."
+        principle="Show the real configuration, not the one you wish were loaded.">
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <ProviderTile
+            name="DeepSeek"
+            subtitle="Primary"
+            configured={!!caps?.providers.deepseek}
+            active={caps?.activeProvider === "deepseek"}
+          />
+          <ProviderTile
+            name="Anthropic"
+            subtitle="Alternate"
+            configured={!!caps?.providers.anthropic}
+            active={caps?.activeProvider === "anthropic"}
+          />
+        </div>
+      </LearningHint>
 
       {!keyConfigured && (
         <div className="rounded-lg border border-strong bg-surface-raised p-3 mb-4 flex gap-3">
@@ -148,22 +158,31 @@ export function LlmConnectionPanel() {
 
       {/* Action row */}
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={runTest}
-          disabled={status.state === "loading"}
-          className="inline-flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-60 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-        >
-          {status.state === "loading" ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Testing…
-            </>
-          ) : (
-            <>
-              <Zap className="w-3.5 h-3.5" /> Run test
-            </>
-          )}
-        </button>
+        <LearningHint
+          as="inline-block"
+          category="Settings · LLM"
+          title="Run test"
+          whatItIs="Sends one real 5-token prompt to the active provider and reports back the model, round-trip latency, and token usage — a genuine end-to-end check, not a config lint."
+          why="A key that looks present can still fail for real reasons: wrong value, no balance, a blocked network. This proves the whole path works before you switch a feature on, so you find out here instead of when a user does."
+          how="Click it and read the result panel. Green means connected; a red failure names the exact kind (auth, quota, rate-limit…) with a specific next step. Each click spends a token, and it's rate-limited to 6/min."
+          principle="Verify the real path end-to-end — a green config field is not a working connection.">
+          <button
+            type="button"
+            onClick={runTest}
+            disabled={status.state === "loading"}
+            className="inline-flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-60 disabled:cursor-not-allowed text-[#09090B] text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            {status.state === "loading" ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Testing…
+              </>
+            ) : (
+              <>
+                <Zap className="w-3.5 h-3.5" /> Run test
+              </>
+            )}
+          </button>
+        </LearningHint>
         {status.state === "idle" && (
           <span className="text-xs text-muted">
             Click to send one ping to the provider.

@@ -19,6 +19,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Command palette. Bound to Cmd+K (mac) and Ctrl+K (everywhere else).
@@ -67,6 +68,39 @@ const NAV_ACTIONS: Omit<Action, "run">[] = [
   { id: "nav-marketing", label: "Marketing (design preview)", icon: Megaphone, href: "/dashboard/marketing", group: "Navigate", keywords: ["growth", "leads"] },
   { id: "nav-settings", label: "Settings", icon: Settings, href: "/dashboard/settings", group: "System", keywords: ["config", "provider", "company"] },
 ];
+
+// Per-section teaching copy for Learning Mode. Keyed by the group label
+// so each section header carries a hint tailored to what that group does,
+// rather than one generic note on every result row.
+const GROUP_HINTS: Record<
+  Action["group"],
+  { title: string; whatItIs: string; why: string; how: string; principle: string }
+> = {
+  Navigate: {
+    title: "Navigate",
+    whatItIs:
+      "Jump straight to any surface in the product — dashboards, the diagnosis loop, chats, tasks, and the design previews — without clicking through menus.",
+    why: "As the product grows, hunting for a page through nested navigation gets slower every month. A keyboard-first jump keeps every surface one search away, so depth never costs you reach.",
+    how: "Type part of a destination's name or a related keyword, use ↑↓ to highlight, and press ↵ to go.",
+    principle: "Keep every surface one search away — reach shouldn't degrade as depth grows.",
+  },
+  Create: {
+    title: "Create",
+    whatItIs:
+      "Kick off a new thing — a chat topic, a task, a problem hypothesis, a team invite, a decision dialogue — from wherever you are.",
+    why: "The moment you decide to capture something is the moment it's most likely to be lost to friction. Starting it from the palette means an intent becomes an artifact before it evaporates.",
+    how: "Pick a create action and press ↵; it routes you to the right page with its create flow already open.",
+    principle: "Capture the intent the instant it forms, before friction erases it.",
+  },
+  System: {
+    title: "System",
+    whatItIs:
+      "Reach system-level surfaces like Settings — provider keys, company config, and the controls that govern the whole workspace.",
+    why: "Configuration and everyday work are different modes of thinking; keeping system actions in their own group means you don't stumble into workspace-wide settings while looking for a task.",
+    how: "Search here for configuration surfaces, then ↵ to open them.",
+    principle: "Separate the controls that change everything from the ones you use every day.",
+  },
+};
 
 export default function CommandPalette() {
   const router = useRouter();
@@ -303,9 +337,19 @@ export default function CommandPalette() {
           )}
           {grouped.map(({ group, items }) => (
             <div key={group} className="mb-2 last:mb-0">
-              <p className="px-4 py-1 text-[10px] uppercase tracking-widest text-muted">
-                {group}
-              </p>
+              <LearningHint
+                as="block"
+                category="Command Palette · Section"
+                title={GROUP_HINTS[group].title}
+                whatItIs={GROUP_HINTS[group].whatItIs}
+                why={GROUP_HINTS[group].why}
+                how={GROUP_HINTS[group].how}
+                principle={GROUP_HINTS[group].principle}
+              >
+                <p className="px-4 py-1 text-[10px] uppercase tracking-widest text-muted">
+                  {group}
+                </p>
+              </LearningHint>
               {items.map((a) => {
                 const Icon = a.icon;
                 const idx = flat++;

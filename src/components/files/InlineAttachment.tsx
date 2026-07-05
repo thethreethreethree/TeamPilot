@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, FileText, Image as ImageIcon, Loader2, Lock, Music } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Inline attachment card — shown in chat thread + C.A.R.E
@@ -123,6 +124,15 @@ export function InlineAttachment({
   };
 
   return (
+    <LearningHint
+      as="block"
+      category="Files · Attachment"
+      title="Inline attachment"
+      whatItIs="A file shared into this conversation, shown inline with its title, size, classification, and (for images) a preview. Click to download."
+      why="Rendering the actual file in the thread — not just a filename — keeps the conversation and its evidence together, so the reasoning behind a decision stays attached to the file that informed it."
+      how="Click the title, the preview, or the download icon to open it. The classification shown is the same one it carries in the library."
+      principle="The file and the conversation that needed it belong in the same place."
+    >
     <div
       className={`rounded-lg border p-2.5 flex items-start gap-2.5 max-w-md ${
         casual
@@ -203,5 +213,6 @@ export function InlineAttachment({
         <Download className="w-3.5 h-3.5" aria-hidden />
       </button>
     </div>
+    </LearningHint>
   );
 }

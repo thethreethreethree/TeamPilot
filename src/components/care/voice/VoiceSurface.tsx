@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, Mic, MicOff, PhoneOff, RefreshCw, Volume2 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * VoiceSurface — phone-call shape. Phase 9 rewrite per user
@@ -90,6 +91,14 @@ export function VoiceSurface({
         </ol>
         <div className="flex items-center gap-2">
           {onRetry && (
+            <LearningHint
+              category="C.A.R.E · Voice"
+              title="Try again"
+              whatItIs="Re-requests microphone permission after the visitor has changed their browser's mic setting, without making them reload the page."
+              why="A blocked mic is usually a two-step fix — the visitor flips the browser setting, then needs to re-ask. Forcing a full page reload here would drop the conversation they already started. This retries in place and keeps the thread."
+              how="Follow the numbered steps above to unblock the mic in your browser, then click this. If it still fails, 'Back to typing' keeps the conversation going by text."
+              principle="A recoverable error should offer the recovery, not just name the problem."
+            >
             <button
               type="button"
               onClick={onRetry}
@@ -98,6 +107,7 @@ export function VoiceSurface({
               <RefreshCw className="w-3.5 h-3.5" aria-hidden />
               Try again
             </button>
+            </LearningHint>
           )}
           <button
             type="button"
@@ -191,6 +201,14 @@ export function VoiceSurface({
       </p>
 
       {/* Hang up — always available. */}
+      <LearningHint
+        category="C.A.R.E · Voice"
+        title="End call"
+        whatItIs="Hangs up the live voice conversation and returns the visitor to the text composer. Always visible while a call is active."
+        why="A live mic is a privacy surface, so ending must be one obvious tap that's never hidden behind a menu or a phase change. The label says what it does — 'End call' — rather than a bare red X the visitor has to guess at."
+        how="Tap to hang up. The mic stops immediately. Anything already transcribed stays in the conversation; the visitor can keep typing from there."
+        principle="Anything that keeps a microphone open needs an off switch you can't miss."
+      >
       <button
         type="button"
         onClick={onEnd}
@@ -200,6 +218,7 @@ export function VoiceSurface({
         <PhoneOff className="w-3.5 h-3.5" aria-hidden />
         End call
       </button>
+      </LearningHint>
     </div>
   );
 }

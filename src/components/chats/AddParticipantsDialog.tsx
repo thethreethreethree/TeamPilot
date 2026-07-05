@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, Search, UserPlus, Users } from "lucide-react";
 import Modal from "@/components/ui/Modal";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { fetchTeam, type TeamMember } from "@/lib/data/team";
 import { addParticipantsToTopic } from "@/lib/data/chats";
 
@@ -143,6 +144,15 @@ export function AddParticipantsDialog({
             someone brand-new to your company, use the Team page instead.
           </p>
 
+          <LearningHint
+            as="block"
+            category="Chat · Add members"
+            title="Filter your teammates"
+            whatItIs="A filter over your company roster by name or role, so the picker stays usable as the team grows."
+            why="This adds EXISTING teammates to a topic — it never onboards new people or sends invites. The filter keeps that scope clear: you're choosing from people already in your company, not inviting strangers."
+            how="Type part of a name or role to narrow the list below. Clear it to see everyone who isn't already in the topic."
+            principle="Add people to the conversation they're part of, not the whole company by default."
+          >
           <div className="relative">
             <Search
               className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2"
@@ -156,7 +166,17 @@ export function AddParticipantsDialog({
               className="w-full bg-surface border border-default rounded-lg pl-9 pr-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30"
             />
           </div>
+          </LearningHint>
 
+          <LearningHint
+            as="block"
+            category="Chat · Add members"
+            title="Teammates you can add"
+            whatItIs="Your company's active members, minus anyone already in this topic — so you only see real adds, not no-ops. Select as many as you need."
+            why="Chat participation should follow who's actually involved, not who has access to everything. Showing only addable people keeps the choice deliberate instead of a wall of names."
+            how="Tap a row to select or deselect. Selected teammates get read-and-post access to this topic once you add them."
+            principle="Include people because they're part of the conversation, not because they're on the list."
+          >
           <div className="max-h-72 overflow-y-auto rounded-lg border border-default divide-y divide-default">
             {loading ? (
               <div className="py-8 flex items-center justify-center gap-2 text-xs text-muted">
@@ -220,6 +240,7 @@ export function AddParticipantsDialog({
               })
             )}
           </div>
+          </LearningHint>
 
           {error && (
             <p className="text-xs text-red-400" role="alert">
@@ -241,6 +262,15 @@ export function AddParticipantsDialog({
               >
                 Cancel
               </button>
+              <LearningHint
+                as="inline-block"
+                category="Chat · Add members"
+                title="Add the selected teammates"
+                whatItIs="Adds everyone you've selected to this topic as participants who can read and post here."
+                why="This is scoped to chat participation only — it doesn't touch team membership, auth, or invitations. Adding to a topic is a small, reversible act, kept separate from onboarding on purpose."
+                how="Select at least one teammate, then add. To bring in someone brand-new to the company, use the Team page instead."
+                principle="Match the access to the need — topic-level, not company-level."
+              >
               <button
                 type="button"
                 onClick={submit}
@@ -256,6 +286,7 @@ export function AddParticipantsDialog({
                   ? "Adding…"
                   : `Add ${selected.size > 0 ? selected.size : ""}`.trim()}
               </button>
+              </LearningHint>
             </div>
           </div>
         </div>

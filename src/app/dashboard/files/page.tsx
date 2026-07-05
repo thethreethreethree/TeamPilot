@@ -329,24 +329,18 @@ export default function FilesLibraryPage() {
         subtitle={`${companyName ?? "Your team"} · §3.1 chain applied to assets`}
       />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-6xl mx-auto w-full">
-        <LearningHint
-          as="block"
-          category="Files · §A6"
-          title="Asset library"
-          whatItIs="Every file uploaded by anyone on the team lands here. Classification fields (department + task + description) are the §3.2 Understanding Gate applied to assets — files with all three become 'classified' and team-searchable; files missing any one become 'casual' and count toward your 3/day cap."
-          why="A file storage layer without a gate produces a file graveyard — most files uploaded once, never retrieved, never cited. The gate is the structural defense; the casual escape hatch is the honest acknowledgment that not all sharing has asset value."
-          how="Drop a file or click to upload. Classify it (or accept the casual lane). Use the filters to find what the team already built up. Click a card to download."
-          principle="The 3 fields are not metadata. They ARE the team's asset memory."
-        >
-          <div className="mb-6">
-            <FileDropzone
-              onFilesSelected={(items, isFolder) => {
-                setPendingItems(items);
-                setExplicitFolder(isFolder);
-              }}
-            />
-          </div>
-        </LearningHint>
+        {/* FileDropzone owns its own Learning Mode hint (it's reused in Tasks,
+            C.A.R.E, chats). The page-level "Asset library" wrap was removed to
+            avoid a nested double-hint here (2026-07-06) — un-nesting per the
+            prior nested-LearningHint fix. */}
+        <div className="mb-6">
+          <FileDropzone
+            onFilesSelected={(items, isFolder) => {
+              setPendingItems(items);
+              setExplicitFolder(isFolder);
+            }}
+          />
+        </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[200px] max-w-md">

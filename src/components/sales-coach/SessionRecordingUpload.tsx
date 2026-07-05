@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Upload, Loader2, UserCheck } from "lucide-react";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * SessionRecordingUpload — Live Sales Coach S1a.
@@ -117,6 +118,15 @@ export function SessionRecordingUpload({
           Tap your own line so the transcript knows who&apos;s the agent and
           who&apos;s the prospect.
         </p>
+        <LearningHint
+          as="block"
+          category="Sales Coach · Recording"
+          title="Which voice is you?"
+          whatItIs="After transcription, you tap the sample line that's your own voice so the transcript knows which side is you and which is the prospect."
+          why="The machine can tell two voices apart, but not which is which. One tap from you fixes the labels — and every piece of coaching downstream depends on them being right."
+          how="Read the short sample under each voice and tap 'That's me' on yours. It only takes one."
+          principle="The one thing the machine can't know, you supply in a single tap."
+        >
         <div className="space-y-2">
           {speakers.map((sp) => (
             <button
@@ -136,6 +146,7 @@ export function SessionRecordingUpload({
             </button>
           ))}
         </div>
+        </LearningHint>
         {phase === "labeling" && (
           <p className="inline-flex items-center gap-1.5 text-xs text-muted mt-2">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -158,6 +169,15 @@ export function SessionRecordingUpload({
             We separate the two voices, then you tap which one is you.
           </p>
         </div>
+        <LearningHint
+          as="inline-block"
+          category="Sales Coach · Recording"
+          title="Upload recording"
+          whatItIs="Uploads a saved call recording so the coach can transcribe it and separate the two voices."
+          why="If you didn't run live coaching — or the live transcript didn't save — this is how the conversation still becomes something you can review and learn from. No recording, no review."
+          how="Tap it, pick the audio or video file, and wait while it transcribes. Then you'll tap which voice is you."
+          principle="A call you don't capture is a lesson that evaporates."
+        >
         <LoadingButton
           pending={phase === "uploading"}
           onClick={() => fileRef.current?.click()}
@@ -167,6 +187,7 @@ export function SessionRecordingUpload({
         >
           Upload recording
         </LoadingButton>
+        </LearningHint>
         <input
           ref={fileRef}
           type="file"

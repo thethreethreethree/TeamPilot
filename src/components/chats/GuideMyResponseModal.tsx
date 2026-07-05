@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import Modal from "@/components/ui/Modal";
+import { LearningHint } from "@/components/learning/LearningHint";
 import { useSseStream } from "@/lib/hooks/useSseStream";
 import { detectAll, type CoachCitation } from "@/lib/coach/heuristics";
 import type { ChatMessage, ChatTopic } from "@/lib/data/chats";
@@ -114,6 +115,15 @@ export function GuideMyResponseModal({
             {draft || "(empty)"}
           </div>
         </div>
+        <LearningHint
+          as="block"
+          category="Chat · Sharpen"
+          title="A sharper version of your draft"
+          whatItIs="A tighter rewrite of your message in your own voice — clearer, and with any identity attack or noise stripped while your intent is kept."
+          why="Sharpen refines; it never decides. It runs the same Coach checks against your draft so it can fix what was flagged, not just shorten — but it hands the choice back to you every time."
+          how="Read it beside your draft above. If it says what you meant, better, use it. If it flattened something you needed, send your original."
+          principle="Clearer isn't the same as truer — you're the judge of which is yours."
+        >
         <div>
           <p className="text-[10px] uppercase tracking-widest text-arc-300 mb-1.5 flex items-center gap-1.5">
             <Sparkles className="w-3 h-3" aria-hidden="true" />
@@ -139,10 +149,20 @@ export function GuideMyResponseModal({
             </p>
           )}
         </div>
+        </LearningHint>
         <div className="flex items-center justify-between pt-2">
           <p className="text-[10px] text-secondary italic">
             Streamed via DeepSeek through the brain layer.
           </p>
+          <LearningHint
+            as="block"
+            category="Chat · Sharpen"
+            title="Use the suggestion, or send your original"
+            whatItIs="Two paths: accept the sharpened version into your composer, or discard it and send exactly what you wrote."
+            why="'Send my original' is a real, equal option — the System surfaces a refinement and stops there. A rewrite you can't refuse would be the System deciding for you, which the constitution forbids."
+            how="'Use the suggestion' drops the sharpened text into your composer to edit further. 'Send my original' keeps your words untouched."
+            principle="Guidance you can decline is help; guidance you can't is takeover."
+          >
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
@@ -158,6 +178,7 @@ export function GuideMyResponseModal({
               Use the suggestion
             </button>
           </div>
+          </LearningHint>
         </div>
       </div>
     </Modal>

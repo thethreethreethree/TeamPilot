@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { VoiceSurface } from "./voice/VoiceSurface";
 import { useVoiceMode } from "./voice/useVoiceMode";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Route prefixes where the customer-facing Care widget MUST NOT
@@ -555,6 +556,15 @@ export function CareChatWidget() {
                 onEnd={endCall}
               />
             ) : (
+              <LearningHint
+                as="block"
+                category="C.A.R.E · Chat Widget"
+                title="The message composer"
+                whatItIs="The box where a visitor types to Jeff, attaches an image or PDF, or switches to a live voice call. Enter sends; Shift+Enter adds a line."
+                why="Support tools usually gate the first message behind a form — 'describe your issue in 200 characters,' pick a category, leave an email. Every field is a place a visitor abandons. This composer asks for nothing but the message, so the conversation starts before the friction can end it."
+                how="Type and press Enter. Attach a file with the paperclip if a screenshot explains it faster than words. Tap the phone to talk instead of type. Your thread is remembered on this device, so navigating the site doesn't lose it."
+                principle="The cheapest way to lose a customer's question is to make them fill out a form to ask it."
+              >
               <div className="border-t border-default p-3 flex items-end gap-2 bg-surface/40">
                 <textarea
                   ref={inputRef}
@@ -602,6 +612,7 @@ export function CareChatWidget() {
                   )}
                 </button>
               </div>
+              </LearningHint>
             ))}
         </div>
       )}

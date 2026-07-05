@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Download, X } from "lucide-react";
 import { detectPwaPlatform, isPwaInstalled } from "@/lib/pwa/platform";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * InstallPrompt — PWA install affordance for the welcome (landing)
@@ -135,13 +136,22 @@ export function InstallPrompt({
               like a native app. Here&apos;s the quick how-to.
             </p>
             <div className="flex items-center gap-2">
-              <Link
-                href={iosHref}
-                className="flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 text-[#09090B] px-3 py-1.5 rounded-md transition-colors"
-              >
-                <Download className="w-3 h-3" aria-hidden />
-                How to install
-              </Link>
+              <LearningHint
+                as="inline-block"
+                category="PWA · Install"
+                title="How to install (iPhone)"
+                whatItIs="A link to the step-by-step walkthrough for adding the app to your iPhone home screen."
+                why="iOS Safari never fires the one-tap install event other browsers do, so a plain 'Install' button would do nothing here. Rather than leave iPhone users with a dead button, this routes them to the real, manual path that actually works."
+                how="Tap it to open the how-to, then follow Share → Add to Home Screen. 'Not now' dismisses the prompt for this session."
+                principle="Never leave a platform with a dead affordance — give it the path that actually works.">
+                <Link
+                  href={iosHref}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 text-[#09090B] px-3 py-1.5 rounded-md transition-colors"
+                >
+                  <Download className="w-3 h-3" aria-hidden />
+                  How to install
+                </Link>
+              </LearningHint>
               <button
                 type="button"
                 onClick={dismiss}
@@ -182,14 +192,23 @@ export function InstallPrompt({
             works as a home-screen icon. No store needed.
           </p>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={install}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 text-[#09090B] px-3 py-1.5 rounded-md transition-colors"
-            >
-              <Download className="w-3 h-3" aria-hidden />
-              Install
-            </button>
+            <LearningHint
+              as="inline-block"
+              category="PWA · Install"
+              title="Install the app"
+              whatItIs="Adds the app to your device using the browser's native install flow, so it opens like a real app — its own window, faster start, a home-screen icon."
+              why="An installed app is quicker to reach and gets a proper standalone window instead of a browser tab. And it needs no app store — the whole thing installs straight from the page."
+              how="Click Install and confirm in the browser's dialog. 'Not now' hides this for the session; the browser decides when to offer it again."
+              principle="Meet people where they already are — install from the page, no store detour.">
+              <button
+                type="button"
+                onClick={install}
+                className="flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 text-[#09090B] px-3 py-1.5 rounded-md transition-colors"
+              >
+                <Download className="w-3 h-3" aria-hidden />
+                Install
+              </button>
+            </LearningHint>
             <button
               type="button"
               onClick={dismiss}

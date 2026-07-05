@@ -13,6 +13,7 @@ import {
   buildFileMention,
   detectFileMentionContext,
 } from "@/lib/files/fileMention";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 type FileResult = {
   id: string;
@@ -201,6 +202,15 @@ export function FileMentionAutocomplete({
 
   return (
     <div className="absolute bottom-full mb-1 left-0 right-0 z-30">
+      <LearningHint
+        as="block"
+        category="Files · Mentions"
+        title="@file mentions"
+        whatItIs="A search dropdown that appears when you type @file in a message. It lists matching files from the library so you can link one directly into your text."
+        why="Referencing an existing file by mention — instead of re-uploading or describing it — reuses the asset the team already built and keeps one canonical copy rather than scattering duplicates."
+        how="Type @file then a few letters of the title. Arrow keys to move, Enter to insert, Esc to dismiss."
+        principle="Point to the file that exists; don't make a second one."
+      >
       <div className="rounded-lg border border-default bg-surface shadow-lg max-h-64 overflow-y-auto">
         <div className="px-2 py-1.5 text-[10px] uppercase tracking-widest text-muted font-bold border-b border-default flex items-center gap-1.5">
           <Paperclip className="w-3 h-3" aria-hidden />
@@ -240,6 +250,7 @@ export function FileMentionAutocomplete({
           <span>· Esc to dismiss</span>
         </div>
       </div>
+      </LearningHint>
     </div>
   );
 }

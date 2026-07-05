@@ -24,6 +24,7 @@ import { CoachPanelV5 } from "@/components/chats/CoachPanelV5";
 import { AskCoachButton } from "@/components/chats/AskCoachButton";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import type { CoachContextPayload } from "@/lib/coach/v5/types";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * FeedbackPanel — slide-out form for submitting feedback.
@@ -355,6 +356,15 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
               <label className="block text-[10px] uppercase tracking-widest text-muted mb-2">
                 Kind
               </label>
+              <LearningHint
+                as="block"
+                category="Feedback · Report"
+                title="What kind of feedback"
+                whatItIs="Five frames for what you're about to say — bug, friction, idea, question, or praise. You name the intent before writing the details."
+                why="Naming the kind first changes what you write and how it's triaged. 'Friction' and 'bug' are different problems even when they touch the same screen, and separating them keeps praise from being lost in a bug queue. The System interprets after you've framed it, not before."
+                how="Pick the frame that fits before writing. Unsure between friction and bug? Friction is 'it works but fights me'; bug is 'it's broken or wrong.'"
+                principle="Naming what you're saying before you say it makes the message land where it's useful."
+              >
               <div className="grid grid-cols-1 gap-1.5">
                 {KIND_OPTIONS.map((opt) => {
                   const Icon = opt.Icon;
@@ -386,9 +396,19 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                   );
                 })}
               </div>
+              </LearningHint>
             </div>
 
             {/* Title */}
+            <LearningHint
+              as="block"
+              category="Feedback · Report"
+              title="Title"
+              whatItIs="A one-line summary of what happened or what you noticed. The only required field."
+              why="The title is what a triager scans in a list of dozens. A specific one — 'Save button does nothing on the team page' — gets acted on faster than 'bug.' It's required because a report with no summary is a report nobody can prioritize."
+              how="One concrete sentence: what you saw or expected, not just where. Save the reproduction detail for the Details field below."
+              principle="A report is only as findable as its first line."
+            >
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-muted mb-1.5">
                 Title <span className="text-brand">*</span>
@@ -402,11 +422,21 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                 className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30"
               />
             </div>
+            </LearningHint>
 
             {/* Body — MentionInput supports @-tagging teammates. Type
                 "@" + name to insert a styled mention; on submit the
                 server emits mention.created events into the §3.1 chain
                 so the tag is on the record. */}
+            <LearningHint
+              as="block"
+              category="Feedback · Report"
+              title="Details (and the writing coach)"
+              whatItIs="The full description, with @-tagging to pull in a teammate. When the coach is on, it reads your draft and offers a clearer version you can accept or ignore."
+              why="Most feedback fails not because the reporter was wrong but because the message was hard to act on — vague, or aimed at no one. @-tags put the report in front of the right person on the record; the coach helps you say it in a way the reader can use. The coach suggests; it never rewrites for you or sends on your behalf."
+              how="Say what you expected, what happened, and anything that helps reproduce it. Type @ to tag a teammate. Read the coach's take — accept it if it's clearer, keep yours if it isn't."
+              principle="Feedback that's easy to act on gets acted on; the clarity is the reporter's half of the job."
+            >
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-muted mb-1.5">
                 Details
@@ -447,8 +477,18 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                 className="w-full bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 resize-none leading-relaxed"
               />
             </div>
+            </LearningHint>
 
             {/* Screenshot */}
+            <LearningHint
+              as="block"
+              category="Feedback · Report"
+              title="Screenshot"
+              whatItIs="An optional image of what you're reporting — captured from the current page silently, or pasted from your clipboard. Click it to draw arrows, boxes, and labels pointing at the exact thing."
+              why="A pixel a reader can see removes a paragraph you'd otherwise have to write, and an annotation removes the 'which button?' round-trip that stretches a fix across days. The capture asks for no permission prompt so adding it stays a single click instead of a decision."
+              how="Click Capture for the current page, or paste a region you grabbed with Snipping Tool / Cmd+Shift+4. Then click the image to annotate the specific spot. Skip it entirely if words are enough."
+              principle="One annotated screenshot ends the back-and-forth that three messages wouldn't."
+            >
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-muted mb-1.5">
                 Screenshot (optional)
@@ -522,6 +562,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                 <kbd className="font-mono text-brand">Cmd+Shift+4</kbd>).
               </p>
             </div>
+            </LearningHint>
 
             {editingScreenshot && screenshot && (
               <FeedbackScreenshotEditor
@@ -555,6 +596,14 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
               >
                 Cancel
               </button>
+              <LearningHint
+                category="Feedback · Report"
+                title="Submit"
+                whatItIs="Files the report as a permanent, append-only record and starts it moving through triage. Also captures the page, viewport, and theme automatically so the row can be reproduced."
+                why="Every report is kept as an asset, not a transient note — because a single complaint is data, and the same complaint a dozen times is a problem the System can earn the right to surface. Nothing you send is discarded, even the dead ends."
+                how="Title is required; everything else strengthens the report. After sending, you can follow it from triaged to in-progress to resolved in your feedback history."
+                principle="One report is a note; the same report a dozen times is a pattern the record can prove."
+              >
               <button
                 onClick={submit}
                 disabled={submitting || !title.trim()}
@@ -572,6 +621,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
                   </>
                 )}
               </button>
+              </LearningHint>
             </div>
           </div>
         )}

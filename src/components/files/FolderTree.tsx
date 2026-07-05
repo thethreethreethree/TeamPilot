@@ -8,6 +8,7 @@ import {
   FolderOpen,
   ListChecks,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Auto-folder navigation derived from classification.
@@ -86,6 +87,15 @@ export function FolderTree({
   };
 
   return (
+    <LearningHint
+      as="block"
+      category="Files · Navigation"
+      title="Folder tree"
+      whatItIs="A browsable tree derived entirely from classification: lane at the top, then Department › Task. Clicking a node filters the file list; nothing is moved or stored separately."
+      why="The folders aren't a second place files live — they're a live view of the three classification fields. That's why classifying well is what makes browsing work; there are no manual folders to keep tidy."
+      how="Click 'All files' or 'Casual' to filter by lane, or expand a department and pick a task to narrow down. The counts show how many files sit under each node."
+      principle="Good classification IS good navigation — the tree only reflects it."
+    >
     <div className="space-y-0.5 text-sm">
       {/* Lane filters at the top */}
       <button
@@ -195,5 +205,6 @@ export function FolderTree({
         )}
       </div>
     </div>
+    </LearningHint>
   );
 }

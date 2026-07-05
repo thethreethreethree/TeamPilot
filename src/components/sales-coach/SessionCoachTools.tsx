@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FileText, MessageCircleQuestion, Microscope } from "lucide-react";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * SessionCoachTools — C.A.R.E features applied to a Live Sales Coach
@@ -37,24 +38,54 @@ export function SessionCoachTools({
     <section className="rounded-xl border border-default bg-white/[0.01] p-4">
       <h2 className="text-sm font-semibold text-primary mb-3">Coach tools</h2>
       <div className="flex flex-wrap gap-2">
+        <LearningHint
+          as="inline-block"
+          category="Sales Coach · Coach tools"
+          title="Summarize"
+          whatItIs="Generates a concise recap of this session — what happened, start to finish."
+          why="After a call, the details blur fast. A summary gives you the shape of the conversation to reflect on before you dissect the specifics."
+          how="Open it, then run the summary. Re-run any time the transcript changes."
+          principle="You can't learn from a call you can't remember."
+        >
         <ToolButton
           icon={FileText}
           label="Summarize"
           active={tool === "summarize"}
           onClick={() => setTool(tool === "summarize" ? null : "summarize")}
         />
+        </LearningHint>
+        <LearningHint
+          as="inline-block"
+          category="Sales Coach · Coach tools"
+          title="Ask coach"
+          whatItIs="Opens a box to ask the coach a specific question about this call and get an answer grounded in what was said."
+          why="General advice is cheap; advice about your actual conversation is where growth happens. This is where you interrogate the moments that mattered."
+          how="Ask something concrete — 'How could I have handled the price objection?' — and read the reasoning, not just the verdict."
+          principle="The sharpest lessons come from your own real moments, questioned honestly."
+        >
         <ToolButton
           icon={MessageCircleQuestion}
           label="Ask coach"
           active={tool === "ask"}
           onClick={() => setTool(tool === "ask" ? null : "ask")}
         />
+        </LearningHint>
+        <LearningHint
+          as="inline-block"
+          category="Sales Coach · Coach tools"
+          title="Dissect"
+          whatItIs="Runs a deep, full-conversation teaching evaluation — strengths, growth areas, and your standout strategy."
+          why="A summary tells you what happened; a dissect tells you what to repeat and what to change. It's the heaviest analysis, reasoned from your coaching methodology."
+          how="Run it once the call has enough of your side to teach from. It reads back the last one for free, so you can revisit without re-spending."
+          principle="Growth compounds when you name what worked, not just what went wrong."
+        >
         <ToolButton
           icon={Microscope}
           label="Dissect"
           active={tool === "dissect"}
           onClick={() => setTool(tool === "dissect" ? null : "dissect")}
         />
+        </LearningHint>
       </div>
 
       {tool === "summarize" && <SummarizePanel sessionId={sessionId} />}
@@ -333,6 +364,15 @@ function AskCoachPanel({ sessionId }: { sessionId: string }) {
 
   return (
     <PanelBox>
+      <LearningHint
+        as="block"
+        category="Sales Coach · Coach tools"
+        title="Your question to the coach"
+        whatItIs="The box where you type what you want to understand about this specific call."
+        why="The quality of the answer follows the quality of the question. A vague ask gets a vague lesson; a pointed one — a named objection, a specific stall — gets something you can actually use next time."
+        how="Write one concrete question about a real moment in the call. The coach answers from the transcript, not from generic sales advice."
+        principle="Ask about the moment that stung — that's where the learning is."
+      >
       <textarea
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
@@ -340,6 +380,7 @@ function AskCoachPanel({ sessionId }: { sessionId: string }) {
         rows={2}
         className="w-full text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none"
       />
+      </LearningHint>
       <LoadingButton
         pending={loading}
         onClick={() => void ask()}

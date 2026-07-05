@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { BookOpen, CheckCircle2, Loader2, X } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * ResolutionCaptureModal — the §1.1 + §1.6 capture moment.
@@ -103,6 +104,15 @@ export function ResolutionCaptureModal({
 
         {/* Form */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          <LearningHint
+            as="block"
+            category="C.A.R.E · Resolution Capture"
+            title="What was the actual issue?"
+            whatItIs="A plain-English summary of what the customer was really asking or experiencing — not the ticket subject line, the underlying thing."
+            why="The symptom a customer reports and the problem they actually have are often different. Recording the actual issue, in the agent's own words, is what lets the next agent recognize the same situation when it wears a different symptom. Skipped, this becomes tribal knowledge that leaves when the agent does."
+            how="Write the real problem, one or two sentences. 'Thought they were double-charged; it was a pending auth that dropped off in two days' beats 'billing question.'"
+            principle="The issue as reported and the issue as understood are rarely the same sentence."
+          >
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-muted mb-1.5">
               What was the actual issue?
@@ -115,6 +125,16 @@ export function ResolutionCaptureModal({
               className="w-full bg-surface border border-default rounded-md px-2.5 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y leading-relaxed"
             />
           </div>
+          </LearningHint>
+          <LearningHint
+            as="block"
+            category="C.A.R.E · Resolution Capture"
+            title="What worked?"
+            whatItIs="The specific thing the agent did or said that resolved it — concrete enough that a different agent could repeat it."
+            why="A closed ticket that only records that it was resolved teaches nobody. Recording what worked turns this one resolution into a head start on the next similar one — it's the raw material the Read Phase surfaces to the next agent before they draft."
+            how="Be specific and repeatable. 'Sent the refund link and explained pending auths drop in 48h' is reusable; 'fixed it' is not."
+            principle="'Resolved' is a status. 'Here's what worked' is an asset."
+          >
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-muted mb-1.5">
               What worked?
@@ -127,6 +147,16 @@ export function ResolutionCaptureModal({
               className="w-full bg-surface border border-default rounded-md px-2.5 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y leading-relaxed"
             />
           </div>
+          </LearningHint>
+          <LearningHint
+            as="block"
+            category="C.A.R.E · Resolution Capture"
+            title="Category (optional)"
+            whatItIs="A short, consistent tag for this kind of issue — a phrase like 'billing — refund applied,' not a formal taxonomy."
+            why="One tagged resolution is a note. A dozen with the same tag in a week is a pattern worth investigating — a recurring issue the product or docs could remove at the source. The category is what lets the count surface itself instead of waiting for someone to notice."
+            how="Reuse the same short phrase for the same kind of issue so the counts add up. Leave it blank if nothing fits rather than inventing a one-off."
+            principle="Patterns only surface when the same thing gets named the same way twice."
+          >
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-muted mb-1.5">
               Category <span className="text-muted normal-case">(optional · short phrase)</span>
@@ -144,6 +174,7 @@ export function ResolutionCaptureModal({
               ask.
             </p>
           </div>
+          </LearningHint>
 
           {error && (
             <div className="bg-red-500/5 border border-red-500/30 rounded-md p-2 text-xs text-red-300">
@@ -167,6 +198,14 @@ export function ResolutionCaptureModal({
             >
               Skip
             </button>
+            <LearningHint
+              category="C.A.R.E · Resolution Capture"
+              title="Capture & resolve"
+              whatItIs="Saves this resolution to the company's playbook and marks the conversation resolved in one step. The capture is append-only — it becomes part of the record, not an editable draft."
+              why="Capture is bundled with resolving because the moment right after solving is the only time the details are still fresh and free. Make it a separate later chore and it never happens. Both fields need a few real words before this enables — a guard against blank rows that would dilute the playbook."
+              how="Fill both fields, then click. Prefer 'Skip' over inventing filler if you genuinely have nothing worth recording — a noisy playbook is worse than a short one."
+              principle="The knowledge is cheapest to capture in the sixty seconds after you solve it, and gone soon after."
+            >
             <button
               type="button"
               onClick={() => void submit(true)}
@@ -180,6 +219,7 @@ export function ResolutionCaptureModal({
               )}
               Capture & resolve
             </button>
+            </LearningHint>
           </div>
         </div>
       </div>

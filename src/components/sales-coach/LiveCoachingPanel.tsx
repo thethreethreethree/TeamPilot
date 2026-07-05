@@ -6,6 +6,7 @@ import { useTapControls } from "@/lib/coach/v5/useTapControls";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
 import { SessionRecordingUpload } from "./SessionRecordingUpload";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * LiveCoachingPanel — Live Sales Coach S1b surface.
@@ -143,6 +144,15 @@ export function LiveCoachingPanel({
             </span>
           )}
         </div>
+        <LearningHint
+          as="inline-block"
+          category="Sales Coach · Live coaching"
+          title="Start / stop live coaching"
+          whatItIs="Begins (or ends) the live listening session — the coach starts hearing the conversation and can cue you in real time."
+          why="Real-time coaching only works while it's actually listening. Starting is the moment the loop goes live; stopping is what saves the speaker-separated transcript for your review."
+          how="Start once your earpiece is in and you're ready. Stop when the conversation ends — that's what writes the transcript and unlocks the growth review."
+          principle="The coach can only help the conversation it's actually in."
+        >
         <div className="flex items-center gap-2">
           {!live ? (
             <LoadingButton
@@ -166,11 +176,21 @@ export function LiveCoachingPanel({
             </button>
           )}
         </div>
+        </LearningHint>
       </div>
 
       {/* Mode toggle */}
       <div className="flex items-center gap-2 mt-3">
         <span className="text-[11px] text-muted">Mode:</span>
+        <LearningHint
+          as="inline-block"
+          category="Sales Coach · Live coaching"
+          title="Suggestion mode"
+          whatItIs="Sets the coach to offer a short nudge — a direction to take — rather than words to say."
+          why="A nudge keeps you in your own voice. You stay the one talking; the coach just points. That's what builds your instinct instead of a dependence on being fed lines."
+          how="Pick this when you want a light touch — a reminder of what to reach for at the right moment."
+          principle="A pointer grows the skill; a script rents it."
+        >
         <button
           type="button"
           onClick={() => setMode("suggestion")}
@@ -182,6 +202,16 @@ export function LiveCoachingPanel({
         >
           Suggestion
         </button>
+        </LearningHint>
+        <LearningHint
+          as="inline-block"
+          category="Sales Coach · Live coaching"
+          title="Guide my response"
+          whatItIs="Sets the coach to hand you a more concrete way to phrase your next response."
+          why="When you're stuck mid-conversation, a concrete phrasing gets you unstuck faster than an abstract nudge. It's the heavier-touch mode for the moments that need it."
+          how="Switch to this on hard objections or when your mind blanks. Lean on Suggestion mode the rest of the time so the skill stays yours."
+          principle="Use the heavier hand only where the lighter one isn't enough."
+        >
         <button
           type="button"
           onClick={() => setMode("guide_response")}
@@ -193,11 +223,21 @@ export function LiveCoachingPanel({
         >
           Guide my response
         </button>
+        </LearningHint>
         {live && (
           <div className="ml-auto flex items-center gap-3">
             {/* "I'm speaking" toggle (founder 2026-07-03) — locks the current
                 turns to the agent for a clean script split. Also the manual
                 fallback for the single-tap gesture, which is device-dependent. */}
+            <LearningHint
+              as="inline-block"
+              category="Sales Coach · Live coaching"
+              title="&quot;I'm speaking&quot; toggle"
+              whatItIs="Tells the coach that the current turn is you talking, not the prospect — so the transcript splits the two voices cleanly."
+              why="A single far mic can't always tell who's speaking. Marking your own turns fixes the attribution, which is what makes the after-call review trustworthy instead of a scramble."
+              how="Tap it on while you talk, off when you hand back. It's also the manual fallback for the single earpiece tap, which depends on your earbud."
+              principle="Clean speaker labels now are an honest review later."
+            >
             <button
               type="button"
               onClick={toggleAgentSpeaking}
@@ -214,8 +254,18 @@ export function LiveCoachingPanel({
               />
               {agentSpeaking ? "You're speaking" : "I'm speaking"}
             </button>
+            </LearningHint>
             {/* Auto-coach toggle — stays ON (auto-cues at pauses) until you
                 turn it off; clear ON/OFF indicator (founder request). */}
+            <LearningHint
+              as="inline-block"
+              category="Sales Coach · Live coaching"
+              title="Auto-coach toggle"
+              whatItIs="Lets the coach decide on its own when to cue you — it fires at natural pauses instead of waiting for you to ask."
+              why="In a fast conversation you can't always tap for help. Auto-coach watches for the opening and speaks only when it reads a real moment — restraint, not chatter."
+              how="Leave it ON to let cues arrive at pauses. Turn it OFF when you want silence and will ask for coaching yourself."
+              principle="Good coaching knows when NOT to talk."
+            >
             <button
               type="button"
               onClick={() => setAutoCoach(!autoCoach)}
@@ -232,6 +282,16 @@ export function LiveCoachingPanel({
               />
               Auto-coach {autoCoach ? "ON" : "OFF"}
             </button>
+            </LearningHint>
+            <LearningHint
+              as="inline-block"
+              category="Sales Coach · Live coaching"
+              title="Coach me now"
+              whatItIs="Asks the coach for a cue immediately, without waiting for it to decide on its own."
+              why="Sometimes you know you need help right now — an objection you didn't expect, a stall you can't read. This is the on-demand pull for exactly those moments."
+              how="Tap it the instant you feel stuck. It's the same as a double-tap on a supported earpiece."
+              principle="The best moment to ask for help is the moment you notice you need it."
+            >
             <button
               type="button"
               onClick={() => requestCue()}
@@ -240,6 +300,7 @@ export function LiveCoachingPanel({
               <Hand className="w-3.5 h-3.5" aria-hidden />
               Coach me now
             </button>
+            </LearningHint>
           </div>
         )}
       </div>
@@ -248,6 +309,15 @@ export function LiveCoachingPanel({
           controls band (founder 2026-07-01). Content + UX unchanged — moved
           out of the mode-toggle flex row, that's the whole fix. */}
       {live && tapsSupported && (
+        <LearningHint
+          as="block"
+          category="Sales Coach · Live coaching"
+          title="Earpiece taps"
+          whatItIs="Hands-free controls: tap your earbud to run the coach without touching the screen — single tap marks who's speaking, double tap pulls a cue, triple tap toggles auto-coach."
+          why="Mid-conversation you can't look at a screen without the prospect noticing. Taps let you drive the coach invisibly, so the help stays between you and your ear."
+          how="Learn the three gestures below. If a tap doesn't map on your earbud, use the on-screen buttons — the '✓' confirms when a tap actually reaches the app."
+          principle="The best coaching is the kind the other person never sees."
+        >
         <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
           <div className="flex items-center gap-1.5">
             <Hand className="w-3 h-3 text-brand" aria-hidden />
@@ -283,10 +353,20 @@ export function LiveCoachingPanel({
             tap reaches the app.
           </p>
         </div>
+        </LearningHint>
       )}
 
       {/* F1: honest enforcement — gate Start on an earpiece acknowledgement. */}
       {!live && (
+        <LearningHint
+          as="block"
+          category="Sales Coach · Live coaching"
+          title="Earpiece confirmation"
+          whatItIs="A required check that you're wearing an in-ear earpiece before live coaching can start."
+          why="The cue plays to your device's audio output — the app can't guarantee the customer won't hear it on speakers. This is honest enforcement: we ask you to confirm the one thing the code can't verify, rather than pretend it's safe."
+          how="Put your earpiece in, then check the box. Start stays disabled until you do."
+          principle="When you can't guarantee a safeguard, name it — don't fake it."
+        >
         <label className="flex items-start gap-2 mt-3 text-[11px] text-secondary cursor-pointer">
           <input
             type="checkbox"
@@ -300,6 +380,7 @@ export function LiveCoachingPanel({
             speakers, the customer could hear it.)
           </span>
         </label>
+        </LearningHint>
       )}
 
       {error && <p className="text-xs text-amber-300 mt-2">{error}</p>}
@@ -307,6 +388,15 @@ export function LiveCoachingPanel({
       {/* Live mic-level meter — the same RMS that drives proximity
           attribution, shown so the agent can see they're the louder voice. */}
       {live && (
+        <LearningHint
+          as="block"
+          category="Sales Coach · Live coaching"
+          title="Mic level"
+          whatItIs="A live meter of how loud you're coming through — the same loudness read the coach uses to tell your voice from the prospect's."
+          why="You wear the mic, so you should be the louder voice. If the meter barely moves, the coach can't reliably separate the speakers, and everything downstream — cues, transcript, review — gets shakier."
+          how="Glance at it early. If it's reading 'quiet' while you talk, move the mic closer before you rely on the coaching."
+          principle="Everything the coach knows starts with hearing you clearly."
+        >
         <div className="mt-3">
           <div className="flex items-center gap-1.5 mb-1">
             <Mic className="w-3 h-3 text-muted" aria-hidden />
@@ -335,11 +425,21 @@ export function LiveCoachingPanel({
             you apart from the prospect.
           </p>
         </div>
+        </LearningHint>
       )}
 
       {/* Current cue + "used it" confirm (0080 cue loop). The rep's tap is
           first-party truth the After Pitch Summary prefers over inference. */}
       {currentCue && (
+        <LearningHint
+          as="block"
+          category="Sales Coach · Live coaching"
+          title="The live cue + &quot;I used this&quot;"
+          whatItIs="The coach's in-the-moment cue, with a button to mark when you actually used it."
+          why="Marking 'I used this' is first-party truth — it tells the after-call review what actually landed, instead of the system guessing. That's what keeps the measurement honest rather than self-congratulatory."
+          how="Read the cue, act on it if it fits, then tap 'I used this' so the review learns which cues helped."
+          principle="Measure what you actually did, not what you were offered."
+        >
         <div className="mt-3 rounded-xl border border-ember-400/30 bg-ember-400/[0.06] shadow-[0_0_28px_-12px_rgba(250,204,21,0.45)] p-3">
           <div className="flex items-start gap-2">
             <Sparkles className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
@@ -363,6 +463,7 @@ export function LiveCoachingPanel({
             )}
           </div>
         </div>
+        </LearningHint>
       )}
 
       {/* Visible cue lifecycle (thinking / speaking / couldn't play …). */}
@@ -374,6 +475,15 @@ export function LiveCoachingPanel({
           speaking. Increment 1 attribution is naive alternation; the labels
           are shown so it's testable and obviously provisional (§3.4). */}
       {(live || turns.length > 0) && (
+        <LearningHint
+          as="block"
+          category="Sales Coach · Live coaching"
+          title="Rolling transcript"
+          whatItIs="The live conversation as the coach hears it, each turn tagged with who it thinks is speaking — you or the prospect."
+          why="Seeing the attribution as it happens makes it testable: you can catch a mislabeled turn in the moment. A dim '…' means the label is still provisional — the system shows its uncertainty instead of hiding it."
+          how="Watch that your turns and the prospect's are landing on the right side. If they're swapped, the 'I'm speaking' toggle corrects it."
+          principle="A system that shows its uncertainty earns the trust one that hides it can't."
+        >
         <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-default bg-base/40 p-3 space-y-1.5">
           {turns.length === 0 && !partial && (
             <p className="text-[11px] text-muted">Listening…</p>
@@ -399,6 +509,7 @@ export function LiveCoachingPanel({
             <p className="text-xs text-muted italic leading-relaxed">{partial}</p>
           )}
         </div>
+        </LearningHint>
       )}
       {(live || turns.length > 0) && (
         <p className="text-[10px] text-muted mt-1.5">

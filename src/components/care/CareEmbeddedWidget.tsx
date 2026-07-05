@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, MessageCircle, Phone, RotateCcw, Send, X } from "lucide-react";
 import { VoiceSurface } from "./voice/VoiceSurface";
 import { useVoiceMode } from "./voice/useVoiceMode";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Embedded C.A.R.E widget — runs inside the iframe served at
@@ -503,6 +504,15 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
               onEnd={endCall}
             />
           ) : (
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Chat Widget"
+              title="The message composer"
+              whatItIs="Where a visitor on a customer's own site types to the AI agent, or taps the phone to talk. Enter sends; Shift+Enter adds a line."
+              why="This widget lives on someone else's website, styled in their color. The composer stays deliberately bare — no pre-chat form, no required email — because a visitor who has to fill out fields to say hello usually just leaves. Fewer fields, more conversations started."
+              how="Type and press Enter. Tap the phone icon for a hands-free voice call. The thread persists on this device, and an agent reply lands here within a few seconds without a refresh."
+              principle="Every field between a visitor and their first message is a place they quietly give up."
+            >
             <div className="border-t border-default p-3 flex items-end gap-2 bg-surface/40">
               <textarea
                 ref={inputRef}
@@ -545,6 +555,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
                 )}
               </button>
             </div>
+            </LearningHint>
           )}
 
           {config.displayName && (

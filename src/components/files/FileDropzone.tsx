@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Paperclip, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Asset System v1 — drag/drop + click-to-pick zone.
@@ -216,6 +217,15 @@ export function FileDropzone({
   if (hiddenLabel) {
     return (
       <>
+        <LearningHint
+          as="inline-block"
+          category="Files · Attach"
+          title="Attach a file"
+          whatItIs="The composer's attach action — pulls a file into this message or conversation and files it into the library at the same time."
+          why="Attaching where the conversation happens means the file is captured in-context (linked to this task, chat, or thread) instead of uploaded separately and disconnected from why it exists."
+          how="Click to pick a file. It uploads and, where possible, auto-routes to a classification you can edit later from the library."
+          principle="Capture the file where the context already is."
+        >
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -230,6 +240,7 @@ export function FileDropzone({
           )}
           {uploading ? "Uploading…" : "Attach"}
         </button>
+        </LearningHint>
         <input
           ref={inputRef}
           type="file"
@@ -254,6 +265,15 @@ export function FileDropzone({
   }
 
   return (
+    <LearningHint
+      as="block"
+      category="Files · Upload"
+      title="Upload dropzone"
+      whatItIs="Drag a file in, click to pick one, or choose a whole folder. The universal entry point for getting a file into the library from any surface."
+      why="A capture point that's always one gesture away is what keeps assets flowing into the shared library instead of staying stuck in inboxes and desktops. Friction here is friction on the whole team's memory."
+      how="Drop or click for single or multiple files; use 'choose a folder' to upload a directory (it's zipped with its structure preserved). 25MB max per file; videos and archives are blocked."
+      principle="The easier the capture, the richer the shared memory."
+    >
     <div
       onDragOver={(e) => {
         e.preventDefault();
@@ -377,5 +397,6 @@ export function FileDropzone({
         )}
       </div>
     </div>
+    </LearningHint>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Save, Sparkles } from "lucide-react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
+import { LearningHint } from "@/components/learning/LearningHint";
 import {
   AVATAR_PALETTE,
   avatarColorFor,
@@ -152,54 +153,81 @@ export function AvatarCustomizationPanel() {
       </div>
 
       {/* Initials */}
-      <div className="space-y-1.5 mb-4">
-        <label className="block text-xs font-medium text-secondary">
-          Initials (1–3 characters)
-        </label>
-        <input
-          type="text"
-          value={initials}
-          onChange={(e) => setInitials(e.target.value.slice(0, 3))}
-          placeholder={avatarInitialsFor(fullName)}
-          maxLength={3}
-          className="w-32 bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors"
-        />
-        <p className="text-[11px] text-muted">
-          Default: <span className="font-mono">{avatarInitialsFor(fullName)}</span>
-          {" "}— derived from your name.
-        </p>
-      </div>
+      <LearningHint
+        as="block"
+        category="Settings · Avatar"
+        title="Initials"
+        whatItIs="The one-to-three characters shown inside your avatar wherever you appear — chat, tasks, notifications."
+        why="Teammates recognize each other by these tiny marks at a glance. Left blank, they're derived from your name automatically; the override is here for when the derived guess isn't the one people know you by."
+        how="Type 1–3 characters, or leave it empty to keep the default shown below the field. It updates the live preview immediately, but only sticks once you save."
+        principle="A stable, recognizable mark is worth more than a clever one.">
+        <div className="space-y-1.5 mb-4">
+          <label className="block text-xs font-medium text-secondary">
+            Initials (1–3 characters)
+          </label>
+          <input
+            type="text"
+            value={initials}
+            onChange={(e) => setInitials(e.target.value.slice(0, 3))}
+            placeholder={avatarInitialsFor(fullName)}
+            maxLength={3}
+            className="w-32 bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors"
+          />
+          <p className="text-[11px] text-muted">
+            Default: <span className="font-mono">{avatarInitialsFor(fullName)}</span>
+            {" "}— derived from your name.
+          </p>
+        </div>
+      </LearningHint>
 
       {/* Color — palette swatches + custom hex */}
       <div className="space-y-2 mb-4">
         <label className="block text-xs font-medium text-secondary">
           Background color
         </label>
-        <div className="flex flex-wrap items-center gap-2">
-          {AVATAR_PALETTE.map((hex) => (
-            <button
-              key={hex}
-              type="button"
-              onClick={() => setColor(hex)}
-              aria-label={`Pick ${hex}`}
-              title={hex}
-              className={`w-8 h-8 rounded-lg border-2 transition-transform ${
-                color === hex
-                  ? "border-primary scale-110"
-                  : "border-default/40 hover:scale-105"
-              }`}
-              style={{ backgroundColor: hex }}
-            />
-          ))}
-        </div>
+        <LearningHint
+          as="block"
+          category="Settings · Avatar"
+          title="Brand palette"
+          whatItIs="A set of ready-made background colors drawn from the product's own palette, so your avatar sits harmoniously alongside everyone else's."
+          why="Total color freedom tends to produce a jarring wall of clashing avatars. These curated swatches let you personalize without breaking the shared visual language of the team's surfaces."
+          how="Click any swatch to select it — the chosen one gets a highlighted ring, and the preview updates live. Prefer something exact? Use the custom hex field below instead."
+          principle="Personalization inside a shared palette beats a free-for-all that no one can read.">
+          <div className="flex flex-wrap items-center gap-2">
+            {AVATAR_PALETTE.map((hex) => (
+              <button
+                key={hex}
+                type="button"
+                onClick={() => setColor(hex)}
+                aria-label={`Pick ${hex}`}
+                title={hex}
+                className={`w-8 h-8 rounded-lg border-2 transition-transform ${
+                  color === hex
+                    ? "border-primary scale-110"
+                    : "border-default/40 hover:scale-105"
+                }`}
+                style={{ backgroundColor: hex }}
+              />
+            ))}
+          </div>
+        </LearningHint>
         <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            placeholder={avatarColorFor(userId, fullName)}
-            className="w-32 bg-surface border border-default rounded-lg px-3 py-1.5 text-xs font-mono text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
-          />
+          <LearningHint
+            as="inline-block"
+            category="Settings · Avatar"
+            title="Custom hex color"
+            whatItIs="A field for an exact 6-digit hex background color, for when none of the palette swatches is the one you want."
+            why="Sometimes you need a specific brand or personal color the palette doesn't include. This allows it — but it's validated on save, because an invalid color would render a broken avatar for everyone who sees you."
+            how="Enter a hex like #FACC15, or leave it blank to fall back to the brand-derived default. The foreground text color is chosen automatically for contrast."
+            principle="Give the exact-control escape hatch, but validate it — freedom without a guardrail breaks the surface.">
+            <input
+              type="text"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              placeholder={avatarColorFor(userId, fullName)}
+              className="w-32 bg-surface border border-default rounded-lg px-3 py-1.5 text-xs font-mono text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
+            />
+          </LearningHint>
           <p className="text-[11px] text-muted">
             Custom hex (e.g. <span className="font-mono">#FACC15</span>) — or
             leave blank for the brand-derived default.
@@ -214,28 +242,46 @@ export function AvatarCustomizationPanel() {
       )}
 
       <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={reset}
-          className="text-xs text-muted hover:text-secondary"
-        >
-          Reset to defaults
-        </button>
+        <LearningHint
+          as="inline-block"
+          category="Settings · Avatar"
+          title="Reset to defaults"
+          whatItIs="Clears your color and initials overrides so the avatar falls back to the values derived from your name and user id."
+          why="The derived defaults are deterministic and always valid — they never break. This is the one-click way back to a known-good state if a custom choice isn't working out."
+          how="Click it to empty both fields. Nothing is saved until you hit Save, so you can preview the default first and change your mind."
+          principle="Always leave a clean path back to the known-good default.">
+          <button
+            type="button"
+            onClick={reset}
+            className="text-xs text-muted hover:text-secondary"
+          >
+            Reset to defaults
+          </button>
+        </LearningHint>
         <div className="flex items-center gap-3">
           {savedAtIso && (
             <span className="text-[11px] text-emerald-400">
               Saved at {new Date(savedAtIso).toLocaleTimeString()}
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={saving}
-            className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold text-xs px-3 py-2 rounded-lg transition-colors"
-          >
-            <Save className="w-3.5 h-3.5" aria-hidden />
-            {saving ? "Saving…" : "Save"}
-          </button>
+          <LearningHint
+            as="inline-block"
+            category="Settings · Avatar"
+            title="Save avatar"
+            whatItIs="Writes your color and initials to your profile so the avatar updates everywhere you appear."
+            why="Changes here are only a live preview until saved — nothing your teammates see moves until you commit it. Save also validates the hex and initials first, so an invalid value is caught here rather than rendered."
+            how="Click to persist. Your new avatar appears on the next message refresh; the timestamp confirms the write landed."
+            principle="Preview is not commitment — what you save is what the team sees.">
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={saving}
+              className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold text-xs px-3 py-2 rounded-lg transition-colors"
+            >
+              <Save className="w-3.5 h-3.5" aria-hidden />
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </LearningHint>
         </div>
       </div>
     </div>

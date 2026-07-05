@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { BookOpen, BookOpenCheck, Loader2, Hourglass, ShieldAlert } from "lucide-react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
+import { LearningHint } from "@/components/learning/LearningHint";
 import {
   resolveCyclePhase,
   canEnableCoach,
@@ -203,26 +204,35 @@ export function CoachTogglePanel() {
 
   return (
     <div className="glass-card p-5">
-      <div className="flex items-start gap-3 mb-3">
-        {enabled ? (
-          <BookOpenCheck className="w-5 h-5 text-brand flex-shrink-0 mt-0.5" aria-hidden />
-        ) : (
-          <BookOpen className="w-5 h-5 text-muted flex-shrink-0 mt-0.5" aria-hidden />
-        )}
-        <div className="flex-1">
-          <h2 className="text-sm font-semibold text-primary mb-1">
-            Conversational Coach
-          </h2>
-          <p className="text-[11px] text-muted leading-relaxed">
-            Surfaces heuristic citations as your team drafts messages,
-            task descriptions, feedback, and notes. Cites the
-            constitutional principle and lets the author choose to
-            refine — never auto-rewrites (§3.3). Every offered /
-            accepted / dismissed lands on the §3.1 chain; outcomes
-            visible on the Coach readout.
-          </p>
+      <LearningHint
+        as="block"
+        category="Settings · Coach"
+        title="Conversational Coach"
+        whatItIs="A company-wide switch that lets the Coach surface a relevant principle as your team writes messages, tasks, feedback, and notes — as a citation, never a rewrite."
+        why="Guidance that overtakes the author creates dependence instead of capability. The Coach cites and steps back so the person still authors their own words; every offer, accept, and dismiss is recorded so its real effect can be measured, not assumed."
+        how="Read the state below the divider, then use the toggle. It only turns on once the control window has passed — that gate is deliberate, not a bug."
+        principle="Guide, don't overtake — the coach cites the principle and the human keeps the pen.">
+        <div className="flex items-start gap-3 mb-3">
+          {enabled ? (
+            <BookOpenCheck className="w-5 h-5 text-brand flex-shrink-0 mt-0.5" aria-hidden />
+          ) : (
+            <BookOpen className="w-5 h-5 text-muted flex-shrink-0 mt-0.5" aria-hidden />
+          )}
+          <div className="flex-1">
+            <h2 className="text-sm font-semibold text-primary mb-1">
+              Conversational Coach
+            </h2>
+            <p className="text-[11px] text-muted leading-relaxed">
+              Surfaces heuristic citations as your team drafts messages,
+              task descriptions, feedback, and notes. Cites the
+              constitutional principle and lets the author choose to
+              refine — never auto-rewrites (§3.3). Every offered /
+              accepted / dismissed lands on the §3.1 chain; outcomes
+              visible on the Coach readout.
+            </p>
+          </div>
         </div>
-      </div>
+      </LearningHint>
 
       {/* §3.4 cycle banner — present whenever we know the phase. */}
       {cycle && (
@@ -288,14 +298,23 @@ export function CoachTogglePanel() {
           </div>
 
           {inControl && !showSkipForm && (
-            <button
-              type="button"
-              onClick={() => setShowSkipForm(true)}
-              className="mt-2 ml-6 inline-flex items-center gap-1 text-[10px] text-muted hover:text-accent-text underline"
-            >
-              <ShieldAlert className="w-3 h-3" aria-hidden />
-              Override (records a permanent skip mark)
-            </button>
+            <LearningHint
+              as="inline-block"
+              category="Settings · Coach"
+              title="Override the control window"
+              whatItIs="An escape hatch that ends the Month-1 baseline early and unlocks the Coach now, in exchange for a permanent on-record mark."
+              why="The month-1 control exists so improvement can be attributed to the Coach and nothing else. Skipping it isn't forbidden, but it can't be silent — the skip is stamped on the chain forever so anyone reading the outcomes knows the baseline wasn't clean."
+              how="Only use it when you have a real reason (e.g. a parallel measurement). Clicking it opens a form that requires a written justification before the skip is recorded."
+              principle="Every shortcut around honesty must leave a mark you can't erase.">
+              <button
+                type="button"
+                onClick={() => setShowSkipForm(true)}
+                className="mt-2 ml-6 inline-flex items-center gap-1 text-[10px] text-muted hover:text-accent-text underline"
+              >
+                <ShieldAlert className="w-3 h-3" aria-hidden />
+                Override (records a permanent skip mark)
+              </button>
+            </LearningHint>
           )}
 
           {inControl && showSkipForm && (
@@ -312,14 +331,23 @@ export function CoachTogglePanel() {
                 a parallel measurement, not because the toggle feels
                 tempting today.
               </p>
-              <textarea
-                value={skipReason}
-                onChange={(e) => setSkipReason(e.target.value)}
-                rows={2}
-                maxLength={400}
-                placeholder="Why are you skipping? (≥20 chars)"
-                className="w-full rounded-md bg-black/30 border border-white/10 px-2 py-1.5 text-[11px] text-primary focus:outline-none focus:border-accent-text/50"
-              />
+              <LearningHint
+                as="block"
+                category="Settings · Coach"
+                title="Skip reason"
+                whatItIs="The written justification for ending the control window early — required, at least 20 characters, and kept permanently."
+                why="A skip without a reason is just a bypass. The reason is what the outcomes readout attributes the override to later, so it has to carry substance, not a shrug."
+                how="State the genuine reason in plain language. It's stored verbatim on the chain alongside who skipped and when — you can't edit it afterward."
+                principle="If it's worth overriding a safeguard, it's worth writing down why.">
+                <textarea
+                  value={skipReason}
+                  onChange={(e) => setSkipReason(e.target.value)}
+                  rows={2}
+                  maxLength={400}
+                  placeholder="Why are you skipping? (≥20 chars)"
+                  className="w-full rounded-md bg-black/30 border border-white/10 px-2 py-1.5 text-[11px] text-primary focus:outline-none focus:border-accent-text/50"
+                />
+              </LearningHint>
               <div className="mt-1.5 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -332,15 +360,24 @@ export function CoachTogglePanel() {
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={recordSkip}
-                  disabled={skipSaving || skipReason.trim().length < 20}
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-accent-text border border-accent-text/40 hover:border-accent-text/70 disabled:opacity-40 px-2 py-1 rounded"
-                >
-                  {skipSaving && <Loader2 className="w-3 h-3 animate-spin" />}
-                  Record skip
-                </button>
+                <LearningHint
+                  as="inline-block"
+                  category="Settings · Coach"
+                  title="Record skip"
+                  whatItIs="The commit action that writes the control-window skip — the stamp, your identity, and your reason — permanently to the chain and unlocks the Coach."
+                  why="This is the point of no return. It's append-only by design: the skip can never be cleared, so the outcomes readout can flag this company as 'skipped control' for as long as it exists."
+                  how="Enabled only once your reason is at least 20 characters. Click it and the Coach unlocks immediately; there's no undo, so be sure before you do."
+                  principle="Irreversible actions should feel irreversible — that's the safeguard, not a flaw.">
+                  <button
+                    type="button"
+                    onClick={recordSkip}
+                    disabled={skipSaving || skipReason.trim().length < 20}
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-accent-text border border-accent-text/40 hover:border-accent-text/70 disabled:opacity-40 px-2 py-1 rounded"
+                  >
+                    {skipSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                    Record skip
+                  </button>
+                </LearningHint>
               </div>
             </div>
           )}
@@ -364,28 +401,37 @@ export function CoachTogglePanel() {
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={flip}
-          disabled={
-            loading ||
-            saving ||
-            enabled == null ||
-            (inControl && !enabled) // can't turn ON in control
-          }
-          title={
-            inControl && !enabled
-              ? `Locked during §3.4 control — ${cycle?.daysRemainingInPhase ?? "?"} day${cycle?.daysRemainingInPhase === 1 ? "" : "s"} remaining`
-              : undefined
-          }
-          className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border ${
-            enabled
-              ? "border-ember-400/40 hover:border-ember-400/70 text-brand bg-ember-400/5"
-              : "border-default hover:border-strong text-secondary"
-          } disabled:opacity-40 disabled:cursor-not-allowed`}
-        >
-          {saving ? "Saving…" : enabled ? "Turn off" : "Turn on"}
-        </button>
+        <LearningHint
+          as="inline-block"
+          category="Settings · Coach"
+          title="Turn the Coach on / off"
+          whatItIs="The company-wide switch for the Conversational Coach. When on, guidance surfaces across tasks, feedback, notes, and chat; when off, it only appears on chat topics that opted in per-topic."
+          why="This is one lever with a real cost: flipping it on is the single change measured against the month-1 baseline. It stays disabled during the control window so that comparison stays clean, and each flip emits an event so the readout knows exactly when guidance was live."
+          how="During Month 1 it's locked — the tooltip shows the days remaining. Once unlocked, click to turn on company-wide, or off to fall back to per-topic opt-in."
+          principle="A single, dated, on-the-record switch is what makes the improvement attributable.">
+          <button
+            type="button"
+            onClick={flip}
+            disabled={
+              loading ||
+              saving ||
+              enabled == null ||
+              (inControl && !enabled) // can't turn ON in control
+            }
+            title={
+              inControl && !enabled
+                ? `Locked during §3.4 control — ${cycle?.daysRemainingInPhase ?? "?"} day${cycle?.daysRemainingInPhase === 1 ? "" : "s"} remaining`
+                : undefined
+            }
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border ${
+              enabled
+                ? "border-ember-400/40 hover:border-ember-400/70 text-brand bg-ember-400/5"
+                : "border-default hover:border-strong text-secondary"
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            {saving ? "Saving…" : enabled ? "Turn off" : "Turn on"}
+          </button>
+        </LearningHint>
       </div>
     </div>
   );

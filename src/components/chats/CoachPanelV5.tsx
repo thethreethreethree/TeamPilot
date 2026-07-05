@@ -11,6 +11,7 @@ import type {
   CoachFollowUpResponse,
 } from "@/lib/coach/v5/types";
 import { hapticSuccess } from "@/lib/pwa/haptics";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * CoachPanelV5 — the conversational Coach surface.
@@ -394,6 +395,15 @@ export function CoachPanelV5({
                 </p>
               </div>
 
+              <LearningHint
+                as="block"
+                category="Chat · Coach"
+                title="The revision Coach offers"
+                whatItIs="A rewrite of your draft in your own voice, with the one-line reason it reads better and the named principle it draws on."
+                why="The why sits ABOVE the accept button on purpose. Coach shows you the reasoning before you can adopt the words, so you take the lesson, not just the text — the difference between growing and outsourcing."
+                how="Read the reason first. If it lands, use it. If it doesn't fit what you actually meant, send as written or ask a follow-up — Coach guides, it never decides."
+                principle="Adopt the reasoning, not just the rewrite. The words are disposable; the principle transfers."
+              >
               <div className="rounded-lg bg-surface border border-default p-2.5 space-y-2">
                 <p className="text-[10px] uppercase tracking-widest font-mono text-brand">
                   Want to try this?
@@ -416,7 +426,17 @@ export function CoachPanelV5({
                   )}
                 </p>
               </div>
+              </LearningHint>
 
+              <LearningHint
+                as="block"
+                category="Chat · Coach"
+                title="Use this revision, or send as written"
+                whatItIs="Two choices: replace your draft with Coach's revision, or dismiss and send exactly what you wrote."
+                why="Coach never overtakes. 'Send as written' is a first-class option, not a fallback — the point is a clearer message, and sometimes yours already is."
+                how="'Use this revision' drops the rewrite into your composer to edit further. 'Send as written' keeps your words and closes the panel."
+                principle="A suggestion you can freely refuse is guidance; one you can't is takeover."
+              >
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
@@ -435,6 +455,7 @@ export function CoachPanelV5({
                   Send as written
                 </button>
               </div>
+              </LearningHint>
             </>
           )}
 
@@ -463,6 +484,15 @@ export function CoachPanelV5({
               follow-up call with the starter as the user's question. The
               starters update after each Coach reply. */}
           {!state.followingUp && state.latestStarters.length > 0 && (
+            <LearningHint
+              as="block"
+              category="Chat · Coach"
+              title="Ask Coach a follow-up"
+              whatItIs="Suggested questions you can tap to keep the conversation going — they refresh after each of Coach's replies."
+              why="The best coaching is a dialogue, not a verdict. These lower the cost of asking 'why' so the reasoning gets unpacked instead of just handed over."
+              how="Tap one to send it, or type your own below. Coach answers in context of your draft and the thread."
+              principle="The question you ask teaches more than the answer you're given."
+            >
             <div className="pt-2 border-t border-ember-400/15">
               <p className="text-[10px] uppercase tracking-widest font-mono text-muted mb-1.5">
                 {state.turns.length === 0 ? "You could ask me" : "Or ask"}
@@ -480,15 +510,26 @@ export function CoachPanelV5({
                 ))}
               </div>
             </div>
+            </LearningHint>
           )}
 
           {/* Free-form follow-up input — always available when the
               Coach is in showing state. The user can ask anything; the
               follow-up route handles it as a conversational turn. */}
+          <LearningHint
+            as="block"
+            category="Chat · Coach"
+            title="Ask Coach anything about this draft"
+            whatItIs="A free-form input to ask Coach whatever you want about your message — tone, wording, what a recipient might hear."
+            why="Canned suggestions can't anticipate your real question. This keeps you in the driver's seat: you interrogate the advice rather than absorbing it whole."
+            how="Type a question and press Enter (Shift+Enter for a newline). Coach replies in the thread above and may offer an alternative revision."
+            principle="Understanding is earned by asking, not by being told."
+          >
           <FollowUpInput
             disabled={state.followingUp}
             onSend={(q) => void sendFollowUp(q)}
           />
+          </LearningHint>
         </div>
         <button
           type="button"
