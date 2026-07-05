@@ -453,6 +453,19 @@ async function runAiFirstResponder(args: {
       console.warn(
         `[care] email AI loop breaker tripped conv=${args.conversationId} recentAiReplies=${recentAiReplies}`
       );
+      // Durable record in the conversation timeline (§3.1 append-only) so an
+      // agent viewing the thread sees WHY the AI went quiet, not just an
+      // unexplained silence. actor_type=system (no human silenced it).
+      await admin.from("support_conversation_events").insert({
+        conversation_id: args.conversationId,
+        actor_id: null,
+        actor_type: "system",
+        event_type: "ai_suppressed_loop",
+        metadata: {
+          recent_ai_replies: recentAiReplies ?? 0,
+          window_ms: AI_LOOP_WINDOW_MS,
+        },
+      });
       return;
     }
 
@@ -488,6 +501,20 @@ async function runAiFirstResponder(args: {
           console.warn(
             `[care] email AI sender-flood guard tripped customer=${args.customerId} senderAiReplies=${senderAiReplies}`
           );
+          // §3.1 record on the current thread. Each suppression is a real
+          // event; append-only means the flood leaves an honest trail an
+          // agent (and any later analysis) can read.
+          await admin.from("support_conversation_events").insert({
+            conversation_id: args.conversationId,
+            actor_id: null,
+            actor_type: "system",
+            event_type: "ai_suppressed_flood",
+            metadata: {
+              sender_ai_replies: senderAiReplies ?? 0,
+              window_ms: AI_SENDER_WINDOW_MS,
+              customer_id: args.customerId,
+            },
+          });
           return;
         }
       }

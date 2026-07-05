@@ -3259,6 +3259,12 @@ function renderEventLabel(e: ConversationEvent): string {
       return `Snoozed until ${e.metadata.until ? new Date(e.metadata.until as string).toLocaleString() : "?"}`;
     case "unsnoozed":
       return "Unsnoozed";
+    case "ai_suppressed_loop":
+      // Email AI first-responder hit the loop breaker — explains why the AI
+      // went quiet on this thread (a mail-loop with the sender's auto-responder).
+      return `AI paused — reply loop detected (${(e.metadata.recent_ai_replies as number) ?? "?"} auto-replies in a row)`;
+    case "ai_suppressed_flood":
+      return `AI paused — too many auto-replies to this sender (${(e.metadata.sender_ai_replies as number) ?? "?"} recently)`;
     default:
       return e.eventType;
   }
