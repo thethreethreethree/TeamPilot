@@ -372,6 +372,13 @@ function extractLocalPart(to: string): string | null {
   return address.slice(0, at);
 }
 
+// Loop breaker window + threshold. A machine auto-responder ping-pong
+// fires far faster than a human can round-trip an email, so a small
+// count inside a short window is a reliable loop signal with near-zero
+// false positives on real threads.
+const AI_LOOP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const AI_LOOP_BREAKER_MAX = 5; // ≥5 AI replies in the window = loop, not a human
+
 /**
  * AI first responder for email. Best-effort. If anything fails
  * the customer doesn't see an auto-reply, but an agent picks
@@ -382,15 +389,59 @@ async function runAiFirstResponder(args: {
   companyId: string;
   customerMessage: string;
 }): Promise<void> {
+  const admin = createAdminClient();
   try {
+    // Respect the human-takeover flag — parity with the widget
+    // messages route, which gates the AI reply on
+    // conversation.aiResponding (§A21). If an agent claimed this
+    // conversation (ai_responding=false), or a prior handoff / loop
+    // breaker already flipped it, the AI must stay silent and let the
+    // human reply from the inbox (§3.3 — guide, don't overtake). The
+    // email route previously skipped this check, so the AI kept
+    // auto-replying over an agent who had already taken the thread.
+    const { data: conv } = await admin
+      .from("support_conversations")
+      .select("ai_responding")
+      .eq("id", args.conversationId)
+      .maybeSingle();
+    if (!conv || conv.ai_responding === false) return;
+
     // Honest hand-off detection — if the customer asked for a
     // human, don't AI-reply. The agent inbox surfaces it.
     if (detectHandoffSignal(args.customerMessage)) {
-      const admin = createAdminClient();
       await admin
         .from("support_conversations")
         .update({ ai_responding: false })
         .eq("id", args.conversationId);
+      return;
+    }
+
+    // Loop breaker — email is machine-to-machine and can ping-pong
+    // with the sender's own auto-responder (out-of-office, another
+    // bot): our AI reply → their auto-reply → our inbound → our AI
+    // reply, each hop costing an LLM call. Count AI replies already
+    // sent in this conversation inside a short window; past a small
+    // threshold it's a loop, not a human. Flip the AI off so a human
+    // takes over and the spend stops (§3.4 — don't pretend to keep
+    // answering a machine; §A16 — an email-specific guard the live
+    // widget doesn't need).
+    const since = new Date(Date.now() - AI_LOOP_WINDOW_MS).toISOString();
+    const { count: recentAiReplies } = await admin
+      .from("support_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", args.conversationId)
+      .eq("author_type", "ai")
+      .gte("created_at", since);
+    if ((recentAiReplies ?? 0) >= AI_LOOP_BREAKER_MAX) {
+      await admin
+        .from("support_conversations")
+        .update({ ai_responding: false })
+        .eq("id", args.conversationId);
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          `[care] email AI loop breaker tripped conv=${args.conversationId} recentAiReplies=${recentAiReplies}`
+        );
+      }
       return;
     }
 
@@ -418,7 +469,6 @@ async function runAiFirstResponder(args: {
       userMessage,
     });
 
-    const admin = createAdminClient();
     await admin.from("support_messages").insert({
       conversation_id: args.conversationId,
       author_type: "ai",
