@@ -271,6 +271,7 @@ export default function SalesCoachRoleplayPage() {
                   type="text"
                   value={custom}
                   onChange={(e) => setCustom(e.target.value)}
+                  aria-label="Describe the situation (optional)"
                   placeholder="Optional: describe the situation (e.g. 'renewing homeowner, burned by last vendor')"
                   className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mt-2.5"
                 />
@@ -353,6 +354,7 @@ export default function SalesCoachRoleplayPage() {
                       void send();
                     }
                   }}
+                  aria-label="Your line to the prospect"
                   placeholder="Your line…"
                   disabled={sending || reviewing}
                   className="flex-1 min-w-0 text-sm bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
