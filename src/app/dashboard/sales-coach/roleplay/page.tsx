@@ -153,6 +153,12 @@ export default function SalesCoachRoleplayPage() {
       setMessages((m) => [...m, { role: "prospect", text: reply as string }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      // Roll back the optimistic rep turn — a failed send must not strand an
+      // unanswered message in the thread (which would also push two rep turns
+      // in a row to the prospect on the next attempt). Restore the text to the
+      // input so retry is one tap, clean. (L2 error-path robustness.)
+      setMessages((m) => m.slice(0, -1));
+      setInput(text);
     } finally {
       setSending(false);
     }
