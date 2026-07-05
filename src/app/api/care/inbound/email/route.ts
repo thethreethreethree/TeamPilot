@@ -350,6 +350,7 @@ export async function POST(req: NextRequest) {
   void runAiFirstResponder({
     conversationId,
     companyId: tenant.company_id,
+    customerId,
     customerMessage: body.TextBody,
   });
 
@@ -378,6 +379,12 @@ function extractLocalPart(to: string): string | null {
 // false positives on real threads.
 const AI_LOOP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const AI_LOOP_BREAKER_MAX = 5; // ≥5 AI replies in the window = loop, not a human
+// Per-sender flood guard — a spammer opening many DISTINCT threads to one
+// tenant address isn't caught by the per-conversation loop breaker (each new
+// thread gets its own count). This bounds total AI replies to one sender
+// across all their threads inside a wider window.
+const AI_SENDER_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const AI_SENDER_MAX = 12; // ≥12 AI replies to one sender in the window = flood
 
 /**
  * AI first responder for email. Best-effort. If anything fails
@@ -387,6 +394,7 @@ const AI_LOOP_BREAKER_MAX = 5; // ≥5 AI replies in the window = loop, not a hu
 async function runAiFirstResponder(args: {
   conversationId: string;
   companyId: string;
+  customerId: string | null;
   customerMessage: string;
 }): Promise<void> {
   const admin = createAdminClient();
@@ -443,6 +451,40 @@ async function runAiFirstResponder(args: {
         );
       }
       return;
+    }
+
+    // Per-sender flood guard — the loop breaker above is per-conversation, so
+    // a spammer opening many DISTINCT threads to one tenant address slips past
+    // it (each new thread starts its own count). Bound total AI replies to one
+    // sender across ALL their threads in a wider window; past the cap, stop
+    // auto-replying to this sender. Their messages still land in the agent
+    // inbox — we suppress the AI, not the intake (§A16 composes with the loop
+    // breaker; §3.4 — don't burn LLM spend pretending a flood is a customer).
+    if (args.customerId) {
+      const { data: senderConvos } = await admin
+        .from("support_conversations")
+        .select("id")
+        .eq("customer_id", args.customerId);
+      const senderConvoIds = (senderConvos ?? []).map((c) => c.id);
+      if (senderConvoIds.length > 0) {
+        const senderSince = new Date(
+          Date.now() - AI_SENDER_WINDOW_MS
+        ).toISOString();
+        const { count: senderAiReplies } = await admin
+          .from("support_messages")
+          .select("id", { count: "exact", head: true })
+          .in("conversation_id", senderConvoIds)
+          .eq("author_type", "ai")
+          .gte("created_at", senderSince);
+        if ((senderAiReplies ?? 0) >= AI_SENDER_MAX) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn(
+              `[care] email AI sender-flood guard tripped customer=${args.customerId} senderAiReplies=${senderAiReplies}`
+            );
+          }
+          return;
+        }
+      }
     }
 
     const productContext = await getProductContextForTenant(args.companyId);
