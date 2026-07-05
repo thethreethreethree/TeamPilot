@@ -62,6 +62,29 @@ export async function loadBrain(companyId: string): Promise<BrainRecord> {
   };
 }
 
+/**
+ * Pure §3.4 boundary decision, extracted so the month-1 → month-2 gate can be
+ * unit-tested without a DB. Guidance is enabled when EITHER the company was
+ * manually unlocked OR the auto-unlock time has elapsed. Fail-closed: a null or
+ * malformed unlock_at yields autoUnlocked=false (NaN <= now is false), so a
+ * misconfigured company stays in the honest-baseline control window rather than
+ * silently turning guidance on (§3.4 — the builder-under-pressure default must
+ * be "suppressed," never "enabled").
+ */
+export function evaluateControlGate(params: {
+  manualEnabled: boolean;
+  unlockAt: string | null;
+  now: number;
+}): { guidanceEnabled: boolean; autoUnlocked: boolean } {
+  const autoUnlocked =
+    Boolean(params.unlockAt) &&
+    new Date(params.unlockAt as string).getTime() <= params.now;
+  return {
+    guidanceEnabled: params.manualEnabled || autoUnlocked,
+    autoUnlocked,
+  };
+}
+
 /** Load the §3.4 control gate for a company. */
 export async function loadControlGate(companyId: string): Promise<ControlGate> {
   const supabase = await createClient();
@@ -76,12 +99,11 @@ export async function loadControlGate(companyId: string): Promise<ControlGate> {
   if (!data) {
     throw new Error(`Company ${companyId} not found.`);
   }
-  const now = Date.now();
-  const autoUnlocked =
-    Boolean(data.ai_guidance_unlock_at) &&
-    new Date(data.ai_guidance_unlock_at).getTime() <= now;
-
-  const enabled = data.ai_guidance_enabled || autoUnlocked;
+  const { guidanceEnabled: enabled } = evaluateControlGate({
+    manualEnabled: Boolean(data.ai_guidance_enabled),
+    unlockAt: data.ai_guidance_unlock_at,
+    now: Date.now(),
+  });
 
   return {
     guidanceEnabled: enabled,
