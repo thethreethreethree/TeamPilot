@@ -356,10 +356,28 @@ export default function FilesLibraryPage() {
               className="w-full bg-surface border border-default rounded-md pl-7 pr-2 py-1.5 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-strong"
             />
           </div>
-          <span className="text-[11px] text-muted ml-auto">
-            Casual today: <span className="text-brand font-semibold">{casual.today}</span>/
-            {casual.cap}
-          </span>
+          {/* The classification-gate teaching (formerly on the page-level
+              FileDropzone wrap, removed 2026-07-06 to un-nest) lives here now —
+              anchored on the casual counter, the visible consequence of the
+              gate. ml-auto moves to this wrapper so alignment holds whether
+              Learning Mode is on (LearningHint wraps) or off (passthrough). */}
+          <div className="ml-auto">
+            <LearningHint
+              as="inline-block"
+              category="Files · Classification gate"
+              title="Classified vs. casual"
+              whatItIs="Every upload takes a lane. Give it all three classification fields — department, task, description — and it becomes a 'classified' team asset: foldered and searchable by everyone. Skip them and it's 'casual' — it still uploads, but it counts against your daily cap. This counter shows how many casual uploads you've used today."
+              why="A file store with no gate becomes a graveyard — files uploaded once and never found again. The three fields are the §3.2 Understanding Gate applied to assets; the casual lane and its cap are the honest escape hatch for sharing that genuinely has no asset value, without letting it flood the library."
+              how="Classify on upload to make a file a permanent, searchable asset. Lean on the casual lane sparingly — the cap is the nudge. Filter by lane above to see what's classified vs casual."
+              principle="The 3 fields aren't metadata. They ARE the team's asset memory."
+            >
+              <span className="text-[11px] text-muted">
+                Casual today:{" "}
+                <span className="text-brand font-semibold">{casual.today}</span>/
+                {casual.cap}
+              </span>
+            </LearningHint>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
