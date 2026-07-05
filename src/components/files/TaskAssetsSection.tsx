@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { FolderOpen, Loader2 } from "lucide-react";
 import { FileDropzone } from "./FileDropzone";
-import { FileCard, type FileCardData } from "./FileCard";
+import { FileCard } from "./FileCard";
 import {
   ClassificationModal,
   type ClassificationDept,
@@ -49,10 +49,8 @@ type ApiFile = {
 
 export function TaskAssetsSection({
   taskId,
-  taskTitle,
 }: {
   taskId: string;
-  taskTitle: string;
 }) {
   const [files, setFiles] = useState<ApiFile[]>([]);
   const [departments, setDepartments] = useState<ClassificationDept[]>([]);

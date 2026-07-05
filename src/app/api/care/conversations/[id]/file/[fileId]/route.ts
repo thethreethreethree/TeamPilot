@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getCareConversationByToken } from "@/lib/data/care";
-import { getFile } from "@/lib/data/files";
 import { signAssetUrl } from "@/lib/storage/assets";
 
 /**

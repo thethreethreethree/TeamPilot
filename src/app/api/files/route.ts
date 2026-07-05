@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { readBody } from "@/lib/api/validate";
 import {
   buildStoragePath,
   uploadAssetBytes,

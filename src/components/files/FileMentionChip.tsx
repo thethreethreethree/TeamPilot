@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Image as ImageIcon, Loader2, Music, Paperclip } from "lucide-react";
+import { Loader2, Paperclip } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 /**

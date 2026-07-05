@@ -162,7 +162,7 @@ function parseMoments(
 
     // At most ONE breakdown (the pivotal one). A second flagged breakdown is
     // demoted to 'other' — the timeline highlights a single turning point.
-    let isBreakdown = m.isBreakdown === true && !breakdownTaken;
+    const isBreakdown = m.isBreakdown === true && !breakdownTaken;
     if (isBreakdown) breakdownTaken = true;
 
     let correction: MomentCorrection | null = null;

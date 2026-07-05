@@ -362,7 +362,7 @@ export default function TaskDetailPage() {
             {/* Assets attached to this task. Phase 2 of Asset
                 System v1 — composition layer per AMD-006 §1.5.1.
                 Dropzone pre-fills task in the classification modal. */}
-            <TaskAssetsSection taskId={task.id} taskTitle={task.title} />
+            <TaskAssetsSection taskId={task.id} />
 
             {/* Participants + engagement (Pillar 2). Per A10, anyone
                 can see this; per A7, when we surface signals about
