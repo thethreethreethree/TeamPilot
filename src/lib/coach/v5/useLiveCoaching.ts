@@ -9,6 +9,7 @@ import {
   isPaceSpike,
   type PaceBaseline,
 } from "@/lib/coach/v5/liveStress";
+import { detectF0, PitchSeparator } from "@/lib/coach/v5/pitchSeparation";
 import {
   computeConfidence,
   type ConfidenceRead,
@@ -68,6 +69,10 @@ const STALL_MS = 45_000;
 // voice-ID — it's loudness/distance. Per-frame RMS below this is treated as
 // silence/noise, not speech. Tunable defaults (Increment 3 tunes them).
 const VOICE_NOISE_FLOOR = 0.004;
+// A pitch cluster this confident (0..1) overrides the loudness guess for the
+// provisional label; below it we defer to loudness (§3.4 — trust pitch only
+// once the two clusters are actually separated).
+const PITCH_TRUST = 0.5;
 // When only the salesperson's level is known yet, an utterance quieter than
 // this fraction of it is taken to be the (farther) prospect.
 const QUIET_RATIO = 0.65;
@@ -265,6 +270,11 @@ export function useLiveCoaching(sessionId: string) {
   // truth — turns "is separation better?" into a number we can watch.
   const sepAgreeRef = useRef(0);
   const sepTotalRef = useRef(0);
+  const pitchAgreeRef = useRef(0);
+  // Pitch-based acoustic separation (founder 2026-07-06) — a composing signal
+  // alongside loudness + content (§A16). Fed per-frame F0; labels each committed
+  // utterance by its pitch cluster with an honest confidence (§3.4).
+  const pitchSepRef = useRef(new PitchSeparator());
   // Volume/proximity attribution: per-utterance energy accumulator + the
   // learned loudness level for each side (salesperson near/loud, prospect
   // far/quiet).
@@ -615,6 +625,8 @@ export function useLiveCoaching(sessionId: string) {
     turnsRef.current = [];
     setTranscriptSaved(false);
     utterEnergyRef.current = { sum: 0, count: 0 };
+    pitchSepRef.current.reset();
+    pitchAgreeRef.current = 0;
     agentLevelRef.current = null;
     customerLevelRef.current = null;
     micLevelRef.current = 0;
@@ -726,6 +738,12 @@ export function useLiveCoaching(sessionId: string) {
         if (rms > VOICE_NOISE_FLOOR) {
           utterEnergyRef.current.sum += rms;
           utterEnergyRef.current.count += 1;
+          // Acoustic pitch on the same voiced frames — no extra latency. The
+          // manual "I'm speaking" toggle anchors the agent's pitch cluster.
+          pitchSepRef.current.pushFrame(
+            detectF0(input, ctx.sampleRate),
+            agentSpeakingRef.current
+          );
         }
         // Live meter (same RMS): scale so normal speech fills most of the
         // bar, then EMA-smooth so it glides instead of flickering.
@@ -808,6 +826,9 @@ export function useLiveCoaching(sessionId: string) {
           const acc = utterEnergyRef.current;
           const energy = acc.count > 0 ? acc.sum / acc.count : 0;
           utterEnergyRef.current = { sum: 0, count: 0 };
+          // Close out the utterance's pitch too — clears the buffer every commit
+          // (matching the energy reset) so frames don't bleed across turns.
+          const pitch = pitchSepRef.current.labelTurn();
           if (!text) return;
           const locked = agentSpeakingRef.current;
           // Accuracy measurement (§4/§3.6): when the rep has confirmed "I'm
@@ -822,9 +843,10 @@ export function useLiveCoaching(sessionId: string) {
             ).speaker;
             sepTotalRef.current += 1;
             if (autoGuess === "agent") sepAgreeRef.current += 1;
+            if (pitch.speaker === "agent") pitchAgreeRef.current += 1;
             // eslint-disable-next-line no-console
             console.info(
-              `[live-coaching] speaker-sep accuracy ${sepAgreeRef.current}/${sepTotalRef.current} (auto=${autoGuess} vs truth=agent)`
+              `[live-coaching] speaker-sep accuracy vol=${sepAgreeRef.current}/${sepTotalRef.current} pitch=${pitchAgreeRef.current}/${sepTotalRef.current} (vol=${autoGuess} pitch=${pitch.speaker}@${pitch.confidence.toFixed(2)} vs truth=agent)`
             );
           }
           // Proximity verdict (instant, content-independent) — the provisional
@@ -840,23 +862,32 @@ export function useLiveCoaching(sessionId: string) {
           );
           agentLevelRef.current = v.agentLevel;
           customerLevelRef.current = v.customerLevel;
+          // Compose the provisional label (§A16): the manual toggle wins when
+          // locked; otherwise a CONFIDENT pitch cluster overrides the loudness
+          // guess (pitch separates better than proximity when the voices
+          // differ), and content attribution below still settles the final.
+          const provisional: TranscriptSpeaker = locked
+            ? "agent"
+            : pitch.speaker && pitch.confidence >= PITCH_TRUST
+              ? pitch.speaker
+              : v.speaker;
           const priorSpeaker =
             turnsRef.current[turnsRef.current.length - 1]?.speaker ?? "agent";
           const index = turnsRef.current.length;
           turnsRef.current = [
             ...turnsRef.current,
-            { text, speaker: v.speaker, pending: !locked },
+            { text, speaker: provisional, pending: !locked },
           ];
           setTurns(turnsRef.current);
           // eslint-disable-next-line no-console
           console.info(
-            `[live-coaching] turn #${index + 1} committed (energy=${energy.toFixed(4)} vol=${v.speaker}): "${text.slice(0, 80)}"`
+            `[live-coaching] turn #${index + 1} committed (energy=${energy.toFixed(4)} vol=${v.speaker} pitch=${pitch.speaker}@${pitch.confidence.toFixed(2)} → ${provisional}): "${text.slice(0, 80)}"`
           );
           // A new commit cancels any pending cue (the salesperson didn't
           // wait for it). The cue trigger lives in classifyTurn, gated on
           // the final (content-or-volume) label.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-          if (!locked) void classifyTurn(index, text, priorSpeaker, v.speaker);
+          if (!locked) void classifyTurn(index, text, priorSpeaker, provisional);
 
           // Build 3 — MEASURED stress on the rep's OWN turns. Close out this
           // utterance's speaking duration (first partial → this commit) and,
