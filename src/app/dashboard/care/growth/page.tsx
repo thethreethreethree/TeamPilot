@@ -13,6 +13,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Agent self-view — what your work has looked like over 30 days.
@@ -176,6 +177,15 @@ export default function CareGrowthPage() {
             </div>
 
             {/* §A17 experiential FIRST — what landed durably. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Your work"
+              title="What landed durably"
+              whatItIs="The 7-day durability check on your resolutions: how many held, how many reopened, and how many were inconclusive."
+              why="'Held' is the count that matters most — work that compounded into the team's playbook instead of bouncing back. Per §A11 it's a count, not a grade."
+              how="Watch 'held' rise over time against your own past. A 'reopened' is a signal to investigate the root cause, not a mark against you — sometimes the cause was elsewhere."
+              principle="Durable resolution, not fast closure, is the thing worth counting."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle2 className="w-4 h-4 text-emerald-300" aria-hidden />
@@ -222,8 +232,18 @@ export default function CareGrowthPage() {
                 and you closed it correctly given what you knew.
               </p>
             </div>
+            </LearningHint>
 
             {/* §A11 Coach v6 aggregates — positive counts first per A17. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Your work"
+              title="Your reply patterns"
+              whatItIs="Counts of what the Coach found present in your recently graded replies — acknowledged, answered, offered a next step — plus risks worth a second look."
+              why="These are the mechanics of a reply that lands. Per §A11 they're facts the System mirrors; you render the verdict on whether the pattern is fair. There's no team average to compare against."
+              how="A low 'next step' count is the most common and most fixable gap. Treat the risks as invitations to look again, not accusations."
+              principle="The System counts and mirrors; the human renders the verdict."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-brand" aria-hidden />
@@ -294,8 +314,18 @@ export default function CareGrowthPage() {
                 </>
               )}
             </div>
+            </LearningHint>
 
             {/* §A6 Pillar 2 — your current load with A7 next-step. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Your work"
+              title="Your current load"
+              whatItIs="What you're carrying right now — waiting on you, conversations claimed, and replies sent over the window."
+              why="Per §A6 Pillar 2 you see your own load first; no leader gets your individual presence data without this self-view existing. It's accountability made supportive, not surveillance."
+              how="'Waiting on you' is the promise-of-speed number — work it down first. Tap the affordance to open exactly those conversations."
+              principle="You see what's seen about you, first — no asymmetric visibility on people."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Inbox className="w-4 h-4 text-brand" aria-hidden />
@@ -343,8 +373,18 @@ export default function CareGrowthPage() {
                 </Link>
               )}
             </div>
+            </LearningHint>
 
             {/* §A16 — Co-Pilot edit pattern. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Your work"
+              title="Where Co-Pilot fit in"
+              whatItIs="How much you reshaped Co-Pilot drafts before sending — minor, moderate, major, or full rewrite."
+              why="Both a light edit and a rewrite are useful: the diffs teach Co-Pilot your voice for the next reply. It's a record of collaboration, not a compliance score."
+              how="There's no 'right' distribution to hit. Read it as how the tool is fitting your style, and expect minor edits to grow as it learns you."
+              principle="The tool adapts to your voice; you never bend to the tool."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-brand" aria-hidden />
@@ -386,8 +426,18 @@ export default function CareGrowthPage() {
                 </div>
               )}
             </div>
+            </LearningHint>
 
             {/* §1.6 close-the-loop — resolutions captured. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Your work"
+              title="Resolutions you captured"
+              whatItIs="The count of resolutions you added to the company's playbook in this window."
+              why="Per §1.1 every captured resolution is a permanent asset — the next agent facing a similar issue gets to read your reasoning. Close-the-loop made concrete (§1.6)."
+              how="Read this as your contribution to institutional memory, not a quota. Each capture compounds into what the team knows."
+              principle="Every resolution captured is a permanent asset for the whole team."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="w-4 h-4 text-brand" aria-hidden />
@@ -405,6 +455,7 @@ export default function CareGrowthPage() {
                 §1.1 every captured resolution is a permanent asset.
               </p>
             </div>
+            </LearningHint>
           </>
         )}
       </div>

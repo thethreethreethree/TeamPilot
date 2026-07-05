@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /terms — Terms of Service.
@@ -34,11 +35,21 @@ export default function TermsPage() {
           ← Back to ELOSTATE
         </Link>
 
-        <h1 className="text-2xl font-bold mt-6 mb-2">Terms of Service</h1>
-        <p className="text-xs text-muted">
-          Version 0.1 · last updated{" "}
-          <time dateTime="2026-06-19">June 19, 2026</time>
-        </p>
+        <LearningHint
+          as="block"
+          category="Legal · Terms"
+          title="Terms of Service"
+          whatItIs="The contract you operate under when you use ELOSTATE — written in plain English, not defensive legalese."
+          why="Most terms exist to shield the vendor from the user. This one names the discipline both sides agree to, including the ways the product deliberately refuses what you might ask (no instant results, no shadow read). It reads honestly because the honesty is the product."
+          how="Read it once end-to-end; it's short by design. The section headers are the actual promises — 'the 60-day honesty window', 'data is append-only' — not boilerplate to scroll past."
+          principle="A contract you can actually read is a contract you can actually trust."
+        >
+          <h1 className="text-2xl font-bold mt-6 mb-2">Terms of Service</h1>
+          <p className="text-xs text-muted">
+            Version 0.1 · last updated{" "}
+            <time dateTime="2026-06-19">June 19, 2026</time>
+          </p>
+        </LearningHint>
 
         <Section title="What ELOSTATE is, in one paragraph">
           ELOSTATE is a discipline-as-product — software that runs your

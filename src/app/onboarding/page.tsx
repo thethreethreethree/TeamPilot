@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 const industries = [
   "Technology", "Finance", "Healthcare", "E-commerce", "SaaS", "Manufacturing",
@@ -263,6 +264,15 @@ export default function OnboardingPage() {
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">What&apos;s your company called?</h2>
               <p className="text-sm text-muted mb-6">ELOSTATE will personalize everything around your business.</p>
+              <LearningHint
+                as="block"
+                category="Onboarding · Company"
+                title="Your company name"
+                whatItIs="The name of the organization this ELOSTATE workspace belongs to. It creates the company record everything else attaches to."
+                why="ELOSTATE has no generic mode — its behavior is derived per-company from your team's own data. This is the first stone of that: the container that your events, people, and problems accumulate inside."
+                how="Enter the name your team knows the business by. You can refine details on the next steps."
+                principle="The system is built around your company specifically, never a one-size template."
+              >
               <input
                 type="text"
                 value={form.companyName}
@@ -271,6 +281,7 @@ export default function OnboardingPage() {
                 autoFocus
                 className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors text-base"
               />
+              </LearningHint>
             </div>
           )}
 
@@ -284,6 +295,15 @@ export default function OnboardingPage() {
               <p className="text-sm text-muted mb-6">This helps the AI understand your operating context.</p>
 
               <div className="space-y-4">
+                <LearningHint
+                  as="block"
+                  category="Onboarding · Context"
+                  title="Industry"
+                  whatItIs="The sector your business operates in, picked from a short list."
+                  why="Context is what lets the system reason about your situation rather than a generic one. Industry shapes what 'normal' looks like — a healthcare team and a SaaS team hit different bottlenecks."
+                  how="Pick the closest match. 'Other' is a legitimate choice if none fit — an honest 'other' beats a forced wrong label."
+                  principle="Better context in means better-grounded reasoning out."
+                >
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-2">Industry</label>
                   <div className="flex flex-wrap gap-2">
@@ -303,7 +323,17 @@ export default function OnboardingPage() {
                     ))}
                   </div>
                 </div>
+                </LearningHint>
 
+                <LearningHint
+                  as="block"
+                  category="Onboarding · Context"
+                  title="Team size"
+                  whatItIs="The rough headcount of your organization."
+                  why="Scale changes what a bottleneck even is. A ten-person team's coordination problem is a different animal from a five-hundred-person one, and the system calibrates to that."
+                  how="Pick the band you're in. It's a starting calibration, not a hard boundary — the system keeps learning your actual shape from real activity."
+                  principle="Size is context, not a verdict — it tunes the lens, it doesn't rank you."
+                >
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-2">Team size</label>
                   <div className="flex flex-wrap gap-2">
@@ -323,7 +353,17 @@ export default function OnboardingPage() {
                     ))}
                   </div>
                 </div>
+                </LearningHint>
 
+                <LearningHint
+                  as="block"
+                  category="Onboarding · Context"
+                  title="Stage"
+                  whatItIs="Where your business is in its lifecycle, from pre-revenue to enterprise."
+                  why="Stage sets the stakes and the tempo. A pre-revenue team's problems are about finding the path; an enterprise team's are about execution at scale. The same symptom means different things at different stages."
+                  how="Choose the stage that describes you today. As your reality changes, the system adapts from the data — this is just the opening read."
+                  principle="Nothing here is static — the system stays adaptive because your context isn't frozen."
+                >
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-2">Stage</label>
                   <div className="flex flex-wrap gap-2">
@@ -343,6 +383,7 @@ export default function OnboardingPage() {
                     ))}
                   </div>
                 </div>
+                </LearningHint>
               </div>
             </div>
           )}
@@ -355,6 +396,15 @@ export default function OnboardingPage() {
               </div>
               <h2 className="text-xl font-bold text-primary mb-1">What are your top priorities?</h2>
               <p className="text-sm text-muted mb-6">Select all that apply. ELOSTATE will focus its intelligence here.</p>
+              <LearningHint
+                as="block"
+                category="Onboarding · Priorities"
+                title="Your top priorities"
+                whatItIs="The outcomes you most want ELOSTATE working on — select as many as apply."
+                why="Priorities point the system's attention. They tell it which bottlenecks matter to you, so the problems it surfaces are the ones you'd actually act on rather than noise."
+                how="Pick everything that genuinely matters now. Don't over-select to be safe — a focused list gives sharper focus than an everything list."
+                principle="Direction beats breadth — what you point at is what gets diagnosed first."
+              >
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {goals.map((goal) => (
                   <button
@@ -376,6 +426,7 @@ export default function OnboardingPage() {
                   </button>
                 ))}
               </div>
+              </LearningHint>
             </div>
           )}
 
@@ -389,6 +440,15 @@ export default function OnboardingPage() {
               <p className="text-sm text-muted mb-6">
                 ELOSTATE will personalize your executive experience.
               </p>
+              <LearningHint
+                as="block"
+                category="Onboarding · You"
+                title="Your name"
+                whatItIs="The name of the person setting this up — you, the founder or lead. It personalizes your executive view and marks you on the company record."
+                why="The system distinguishes who is doing what, and the person who creates the company is the anchor account. Naming yourself here makes your own activity legible in the views you'll live in."
+                how="Enter your real name. This is you specifically, not a role label — teammates you invite will name themselves when they join."
+                principle="A record of who-did-what is only useful when 'who' is a real, named person."
+              >
               <input
                 type="text"
                 value={form.ceoName}
@@ -397,6 +457,7 @@ export default function OnboardingPage() {
                 autoFocus
                 className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors text-base mb-4"
               />
+              </LearningHint>
               {form.ceoName && (
                 <div className="bg-ember-400/10 border border-ember-400/20 rounded-xl p-4 fade-in">
                   <p className="text-sm text-secondary">
@@ -438,6 +499,15 @@ export default function OnboardingPage() {
                 if you&apos;d rather add this later — your AI will hand off
                 to you until you do.
               </p>
+              <LearningHint
+                as="block"
+                category="Onboarding · Product context"
+                title="What your business offers"
+                whatItIs="A few plain sentences describing your product that your customer-facing AI can ground its answers in."
+                why="Without this, the AI honestly won't pretend to know your product — it hands every question off to a human. With it, the AI can answer accurately about what you actually offer instead of guessing."
+                how="Name the features customers ask about and what to always hand off. Skip it if you don't have polished copy yet — an empty value is a valid choice, and the AI stays safe by handing off until you fill it."
+                principle="The system would rather hand off than fabricate — honesty about what it doesn't know is the feature, not a gap."
+              >
               <textarea
                 value={form.aiProductContext}
                 onChange={(e) =>
@@ -464,6 +534,7 @@ Always hand off to a human for:
 [account-specific data, billing, refunds, anything sensitive]`}
                 className="w-full min-h-[10rem] md:min-h-[14rem] bg-surface border border-default rounded-lg px-3.5 py-3 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-y leading-relaxed font-mono"
               />
+              </LearningHint>
               <p className="text-[11px] text-muted mt-2 leading-relaxed">
                 Listing features by name makes &quot;yes, we have that&quot;
                 the AI&apos;s safe default for things you actually offer.
@@ -535,6 +606,15 @@ Always hand off to a human for:
                 ))}
               </div>
 
+              <LearningHint
+                as="inline-block"
+                category="Onboarding · Team"
+                title="Add a teammate"
+                whatItIs="Adds an invite row where you enter a teammate's email and role. ELOSTATE creates a shareable invite link for each after launch."
+                why="Every module gets more useful once the team is on it — the record is only complete when the people generating the work are in the system. Capturing invites now spares you hunting for the invite UI later."
+                how="Add as many as you like, set each person's role, or skip entirely. Onboarding solo first is fine — you can invite anyone from Team later. Invite links appear under Team once you launch."
+                principle="The system reflects the whole team, so bringing the team in is where its value compounds."
+              >
               <button
                 type="button"
                 onClick={addInviteRow}
@@ -545,6 +625,7 @@ Always hand off to a human for:
                   ? "Add a teammate"
                   : "Add another"}
               </button>
+              </LearningHint>
 
               {form.teamInvites.length > 0 && (
                 <p className="text-[11px] text-muted mt-3 leading-relaxed">
@@ -562,6 +643,15 @@ Always hand off to a human for:
           {error && <p className="text-xs text-red-400 mt-6">{error}</p>}
           <div className="flex items-center justify-between mt-8">
             <span className="text-xs text-muted">Step {step} of {totalSteps}</span>
+            <LearningHint
+              as="inline-block"
+              category="Onboarding · Progress"
+              title={step === totalSteps ? "Launch ELOSTATE" : "Continue"}
+              whatItIs="Advances to the next setup step, or — on the final step — commits everything and activates ELOSTATE for your company."
+              why="Launch writes your company, profile, and any invites in a single transaction, so a mid-setup network blip rolls back cleanly instead of leaving you a half-created workspace you can't get into."
+              how="It stays disabled until the current step's required fields are filled, so you can't skip past something the setup needs. On the last step it reads 'Launch' — that's the commit."
+              principle="Setup either completes whole or not at all — never a stranded half-state."
+            >
             <button
               onClick={next}
               disabled={!canProceed() || submitting}
@@ -574,6 +664,7 @@ Always hand off to a human for:
                 : "Continue"}
               {step === totalSteps ? <Activity className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>
+            </LearningHint>
           </div>
         </div>
       </div>

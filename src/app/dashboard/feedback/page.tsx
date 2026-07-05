@@ -18,6 +18,7 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { MentionText } from "@/components/ui/MentionText";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /dashboard/feedback — tester-facing "My feedback" view.
@@ -159,6 +160,15 @@ export default function MyFeedbackPage() {
         {/* Composer entry — replaces the misleading "use the
             floating button" copy. Floating button is suppressed on
             dashboard routes; this page IS the submission entry. */}
+        <LearningHint
+          as="block"
+          category="Feedback · My feedback"
+          title="Submit new feedback"
+          whatItIs="The entry point for filing a report — a bug, an idea, a question, a friction, or praise — from wherever you are in the product."
+          why="Every report you file lands on the §3.1 chain as a permanent, append-only event. Nothing you say here is discarded; a dead end or a complaint is an asset equal to a success, because retrospective diagnosis reuses all of it."
+          how="Click it whenever something surprises you — good or bad. Capture it while it's fresh; the report carries the page you were on, so you don't have to reconstruct context later."
+          principle="Data-as-asset: no input is noise. Every report is permanent material for a future diagnosis."
+        >
         <div className="flex items-center justify-end">
           <button
             type="button"
@@ -169,8 +179,18 @@ export default function MyFeedbackPage() {
             Submit new feedback
           </button>
         </div>
+        </LearningHint>
         {/* Why this page exists, in one line — answers the user's
             silent question "did my submission go anywhere?" */}
+        <LearningHint
+          as="block"
+          category="Feedback · My feedback"
+          title="Where your report goes"
+          whatItIs="A one-line explanation of the path a report takes: filed here, triaged by admins, and every state change reflected back to you."
+          why="Without this surface a report vanishes from your view the moment you submit — which feels like the chain ate your input. Seeing it move is the §3.6 make-learning-visible discipline: a system that acts on you invisibly is indistinguishable from one that ignored you."
+          how="Read it as the promise the loop makes to you. When you file, come back here to watch the status advance rather than wondering whether anyone saw it."
+          principle="Close the loop visibly — a report you can't track reads as a report that was ignored."
+        >
         <div className="glass-card p-4 border border-ember-400/30 bg-ember-400/5">
           <p className="text-xs text-secondary leading-relaxed">
             Each report you file lands on the §3.1 chain as a permanent
@@ -182,8 +202,18 @@ export default function MyFeedbackPage() {
             here so you can see your report actually moved.
           </p>
         </div>
+        </LearningHint>
 
         {/* Status filter */}
+        <LearningHint
+          as="block"
+          category="Feedback · My feedback"
+          title="Status filter"
+          whatItIs="Buttons that narrow your reports to a single stage — open, triaged, in progress, resolved, declined, or duplicate — with a live count beside each."
+          why="The status set is the honest journey of a report, not a verdict on it. 'Declined' and 'duplicate' are legitimate outcomes with reasons attached, not failures — surfacing them keeps the loop truthful instead of hiding what didn't get built."
+          how="Filter to 'in progress' to see what's actively moving, or 'resolved' to confirm what landed. The counts tell you where your reports are clustered at a glance."
+          principle="Show every outcome, including the no's — an honest status set is worth more than a flattering one."
+        >
         <div className="flex flex-wrap items-center gap-1.5">
           {(
             [
@@ -213,6 +243,7 @@ export default function MyFeedbackPage() {
             </button>
           ))}
         </div>
+        </LearningHint>
 
         {/* Rows */}
         {loading ? (
@@ -245,6 +276,15 @@ export default function MyFeedbackPage() {
             </button>
           </div>
         ) : (
+          <LearningHint
+            as="block"
+            category="Feedback · My feedback"
+            title="Your reports"
+            whatItIs="The list of reports you've filed. Each row expands to show the body, any screenshot, an admin resolution note, and a journey timeline of timestamps."
+            why="The journey timeline — filed, triaged, resolved — is the proof the report wasn't ignored (§3.6). Even three timestamps make the chain's work visible. RLS guarantees you only ever see your own rows here."
+            how="Tap a row to expand it. Watch the journey ladder fill in over time; if it's still 'waiting for an admin to triage', the report is on the chain but hasn't moved yet."
+            principle="A record you can watch move is a record you can trust — the timeline is the loop closing in view."
+          >
           <div className="space-y-2">
             {rows.map((row) => (
               <MyFeedbackRow
@@ -257,6 +297,7 @@ export default function MyFeedbackPage() {
               />
             ))}
           </div>
+          </LearningHint>
         )}
       </div>
       {composing && (

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Sales Coach — branded login (Phase 5).
@@ -91,6 +92,15 @@ export default function SalesCoachLoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <LearningHint
+              as="block"
+              category="Sales Coach · Sign in"
+              title="Your work email"
+              whatItIs="The same ELOSTATE identity you use everywhere else — Sales Coach signs in with your existing account, not a separate one."
+              why="Sales Coach is one module of ELOSTATE, not a second product. Sharing the identity keeps your coaching history on the same person-record as the rest of your work, so insights compound instead of fragmenting across logins."
+              how="Enter the email tied to your ELOSTATE account. Access is assigned by an admin, so if sign-in works but the coach is empty, ask them to grant your role."
+              principle="One account across every module — the record of you stays whole."
+            >
             <div>
               <label className="block text-xs font-medium text-secondary mb-1.5">
                 Email
@@ -107,6 +117,16 @@ export default function SalesCoachLoginPage() {
                 className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
+            </LearningHint>
+            <LearningHint
+              as="block"
+              category="Sales Coach · Sign in"
+              title="Your password"
+              whatItIs="The secret for your ELOSTATE account — identical to the one you'd use at the main sign-in."
+              why="Coaching data is candid feedback on how you actually sell. Keeping it behind your real account password means that honesty stays private to you and your team."
+              how="Use your ELOSTATE password. There's no separate Sales Coach credential — if you've forgotten it, reset it from the main ELOSTATE sign-in."
+              principle="Candid coaching only works when it's genuinely private."
+            >
             <div>
               <label className="block text-xs font-medium text-secondary mb-1.5">
                 Password
@@ -123,9 +143,19 @@ export default function SalesCoachLoginPage() {
                 className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
+            </LearningHint>
 
             {error && <p className="text-xs text-red-400">{error}</p>}
 
+            <LearningHint
+              as="block"
+              category="Sales Coach · Sign in"
+              title="Enter Sales Coach"
+              whatItIs="Signs you in and drops you straight into the Sales Coach shell — live coaching and growth reviews."
+              why="Sales Coach is sign-in only: accounts are created and roles assigned through ELOSTATE, so there's no sign-up here. This button just authenticates and routes; the shell handles the rest."
+              how="Submit once and wait — the button stays disabled through the redirect so a double-tap can't fire a second sign-in."
+              principle="Access is granted deliberately, not self-served — the coach opens only to accounts an admin has enrolled."
+            >
             <button
               type="submit"
               disabled={loading}
@@ -144,6 +174,7 @@ export default function SalesCoachLoginPage() {
                 </>
               )}
             </button>
+            </LearningHint>
           </form>
 
           <p className="text-center text-xs text-muted mt-6">

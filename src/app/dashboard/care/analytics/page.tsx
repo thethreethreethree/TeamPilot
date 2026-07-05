@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BarChart3, Clock, Loader2, TrendingUp, Users } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 type AnalyticsSnapshot = {
   windowDays: number;
@@ -97,6 +98,15 @@ export default function CareAnalyticsPage() {
             </div>
 
             {/* KPI strip */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Analytics"
+              title="Headline counts"
+              whatItIs="Three raw figures for the window: total conversations, the median time to first response, and the share that reached resolution."
+              why="Per §3.5 these are the hard, defensible metrics — objective and countable. The median (not the mean) is shown for response time because a single slow outlier can't distort it."
+              how="Read them as counts over the stated window, not a verdict on anyone. When n is small, the resolution rate swings hard — treat it as directional."
+              principle="Honest measurement means the number that can't be gamed, not the one that flatters."
+            >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <StatCard
                 icon={Users}
@@ -129,8 +139,18 @@ export default function CareAnalyticsPage() {
                 sub="resolved / total"
               />
             </div>
+            </LearningHint>
 
             {/* Distribution */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Analytics"
+              title="First-response time — distribution"
+              whatItIs="The full shape of how long first responses took, bucketed — not a single average."
+              why="An average hides the tail. Per §3.5 the distribution is the honest view: a fast majority and a few very slow replies can share the same mean yet mean very different things to customers."
+              how="Look for a long right tail — a cluster of slow buckets is where customer experience actually breaks, even when the headline median looks fine."
+              principle="The average is a summary; the shape is the truth."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <BarChart3 className="w-4 h-4 text-brand" aria-hidden />
@@ -177,8 +197,18 @@ export default function CareAnalyticsPage() {
                 </div>
               )}
             </div>
+            </LearningHint>
 
             {/* Status mix */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Analytics"
+              title="Status mix right now"
+              whatItIs="A live count of conversations sitting in each status at this moment."
+              why="It shows where work is piling up — open, in conversation, awaiting customer — so the queue's real state is visible, not who is or isn't busy."
+              how="Watch for a build-up in any single status; that's the bottleneck to open, not a person to chase."
+              principle="Show the queue what it needs; never rank the people in it."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <h2 className="text-sm font-semibold text-primary mb-3">
                 Status mix right now
@@ -197,6 +227,7 @@ export default function CareAnalyticsPage() {
                 ))}
               </div>
             </div>
+            </LearningHint>
           </>
         )}
       </div>

@@ -10,6 +10,7 @@ import {
   Sparkles,
   TriangleAlert,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /dashboard/care/leadership/readouts
@@ -211,6 +212,15 @@ export default function CareReadoutsPage() {
               </p>
             </div>
 
+            <LearningHint
+              as="block"
+              category="C.A.R.E · §4 readouts"
+              title="Coach rubric · durability comparison"
+              whatItIs="Conversations grouped by the highest Coach rubric one of their replies reached (v6 count-based vs pre-v6 verdict-based vs ungraded), each shown with its durability-held outcome."
+              why="§A2/§4 require that a change to the method be measured against the alternative before it's believed. This is that measurement for Coach v6 — and it deliberately compares downstream consequence (durability held), not whether agents agreed with the grades (§A3). Grading your own homework is forbidden."
+              how="Compare the held rates across cohorts, but read the confidence tier first — a 'preliminary' cohort is too small to trust. A higher v6 held rate is a signal worth pursuing, never a proof v6 caused it."
+              principle="A method is only 'learned' when it beats the alternative on real outcomes — measured on consequence, not agreement."
+            >
             <section>
               <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
                 Coach rubric · durability comparison
@@ -243,8 +253,18 @@ export default function CareReadoutsPage() {
                 />
               </div>
             </section>
+            </LearningHint>
 
             {coPilot && (
+              <LearningHint
+                as="block"
+                category="C.A.R.E · §4 readouts"
+                title="Co-Pilot value · durability comparison"
+                whatItIs="Conversations split by whether at least one reply was Co-Pilot-assisted, each cohort shown with its durability outcome."
+                why="Co-Pilot is a claim ('drafting help makes replies land better'); §4 says the claim earns belief only from outcomes. This tests it against unassisted conversations on the same durability measure, rather than on how good the drafts felt."
+                how="Read the held rates side by side, mindful this isn't randomized — agents choose when to invoke Co-Pilot, so it's signal, not proof. A gap worth investigating, not a verdict to ship."
+                principle="A tool's value is proven by what its output achieves downstream, not by how helpful it looks in the moment."
+              >
               <section>
                 <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
                   Co-Pilot value · durability comparison
@@ -271,9 +291,19 @@ export default function CareReadoutsPage() {
                   />
                 </div>
               </section>
+              </LearningHint>
             )}
 
             {voice && (
+              <LearningHint
+                as="block"
+                category="C.A.R.E · §4 readouts"
+                title="Voice · durability comparison"
+                whatItIs="Conversations split by whether any customer message arrived by voice (speech-to-text) vs text-only, each shown with its durability outcome."
+                why="Adding a voice channel is a bet that it serves customers at least as well as text. This checks that bet on durability rather than on novelty — do voice-using customers resolve as durably as text-only ones?"
+                how="Because customer opt-in to voice is self-selected, not random, read this as signal not proof. A large durability gap in either direction is worth understanding before leaning harder into (or away from) voice."
+                principle="A new channel has to earn its place on outcomes, not on the fact that it's new."
+              >
               <section>
                 <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
                   Voice · durability comparison
@@ -301,9 +331,19 @@ export default function CareReadoutsPage() {
                   />
                 </div>
               </section>
+              </LearningHint>
             )}
 
             {routing && (
+              <LearningHint
+                as="block"
+                category="C.A.R.E · §4 readouts"
+                title="Routing · durability comparison"
+                whatItIs="Conversations split by how they reached an agent — auto-routed to the least-loaded agent, manually claimed, or unrouted at create — each shown with its durability outcome."
+                why="Auto-routing is a claim that the function distributes work at least as well as humans pulling from the inbox. Per §A18 this compares routing METHODS, not agents: the question is 'does the function produce comparable outcomes?', never 'which agent is best?'"
+                how="Compare held rates across the three paths. 'Unrouted' conversations waited for a human while AI handled the first response — a lower outcome there is a coverage/staffing signal, not a routing-logic failure."
+                principle="Evaluate the mechanism against its alternative — never turn a systems comparison into a ranking of people."
+              >
               <section>
                 <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
                   Routing · durability comparison
@@ -337,9 +377,19 @@ export default function CareReadoutsPage() {
                   />
                 </div>
               </section>
+              </LearningHint>
             )}
 
             {slaWithDurability && (
+              <LearningHint
+                as="block"
+                category="C.A.R.E · §4 readouts"
+                title="SLA + durability backstop"
+                whatItIs="First-response SLA rate placed next to durability, plus a 'fully honored' count (SLA met AND held) and a 'false SLA successes' count (SLA met but reopened)."
+                why="A first-response SLA can be met on a reply that doesn't actually solve anything — the standard dashboard would still mark it 'honored.' 'Fully honored' is the honest measure; 'false SLA successes' is the blind spot the usual metric hides. This is what keeps a speed target from rewarding hollow speed."
+                how="Read 'fully honored' as the real success rate and 'false SLA successes' as the correction. A high SLA rate with many false successes means the team is fast but not yet resolving — a different problem than being slow."
+                principle="Fast-and-wrong isn't success; a metric that can't see the reopen is measuring the wrong thing."
+              >
               <section>
                 <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
                   SLA + durability backstop
@@ -361,9 +411,19 @@ export default function CareReadoutsPage() {
                 </p>
                 <SlaBackstopCard data={slaWithDurability} />
               </section>
+              </LearningHint>
             )}
 
             {patternResolution && patternResolution.patterns.length > 0 && (
+              <LearningHint
+                as="block"
+                category="C.A.R.E · §4 readouts"
+                title="Pattern formation · before / after comparison"
+                whatItIs="For each detected pattern, conversations that resolved BEFORE the category crossed the §3.2 threshold vs AFTER — with median time-to-resolve and durability for each side."
+                why="This is the product's core thesis made measurable: once the System has enough resolutions to recognize a pattern, does the team resolve that pattern faster and more durably? It's the compounding-knowledge claim tested against its own past, not asserted."
+                how="Read each pattern's shape on its own. Mind the §A4 caveat surfaced above: 'before' conversations are also earlier in time and may reflect general inexperience, so don't read a team-wide verdict from it — read the direction, per pattern."
+                principle="The claim that knowledge compounds has to be shown before/after on real resolutions — not taken on faith."
+              >
               <section>
                 <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-1">
                   Pattern formation · before / after comparison
@@ -390,8 +450,18 @@ export default function CareReadoutsPage() {
                   ))}
                 </div>
               </section>
+              </LearningHint>
             )}
 
+            <LearningHint
+              as="block"
+              category="C.A.R.E · §4 readouts"
+              title="What these readouts do NOT claim"
+              whatItIs="The standing list of limits on everything above — cohorts aren't randomized, confidence tiers aren't p-values, and a durability gap is correlation, not proven cause."
+              why="This is the honesty that makes the rest trustworthy (§5). Stating what the numbers can't prove is what separates a real §4 readout from a dashboard that flatters whatever the team just shipped. The temptation under pressure is to drop these caveats for a cleaner story — that's the exact shortcut this project exists to refuse."
+              how="Read this before you act on any comparison above. Treat a promising gap as a reason to investigate further, never as license to declare a winner."
+              principle="Naming what your evidence can't prove is what makes the rest of it believable."
+            >
             <section className="bg-white/[0.02] border border-default rounded-xl p-4">
               <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-2">
                 What these readouts intentionally do NOT claim
@@ -414,6 +484,7 @@ export default function CareReadoutsPage() {
                 </li>
               </ul>
             </section>
+            </LearningHint>
           </>
         )}
       </div>

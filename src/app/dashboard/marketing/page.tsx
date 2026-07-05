@@ -14,6 +14,7 @@ import {
   mockFunnel,
 } from "@/lib/mock-data";
 import { Brain, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 const fmtMoney = (n: number) =>
   n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${(n / 1_000).toFixed(0)}K`;
@@ -48,6 +49,15 @@ export default function MarketingPage() {
           needs="A marketing data source (HubSpot, GA4, Mixpanel, or manual entry) must exist before lead/CAC/funnel values become derived."
         />
         {/* Stats Row */}
+        <LearningHint
+          as="block"
+          category="Marketing · Vital signs"
+          title="Marketing health & headline numbers"
+          whatItIs="The top-line growth vitals — a health ring plus monthly leads, average CAC, and pipeline value. In this design preview the values come from mock data, not a live marketing feed."
+          why="Leads, cost to acquire them, and pipeline are the pump that feeds revenue. But the ring is honest: until a real source (HubSpot, GA4, Mixpanel, or manual entry) is connected, these can't be derived, so they're marked demo."
+          how="Read CAC against pipeline value to see whether acquisition is paying for itself, and treat the specific numbers as placeholders. The same tiles fill with real figures once a marketing source is wired in."
+          principle="No instant numbers — a figure the system can't derive from real data is labeled demo, never dressed up as truth."
+        >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="glass-card p-4">
             <div className="flex items-center justify-between">
@@ -68,10 +78,20 @@ export default function MarketingPage() {
             </div>
           ))}
         </div>
+        </LearningHint>
 
         {/* Funnel + AI Diagnosis */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Conversion Funnel */}
+          <LearningHint
+            as="block"
+            category="Marketing · Funnel"
+            title="Conversion funnel"
+            whatItIs="Each stage from lead to customer with its count, the step-to-step conversion rate between stages, and the overall lead-to-customer rate up top."
+            why="The funnel makes the drop-offs visible — the stage where the steepest fall happens is where the biggest, cheapest improvement usually lives. The step rates matter more than the raw counts because they isolate where you're actually losing people."
+            how="Find the stage with the lowest step rate — that's the leak. Fixing the worst step compounds through every stage below it. Live data will replace the preview stages once a marketing source is connected."
+            principle="The steepest drop-off is the leverage point — read the step rates, not just the totals."
+          >
           <div className="glass-card p-5 lg:col-span-2">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-sm font-semibold text-primary">Conversion Funnel</h2>
@@ -103,8 +123,18 @@ export default function MarketingPage() {
               })}
             </div>
           </div>
+          </LearningHint>
 
           {/* AI Diagnosis */}
+          <LearningHint
+            as="block"
+            category="Marketing · Diagnosis"
+            title="AI marketing diagnosis"
+            whatItIs="The panel where the System would surface a marketing diagnosis — currently in design preview, awaiting the event chain that already powers Operations."
+            why="A diagnosis is only honest once it rests on real evidence: events from ad/CRM integrations, signals derived from at least two sources, and problems gated by enough signals (§3.2). Fabricating one on mock data would be confident, well-formed failure — the thing the Understanding Gate exists to prevent."
+            how="Nothing to run here yet — the deprecated Run button was removed rather than left to throw a misleading 'check your API key' error. When the marketing chain ships, diagnoses appear here the way they do in Operations."
+            principle="Understanding precedes solving — no diagnosis surfaces until the evidence to earn it exists."
+          >
           <div className="glass-card p-5 border-ember-400/20">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -121,10 +151,20 @@ export default function MarketingPage() {
               hint="The chain pattern that produced Operations needs to be replayed for marketing — events from real ad/CRM integrations, signals derived from at least 2 sources, problems gated by ≥3 signals. Until that infrastructure ships, this dashboard is for layout review only."
             />
           </div>
+          </LearningHint>
         </div>
 
         {/* Channels + Campaigns */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <LearningHint
+            as="block"
+            category="Marketing · Channels"
+            title="Channel performance"
+            whatItIs="Each acquisition channel with its lead count, ROI, and a trend arrow, bars scaled to the strongest channel."
+            why="Not all leads cost the same. Comparing lead volume against ROI shows which channels are pulling weight and which are expensive noise — the input to where the next marketing dollar should go."
+            how="Look for a channel that's high volume but low ROI (expensive) or low volume but high ROI (worth scaling). The trend arrows tell you which way each is moving before you decide. Preview data now; live channel data once connected."
+            principle="Volume without ROI is just spend — compare the two, don't celebrate leads alone."
+          >
           <div className="glass-card p-5">
             <h2 className="text-sm font-semibold text-primary mb-4">Channel Performance</h2>
             <div className="space-y-3">
@@ -148,7 +188,17 @@ export default function MarketingPage() {
               ))}
             </div>
           </div>
+          </LearningHint>
 
+          <LearningHint
+            as="block"
+            category="Marketing · Campaigns"
+            title="Active campaigns"
+            whatItIs="A table of running campaigns showing spend against budget, leads generated, and status."
+            why="Budget-versus-spend against leads is the live efficiency check on each campaign — it shows which ones are converting budget into pipeline and which are burning it. Status keeps the picture honest about what's actually running."
+            how="Read spent/budget alongside the leads column: a campaign near its budget cap with few leads is the one to question. Live data replaces the preview rows once a marketing source is connected."
+            principle="Judge a campaign by leads per dollar spent, not by how much budget it's moved."
+          >
           <div className="glass-card p-5">
             <h2 className="text-sm font-semibold text-primary mb-4">Active Campaigns</h2>
             <table className="w-full">
@@ -181,6 +231,7 @@ export default function MarketingPage() {
               </tbody>
             </table>
           </div>
+          </LearningHint>
         </div>
       </div>
     </div>

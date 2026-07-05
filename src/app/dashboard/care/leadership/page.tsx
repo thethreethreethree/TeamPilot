@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Leadership view — team-aggregate growth snapshot.
@@ -156,12 +157,22 @@ export default function CareLeadershipPage() {
             per-agent breakdown by design (§A18)
           </p>
         </div>
+        <LearningHint
+          as="inline-block"
+          category="C.A.R.E · Leadership"
+          title="§4 readouts"
+          whatItIs="A link into the method-evolution readouts — where a change the System made (a new Coach rubric, Co-Pilot, routing) is compared against the alternative on real outcomes."
+          why="§4 says the System distrusts its own evolution until results prove it. This link is how you audit that promise: nothing here is called an improvement until the durability numbers earn it."
+          how="Open it when you want to check whether a change actually paid off, not just whether it shipped. Read the cohorts, then decide for yourself."
+          principle="A method is only 'learned' once it beats the alternative on real problems."
+        >
         <Link
           href="/dashboard/care/leadership/readouts"
           className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-ember-400 border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 px-2.5 py-1 rounded transition-colors"
         >
           §4 readouts
         </Link>
+        </LearningHint>
       </header>
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
         {loading && (
@@ -205,6 +216,15 @@ export default function CareLeadershipPage() {
             </div>
 
             {/* Team size — context for reading the aggregates. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Leadership"
+              title="Team size this window"
+              whatItIs="The number of agents whose work rolls up into every aggregate on this page for the current window."
+              why="Every count below is only readable against how many people produced it. Ten resolutions from two agents and from twenty agents mean very different things — this is the denominator you read the rest of the page through."
+              how="Hold this number in mind as you scan the aggregates. If it changed since last window (someone joined or left), factor that in before you read a trend as a real shift."
+              principle="A number without its denominator is a rumor, not a fact."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-4 flex items-center gap-3">
               <Users className="w-4 h-4 text-brand" aria-hidden />
               <p className="text-xs text-secondary">
@@ -215,12 +235,22 @@ export default function CareLeadershipPage() {
                 team this window.
               </p>
             </div>
+            </LearningHint>
 
             {/* §A6 + §A18 — team presence right now. Aggregate
                 counts only; no per-agent breakdown by design.
                 Surfaces coverage ("do we have humans on this
                 channel?") not surveillance ("who's idle?"). */}
             {presence && (
+              <LearningHint
+                as="block"
+                category="C.A.R.E · Leadership"
+                title="Right now"
+                whatItIs="Live team presence — how many agents are online, away, offline, or at capacity, and which channels currently have a human covering them."
+                why="This answers 'can we take a conversation right now?' — a coverage question, not a surveillance one. Per §A18 the labels are descriptive, never 'most active' or 'idle'; each agent controls their own status."
+                how="Read channel coverage first: an uncovered channel is a gap to fill, not a person to chase. 'At capacity' rising toward 'online' means the team is stretched — a staffing signal, not a performance one."
+                principle="Show whether the queue is covered; never rank the people covering it."
+              >
               <div className="bg-white/[0.02] border border-default rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Users className="w-4 h-4 text-brand" aria-hidden />
@@ -299,9 +329,19 @@ export default function CareLeadershipPage() {
                   Settings &rsaquo; Agents.
                 </p>
               </div>
+              </LearningHint>
             )}
 
             {/* §A17 experiential FIRST — what the team's work landed. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Leadership"
+              title="What the team's work landed durably"
+              whatItIs="A 7-day check run after each team resolution: did the customer come back with the same issue? Held / reopened / inconclusive counts."
+              why="This is the honest measure of resolution quality (§1.6 close-the-loop). Closing a ticket fast means nothing if it reopens — 'held' is the count that proves work actually compounded into the playbook. Surfaced first per §A17 because what landed comes before what missed."
+              how="Watch the 'held' share, not just the raw number. Treat 'reopened' as a team signal — often the root cause was upstream of where the conversation closed — never as a grade on the agent who closed it."
+              principle="A resolution that reopens wasn't a resolution; durability is the only honest scorecard."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle2
@@ -352,8 +392,18 @@ export default function CareLeadershipPage() {
                 as a team, not assigning to an individual.
               </p>
             </div>
+            </LearningHint>
 
             {/* §A11 team-aggregate Coach counts. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Leadership"
+              title="How the team's replies have read"
+              whatItIs="Counts of how the Coach read the team's graded replies — how many acknowledged the customer, answered the question, and offered a next step, plus any risk flags worth a second look."
+              why="These are the mechanics of a reply that lands. Per §A11 they're counts, not verdicts — the System mirrors what it saw; you decide what it means. There's no per-agent comparison by design (§A18), because the aim is coaching a pattern, not ranking people."
+              how="Read the ratios against the team's own past, not against each other. A low 'next step' share is the most common and most fixable gap. Treat risk flags as a signal about missing product context, not about bad agents."
+              principle="The System counts and mirrors; the human renders the verdict — and coaches the cause, not the symptom."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-brand" aria-hidden />
@@ -424,8 +474,18 @@ export default function CareLeadershipPage() {
                 </>
               )}
             </div>
+            </LearningHint>
 
             {/* §A6 — team load. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Leadership"
+              title="Team load"
+              whatItIs="What the team is carrying right now — conversations waiting on a reply, conversations claimed, and replies sent in the window."
+              why="Per §A6 Pillar 2 this is transparent accountability, not surveillance: it shows what the queue needs so nothing gets silently dropped, not who is or isn't busy. 'Waiting on the team' is the number a customer feels most directly."
+              how="Work 'waiting on the team' down first — the link jumps straight to those open conversations. Read 'claimed' and 'replies sent' as volume context, never as a productivity leaderboard."
+              principle="Make the load visible so the queue is covered — not to keep score on the people carrying it."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Inbox className="w-4 h-4 text-brand" aria-hidden />
@@ -468,8 +528,18 @@ export default function CareLeadershipPage() {
                 </Link>
               )}
             </div>
+            </LearningHint>
 
             {/* §A16 — Co-Pilot usage across the team. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Leadership"
+              title="Co-Pilot use across the team"
+              whatItIs="How much agents reshaped Co-Pilot drafts before sending — from 'minor' (sent close to the draft) through 'rewrite' (reached for a different angle)."
+              why="This is voice-tuning signal for Co-Pilot, not an evaluation of agents. A wall of 'rewrite' means the drafts are missing the team's real voice; a wall of 'minor' means Co-Pilot is close. Either way it's feedback about the tool, read from real edits rather than opinion."
+              how="Read the distribution as a whole. Lots of 'major'/'rewrite' is a prompt-tuning to-do, not a coaching conversation. Never read an individual's edit distance as a competence score."
+              principle="Measure the tool by how much humans had to fix it — not the humans by how much they leaned on it."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-brand" aria-hidden />
@@ -512,8 +582,18 @@ export default function CareLeadershipPage() {
                 </div>
               )}
             </div>
+            </LearningHint>
 
             {/* §1.6 close-the-loop — team resolution count. */}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Leadership"
+              title="Resolutions the team captured"
+              whatItIs="The count of resolutions the team logged in the window — each one a written record of what actually solved a customer's problem."
+              why="Per §1.1 every captured resolution is a permanent asset, not a closed ticket. The team's playbook compounds: what worked for one customer becomes context the next agent (and Co-Pilot) can reach for. This is the number that turns individual effort into institutional memory."
+              how="Read it as a growth curve, not a quota. A rising count means the team's shared knowledge is deepening — pair it with the durability numbers above to check the captured resolutions are ones that actually held."
+              principle="A resolution written down is an asset forever; one only remembered dies with the ticket."
+            >
             <div className="bg-white/[0.02] border border-default rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="w-4 h-4 text-brand" aria-hidden />
@@ -530,6 +610,7 @@ export default function CareLeadershipPage() {
                 worked for one customer becomes context for the next.
               </p>
             </div>
+            </LearningHint>
           </>
         )}
       </div>

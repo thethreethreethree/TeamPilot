@@ -16,6 +16,7 @@ import {
 import { careStatusDisplay } from "@/lib/care/statusLabels";
 import { priorityDisplay } from "@/lib/care/tagColors";
 import { EnableNotificationsBanner } from "@/components/pwa/EnableNotificationsBanner";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /dashboard/care — ELOSTATE RTM Home.
@@ -265,6 +266,15 @@ export default function CareHomePage() {
               <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
                 What compounded this week
               </h2>
+              <LearningHint
+                as="block"
+                category="C.A.R.E · Home"
+                title="What compounded this week"
+                whatItIs="The System's catches this week — patterns it surfaced, resolutions that held, ones that reopened, and resolutions captured."
+                why="This is the make-learning-visible surface (§3.6): proof the System knows more than it did last week. A value curve nobody can see reads, commercially, as a flat line."
+                how="Read it as a trend against last week, not a scorecard. Rising 'patterns surfaced' and 'held' is the System earning its keep; 'reopened' is a signal worth opening."
+                principle="Learning the user can't perceive is indistinguishable from stagnation."
+              >
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <CatchCell
                   icon={Sparkles}
@@ -305,6 +315,7 @@ export default function CareHomePage() {
                   tone="muted"
                 />
               </div>
+              </LearningHint>
             </section>
           )}
 
@@ -316,6 +327,15 @@ export default function CareHomePage() {
                   ? "How the team's replies have read"
                   : "How your replies have read"}
               </h2>
+              <LearningHint
+                as="block"
+                category="C.A.R.E · Home"
+                title="How replies have read"
+                whatItIs="Counts of how the Coach read your (or the team's) recent replies — how many acknowledged the customer, answered the question, and offered a next step."
+                why="These are the mechanics of a reply that lands. Per §A11 they're counts, not verdicts — the System mirrors what it saw; you decide what it means. Anchored to graded replies, not opinion."
+                how="Watch the ratios trend up over time against your own past. A low 'next step' count is the most common, most fixable gap."
+                principle="The System counts and mirrors; the human renders the verdict."
+              >
               <div className="bg-white/[0.02] border border-default rounded-xl p-4">
                 <p className="text-[11px] text-secondary leading-relaxed mb-3">
                   Counts across {growth.coachAggregate.repliesGraded} graded{" "}
@@ -350,6 +370,7 @@ export default function CareHomePage() {
                   <ArrowRight className="w-3 h-3" aria-hidden />
                 </Link>
               </div>
+              </LearningHint>
             </section>
           )}
 
@@ -359,6 +380,15 @@ export default function CareHomePage() {
               <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
                 Current load
               </h2>
+              <LearningHint
+                as="block"
+                category="C.A.R.E · Home"
+                title="Current load"
+                whatItIs="How many conversations need a first response, are mid-conversation, or are waiting on the customer right now."
+                why="Load is Pillar-2 accountability made supportive, not surveillance (§A6/§A18): it shows what the queue needs, not who's slacking. 'Needs first response' is the number that decides whether a customer feels heard fast."
+                how="Work 'needs first response' down first — it's the promise-of-speed number. Tap any cell to open that slice of the inbox."
+                principle="Show the queue what it needs; never rank the people in it."
+              >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <LoadCell
                   icon={Inbox}
@@ -382,6 +412,7 @@ export default function CareHomePage() {
                   tone="muted"
                 />
               </div>
+              </LearningHint>
             </section>
           )}
 

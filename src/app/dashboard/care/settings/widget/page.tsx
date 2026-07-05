@@ -5,6 +5,7 @@ import { AlertTriangle, Copy, Loader2, Save, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
 import { CURATED_VOICES } from "@/lib/care/voice/curated-client";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 // Normalize an origin entry the way Origin headers actually appear:
 //   "  https://Foo.com/  " → "https://foo.com"
@@ -192,54 +193,83 @@ export default function CareWidgetSettingsPage() {
             Widget · embed C.A.R.E on your site
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void save()}
-          disabled={saving}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-50 text-[#09090B] px-3 py-1.5 rounded-md"
+        <LearningHint
+          as="inline-block"
+          category="C.A.R.E · Settings"
+          title="Save changes"
+          whatItIs="Commits every edit on this page — appearance, origins, AI personality, voice — to the live widget at once."
+          why="Most fields here are draft-only until you save; the widget your customers load keeps showing the last saved config until you click this. One save publishes them all together, so partial states never reach customers."
+          how="Make your edits across the sections below, then click once to publish. The logo upload is the exception — it saves on its own the moment you upload."
+          principle="Edits are a draft until published — nothing reaches customers until you save."
         >
-          {saving ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Save className="w-3.5 h-3.5" aria-hidden />
-          )}
-          Save changes
-        </button>
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-50 text-[#09090B] px-3 py-1.5 rounded-md"
+          >
+            {saving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" aria-hidden />
+            )}
+            Save changes
+          </button>
+        </LearningHint>
       </header>
       <SettingsTabs />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
         {/* Active toggle */}
-        <Section title="Status">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-primary">
-                Widget is{" "}
-                <span
-                  className={
-                    draft.active ? "text-emerald-300 font-semibold" : "text-muted"
-                  }
-                >
-                  {draft.active ? "live" : "paused"}
-                </span>
-              </p>
-              <p className="text-[11px] text-muted">
-                When paused, embedded sites will see a friendly &quot;paused&quot; message
-                instead of the chat bubble.
-              </p>
+        <LearningHint
+          as="block"
+          category="C.A.R.E · Settings"
+          title="Widget status"
+          whatItIs="The master on/off switch for the widget across every site it's embedded on."
+          why="This is your kill switch and your go-live switch. Paused, embedded sites show a friendly 'paused' notice instead of the chat bubble — useful when you're not ready to staff it, without editing anyone's site code."
+          how="Toggle Active on when your team is ready to answer, off to pause everywhere at once. Remember to Save changes to publish the switch."
+          principle="Turn support on only when you can honestly answer — a live bubble is a promise."
+        >
+          <Section title="Status">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-primary">
+                  Widget is{" "}
+                  <span
+                    className={
+                      draft.active ? "text-emerald-300 font-semibold" : "text-muted"
+                    }
+                  >
+                    {draft.active ? "live" : "paused"}
+                  </span>
+                </p>
+                <p className="text-[11px] text-muted">
+                  When paused, embedded sites will see a friendly &quot;paused&quot; message
+                  instead of the chat bubble.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={draft.active}
+                  onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+                  className="accent-ember-400"
+                />
+                Active
+              </label>
             </div>
-            <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
-              <input
-                type="checkbox"
-                checked={draft.active}
-                onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
-                className="accent-ember-400"
-              />
-              Active
-            </label>
-          </div>
-        </Section>
+          </Section>
+        </LearningHint>
 
         {/* Embed snippet */}
+        <LearningHint
+          as="block"
+          category="C.A.R.E · Settings"
+          title="Embed snippet"
+          whatItIs="The one-line script tag you paste into your site's <head> to make the widget appear. It carries the token that identifies your tenant."
+          why="This is the physical connection between your site and C.A.R.E. The token in it is what ties customer conversations to your workspace — which is exactly why it only works on the origins you whitelist below."
+          how="Click Copy, paste it into the <head> of every page that should show the widget, then add those pages' origins under Allowed origins."
+          principle="One snippet, one identity — the token is what makes a conversation yours."
+        >
         <Section title="Embed snippet" subtitle="Drop this in the <head> of your site.">
           <div className="relative">
             <pre className="bg-base border border-default rounded-md p-3 text-xs text-primary font-mono overflow-x-auto pr-20">
@@ -260,8 +290,18 @@ export default function CareWidgetSettingsPage() {
             — requests from any other origin are rejected.
           </p>
         </Section>
+        </LearningHint>
 
         {/* Allowed origins */}
+        <LearningHint
+          as="block"
+          category="C.A.R.E · Settings"
+          title="Allowed origins"
+          whatItIs="The whitelist of exact site origins allowed to load and chat through your widget — enforced at the server, not just the browser."
+          why="This is the security boundary on your token. Empty by default (fail-safe: nobody can embed your widget on a random site), so if it's blank your widget loads nowhere. Origin headers are exact-match, so a missing https:// or a subdomain mismatch silently blocks real traffic."
+          how="Add one origin per line with the protocol and exact host (https://yourbusiness.com), no trailing slash, no path. List www and the bare domain separately if you serve both. Save to enable."
+          principle="Exact-match means exact — the widget trusts only origins you spell out precisely."
+        >
         <Section
           title="Allowed origins"
           subtitle="One per line. Only these origins are allowed to load and chat through your widget."
@@ -318,8 +358,18 @@ export default function CareWidgetSettingsPage() {
             </p>
           </div>
         </Section>
+        </LearningHint>
 
         {/* Email channel — Phase 4 */}
+        <LearningHint
+          as="block"
+          category="C.A.R.E · Settings"
+          title="Email channel"
+          whatItIs="An inbound support address that turns every incoming email into a C.A.R.E conversation, with agent replies threading back to the customer's inbox."
+          why="It brings email into the same queue, AI first-responder, and Coach grading as the widget — so support isn't split across two tools. It only appears once the deployment has the email env vars set; otherwise it's honestly marked as off."
+          how="Forward your support@ address to the address shown here. If it reads 'not configured', an operator needs to set the CARE_EMAIL env vars first."
+          principle="One queue for every channel beats a great answer no one can find the thread of."
+        >
         <Section
           title="Email channel"
           subtitle="Customers can email your support address; replies thread back into the same conversation here."
@@ -367,49 +417,99 @@ export default function CareWidgetSettingsPage() {
             </div>
           )}
         </Section>
+        </LearningHint>
 
         {/* Appearance */}
         <Section title="Appearance" subtitle="How the widget looks on your site.">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field
-              label="Greeting"
-              value={draft.widget_greeting}
-              onChange={(v) => setDraft({ ...draft, widget_greeting: v })}
-            />
-            <Field
-              label="Subtitle"
-              value={draft.widget_subtitle}
-              onChange={(v) => setDraft({ ...draft, widget_subtitle: v })}
-            />
-            <Field
-              label="Primary color (hex)"
-              value={draft.widget_color}
-              onChange={(v) => setDraft({ ...draft, widget_color: v })}
-              mono
-            />
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-                Position
-              </label>
-              <select
-                value={draft.widget_position}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    widget_position: e.target
-                      .value as TenantConfig["widget_position"],
-                  })
-                }
-                className="w-full bg-base border border-default rounded-md px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"
-              >
-                <option value="bottom-right">Bottom-right</option>
-                <option value="bottom-left">Bottom-left</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-                Brand logo / icon
-              </label>
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Settings"
+              title="Greeting"
+              whatItIs="The opening line the widget shows a customer when it first pops open — the headline of the chat window."
+              why="It's the first thing a customer reads, so it sets the tone before anyone types. A specific, human greeting invites a real question; a generic 'How can I help?' gets generic contacts."
+              how="Write a short, warm opener in your brand's voice. Keep it to a line so it doesn't crowd the input."
+              principle="The first line is a tone-setter — spend it on making contact feel welcome."
+            >
+              <Field
+                label="Greeting"
+                value={draft.widget_greeting}
+                onChange={(v) => setDraft({ ...draft, widget_greeting: v })}
+              />
+            </LearningHint>
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Settings"
+              title="Subtitle"
+              whatItIs="The smaller line under the greeting — usually a response-time or reassurance note."
+              why="It's where you set honest expectations ('Usually replies in a few minutes'), which reduces the number of customers who leave because they didn't know when they'd hear back. Only promise what you actually deliver."
+              how="Use it for a true expectation — response time, hours, or a short reassurance. Keep it consistent with your Operating hours."
+              principle="Set the expectation you can keep, right where the customer will read it."
+            >
+              <Field
+                label="Subtitle"
+                value={draft.widget_subtitle}
+                onChange={(v) => setDraft({ ...draft, widget_subtitle: v })}
+              />
+            </LearningHint>
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Settings"
+              title="Primary color"
+              whatItIs="The hex color that themes the widget — the bubble, header, and accents — so it matches your brand."
+              why="A widget in your brand color reads as part of your site; a mismatched one reads as a bolted-on third-party tool customers trust less. This is the main white-label lever."
+              how="Enter a hex value (e.g. #1D4ED8) that matches your site's primary color. Include the # and use six digits."
+              principle="The widget should look like it belongs to you, not to us."
+            >
+              <Field
+                label="Primary color (hex)"
+                value={draft.widget_color}
+                onChange={(v) => setDraft({ ...draft, widget_color: v })}
+                mono
+              />
+            </LearningHint>
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Settings"
+              title="Position"
+              whatItIs="Which bottom corner of the page the chat bubble sits in — right or left."
+              why="It's a small choice with real impact: the bubble shouldn't collide with your own site controls (a left-side cart, a right-side back-to-top). Put it where it won't fight your existing UI."
+              how="Pick the corner that's clear of your site's other floating elements. Save to move it."
+              principle="Place the bubble where it helps, not where it covers something else."
+            >
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                  Position
+                </label>
+                <select
+                  value={draft.widget_position}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      widget_position: e.target
+                        .value as TenantConfig["widget_position"],
+                    })
+                  }
+                  className="w-full bg-base border border-default rounded-md px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"
+                >
+                  <option value="bottom-right">Bottom-right</option>
+                  <option value="bottom-left">Bottom-left</option>
+                </select>
+              </div>
+            </LearningHint>
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Settings"
+              title="Brand logo / icon"
+              whatItIs="The image shown in the widget header and greeting card — your logo or icon."
+              why="A recognizable mark reassures the customer they're talking to you, not a stranger. Note this field saves immediately on upload, separately from the page's Save button, so a logo change goes live the moment it succeeds."
+              how="Upload a PNG, JPG, SVG, WebP, or ICO up to 2 MB. Use Remove to clear it. A square, transparent-background mark reads best."
+              principle="A familiar mark is trust the customer feels before they read a word."
+            >
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                  Brand logo / icon
+                </label>
               {draft.widget_logo_url ? (
                 <div className="flex items-center gap-3 mb-2 p-2 rounded-md border border-default bg-surface">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -487,19 +587,30 @@ export default function CareWidgetSettingsPage() {
                 }}
                 className="block w-full text-xs text-muted"
               />
-              <p className="text-[11px] text-muted mt-1">
-                2 MB max. PNG, JPG, SVG, WebP, or ICO. Shows in the widget header
-                + greeting card. The current value is the public URL; uploading a
-                new file replaces it.
-              </p>
-            </div>
-            <Field
-              label="Display name"
-              value={draft.company_display_name ?? ""}
-              onChange={(v) =>
-                setDraft({ ...draft, company_display_name: v || null })
-              }
-            />
+                <p className="text-[11px] text-muted mt-1">
+                  2 MB max. PNG, JPG, SVG, WebP, or ICO. Shows in the widget header
+                  + greeting card. The current value is the public URL; uploading a
+                  new file replaces it.
+                </p>
+              </div>
+            </LearningHint>
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Settings"
+              title="Display name"
+              whatItIs="The company name the widget shows customers — what appears as the 'who am I talking to' label."
+              why="It's how the customer knows whose support they've reached. Set it to the brand they recognize, which may differ from your legal entity name."
+              how="Enter the customer-facing brand name. Leave blank to fall back to the default."
+              principle="Show customers the name they know you by, not the one on your paperwork."
+            >
+              <Field
+                label="Display name"
+                value={draft.company_display_name ?? ""}
+                onChange={(v) =>
+                  setDraft({ ...draft, company_display_name: v || null })
+                }
+              />
+            </LearningHint>
           </div>
         </Section>
 
@@ -509,13 +620,22 @@ export default function CareWidgetSettingsPage() {
           subtitle="How the AI represents your product and speaks to customers."
         >
           <div className="space-y-3">
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-                Agent name
-              </label>
-              <input
-                type="text"
-                value={draft.ai_name}
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Settings"
+              title="Agent name"
+              whatItIs="The name the AI introduces itself as and signs its messages with — its persona on your widget."
+              why="A named responder feels like a someone, not a bot, which changes how customers engage. It appears in the greeting and every AI message, so it's part of your brand voice. Line breaks and control characters are stripped so what you type is what customers see."
+              how="Enter 1–50 characters, no line breaks. Pick a name that fits your brand's tone."
+              principle="A name turns a bot into a first responder customers will actually talk to."
+            >
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                  Agent name
+                </label>
+                <input
+                  type="text"
+                  value={draft.ai_name}
                 onChange={(e) =>
                   // Per audit L3 (2026-06-24): strip control + Unicode
                   // line/paragraph separators client-side, mirroring
@@ -534,18 +654,28 @@ export default function CareWidgetSettingsPage() {
                 placeholder="Jeff"
                 className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong"
               />
-              <p className="text-[11px] text-muted mt-1">
-                What your AI introduces itself as. Shows up in the widget greeting
-                (&ldquo;Hi, my name is X.&rdquo;) and in every message the AI sends.
-                1–50 characters; no line breaks.
-              </p>
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-                Product context
-              </label>
-              <textarea
-                value={draft.ai_product_context ?? ""}
+                <p className="text-[11px] text-muted mt-1">
+                  What your AI introduces itself as. Shows up in the widget greeting
+                  (&ldquo;Hi, my name is X.&rdquo;) and in every message the AI sends.
+                  1–50 characters; no line breaks.
+                </p>
+              </div>
+            </LearningHint>
+            <LearningHint
+              as="block"
+              category="C.A.R.E · Settings"
+              title="Product context"
+              whatItIs="A briefing the AI reads before answering — what your product is, its features by name, pricing/access, and what to hand off to a human."
+              why="This is the single biggest lever on whether the AI helps or hurts. When it's uncertain about a feature it defaults to 'no' — telling a customer you can't do something you can, and losing them. Naming features here makes 'yes, we have that' its safe default, and anything you don't name gets handed to a human by design rather than guessed at."
+              how="List features by the names customers use, state pricing/access plainly, and be explicit about what the AI must hand off (billing, refunds, account data). Be thorough — the AI only knows what's written here."
+              principle="An AI that doesn't know your product will confidently misdescribe it — name what's real so it never has to guess."
+            >
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                  Product context
+                </label>
+                <textarea
+                  value={draft.ai_product_context ?? ""}
                 onChange={(e) =>
                   setDraft({ ...draft, ai_product_context: e.target.value || null })
                 }
@@ -581,8 +711,18 @@ Always hand off to a human for:
                   confidently say &quot;no&quot; when uncertain.
                 </p>
               </div>
-            </div>
+              </div>
+            </LearningHint>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <LearningHint
+                as="block"
+                category="C.A.R.E · Settings"
+                title="Tone"
+                whatItIs="The register the AI writes in — warm, formal, casual, or direct."
+                why="Tone is how the AI's answers feel, and it should match your brand. A luxury service reads formal; a dev tool reads direct. A mismatch makes even correct answers feel off-brand."
+                how="Pick the register closest to how your team already talks to customers. Save to apply it to every AI reply."
+                principle="Correct and off-brand still feels wrong — match the voice to your brand."
+              >
               <div>
                 <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
                   Tone
@@ -603,6 +743,16 @@ Always hand off to a human for:
                   <option value="direct">Direct</option>
                 </select>
               </div>
+              </LearningHint>
+              <LearningHint
+                as="block"
+                category="C.A.R.E · Settings"
+                title="Response length"
+                whatItIs="How long the AI's answers run — short (1–2 sentences), medium, or long (up to ~6)."
+                why="Length is a trade-off between speed and completeness. Short suits simple, high-volume questions; long suits products where a thin answer just creates a follow-up. Set it to how much your customers actually need."
+                how="Choose based on your typical question. If customers keep replying 'and…?', go longer; if they skim, go shorter."
+                principle="Answer at the length the question deserves — not every reply needs to be a paragraph."
+              >
               <div>
                 <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
                   Response length
@@ -623,6 +773,7 @@ Always hand off to a human for:
                   <option value="long">Long (up to ~6 sentences)</option>
                 </select>
               </div>
+              </LearningHint>
             </div>
           </div>
         </Section>
@@ -631,6 +782,15 @@ Always hand off to a human for:
             is customer-opt-in (they click the mic button); this
             picker only changes which voice Jeff speaks with when
             they do. */}
+        <LearningHint
+          as="block"
+          category="C.A.R.E · Settings"
+          title="Jeff's voice"
+          whatItIs="Which voice reads the AI's replies aloud when a customer chooses the voice conversation in the widget."
+          why="It only matters once a customer opts into voice (by clicking the mic), but when they do, the voice is the AI's presence — it should suit your brand. Decoupled from the text tone above so you can tune each independently."
+          how="Pick a curated voice, or leave it on the deployment default. Need one not listed? Set a custom ElevenLabs voice ID via the API — the picker's kept short on purpose."
+          principle="When the AI speaks, the voice is the brand — choose it as deliberately as the words."
+        >
         <Section
           title="Jeff's voice"
           subtitle="Which voice plays back Jeff's replies when a customer enters the voice conversation. Customers still have to opt in by clicking the mic button — this just picks the voice."
@@ -662,32 +822,53 @@ Always hand off to a human for:
             </p>
           </div>
         </Section>
+        </LearningHint>
 
         {/* Branding */}
-        <Section title="Reply signature" subtitle="Appears at the end of agent replies (optional).">
-          <Field
-            label="Signature"
-            value={draft.reply_signature ?? ""}
-            onChange={(v) => setDraft({ ...draft, reply_signature: v || null })}
-          />
-        </Section>
+        <LearningHint
+          as="block"
+          category="C.A.R.E · Settings"
+          title="Reply signature"
+          whatItIs="An optional line appended to the end of human agent replies — like an email sign-off."
+          why="It's a small consistency lever: every agent's reply ends the same, branded way without each person having to type it. Optional, because for some teams a signature adds noise rather than polish."
+          how="Set a short sign-off (e.g. '— The Acme team') or leave it blank to append nothing."
+          principle="Consistency in the small closing details reads as care in the big ones."
+        >
+          <Section title="Reply signature" subtitle="Appears at the end of agent replies (optional).">
+            <Field
+              label="Signature"
+              value={draft.reply_signature ?? ""}
+              onChange={(v) => setDraft({ ...draft, reply_signature: v || null })}
+            />
+          </Section>
+        </LearningHint>
 
         {/* Plan */}
-        <Section title="Plan">
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded border border-ember-400/40 bg-ember-400/10 text-brand">
-              {draft.plan}
-            </span>
-            <p className="text-xs text-secondary">
-              {draft.monthly_conversation_quota.toLocaleString()} conversations
-              per month included.
+        <LearningHint
+          as="block"
+          category="C.A.R.E · Settings"
+          title="Plan"
+          whatItIs="Your current plan and the monthly conversation quota it includes — read-only during the pilot."
+          why="It's the honest statement of your usage ceiling: how many conversations are included before tiers matter. Every tenant is on the pilot plan for now, so there's nothing to upgrade yet — and this says so plainly instead of dangling a fake upsell."
+          how="Read-only today. When Stripe and tiers ship, this is where you'll change plans and see quota."
+          principle="Show the real limit and the real state — don't dress a pilot up as a storefront."
+        >
+          <Section title="Plan">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded border border-ember-400/40 bg-ember-400/10 text-brand">
+                {draft.plan}
+              </span>
+              <p className="text-xs text-secondary">
+                {draft.monthly_conversation_quota.toLocaleString()} conversations
+                per month included.
+              </p>
+            </div>
+            <p className="text-[11px] text-muted mt-2">
+              Stripe + tier upgrade ships in Sprint 7. For now, every
+              tenant is on the pilot plan.
             </p>
-          </div>
-          <p className="text-[11px] text-muted mt-2">
-            Stripe + tier upgrade ships in Sprint 7. For now, every
-            tenant is on the pilot plan.
-          </p>
-        </Section>
+          </Section>
+        </LearningHint>
       </div>
     </>
   );

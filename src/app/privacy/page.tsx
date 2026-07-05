@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /privacy — Privacy Policy.
@@ -34,11 +35,21 @@ export default function PrivacyPage() {
           ← Back to ELOSTATE
         </Link>
 
-        <h1 className="text-2xl font-bold mt-6 mb-2">Privacy Policy</h1>
-        <p className="text-xs text-muted">
-          Version 0.1 · last updated{" "}
-          <time dateTime="2026-06-19">June 19, 2026</time>
-        </p>
+        <LearningHint
+          as="block"
+          category="Legal · Privacy"
+          title="Privacy Policy"
+          whatItIs="What ELOSTATE records about you, what it derives, and — the load-bearing part — the guarantee that whatever it sees about you, you can see too."
+          why="Most privacy policies describe collection and quietly hope you don't read them. This one describes a structural rule: no backstage read. It exists to put the transparency contract on the record, not just imply it."
+          how="Skim the section headers first; each is a concrete commitment. Start with 'The core promise' — it's the rule the rest of the document is built to keep."
+          principle="No shadow read: what the System sees about you, you see too."
+        >
+          <h1 className="text-2xl font-bold mt-6 mb-2">Privacy Policy</h1>
+          <p className="text-xs text-muted">
+            Version 0.1 · last updated{" "}
+            <time dateTime="2026-06-19">June 19, 2026</time>
+          </p>
+        </LearningHint>
 
         <Section title="The core promise (the structural one)">
           Whatever ELOSTATE records about you, you can see. There is no

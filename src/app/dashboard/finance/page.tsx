@@ -14,6 +14,7 @@ import {
   mockInvoices,
 } from "@/lib/mock-data";
 import { Brain, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 const fmtMoney = (n: number) =>
   n >= 1_000_000
@@ -54,6 +55,15 @@ export default function FinancePage() {
           needs="A finance data source (accounting integration like Xero/QuickBooks, or a manual entry pipeline) must exist before runway, burn, and expense values become derived."
         />
         {/* Stats Row */}
+        <LearningHint
+          as="block"
+          category="Finance · Vital signs"
+          title="Finance health & headline numbers"
+          whatItIs="The top-line finance vitals — a health ring plus cash on hand, monthly burn, and runway. In this design preview the values come from mock data, not a live accounting feed."
+          why="Runway and burn are the numbers that decide how much time a company actually has. But the ring is honest: until a real accounting source is connected, these can't be derived, so they're marked demo rather than presented as fact."
+          how="Read the layout and the relationships (burn against cash gives runway), not the specific figures. When Xero/QuickBooks or a manual pipeline is wired in, the same tiles will show your real position."
+          principle="No instant numbers — a figure the system can't derive from real data is labeled demo, never dressed up as truth."
+        >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="glass-card p-4">
             <div className="flex items-center justify-between">
@@ -74,10 +84,20 @@ export default function FinancePage() {
             </div>
           ))}
         </div>
+        </LearningHint>
 
         {/* MRR + AI Diagnosis */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Revenue trend */}
+          <LearningHint
+            as="block"
+            category="Finance · Trend"
+            title="Revenue vs. expenses"
+            whatItIs="A month-by-month bar comparison of MRR against expenses, with the current MRR and its growth rate called out above the chart."
+            why="The gap between the two bars is the story — widening revenue over flat expenses is the shape of a healthy trajectory. A single month says little; the trend across months is where the signal lives."
+            how="Scan left to right for the direction of the gap, not any one bar's height. In the live version this replays real monthly totals from the accounting source instead of the current preview data."
+            principle="Read the trend, not the tallest bar — direction over any single point."
+          >
           <div className="glass-card p-5 lg:col-span-2">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-sm font-semibold text-primary">Revenue vs. Expenses</h2>
@@ -117,8 +137,18 @@ export default function FinancePage() {
               </span>
             </div>
           </div>
+          </LearningHint>
 
           {/* AI Diagnosis */}
+          <LearningHint
+            as="block"
+            category="Finance · Diagnosis"
+            title="AI finance diagnosis"
+            whatItIs="The panel where the System would surface a finance diagnosis — currently in design preview, awaiting the event chain that already powers Operations."
+            why="A diagnosis is only honest once it rests on real evidence: events from accounting integrations, signals derived from at least two sources, and problems gated by enough signals (§3.2). Faking one on mock data would be confident, well-formed failure — exactly what the Understanding Gate exists to prevent."
+            how="Nothing to run here yet — the deprecated Run button was removed rather than left to throw a misleading error. When the finance chain ships, diagnoses appear here the way they do in Operations."
+            principle="Understanding precedes solving — no diagnosis surfaces until the evidence to earn it exists."
+          >
           <div className="glass-card p-5 border-ember-400/20">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -135,10 +165,20 @@ export default function FinancePage() {
               hint="The chain pattern that produced Operations needs to be replayed for finance — events from real accounting integrations, signals derived from at least 2 sources, problems gated by ≥3 signals. Until that infrastructure ships, this dashboard is for layout review only."
             />
           </div>
+          </LearningHint>
         </div>
 
         {/* Expense breakdown + Invoices */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <LearningHint
+            as="block"
+            category="Finance · Expenses"
+            title="Expense breakdown"
+            whatItIs="Spend by category, each with a share bar and a trend arrow showing whether that category is rising, falling, or flat."
+            why="Where money goes — and which categories are trending up — is where cost discipline starts. A rising category isn't automatically bad; it's a prompt to ask whether the spend is buying proportionate value."
+            how="Scan for the trend arrows first, then the share bars. An up-arrow on a large share is worth a conversation. Live data will replace the preview categories once an accounting source is connected."
+            principle="Surface where the money goes as counts and trends, not as a pass/fail on any single line."
+          >
           <div className="glass-card p-5">
             <h2 className="text-sm font-semibold text-primary mb-4">Expense Breakdown</h2>
             <div className="space-y-3">
@@ -160,7 +200,17 @@ export default function FinancePage() {
               ))}
             </div>
           </div>
+          </LearningHint>
 
+          <LearningHint
+            as="block"
+            category="Finance · Invoices"
+            title="Invoices"
+            whatItIs="A table of client invoices with amount, due date, and status, headed by the total outstanding and the count overdue."
+            why="Outstanding and overdue are the cash-collection reality behind revenue — money booked isn't money received. The overdue count is the one to watch: it's revenue you've earned but haven't been paid."
+            how="Start with the overdue count in the header, then scan the Status column for which clients it maps to. In the live version this reads from your billing source rather than the preview rows."
+            principle="Earned isn't collected — track what's outstanding as plainly as what's booked."
+          >
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-primary">Invoices</h2>
@@ -197,6 +247,7 @@ export default function FinancePage() {
               </tbody>
             </table>
           </div>
+          </LearningHint>
         </div>
       </div>
     </div>

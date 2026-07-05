@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, ShieldCheck, UserCheck } from "lucide-react";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
 import { useToast } from "@/components/ui/toast";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Settings → Agents.
@@ -199,17 +200,27 @@ export default function CareAgentsPage() {
                             Agent (implicit)
                           </span>
                         ) : (
-                          <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={a.isSupportAgent}
-                              onChange={(e) =>
-                                void toggleAgent(a.id, e.target.checked)
-                              }
-                              className="accent-ember-400"
-                            />
-                            Agent
-                          </label>
+                          <LearningHint
+                            as="inline-block"
+                            category="C.A.R.E · Settings"
+                            title="Support-agent toggle"
+                            whatItIs="Turns a teammate into a support agent — someone conversations can be routed to and who can pick them up."
+                            why="Only people toggled on here (plus admins, who are agents implicitly) enter the routing pool. Leave someone off and they'll never receive an auto-routed conversation, no matter how busy the queue gets."
+                            how="Check the box to activate a teammate as an agent; uncheck to remove them from routing. Their capacity and channels are set in the row that appears below."
+                            principle="The routing pool is exactly who you put in it — nothing is assumed."
+                          >
+                            <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={a.isSupportAgent}
+                                onChange={(e) =>
+                                  void toggleAgent(a.id, e.target.checked)
+                                }
+                                className="accent-ember-400"
+                              />
+                              Agent
+                            </label>
+                          </LearningHint>
                         )}
                       </div>
                     </div>
@@ -275,64 +286,94 @@ function RoutingControls({
 
   return (
     <div className="mt-3 ml-10 grid grid-cols-1 md:grid-cols-[140px_1fr_auto] gap-3 items-end">
-      <div>
-        <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-          Max concurrent
-        </label>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          max={50}
-          value={maxConcurrent}
-          onChange={(e) =>
-            setMaxConcurrent(Math.max(0, parseInt(e.target.value, 10) || 0))
-          }
-          className="w-full bg-base border border-default rounded-md px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-strong font-mono"
-        />
-      </div>
-      <div>
-        <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-          Routes from
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {ALL_CHANNELS.map((c) => {
-            const on = channels.includes(c.key);
-            return (
-              <label
-                key={c.key}
-                className={`inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded border cursor-pointer ${
-                  on
-                    ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-200"
-                    : "border-default bg-surface/40 text-muted hover:border-strong"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={on}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setChannels([...channels, c.key]);
-                    } else {
-                      setChannels(channels.filter((k) => k !== c.key));
-                    }
-                  }}
-                  className="accent-emerald-400"
-                />
-                {c.label}
-              </label>
-            );
-          })}
-        </div>
-      </div>
-      <button
-        type="button"
-        disabled={!dirty}
-        onClick={() => onSave({ maxConcurrent, channels })}
-        className="text-[11px] font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] px-3 py-1.5 rounded-md"
+      <LearningHint
+        as="block"
+        category="C.A.R.E · Settings"
+        title="Max concurrent"
+        whatItIs="The most conversations this agent can be auto-assigned at once — their capacity ceiling."
+        why="This is the guardrail against overload. Routing stops handing an agent new conversations once they hit this number, so nobody gets buried and every customer keeps getting real attention."
+        how="Set a number the agent can genuinely hold at the same time. Their live count shows as '3 of 5' — the second number is this ceiling."
+        principle="Capacity is a limit you set, not a target — protect focus by keeping it honest."
       >
-        Save routing
-      </button>
+        <div>
+          <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+            Max concurrent
+          </label>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={50}
+            value={maxConcurrent}
+            onChange={(e) =>
+              setMaxConcurrent(Math.max(0, parseInt(e.target.value, 10) || 0))
+            }
+            className="w-full bg-base border border-default rounded-md px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-strong font-mono"
+          />
+        </div>
+      </LearningHint>
+      <LearningHint
+        as="block"
+        category="C.A.R.E · Settings"
+        title="Routes from"
+        whatItIs="Which channels — web widget, embedded widget, email — this agent receives auto-routed conversations from."
+        why="Agents have different strengths and access. Restricting an agent to the channels they should handle keeps, say, email-only staff out of live chat and vice versa, so the right person meets each channel."
+        how="Tick the channels this agent should take. Untick a channel to stop routing its conversations to them."
+        principle="Route work to where the person can actually do it — channel fit is part of coverage."
+      >
+        <div>
+          <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+            Routes from
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {ALL_CHANNELS.map((c) => {
+              const on = channels.includes(c.key);
+              return (
+                <label
+                  key={c.key}
+                  className={`inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded border cursor-pointer ${
+                    on
+                      ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-200"
+                      : "border-default bg-surface/40 text-muted hover:border-strong"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setChannels([...channels, c.key]);
+                      } else {
+                        setChannels(channels.filter((k) => k !== c.key));
+                      }
+                    }}
+                    className="accent-emerald-400"
+                  />
+                  {c.label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </LearningHint>
+      <LearningHint
+        as="inline-block"
+        category="C.A.R.E · Settings"
+        title="Save routing"
+        whatItIs="Commits this agent's capacity and channel changes to the routing engine."
+        why="Nothing you change in this row takes effect until you save — and the same values then show on the agent's own presence control (§A10). The button stays disabled until there's an actual change to commit."
+        how="Adjust capacity or channels, then click to save. The next conversation routes against the new settings."
+        principle="Changes are proposals until saved; what's committed is what routing obeys."
+      >
+        <button
+          type="button"
+          disabled={!dirty}
+          onClick={() => onSave({ maxConcurrent, channels })}
+          className="text-[11px] font-semibold bg-ember-400 hover:bg-ember-500 disabled:opacity-40 disabled:cursor-not-allowed text-[#09090B] px-3 py-1.5 rounded-md"
+        >
+          Save routing
+        </button>
+      </LearningHint>
     </div>
   );
 }

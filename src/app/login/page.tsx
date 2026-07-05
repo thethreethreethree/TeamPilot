@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { BrandLogo } from "@/components/brand/Logo";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 type Mode = "signin" | "signup";
 
@@ -148,6 +149,15 @@ function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <LearningHint
+              as="block"
+              category="Account · Sign in"
+              title="Your work email"
+              whatItIs="The email address that becomes your identity across ELOSTATE — every event, message, and coaching insight is attributed to it."
+              why="ELOSTATE derives everything from an immutable per-person event history. That history is only coherent if one email means one person, so this is the anchor the whole record hangs on."
+              how="Use your real work address, not a shared inbox. If your team confirmed by email at signup, use that same one so your history stays continuous."
+              principle="One identity, one honest record — the account is the spine the diagnosis is built on."
+            >
             <div>
               <label className="block text-xs font-medium text-secondary mb-1.5">Email</label>
               <input
@@ -162,6 +172,16 @@ function LoginPage() {
                 className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
+            </LearningHint>
+            <LearningHint
+              as="block"
+              category="Account · Sign in"
+              title="Your password"
+              whatItIs="The secret that proves the account is yours before ELOSTATE unlocks your team's data."
+              why="The system holds a candid record of how your team actually works — bottlenecks, unperformed behavior, real problems. That honesty is only safe if access is genuinely private, which is what this gate enforces."
+              how="At least 6 characters. If you're setting up a new account, pick something you don't reuse elsewhere; forgot it? Use the recovery link rather than creating a second account."
+              principle="Honest data is only worth capturing if access to it is genuinely protected."
+            >
             <div>
               <label className="block text-xs font-medium text-secondary mb-1.5">Password</label>
               <input
@@ -176,10 +196,20 @@ function LoginPage() {
                 className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
+            </LearningHint>
 
             {error && <p className="text-xs text-red-400">{error}</p>}
             {notice && <p className="text-xs text-emerald-400">{notice}</p>}
 
+            <LearningHint
+              as="block"
+              category="Account · Sign in"
+              title={mode === "signin" ? "Enter ELOSTATE" : "Create account"}
+              whatItIs="Submits your credentials. On sign-in it opens your dashboard; on sign-up it creates the account, then routes you into onboarding."
+              why="This is the single door into the system. New accounts are sent through onboarding first because ELOSTATE has no fixed day-one behavior — it needs your team's context before it can be useful, and it won't pretend otherwise."
+              how="Sign in returns you to where you work. Creating an account hands you off to a short setup so the system starts from your reality, not a generic template."
+              principle="No instant results — the system earns its behavior from your team's data, starting the moment you set it up."
+            >
             <button
               type="submit"
               disabled={loading}
@@ -202,10 +232,20 @@ function LoginPage() {
                 </>
               )}
             </button>
+            </LearningHint>
           </form>
 
           <p className="text-center text-xs text-muted mt-6">
             {mode === "signin" ? "No account? " : "Already have an account? "}
+            <LearningHint
+              as="inline-block"
+              category="Account · Sign in"
+              title="Switch between signing in and creating an account"
+              whatItIs="Toggles this form between returning-user sign-in and first-time account creation, without leaving the page."
+              why="Two distinct intents share one surface, so the toggle keeps the choice explicit — and it clears the password field on switch so a sign-up secret is never accidentally submitted as a sign-in attempt."
+              how="Tap it if you're on the wrong mode. New here? Switch to set up. Already have an account? Switch back to sign in."
+              principle="Make the user's intent explicit before acting on it — never guess which door they meant."
+            >
             <button
               type="button"
               onClick={() => {
@@ -223,6 +263,7 @@ function LoginPage() {
             >
               {mode === "signin" ? "Set up ELOSTATE" : "Sign in"}
             </button>
+            </LearningHint>
           </p>
           {/* Legal footer — Terms + Privacy linked from the
               auth surface so the pilot acceptance moment is

@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   Hourglass,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /help — external support / help page.
@@ -38,12 +39,31 @@ export default function HelpPage() {
           ← Back to ELOSTATE
         </Link>
 
-        <h1 className="text-2xl font-bold mt-6 mb-2">Help & support</h1>
-        <p className="text-sm text-muted mb-8">
-          How to use ELOSTATE, what to expect during pilot, and where to
-          reach us when something doesn&apos;t make sense.
-        </p>
+        <LearningHint
+          as="block"
+          category="Help"
+          title="Help & support"
+          whatItIs="The orientation surface for pilot users — how the product works, what to expect, and every way to reach a real human."
+          why="A pilot user who gets stuck and can't find help churns silently. This page is the deliberate catch for that: it answers the most-misunderstood things before they become support tickets."
+          how="Scan the section headers for your question. The 60-day cycle section is the one most people need first; email is for anything a Feedback report can't hold."
+          principle="The fastest support is the answer the user finds before they have to ask."
+        >
+          <h1 className="text-2xl font-bold mt-6 mb-2">Help &amp; support</h1>
+          <p className="text-sm text-muted mb-8">
+            How to use ELOSTATE, what to expect during pilot, and where to
+            reach us when something doesn&apos;t make sense.
+          </p>
+        </LearningHint>
 
+        <LearningHint
+          as="block"
+          category="Help · Cadence"
+          title="The 60-day cycle"
+          whatItIs="The rule that AI guidance is OFF for your first 30 days, ON for the next 30, with the proof readout on Day 60."
+          why="It's the single most-misunderstood thing about ELOSTATE — users read the off period as a broken feature. It's the opposite: an honest baseline so any later improvement is provably the method, not luck."
+          how="Treat Month 1 as data collection, not downtime. Only override control if you have a real reason — the skip is recorded permanently."
+          principle="You can't prove you helped without an honest 'before'."
+        >
         <Section
           icon={Hourglass}
           title="The 60-day cycle (the most-misunderstood thing)"
@@ -74,7 +94,17 @@ export default function HelpPage() {
             the moat (see Terms).
           </p>
         </Section>
+        </LearningHint>
 
+        <LearningHint
+          as="block"
+          category="Help · Feedback"
+          title="In-product Feedback"
+          whatItIs="The Feedback button on every page — the fast path for bugs, ideas, and anything that reads as wrong."
+          why="Feedback that lands in a real, tracked chain (not a void) is what turns pilot users into co-builders. Every report becomes an asset on the record, not a lost email."
+          how="Use it for anything tactical; it auto-attaches a screenshot for bugs. Save email for account, billing, or sensitive concerns."
+          principle="Feedback is data, not noise — so it goes on the record, not in an inbox."
+        >
         <Section icon={MessageSquarePlus} title="In-product Feedback (fast)">
           <p>
             Every page has a Feedback button — bottom-right on most
@@ -92,6 +122,7 @@ export default function HelpPage() {
             chain tracks the response.
           </p>
         </Section>
+        </LearningHint>
 
         <Section icon={Mail} title="Email for support">
           <p>
@@ -113,6 +144,15 @@ export default function HelpPage() {
           </p>
         </Section>
 
+        <LearningHint
+          as="block"
+          category="Help · Privacy"
+          title="Data and privacy"
+          whatItIs="The plain-language version of the transparency guarantee: what the System sees about you, you can see."
+          why="Users won't be honest on a platform they think is surveilling them — and dishonest input degrades every downstream diagnosis. This section makes the no-shadow-read rule legible before trust is tested."
+          how="Check your own Coach grades and task engagement to see the same data an admin digest shows about you. For the full detail, follow through to the Privacy Policy."
+          principle="Transparency isn't a feature here; it's the precondition for honest data."
+        >
         <Section icon={ShieldCheck} title="Data and privacy">
           <p>
             ELOSTATE is built so the data the System sees about you,
@@ -147,7 +187,17 @@ export default function HelpPage() {
             for the details.
           </p>
         </Section>
+        </LearningHint>
 
+        <LearningHint
+          as="block"
+          category="Help · Concepts"
+          title="Orienting concepts"
+          whatItIs="Short definitions of the four terms that take a minute to internalize: Understanding Gate, Decision Dialogue, Coach, and Requesting Collaboration."
+          why="These words carry the product's discipline. A user who misreads 'Requesting Collaboration' as 'behind' will use the tool to chase people — the exact failure the label was built to prevent."
+          how="Read all four once; the reframes are deliberate. 'Requesting Collaboration' is the same data as 'blocked' with a different invitation attached."
+          principle="The vocabulary is the discipline — the words decide how the tool gets used."
+        >
         <Section icon={BookOpen} title="A few orienting concepts">
           <p>
             ELOSTATE uses a few terms that take a minute to internalize:
@@ -197,6 +247,7 @@ export default function HelpPage() {
             </div>
           </dl>
         </Section>
+        </LearningHint>
 
         <p className="text-[10px] text-muted mt-12 text-center">
           ELOSTATE pilot · last updated 2026-06-15

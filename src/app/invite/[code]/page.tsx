@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { Activity, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /invite/[code] — accept-invitation surface.
@@ -128,6 +129,15 @@ export default function InviteAcceptPage() {
                   : "Sign in to join."}
               </p>
               <form onSubmit={handleAuthAndAccept} className="space-y-3">
+                <LearningHint
+                  as="block"
+                  category="Invitation · Join a team"
+                  title="Your work email"
+                  whatItIs="The email that becomes your identity on the team you're joining — and the account every future login uses."
+                  why="Accepting an invite attaches you to the inviting company's record. That link is only clean if one email means one person, so this is what ties your contributions to you from day one."
+                  how="Use your real work address. If the invite was sent to a specific email, using that same one keeps everything consistent."
+                  principle="You join as a single, identifiable person — the team's record starts honest."
+                >
                 <input
                   type="email"
                   autoComplete="email"
@@ -138,6 +148,16 @@ export default function InviteAcceptPage() {
                   placeholder="you@company.com"
                   className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-ember-400/50"
                 />
+                </LearningHint>
+                <LearningHint
+                  as="block"
+                  category="Invitation · Join a team"
+                  title="Your password"
+                  whatItIs="The secret for your new (or existing) account. New here means you're creating it now; returning means it's the one you already have."
+                  why="Joining gives you access to the team's candid working record. That access has to be genuinely yours alone, which is what this credential protects."
+                  how="At least 6 characters for a new account. Already have an ELOSTATE account on this email? Switch to sign-in below and use your existing password."
+                  principle="Access to a team's honest record must belong to exactly one person."
+                >
                 <input
                   type="password"
                   autoComplete={mode === "signup" ? "new-password" : "current-password"}
@@ -148,7 +168,17 @@ export default function InviteAcceptPage() {
                   placeholder="Password"
                   className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-ember-400/50"
                 />
+                </LearningHint>
                 {mode === "signup" && (
+                  <LearningHint
+                    as="block"
+                    category="Invitation · Join a team"
+                    title="Your name"
+                    whatItIs="The name your teammates will see next to your activity in shared views. Optional — you can add it later."
+                    why="A record of who did what is only useful if 'who' is legible. A name turns an account into a recognizable teammate; leaving it blank just means you show up less identifiably until you set it."
+                    how="Type how you'd like to appear to the team. Skip it if you'd rather — nothing is blocked, and you can set it from your profile afterward."
+                    principle="The system captures contribution; a name makes that contribution recognizably yours."
+                  >
                   <input
                     type="text"
                     autoComplete="name"
@@ -157,8 +187,18 @@ export default function InviteAcceptPage() {
                     placeholder="Your name (optional)"
                     className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-ember-400/50"
                   />
+                  </LearningHint>
                 )}
                 {error && <p className="text-xs text-red-400">{error}</p>}
+                <LearningHint
+                  as="block"
+                  category="Invitation · Join a team"
+                  title={mode === "signup" ? "Create account & accept" : "Sign in & accept"}
+                  whatItIs="Does two things at once: authenticates you, then redeems the invite code to attach your account to the inviting company."
+                  why="Combining them means you never land in the awkward middle state of being signed in but not yet on the team. One action, one outcome — you're either in, or told exactly why not."
+                  how="Fill the fields above and submit. If the invite needs email confirmation first, you'll be told to confirm and return."
+                  principle="Bind the steps that only make sense together, so the user is never stranded between them."
+                >
                 <button
                   type="submit"
                   disabled={busy}
@@ -171,9 +211,19 @@ export default function InviteAcceptPage() {
                     : "Sign in & accept"}
                   {!busy && <ArrowRight className="w-4 h-4" />}
                 </button>
+                </LearningHint>
               </form>
               <p className="text-center text-xs text-muted mt-4">
                 {mode === "signup" ? "Already have an account? " : "Need an account? "}
+                <LearningHint
+                  as="inline-block"
+                  category="Invitation · Join a team"
+                  title="Already have an account, or need a new one?"
+                  whatItIs="Switches this form between creating a fresh account and signing in with one you already have — both paths end in accepting the invite."
+                  why="People get invited on emails they already use here and on brand-new ones. Making the choice explicit avoids a failed sign-up on an email that already exists (or vice-versa), and it clears the password on switch so nothing crosses over."
+                  how="Invited on an email you already use for ELOSTATE? Switch to sign in. Brand new? Stay on sign up."
+                  principle="Meet the user where they already are — don't force a second account onto someone who has one."
+                >
                 <button
                   type="button"
                   onClick={() => {
@@ -185,6 +235,7 @@ export default function InviteAcceptPage() {
                 >
                   {mode === "signup" ? "Sign in instead" : "Sign up instead"}
                 </button>
+                </LearningHint>
               </p>
             </>
           )}
@@ -198,6 +249,15 @@ export default function InviteAcceptPage() {
                 You&apos;re signed in. Confirm to attach this account to the inviting
                 company.
               </p>
+              <LearningHint
+                as="block"
+                category="Invitation · Join a team"
+                title="Your name"
+                whatItIs="How you'll appear in team views once you've joined. Optional, and editable later from your profile."
+                why="You're already signed in, so this isn't about access — it's about being recognizable. A name makes your presence in shared views legible to teammates instead of an anonymous account."
+                how="Type the name you'd like teammates to see, or leave it blank and set it later. Either way, accepting still works."
+                principle="Identity for access is one thing; being recognizable to your team is another — this is the second."
+              >
               <input
                 type="text"
                 autoComplete="name"
@@ -206,7 +266,17 @@ export default function InviteAcceptPage() {
                 placeholder="Your name (optional, used in team views)"
                 className="w-full bg-surface border border-default rounded-lg px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:border-ember-400/50 mb-3"
               />
+              </LearningHint>
               {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
+              <LearningHint
+                as="block"
+                category="Invitation · Join a team"
+                title="Accept invitation"
+                whatItIs="Redeems the invite code and attaches your already-signed-in account to the inviting company, then takes you to your dashboard."
+                why="This is the single, deliberate act of joining. It's confirm-first rather than automatic so you're never pulled into a company's data without an explicit yes."
+                how="Tap to accept. On success you'll see a brief welcome, then land in the shared dashboard."
+                principle="Joining another team's record is a choice you make on purpose, never one that just happens to you."
+              >
               <button
                 onClick={acceptInvitation}
                 disabled={busy}
@@ -215,6 +285,7 @@ export default function InviteAcceptPage() {
                 {busy ? "Accepting…" : "Accept invitation"}
                 {!busy && <ArrowRight className="w-4 h-4" />}
               </button>
+              </LearningHint>
             </>
           )}
 

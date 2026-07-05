@@ -13,6 +13,7 @@ import {
   Sparkles,
   TriangleAlert,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /dashboard/care/knowledge — the resolution corpus AS knowledge
@@ -134,6 +135,15 @@ export default function CareKnowledgePage() {
         </div>
 
         {/* Filters */}
+        <LearningHint
+          as="block"
+          category="C.A.R.E · Knowledge"
+          title="Filter the playbook"
+          whatItIs="Narrows the resolution corpus by category and by durability outcome — held, reopened, inconclusive, or still pending."
+          why="The corpus grows without limit; filtering lets you find the resolutions relevant to the issue in front of you, the same way Co-Pilot already searches it invisibly."
+          how="Filter by category to study one issue type; filter by 'held' to see what durably worked. 'All outcomes' includes checks that haven't run yet."
+          principle="Past resolutions are the knowledge base — searchable, not shelved."
+        >
         <div className="bg-white/[0.02] border border-default rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <Filter className="w-4 h-4 text-brand" aria-hidden />
@@ -184,6 +194,7 @@ export default function CareKnowledgePage() {
             </div>
           </div>
         </div>
+        </LearningHint>
 
         {loading && (
           <div className="flex items-center gap-2 text-xs text-muted py-8 justify-center">
@@ -223,11 +234,21 @@ export default function CareKnowledgePage() {
                 </p>
               </div>
             ) : (
+              <LearningHint
+                as="block"
+                category="C.A.R.E · Knowledge"
+                title="The team's playbook"
+                whatItIs="Every captured resolution — the issue, what worked, who captured it, and its durability outcome — as browsable knowledge."
+                why="Per §1.1 each resolution is a permanent asset. There's no separate article authoring; the record of what actually resolved a conversation IS the article."
+                how="Read 'what worked' before drafting a similar reply, and open the original conversation for full context. The durability chip tells you whether it held."
+                principle="The record of what worked is the article; nothing is authored twice."
+              >
               <div className="space-y-2">
                 {resolutions.map((r) => (
                   <ResolutionCard key={r.id} resolution={r} />
                 ))}
               </div>
+              </LearningHint>
             )}
           </>
         )}

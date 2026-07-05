@@ -24,6 +24,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /pitch — ELOSTATE product presentation deck.
@@ -144,6 +145,15 @@ export default function PitchPage() {
     <div className="bg-base text-primary">
       {/* Cover */}
       <Slide ref={slideRef("cover")} id="cover">
+        <LearningHint
+          as="block"
+          category="Pitch · Cover"
+          title="The opening claim"
+          whatItIs="The deck's cover — the one-line promise that ELOSTATE helps any team remember how it got where it is."
+          why="The first slide sets the frame: same problem at every scale. A prospect who leaves the cover thinking 'productivity tool' has already misfiled us."
+          how="Lead with it verbatim; let the '50 to 50,000' line do the scale-agnostic work before any feature is mentioned."
+          principle="Name the category in the first breath, or spend the rest of the pitch correcting the guess."
+        >
         <div className="text-center max-w-3xl">
           <div className="flex items-center justify-center gap-3 mb-12">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-ember-400 to-[#FDE047] flex items-center justify-center shadow-glow">
@@ -167,10 +177,20 @@ export default function PitchPage() {
             <span>Use arrow keys or scroll</span>
           </div>
         </div>
+        </LearningHint>
       </Slide>
 
       {/* Universal problem */}
       <Slide ref={slideRef("universal-problem")} id="universal-problem">
+        <LearningHint
+          as="block"
+          category="Pitch · Problem"
+          title="The universal problem"
+          whatItIs="The claim that every team makes decisions and almost none remember why."
+          why="The pitch has to land a problem the prospect already feels before offering a product. This is that hook — deliberately scale-free so it fits a restaurant and an F500 equally."
+          how="Pause here. Let them recognize it in their own team before advancing to the solution."
+          principle="Sell the problem first; the product only matters once the gap is felt."
+        >
         <div className="text-center max-w-4xl">
           <p className="text-xs uppercase tracking-widest text-muted mb-4">
             The universal problem
@@ -189,6 +209,7 @@ export default function PitchPage() {
             the same situation comes around.
           </p>
         </div>
+        </LearningHint>
       </Slide>
 
       {/* Same problem at different scales */}
@@ -264,6 +285,15 @@ export default function PitchPage() {
 
       {/* What ELOSTATE is */}
       <Slide ref={slideRef("what-it-is")} id="what-it-is">
+        <LearningHint
+          as="block"
+          category="Pitch · Definition"
+          title="What ELOSTATE is"
+          whatItIs="The plain-English definition: a second brain for how your team makes calls."
+          why="After the problem, the prospect needs one sentence they can repeat to a colleague. Jargon here loses them; this slide is deliberately concrete."
+          how="Say it once, simply, then move to the walkthroughs — show, don't define."
+          principle="If they can't repeat what you are in one sentence, you haven't said it yet."
+        >
         <div className="text-center max-w-3xl">
           <p className="text-xs uppercase tracking-widest text-muted mb-4">
             What ELOSTATE is
@@ -281,10 +311,20 @@ export default function PitchPage() {
             use. It captures what those tools throw away.
           </p>
         </div>
+        </LearningHint>
       </Slide>
 
       {/* How it works */}
       <Slide ref={slideRef("how-it-works")} id="how-it-works">
+        <LearningHint
+          as="block"
+          category="Pitch · Method"
+          title="How it works — five steps"
+          whatItIs="The five-step loop: things happen, patterns get noticed, you walk through the hard ones, you decide, the team gets sharper."
+          why="This is the Living Diagnosis loop translated for a non-technical buyer. It proves the product is a method, not a feature pile."
+          how="Emphasize step 4 — 'you decide, the AI never makes the call' — it's the objection-killer for AI-wary buyers."
+          principle="A method you can draw in five boxes beats a feature list nobody remembers."
+        >
         <div className="max-w-4xl w-full">
           <p className="text-xs uppercase tracking-widest text-muted mb-3 text-center">
             How it works
@@ -317,6 +357,7 @@ export default function PitchPage() {
             ))}
           </div>
         </div>
+        </LearningHint>
       </Slide>
 
       {/* Restaurant example */}
@@ -405,6 +446,15 @@ export default function PitchPage() {
 
       {/* What's actually different */}
       <Slide ref={slideRef("different")} id="different">
+        <LearningHint
+          as="block"
+          category="Pitch · Differentiation"
+          title="What's actually different"
+          whatItIs="The four things ELOSTATE does that generic AI doesn't: refuses to assert without evidence, asks you first, learns your team, measures outcomes not agreement."
+          why="Every prospect is silently comparing us to ChatGPT. This slide answers that comparison head-on instead of hoping they don't make it."
+          how="If they only remember one card, make it 'measures outcomes, not agreement' — it's the honesty moat in one line."
+          principle="Name the competitor in the prospect's head, then out-honest it."
+        >
         <div className="max-w-5xl w-full">
           <p className="text-xs uppercase tracking-widest text-muted mb-3 text-center">
             What&apos;s actually different about this
@@ -435,10 +485,20 @@ export default function PitchPage() {
             />
           </div>
         </div>
+        </LearningHint>
       </Slide>
 
       {/* Business impact */}
       <Slide ref={slideRef("business-impact")} id="business-impact">
+        <LearningHint
+          as="block"
+          category="Pitch · Impact"
+          title="What it means for the business"
+          whatItIs="The concrete outcomes: fewer repeated mistakes, faster onboarding, shorter meetings, AI on the record, knowledge that survives turnover."
+          why="Decision-makers buy outcomes, not mechanisms. This slide converts the method into the line items a budget owner recognizes."
+          how="Match the outcome to the buyer — a founder hears 'faster onboarding', a board hears 'a record you can stand behind'."
+          principle="Translate the mechanism into the buyer's own ledger."
+        >
         <div className="max-w-4xl w-full">
           <p className="text-xs uppercase tracking-widest text-muted mb-3 text-center">
             What this means for your business
@@ -472,6 +532,7 @@ export default function PitchPage() {
             ))}
           </div>
         </div>
+        </LearningHint>
       </Slide>
 
       {/* Size fit */}

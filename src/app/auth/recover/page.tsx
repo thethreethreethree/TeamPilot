@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Activity, CheckCircle2, AlertTriangle, Lock } from "lucide-react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /auth/recover — entry point for Supabase password recovery flows.
@@ -186,6 +187,15 @@ export default function RecoverPage() {
                 At least 8 characters. You&apos;ll be signed in automatically
                 after saving.
               </p>
+              <LearningHint
+                as="block"
+                category="Account · Password recovery"
+                title="New password"
+                whatItIs="The replacement secret for your account, set using the temporary session the recovery link just established."
+                why="You reached this page from a one-time link emailed to you — proof you control the inbox. Setting a fresh password here closes the gap without an admin ever seeing or handling your credential."
+                how="At least 8 characters. Choose something you don't reuse elsewhere; saving signs you in automatically, so you won't have to enter it again right away."
+                principle="Recovery restores access on your own proof of identity — no one else touches the secret."
+              >
               <label
                 htmlFor="recover-new-password"
                 className="block text-xs font-medium text-secondary mb-1.5"
@@ -203,6 +213,16 @@ export default function RecoverPage() {
                 className="w-full bg-surface border border-default rounded-lg px-4 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors text-base mb-4"
                 placeholder="••••••••"
               />
+              </LearningHint>
+              <LearningHint
+                as="block"
+                category="Account · Password recovery"
+                title="Confirm new password"
+                whatItIs="A second entry of the same password to catch a typo before it becomes the one you're locked into."
+                why="A password you can't see is easy to mistype. Because you won't get another chance to verify it before it takes effect, matching the two entries is the guard against saving a secret you didn't intend."
+                how="Re-type the exact password from the field above. If they don't match, saving is blocked and you'll be told before anything changes."
+                principle="Confirm the irreversible before committing to it."
+              >
               <label
                 htmlFor="recover-confirm-password"
                 className="block text-xs font-medium text-secondary mb-1.5"
@@ -219,6 +239,16 @@ export default function RecoverPage() {
                 className="w-full bg-surface border border-default rounded-lg px-4 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors text-base mb-5"
                 placeholder="••••••••"
               />
+              </LearningHint>
+              <LearningHint
+                as="block"
+                category="Account · Password recovery"
+                title="Save new password"
+                whatItIs="Commits the new password to your account and, on success, signs you in and sends you to your dashboard."
+                why="This is the moment the recovery actually takes effect. It stays disabled until both fields are filled so you can't submit a half-entered reset that leaves your account in an unknown state."
+                how="Fill both fields with matching passwords, then save. You'll see a confirmation before being routed onward."
+                principle="Act only when the inputs are complete and consistent — never on a half-formed state."
+              >
               <button
                 type="submit"
                 disabled={phase.kind === "submitting" || !password || !confirm}
@@ -226,6 +256,7 @@ export default function RecoverPage() {
               >
                 {phase.kind === "submitting" ? "Saving…" : "Save new password"}
               </button>
+              </LearningHint>
             </form>
           ) : null}
 

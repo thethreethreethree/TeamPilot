@@ -19,6 +19,7 @@ import {
   Plus,
 } from "lucide-react";
 import Link from "next/link";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * InstallInstructions — iOS "Add to Home Screen" walkthrough card.
@@ -66,6 +67,15 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
 
         <div className="relative p-6">
           {/* Header */}
+          <LearningHint
+            as="block"
+            category="Install"
+            title="Add to your home screen"
+            whatItIs={`The manual walkthrough for putting ${app.displayName} on your phone's home screen as an app — no app store involved.`}
+            why="iOS Safari never shows a native install button, so without a walkthrough mobile users have no way to add the app. This card is that missing path, drawn tap-by-tap."
+            how="Follow the section that matches your phone — iPhone/Safari or Android/Chrome. Each numbered step mirrors exactly what you'll see on screen."
+            principle="An install with no button needs a map; this is the map."
+          >
           <div className="flex items-start gap-3 mb-1.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -85,9 +95,19 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
             A few taps and {app.displayName} lives on your home screen — no app
             store, no download.
           </p>
+          </LearningHint>
 
           {/* ── iPhone · Safari — the founder's reference flow, kept verbatim
               (founder 2026-07-05: this flow is for iPhone/Safari). ── */}
+          <LearningHint
+            as="block"
+            category="Install · iPhone"
+            title="iPhone · Safari steps"
+            whatItIs="The four taps that add the app on an iPhone: the ••• menu, Share, View More, then Add to Home Screen."
+            why="Safari buries 'Add to Home Screen' two menus deep and fires no install prompt. Reproducing the exact tap sequence removes the guesswork that makes people give up."
+            how={`Do it while ${app.displayName} itself is open in Safari — the home-screen icon and name are captured from the page you're on when you tap Add.`}
+            principle="Show the exact screen the user will see, not a description of it."
+          >
           <PlatformLabel label="On iPhone · Safari" />
 
           {/* Step 1 */}
@@ -171,10 +191,20 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
               <MockRow icon={SquarePen} label="Markup" />
             </div>
           </Step>
+          </LearningHint>
 
           {/* ── Android · Chrome — the reference covers iPhone only, so Android
               gets Chrome's standard install flow (founder 2026-07-05: "that's
               only for iphone/safari not android"). ── */}
+          <LearningHint
+            as="block"
+            category="Install · Android"
+            title="Android · Chrome steps"
+            whatItIs="The three taps that install the app on Android Chrome: the ⋮ menu, Install app, then Install to confirm."
+            why="Android's flow is shorter than iOS but lives under a different menu; showing it separately means neither platform's user is following instructions written for the other."
+            how="Use Chrome, not a third-party browser — the 'Install app' entry only appears in Chrome's menu."
+            principle="One card, two honest paths — never one path pretending to fit both phones."
+          >
           <PlatformLabel label="On Android · Chrome" className="mt-7" />
 
           {/* Android Step 1 */}
@@ -257,6 +287,7 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
               </Target>
             </div>
           </Step>
+          </LearningHint>
 
           {/* Footer — where to open it. */}
           <div className="mt-6 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3 text-center">

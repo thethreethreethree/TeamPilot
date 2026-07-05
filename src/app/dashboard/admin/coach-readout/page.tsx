@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { phaseLabel, type CompanyCyclePhase } from "@/lib/cycle/phase";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /dashboard/admin/coach-readout
@@ -203,6 +204,15 @@ export default function CoachReadoutPage() {
       <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
         {/* Discipline preamble — explicit so the reader knows what
             this surface IS and IS NOT. */}
+        <LearningHint
+          as="block"
+          category="Coach Readout · Discipline"
+          title="What this readout is and isn't"
+          whatItIs="The framing contract for the whole page: this surface measures whether the Coach changes downstream consequence, not whether testers agreed with its suggestions — and it deliberately presents no verdict."
+          why="Measuring agreement instead of consequence is grading your own homework (§3.5). The preamble also states, up front, what would falsify the Coach — the honest test written before the data arrives, so a good-looking chart can't retroactively define success."
+          how="Read this first. It tells you the durability comparison is the real answer and acceptance rate is only a leading indicator. When you read the tables below, hold them to the falsification bar stated here."
+          principle="Name what would prove you wrong before you look — a metric with no falsifier is persuasion, not measurement."
+        >
         <div className="glass-card p-4 border border-ember-400/30 bg-ember-400/5">
           <p className="text-xs text-secondary leading-relaxed">
             This page surfaces what the chain says about whether the
@@ -227,6 +237,7 @@ export default function CoachReadoutPage() {
             per heuristic, the dismiss rate exceeds 60%.
           </p>
         </div>
+        </LearningHint>
 
         {loading && (
           <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
@@ -244,6 +255,15 @@ export default function CoachReadoutPage() {
                 (post-checkpoint, compounding). Skipped-control flags the
                 company as one whose Month 1 was NOT a clean baseline. */}
             {data.cycle && (
+              <LearningHint
+                as="block"
+                category="Coach Readout · Cycle context"
+                title="Where this company is in its cycle"
+                whatItIs="The phase banner: whether the company is in month-1 control (Coach off), the single-variable intervention window (Coach on), or the post-checkpoint compounding period — plus a flag if the control month was skipped."
+                why="Every metric below reads differently depending on phase (§3.4). A Coach-on number during control means the trigger has a hole; the same number during intervention is attributable to the method. Without this frame you'd misread the whole page."
+                how="Check the phase first. In control, expect Coach-on metrics to be zero. In intervention, treat the numbers as a clean single-variable read. If 'skipped control' shows, discount the baseline honestly — that month wasn't clean."
+                principle="A measurement without its control condition isn't a result — it's a number looking for a story."
+              >
               <div
                 className={`glass-card p-4 border ${
                   data.cycle.phase === "control"
@@ -294,6 +314,7 @@ export default function CoachReadoutPage() {
                   </div>
                 </div>
               </div>
+              </LearningHint>
             )}
 
             {/* N-too-small caveat */}
@@ -318,6 +339,15 @@ export default function CoachReadoutPage() {
             )}
 
             {/* Topic outcomes side-by-side */}
+            <LearningHint
+              as="block"
+              category="Coach Readout · Consequence"
+              title="Topic outcomes — coached vs uncoached"
+              whatItIs="A side-by-side of conversation topics where the Coach was on vs off: totals, closed, held, reopened, time-to-close, and messages per topic."
+              why="This is the §3.5-anchored consequence measure — the real answer to whether the Coach earns its keep. 'Held' is read first because durability, not closure speed, is the outcome that matters. Reopened is data, not shame."
+              how="Read the Held row first and compare the two columns at equal N. If coached durability doesn't beat uncoached at the falsification threshold, that's the rollback signal, not a reason to reframe the metric."
+              principle="Read the durability column first — a fix that reopens didn't resolve anything, however fast it closed."
+            >
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="w-4 h-4 text-brand" aria-hidden />
@@ -388,12 +418,22 @@ export default function CoachReadoutPage() {
                 </table>
               </div>
             </div>
+            </LearningHint>
 
             {/* Task Spawn lineage — closes §1.6 on the measurement side.
                 Are tasks spawned from structured sources (decisions, chats)
                 completing more reliably than direct-created tasks? This
                 is the MECHANISM check — better diagnosis upstream produces
                 better action downstream. */}
+            <LearningHint
+              as="block"
+              category="Coach Readout · Mechanism"
+              title="Task Spawn lineage"
+              whatItIs="Completion rates for tasks split by origin: spawned from a finalized Decision Dialogue, spawned from a chat message, or created directly."
+              why="This tests the §1.6 mechanism claim — that structured upstream produces more reliable downstream action. If decision-spawned tasks complete better than direct-created ones, the diagnosis-before-action discipline is showing its value in the numbers."
+              how="Compare completion rates across the three sources at comparable N. A higher rate from structured sources supports the mechanism; parity or worse is a signal the upstream structure isn't yet paying off — worth investigating, not hiding."
+              principle="Better diagnosis upstream should show up as better completion downstream — if it doesn't, the mechanism claim is unproven."
+            >
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-brand" aria-hidden />
@@ -443,6 +483,7 @@ export default function CoachReadoutPage() {
                 </div>
               )}
             </div>
+            </LearningHint>
 
             {/* Step completion velocity — reads the new
                 task.step_completed / task.step_reopened chain
@@ -451,6 +492,15 @@ export default function CoachReadoutPage() {
                 shown side-by-side per §A11 — a reopened step is
                 data, not a verdict (sometimes the diagnosis was
                 wrong and the reopen is correct). */}
+            <LearningHint
+              as="block"
+              category="Coach Readout · Execution"
+              title="Step completion velocity"
+              whatItIs="Completed and reopened step counts over the last 30 days, plus net momentum (completed minus reopened)."
+              why="It answers whether spawned plans actually get executed step by step. Both counts sit side-by-side because a reopen is data, not failure — sometimes the diagnosis was wrong and reopening is the correct move (§A11)."
+              how="High net positive with low reopen is the momentum signal. High reopen with low net means the gate diagnoses aren't holding under contact with reality — look upstream at how steps are being scoped."
+              principle="Count both completed and reopened — a reopen can be the system being honest, not the plan failing."
+            >
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-brand" aria-hidden />
@@ -510,6 +560,7 @@ export default function CoachReadoutPage() {
                 </div>
               )}
             </div>
+            </LearningHint>
 
             {/* Coach v5 — communication baseline (grade mix). The §3.5
                 differentiated metric: BETTER communication is the
@@ -517,6 +568,15 @@ export default function CoachReadoutPage() {
                 clear, productive, well-suited; needs-guidance = a
                 message that read as evaluation/identity/unproductive.
                 Trend over time is what matters, not the snapshot. */}
+            <LearningHint
+              as="block"
+              category="Coach Readout · Communication"
+              title="Communication baseline"
+              whatItIs="The grade mix on sent messages over 30 days: productive (clear, suited to context), neutral (no signal), and needs-guidance (likely defensive, evaluation-as-fact, or identity-attack)."
+              why="Better individual communication is the §3.5 mechanism — the cause whose results are shorter meetings and faster resolution. Anchored to a grade on the message, not to whether anyone adopted the Coach's phrasing."
+              how="Read the trend across the cycle, not the snapshot. A working Coach bends the mix toward productive AND drops needs-guidance over time. A one-day reading proves nothing."
+              principle="Communication is the mechanism, not the scoreboard — watch the trend bend, don't grade a single day."
+            >
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="w-4 h-4 text-brand" aria-hidden />
@@ -569,6 +629,7 @@ export default function CoachReadoutPage() {
                 signal).
               </p>
             </div>
+            </LearningHint>
 
             {/* Coach v5 analyze patterns — what the Coach has been
                 TEACHING, not what users accepted. Different question
@@ -576,6 +637,15 @@ export default function CoachReadoutPage() {
                 over and over (in which case the team isn't internalizing
                 them), or is the spread widening (in which case the
                 Coach is teaching across the surface area). */}
+            <LearningHint
+              as="block"
+              category="Coach Readout · Teaching"
+              title="Top principles cited"
+              whatItIs="Which named principles (and their source books) the Coach has been surfacing most, with a count of how many citations flagged needs-improvement."
+              why="This asks a different question than acceptance: what is the Coach teaching? Heavy concentration on one principle means the team has a recurring pattern there — and the Coach should vary its framing, not repeat the same lesson."
+              how="A concentrated distribution points to a durable team pattern worth a deliberate intervention. A wide spread means the Coach is teaching breadth. Watch whether concentrated principles fade over time — that's internalization."
+              principle="Naming the same lesson over and over isn't teaching — if a principle keeps recurring, vary the framing or address the root pattern."
+            >
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="w-4 h-4 text-brand" aria-hidden />
@@ -633,8 +703,18 @@ export default function CoachReadoutPage() {
                 n = {data.analyze.total} analyze calls in window.
               </p>
             </div>
+            </LearningHint>
 
             {/* Per-surface — Coach reach across communication surfaces */}
+            <LearningHint
+              as="block"
+              category="Coach Readout · Reach"
+              title="By surface — where the Coach is firing"
+              whatItIs="Per-surface acceptance: how often the Coach offered, was accepted, or dismissed across chat topics, tasks, feedback drafts, smoke-test notes, and Decision Dialogue."
+              why="This shows where heuristics land vs where they read as noise. It's input to surface-specific calibration — NOT a consequence measure for the Coach as a whole. The consequence answer is the durability table above."
+              how="Look for a surface with a low accept rate at meaningful N — that's where the Coach is over-firing on phrasing users don't consider a problem. Calibrate that surface rather than judging the Coach overall."
+              principle="Where a suggestion lands is a calibration signal, not a verdict — tune the surface, don't indict the whole system."
+            >
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="w-4 h-4 text-brand" aria-hidden />
@@ -693,8 +773,18 @@ export default function CoachReadoutPage() {
                 </div>
               )}
             </div>
+            </LearningHint>
 
             {/* Per-heuristic acceptance */}
+            <LearningHint
+              as="block"
+              category="Coach Readout · Calibration"
+              title="Per-heuristic calibration signals"
+              whatItIs="Offered, accepted, dismissed, and accept-rate for each individual heuristic (with its source book), flagged 'low N' until it crosses the readout threshold."
+              why="A leading indicator, not a consequence measure. A high dismiss rate at sufficient N means the heuristic is over-firing on phrasing testers don't consider a problem — input to a calibration PR, not a verdict on the Coach."
+              how="Ignore any row still marked low N. For rows above threshold, a dismiss rate past 60% is the falsification signal for that heuristic — recalibrate or retire it. Don't read acceptance as proof the Coach works; the durability table does that."
+              principle="Acceptance is a calibration dial, not a success metric — a dismissed suggestion tunes the heuristic, it doesn't grade the Coach."
+            >
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="w-4 h-4 text-brand" aria-hidden />
@@ -761,6 +851,7 @@ export default function CoachReadoutPage() {
                 </div>
               )}
             </div>
+            </LearningHint>
 
             <p className="text-[10px] text-muted text-center font-mono">
               generated {new Date(data.generatedAt).toLocaleString()}

@@ -19,6 +19,7 @@ import {
   markNotificationsRead,
   NOTIF_LAST_READ_KEY,
 } from "@/lib/notifications/state";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * /dashboard/notifications — notifications inbox.
@@ -179,6 +180,15 @@ export default function NotificationsPage() {
         )}
 
         {!loading && !loadError && items.length === 0 && (
+          <LearningHint
+            as="block"
+            category="Notifications · Inbox"
+            title="What lands here"
+            whatItIs="The empty state explaining what will fill this inbox: @mentions, task adds, Decision Dialogue activity in your topics, and C.A.R.E events — all read from the §3.1 chain."
+            why="Notifications are derived from chain events, not a separate mutable feed. That means what you see here is the same record everything else in the product replays — nothing is fabricated or injected outside the event log."
+            how="Nothing to do while it's empty. When a teammate mentions you or a durability check comes due, a row appears; visiting this page marks everything up to the newest as read."
+            principle="Every alert traces to a real event on the chain — no notification exists that the record can't account for."
+          >
           <div className="glass-card p-8 text-center">
             <Bell className="w-7 h-7 text-muted mx-auto mb-3" aria-hidden />
             <p className="text-sm text-primary mb-1">No notifications yet.</p>
@@ -190,9 +200,19 @@ export default function NotificationsPage() {
               lands here. Everything reads from the chain.
             </p>
           </div>
+          </LearningHint>
         )}
 
         {!loading && items.length > 0 && (
+          <LearningHint
+            as="block"
+            category="Notifications · Inbox"
+            title="Your notifications"
+            whatItIs="The live list of events addressed to you — mentions, task adds, decisions opened or recorded, customer replies, guidance requests, and durability checks — each deep-linking to where it happened."
+            why="Each row is a chain event surfaced to the right person at the right moment, so the work comes to you instead of you hunting for it. Non-actionable rows are visibly muted rather than pretending to be dead links — honesty over false affordance."
+            how="Tap an actionable row to jump straight to the source. A guidance-request row means a teammate hit a wall and asked — open it and weigh in. A durability-due row is the §3.5 prompt to confirm a past fix actually held."
+            principle="Bring the work to the person, and never dress up a dead end as a live link."
+          >
           <div className="space-y-2">
             {items.map((n) => {
               const link = sourceLink(n);
@@ -221,6 +241,7 @@ export default function NotificationsPage() {
               <code>{NOTIF_LAST_READ_KEY}</code>
             </p>
           </div>
+          </LearningHint>
         )}
       </div>
     </div>

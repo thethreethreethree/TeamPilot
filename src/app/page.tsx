@@ -18,6 +18,7 @@ import {
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { BrandLogo, LightbulbMark } from "@/components/brand/Logo";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Landing page — rewritten 2026-06-15 to surface the actual category
@@ -170,6 +171,15 @@ export default function Landing() {
 
         {/* The category claim. Direct. Repeated downstream so it
             sticks even with a fast scroll. */}
+        <LearningHint
+          as="block"
+          category="Home · Hero"
+          title="The category claim"
+          whatItIs="The first thing a visitor reads: ELOSTATE is a team-based problem-solving engine, not a productivity tool."
+          why="Visitors arrive pattern-matching us to Notion, Asana, or ChatGPT. The hero's job is to reject that frame in the first five seconds — a wrong category is harder to undo than a blank slate."
+          how="The 'Not a productivity tool' kicker is load-bearing; it's the frame the rest of the page reinforces. Don't soften it to sound friendlier."
+          principle="Win the category in five seconds or spend the whole page correcting the guess."
+        >
         <p className="text-[11px] uppercase tracking-[0.2em] text-brand font-semibold mb-4">
           Not a productivity tool
         </p>
@@ -184,6 +194,7 @@ export default function Landing() {
           problems into resolved, recorded, structural knowledge that
           compounds every month.
         </p>
+        </LearningHint>
 
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
@@ -207,6 +218,15 @@ export default function Landing() {
 
       {/* The problem — sharpen the existing framing */}
       <section className="px-6 py-16 max-w-5xl mx-auto">
+        <LearningHint
+          as="block"
+          category="Home · Problem"
+          title="The problem: failing to learn"
+          whatItIs="The core problem framing — your team isn't failing to work, it's failing to learn — with the four concrete ways it shows up."
+          why="A prospect has to feel the problem before a solution means anything. Naming it as a learning failure (not an effort failure) is what separates us from tools that just make work faster."
+          how="Let the four cards do the recognizing — most teams see themselves in at least one before they've read all four."
+          principle="Diagnose the gap the visitor already feels; don't invent one they don't."
+        >
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
           The problem most growing teams have
         </p>
@@ -221,6 +241,7 @@ export default function Landing() {
           institutional intelligence evaporate instead. The same
           conversations keep happening. The same mistakes keep landing.
         </p>
+        </LearningHint>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {teamProblems.map((item) => {
@@ -245,6 +266,15 @@ export default function Landing() {
           leaves understanding we are not just another productivity
           tool, we are a different category. */}
       <section className="px-6 py-20 max-w-5xl mx-auto">
+        <LearningHint
+          as="block"
+          category="Home · Category"
+          title="A different category"
+          whatItIs="The expanded category claim and the four things that make ELOSTATE a participant in your team's thinking, not software with AI bolted on."
+          why="This is the section that has to survive the silent 'isn't this just ChatGPT?' It answers by describing behavior — asks first, refuses without evidence, learns your team — not features."
+          how="If a visitor only reads one section, it should be this one; it's the whole differentiation in four cards."
+          principle="Differentiate on behavior the visitor can verify, not adjectives they can't."
+        >
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
           What ELOSTATE actually is
         </p>
@@ -260,6 +290,7 @@ export default function Landing() {
           which is why the product feels different the moment you
           start using it.
         </p>
+        </LearningHint>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
           {differentiators.map((b) => {
@@ -283,6 +314,15 @@ export default function Landing() {
           plain English so the visitor sees the actual engine, not a
           feature list. */}
       <section className="px-6 py-20 max-w-5xl mx-auto">
+        <LearningHint
+          as="block"
+          category="Home · Method"
+          title="How the engine runs"
+          whatItIs="The four-phase loop — Diagnose, Engage, Act, Compound — that every problem runs through."
+          why="It shows the product is a repeatable method, not a bag of features. 'The schema enforces it' signals the discipline is structural, not advisory."
+          how="Read it as one loop that tightens each cycle — the 'Compound' phase is the part competitors can't copy because it's built from your team's own history."
+          principle="A method that visibly compounds beats a feature that visibly ships."
+        >
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
           How the engine runs
         </p>
@@ -295,6 +335,7 @@ export default function Landing() {
           schema enforces it. The same loop is how the System itself
           gets sharper about your team over time.
         </p>
+        </LearningHint>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {method.map((m) => (
@@ -326,6 +367,15 @@ export default function Landing() {
           that refusal IS the moat. Most landing pages would hide
           this. We lead with it. */}
       <section className="px-6 py-20 max-w-4xl mx-auto">
+        <LearningHint
+          as="block"
+          category="Home · Honesty"
+          title="The honesty is the moat"
+          whatItIs="The commitment stated as a selling point: no promised day-one results, proof measured against your own baseline."
+          why="Most landing pages hide the fact that value takes time. Leading with it is the counter-intuitive move that makes every other claim on the page more credible."
+          how="Present it as a strength, not an apology — the willingness to lose the impatient buyer is exactly what earns the serious one."
+          principle="The refusal to over-promise is the most persuasive thing on the page."
+        >
         <div className="glass-card p-8 md:p-10 border border-ember-400/30 bg-ember-400/[0.03]">
           <div className="flex items-start gap-3 mb-4">
             <Hourglass className="w-5 h-5 text-brand shrink-0 mt-1" aria-hidden />
@@ -363,10 +413,20 @@ export default function Landing() {
             </p>
           </div>
         </div>
+        </LearningHint>
       </section>
 
       {/* Outcomes — what changes for the business */}
       <section className="px-6 py-16 max-w-4xl mx-auto">
+        <LearningHint
+          as="block"
+          category="Home · Outcomes"
+          title="What changes for the business"
+          whatItIs="The business-level results: recurring problems stop recurring, faster onboarding, shorter meetings, AI on the record, knowledge that survives turnover."
+          why="Buyers translate everything into outcomes. This section does that translation for them so the mechanism doesn't have to be understood to be bought."
+          how="Pair each outcome with the buyer's own pressure — turnover risk, meeting bloat, onboarding cost."
+          principle="Sell the outcome in the buyer's ledger; keep the mechanism in the footnotes."
+        >
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2 text-center">
           What changes for your business
         </p>
@@ -374,6 +434,7 @@ export default function Landing() {
           The boring version:<br className="hidden md:inline" />
           {" "}<span className="text-brand">your team gets sharper at thinking together.</span>
         </h2>
+        </LearningHint>
         <div className="space-y-3">
           {outcomes.map(([headline, body], i) => (
             <div key={headline} className="glass-card p-4 flex gap-4">
