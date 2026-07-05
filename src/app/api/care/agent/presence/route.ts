@@ -29,9 +29,11 @@ import { requireCareAgent } from "@/lib/api/careAgentAuth";
  * PUT /api/care/agent/presence
  *
  * Agent updates their own status (online / away / offline).
- * Capacity + channels are admin-controlled — those updates
- * route through PATCH on a separate per-agent admin endpoint
- * (TODO Phase 5 commit 3).
+ * Capacity + channels are admin-controlled and handled by this same
+ * PUT: when maxConcurrent/channels are present, the handler verifies the
+ * caller is a company admin (CEO / COO / admin) before applying them via
+ * setAgentRoutingSettings. Status (self) and routing (admin) share one
+ * endpoint, each with its own per-action authorization check below.
  */
 export async function GET() {
   const auth = await requireCareAgent();
@@ -63,10 +65,10 @@ export async function GET() {
 }
 
 const PutBody = z.object({
-  // Agent self-update — status only here. Admin updates of
-  // capacity/channels go through a separate admin endpoint
-  // (planned for commit 3) so the row-level RLS gate is
-  // explicit per action surface.
+  // Agent self-update — status. Admin updates of capacity/channels are
+  // ALSO accepted here (maxConcurrent/channels below); the handler gates
+  // them on company-admin before applying, so status (self) and routing
+  // (admin) share one endpoint with an explicit auth check per action.
   status: z.enum(["online", "away", "offline"]).optional(),
   // Admin-only — if present, the API will verify the caller is
   // admin in the company before applying. agentId in path can
