@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import { fetchAgentConversation } from "@/lib/data/care";
@@ -77,6 +78,15 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Unmetered LLM endpoint (audit 2026-07-06, A13/A21). Followup is chattier,
+  // so a slightly higher cap than the one-shot routes.
+  const limited = rateLimit(req, {
+    id: "care-ask-coach-followup",
+    windowMs: 60_000,
+    max: 30,
+  });
+  if (limited) return limited;
+
   const { id } = await context.params;
   const auth = await requireCareAgent();
   if (!auth.ok) {

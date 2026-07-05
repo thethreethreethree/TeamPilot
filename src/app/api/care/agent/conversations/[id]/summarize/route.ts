@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/api/rateLimit";
 import {
   fetchAgentConversation,
   findSimilarResolutions,
@@ -38,9 +39,17 @@ Constraints:
 If the conversation is too short to need a summary (≤2 messages), say so plainly in one sentence.`;
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Unmetered LLM endpoint (audit 2026-07-06, A13/A21). Per-agent cap.
+  const limited = rateLimit(req, {
+    id: "care-summarize",
+    windowMs: 60_000,
+    max: 20,
+  });
+  if (limited) return limited;
+
   const { id } = await context.params;
   const auth = await requireCareAgent();
   if (!auth.ok) {

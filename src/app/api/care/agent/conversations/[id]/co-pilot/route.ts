@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/api/rateLimit";
 import {
   fetchAgentConversation,
   fetchEnrichedConversation,
@@ -29,9 +30,18 @@ import { requireCareAgent } from "@/lib/api/careAgentAuth";
  * the normal agent reply endpoint.
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Unmetered LLM endpoint (audit 2026-07-06, A13/A21 — 27 coach routes + these
+  // must all rate-limit). Per-agent cap so a stuck retry can't spin cost.
+  const limited = rateLimit(req, {
+    id: "care-copilot",
+    windowMs: 60_000,
+    max: 20,
+  });
+  if (limited) return limited;
+
   const { id } = await context.params;
   const auth = await requireCareAgent();
   if (!auth.ok) {
