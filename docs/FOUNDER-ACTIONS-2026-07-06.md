@@ -17,10 +17,17 @@ open-conversation chime still works (no regression).
 
 ## 2. Live tests (the one thing code can't verify)
 
-- **Sales Coach** — run [the checklist](sales-coach-live-test-checklist.md) on a
-  real call: in-person Agent/Prospect labels, pitch-anchor nudge, video mic-only
-  behavior, `filler_spike` (does Scribe keep the "um"s?). Grab the
-  `[live-coaching]` console log for anything off.
+- **⭐ Sales Coach FLUIDITY readout (top priority — unblocks the deferred timing work).**
+  The fluidity build (timing + delivery) is shipped but the *timing* half is
+  intentionally readout-first: run one real call, then read the **"Last call: …
+  median Xms, p90 Yms end-to-end"** line the panel shows on Stop (also
+  `[cue-summary]` in the console). Send me that + a few `[cue-metric]` lines. It
+  tells me exactly where the delay lives (LLM round-trip vs the 700ms settle), and
+  I build the biggest win it points to. Also: you should notice **fewer, sharper
+  cues** (low-value ones are now suppressed). See §5 of
+  [the checklist](sales-coach-live-test-checklist.md).
+- **Sales Coach (rest)** — same call: in-person Agent/Prospect labels, pitch-anchor
+  nudge, video mic-only behavior, `filler_spike` (does Scribe keep the "um"s?).
 - **C.A.R.E sound chime** — in an agent session, enable the sound toggle (the
   Volume icon in the Conversations header); confirm you hear the two-note chime
   when a customer message arrives (test in Chrome AND Safari — the audio unlock
