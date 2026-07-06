@@ -62,11 +62,16 @@ open-conversation chime still works (no regression).
   `check_understanding_gate` trigger that blocks surfacing a problem without
   enough signals) are proven end-to-end only by an opt-in test that needs *your*
   live-DB env. The §3.2 gate coverage is NEW this session (it previously had zero
-  reproducible test — a migration could have silently opened the core guarantee). To run it against a project you don't mind writing a
-  throwaway company into: `EXECOS_INTEGRATION_TEST=1 SUPABASE_URL=… SERVICE_KEY=…
-  npm run check`. It's a 🔴 alarm if it ever fails (the §3.1 chain is broken in
-  prod). Purely optional — the trigger logic is stable and unit-covered; this is
-  the belt-and-suspenders check only you can run.
+  reproducible test — a migration could have silently opened the core guarantee).
+  There's a dedicated script — set two env vars for a project you don't mind
+  writing a throwaway test company into, then run it:
+  ```
+  NEXT_PUBLIC_SUPABASE_URL=…  SUPABASE_SERVICE_ROLE_KEY=…  npm run test:chain
+  ```
+  (`test:chain` already sets `EXECOS_INTEGRATION_TEST=1`.) It's a 🔴 alarm if it
+  ever fails (a core guarantee is broken in prod). Purely optional — the triggers
+  are stable; this is the belt-and-suspenders check only you can run, and it now
+  covers all three: events→signals derivation, the §3.2 gate, and §3.1 immutability.
 
 ## 3. Decisions that unblock gated backlog (only if you want them built)
 
