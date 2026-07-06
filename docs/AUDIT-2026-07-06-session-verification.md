@@ -19,6 +19,7 @@
 | **CRM money mappers** | Does `?? 0` on amount_cents/MRR/seat_count mask NULLs? | **No** — all three columns are `NOT NULL default 0`; `?? 0` never fires. health_score is nullable and correctly `?? null` ✅ |
 | **CRM invoice numbers** | Can the `count+1` seq mint duplicate invoice numbers under concurrency? | **No** — `invoice_number` has a UNIQUE constraint (0049:195); a collision fails safe (returns null), never duplicates. Documented tradeoff ✅ |
 | **C.A.R.E widget origin check** | Could a flawed allowlist match let `evil-yourbusiness.com` embed the widget? | **No** — `allows.includes(origin)` is EXACT array-element match (no substring/prefix bypass); empty origin rejected; `"*"` wildcard honored only in non-prod; Origin header is browser-set (unspoofable cross-origin) ✅ |
+| **File upload path traversal** | Can a malicious filename (`evil.x/../secret`) escape the storage prefix? | **No** — `buildStoragePath` uses only trusted segments (companyId=server profile, fileId=randomUUID); the sole user input (extension) is sanitized to `[a-z0-9]` only, capped 12 chars; the raw filename never enters the key. Already tested ✅ |
 | **theme leaks** | theme:audit RED on 25 | **All fixed** (`brand-shell` token + theme-aware text); theme:audit 0 ✅ |
 | **lint** | 2 exhaustive-deps warnings | Fixed, incl. a real perf fix (memoized ToastProvider value) `8899c59`; 0 warnings ✅ |
 
