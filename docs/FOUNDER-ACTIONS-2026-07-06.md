@@ -45,7 +45,23 @@ open-conversation chime still works (no regression).
 
 - **Push delivery** — set the server VAPID env vars (not just `.env.local` —
   Vercel env), trigger a push, and paste the `sender.ts` log line so I can finish
-  the diagnosis.
+  the diagnosis. *Code path now VERIFIED SOUND end-to-end this session (§A15 — a
+  flag honestly diagnosed can close without a code fix):* I read all three legs —
+  `sender.ts` (fans out to every enabled sub, handles 403/410, logs statusCode on
+  every failure), the root `public/sw.js` (has the push handler + `showNotification`,
+  controls the whole app), and `useNotificationSubscription.ts` (subscribes via the
+  ROOT sw.js — NOT the narrow `/dashboard/chats/` SW — and migrates any stale
+  narrow-scope subscription, the 2026-06-27 F1 consolidation). I also removed a
+  confound: the fresh-email notify race (fixed this session — see the Care section)
+  meant a fresh-email test would show no push AND no log. **So the remaining cause
+  is almost certainly VAPID config, and the `[push-sender]` log line names which:**
+  `SKIPPED … VAPID not configured` = env vars missing on Vercel; `send FAILED …
+  statusCode=403` = key MISMATCH (the `NEXT_PUBLIC_VAPID_PUBLIC_KEY` used to
+  subscribe isn't the pair of the `VAPID_PRIVATE_KEY` used to send — re-generate as
+  a matched pair and re-subscribe); `statusCode=401` = bad `VAPID_SUBJECT`;
+  `sent=N failed=0` = the push WAS delivered, so check the OS/browser notification
+  permission + Focus/Do-Not-Disturb. Test via a message to an ALREADY-ASSIGNED
+  conversation (not a fresh email) to keep the variable clean.
 - **Durability cron** — set `CRON_SECRET` in Vercel (needs Pro) to activate the
   §3.5 durability sweep + dissect-backfill crons.
 - **Email digest** — decide what/when to digest (frequency, recipients, content)
