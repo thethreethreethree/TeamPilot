@@ -58,7 +58,13 @@ open-conversation chime still works (no regression).
   robust fix is a `UNIQUE(session_id, seq)` migration + upsert — but it needs
   de-duping any existing dupes first, and DELETING from the append-only transcript
   is §3.1-sensitive, so I won't do it without your OK. Say the word and I'll write
-  the migration (with a careful keep-earliest dedup step).
+  the migration (with a careful keep-earliest dedup step). *Related:* the S1a
+  `label-transcript` route (upload→diarize→label) also appends transcript with no
+  guard, so a session that's BOTH live-finalized AND has a recording uploaded gets
+  the live + diarized transcripts MIXED (interleaved by seq). Uncommon combined
+  flow, not a live-test blocker — but it needs a design call: should the diarized
+  upload REPLACE the live transcript, or be blocked when one exists? Your decision
+  (it touches the append-only transcript). I'll implement whichever you choose.
 - **HSTS header** (🟡 minor hardening) — the one absent security header. Confirm
   your domain + all subdomains are HTTPS-only, then add to `SECURITY_HEADERS` in
   `next.config.ts`: `{ key: "Strict-Transport-Security", value: "max-age=63072000;
