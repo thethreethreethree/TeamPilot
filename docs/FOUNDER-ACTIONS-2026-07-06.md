@@ -51,6 +51,14 @@ open-conversation chime still works (no regression).
   ingest+store every email, skip only the AI auto-reply past the cap (agent
   handles it). Needs a tenant-keyed limiter (the current one is IP-keyed, wrong
   for a webhook).
+- **Transcript unique constraint** (🟡 §3.1-sensitive — your call) — a read-audit
+  found `coaching_transcript_segments` has no `UNIQUE(session_id, seq)`, so a
+  double-finalize would duplicate the transcript. I shipped a client guard
+  (finalize fires once/session, `7ad1a37`) which covers the realistic case. The
+  robust fix is a `UNIQUE(session_id, seq)` migration + upsert — but it needs
+  de-duping any existing dupes first, and DELETING from the append-only transcript
+  is §3.1-sensitive, so I won't do it without your OK. Say the word and I'll write
+  the migration (with a careful keep-earliest dedup step).
 - **HSTS header** (🟡 minor hardening) — the one absent security header. Confirm
   your domain + all subdomains are HTTPS-only, then add to `SECURITY_HEADERS` in
   `next.config.ts`: `{ key: "Strict-Transport-Security", value: "max-age=63072000;
