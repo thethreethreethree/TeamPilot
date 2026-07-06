@@ -47,3 +47,23 @@ describe("quickContentGuess — the offer-vs-ask asymmetry", () => {
     expect(quickContentGuess("that makes sense, thanks")).toBeNull();
   });
 });
+
+describe("quickContentGuess — no false positives on lookalikes", () => {
+  it("does NOT mislabel agent discovery/pitch that resembles a buyer ask", () => {
+    // Agent asking a discovery question — "how much" but not a price ask.
+    expect(quickContentGuess("how much detail do you want on the pricing?")).toBeNull();
+    // Agent — "do you have" is ambiguous, must not read as a buyer ask.
+    expect(quickContentGuess("do you have any questions so far?")).toBeNull();
+  });
+
+  it("does NOT mislabel a prospect describing themselves as a seller", () => {
+    // "we have" is a prospect describing their org, NOT a seller offer.
+    expect(quickContentGuess("we have about 50 people on the team")).toBeNull();
+    expect(quickContentGuess("our team is pretty stretched right now")).toBeNull();
+  });
+
+  it("still catches genuine price asks", () => {
+    expect(quickContentGuess("okay but how much does it cost")).toBe("customer");
+    expect(quickContentGuess("what's the price for the full plan")).toBe("customer");
+  });
+});

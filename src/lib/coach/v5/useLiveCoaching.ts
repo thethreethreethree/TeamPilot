@@ -101,12 +101,15 @@ type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean };
 // is the salesperson; ASKING for it ("give me detail") is the prospect.
 export function quickContentGuess(text: string): TranscriptSpeaker | null {
   const t = ` ${text.toLowerCase().replace(/[.,!?;:]/g, " ")} `;
-  // Seller OFFERS to show/explain/provide, or pitches the offering.
+  // Seller OFFERS to show/explain/provide, or pitches the offering. Patterns
+  // kept tight to avoid false positives (e.g. bare "we have"/"do you have" are
+  // ambiguous — a prospect says "we have 50 staff"); null is safe (voice + LLM
+  // decide), a false label is not.
   const sellerOffer =
-    /\b(let me (show|walk|explain|tell)|i can (show|give|walk|offer)|how about i (show|walk)|i'?ll (show|give|walk) you|we (offer|provide|can do|have)|our (product|service|pricing|offer|plan)|here'?s (how|what))\b/;
+    /\b(let me (show|walk|explain|tell)|i can (show|give|walk|offer)|how about i (show|walk)|i'?ll (show|give|walk) you|we (offer|provide|can do)|our (product|service|pricing|offer|plan|solution)|here'?s how (it|the|this))\b/;
   // Buyer ASKS to see/learn, questions price/fit, or states their need/doubt.
   const buyerAsk =
-    /\b(i (wanna|want to|'?d like to|would like to) (see|know|hear|learn|understand)|can you (give|show|tell|send) me|give me (more )?detail|show me|tell me more|how much|what'?s the (price|cost)|do you (offer|have)|i'?m (not sure|interested))\b/;
+    /\b(i (wanna|want to|'?d like to|would like to) (see|know|hear|learn|understand)|can you (give|show|tell|send) me|give me (more )?detail|show me|tell me more|how much (does|is|would|will|are|for)\b|how much.{0,20}(cost|price)|what'?s the (price|cost)|i'?m (not sure|interested))\b/;
   const seller = sellerOffer.test(t);
   const buyer = buyerAsk.test(t);
   if (seller && !buyer) return "agent";
