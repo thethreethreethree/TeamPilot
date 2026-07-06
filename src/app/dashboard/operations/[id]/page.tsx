@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -105,13 +105,19 @@ export default function TaskDetailPage() {
     [task?.title, task?.description]
   );
 
+  // Guard against a stale-response race: navigating task A→B while A's fetch is in
+  // flight must not let A's data overwrite B (wrong task shown → wrong status
+  // action). Stamp the requested id; apply the result only if it's still current.
+  const loadReqIdRef = useRef("");
   const load = async () => {
+    loadReqIdRef.current = id;
     setLoading(true);
     const [t, msgs, parts] = await Promise.all([
       fetchTask(id),
       fetchTaskMessages(id),
       fetchTaskParticipants(id),
     ]);
+    if (loadReqIdRef.current !== id) return; // superseded by a newer task
     setTask(t);
     setMessages(msgs);
     setParticipants(parts);

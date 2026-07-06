@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -76,7 +76,11 @@ export default function SessionDetail() {
   const [ending, setEnding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Guard against a stale-response race on rapid session navigation (A→B): a slow
+  // load for A must not overwrite B's session/review. Stamp + verify still-current.
+  const loadReqIdRef = useRef("");
   const load = useCallback(async () => {
+    loadReqIdRef.current = id;
     try {
       const [sRes, rRes, sumRes, wRes] = await Promise.all([
         fetch(`/api/coach/sales-session/${id}`).catch(() => null),
@@ -84,6 +88,7 @@ export default function SessionDetail() {
         fetch(`/api/coach/sales-session/${id}/summarize`).catch(() => null),
         fetch(`/api/coach/sales-session/${id}/why`).catch(() => null),
       ]);
+      if (loadReqIdRef.current !== id) return; // superseded by a newer session
       if (sRes && sRes.ok) {
         const d = await sRes.json();
         setSession(d.session);
