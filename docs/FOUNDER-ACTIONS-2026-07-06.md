@@ -235,9 +235,25 @@ definer function already has it.
 
 ## What shipped (for context)
 
-Video A/B (mic-only v1) · manager coaching access (`0084`, applied) · pitch-anchor
-nudge · confidence-ripple fix · full theme sweep · sound chime (open + inbox-wide)
-· RLS audit (parser-bug fixed) · §3.1-enforcement hardening · a full security +
-performance + a11y + resilience audit ([record](AUDIT-2026-07-06-session-verification.md))
-with one real fix (a fail-open company check → fail-closed) · +123 tests. 47
-commits, gate green throughout.
+**2026-07-06:** Video A/B (mic-only v1) · manager coaching access (`0084`, applied)
+· pitch-anchor nudge · confidence-ripple fix · full theme sweep · sound chime (open
++ inbox-wide) · RLS audit (parser-bug fixed) · §3.1-enforcement hardening · a full
+security + performance + a11y + resilience audit
+([record](AUDIT-2026-07-06-session-verification.md)) with one real fix (a fail-open
+company check → fail-closed) · +123 tests. 47 commits, gate green throughout.
+
+**2026-07-07 (this session — full detail in the audit record + the
+[closure](closures/2026-07-07-fluidity-and-async-delivery.md)):**
+- **Sales Coach fluidity** — single-best-cue delivery gate + importance rating +
+  grounding cues in the rep's OWN proven lines + an actionable "where the delay
+  lives" readout; all pinned by tests. Timing optimization deferred readout-first.
+- **Live path + C.A.R.E races** — 3 live-path bugs fixed (stuck-live, mic/socket
+  leak, transcript double-fire) + the inbound-routing race cluster (await routing).
+- **Core §3.1/§3.2 guarantees** — now integration-tested (`npm run test:chain`;
+  were relied-on, never tested).
+- **Security sweep — 9 classes, 4 real hardenings shipped:** definer search_path
+  (`0088`), PostgREST `.or()` filter injection, stored SSRF (push endpoint),
+  constant-time secret comparison. 5 clean (isolation read+write, XSS, mass
+  assignment, open redirect, CSRF).
+- Push + CRM audited; several founder-decisions flagged above. Gate green
+  throughout; 326 passing / 9 skipped (integration).
