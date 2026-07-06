@@ -85,17 +85,20 @@ export async function POST(req: NextRequest) {
     if (p) product = p.slice(0, 1200);
   }
 
-  const system = `You label who is speaking in a LIVE sales conversation, by CONTENT, not by voice.
+  const system = `You label who is speaking in a LIVE in-person sales conversation, by CONTENT — what the words MEAN — never by voice or loudness.
 
 The SALESPERSON is selling: ${product}
 
-SALESPERSON markers: pitches or describes that offering, asks discovery questions, handles objections, proposes next steps, speaks as "we/our".
-PROSPECT markers: asks about price/terms/fit, describes THEIR own situation or needs, raises concerns or objections, "how does it…", "what about…".
+Decide by WHO WOULD SAY THIS:
+- SALESPERSON (the seller): pitches or describes the offering; EXPLAINS or OFFERS to show pricing/detail ("I can show you…", "let me walk you through…", "I'll give you more detail", "how about I show you the pricing"); asks discovery/qualifying questions; handles objections; proposes next steps; speaks as "we/our".
+- PROSPECT (the buyer): ASKS to see or learn ("I wanna see the pricing", "can you give me more detail", "how much…", "what about…"); states interest or hesitation ("actually, yes", "I'm not sure"); describes THEIR own situation, needs, or concerns.
 
-The previous utterance was the ${label(body.priorSpeaker)}. Speakers usually alternate, but NOT always — one person can take two turns in a row, and short backchannels ("mhm", "right") happen. Use CONTENT as the decider; alternation is only a weak tiebreaker.
+KEY ASYMMETRY (this is the usual failure): OFFERING to provide something is the SALESPERSON ("I can give you the detail", "I can show you"); ASKING for it is the PROSPECT ("give me more detail", "show me"). Someone who accepts an offer and asks for more — "yes, and can you tell me more about the product?" — is the PROSPECT.
+
+The previous utterance was the ${label(body.priorSpeaker)}. Speakers usually alternate but NOT always — one person can take two turns, and short backchannels ("mhm", "right") happen. CONTENT decides; alternation is only a weak tiebreaker.
 ${
   body.volumeHint
-    ? `\nACOUSTIC PRIOR: the salesperson wears the mic and is closer to it, so they are louder. The loudness of this utterance suggests the ${label(body.volumeHint)}. Treat this as a STRONG prior — agree with it unless the CONTENT clearly contradicts it.\n`
+    ? `\nWeak acoustic hint: the mic-wearer (usually the salesperson) tends to be louder, so loudness here leans ${label(body.volumeHint)}. But in person this is UNRELIABLE — the prospect is often closer to the mic or speaks up — so use it ONLY to break a genuine tie when the content is truly ambiguous. When the content points one way, FOLLOW THE CONTENT even if the loudness disagrees.\n`
     : ""
 }
 Respond with ONLY this JSON: {"speaker":"salesperson"} or {"speaker":"prospect"}.`;

@@ -91,6 +91,29 @@ type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean };
  * Combined WITH (not replacing) the content classifier. Honest limit:
  * assumes the mic is AGENT-WORN; a table-placed mic breaks it.
  */
+// Instant, content-based speaker guess for the provisional label. Obvious
+// buyer-vs-seller language attributes a turn the MOMENT it commits — no wait on
+// the LLM classifier, no reliance on in-person loudness (unreliable: the
+// prospect is often closer/louder). Returns null when the content isn't a clear
+// tell, so voice (pitch + loudness) decides and the LLM settles the rest.
+// Composes WITH voice (§A16) — it does not replace it. The KEY asymmetry the
+// 2026-07-06 live test exposed: OFFERING to provide ("I can give you detail")
+// is the salesperson; ASKING for it ("give me detail") is the prospect.
+export function quickContentGuess(text: string): TranscriptSpeaker | null {
+  const t = ` ${text.toLowerCase().replace(/[.,!?;:]/g, " ")} `;
+  // Seller OFFERS to show/explain/provide, or pitches the offering.
+  const sellerOffer =
+    /\b(let me (show|walk|explain|tell)|i can (show|give|walk|offer)|how about i (show|walk)|i'?ll (show|give|walk) you|we (offer|provide|can do|have)|our (product|service|pricing|offer|plan)|here'?s (how|what))\b/;
+  // Buyer ASKS to see/learn, questions price/fit, or states their need/doubt.
+  const buyerAsk =
+    /\b(i (wanna|want to|'?d like to|would like to) (see|know|hear|learn|understand)|can you (give|show|tell|send) me|give me (more )?detail|show me|tell me more|how much|what'?s the (price|cost)|do you (offer|have)|i'?m (not sure|interested))\b/;
+  const seller = sellerOffer.test(t);
+  const buyer = buyerAsk.test(t);
+  if (seller && !buyer) return "agent";
+  if (buyer && !seller) return "customer";
+  return null; // ambiguous / mixed → voice + the LLM decide
+}
+
 function volumeVerdict(
   energy: number,
   agentLevel: number | null,
@@ -866,18 +889,21 @@ export function useLiveCoaching(sessionId: string) {
           );
           agentLevelRef.current = v.agentLevel;
           customerLevelRef.current = v.customerLevel;
-          // Compose the provisional label (§A16): the manual toggle wins when
-          // locked; otherwise a confident pitch cluster overrides the loudness
-          // guess — but ONLY once the agent cluster is anchored (audit F2),
-          // because until then pitch's agent/customer assignment is unproven and
-          // could be inverted. Content attribution below still settles the final.
+          // Compose the provisional label (§A16) LIVE and zero-latency, using
+          // BOTH content and voice: the manual toggle wins when locked; else an
+          // OBVIOUS content tell (quickContentGuess — instant, no network) wins,
+          // because content is the reliable in-person signal; else a confident
+          // pitch cluster (once anchored, audit F2); else loudness. The LLM
+          // /attribute below refines the non-obvious cases — it gets the VOICE
+          // hint and reasons on content itself, so both signals inform it too.
           const pitchTrusted =
             pitchSepRef.current.isAnchored() && pitch.confidence >= PITCH_TRUST;
+          const voiceHint: TranscriptSpeaker =
+            pitchTrusted && pitch.speaker ? pitch.speaker : v.speaker;
+          const contentGuess = quickContentGuess(text);
           const provisional: TranscriptSpeaker = locked
             ? "agent"
-            : pitchTrusted && pitch.speaker
-              ? pitch.speaker
-              : v.speaker;
+            : contentGuess ?? voiceHint;
           const priorSpeaker =
             turnsRef.current[turnsRef.current.length - 1]?.speaker ?? "agent";
           const index = turnsRef.current.length;
@@ -888,13 +914,14 @@ export function useLiveCoaching(sessionId: string) {
           setTurns(turnsRef.current);
           // eslint-disable-next-line no-console
           console.info(
-            `[live-coaching] turn #${index + 1} committed (energy=${energy.toFixed(4)} vol=${v.speaker} pitch=${pitch.speaker}@${pitch.confidence.toFixed(2)} → ${provisional}): "${text.slice(0, 80)}"`
+            `[live-coaching] turn #${index + 1} committed (energy=${energy.toFixed(4)} vol=${v.speaker} pitch=${pitch.speaker}@${pitch.confidence.toFixed(2)} content=${contentGuess ?? "-"} → ${provisional}): "${text.slice(0, 80)}"`
           );
           // A new commit cancels any pending cue (the salesperson didn't
-          // wait for it). The cue trigger lives in classifyTurn, gated on
-          // the final (content-or-volume) label.
+          // wait for it). The cue trigger lives in classifyTurn, gated on the
+          // final content label. classifyTurn gets the VOICE hint (pitch/
+          // loudness) as the LLM's weak tiebreaker — the LLM decides by content.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-          if (!locked) void classifyTurn(index, text, priorSpeaker, provisional);
+          if (!locked) void classifyTurn(index, text, priorSpeaker, voiceHint);
 
           // Build 3 — MEASURED stress on the rep's OWN turns. Close out this
           // utterance's speaking duration (first partial → this commit) and,
