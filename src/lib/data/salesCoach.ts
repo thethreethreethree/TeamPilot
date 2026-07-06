@@ -284,6 +284,10 @@ export async function appendCue(args: {
   sessionId: string;
   mode: CueMode;
   text: string;
+  // If/when this is wired from the fluidity instrumentation: persist the CLIENT's
+  // true END-TO-END total (triggeredAt→delivered, settle+llm+tts), NOT a
+  // server-only LLM duration — else it repeats audit Finding A (2026-07-06), a
+  // latency number that silently excludes a pipeline stage.
   latencyMs?: number | null;
   // Audit F1 (§4/§1.1) — WHY this cue fired, so build 4 can validate against
   // outcomes. trigger = objection|filler_spike|pace_spike|stall|…; signal =
@@ -622,19 +626,24 @@ export async function getCueRelianceSeries(
     .limit(limit);
   if (!sessions || sessions.length === 0) return [];
 
-  const out: Array<{ sessionId: string; startedAt: string; cueCount: number }> = [];
-  for (const s of sessions) {
-    const { count } = await sb
-      .from("coaching_cues")
-      .select("id", { count: "exact", head: true })
-      .eq("session_id", s.id as string);
-    out.push({
-      sessionId: s.id as string,
-      startedAt: s.started_at as string,
-      cueCount: count ?? 0,
-    });
+  // Perf (audit "same class elsewhere", 2026-07-06): was N+1 — a count query per
+  // session in a loop. Now ONE query for all cues across these sessions, counted
+  // in memory. Behavior-preserving; bounded row fetch (session_id only).
+  const sessionIds = sessions.map((s) => s.id as string);
+  const { data: cueRows } = await sb
+    .from("coaching_cues")
+    .select("session_id")
+    .in("session_id", sessionIds);
+  const countBySession = new Map<string, number>();
+  for (const r of cueRows ?? []) {
+    const sid = r.session_id as string;
+    countBySession.set(sid, (countBySession.get(sid) ?? 0) + 1);
   }
-  return out;
+  return sessions.map((s) => ({
+    sessionId: s.id as string,
+    startedAt: s.started_at as string,
+    cueCount: countBySession.get(s.id as string) ?? 0,
+  }));
 }
 
 // ─── Editable methodology corpus (migration 0074) ──────────────────────
