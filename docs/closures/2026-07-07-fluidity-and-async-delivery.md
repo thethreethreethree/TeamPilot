@@ -119,11 +119,34 @@ fail-safes; `detectHandoffSignal` (already well-covered).
 
 ---
 
+## Continued work after the initial closure (same session)
+
+This closure was written mid-session; the autonomous loop then continued into two
+more bodies of work, recorded here so the manifest stays complete:
+
+**Core structural guarantees — integration-tested (were relied-on, never tested).**
+Verified from source first (§A22), then added to `chain.integration.test.ts`
+(`npm run test:chain`): the §3.2 understanding gate (blocks surfacing a problem
+under the signal threshold; allows once met) and §3.1 immutability (UPDATE/DELETE
+are silent no-ops on events AND signals). Protects the foundation against the
+silent-migration-regression class (the 2026-07-03 outage shape).
+
+**9-class security sweep (THINK-first, highest-leverage for a first-customer
+launch).** Full detail in `docs/AUDIT-2026-07-06-session-verification.md`. 3 real
+hardenings shipped, 6 classes verified clean:
+- FIXED: SECURITY DEFINER search_path (migration 0088 — the sole gap of 71 fns);
+  PostgREST `.or()` filter injection (4 sites, shared `sanitizeOrIlikeTerm`);
+  stored SSRF via the push endpoint (`isSafePushEndpoint`).
+- CLEAN: multi-tenant isolation (read + write, through the linchpin
+  `auth_company_id()`); XSS (`dangerouslySetInnerHTML`); mass assignment; open
+  redirect; CSRF; LLM-cost/rate-limit coverage.
+
 ## Gate at closure
 
-`npm run check` green: **312 tests passed / 3 skipped** (integration, live-DB gated),
-typecheck + lint + `rls:audit` (0 missing) clean. 28 commits, all pushed to `main`,
-tree clean (only a pre-existing untracked design asset, not mine).
+Initial closure point: **312 tests passed / 3 skipped**, 28 commits.
+Session end (after the continued work above): **322 passed / 9 skipped**, ~41
+commits, `npm run check` green throughout (typecheck + lint + `rls:audit` 0 missing),
+all pushed to `main`, tree clean (only a pre-existing untracked design asset).
 
 ## A22's own test
 
