@@ -180,3 +180,44 @@ limiter.
 This sweep extends the ground-up audit of 2026-07-06 (recorded in agent memory).
 `npm run check` was green end-to-end throughout the session (typecheck + lint +
 theme:audit + rls:audit + 245 tests).
+
+---
+
+## 2026-07-07 extension — read-audit of the async/delivery surfaces
+
+A focused read-audit (THINK-first per §1.5.2, then confirm) of surfaces the
+2026-07-06 sweep didn't reach. Findings and clean results both on the record
+(§1.7.3/§1.7.4). Full detail + founder decisions in
+[FOUNDER-ACTIONS-2026-07-06.md](FOUNDER-ACTIONS-2026-07-06.md).
+
+**C.A.R.E inbound-email / routing — a coupled race cluster (root-caused + fixed).**
+The inbound route fired `routeNewConversation` fire-and-forget, so the
+customer-message notify (reads `assigned_agent_id`) and the AI first-responder
+(reads `ai_responding`) both raced routing's write. Consequences on a fresh email:
+the auto-assigned agent got NO push (notify read null → silent early return), and
+the AI proceeded despite an assignment (§3.3 — masked today only by the outbound
+gap below). **Fixed** (`6e1bb5a`): await routing before both reads. Non-outward-
+facing. `routeNewConversation`'s `ai_responding` coupling — previously
+zero-coverage — is now pinned by `care.routeNewConversation.test.ts` (`03264fb`).
+
+**C.A.R.E email AI first-responder — 🔴 layer-2 gap, FOUNDER-GATED.** The AI writes
+a reply row but never dispatches it outbound (`dispatchOutboundEmailReply` is
+called only from the human-agent route). So the AI "first responder" never reaches
+the customer. Flagged not fixed — wiring it makes the AI autonomously email real
+customers (outward-facing). Recommendation + corrected (non-trivial) fix recorded.
+
+**Push delivery — VERIFIED SOUND end-to-end (§A15), no code bug.** `sender.ts`,
+the root `public/sw.js` (app-wide push handler), and `useNotificationSubscription`
+(subscribes via root SW + migrates stale narrow-scope subs) all correct. Open
+queue #2 narrowed to VAPID config; the `[push-sender]` log names which cause.
+
+**CRM append-only (§3.1) — audited, SOUND.** `crm_activity_events` is populated by
+0049 DB triggers (account bootstrap, account lifecycle, subscription change,
+invoice) and hardened to immutability by 0086 (`do instead nothing`). It's a
+billing-lifecycle log by design; entity deletes (contacts, notes) are legitimate
+mutable-entity management outside that scope — NOT a §3.1 violation. The append-only
+discipline is correctly *scoped* to where history-as-asset matters, not
+cargo-culted onto every table. A clean result, on the record per §1.7.3.
+
+**Gate at extension end:** 299 tests passing / 3 skipped (integration, live-DB
+gated), typecheck + lint + rls:audit (0 missing) green.
