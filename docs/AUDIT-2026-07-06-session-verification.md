@@ -107,6 +107,21 @@ never masquerades as empty (§3.4). The known-fragile area is robust.
   cosmetic: a few routes `await req.json()` without `.catch()` → 500 (not 400) on
   malformed JSON; both still reject. ✅
 
+## Security headers
+
+The 2026-06-02 audit flag (empty `next.config.ts`) is RESOLVED — every response
+now carries X-Frame-Options (SAMEORIGIN), X-Content-Type-Options (nosniff),
+Referrer-Policy, Permissions-Policy, X-DNS-Prefetch-Control (plus poweredByHeader
+off, standalone output). Two remain:
+- **CSP** — deliberately DEFERRED, documented in-code (`next.config.ts` L60-62): a
+  strict CSP blocks Next's inline scripts + the LLM runtime calls; needs a nonce
+  or allowlist strategy + a report-only rollout. Not a blind add. ✅ (known)
+- 🟡 **HSTS** — absent. Recommended (founder to add — it's a browser-CACHED
+  commitment, so confirm the domain + all subdomains are HTTPS-only first, esp.
+  for the `output: standalone` non-Vercel deploys where the platform won't add
+  it): `Strict-Transport-Security: max-age=63072000; includeSubDomains` (omit
+  `preload` — it's hard to reverse). Flagged, not committed blindly.
+
 ## Secret handling
 
 No secret is client-exposed or logged. All four `NEXT_PUBLIC_` vars are

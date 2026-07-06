@@ -44,6 +44,11 @@ open-conversation chime still works (no regression).
   ingest+store every email, skip only the AI auto-reply past the cap (agent
   handles it). Needs a tenant-keyed limiter (the current one is IP-keyed, wrong
   for a webhook).
+- **HSTS header** (🟡 minor hardening) — the one absent security header. Confirm
+  your domain + all subdomains are HTTPS-only, then add to `SECURITY_HEADERS` in
+  `next.config.ts`: `{ key: "Strict-Transport-Security", value: "max-age=63072000;
+  includeSubDomains" }` (skip `preload` — hard to reverse). Say the word and I'll
+  add it. (CSP is already deferred-in-code with a documented reason.)
 
 ## What shipped (for context)
 
