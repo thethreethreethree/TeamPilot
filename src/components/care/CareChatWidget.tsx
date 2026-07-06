@@ -368,7 +368,10 @@ export function CareChatWidget() {
             ? `${initialErrorString} · ${recoveryError}`
             : initialErrorString
         );
-        // Remove the optimistic message so the user can retry.
+        // Remove the optimistic message AND restore the draft so the customer
+        // can retry without re-typing — losing a member of the public's message
+        // on a transient failure is a real support-experience gap.
+        setDraft(body);
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
         return;
       }
@@ -379,6 +382,8 @@ export function CareChatWidget() {
       // eslint-disable-next-line no-console
       console.error("[care-widget] send failed:", err);
       setError("Couldn't reach the server.");
+      // Restore the draft so the customer can retry without re-typing.
+      setDraft(body);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setSending(false);

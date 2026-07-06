@@ -273,6 +273,8 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
       );
       if (!res.ok) {
         setError("Couldn't send. Please try again.");
+        // Restore the draft so the customer can retry without re-typing.
+        setDraft(body);
         setMessages((p) => p.filter((m) => m.id !== tempId));
         return;
       }
@@ -280,6 +282,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
       setMessages(data.messages ?? []);
     } catch {
       setError("Couldn't reach the server.");
+      setDraft(body);
       setMessages((p) => p.filter((m) => m.id !== tempId));
     } finally {
       setSending(false);
