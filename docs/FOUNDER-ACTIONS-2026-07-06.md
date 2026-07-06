@@ -93,9 +93,26 @@ open-conversation chime still works (no regression).
   + `CARE_EMAIL_HOST_DOMAIN` are set — I won't turn that on without your explicit
   yes. **Recommendation:** enable it (it's the designed "AI first responder"
   behavior, parity with the widget per §A16), but review the AI reply quality on a
-  test tenant first. The fix is ~3 lines (dispatch the inserted AI message id after
-  the insert, best-effort, same as the human path). Say the word and I'll wire it +
-  add a test asserting the AI path dispatches.
+  test tenant first.
+  **Fix is NOT ~3 lines (corrected after tracing the ripple — §1.5/§A21).** Two
+  coupled facts I found on the second pass:
+  (a) *The gap bites in the worst case.* `routeNewConversation` sets
+  `ai_responding:false` when it auto-assigns an agent (`care.ts:2420`), and
+  `runAiFirstResponder` only replies while `ai_responding` is true — so the AI
+  responds ONLY when no agent was assigned. Meaning the never-sent reply fails
+  exactly when no human is available to cover for it. Worse, not milder.
+  (b) *Naive wiring introduces a §3.3 overtake.* The route fires BOTH
+  `void routeNewConversation` (line 266) and `void runAiFirstResponder` (line 350)
+  concurrently, neither awaited. The AI responder reads `ai_responding` after ~1
+  round-trip; routing flips it false after ~3 — so the AI read wins the race and
+  proceeds even when an agent is being assigned. Today that's harmless (the reply
+  isn't sent). The moment we wire the dispatch, a fresh email during business hours
+  = the AI emails the customer OVER the just-assigned human. So the real fix =
+  `await routeNewConversation` BEFORE the AI responder (or re-read `ai_responding`
+  immediately before dispatch) + dispatch the AI message + a test asserting (1) AI
+  dispatches when unrouted, (2) AI stays silent + does NOT dispatch when an agent
+  was assigned. Say the word and I'll build that (the correct version, not the
+  overtake-introducing shortcut).
 - **HSTS header** (🟡 minor hardening) — the one absent security header. Confirm
   your domain + all subdomains are HTTPS-only, then add to `SECURITY_HEADERS` in
   `next.config.ts`: `{ key: "Strict-Transport-Security", value: "max-age=63072000;
