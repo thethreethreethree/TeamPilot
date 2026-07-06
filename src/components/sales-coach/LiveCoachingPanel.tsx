@@ -455,6 +455,16 @@ export function LiveCoachingPanel({
 
       {/* Current cue + "used it" confirm (0080 cue loop). The rep's tap is
           first-party truth the After Pitch Summary prefers over inference. */}
+      {/* a11y: a persistent visually-hidden live region announces each cue to
+          assistive tech. The visible block below is conditionally mounted, so
+          aria-live ON it would announce unreliably; a persistent region whose
+          CONTENT changes is the robust pattern. `assertive` because a coaching
+          cue's whole value is timeliness (the fluidity directive) — and it's the
+          only assistive-tech channel when the rep runs cues visual-only (TTS off,
+          e.g. on a video call so the prospect can't hear it). */}
+      <div className="sr-only" role="status" aria-live="assertive" aria-atomic="true">
+        {currentCue ? `Coach cue: ${currentCue}` : ""}
+      </div>
       {currentCue && (
         <LearningHint
           as="block"
