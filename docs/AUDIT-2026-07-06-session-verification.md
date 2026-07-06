@@ -52,6 +52,15 @@ accessible name; decorative icons stay silent). No icon-only buttons without a
 name. The chime toggle added this session has a state-aware `aria-label` +
 `aria-pressed`. Clean.
 
+## Resilience (known past-incident area)
+
+Re-verified the Team Chat read path — the site of the 2026-07-03 RLS outage (a
+commit removed a guarded fallback on an unverified "migration applied"). The fix
+is solid and in place: a `mode` discriminator distinguishes `live-error` (a real
+read failure — surfaced to the UI) from `live-empty` (genuinely no data), with a
+degraded base-table fallback when the view is broken/missing, and a failed read
+never masquerades as empty (§3.4). The known-fragile area is robust.
+
 ## Security posture (observed pattern)
 
 The service-role routes follow a consistent, mature isolation discipline: access
