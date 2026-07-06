@@ -363,6 +363,12 @@ function mapAccount(row: Record<string, unknown>): CrmAccount {
     source: row.source as CrmAccount["source"],
     sourceNote: (row.source_note as string | null) ?? null,
     accountOwnerUserId: (row.account_owner_user_id as string | null) ?? null,
+    // §A11 note (checked 2026-07-06): healthScore is NOT a §3.2/§3.4 violation.
+    // The forbidden pattern was the SYSTEM deriving a health verdict (the removed
+    // analyzeOperations/Finance/Marketing, claude.ts) — a machine claiming
+    // "healthy: 74". This is the opposite: a MANUAL field an admin types into the
+    // CRM form, with healthReason as their own stated rationale. Human-entered
+    // annotation, not a system-derived verdict. Pass it through untouched.
     healthScore: (row.health_score as number | null) ?? null,
     healthReason: (row.health_reason as string | null) ?? null,
     industry: (row.industry as string | null) ?? null,
