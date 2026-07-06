@@ -7,6 +7,7 @@ import {
   buildLiveCueUserMessage,
   type CueGrounding,
 } from "./liveCuePrompt";
+import type { CueImportance } from "./cueInstrument";
 
 // Compact company grounding for live cues, CACHED per company so it costs no
 // per-cue DB round-trip (founder 2026-07-06 — the compact + cached approach, so
@@ -70,6 +71,9 @@ export type LiveCueResult = {
   // visible). Present even when it stays silent.
   phase: CuePhase;
   trigger: CueTrigger;
+  // How much this cue matters right now (§3.3 — deliver the MOST important,
+  // don't dilute). The client suppresses "low" and lets "high" jump the cooldown.
+  importance: CueImportance;
 };
 
 const PHASES = new Set<string>([
@@ -119,6 +123,7 @@ export async function generateLiveCue(args: {
     cue: "",
     phase: "unknown",
     trigger: "none",
+    importance: "low",
   };
   try {
     if (args.segments.length < MIN_SEGMENTS) return silent;
@@ -172,6 +177,12 @@ export async function generateLiveCue(args: {
         ? (o.trigger as CueTrigger)
         : "none";
 
+    // Importance (§3.3 — deliver the most important, don't dilute). Default to
+    // "medium" when the model omits or malforms it — a real cue is never treated
+    // as throwaway "low" by parser accident; only an explicit "low"/"high" moves it.
+    const importance: CueImportance =
+      o.importance === "high" || o.importance === "low" ? o.importance : "medium";
+
     const cue = typeof o.cue === "string" ? o.cue.trim() : "";
     // Honour the understanding gate: an empty cue means stay silent,
     // regardless of what shouldCue claims. When forced (on-demand), any
@@ -185,6 +196,7 @@ export async function generateLiveCue(args: {
       cue: shouldCue ? cue : "",
       phase,
       trigger,
+      importance,
     };
   } catch {
     return silent;
