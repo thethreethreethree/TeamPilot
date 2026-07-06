@@ -29,6 +29,20 @@
 
 | **Notification cross-tenant leak** | Can `notify-message` notify the wrong company, or be spoofed? | **No** — anti-spoof (only `author_id === auth.user.id` may trigger); the service-role participant fetch is explicitly scoped `eq("company_id", msg.company_id)` ✅ |
 
+## Performance (data-layer hot paths)
+
+Checked the frequently-hit read paths for N+1 queries (a query per item in a
+loop) — the class that bites at scale. Clean:
+- **Enriched inbox** (polled every 5s): ONE query — `support_conversations`
+  embedding tags + customer via a PostgREST join, sorted by `last_message_at`,
+  `.limit(500)`, mapped in memory. No per-conversation query. The inbox-wide
+  chime's `last_message_author_type` rides this existing `*` select — zero added
+  queries.
+- **Durability + asset readouts**: bulk-fetch then aggregate in memory (Maps/
+  Sets over pre-fetched rows) — no query inside any loop.
+- Earlier this session: fixed a real render-perf anti-pattern (ToastProvider
+  rebuilt its context value every render → memoized, `8899c59`).
+
 ## Security posture (observed pattern)
 
 The service-role routes follow a consistent, mature isolation discipline: access
