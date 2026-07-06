@@ -250,5 +250,24 @@ non-draft INSERT and can't be bypassed by client role; immutability is `do inste
 nothing` rules. Protects the foundation against the silent-migration-regression class
 (the 2026-07-03 outage shape).
 
-**Gate at extension end:** 312 tests passing / 9 skipped (integration, live-DB
+**2026-07-07 security sweep (THINK-first by vulnerability class).** Beyond the
+isolation check above, swept four known classes:
+- **SECURITY DEFINER search_path** — scanned all 71 definer functions;
+  `task_message_emit_event()` (0021) was the SOLE one missing `set search_path`
+  (Supabase "Function Search Path Mutable" class). FIXED in migration 0088
+  (metadata-only ALTER, 🟡 low exploitability in the authenticated-role context).
+- **PostgREST `.or()` filter injection** — 4 sites interpolated user search input
+  into raw `.or(...ilike...)` strings (global search, CRM, files, C.A.R.E similar).
+  FIXED as a class (§A13) via `sanitizeOrIlikeTerm` + tests (`675cdc4`). The 3 other
+  `.or()` sites interpolate DB-sourced UUIDs (`id.eq.`) — safe by type.
+- **Stored XSS via `dangerouslySetInnerHTML`** — 2 usages, BOTH clean: a static
+  theme script (layout) and a `Section` title fed only static developer strings
+  (used to render HTML entities, never user data). No finding.
+- **Multi-tenant isolation** (above) — read + write, sound through the stack.
+
+Net: 2 real hardenings shipped (0088 + the injection guard), 2 classes verified
+clean. Not an exhaustive pentest — the highest-leverage classes for a multi-tenant
+first-customer launch.
+
+**Gate at extension end:** 317 tests passing / 9 skipped (integration, live-DB
 gated), typecheck + lint + rls:audit (0 missing) green.
