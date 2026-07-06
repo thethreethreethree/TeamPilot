@@ -265,5 +265,13 @@ company check → fail-closed) · +123 tests. 47 commits, gate green throughout.
   (`0088`), PostgREST `.or()` filter injection, stored SSRF (push endpoint),
   constant-time secret comparison. 5 clean (isolation read+write, XSS, mass
   assignment, open redirect, CSRF).
-- Push + CRM audited; several founder-decisions flagged above. Gate green
-  throughout; 326 passing / 9 skipped (integration).
+- Push + CRM audited; several founder-decisions flagged above.
+- **Post-audit quality pass (pivot audits — real bugs fixed):** 5 concurrency-race
+  fixes — stale-response overwriting the wrong conversation/task/session on rapid
+  switching (care inbox loadDetail + poll, operations/[id], sales-coach/[id]) and a
+  concurrent-first-email customer-orphaning race; customer-facing widget a11y
+  (reply announcements, input labels) + resilience (message preserved on send
+  failure); error banners announced to screen readers (widget, coach, inbox). Clean
+  confirmations: memory/listener leaks, division-by-zero/NaN, state-consistency,
+  origin/tenant security, empty states. Gate green throughout; 326 passing /
+  9 skipped (integration); production build clean (deployable).
