@@ -357,3 +357,76 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
     });
   }
 );
+
+// ─────────────────────────────────────────────────────────────
+// §3.1 immutability — the append-only FOUNDATION.
+//
+// §3.1: "Everything is an event. Events are append-only. Never update or delete —
+// append. Full history must always be intact, because retrospective analysis and
+// data-as-asset depend on it." Enforced by `do instead nothing` rules on the
+// events table (0004:36-37) — an UPDATE/DELETE "succeeds" (2xx) but changes
+// nothing. The chain test's own afterAll RELIES on this ("events are immutable by
+// SQL rule") but never verified it. A migration that dropped events_no_update /
+// events_no_delete would silently make the foundation mutable, and every
+// retrospective-analysis guarantee built on top would quietly rot. This pins it.
+// ─────────────────────────────────────────────────────────────
+describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
+  "§3.1 immutability — events are append-only (UPDATE/DELETE are silent no-ops)",
+  () => {
+    const TEST_COMPANY_NAME = "EXECOS Chain Integration Test";
+    const runTag = `immut-test-${Date.now()}`;
+    const ORIGINAL_KIND = `${runTag}.original`;
+    let companyId: string;
+    let eventId: string;
+
+    beforeAll(async () => {
+      const lookup = await rest(
+        "GET",
+        `/rest/v1/companies?name=eq.${encodeURIComponent(TEST_COMPANY_NAME)}&select=id`
+      );
+      const found = lookup.data as Array<{ id: string }>;
+      if (found.length > 0) {
+        companyId = found[0]!.id;
+      } else {
+        const c = await rest("POST", "/rest/v1/companies", {
+          name: TEST_COMPANY_NAME,
+        });
+        expect(c.status, JSON.stringify(c.data)).toBe(201);
+        companyId = (c.data as Array<{ id: string }>)[0]!.id;
+      }
+
+      const e = await rest("POST", "/rest/v1/events", {
+        company_id: companyId,
+        kind: ORIGINAL_KIND,
+        subject: `${runTag}:subject`,
+        payload: { v: 1 },
+      });
+      expect(e.status, JSON.stringify(e.data)).toBe(201);
+      eventId = (e.data as Array<{ id: string }>)[0]!.id;
+    });
+
+    it("silently drops an UPDATE to an event (row byte-for-byte unchanged)", async () => {
+      // The rule is `do instead nothing` — this "succeeds" but must change nothing.
+      await rest("PATCH", `/rest/v1/events?id=eq.${eventId}`, {
+        kind: `${runTag}.TAMPERED`,
+        payload: { v: 999 },
+      });
+      const check = await rest(
+        "GET",
+        `/rest/v1/events?id=eq.${eventId}&select=kind,payload`
+      );
+      const row = (check.data as Array<{ kind: string; payload: { v: number } }>)[0]!;
+      expect(row.kind).toBe(ORIGINAL_KIND);
+      expect(row.payload.v).toBe(1);
+    });
+
+    it("silently drops a DELETE of an event (row still present)", async () => {
+      await rest("DELETE", `/rest/v1/events?id=eq.${eventId}`);
+      const check = await rest(
+        "GET",
+        `/rest/v1/events?id=eq.${eventId}&select=id`
+      );
+      expect((check.data as Array<{ id: string }>).length).toBe(1);
+    });
+  }
+);
