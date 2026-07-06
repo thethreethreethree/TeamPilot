@@ -272,10 +272,21 @@ isolation check above, swept four known classes:
 - **Multi-tenant isolation** (above) — read + write, sound through the stack.
 - **LLM cost / rate-limit** — only the already-flagged inbound-email endpoint is
   unrate-limited (health/settings match the grep as CONFIG refs, not LLM calls).
+- **Mass assignment / privilege escalation** — CLEAN. The one spread-into-insert
+  (`chats.ts`) spreads a server-CONSTRUCTED object (company_id + created_by from
+  server ctx, not user input); the codebase builds insert objects field-by-field,
+  so a user can't set a privileged field or override tenant.
+- **Open redirect** — CLEAN. Every `redirect()`/`NextResponse.redirect()` uses a
+  hardcoded internal path; no `?next=`/`?redirect=` user-controlled redirect source
+  exists; middleware `dest` is a static ternary.
+- **CSRF** — CLEAN. No custom/permissive CORS (the one `useCORS` is an html2canvas
+  option, not a header); cookie-auth is mitigated by SameSite + JSON-body APIs. A
+  few GET routes do get-or-create upserts (non-ideal REST) but they're
+  idempotent server-default creation (often admin-gated), near-zero CSRF impact.
 
-Net: 3 real hardenings shipped (0088 definer search_path + the `.or()` injection
-guard + the SSRF guard), the rest verified clean. Not an exhaustive pentest — the
-highest-leverage classes for a multi-tenant first-customer launch.
+Net (9 classes): 3 real hardenings shipped (0088 definer search_path + the `.or()`
+injection guard + the SSRF guard), 6 verified clean. Not an exhaustive pentest —
+the highest-leverage classes for a multi-tenant first-customer launch.
 
-**Gate at extension end:** 317 tests passing / 9 skipped (integration, live-DB
+**Gate at extension end:** 322 tests passing / 9 skipped (integration, live-DB
 gated), typecheck + lint + rls:audit (0 missing) green.
