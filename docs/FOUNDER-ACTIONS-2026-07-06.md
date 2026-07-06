@@ -32,6 +32,14 @@ open-conversation chime still works (no regression).
   Volume icon in the Conversations header); confirm you hear the two-note chime
   when a customer message arrives (test in Chrome AND Safari — the audio unlock
   differs). It should NOT chime on your own sends or the AI's replies.
+- **(Optional) §3.1 chain integration test** — the hermetic `npm run check` suite
+  can't touch a real DB, so the events→signals chain (triggers +
+  `derive_signals_for_event`) is proven end-to-end only by an opt-in test that
+  needs *your* live-DB env. To run it against a project you don't mind writing a
+  throwaway company into: `EXECOS_INTEGRATION_TEST=1 SUPABASE_URL=… SERVICE_KEY=…
+  npm run check`. It's a 🔴 alarm if it ever fails (the §3.1 chain is broken in
+  prod). Purely optional — the trigger logic is stable and unit-covered; this is
+  the belt-and-suspenders check only you can run.
 
 ## 3. Decisions that unblock gated backlog (only if you want them built)
 
