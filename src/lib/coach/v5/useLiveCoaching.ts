@@ -298,6 +298,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const procRef = useRef<ScriptProcessorNode | null>(null);
   const turnsRef = useRef<Turn[]>([]);
   const cueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Idempotency guard (bug fix, 2026-07-06): finalize appends the transcript, and
+  // coaching_transcript_segments has NO unique(session_id, seq) constraint — so a
+  // double Stop / double finalize would DUPLICATE the whole transcript and the
+  // post-call dissect would read doubled turns (§3.1). Fire finalize once/session.
+  const finalizedRef = useRef(false);
   // The turn index whose cue clock was started AT COMMIT by an obvious content
   // tell (before the LLM /attribute returned) — so classifyTurn doesn't reset
   // the timer and re-add the latency we just saved (L2 response time). -1 = none.
@@ -676,7 +681,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // append-only, best-effort. A failure just leaves the recording-upload
     // fallback available.
     const captured = turnsRef.current;
-    if (captured.length > 0) {
+    if (captured.length > 0 && !finalizedRef.current) {
+      // Guard: fire finalize at most ONCE per session (see finalizedRef) — a
+      // second Stop would otherwise duplicate the transcript server-side.
+      finalizedRef.current = true;
       // ONE server-side finalize (M3 structural fix, founder 2026-06-30).
       // The SERVER appends the transcript THEN generates + stores the Dissect
       // and Summary — so the admin reliably gets the dissect even if the
@@ -766,6 +774,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // Fresh readout per call — clear the prior session's traces + summary.
     cueTracesRef.current = [];
     setCueSummary(null);
+    finalizedRef.current = false; // allow this session's finalize to fire once
     setStatus("connecting");
     setTurns([]);
     turnsRef.current = [];
