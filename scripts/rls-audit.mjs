@@ -228,6 +228,118 @@ const ALLOWLIST = new Map([
     "after_pitch_summaries.delete",
     "§3.1 append-only. After-pitch summaries are permanent growth record.",
   ],
+
+  // ─── C.A.R.E support chain (0034–0038, 0042) — §3.1 append-only ───────
+  // DB-ENFORCED append-only: 0034/0035/0036 install do-instead-nothing rules
+  // on support_messages / support_conversation_events / support_resolutions /
+  // support_ai_co_pilot_edits. Widget-side rows are written by the SERVICE-ROLE
+  // server (the widget never holds a JWT), so the missing insert policies are
+  // intentional — anon has no direct write path. A missing policy is deny-all,
+  // never over-permissive.
+  [
+    "support_customers.delete",
+    "§3.1 a customer record is permanent; widget-created via service-role, never deleted.",
+  ],
+  [
+    "support_conversations.insert",
+    "Created by the widget via the SERVICE-ROLE server (0034) — no anon/user-client insert path.",
+  ],
+  [
+    "support_conversations.delete",
+    "§3.1 a conversation is a permanent record — closed via status, never deleted.",
+  ],
+  [
+    "support_messages.update",
+    "§3.1 append-only (0034 do-instead-nothing); the coach_grade refinement (0037) is server-side/service-role only.",
+  ],
+  [
+    "support_messages.delete",
+    "§3.1 append-only — 0034 blocks deletes with a do-instead-nothing rule.",
+  ],
+  [
+    "support_conversation_events.insert",
+    "Append-only audit log written by triggers + the service-role server (0035) — no user-client insert.",
+  ],
+  [
+    "support_conversation_events.update",
+    "§3.1 append-only — 0035 do-instead-nothing rule.",
+  ],
+  [
+    "support_conversation_events.delete",
+    "§3.1 append-only — 0035 do-instead-nothing rule.",
+  ],
+  [
+    "support_resolutions.update",
+    "§3.1 append-only — 0036 do-instead-nothing; a correction is a NEW capture, never an edit.",
+  ],
+  [
+    "support_resolutions.delete",
+    "§3.1 append-only — 0036 do-instead-nothing rule.",
+  ],
+  [
+    "support_durability_checks.insert",
+    "Scheduled + recorded server-side via service-role (0036 trigger) — no user-client insert.",
+  ],
+  [
+    "support_durability_checks.delete",
+    "§3.1 append-only. A durability re-check is a permanent measurement record.",
+  ],
+  [
+    "support_ai_co_pilot_edits.update",
+    "§3.1 append-only — 0036 do-instead-nothing rule.",
+  ],
+  [
+    "support_ai_co_pilot_edits.delete",
+    "§3.1 append-only — 0036 do-instead-nothing rule.",
+  ],
+  [
+    "care_widget_load_events.insert",
+    "Widget-bootstrap telemetry logged server-side via service-role (0038) — no user-client insert.",
+  ],
+  [
+    "care_widget_load_events.update",
+    "§3.1 append-only telemetry — a load event is immutable once recorded.",
+  ],
+  [
+    "care_widget_load_events.delete",
+    "§3.1 append-only telemetry.",
+  ],
+  [
+    "care_agent_state.delete",
+    "Presence/capacity is UPSERTED (0042) — set to offline, never deleted; the row IS the agent's current state.",
+  ],
+
+  // ─── CRM (0049) — §3.1 append-only events + soft-archive ──────────────
+  [
+    "crm_accounts.delete",
+    "§3.1 soft-archive via status='archived' (0049) — accounts are never hard-deleted.",
+  ],
+  [
+    "crm_activity_events.insert",
+    "Append-only activity events written server-side via service-role (0049) — every state change is an immutable event.",
+  ],
+  [
+    "crm_activity_events.update",
+    "§3.1 append-only — activity events are immutable (0049).",
+  ],
+  [
+    "crm_activity_events.delete",
+    "§3.1 append-only — activity events are immutable (0049).",
+  ],
+
+  // ─── Departments + Files (0055, 0056) — soft-archive / soft-delete ────
+  [
+    "departments.delete",
+    "§3.1 soft-archive — 0055 explicitly 'NEVER delete a department; archive' (archived_at).",
+  ],
+  [
+    "profile_departments.update",
+    "Pure membership join table (0055) — a profile joins/leaves via insert/delete; there is no updatable column.",
+  ],
+  [
+    "files.delete",
+    "§3.1 soft-delete via deprecated_at — 0056 files_preserve_immutable; a file asset is never hard-deleted.",
+  ],
 ]);
 
 // ─── Parse migrations ─────────────────────────────────────────────────
