@@ -20,9 +20,12 @@
  *    should return. Assert scoping via the recorded `calls` (e.g. that
  *    .eq("agent_id", id) was issued), and assert the JS transform via the
  *    function's return value.
+ *  - A table value may be a FUNCTION `() => result`, called once per `.from()`
+ *    of that table — use it to return a SEQUENCE for N+1 query patterns (e.g.
+ *    a per-row count query issued once per parent row).
  */
 export function makeSupabaseClient(
-  byTable: Record<string, unknown>,
+  byTable: Record<string, unknown | (() => unknown)>,
   calls: Array<[string, unknown[]]>
 ) {
   function builder(result: unknown) {
@@ -45,7 +48,9 @@ export function makeSupabaseClient(
   return {
     from: (table: string, ...rest: unknown[]) => {
       calls.push(["from", [table, ...rest]]);
-      return builder(byTable[table] ?? { data: [] });
+      const spec = byTable[table];
+      const result = typeof spec === "function" ? spec() : spec ?? { data: [] };
+      return builder(result);
     },
   };
 }
