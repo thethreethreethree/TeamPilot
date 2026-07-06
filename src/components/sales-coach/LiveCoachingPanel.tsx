@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Radio, Square, Sparkles, Hand, CheckCircle2, Mic } from "lucide-react";
 import { useTapControls } from "@/lib/coach/v5/useTapControls";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
+import type { SalesContext } from "@/lib/data/salesCoach";
 import { SessionRecordingUpload } from "./SessionRecordingUpload";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -18,9 +19,11 @@ import { LearningHint } from "@/components/learning/LearningHint";
  */
 export function LiveCoachingPanel({
   sessionId,
+  context,
   onRecordingSaved,
 }: {
   sessionId: string;
+  context?: SalesContext;
   onRecordingSaved?: () => void;
 }) {
   const {
@@ -47,7 +50,7 @@ export function LiveCoachingPanel({
     start,
     stop,
     requestCue,
-  } = useLiveCoaching(sessionId);
+  } = useLiveCoaching(sessionId, context);
 
   // F1: the cue plays to the agent's default output — the code can't
   // guarantee the customer won't hear it. So gate Start on the agent

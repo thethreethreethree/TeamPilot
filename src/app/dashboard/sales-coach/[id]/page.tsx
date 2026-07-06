@@ -774,8 +774,13 @@ export default function SessionDetail() {
               </p>
             )}
 
-            {/* S1b — live coaching during the call */}
-            <LiveCoachingPanel sessionId={id} onRecordingSaved={() => void load()} />
+            {/* S1b — live coaching during the call. context drives attribution:
+                video is mic-only (agent), in-person splits both voices. */}
+            <LiveCoachingPanel
+              sessionId={id}
+              context={session?.context}
+              onRecordingSaved={() => void load()}
+            />
 
             {/* S1a — upload a recording → diarize → one-tap label */}
             <SessionRecordingUpload sessionId={id} onLabeled={() => void load()} />

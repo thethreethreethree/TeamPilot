@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { CueMode, TranscriptSpeaker } from "@/lib/data/salesCoach";
+import type { CueMode, TranscriptSpeaker, SalesContext } from "@/lib/data/salesCoach";
 import {
   isFillerSpike,
   turnWpm,
@@ -216,7 +216,12 @@ function playToggleBeep(on: boolean) {
   }
 }
 
-export function useLiveCoaching(sessionId: string) {
+export function useLiveCoaching(sessionId: string, context?: SalesContext) {
+  // Mode drives attribution: in-person = one mic holds both voices (attribute
+  // agent vs prospect); video = mic is AGENT-ONLY (prospect is on the far end).
+  // Held in a ref so the stable commit handler reads the current value.
+  const contextRef = useRef(context);
+  contextRef.current = context;
   const [status, setStatus] = useState<LiveStatus>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [partial, setPartial] = useState("");
@@ -913,19 +918,31 @@ export function useLiveCoaching(sessionId: string) {
           const voiceHint: TranscriptSpeaker =
             pitchTrusted && pitch.speaker ? pitch.speaker : v.speaker;
           const contentGuess = guessSpeakerFromContent(text);
-          const { speaker: provisional, source: attrSource } = composeProvisional({
+          const composed = composeProvisional({
             locked,
             content: contentGuess,
             pitch: pitch.speaker,
             pitchTrusted,
             loudness: v.speaker,
           });
+          // Video A/B (founder 2026-07-06 → mic-only v1): a video call's mic is
+          // AGENT-ONLY — the prospect is on the far end of the call, not in the
+          // mic. So attribute every live turn to the rep; NEVER fabricate a
+          // prospect turn from a content tell or loudness (§3.4 — the audit's
+          // Layer-A flag). Prospect-side cues (objection/buying-signal) can't
+          // fire mic-only; the rep-delivery cues (stress, on-demand, stall) do —
+          // matching the "the coach hears your side" disclosure on the surface.
+          const isVideo = contextRef.current === "video";
+          const provisional: TranscriptSpeaker = isVideo ? "agent" : composed.speaker;
+          const attrSource = isVideo ? "video-mic" : composed.source;
           const priorSpeaker =
             turnsRef.current[turnsRef.current.length - 1]?.speaker ?? "agent";
           const index = turnsRef.current.length;
           turnsRef.current = [
             ...turnsRef.current,
-            { text, speaker: provisional, pending: !locked },
+            // Video: pending:false — the label is final (agent), no /attribute
+            // refine is coming. In-person: pending until the LLM settles it.
+            { text, speaker: provisional, pending: !locked && !isVideo },
           ];
           setTurns(turnsRef.current);
           // eslint-disable-next-line no-console
@@ -941,6 +958,7 @@ export function useLiveCoaching(sessionId: string) {
           // already know the prospect just spoke; the LLM only confirms it. This
           // removes the classifier latency from the cue on the common case.
           if (
+            !isVideo &&
             shouldScheduleCueAtCommit({
               locked,
               contentGuess,
@@ -951,8 +969,9 @@ export function useLiveCoaching(sessionId: string) {
             cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
           }
           // The LLM /attribute refines the label + gates the cue for the
-          // non-obvious turns. It gets the VOICE hint as its weak tiebreaker.
-          if (!locked) void classifyTurn(index, text, priorSpeaker, voiceHint);
+          // non-obvious turns — IN-PERSON ONLY. Video is mic-only agent: there
+          // is no prospect to distinguish, so we skip the round-trip entirely.
+          if (!locked && !isVideo) void classifyTurn(index, text, priorSpeaker, voiceHint);
 
           // Build 3 — MEASURED stress on the rep's OWN turns. Close out this
           // utterance's speaking duration (first partial → this commit) and,
@@ -962,7 +981,10 @@ export function useLiveCoaching(sessionId: string) {
           // approximation from wall-clock duration, not word timestamps.)
           const uttStart = utteranceStartRef.current;
           utteranceStartRef.current = null;
-          if (v.speaker === "agent") {
+          // Rep-delivery stress (filler/pace). In video every captured turn IS
+          // the rep (mic-only), so measure all of them; in-person, only turns
+          // the loudness read attributes to the rep.
+          if (isVideo || v.speaker === "agent") {
             const fillerSpike = isFillerSpike(text);
             let paceSpike = false;
             if (uttStart !== null) {
