@@ -232,6 +232,16 @@ definer function already has it.
   `next.config.ts`: `{ key: "Strict-Transport-Security", value: "max-age=63072000;
   includeSubDomains" }` (skip `preload` — hard to reverse). Say the word and I'll
   add it. (CSP is already deferred-in-code with a documented reason.)
+- **Task Understanding Gate: hard-enforce or soft-nudge?** (🟡 §A6/§3.2, LOW —
+  full detail in the [audit record](AUDIT-2026-07-06-session-verification.md)). The
+  problems gate is DB-trigger-enforced; the TASK gate (Pillar 1) is only
+  UI-enforced — two data-layer paths (`changeTaskStatus` + the tasks PATCH route)
+  change status without checking `gate_cleared`, so a direct API call bypasses it
+  (low impact — a user skipping the understanding step on their OWN task). *Decide:*
+  should Pillar 1 be structurally enforced (I'd add a DB trigger + a grandfathering
+  migration for existing non-gate-cleared tasks) to match the problems gate, or is
+  it an intentional soft nudge (then the 0021 comment should say "UI-enforced")?
+  Your call on whether the discipline is meant to be hard here.
 
 ## What shipped (for context)
 
