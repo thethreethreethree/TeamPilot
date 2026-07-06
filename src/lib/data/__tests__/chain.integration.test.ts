@@ -378,6 +378,7 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
     const ORIGINAL_KIND = `${runTag}.original`;
     let companyId: string;
     let eventId: string;
+    let signalId: string;
 
     beforeAll(async () => {
       const lookup = await rest(
@@ -403,6 +404,18 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
       });
       expect(e.status, JSON.stringify(e.data)).toBe(201);
       eventId = (e.data as Array<{ id: string }>)[0]!.id;
+
+      // signals is the SECOND core chain table, with its own independent
+      // no_update/no_delete rules (0002:36+). A migration could drop signals'
+      // rule without touching events' — so it's covered independently, not
+      // assumed from the events case.
+      const s = await rest("POST", "/rest/v1/signals", {
+        company_id: companyId,
+        kind: ORIGINAL_KIND,
+        source: `${runTag}:signal-source`,
+      });
+      expect(s.status, JSON.stringify(s.data)).toBe(201);
+      signalId = (s.data as Array<{ id: string }>)[0]!.id;
     });
 
     it("silently drops an UPDATE to an event (row byte-for-byte unchanged)", async () => {
@@ -425,6 +438,26 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
       const check = await rest(
         "GET",
         `/rest/v1/events?id=eq.${eventId}&select=id`
+      );
+      expect((check.data as Array<{ id: string }>).length).toBe(1);
+    });
+
+    it("silently drops an UPDATE to a signal (row unchanged)", async () => {
+      await rest("PATCH", `/rest/v1/signals?id=eq.${signalId}`, {
+        kind: `${runTag}.TAMPERED`,
+      });
+      const check = await rest(
+        "GET",
+        `/rest/v1/signals?id=eq.${signalId}&select=kind`
+      );
+      expect((check.data as Array<{ kind: string }>)[0]!.kind).toBe(ORIGINAL_KIND);
+    });
+
+    it("silently drops a DELETE of a signal (row still present)", async () => {
+      await rest("DELETE", `/rest/v1/signals?id=eq.${signalId}`);
+      const check = await rest(
+        "GET",
+        `/rest/v1/signals?id=eq.${signalId}&select=id`
       );
       expect((check.data as Array<{ id: string }>).length).toBe(1);
     });
