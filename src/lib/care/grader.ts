@@ -192,7 +192,12 @@ export async function gradeCareAgentReply(args: {
   }
 }
 
-function validateCounts(raw: unknown): CoachCounts | null {
+// Exported for test: validateCounts sanitizes the model's self-report into
+// trustworthy countables (positives → 0/1, risks → non-negative ints, malformed
+// → null), and deriveGrade computes the grade FROM those countables (§3.5 —
+// the grade is derived from what's countable, never the model's opinion). Both
+// are constitutional invariants worth pinning.
+export function validateCounts(raw: unknown): CoachCounts | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const p = r.positive as Record<string, unknown> | undefined;
@@ -223,7 +228,7 @@ function validateCounts(raw: unknown): CoachCounts | null {
   };
 }
 
-function deriveGrade(c: CoachCounts): "productive" | "neutral" | "needs_guidance" {
+export function deriveGrade(c: CoachCounts): "productive" | "neutral" | "needs_guidance" {
   const positives =
     c.positive.acknowledged + c.positive.answered + c.positive.next_step;
   const totalRisks =
