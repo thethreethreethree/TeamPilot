@@ -196,6 +196,10 @@ export async function runLearningCycle(_companyId: string): Promise<{
 
   // Persist each piece through the audited record_brain_learning RPC.
   for (const m of parsed.validated_methods ?? []) {
+    // §3.4 / integrity — JSON.parse is `any` at runtime despite the typed cast;
+    // skip a malformed item (missing the method or its WHY) rather than write a
+    // null-claim brain row or abort the whole cycle on an RPC constraint error.
+    if (!m.method || !m.why) continue;
     await supabase.rpc("record_brain_learning", {
       p_kind: "method_validated",
       p_claim: m.method,
@@ -211,6 +215,7 @@ export async function runLearningCycle(_companyId: string): Promise<{
     });
   }
   for (const d of parsed.disabled_suggestions ?? []) {
+    if (!d.suggestion || !d.reason) continue; // skip malformed item (see above)
     await supabase.rpc("record_brain_learning", {
       p_kind: "suggestion_disabled",
       p_claim: `Disabled: ${d.suggestion}`,
@@ -225,6 +230,7 @@ export async function runLearningCycle(_companyId: string): Promise<{
     });
   }
   for (const p of parsed.known_patterns ?? []) {
+    if (!p.claim) continue; // skip malformed item (a pattern needs its claim)
     const conf =
       p.confidence === "high" || p.confidence === "medium" || p.confidence === "low"
         ? p.confidence
