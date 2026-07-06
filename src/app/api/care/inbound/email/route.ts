@@ -263,12 +263,26 @@ export async function POST(req: NextRequest) {
     // threads (the alternative branch above) stay with whichever
     // agent had been working them — re-routing mid-thread would
     // confuse the customer and lose conversation continuity.
-    void routeNewConversation({
+    //
+    // AWAITED, not fire-and-forget (§3.3/§A21). routeNewConversation
+    // sets assigned_agent_id AND flips ai_responding=false on a
+    // successful assign. Two steps BELOW read that exact state:
+    //   - step 7's notifyAssignedAgentOfCustomerMessage reads
+    //     assigned_agent_id (a null read = no push to the agent), and
+    //   - step 8's runAiFirstResponder reads ai_responding (a stale
+    //     true read = the AI answers over an assigned human, §3.3).
+    // Fire-and-forget raced both: the reads landed before routing's
+    // write, so a fresh email's assigned agent got NO push and the AI
+    // proceeded anyway. Awaiting here (routing still best-effort via
+    // .catch) guarantees both reads see the post-routing state. The
+    // added latency lands on a machine webhook (Postmark), not a
+    // waiting human, so it's free. Do NOT revert to void.
+    await routeNewConversation({
       conversationId: freshConversationId,
       companyId: tenant.company_id,
       source: "email",
     }).catch(() => {
-      /* routing best-effort */
+      /* routing best-effort — a routing failure must not 500 the webhook */
     });
   }
 

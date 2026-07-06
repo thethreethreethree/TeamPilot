@@ -73,6 +73,15 @@ open-conversation chime still works (no regression).
   flow, not a live-test blocker — but it needs a design call: should the diarized
   upload REPLACE the live transcript, or be blocked when one exists? Your decision
   (it touches the append-only transcript). I'll implement whichever you choose.
+- **⚙️ UPDATE (sequencing fix SHIPPED):** the three coupled races below (AI
+  overtake, widget first-turn, and the agent-notify miss) shared one root cause —
+  the inbound route fired `routeNewConversation` fire-and-forget, so the notify +
+  AI responder read pre-routing state. Fixed by awaiting routing before both
+  (non-outward-facing: it only makes the agent push + AI-silence honest; it sends
+  NO customer email). So NOW: a fresh inbound email correctly pushes its assigned
+  agent, and the AI correctly stays silent when an agent was assigned. **Still
+  gated (your call):** enabling the AI to actually EMAIL the customer (the outbound
+  dispatch) — that's the outward-facing part, untouched. Details below.
 - **Email AI first-responder never sends (🔴 layer-2 gap — your call to enable).**
   A read-audit through the AMD-006 layer-2 lens found the inbound-email AI
   responder (`runAiFirstResponder` in `api/care/inbound/email/route.ts`) *generates*
@@ -125,6 +134,25 @@ open-conversation chime still works (no regression).
   want. Logged for completeness at 🟡 — tell me if you want the widget create→first
   -message flow to await routing before the AI first-responds, or to leave the AI
   first-touch as-is. No action taken; your call on whether it's a defect or a feature.
+  *Third coupled race (same root cause, same fix — found while checking the class):*
+  the inbound route also fires `void notifyAssignedAgentOfCustomerMessage` (line 331),
+  which reads `assigned_agent_id` — racing the same in-flight `routeNewConversation`.
+  On a FRESH email thread the notify reads null (routing hasn't assigned yet) and
+  early-returns WITHOUT sending a push AND without an error log (a null agent is a
+  clean return, not a failure). `routeNewConversation` doesn't notify on assignment
+  itself, so this is the only push — meaning **the agent auto-assigned to a brand-new
+  customer email gets no push about it** (they still see it in the inbox poll, so 🟡
+  degraded-notification, not lost message). **This bears on the OPEN push-delivery
+  diagnosis (§3 above / queue #2):** if you ever tested push via a fresh inbound
+  email, this race = no push attempted = no delivery AND no error log, which mimics
+  "subscribes but doesn't deliver." To isolate the real sender/VAPID issue from this
+  race, test push via a NEW message to an ALREADY-ASSIGNED conversation (existing
+  thread), where `assigned_agent_id` is stable and the notify fires correctly
+  (§3.5 single-variable). **All three races share ONE fix:** `await
+  routeNewConversation` before firing the notify AND the AI responder. I can ship
+  that sequencing fix on its own (it's not outward-facing — it only makes the agent
+  notification + AI-silence honest) even before you decide on enabling AI email send.
+  Say the word and I'll do the sequencing fix + a test.
 - **HSTS header** (🟡 minor hardening) — the one absent security header. Confirm
   your domain + all subdomains are HTTPS-only, then add to `SECURITY_HEADERS` in
   `next.config.ts`: `{ key: "Strict-Transport-Security", value: "max-age=63072000;
