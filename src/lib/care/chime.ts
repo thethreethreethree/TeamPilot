@@ -22,16 +22,45 @@ export function hasNewCustomerMessage(
   return next.some((m) => m.authorType === "customer" && !prevIds.has(m.id));
 }
 
+// A SINGLE shared AudioContext, reused for every chime. This is the crux of the
+// autoplay policy: the chime fires in the 5s poll (NOT a user gesture), so a
+// context created there starts suspended and stays silent — especially on Safari,
+// which only unlocks audio inside the gesture call-stack. By creating + resuming
+// this one context on the TOGGLE gesture (the preview play) and reusing it, the
+// later poll-fired chimes ride the already-unlocked context. Never closed.
+let sharedCtx: AudioContext | null = null;
+
+function getSharedContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AC =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!AC) return null;
+  if (!sharedCtx) {
+    try {
+      sharedCtx = new AC();
+    } catch {
+      return null;
+    }
+  }
+  return sharedCtx;
+}
+
 export function playNewMessageChime(): void {
   try {
-    if (typeof window === "undefined") return;
-    const AC =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
+    const ctx = getSharedContext();
+    if (!ctx) return;
+    // resume() is idempotent + best-effort. On the toggle gesture it unlocks the
+    // context (running inside the gesture); on a poll tick it's a no-op if the
+    // context is already running, or a blocked promise we safely ignore.
     void ctx.resume?.().catch(() => {});
+    // Note: we do NOT bail on state === "suspended". The context is always first
+    // created during the toggle GESTURE (soundOn starts off, so enabling it is
+    // the first play), so resume() will unlock it; scheduling the notes now means
+    // they play the moment it resumes (immediately on Chrome, a beat later on
+    // Safari) — including the enable-preview. currentTime doesn't advance while
+    // suspended, so nothing is lost.
 
     // Two soft sine notes (E5 → G#5), each a short bell-like envelope.
     const notes: Array<{ freq: number; at: number }> = [
@@ -53,14 +82,8 @@ export function playNewMessageChime(): void {
       osc.start(start);
       osc.stop(start + 0.24);
     }
-    // Close the context once the chime has finished so we don't leak contexts.
-    window.setTimeout(() => {
-      try {
-        void ctx.close?.();
-      } catch {
-        /* noop */
-      }
-    }, 600);
+    // NOTE: intentionally do NOT close the context — it is shared + reused so the
+    // autoplay unlock from the toggle gesture persists to later poll chimes.
   } catch {
     /* audio is best-effort — never let a chime failure disrupt the agent */
   }
