@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CueMode, TranscriptSpeaker, SalesContext } from "@/lib/data/salesCoach";
 import {
   isFillerSpike,
@@ -1234,6 +1234,39 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   }, []);
 
   const clearRecording = useCallback(() => setRecordingBlob(null), []);
+
+  // Cleanup on UNMOUNT (bug fix, 2026-07-06 read-audit): the hook had no
+  // useEffect at all, so navigating away mid-session without pressing Stop left
+  // the MIC ON with no visible session (a privacy + resource leak), plus an open
+  // socket + AudioContext + live timers. Free everything via refs (always
+  // current) on unmount. Empty deps → runs once, on teardown.
+  useEffect(() => {
+    return () => {
+      try {
+        recorderRef.current?.stop();
+      } catch {
+        /* noop */
+      }
+      try {
+        procRef.current?.disconnect();
+      } catch {
+        /* noop */
+      }
+      try {
+        void ctxRef.current?.close();
+      } catch {
+        /* noop */
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      try {
+        wsRef.current?.close();
+      } catch {
+        /* noop */
+      }
+      if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+    };
+  }, []);
 
   // Toggle the manual "agent is speaking" lock (single earbud tap / button).
   const toggleAgentSpeaking = useCallback(() => {
