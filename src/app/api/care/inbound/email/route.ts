@@ -363,9 +363,10 @@ export async function POST(req: NextRequest) {
 /**
  * Extract the local part from an email address. Strips display
  * name wrappers ("Jane <jane@x.com>" → "jane"), strips angle
- * brackets, lowercases.
+ * brackets, lowercases. Exported for unit tests — tenant routing
+ * depends on this, so a parsing regression silently drops mail.
  */
-function extractLocalPart(to: string): string | null {
+export function extractLocalPart(to: string): string | null {
   const match = to.match(/<([^>]+)>/);
   const address = (match?.[1] ?? to).trim().toLowerCase();
   const at = address.indexOf("@");
