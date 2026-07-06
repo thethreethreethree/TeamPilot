@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { llmCall } from "@/lib/llm";
+import { computeFrequentSignalKinds } from "./frequentSignals";
 
 /**
  * Brain learning cycle (§3.6, §4).
@@ -64,15 +65,11 @@ async function gatherEvidence(supabase: Awaited<ReturnType<typeof createClient>>
       .limit(500),
   ]);
 
-  const signalCounts = new Map<string, number>();
-  for (const row of signalsRes.data ?? []) {
-    signalCounts.set(row.kind, (signalCounts.get(row.kind) ?? 0) + 1);
-  }
-  const frequentSignalKinds = [...signalCounts.entries()]
-    .map(([kind, count]) => ({ kind, count }))
-    .filter((x) => x.count >= 5)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
+  // §4 evidence gate — a signal kind counts as a "pattern" only at >= 5
+  // observations (pure + tested in frequentSignals.ts).
+  const frequentSignalKinds = computeFrequentSignalKinds(
+    (signalsRes.data ?? []) as Array<{ kind: string }>
+  );
 
   return {
     heldResolutions: (heldRes.data ?? []).map((r) => ({
