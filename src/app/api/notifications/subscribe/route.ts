@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { isSafePushEndpoint } from "@/lib/notifications/pushEndpoint";
 
 /**
  * POST   /api/notifications/subscribe — register a push subscription
@@ -22,7 +23,15 @@ import { rateLimit } from "@/lib/api/rateLimit";
  */
 
 const SubscribeSchema = z.object({
-  endpoint: z.string().url().max(2048),
+  // The server LATER POSTs to this endpoint (webpush.sendNotification), so an
+  // unrestricted URL here is an SSRF sink — reject non-https + internal targets
+  // (cloud metadata, loopback, RFC1918). Legitimate push endpoints are always
+  // public https URLs and pass cleanly.
+  endpoint: z
+    .string()
+    .url()
+    .max(2048)
+    .refine(isSafePushEndpoint, "Endpoint must be a public https push URL."),
   keys: z.object({
     p256dh: z.string().min(1).max(200),
     auth: z.string().min(1).max(100),

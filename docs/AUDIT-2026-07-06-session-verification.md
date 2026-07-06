@@ -263,11 +263,19 @@ isolation check above, swept four known classes:
 - **Stored XSS via `dangerouslySetInnerHTML`** — 2 usages, BOTH clean: a static
   theme script (layout) and a `Section` title fed only static developer strings
   (used to render HTML entities, never user data). No finding.
+- **SSRF via stored push endpoint** — the subscribe route accepted `z.string()
+  .url()` (any URL) for the push endpoint, which sender.ts later POSTs to
+  server-side. An authenticated user could register an internal target (cloud
+  metadata / loopback / RFC1918) → blind SSRF. FIXED with `isSafePushEndpoint`
+  (https-only + reject internal IP literals) wired into the subscribe schema +
+  tests. Legitimate push hosts (incl. fcm.googleapis.com) pass cleanly.
 - **Multi-tenant isolation** (above) — read + write, sound through the stack.
+- **LLM cost / rate-limit** — only the already-flagged inbound-email endpoint is
+  unrate-limited (health/settings match the grep as CONFIG refs, not LLM calls).
 
-Net: 2 real hardenings shipped (0088 + the injection guard), 2 classes verified
-clean. Not an exhaustive pentest — the highest-leverage classes for a multi-tenant
-first-customer launch.
+Net: 3 real hardenings shipped (0088 definer search_path + the `.or()` injection
+guard + the SSRF guard), the rest verified clean. Not an exhaustive pentest — the
+highest-leverage classes for a multi-tenant first-customer launch.
 
 **Gate at extension end:** 317 tests passing / 9 skipped (integration, live-DB
 gated), typecheck + lint + rls:audit (0 missing) green.
