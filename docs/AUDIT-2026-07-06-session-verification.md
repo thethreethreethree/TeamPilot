@@ -73,6 +73,15 @@ loop) — the class that bites at scale. Clean:
   Sets over pre-fetched rows) — no query inside any loop.
 - Earlier this session: fixed a real render-perf anti-pattern (ToastProvider
   rebuilt its context value every render → memoized, `8899c59`).
+- **N+1 sweep (2026-07-06, applying the fluidity-build audit's "same class
+  elsewhere" discipline):** `getCueRelianceSeries` was N+1 — a `count` per session
+  in a loop (interactive read) → **FIXED** to 2 queries (`32e4a0b`). Same-class
+  instance in `afterPitch.ts:179` (`appendCueOutcome` per inferred outcome in a
+  loop) — **diagnosed ACCEPTABLE per A15, not fixed**: bounded (~5–20 cues),
+  post-call assembler (not a hot/interactive path), each insert's returned row is
+  used; the batch-insert refactor isn't worth it (§1.5). Crons
+  (`durabilitySweep`/`dissectBackfill`) + `brain/learn` do bounded per-item writes
+  in background cycles (acceptable). `observe.ts` batches its insert (clean).
 
 ## Accessibility (AMD-006 layer 4 — surface)
 
