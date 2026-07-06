@@ -14,6 +14,7 @@ import {
 } from "@/lib/care/prompt";
 import { generateCareReply } from "@/lib/claude";
 import { LlmError } from "@/lib/llm/errors";
+import { constantTimeEqual } from "@/lib/api/constantTime";
 
 /**
  * POST /api/care/inbound/email
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
     );
   }
   const incomingSecret = req.headers.get("x-care-webhook-secret");
-  if (incomingSecret !== expectedSecret) {
+  if (!constantTimeEqual(incomingSecret, expectedSecret)) {
     return NextResponse.json(
       { error: "Webhook authentication failed." },
       { status: 401 }

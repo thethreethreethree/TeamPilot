@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runDissectBackfill } from "@/lib/coach/v5/dissectBackfill";
+import { constantTimeEqual } from "@/lib/api/constantTime";
 
 /**
  * GET /api/coach/sales-session/backfill-dissects-cron
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
     );
   }
   const header = req.headers.get("authorization") ?? "";
-  if (header !== `Bearer ${cronSecret}`) {
+  if (!constantTimeEqual(header, `Bearer ${cronSecret}`)) {
     return NextResponse.json(
       { error: "Cron authentication failed." },
       { status: 401 }

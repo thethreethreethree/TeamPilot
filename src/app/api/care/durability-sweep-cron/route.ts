@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sweepDurabilityChecks } from "@/lib/care/durabilitySweep";
+import { constantTimeEqual } from "@/lib/api/constantTime";
 
 /**
  * GET /api/care/durability-sweep-cron
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
     );
   }
   const header = req.headers.get("authorization") ?? "";
-  if (header !== `Bearer ${cronSecret}`) {
+  if (!constantTimeEqual(header, `Bearer ${cronSecret}`)) {
     return NextResponse.json(
       { error: "Cron authentication failed." },
       { status: 401 }
