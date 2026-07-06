@@ -37,6 +37,13 @@ open-conversation chime still works (no regression).
   and I'll build it.
 - **Live billing** — a business decision; the CRM schema is ready when you are.
 - **SSE real-time** — replaces the 5s poll; big + low-urgency. Say the word.
+- **Inbound-email AI-reply rate limit** (🟡 cost/DoS flag from the audit) — the
+  one unrate-limited LLM endpoint. Mitigated (webhook-secret auth + retry dedup),
+  so not urgent, but a spam flood to a tenant's inbound address = unbounded LLM
+  cost. Decide a per-tenant auto-reply cap (e.g., N/hour) and I'll build it:
+  ingest+store every email, skip only the AI auto-reply past the cap (agent
+  handles it). Needs a tenant-keyed limiter (the current one is IP-keyed, wrong
+  for a webhook).
 
 ## What shipped (for context)
 
