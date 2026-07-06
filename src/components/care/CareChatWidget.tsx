@@ -530,9 +530,13 @@ export function CareChatWidget() {
             )}
           </div>
 
-          {/* Error banner */}
+          {/* Error banner — role=alert so a screen-reader customer HEARS why a
+              send failed (the message container's role=log is separate). */}
           {error && (
-            <div className="px-4 py-2 text-[11px] text-red-400 border-t border-red-500/30 bg-red-500/5">
+            <div
+              role="alert"
+              className="px-4 py-2 text-[11px] text-red-400 border-t border-red-500/30 bg-red-500/5"
+            >
               {error}
             </div>
           )}
