@@ -408,7 +408,11 @@ export function LiveCoachingPanel({
         </LearningHint>
       )}
 
-      {error && <p className="text-xs text-amber-300 mt-2">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-amber-300 mt-2">
+          {error}
+        </p>
+      )}
 
       {/* Live mic-level meter — the same RMS that drives proximity
           attribution, shown so the agent can see they're the louder voice. */}
