@@ -635,7 +635,9 @@ export function ConversationsApp({
           const res = await fetch(
             `/api/care/agent/conversations/${selectedId}`
           );
-          if (res.ok) {
+          // Re-check cancelled AFTER the await: a switch during the fetch must not
+          // let this (now-stale) conversation's messages overwrite the new one.
+          if (res.ok && !cancelled) {
             const data = await res.json();
             // Only update if message count actually changed or last
             // message id moved — avoids re-render churn.
@@ -671,7 +673,7 @@ export function ConversationsApp({
           const evRes = await fetch(
             `/api/care/agent/conversations/${selectedId}/events`
           );
-          if (evRes.ok) {
+          if (evRes.ok && !cancelled) {
             const data = await evRes.json();
             setEvents(data.events ?? []);
           }
