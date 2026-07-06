@@ -933,23 +933,24 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           const voiceHint: TranscriptSpeaker =
             pitchTrusted && pitch.speaker ? pitch.speaker : v.speaker;
           const contentGuess = guessSpeakerFromContent(text);
+          // Video A/B (founder 2026-07-06 → mic-only v1): a video call's mic is
+          // AGENT-ONLY — the prospect is on the far end of the call, not in the
+          // mic. composeProvisional applies that as a HARD override (isVideo →
+          // rep, never fabricate a prospect turn from content/loudness; §3.4,
+          // the audit's Layer-A flag). Prospect-side cues can't fire mic-only;
+          // the rep-delivery cues (stress, on-demand, stall) do — matching the
+          // "the coach hears your side" disclosure on the surface.
+          const isVideo = contextRef.current === "video";
           const composed = composeProvisional({
             locked,
             content: contentGuess,
             pitch: pitch.speaker,
             pitchTrusted,
             loudness: v.speaker,
+            isVideo,
           });
-          // Video A/B (founder 2026-07-06 → mic-only v1): a video call's mic is
-          // AGENT-ONLY — the prospect is on the far end of the call, not in the
-          // mic. So attribute every live turn to the rep; NEVER fabricate a
-          // prospect turn from a content tell or loudness (§3.4 — the audit's
-          // Layer-A flag). Prospect-side cues (objection/buying-signal) can't
-          // fire mic-only; the rep-delivery cues (stress, on-demand, stall) do —
-          // matching the "the coach hears your side" disclosure on the surface.
-          const isVideo = contextRef.current === "video";
-          const provisional: TranscriptSpeaker = isVideo ? "agent" : composed.speaker;
-          const attrSource = isVideo ? "video-mic" : composed.source;
+          const provisional: TranscriptSpeaker = composed.speaker;
+          const attrSource = composed.source;
           const priorSpeaker =
             turnsRef.current[turnsRef.current.length - 1]?.speaker ?? "agent";
           const index = turnsRef.current.length;

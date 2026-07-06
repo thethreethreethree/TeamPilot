@@ -85,7 +85,12 @@ export function guessSpeakerFromContent(text: string): TranscriptSpeaker | null 
   return null; // ambiguous / mixed / no tell → voice + LLM decide
 }
 
-export type AttributionSource = "manual" | "content" | "pitch" | "loudness";
+export type AttributionSource =
+  | "video-mic"
+  | "manual"
+  | "content"
+  | "pitch"
+  | "loudness";
 
 /**
  * Compose the four live signals into the provisional label (A16). Priority:
@@ -98,7 +103,13 @@ export function composeProvisional(signals: {
   pitch: TranscriptSpeaker | null;
   pitchTrusted: boolean;
   loudness: TranscriptSpeaker;
+  /** Video is mic-only = agent-only: the prospect is on the far end of the
+   *  call, not in the mic. This is a HARD context constraint that overrides
+   *  every acoustic/content signal — every captured turn is the rep. Defaults
+   *  false (in-person, one mic holds both voices). */
+  isVideo?: boolean;
 }): { speaker: TranscriptSpeaker; source: AttributionSource } {
+  if (signals.isVideo) return { speaker: "agent", source: "video-mic" };
   if (signals.locked) return { speaker: "agent", source: "manual" };
   if (signals.content) return { speaker: signals.content, source: "content" };
   if (signals.pitchTrusted && signals.pitch) {

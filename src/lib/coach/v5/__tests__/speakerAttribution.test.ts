@@ -88,4 +88,27 @@ describe("composeProvisional — signal priority (A16)", () => {
       composeProvisional({ ...base, content: null, pitch: "customer", pitchTrusted: false, loudness: "agent" })
     ).toEqual({ speaker: "agent", source: "loudness" });
   });
+
+  it("video mic-only OVERRIDES every signal → rep (mic is agent-only)", () => {
+    // The mic physically holds only the rep on a video call; the prospect is on
+    // the far end. So even a strong customer content tell + trusted customer
+    // pitch + customer loudness must resolve to the rep — never a phantom
+    // prospect turn (§3.4; the 2026-07-06 mic-only-video fix).
+    expect(
+      composeProvisional({
+        locked: false,
+        content: "customer",
+        pitch: "customer",
+        pitchTrusted: true,
+        loudness: "customer",
+        isVideo: true,
+      })
+    ).toEqual({ speaker: "agent", source: "video-mic" });
+  });
+
+  it("isVideo:false leaves in-person composition unchanged (default path)", () => {
+    expect(
+      composeProvisional({ ...base, content: "customer", isVideo: false })
+    ).toEqual({ speaker: "customer", source: "content" });
+  });
 });
