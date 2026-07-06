@@ -250,8 +250,12 @@ function ensure(name) {
 }
 
 const RLS_ENABLE_RE = /alter\s+table\s+(?:public\.)?(\w+)\s+enable\s+row\s+level\s+security/gi;
+// Policy names may be double-quoted ("files - select") OR a bare identifier
+// (files_select). The original regex only matched the quoted form, so every
+// table whose policies use unquoted names (0055 departments, 0057 files, …)
+// was reported as having NO policies — a parser false-positive, not a real gap.
 const POLICY_RE =
-  /create\s+policy\s+"[^"]+"\s+on\s+(?:public\.)?(\w+)\s+for\s+(select|insert|update|delete|all)\b/gi;
+  /create\s+policy\s+(?:"[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)\s+for\s+(select|insert|update|delete|all)\b/gi;
 const DROP_TABLE_RE = /drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?(\w+)/gi;
 
 // Recognize the dynamic policy-creation idiom used in 0001:
