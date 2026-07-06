@@ -75,6 +75,34 @@ they're stripped, `filler_spike` silently never fires and I'll wire an alternati
 
 ---
 
+## 5. Fluidity readout (2026-07-06 build — timing + delivery)
+
+The fluidity build added a **latency + delivery readout** to the console. This is
+the data that decides the *next* timing work (the readout-first plan), so it's the
+most important thing to capture.
+
+**Do:** Run a normal call with DevTools console open. Watch for two log shapes:
+- Per cue: `[cue-metric] DELIVERED total=…ms queue=… llm=… tts=… importance=… phase=… trigger=… mode=…`
+  (or `suppressed(<reason>)` when a cue was held back).
+- On **Stop**: `[cue-summary] delivered=… suppressed=… median=…ms p90=…ms`.
+
+**What to send me (this is the whole point):** the `[cue-summary]` line + a few
+`[cue-metric]` lines. That tells me exactly where the delay lives:
+- **`total`** = the real end-to-end delay from the prospect stopping to the cue in
+  your ear (now includes the ~700ms settle — I fixed a measurement bug where it
+  didn't). If `llm=` is the big chunk → the next win is a faster cue model /
+  streaming. If `queue=` (settle) is big → parallelism. **I build whichever the
+  numbers point to** — I deliberately did NOT guess.
+
+**Delivery (the single-best-cue change):** you should notice **fewer, sharper**
+cues — low-value ones are now suppressed (you'll see `suppressed(low-importance)`
+in the log). If it feels like it's holding back cues you *wanted*, tell me — the
+high/medium/low bar is tunable.
+
+**Rep's own lines:** if you (the test rep) have past sessions marked **sold** with
+cues you tapped "used", the coach now leans on *your* proven phrasing. Needs that
+history to show — brand-new accounts won't have it yet.
+
 ## Fast path
 
 Open DevTools console on a video test, run through 1–4, and send me the
