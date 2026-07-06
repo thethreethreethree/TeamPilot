@@ -11,6 +11,10 @@ import {
 } from "@/lib/coach/v5/liveStress";
 import { detectF0, PitchSeparator } from "@/lib/coach/v5/pitchSeparation";
 import {
+  guessSpeakerFromContent,
+  composeProvisional,
+} from "@/lib/coach/v5/speakerAttribution";
+import {
   computeConfidence,
   type ConfidenceRead,
 } from "@/lib/coach/v5/liveConfidence";
@@ -91,32 +95,6 @@ type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean };
  * Combined WITH (not replacing) the content classifier. Honest limit:
  * assumes the mic is AGENT-WORN; a table-placed mic breaks it.
  */
-// Instant, content-based speaker guess for the provisional label. Obvious
-// buyer-vs-seller language attributes a turn the MOMENT it commits — no wait on
-// the LLM classifier, no reliance on in-person loudness (unreliable: the
-// prospect is often closer/louder). Returns null when the content isn't a clear
-// tell, so voice (pitch + loudness) decides and the LLM settles the rest.
-// Composes WITH voice (§A16) — it does not replace it. The KEY asymmetry the
-// 2026-07-06 live test exposed: OFFERING to provide ("I can give you detail")
-// is the salesperson; ASKING for it ("give me detail") is the prospect.
-export function quickContentGuess(text: string): TranscriptSpeaker | null {
-  const t = ` ${text.toLowerCase().replace(/[.,!?;:]/g, " ")} `;
-  // Seller OFFERS to show/explain/provide, or pitches the offering. Patterns
-  // kept tight to avoid false positives (e.g. bare "we have"/"do you have" are
-  // ambiguous — a prospect says "we have 50 staff"); null is safe (voice + LLM
-  // decide), a false label is not.
-  const sellerOffer =
-    /\b(let me (show|walk|explain|tell)|i can (show|give|walk|offer)|how about i (show|walk)|i'?ll (show|give|walk) you|we (offer|provide|can do)|our (product|service|pricing|offer|plan|solution)|here'?s how (it|the|this))\b/;
-  // Buyer ASKS to see/learn, questions price/fit, or states their need/doubt.
-  const buyerAsk =
-    /\b(i (wanna|want to|'?d like to|would like to) (see|know|hear|learn|understand)|can you (give|show|tell|send) me|give me (more )?detail|show me|tell me more|how much (does|is|would|will|are|for)\b|how much.{0,20}(cost|price)|what'?s the (price|cost)|i'?m (not sure|interested))\b/;
-  const seller = sellerOffer.test(t);
-  const buyer = buyerAsk.test(t);
-  if (seller && !buyer) return "agent";
-  if (buyer && !seller) return "customer";
-  return null; // ambiguous / mixed → voice + the LLM decide
-}
-
 function volumeVerdict(
   energy: number,
   agentLevel: number | null,
@@ -901,12 +879,17 @@ export function useLiveCoaching(sessionId: string) {
           // hint and reasons on content itself, so both signals inform it too.
           const pitchTrusted =
             pitchSepRef.current.isAnchored() && pitch.confidence >= PITCH_TRUST;
+          // Voice-only signal — passed to the LLM /attribute as its tiebreaker.
           const voiceHint: TranscriptSpeaker =
             pitchTrusted && pitch.speaker ? pitch.speaker : v.speaker;
-          const contentGuess = quickContentGuess(text);
-          const provisional: TranscriptSpeaker = locked
-            ? "agent"
-            : contentGuess ?? voiceHint;
+          const contentGuess = guessSpeakerFromContent(text);
+          const { speaker: provisional, source: attrSource } = composeProvisional({
+            locked,
+            content: contentGuess,
+            pitch: pitch.speaker,
+            pitchTrusted,
+            loudness: v.speaker,
+          });
           const priorSpeaker =
             turnsRef.current[turnsRef.current.length - 1]?.speaker ?? "agent";
           const index = turnsRef.current.length;
@@ -917,7 +900,7 @@ export function useLiveCoaching(sessionId: string) {
           setTurns(turnsRef.current);
           // eslint-disable-next-line no-console
           console.info(
-            `[live-coaching] turn #${index + 1} committed (energy=${energy.toFixed(4)} vol=${v.speaker} pitch=${pitch.speaker}@${pitch.confidence.toFixed(2)} content=${contentGuess ?? "-"} → ${provisional}): "${text.slice(0, 80)}"`
+            `[live-coaching] turn #${index + 1} committed (energy=${energy.toFixed(4)} vol=${v.speaker} pitch=${pitch.speaker}@${pitch.confidence.toFixed(2)} content=${contentGuess ?? "-"} → ${provisional} [src=${attrSource}]): "${text.slice(0, 80)}"`
           );
           // A new commit cancels any pending cue (the salesperson didn't
           // wait for it). The cue trigger lives in classifyTurn, gated on the
