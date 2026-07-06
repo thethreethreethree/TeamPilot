@@ -268,7 +268,10 @@ isolation check above, swept four known classes:
   server-side. An authenticated user could register an internal target (cloud
   metadata / loopback / RFC1918) → blind SSRF. FIXED with `isSafePushEndpoint`
   (https-only + reject internal IP literals) wired into the subscribe schema +
-  tests. Legitimate push hosts (incl. fcm.googleapis.com) pass cleanly.
+  tests. Legitimate push hosts (incl. fcm.googleapis.com) pass cleanly. Swept ALL
+  server-side fetch sinks (§A14): the push endpoint was the ONLY user-controlled
+  URL fetched server-side; every other fetch uses a hardcoded/env host (Postmark,
+  ElevenLabs, DeepSeek, Supabase) — so the fix is complete, not a one-spot patch.
 - **Multi-tenant isolation** (above) — read + write, sound through the stack.
 - **LLM cost / rate-limit** — only the already-flagged inbound-email endpoint is
   unrate-limited (health/settings match the grep as CONFIG refs, not LLM calls).
