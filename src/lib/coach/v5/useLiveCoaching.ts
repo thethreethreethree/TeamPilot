@@ -889,7 +889,7 @@ export function useLiveCoaching(sessionId: string) {
           customerLevelRef.current = v.customerLevel;
           // Compose the provisional label (§A16) LIVE and zero-latency, using
           // BOTH content and voice: the manual toggle wins when locked; else an
-          // OBVIOUS content tell (quickContentGuess — instant, no network) wins,
+          // OBVIOUS content tell (guessSpeakerFromContent — instant, no network) wins,
           // because content is the reliable in-person signal; else a confident
           // pitch cluster (once anchored, audit F2); else loudness. The LLM
           // /attribute below refines the non-obvious cases — it gets the VOICE
