@@ -26,9 +26,21 @@
 | **theme leaks** | theme:audit RED on 25 | **All fixed** (`brand-shell` token + theme-aware text); theme:audit 0 ✅ |
 | **lint** | 2 exhaustive-deps warnings | Fixed, incl. a real perf fix (memoized ToastProvider value) `8899c59`; 0 warnings ✅ |
 
+| **Notification cross-tenant leak** | Can `notify-message` notify the wrong company, or be spoofed? | **No** — anti-spoof (only `author_id === auth.user.id` may trigger); the service-role participant fetch is explicitly scoped `eq("company_id", msg.company_id)` ✅ |
+
+## Security posture (observed pattern)
+
+The service-role routes follow a consistent, mature isolation discipline: access
+gated by an RLS-scoped **user-client** read (or an explicit company check) BEFORE
+any service-role work; anti-spoof author checks; webhook shared secrets with
+env-present guards; tenant routing by exact server-side identifiers, never
+spoofable client input. The one deviation found (fail-open company check, 8
+routes) was hardened to fail-closed (`5e0f935`). This is a strong baseline.
+
 ## Open flags
 
-**None constitutional.** Every invariant is enforced and (where testable) regression-pinned.
+**None constitutional. None security.** Every invariant is enforced and (where
+testable) regression-pinned; the one security finding was fixed.
 
 ## Owed to the operator (not code)
 
