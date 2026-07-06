@@ -19,7 +19,9 @@ import { z } from "zod";
  * UI to be browsable. The strict check only kicks in for production.
  */
 
-const Env = z
+// Exported so the validation logic (esp. the production superRefine) can be
+// unit-tested without the import-time process.env parse below.
+export const Env = z
   .object({
     NODE_ENV: z.enum(["development", "production", "test"]).optional(),
     EXECOS_ALLOW_SEED: z
@@ -74,6 +76,28 @@ const Env = z
           path: ["DEEPSEEK_API_KEY"],
           message:
             "Production requires at least one LLM provider key. Set DEEPSEEK_API_KEY (primary) or ANTHROPIC_API_KEY (alternate).",
+        });
+      }
+      // If a provider is EXPLICITLY selected, its own key must be present.
+      // chooseProvider() honours LLM_PROVIDER strictly (no key-fallback), so
+      // "LLM_PROVIDER=anthropic" + only DEEPSEEK_API_KEY set would pass the
+      // >=1-key check above yet return the keyless Anthropic provider and fail
+      // at the first LLM call — the exact confusing runtime error this
+      // validator exists to prevent. Fail fast at startup instead.
+      if (env.LLM_PROVIDER === "deepseek" && !hasDeepseek) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["DEEPSEEK_API_KEY"],
+          message:
+            "LLM_PROVIDER=deepseek but DEEPSEEK_API_KEY is not set. Set the key, or unset LLM_PROVIDER to auto-select.",
+        });
+      }
+      if (env.LLM_PROVIDER === "anthropic" && !hasAnthropic) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["ANTHROPIC_API_KEY"],
+          message:
+            "LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set. Set the key, or unset LLM_PROVIDER to auto-select.",
         });
       }
       const hasUrl = Boolean(env.NEXT_PUBLIC_SUPABASE_URL);
