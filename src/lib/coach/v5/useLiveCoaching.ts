@@ -406,8 +406,27 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     async (
       onDemand = false,
       stall = false,
-      stress?: { fillerSpike: boolean; paceSpike: boolean }
+      stress?: { fillerSpike: boolean; paceSpike: boolean },
+      // Fix A (audit 2026-07-06): the delay the agent actually feels starts when
+      // the prospect STOPPED talking (the turn commit) — NOT when this callback
+      // runs, which for the auto-cue path is ~700ms later (after the settle). The
+      // auto-cue caller passes the commit time; on-demand/stall default to now.
+      triggeredAtArg?: number
     ) => {
+      const triggeredAt = triggeredAtArg ?? performance.now();
+      // Fix B (audit 2026-07-06): record a trace on EVERY exit branch, not just
+      // the success path — else the readout undercounts failures + cooldown
+      // suppressions (A14 completeness / A2 honest measurement).
+      const recordTrace = (t: Partial<CueTrace> & { delivered: boolean }) => {
+        const trace: CueTrace = {
+          triggeredAt,
+          mode: contextRef.current === "video" ? "video" : "in_person",
+          ...t,
+        };
+        cueTracesRef.current.push(trace);
+        // eslint-disable-next-line no-console
+        console.info(formatCueMetric(trace));
+      };
       if (cueInFlightRef.current) return;
       const live = turnsRef.current;
       if (live.length < 2) {
@@ -423,14 +442,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
         lastCueAtRef.current > 0 &&
         Date.now() - lastCueAtRef.current < CUE_COOLDOWN_MS
       ) {
+        recordTrace({ delivered: false, suppressReason: "cooldown" });
         return; // within cooldown — don't auto-cue over a fresh cue
       }
       cueInFlightRef.current = true;
       if (onDemand) setCueStatus("Thinking…");
-      // A2 instrumentation: the clock the agent experiences delay against starts
-      // the moment we decide to fetch a cue (the prospect's turn just ended, or
-      // they asked). llmStarted is marked at the fetch.
-      const triggeredAt = performance.now();
       let llmStartedAt = triggeredAt;
       try {
         llmStartedAt = performance.now();
@@ -463,6 +479,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           }),
         });
         if (!res.ok) {
+          recordTrace({
+            llmStartedAt,
+            llmEndedAt: performance.now(),
+            delivered: false,
+            suppressReason: `http-${res.status}`,
+          });
           if (onDemand) setCueStatus(`Cue request failed (${res.status}).`);
           return;
         }
@@ -487,33 +509,35 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           importance,
           onDemand,
         });
-        const trace: CueTrace = {
-          triggeredAt,
-          llmStartedAt,
-          llmEndedAt,
-          importance,
-          phase: typeof c.phase === "string" ? c.phase : undefined,
-          trigger: typeof c.trigger === "string" ? c.trigger : undefined,
-          delivered: decision.deliver,
-          suppressReason: decision.suppressReason,
-          mode: contextRef.current === "video" ? "video" : "in_person",
-        };
+        let deliveredAt: number | undefined;
         if (decision.deliver) {
           lastCueAtRef.current = Date.now(); // start the cooldown
           // Track the persisted cue id so the rep can mark it "used" (0080).
           currentCueIdRef.current = (data?.cueId as string | null) ?? null;
           setCueMarked(false);
           setCurrentCue(c.cue);
-          trace.deliveredAt = performance.now(); // cue reaches the ear (TTS start)
+          deliveredAt = performance.now(); // cue reaches the ear (TTS start)
           void speakCue(c.cue);
         } else if (onDemand) {
           // force was on, so this is rare — but don't leave the button dead.
           setCueStatus("Coach had nothing pressing to add right now.");
         }
-        cueTracesRef.current.push(trace);
-        // eslint-disable-next-line no-console
-        console.info(formatCueMetric(trace));
+        recordTrace({
+          llmStartedAt,
+          llmEndedAt,
+          deliveredAt,
+          importance,
+          phase: typeof c.phase === "string" ? c.phase : undefined,
+          trigger: typeof c.trigger === "string" ? c.trigger : undefined,
+          delivered: decision.deliver,
+          suppressReason: decision.suppressReason,
+        });
       } catch (err) {
+        recordTrace({
+          llmStartedAt,
+          delivered: false,
+          suppressReason: "exception",
+        });
         if (onDemand) setCueStatus("Cue request failed — see console.");
         // eslint-disable-next-line no-console
         console.warn("[live-coaching] cue request failed", err);
@@ -624,7 +648,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
         });
         if (cueAction === "schedule") {
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-          cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
+          // Fix A: stamp the turn-end so the measured latency includes the settle.
+          const turnEndedAt = performance.now();
+          cueTimerRef.current = setTimeout(
+            () => void invokeCue(false, false, undefined, turnEndedAt),
+            TURN_SETTLE_MS
+          );
         } else if (cueAction === "cancel") {
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
           cueScheduledAtCommitRef.current = -1;
@@ -1035,7 +1064,13 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             })
           ) {
             cueScheduledAtCommitRef.current = index;
-            cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
+            // Fix A: stamp the turn-end NOW (the commit) so the cue's measured
+            // end-to-end latency includes the settle wait, not just llm+tts.
+            const turnEndedAt = performance.now();
+            cueTimerRef.current = setTimeout(
+              () => void invokeCue(false, false, undefined, turnEndedAt),
+              TURN_SETTLE_MS
+            );
           }
           // The LLM /attribute refines the label + gates the cue for the
           // non-obvious turns — IN-PERSON ONLY. Video is mic-only agent: there

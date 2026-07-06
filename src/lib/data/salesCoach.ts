@@ -495,14 +495,21 @@ export async function getRepWinningLines(args: {
   //    determination filter already restricts to 'followed').
   const { data: outcomes } = await sb
     .from("coaching_cue_outcomes")
-    .select("cue_id, created_at")
+    .select("cue_id, created_at, source")
     .in("session_id", sessionIds)
     .eq("determination", "followed")
     .order("created_at", { ascending: false })
     .limit(40);
-  const cueIds = Array.from(
-    new Set((outcomes ?? []).map((o) => o.cue_id as string))
+  // §3.5 (audit fix C): prefer REP-CONFIRMED ('rep_marked') follows over
+  // 'inferred' ones — a line the rep actually said they used, not one the system
+  // guessed. Inferred still counts (it's gated by the 'sold' consequence) but
+  // ranks below, so the capped list is filled with confirmed lines first.
+  // V8 Array.sort is stable, so recency order (query order-by) holds within each group.
+  const ranked = [...(outcomes ?? [])].sort(
+    (a, b) =>
+      (a.source === "rep_marked" ? 0 : 1) - (b.source === "rep_marked" ? 0 : 1)
   );
+  const cueIds = Array.from(new Set(ranked.map((o) => o.cue_id as string)));
   if (cueIds.length === 0) return [];
   // 3. The cue texts.
   const { data: cues } = await sb
