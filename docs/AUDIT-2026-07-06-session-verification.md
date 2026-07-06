@@ -29,6 +29,22 @@
 
 | **Notification cross-tenant leak** | Can `notify-message` notify the wrong company, or be spoofed? | **No** — anti-spoof (only `author_id === auth.user.id` may trigger); the service-role participant fetch is explicitly scoped `eq("company_id", msg.company_id)` ✅ |
 
+## Robustness — LLM-output validation (§3.4)
+
+Swept every module that turns model output into data used downstream, for the
+"pass the parsed output through unvalidated" gap. Found + fixed a systematic one
+in the System's three core reasoning generators, which returned model arrays raw:
+- **§1.3 outside-view** (`6e015bb`) — now drops any reading missing framing /
+  whatItChallenges / ifTrueThen.
+- **§1.5 ripple-trace** (`5a4edf8`) — now drops any ripple missing its Rule-2 WHY;
+  bogus confidence → conservative "low".
+- **§3.6 learning cycle** (`a30ada9`) — now skips a malformed distillation item
+  rather than writing a null-claim brain row or aborting the cycle.
+
+Verified the rest already validate (drop malformed items): the coach parsers
+(review/dissect/moments/patterns/score), `salesPrep`, and the C.A.R.E grader. So
+no LLM-output consumer now surfaces or persists unvalidated model items.
+
 ## Performance (data-layer hot paths)
 
 Checked the frequently-hit read paths for N+1 queries (a query per item in a
