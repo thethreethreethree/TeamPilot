@@ -296,18 +296,21 @@ call).** THINK-first audit of the Tasks (Operations) surface: the problems gate 
 hard (DB `check_understanding_gate` trigger, now integration-tested); the TASK gate
 (§A6 Pillar 1 — understand before starting) is enforced only in the UI —
 `operations/[id]/page.tsx` renders ONLY the gate form until `gate_cleared`, so
-status buttons are unreachable — but `changeTaskStatus` (`tasks.ts:393`) updates
-status with NO `gate_cleared` check, and 0021 has no enforcement trigger. So a
-direct API call can move a task out of draft without clearing the gate, which
-contradicts 0021's comment ("a task can't move out of draft until the gate is
-cleared"). Severity LOW: the bypass is a user skipping the understanding step on
-their OWN task (RLS-scoped, no cross-tenant / integrity / security impact); normal
-flow is enforced. Recommendation (founder's call): if Pillar 1 should be as hard as
-the problems gate, add a guard in `changeTaskStatus` (reject a non-draft transition
-when `!gate_cleared`) — small + safe, only blocks the bypass — and ideally a DB
-trigger for true structural parity; if it's an intentional soft nudge, correct the
-0021 comment to say "UI-enforced." I flagged rather than fixed because it changes
-transition behavior and there may be legitimate non-UI callers I can't fully verify.
+status buttons are unreachable — but the data layer doesn't check it, via TWO
+paths: `changeTaskStatus` (`tasks.ts:393`) and the tasks PATCH route (`status` is
+in its allowlist), neither of which checks `gate_cleared`; and 0021 has no
+enforcement trigger. So a direct API call can move a task's status without clearing
+the gate, contradicting 0021's comment ("can't move out of draft until the gate is
+cleared"). (One thing IS solid: `gate_cleared` is NOT PATCH-able — only the
+dedicated clear-gate function sets it after the answers, so no hollow-clear.)
+Severity LOW: the bypass is a user skipping the understanding step on their OWN task
+(RLS-scoped, no cross-tenant / integrity / security impact); normal UI flow is
+enforced. Recommendation (founder's call): because MULTIPLE paths bypass it, the
+right fix is a DB trigger (reject a status change to a non-gate-cleared task —
+grandfathering existing non-draft rows), not per-path guards; if it's an intentional
+soft nudge, correct the 0021 comment to say "UI-enforced." Flagged not fixed: it
+changes transition behavior + needs the grandfathering migration, which is
+§3.1-sensitive-adjacent and your call.
 
 **Accessibility pass (this session's live surfaces).** FIXED: the live Sales Coach
 cue had no `aria-live`, so a screen-reader rep running visual-only (TTS off) got
