@@ -4,6 +4,27 @@
 > green build — `npm run check` passes and every commit is shipped to `main`.
 > These are the things only you can do (apply migrations, test live, decide).
 
+## ⭐ Start here (triage — everything else is detail below)
+
+If you only do a few things, do these, in order:
+
+1. **Run one live Sales Coach call and send me the Stop readout line.** It now
+   reads `… median … · where: settle X · llm Y · tts Z` — the `where:` names which
+   stage to attack, so your one call unblocks the whole deferred timing build.
+   (see "Live tests" below)
+2. **Decide: enable the email AI to actually email customers?** 🔴 Right now the
+   AI writes replies that are never sent (they sit in the inbox). Wiring it is
+   ready but makes the AI autonomously email real customers — your call, not mine
+   to flip. (see "Decisions" below → "Email AI first-responder never sends")
+3. **Apply migrations `0085` / `0086` / `0087`** — additive, idempotent, safe.
+   (see "Apply three migrations" below)
+4. **Push delivery:** set the VAPID vars on Vercel, trigger a push to an
+   *already-assigned* conversation, paste the `[push-sender]` log line. The code
+   path is now verified sound end-to-end, so the log will name the config cause.
+   (see "Decisions" below → "Push delivery")
+
+Everything below is the full detail + the smaller flags.
+
 ## 1. Apply three migrations (all additive, idempotent, safe)
 
 | Migration | What it does | Risk |
