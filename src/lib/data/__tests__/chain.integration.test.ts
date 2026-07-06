@@ -251,3 +251,109 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
     });
   }
 );
+
+// ─────────────────────────────────────────────────────────────
+// §3.2 Understanding Gate — the OTHER core structural guarantee.
+//
+// Why this exists: §3.2 says a problem "may NOT be surfaced until it links to a
+// minimum threshold of signals — the schema itself must prevent half-understood
+// problems from reaching a human. The bottleneck is encoded, not left to
+// discretion." That guarantee is enforced ENTIRELY by the check_understanding_gate()
+// trigger in 0002. Until this block it had ZERO reproducible test — a future
+// migration that altered or dropped the trigger would silently open the gate and
+// nothing would catch it (the exact shape of the 2026-07-03 outage: a migration
+// removed a safeguard on an unverified assumption). This pins both directions:
+// blocked without evidence, allowed once the threshold is met.
+//
+// Default '*' threshold (0002): min_signals=3, min_distinct_sources=2,
+// min_diagnosis_chars=80. We give every problem an 80+ char diagnosis so the
+// SIGNAL gate is the variable under test, not the diagnosis-length gate.
+// ─────────────────────────────────────────────────────────────
+describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
+  "§3.2 understanding gate — structural enforcement (DB trigger, not app-level)",
+  () => {
+    const TEST_COMPANY_NAME = "EXECOS Chain Integration Test";
+    const runTag = `gate-test-${Date.now()}`;
+    const DIAGNOSIS =
+      "Deliberately long diagnosis authored by the understanding-gate integration " +
+      "test, comfortably over the eighty-character minimum the default threshold sets.";
+    let companyId: string;
+
+    beforeAll(async () => {
+      const lookup = await rest(
+        "GET",
+        `/rest/v1/companies?name=eq.${encodeURIComponent(TEST_COMPANY_NAME)}&select=id`
+      );
+      const found = lookup.data as Array<{ id: string }>;
+      if (found.length > 0) {
+        companyId = found[0]!.id;
+      } else {
+        const c = await rest("POST", "/rest/v1/companies", {
+          name: TEST_COMPANY_NAME,
+        });
+        expect(c.status, JSON.stringify(c.data)).toBe(201);
+        companyId = (c.data as Array<{ id: string }>)[0]!.id;
+      }
+    });
+
+    async function createDraftProblem(kind: string): Promise<string> {
+      const p = await rest("POST", "/rest/v1/problems", {
+        company_id: companyId,
+        kind,
+        title: `${runTag}:${kind}`,
+        diagnosis: DIAGNOSIS,
+      });
+      expect(p.status, JSON.stringify(p.data)).toBe(201);
+      const row = (p.data as Array<{ id: string; status: string }>)[0]!;
+      expect(row.status).toBe("draft"); // default — not yet surfaced
+      return row.id;
+    }
+
+    it("BLOCKS surfacing a problem with zero supporting signals (the core §3.2 guarantee)", async () => {
+      const problemId = await createDraftProblem(`${runTag}-blocked`);
+      // draft -> surfaceable with 0 signals: the trigger must RAISE and reject.
+      const attempt = await rest("PATCH", `/rest/v1/problems?id=eq.${problemId}`, {
+        status: "surfaceable",
+      });
+      expect(attempt.status).toBeGreaterThanOrEqual(400);
+      expect(JSON.stringify(attempt.data)).toContain("Understanding Gate");
+
+      // The row must still be 'draft' — the write was rejected, not partially applied.
+      const check = await rest(
+        "GET",
+        `/rest/v1/problems?id=eq.${problemId}&select=status`
+      );
+      expect((check.data as Array<{ status: string }>)[0]!.status).toBe("draft");
+    });
+
+    it("ALLOWS surfacing once >=3 signals from >=2 distinct sources are linked", async () => {
+      const problemId = await createDraftProblem(`${runTag}-allowed`);
+      // 3 signals across 3 distinct sources (>= min_signals=3, >= min_distinct_sources=2).
+      const signalIds: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const s = await rest("POST", "/rest/v1/signals", {
+          company_id: companyId,
+          kind: "integration_gate_signal",
+          source: `${runTag}-src-${i}`,
+        });
+        expect(s.status, JSON.stringify(s.data)).toBe(201);
+        signalIds.push((s.data as Array<{ id: string }>)[0]!.id);
+      }
+      for (const signalId of signalIds) {
+        const link = await rest("POST", "/rest/v1/problem_signals", {
+          problem_id: problemId,
+          signal_id: signalId,
+        });
+        expect(link.status, JSON.stringify(link.data)).toBe(201);
+      }
+      // Gate now satisfied on all three thresholds → transition must succeed.
+      const attempt = await rest("PATCH", `/rest/v1/problems?id=eq.${problemId}`, {
+        status: "surfaceable",
+      });
+      expect(attempt.status, JSON.stringify(attempt.data)).toBe(200);
+      expect((attempt.data as Array<{ status: string }>)[0]!.status).toBe(
+        "surfaceable"
+      );
+    });
+  }
+);
