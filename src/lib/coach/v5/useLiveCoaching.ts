@@ -551,8 +551,19 @@ export function useLiveCoaching(sessionId: string) {
           cueScheduledAtCommitRef.current === index &&
           finalSpeaker !== "customer"
         ) {
-          // The instant guess said prospect but the LLM disagrees (rare with the
-          // content-first prompt) — cancel the prematurely-started cue.
+          // The instant guess said prospect but the LLM disagrees — cancel the
+          // prematurely-started cue. HONEST LIMIT (§3.4): this is BEST-EFFORT,
+          // not a guarantee. It only wins the race when the /attribute round-trip
+          // finishes UNDER TURN_SETTLE_MS (700ms); an LLM call usually takes
+          // longer, in which case the timer has already fired and this
+          // clearTimeout is a no-op on an expired timer — the early cue already
+          // went out on the (rare) wrong content tell. That residual risk is the
+          // ACCEPTED latency↔accuracy tradeoff of L2 (founder: "very little or no
+          // delay"): it's gated on a HIGH-PRECISION content tell (exactly-one-
+          // side match), it self-corrects (the label settles here; later cues are
+          // right), and invokeCue's own §3.3 gate often stays silent anyway. Do
+          // NOT trust this branch as a hard interlock. Reducing the residual risk
+          // further means waiting on the LLM — which re-adds the latency L2 removes.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
           cueScheduledAtCommitRef.current = -1;
         }
