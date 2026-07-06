@@ -16,6 +16,7 @@
 
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
 import type {
   CrmAccount,
   CrmAccountSummary,
@@ -54,7 +55,7 @@ export async function listAccounts(args?: {
     query = query.eq("is_test_account", false);
   }
   if (args?.search && args.search.trim().length > 0) {
-    const term = `%${args.search.trim()}%`;
+    const term = `%${sanitizeOrIlikeTerm(args.search)}%`;
     query = query.or(
       `company_name.ilike.${term},primary_contact_email.ilike.${term}`
     );

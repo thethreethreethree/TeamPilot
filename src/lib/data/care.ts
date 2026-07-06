@@ -3,6 +3,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { strictMutate } from "@/lib/supabase/strictUpdate";
 import { notifyAssignedAgentOfCustomerMessage } from "@/lib/notifications/careNotify";
+import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
 
 /**
  * ELOSTATE Care — data layer.
@@ -1219,6 +1220,9 @@ export async function findSimilarResolutions(args: {
     const ors = args.searchTerms
       .filter((t) => t.length > 2)
       .slice(0, 6)
+      // sanitize each term before it goes into the raw .or() filter (§A13).
+      .map((t) => sanitizeOrIlikeTerm(t))
+      .filter((t) => t.length > 0)
       .flatMap((t) => [
         `issue_summary.ilike.%${t}%`,
         `category.ilike.%${t}%`,

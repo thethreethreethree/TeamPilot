@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
 
 /**
  * GET /api/search?q=...
@@ -34,7 +35,11 @@ export async function GET(req: NextRequest) {
     });
   }
   const sb = await createClient();
-  const term = `%${q}%`;
+  // Sanitize before building the raw `.or(...ilike...)` filter below — an
+  // unescaped comma/paren in a user query is PostgREST filter injection (§A13
+  // shared guard). The parameterized `.ilike(col, term)` calls are already safe;
+  // using the same sanitized term there is harmless.
+  const term = `%${sanitizeOrIlikeTerm(q)}%`;
 
   // Files — ILIKE on title/description (RLS handles visibility)
   const filesPromise = sb

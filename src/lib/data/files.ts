@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
 
 /**
  * Server-side data layer for the Asset System v1 files table.
@@ -284,10 +285,10 @@ export async function listFiles(opts: ListFilesOpts = {}): Promise<FileRecord[]>
   if (opts.search) {
     // ILIKE on title + description. The fts index in 0056 is
     // there for the search companion spec; v1 library uses a
-    // simpler ILIKE for now.
-    q = q.or(
-      `title.ilike.%${opts.search}%,description.ilike.%${opts.search}%`
-    );
+    // simpler ILIKE for now. sanitizeOrIlikeTerm guards the raw .or()
+    // filter against comma/paren injection (§A13 shared guard).
+    const s = sanitizeOrIlikeTerm(opts.search);
+    q = q.or(`title.ilike.%${s}%,description.ilike.%${s}%`);
   }
   const { data, error } = await q;
   if (error || !data) return [];
