@@ -149,7 +149,11 @@ function orderCategories(
   return out;
 }
 
-function parseGraded(text: string): ScoreCategory[] {
+// Exported for test: parseGraded enforces §3.5 measurement honesty — a score is
+// CLAMPED to [0,10], only the four known categories are accepted, a non-numeric
+// score is dropped, and (A11) a score with NO rationale is dropped rather than
+// surface a number the rep can't inspect. Constitutional invariants worth pinning.
+export function parseGraded(text: string): ScoreCategory[] {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
