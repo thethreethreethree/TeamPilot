@@ -3874,7 +3874,10 @@ function AskCoachCarePanel({
         </p>
       )}
       {error && (
-        <div className="text-xs text-red-300 border border-red-500/30 bg-red-500/5 rounded-md px-2.5 py-2">
+        <div
+          role="alert"
+          className="text-xs text-red-300 border border-red-500/30 bg-red-500/5 rounded-md px-2.5 py-2"
+        >
           {error}
         </div>
       )}
