@@ -613,6 +613,17 @@ export function ConversationsApp({
               // runs in the poll, never on initial load, and never for the
               // agent's own sends (authorType filter). §3.4-honest: a real new
               // customer message, not any list churn.
+              //
+              // SCOPE (v1): fires for the OPEN conversation only — that's the
+              // one place we have per-message authorType to distinguish a
+              // customer reply from the AI first-responder's auto-reply. An
+              // inbox-WIDE chime (any conversation) would need a reliable inbound
+              // signal on the inbox row; today it only carries last_message_at,
+              // which advances on AI/agent messages too, so a naive inbox-level
+              // chime would false-fire. The clean extension is a
+              // `last_message_author_type` column stamped by the same 0034
+              // trigger that stamps last_message_at — deferred (notifications are
+              // low-urgency per the backlog).
               if (soundOnRef.current && hasNewCustomerMessage(prev, next)) {
                 playNewMessageChime();
               }
