@@ -936,7 +936,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
         console.warn(
           `[live-coaching] ws CLOSE code=${ev.code} reason=${ev.reason || "(none)"}`
         );
-        if (status === "live") setStatus("idle");
+        // Bug fix (2026-07-06 read-audit): use the FUNCTIONAL form so we read the
+        // CURRENT status, not the stale `status` captured in start's closure
+        // (which was ~"idle" when the user clicked Start). Without this, a socket
+        // close AFTER going live left the UI stuck on "live" — the surface lying
+        // about a dead connection (§3.4). Don't stomp an "error" already set.
+        setStatus((prev) => (prev === "live" ? "idle" : prev));
       };
       ws.onmessage = (ev) => {
         let msg: { message_type?: string; text?: string };
@@ -1212,7 +1217,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       setStatus("error");
       stop();
     }
-  }, [invokeCue, status, stop, classifyTurn]);
+    // `status` intentionally omitted: the only read was the stale onclose check,
+    // now replaced by the functional setStatus form. Keeping it here would
+    // recreate `start` on every status transition for no benefit.
+  }, [invokeCue, stop, classifyTurn]);
 
   const updateMode = useCallback((m: CueMode) => {
     modeRef.current = m;
