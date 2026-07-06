@@ -79,7 +79,13 @@ OUTPUT — respond with ONLY this JSON:
 }`;
 }
 
-function parsePatterns(text: string): { patterns: WhyPattern[]; note: string } | null {
+// Exported for test: it enforces §3.5 (a pattern with no outcomeAssociation is
+// DROPPED — "patterns without an outcome link are noise") and §3.4 (malformed
+// LLM output → null, never a crash). These are constitutional invariants worth
+// regression-pinning.
+export function parsePatterns(
+  text: string
+): { patterns: WhyPattern[]; note: string } | null {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
