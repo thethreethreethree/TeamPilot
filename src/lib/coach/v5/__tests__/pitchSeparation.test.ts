@@ -68,6 +68,22 @@ describe("PitchSeparator", () => {
     expect(c.confidence).toBeLessThan(0.3);
   });
 
+  it("does not fabricate a second speaker when only one voice is present (agent-only / video)", () => {
+    // The video reality: the mic is agent-only (the prospect is on the far end
+    // of the call, not in the mic). Several turns, all one voice with natural
+    // jitter. The separator must NOT hallucinate a confident "prospect" cluster
+    // — that would show phantom prospect turns on a video call (§3.4).
+    const sep = new PitchSeparator();
+    runTurn(sep, 120);
+    runTurn(sep, 123);
+    runTurn(sep, 119);
+    const last = runTurn(sep, 121);
+    // No phantom customer cluster forms from a single voice...
+    expect(sep.centroids().customerF0).toBeNull();
+    // ...and the separator stays honestly unconfident about splitting speakers.
+    expect(last.confidence).toBeLessThan(0.3);
+  });
+
   it("uses the manual 'I'm speaking' anchor to ground the agent cluster", () => {
     const sep = new PitchSeparator();
     runTurn(sep, 130, true); // rep speaking, anchored
