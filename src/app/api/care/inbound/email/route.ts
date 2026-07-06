@@ -191,7 +191,21 @@ export async function POST(req: NextRequest) {
       })
       .select("id")
       .single();
-    customerId = newCustomer?.id ?? null;
+    if (newCustomer) {
+      customerId = newCustomer.id;
+    } else {
+      // Insert returned nothing — almost always a concurrent first-email from the
+      // SAME customer won the unique(company_id, email) race (23505). Re-select the
+      // now-existing row so this email still links to the customer instead of
+      // orphaning with customer_id=null.
+      const { data: raced } = await admin
+        .from("support_customers")
+        .select("id")
+        .eq("company_id", tenant.company_id)
+        .eq("email", customerEmail)
+        .maybeSingle();
+      customerId = raced?.id ?? null;
+    }
   }
 
   // ─── 6. Find existing thread, or create new conversation ─────
