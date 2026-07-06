@@ -91,6 +91,22 @@ export function StartSessionPanel() {
             In-person
           </DeckGhostButton>
         </div>
+        {/* §3.4 honesty: on video the device mic hears the REP's side only —
+            the prospect is on the far end of the call, not in the mic. Say so
+            plainly so the rep's mental model matches what the coach can
+            actually do, rather than expecting it to react to the prospect's
+            live words. (Capturing the far-end call audio is a separate,
+            not-yet-built capability — founder A/B pending.) */}
+        {context === "video" && (
+          <p className="flex items-start gap-1.5 text-[11px] leading-snug text-white/55 mb-2.5">
+            <Mic className="w-3 h-3 mt-0.5 shrink-0" aria-hidden />
+            <span>
+              On video, your mic hears <strong className="text-white/75">your</strong> side — not
+              the prospect&apos;s audio from the far end of the call. The coach guides your
+              delivery: pacing, filler, framing, and the words you choose.
+            </span>
+          </p>
+        )}
       </LearningHint>
       <LearningHint
         as="block"
