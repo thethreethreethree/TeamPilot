@@ -33,20 +33,17 @@ missing RLS policy (bypassable by service-role).
   (0035), `support_resolutions`, `support_ai_co_pilot_edits` (0036) — all
   `do instead nothing`. ✓
 
-**Flags:**
-- 🟡 **`crm_activity_events` — append-only by DECLARATION, not by DB rule.**
-  0049 comments it "append-only per §3.1", and RLS grants no update/delete policy,
-  but there is NO `do instead nothing` rule — so the service-role could update or
-  delete an activity event, silently breaking the immutable chain a future
-  retrospective analysis (§1.2) depends on. *Write path not yet traced* (no direct
-  `.insert()` found via grep — likely a helper/RPC), so DO NOT add a rule blindly:
-  first confirm it is insert-only, then add no_update + no_delete rules in a new
-  migration. CRM domain — founder's call.
-- 🟢 **`care_widget_load_events` — same gap, confirmed insert-only.** Written only
-  via `admin.from(...).insert(...)` (config.ts, email/outbound.ts); pure widget-
-  bootstrap telemetry. RLS grants no update/delete, but no DB rule backs it. Low
-  stakes (telemetry), but for consistency it should get no_update + no_delete
-  rules. Safe to harden (confirmed insert-only). C.A.R.E domain.
+**Flags — both RESOLVED 2026-07-06:**
+- 🟡→✅ **`crm_activity_events`** — *[RESOLVED, migration `0086`]* Write path fully
+  traced: every write is `insert into` in the 0049 SECURITY DEFINER triggers; the
+  only code reference (crm/data.ts) is a `.select()` read; no update/delete/upsert
+  anywhere. Confirmed insert-only → added no_update + no_delete rules (0086).
+- 🟢→✅ **`care_widget_load_events`** — *[RESOLVED, migration `0085`]* Confirmed
+  insert-only (`admin.from(...).insert(...)` in config.ts + email/outbound.ts);
+  added no_update + no_delete rules (0085).
+
+Both migrations UNAPPLIED (founder applies). Every §3.1-declared table in the
+codebase now has the same DB-level structural enforcement.
 
 **Not a gap (checked):**
 - `support_durability_checks` — has an UPDATE policy (a scheduled check is updated
