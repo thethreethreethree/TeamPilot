@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
+import { selectWinningLines } from "@/lib/coach/v5/winningLines";
 
 /**
  * Live Sales Coach — data layer (subsystem 2: Recording & Storage).
@@ -500,16 +501,11 @@ export async function getRepWinningLines(args: {
     .eq("determination", "followed")
     .order("created_at", { ascending: false })
     .limit(40);
-  // §3.5 (audit fix C): prefer REP-CONFIRMED ('rep_marked') follows over
-  // 'inferred' ones — a line the rep actually said they used, not one the system
-  // guessed. Inferred still counts (it's gated by the 'sold' consequence) but
-  // ranks below, so the capped list is filled with confirmed lines first.
-  // V8 Array.sort is stable, so recency order (query order-by) holds within each group.
-  const ranked = [...(outcomes ?? [])].sort(
-    (a, b) =>
-      (a.source === "rep_marked" ? 0 : 1) - (b.source === "rep_marked" ? 0 : 1)
-  );
-  const cueIds = Array.from(new Set(ranked.map((o) => o.cue_id as string)));
+  const rows = (outcomes ?? []).map((o) => ({
+    cue_id: o.cue_id as string,
+    source: o.source as string,
+  }));
+  const cueIds = Array.from(new Set(rows.map((o) => o.cue_id)));
   if (cueIds.length === 0) return [];
   // 3. The cue texts.
   const { data: cues } = await sb
@@ -521,20 +517,8 @@ export async function getRepWinningLines(args: {
     const t = (c.text as string | null)?.trim();
     if (t) textById.set(c.id as string, t);
   }
-  // Preserve the outcome recency order; dedupe identical lines; cap for the prompt.
-  const out: string[] = [];
-  const seen = new Set<string>();
-  const limit = args.limit ?? 5;
-  for (const id of cueIds) {
-    const t = textById.get(id);
-    if (!t) continue;
-    const line = t.slice(0, 140);
-    if (seen.has(line)) continue;
-    seen.add(line);
-    out.push(line);
-    if (out.length >= limit) break;
-  }
-  return out;
+  // §3.5 rank (rep-confirmed first) + dedup + cap — pure, tested in winningLines.ts.
+  return selectWinningLines(rows, textById, args.limit ?? 5);
 }
 
 /** Persist an assembled After Pitch Summary (append-only, §3.1). Service
