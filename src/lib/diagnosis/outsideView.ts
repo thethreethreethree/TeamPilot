@@ -3,6 +3,7 @@ import "server-only";
 import { llmCall } from "@/lib/llm";
 import { runBrainCall } from "@/lib/brain";
 import type { OutsideViewReading } from "./types";
+import { parseOutsideViews } from "./parseOutsideViews";
 
 /**
  * Outside-Perspective Identification (§1.3).
@@ -77,11 +78,8 @@ Generate ${count} outside-view alternatives.`;
     text = r.text;
   }
 
-  try {
-    const parsed = JSON.parse(text);
-    const readings = Array.isArray(parsed.readings) ? parsed.readings : [];
-    return readings.slice(0, count);
-  } catch {
-    return [];
-  }
+  // Parse + VALIDATE each reading (drops any missing framing/whatItChallenges/
+  // ifTrueThen rather than surfacing blank fields — §3.4). Pinned in
+  // parseOutsideViews.test.ts.
+  return parseOutsideViews(text, count);
 }
