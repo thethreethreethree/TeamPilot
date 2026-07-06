@@ -7,6 +7,21 @@
  * rather than throw. Distinct from the live-coach toggle beep (a gentle rising
  * major third, not a UI blip).
  */
+/**
+ * Should the chime fire? True iff `next` contains a CUSTOMER-authored message
+ * whose id was not already in `prev`. Pure + tested so the "only a genuinely new
+ * customer message" rule can't silently regress into chiming on the agent's own
+ * sends, on non-customer (ai/system) messages, or on list re-order/churn. The
+ * caller supplies the two message lists from consecutive polls.
+ */
+export function hasNewCustomerMessage(
+  prev: ReadonlyArray<{ id: string; authorType: string }>,
+  next: ReadonlyArray<{ id: string; authorType: string }>
+): boolean {
+  const prevIds = new Set(prev.map((m) => m.id));
+  return next.some((m) => m.authorType === "customer" && !prevIds.has(m.id));
+}
+
 export function playNewMessageChime(): void {
   try {
     if (typeof window === "undefined") return;

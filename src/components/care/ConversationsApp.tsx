@@ -30,7 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
-import { playNewMessageChime } from "@/lib/care/chime";
+import { playNewMessageChime, hasNewCustomerMessage } from "@/lib/care/chime";
 import { FileDropzone } from "@/components/files/FileDropzone";
 import { InlineAttachment } from "@/components/files/InlineAttachment";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -613,15 +613,8 @@ export function ConversationsApp({
               // runs in the poll, never on initial load, and never for the
               // agent's own sends (authorType filter). §3.4-honest: a real new
               // customer message, not any list churn.
-              if (soundOnRef.current) {
-                const prevIds = new Set(prev.map((m) => m.id));
-                if (
-                  next.some(
-                    (m) => m.authorType === "customer" && !prevIds.has(m.id)
-                  )
-                ) {
-                  playNewMessageChime();
-                }
+              if (soundOnRef.current && hasNewCustomerMessage(prev, next)) {
+                playNewMessageChime();
               }
               return next;
             });
