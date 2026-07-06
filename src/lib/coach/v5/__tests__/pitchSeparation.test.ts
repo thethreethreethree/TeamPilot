@@ -37,6 +37,34 @@ describe("detectF0", () => {
   it("returns null on silence", () => {
     expect(detectF0(new Float32Array(N), SR)).toBeNull();
   });
+
+  it("detects near-edge voices (75 Hz deep + 380 Hz high)", () => {
+    // The detectable window is a hair INSIDE [MIN_F0, MAX_F0]: the peak-pick
+    // loop reserves one lag of margin each side for parabolic interpolation, so
+    // an exact-70/400 fundamental honestly returns null rather than a wrong
+    // value. These near-edge voices (very deep male / very high female) are the
+    // realistic boundaries a real in-person pair actually hits — and must
+    // resolve. Looser tol at 380 Hz where lag resolution is coarsest (~42 spl).
+    for (const freq of [75, 380]) {
+      const est = detectF0(tone(freq), SR);
+      expect(est).not.toBeNull();
+      expect(Math.abs(est! - freq) / freq).toBeLessThan(0.06);
+    }
+  });
+
+  it("never emits a confident pitch OUTSIDE the voice range", () => {
+    // The invariant behind pitch attribution: an out-of-range source (sub-bass
+    // rumble, a high whistle, non-speech) must resolve to null — NEVER a
+    // confident wrong F0 that would mislabel a speaker. It may lock onto a
+    // harmonic inside the range; it must never report a value outside [70, 400].
+    for (const freq of [40, 55, 500, 700]) {
+      const est = detectF0(tone(freq), SR);
+      if (est !== null) {
+        expect(est).toBeGreaterThanOrEqual(70);
+        expect(est).toBeLessThanOrEqual(400);
+      }
+    }
+  });
 });
 
 describe("PitchSeparator", () => {
