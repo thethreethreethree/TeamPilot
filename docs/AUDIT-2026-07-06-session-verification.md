@@ -234,6 +234,13 @@ result on the record per §1.7.3. (Not exhaustively per-policy-predicate audited
 the linchpin + allowlist + no-`using(true)` cover the highest-leverage failure
 modes.)
 
+WRITE isolation checked too (the parallel risk — injecting rows into another
+company): `with check` predicates are 20 `exists`-subquery (parent-scoped child
+tables) / 16 `company_id` / 16 `auth_company_id` / 8 `auth.uid` (user-owned), and
+ZERO `with check (true)`. Same linchpin, same correct scoping — a user can't write
+into another company any more than they can read from it. Isolation is sound in
+both directions.
+
 **§3.1 / §3.2 core guarantees — now integration-tested (were relied-on, untested).**
 Added to `chain.integration.test.ts` (`npm run test:chain`): §3.2 understanding gate
 (blocks surfacing under threshold, allows once met) and §3.1 immutability (UPDATE/
