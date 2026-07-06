@@ -147,12 +147,20 @@ export function buildStoragePath(args: {
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = String(now.getUTCMonth() + 1).padStart(2, "0");
-  // Preserve extension for browser content-type sniffing
+  // Preserve extension for browser content-type sniffing — but the filename is
+  // USER-CONTROLLED, so the raw slice-after-last-dot can carry path characters
+  // ("evil.x/../secret" → "./secret"). companyId (server profile) and fileId
+  // (randomUUID) are trusted; the extension is the one untrusted input on this
+  // path. Sanitize it to a plain alphanumeric extension so no '/', '..', or
+  // other key characters can ever reach the storage key (defense-in-depth: even
+  // if the storage backend treats keys literally today, we don't depend on it).
   const lastDot = args.originalFilename.lastIndexOf(".");
-  const ext =
+  const rawExt =
     lastDot >= 0 && lastDot < args.originalFilename.length - 1
-      ? args.originalFilename.slice(lastDot).toLowerCase()
+      ? args.originalFilename.slice(lastDot + 1)
       : "";
+  const cleanExt = rawExt.replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 12);
+  const ext = cleanExt ? `.${cleanExt}` : "";
   return `${args.companyId}/${year}/${month}/${args.fileId}${ext}`;
 }
 
