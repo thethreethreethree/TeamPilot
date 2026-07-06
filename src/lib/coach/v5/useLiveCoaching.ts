@@ -15,6 +15,10 @@ import {
   composeProvisional,
 } from "@/lib/coach/v5/speakerAttribution";
 import {
+  shouldScheduleCueAtCommit,
+  reconcileCueAfterClassify,
+} from "@/lib/coach/v5/cueCoordination";
+import {
   computeConfidence,
   type ConfidenceRead,
 } from "@/lib/coach/v5/liveConfidence";
@@ -535,35 +539,33 @@ export function useLiveCoaching(sessionId: string) {
         );
         // Jump in ONLY if the prospect spoke AND this is still the latest
         // turn (a newer commit supersedes — it'll run its own trigger).
-        if (
-          finalSpeaker === "customer" &&
-          index === turnsRef.current.length - 1 &&
-          autoCoachRef.current
-        ) {
-          // If the instant content-guess already started this turn's cue clock
-          // (L2), leave it running — resetting would re-add the latency we saved.
-          // Only schedule here when the LLM is the FIRST to determine prospect.
-          if (cueScheduledAtCommitRef.current !== index) {
-            if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-            cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
-          }
-        } else if (
-          cueScheduledAtCommitRef.current === index &&
-          finalSpeaker !== "customer"
-        ) {
-          // The instant guess said prospect but the LLM disagrees — cancel the
-          // prematurely-started cue. HONEST LIMIT (§3.4): this is BEST-EFFORT,
-          // not a guarantee. It only wins the race when the /attribute round-trip
-          // finishes UNDER TURN_SETTLE_MS (700ms); an LLM call usually takes
-          // longer, in which case the timer has already fired and this
-          // clearTimeout is a no-op on an expired timer — the early cue already
-          // went out on the (rare) wrong content tell. That residual risk is the
-          // ACCEPTED latency↔accuracy tradeoff of L2 (founder: "very little or no
-          // delay"): it's gated on a HIGH-PRECISION content tell (exactly-one-
-          // side match), it self-corrects (the label settles here; later cues are
-          // right), and invokeCue's own §3.3 gate often stays silent anyway. Do
-          // NOT trust this branch as a hard interlock. Reducing the residual risk
-          // further means waiting on the LLM — which re-adds the latency L2 removes.
+        // Reconcile the cue clock against what the commit scheduler did (pure
+        // logic in cueCoordination.ts, regression-pinned there):
+        //  - "keep"     — the instant content-guess already started this turn's
+        //                 clock (L2); leave it — resetting re-adds the latency.
+        //  - "schedule" — the LLM is the FIRST to determine prospect; start it.
+        //  - "cancel"   — the guess said prospect but the LLM disagrees.
+        // HONEST LIMIT (§3.4): "cancel" is BEST-EFFORT. It only wins the race
+        // when /attribute returns UNDER TURN_SETTLE_MS (700ms); an LLM call
+        // usually takes longer, so the timer has already fired and clearTimeout
+        // is a no-op on an expired timer — the early cue already went out on the
+        // (rare) wrong content tell. That residual risk is the ACCEPTED
+        // latency↔accuracy tradeoff of L2 (founder: "very little or no delay"):
+        // it's gated on a HIGH-PRECISION content tell (exactly-one-side match),
+        // it self-corrects (the label settles here; later cues are right), and
+        // invokeCue's own §3.3 gate often stays silent anyway. Do NOT trust
+        // "cancel" as a hard interlock — reducing the risk further means waiting
+        // on the LLM, which re-adds the latency L2 removes.
+        const cueAction = reconcileCueAfterClassify({
+          scheduledAtCommit: cueScheduledAtCommitRef.current === index,
+          finalSpeaker,
+          isLatestTurn: index === turnsRef.current.length - 1,
+          autoCoach: autoCoachRef.current,
+        });
+        if (cueAction === "schedule") {
+          if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+          cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
+        } else if (cueAction === "cancel") {
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
           cueScheduledAtCommitRef.current = -1;
         }
@@ -939,9 +941,11 @@ export function useLiveCoaching(sessionId: string) {
           // already know the prospect just spoke; the LLM only confirms it. This
           // removes the classifier latency from the cue on the common case.
           if (
-            !locked &&
-            contentGuess === "customer" &&
-            autoCoachRef.current
+            shouldScheduleCueAtCommit({
+              locked,
+              contentGuess,
+              autoCoach: autoCoachRef.current,
+            })
           ) {
             cueScheduledAtCommitRef.current = index;
             cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
