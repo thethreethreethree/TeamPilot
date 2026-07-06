@@ -3,6 +3,7 @@ import "server-only";
 import { llmCall } from "@/lib/llm";
 import { runBrainCall } from "@/lib/brain";
 import type { RippleEffect } from "./types";
+import { parseRippleEffects } from "./parseRippleEffects";
 
 /**
  * Ripple-Trace — holistic affected-systems analysis (§1.5, §2).
@@ -72,10 +73,8 @@ ${args.contextSummary}`;
     text = r.text;
   }
 
-  try {
-    const parsed = JSON.parse(text);
-    return Array.isArray(parsed.ripples) ? parsed.ripples : [];
-  } catch {
-    return [];
-  }
+  // Parse + VALIDATE each ripple (drops any missing subject/effect/reasoning —
+  // Rule 2's WHY is mandatory — and defaults a bogus confidence to "low", §3.4).
+  // Pinned in parseRippleEffects.test.ts.
+  return parseRippleEffects(text);
 }
