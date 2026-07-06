@@ -86,7 +86,12 @@ export async function generateSalesReview(args: {
   }
 }
 
-function parseSalesReview(text: string): SalesReview | null {
+// Exported for test: parseSalesReview enforces the TONE LAW structurally — a
+// review with no strengths is invalid (never lead with, or consist only of,
+// criticism), so growth-areas-without-strengths collapses to "no signal" rather
+// than shipping a tone-law violation. Also caps each list at 3 and degrades
+// honestly on malformed model output. Constitutional invariants worth pinning.
+export function parseSalesReview(text: string): SalesReview | null {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
