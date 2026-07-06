@@ -263,6 +263,10 @@ export function useLiveCoaching(sessionId: string) {
   const procRef = useRef<ScriptProcessorNode | null>(null);
   const turnsRef = useRef<Turn[]>([]);
   const cueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The turn index whose cue clock was started AT COMMIT by an obvious content
+  // tell (before the LLM /attribute returned) — so classifyTurn doesn't reset
+  // the timer and re-add the latency we just saved (L2 response time). -1 = none.
+  const cueScheduledAtCommitRef = useRef(-1);
   const cueInFlightRef = useRef(false);
   const modeRef = useRef<CueMode>("suggestion");
   const lastCueAtRef = useRef(0); // F4 cooldown (ms epoch); 0 = never
@@ -536,8 +540,21 @@ export function useLiveCoaching(sessionId: string) {
           index === turnsRef.current.length - 1 &&
           autoCoachRef.current
         ) {
+          // If the instant content-guess already started this turn's cue clock
+          // (L2), leave it running — resetting would re-add the latency we saved.
+          // Only schedule here when the LLM is the FIRST to determine prospect.
+          if (cueScheduledAtCommitRef.current !== index) {
+            if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+            cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
+          }
+        } else if (
+          cueScheduledAtCommitRef.current === index &&
+          finalSpeaker !== "customer"
+        ) {
+          // The instant guess said prospect but the LLM disagrees (rare with the
+          // content-first prompt) — cancel the prematurely-started cue.
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-          cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
+          cueScheduledAtCommitRef.current = -1;
         }
       } catch {
         settleLabel(null); // keep provisional, clear the pending flag
@@ -903,10 +920,23 @@ export function useLiveCoaching(sessionId: string) {
             `[live-coaching] turn #${index + 1} committed (energy=${energy.toFixed(4)} vol=${v.speaker} pitch=${pitch.speaker}@${pitch.confidence.toFixed(2)} content=${contentGuess ?? "-"} → ${provisional} [src=${attrSource}]): "${text.slice(0, 80)}"`
           );
           // A new commit cancels any pending cue (the salesperson didn't
-          // wait for it). The cue trigger lives in classifyTurn, gated on the
-          // final content label. classifyTurn gets the VOICE hint (pitch/
-          // loudness) as the LLM's weak tiebreaker — the LLM decides by content.
+          // wait for it).
           if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+          cueScheduledAtCommitRef.current = -1;
+          // L2 RESPONSE TIME: when the content is an OBVIOUS prospect turn, start
+          // the cue clock NOW — don't wait for the /attribute round-trip. We
+          // already know the prospect just spoke; the LLM only confirms it. This
+          // removes the classifier latency from the cue on the common case.
+          if (
+            !locked &&
+            contentGuess === "customer" &&
+            autoCoachRef.current
+          ) {
+            cueScheduledAtCommitRef.current = index;
+            cueTimerRef.current = setTimeout(() => void invokeCue(), TURN_SETTLE_MS);
+          }
+          // The LLM /attribute refines the label + gates the cue for the
+          // non-obvious turns. It gets the VOICE hint as its weak tiebreaker.
           if (!locked) void classifyTurn(index, text, priorSpeaker, voiceHint);
 
           // Build 3 — MEASURED stress on the rep's OWN turns. Close out this
