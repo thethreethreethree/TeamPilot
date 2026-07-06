@@ -20,10 +20,13 @@ open-conversation chime still works (no regression).
 - **⭐ Sales Coach FLUIDITY readout (top priority — unblocks the deferred timing work).**
   The fluidity build (timing + delivery) is shipped but the *timing* half is
   intentionally readout-first: run one real call, then read the **"Last call: …
-  median Xms, p90 Yms end-to-end"** line the panel shows on Stop (also
-  `[cue-summary]` in the console). Send me that + a few `[cue-metric]` lines. It
-  tells me exactly where the delay lives (LLM round-trip vs the 700ms settle), and
-  I build the biggest win it points to. Also: you should notice **fewer, sharper
+  median Xms, p90 Yms end-to-end · where: settle Xms · llm Yms · tts Zms"** line the
+  panel shows on Stop (also `[cue-summary]` in the console). **The `where:` breakdown
+  is the actionable part** — it now aggregates the per-stage medians so the readout
+  DIRECTLY names the dominant cost (settle/queue vs the LLM round-trip vs TTS)
+  instead of making you eyeball individual `[cue-metric]` lines. Send me that line +
+  a few `[cue-metric]` lines. Whichever stage dominates is the biggest win, and I
+  build it. Also: you should notice **fewer, sharper
   cues** (low-value ones are now suppressed). See §5 of
   [the checklist](sales-coach-live-test-checklist.md).
 - **Sales Coach (rest)** — same call: in-person Agent/Prospect labels, pitch-anchor

@@ -80,4 +80,38 @@ describe("summarizeCues", () => {
       summarizeCues([trace({ delivered: false, deliveredAt: undefined })]).medianTotalMs
     ).toBeNull();
   });
+
+  it("aggregates the per-stage breakdown so the readout names WHERE the delay lives", () => {
+    // Three delivered cues with clean, ordered marks. The stage medians must
+    // isolate the dominant cost — here the LLM round-trip — which is the exact
+    // signal the deferred timing decision turns on (§4/A2). Total alone can't
+    // say "attack the LLM, not the settle."
+    const traces = [
+      trace({ triggeredAt: 0, llmStartedAt: 100, llmEndedAt: 700, deliveredAt: 780 }), // q100 llm600 tts80
+      trace({ triggeredAt: 0, llmStartedAt: 120, llmEndedAt: 900, deliveredAt: 1000 }), // q120 llm780 tts100
+      trace({ triggeredAt: 0, llmStartedAt: 110, llmEndedAt: 800, deliveredAt: 900 }), // q110 llm690 tts100
+    ];
+    const s = summarizeCues(traces);
+    expect(s.medianQueueMs).toBe(110); // [100,110,120]
+    expect(s.medianLlmMs).toBe(690); // [600,690,780]
+    expect(s.medianTtsMs).toBe(100); // [80,100,100]
+    expect(s.medianTotalMs).toBe(900); // [780,900,1000]
+    // The LLM stage dominates settle+tts combined — the actionable conclusion.
+    expect(s.medianLlmMs!).toBeGreaterThan(s.medianQueueMs! + s.medianTtsMs!);
+  });
+
+  it("stage medians are null for stages never reached (no NaN on partial traces)", () => {
+    const s = summarizeCues([
+      trace({
+        delivered: false,
+        triggeredAt: 0,
+        llmStartedAt: undefined,
+        llmEndedAt: undefined,
+        deliveredAt: undefined,
+      }),
+    ]);
+    expect(s.medianQueueMs).toBeNull();
+    expect(s.medianLlmMs).toBeNull();
+    expect(s.medianTtsMs).toBeNull();
+  });
 });

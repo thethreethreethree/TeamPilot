@@ -79,30 +79,54 @@ export function formatCueMetric(t: CueTrace): string {
   );
 }
 
+/** Percentile of a pre-sorted ascending array (nearest-rank, floor). */
+function percentile(sorted: number[], p: number): number | null {
+  if (sorted.length === 0) return null;
+  const idx = Math.min(sorted.length - 1, Math.floor(p * sorted.length));
+  return sorted[idx]!;
+}
+
+/** Ascending-sorted non-null values of one latency stage across traces. */
+function stageValues(
+  traces: ReadonlyArray<CueTrace>,
+  pick: (l: CueLatency) => number | null
+): number[] {
+  return traces
+    .map((t) => pick(computeCueLatency(t)))
+    .filter((n): n is number => n !== null)
+    .sort((a, b) => a - b);
+}
+
 /**
- * Rolling session summary — the readout that answers "is it fluid?" across a
- * call: median end-to-end latency + delivery/suppression counts. Pure over an
+ * Rolling session summary — the readout that answers "is it fluid?" AND "where
+ * does the delay live?" across a call. Total latency alone can't answer the
+ * second question, and that's the one the deferred timing decision turns on
+ * (LLM round-trip vs the 700ms settle vs TTS) — so the summary aggregates the
+ * per-stage breakdown, not just the end-to-end total. Median per stage (not
+ * mean) matches medianTotalMs and resists the one slow outlier. Pure over an
  * array of finished traces.
+ *
+ * Note medians don't sum: medianTotal ≈ medianQueue+medianLlm+medianTts only
+ * loosely. The per-stage medians are for "which stage dominates," not
+ * reconciliation — the founder reads them to pick the biggest win.
  */
 export function summarizeCues(traces: ReadonlyArray<CueTrace>): {
   delivered: number;
   suppressed: number;
   medianTotalMs: number | null;
   p90TotalMs: number | null;
+  medianQueueMs: number | null;
+  medianLlmMs: number | null;
+  medianTtsMs: number | null;
 } {
-  const totals = traces
-    .map((t) => computeCueLatency(t).totalMs)
-    .filter((n): n is number => n !== null)
-    .sort((a, b) => a - b);
-  const pct = (p: number): number | null => {
-    if (totals.length === 0) return null;
-    const idx = Math.min(totals.length - 1, Math.floor(p * totals.length));
-    return totals[idx]!;
-  };
+  const totals = stageValues(traces, (l) => l.totalMs);
   return {
     delivered: traces.filter((t) => t.delivered).length,
     suppressed: traces.filter((t) => !t.delivered).length,
-    medianTotalMs: pct(0.5),
-    p90TotalMs: pct(0.9),
+    medianTotalMs: percentile(totals, 0.5),
+    p90TotalMs: percentile(totals, 0.9),
+    medianQueueMs: percentile(stageValues(traces, (l) => l.queueMs), 0.5),
+    medianLlmMs: percentile(stageValues(traces, (l) => l.llmMs), 0.5),
+    medianTtsMs: percentile(stageValues(traces, (l) => l.ttsMs), 0.5),
   };
 }

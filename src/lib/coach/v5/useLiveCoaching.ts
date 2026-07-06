@@ -748,14 +748,19 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       const line =
         `${s.delivered} cue${s.delivered === 1 ? "" : "s"} delivered, ` +
         `${s.suppressed} held back · ` +
-        `median ${s.medianTotalMs ?? "—"}ms, p90 ${s.p90TotalMs ?? "—"}ms end-to-end`;
+        `median ${s.medianTotalMs ?? "—"}ms, p90 ${s.p90TotalMs ?? "—"}ms end-to-end · ` +
+        // The stage breakdown is the part that decides the timing work: it names
+        // WHERE the delay lives (settle/queue vs the LLM round-trip vs TTS), so
+        // the total isn't just a number the founder can't act on (§4/A2).
+        `where: settle ${s.medianQueueMs ?? "—"}ms · llm ${s.medianLlmMs ?? "—"}ms · tts ${s.medianTtsMs ?? "—"}ms`;
       // §3.6 make it visible — surface the fluidity readout in the UI too, not
       // just the console, so the readout is readable without DevTools.
       setCueSummary(line);
       // eslint-disable-next-line no-console
       console.info(
         `[cue-summary] delivered=${s.delivered} suppressed=${s.suppressed} ` +
-          `median=${s.medianTotalMs ?? "—"}ms p90=${s.p90TotalMs ?? "—"}ms`
+          `median=${s.medianTotalMs ?? "—"}ms p90=${s.p90TotalMs ?? "—"}ms ` +
+          `settle=${s.medianQueueMs ?? "—"}ms llm=${s.medianLlmMs ?? "—"}ms tts=${s.medianTtsMs ?? "—"}ms`
       );
     }
     setStatus("idle");

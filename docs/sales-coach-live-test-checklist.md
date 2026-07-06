@@ -84,7 +84,9 @@ most important thing to capture.
 **Do:** Run a normal call with DevTools console open. Watch for two log shapes:
 - Per cue: `[cue-metric] DELIVERED total=…ms queue=… llm=… tts=… importance=… phase=… trigger=… mode=…`
   (or `suppressed(<reason>)` when a cue was held back).
-- On **Stop**: `[cue-summary] delivered=… suppressed=… median=…ms p90=…ms`.
+- On **Stop**: `[cue-summary] delivered=… suppressed=… median=…ms p90=…ms settle=…ms llm=…ms tts=…ms`
+  — the `settle/llm/tts` are per-stage medians, so this single line already names
+  where the delay lives (no need to average the per-cue lines by hand).
 
 **What to send me (this is the whole point):** the `[cue-summary]` line + a few
 `[cue-metric]` lines. That tells me exactly where the delay lives:
