@@ -54,6 +54,16 @@ definer function already has it.
   build it. Also: you should notice **fewer, sharper
   cues** (low-value ones are now suppressed). See §5 of
   [the checklist](sales-coach-live-test-checklist.md).
+  - *Known input to the timing work (found this session):* the live cue currently
+    inherits the **general 45-second** LLM timeout + the retry wrapper
+    (`llm/anthropic.ts`, `llm/deepseek.ts`) — right for batch dissect/summary,
+    WRONG for a live cue. A merely-slow provider delivers a cue seconds late (the
+    45s bound only catches a total hang), and a retry makes an already-late cue
+    later. So part of the readout-driven timing fix is a **live staleness-timeout**
+    (drop the cue if it exceeds ~the p90 your readout shows, not deliver it late)
+    + **skip retries on the live path**. I left the threshold for your readout to
+    set (§A2/A4 — don't guess it); flagging the mechanism so the fix is ready to
+    aim once the numbers land.
 - **Sales Coach (rest)** — same call: in-person Agent/Prospect labels, pitch-anchor
   nudge, video mic-only behavior, `filler_spike` (does Scribe keep the "um"s?).
 - **C.A.R.E sound chime** — in an agent session, enable the sound toggle (the
