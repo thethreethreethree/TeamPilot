@@ -123,7 +123,11 @@ function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-function parseDissect(text: string): SalesDissect | null {
+// Exported for test: parseDissect enforces the same structural TONE LAW as the
+// review (no strengths → no signal, never criticism-only), requires a growth
+// area to carry BOTH an opportunity and a nextStep (no dangling critique), and
+// degrades honestly on malformed output. Constitutional invariants worth pinning.
+export function parseDissect(text: string): SalesDissect | null {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
