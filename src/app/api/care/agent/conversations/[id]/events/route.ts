@@ -33,7 +33,7 @@ export async function GET(
       { status: 404 }
     );
   }
-  if (auth.companyId && detail.conversation.companyId !== auth.companyId) {
+  if (!auth.companyId || detail.conversation.companyId !== auth.companyId) {
     return NextResponse.json(
       { error: "Conversation not found." },
       { status: 404 }

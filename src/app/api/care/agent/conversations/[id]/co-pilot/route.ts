@@ -57,7 +57,7 @@ export async function POST(
     );
   }
   // Defense-in-depth: explicit company match check.
-  if (auth.companyId && detail.conversation.companyId !== auth.companyId) {
+  if (!auth.companyId || detail.conversation.companyId !== auth.companyId) {
     return NextResponse.json(
       { error: "Conversation not found." },
       { status: 404 }
