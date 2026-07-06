@@ -24,10 +24,13 @@ import {
   Sparkles,
   StickyNote,
   UserCheck,
+  Volume2,
+  VolumeX,
   Wand2,
   X,
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
+import { playNewMessageChime } from "@/lib/care/chime";
 import { FileDropzone } from "@/components/files/FileDropzone";
 import { InlineAttachment } from "@/components/files/InlineAttachment";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -274,6 +277,34 @@ export function ConversationsApp({
     null
   );
   const [error, setError] = useState<string | null>(null);
+  // Sound chime on a new CUSTOMER message (deferred backlog — opt-in per agent).
+  // Persisted in localStorage; default OFF so it never surprises anyone. A ref
+  // mirrors it so the 5s poll closure reads the current value without
+  // re-subscribing the effect.
+  const [soundOn, setSoundOn] = useState(false);
+  const soundOnRef = useRef(false);
+  useEffect(() => {
+    try {
+      setSoundOn(localStorage.getItem("care.msgChime") === "on");
+    } catch {
+      /* private mode / no storage — stay off */
+    }
+  }, []);
+  useEffect(() => {
+    soundOnRef.current = soundOn;
+  }, [soundOn]);
+  const toggleSound = useCallback(() => {
+    setSoundOn((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("care.msgChime", next ? "on" : "off");
+      } catch {
+        /* best-effort persistence */
+      }
+      if (next) playNewMessageChime(); // preview + unlock the audio context on the toggle gesture
+      return next;
+    });
+  }, []);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   // Caller's role — drives admin-only affordances (frictionless
   // Close on stale conversations, future admin overrides).
@@ -577,6 +608,20 @@ export function ConversationsApp({
                 prev[prev.length - 1]?.id === next[next.length - 1]?.id
               ) {
                 return prev;
+              }
+              // Chime ONLY on a genuinely new CUSTOMER message (opt-in). This
+              // runs in the poll, never on initial load, and never for the
+              // agent's own sends (authorType filter). §3.4-honest: a real new
+              // customer message, not any list churn.
+              if (soundOnRef.current) {
+                const prevIds = new Set(prev.map((m) => m.id));
+                if (
+                  next.some(
+                    (m) => m.authorType === "customer" && !prevIds.has(m.id)
+                  )
+                ) {
+                  playNewMessageChime();
+                }
               }
               return next;
             });
@@ -1233,15 +1278,41 @@ export function ConversationsApp({
         >
         <div className="px-4 py-3 border-b border-default flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-primary">Conversations</h2>
-          <button
-            type="button"
-            onClick={() => setViewsCollapsed(true)}
-            aria-label="Collapse Conversations views"
-            title="Collapse"
-            className="text-muted hover:text-primary p-1 rounded hover:bg-white/[0.04]"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={toggleSound}
+              aria-label={
+                soundOn
+                  ? "Message sound on — click to mute"
+                  : "Message sound off — click to enable"
+              }
+              aria-pressed={soundOn}
+              title={
+                soundOn
+                  ? "Chime on new customer messages: ON"
+                  : "Chime on new customer messages: OFF"
+              }
+              className={`p-1 rounded hover:bg-white/[0.04] ${
+                soundOn ? "text-brand" : "text-muted hover:text-primary"
+              }`}
+            >
+              {soundOn ? (
+                <Volume2 className="w-3.5 h-3.5" aria-hidden />
+              ) : (
+                <VolumeX className="w-3.5 h-3.5" aria-hidden />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewsCollapsed(true)}
+              aria-label="Collapse Conversations views"
+              title="Collapse"
+              className="text-muted hover:text-primary p-1 rounded hover:bg-white/[0.04]"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
+            </button>
+          </div>
         </div>
         <div className="px-3 py-3 space-y-0.5">
           {VIEWS.map((v) => {
