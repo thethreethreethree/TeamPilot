@@ -179,6 +179,55 @@ const ALLOWLIST = new Map([
     "chat_topic_decisions.delete",
     "§A1 data-as-asset. An opened-by-mistake in-thread dialogue is resolved as chosen_path='defer', never deleted — the constitutional meaning of 'not enough understanding yet' is exactly this record.",
   ],
+
+  // ─── Live Sales Coach (0070/0079/0080) — §3.1 append-only ─────────────
+  // The coaching event chain mirrors the core events chain: a call's
+  // transcript, cues, outcomes and summary are an immutable record so the
+  // post-call review + retrospective analysis (§1.2) are trustworthy.
+  [
+    "coaching_sessions.delete",
+    "§3.1 a coaching session is a permanent record — ended/archived via status, never deleted.",
+  ],
+  [
+    "coaching_transcript_segments.update",
+    "§3.1 append-only. The diarized transcript is the record; corrections append (e.g. one-tap re-label), never edit.",
+  ],
+  [
+    "coaching_transcript_segments.delete",
+    "§3.1 append-only. Transcript segments are permanent; a call's record is not erased.",
+  ],
+  [
+    "coaching_cues.update",
+    "§3.1 append-only. Each cue is an immutable event; rep-marked 'used' appends a new signal, never edits the cue.",
+  ],
+  [
+    "coaching_cues.delete",
+    "§3.1 append-only. Cues are the permanent record of what the coach said, when.",
+  ],
+  [
+    "coaching_cue_outcomes.update",
+    "§3.1 append-only (0079). A cue's outcome/trigger is measured record — §3.5 measures consequence, never edits it.",
+  ],
+  [
+    "coaching_cue_outcomes.delete",
+    "§3.1 append-only. Cue-outcome rows are permanent measurement record.",
+  ],
+  [
+    "sales_coach_corpus_versions.update",
+    "§3.1 append-only. A new methodology/product corpus edit appends a new VERSION; old versions remain referenceable (same shape as smoke_test_checklists).",
+  ],
+  [
+    "sales_coach_corpus_versions.delete",
+    "§3.1 append-only. Corpus versions are the audit trail of how the team's methodology evolved.",
+  ],
+  [
+    "after_pitch_summaries.update",
+    "§3.1 append-only — 0080 enforces this with a do-instead-nothing rule; a re-run appends a new summary row.",
+  ],
+  [
+    "after_pitch_summaries.delete",
+    "§3.1 append-only. After-pitch summaries are permanent growth record.",
+  ],
 ]);
 
 // ─── Parse migrations ─────────────────────────────────────────────────
