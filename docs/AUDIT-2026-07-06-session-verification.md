@@ -122,6 +122,18 @@ off, standalone output). Two remain:
   it): `Strict-Transport-Security: max-age=63072000; includeSubDomains` (omit
   `preload` — it's hard to reverse). Flagged, not committed blindly.
 
+## Dependency vulnerabilities (npm audit)
+
+2 moderate CVEs, both the same root: `postcss <8.5.10` (XSS via unescaped
+`</style>` in CSS stringify, GHSA-qx2v-qp2m-jg93), bundled transitively inside
+**Next**. 🟡 Assessment: practical exposure is **negligible** — the vuln triggers
+when postcss stringifies UNTRUSTED CSS, but here it only processes the app's own
+Tailwind/CSS at BUILD time, never runtime user input. ⚠️ **Do NOT run
+`npm audit fix --force`** — it "resolves" this by installing **next@9.3.3**
+(down from 16), a catastrophic breaking downgrade. Correct fix: a future Next
+minor that bumps its bundled postcss. No action needed now beyond not taking the
+trap fix.
+
 ## Secret handling
 
 No secret is client-exposed or logged. All four `NEXT_PUBLIC_` vars are
