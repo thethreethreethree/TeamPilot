@@ -38,6 +38,7 @@ export function LiveCoachingPanel({
     cueMarked,
     markCueUsed,
     cueStatus,
+    cueSummary,
     phase,
     confidence,
     autoCoach,
@@ -493,6 +494,14 @@ export function LiveCoachingPanel({
       {/* Visible cue lifecycle (thinking / speaking / couldn't play …). */}
       {cueStatus && (
         <p className="mt-2 text-[11px] text-muted">{cueStatus}</p>
+      )}
+
+      {/* A2/§3.6: fluidity readout for the last call — visible without DevTools. */}
+      {cueSummary && (
+        <p className="mt-2 text-[11px] text-secondary">
+          <span className="font-semibold text-brand">Last call:</span>{" "}
+          {cueSummary}
+        </p>
       )}
 
       {/* Rolling transcript — each turn tagged with who we think is

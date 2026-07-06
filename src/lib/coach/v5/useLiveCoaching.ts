@@ -251,6 +251,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // Visible cue lifecycle so failures show ON SCREEN, not just console
   // (the audio-cue debugging, 2026-06-27).
   const [cueStatus, setCueStatus] = useState<string>("");
+  // A2/§3.6: the fluidity readout for the just-ended call (median/p90 latency +
+  // delivered/held), shown in the UI on Stop so it's readable without DevTools.
+  const [cueSummary, setCueSummary] = useState<string | null>(null);
   // Auto-coach toggle (founder request 2026-06-27): when ON, the coach
   // cues automatically at pauses — no pressing "coach me now". When OFF,
   // it stays quiet (transcript still runs). Default ON.
@@ -734,6 +737,13 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // cue latency + delivered/suppressed counts (§3.5 consequence, §3.6 visible).
     if (cueTracesRef.current.length > 0) {
       const s = summarizeCues(cueTracesRef.current);
+      const line =
+        `${s.delivered} cue${s.delivered === 1 ? "" : "s"} delivered, ` +
+        `${s.suppressed} held back · ` +
+        `median ${s.medianTotalMs ?? "—"}ms, p90 ${s.p90TotalMs ?? "—"}ms end-to-end`;
+      // §3.6 make it visible — surface the fluidity readout in the UI too, not
+      // just the console, so the readout is readable without DevTools.
+      setCueSummary(line);
       // eslint-disable-next-line no-console
       console.info(
         `[cue-summary] delivered=${s.delivered} suppressed=${s.suppressed} ` +
@@ -753,6 +763,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
 
   const start = useCallback(async () => {
     setError(null);
+    // Fresh readout per call — clear the prior session's traces + summary.
+    cueTracesRef.current = [];
+    setCueSummary(null);
     setStatus("connecting");
     setTurns([]);
     turnsRef.current = [];
@@ -1239,6 +1252,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     cueMarked,
     markCueUsed,
     cueStatus,
+    cueSummary,
     phase,
     confidence,
     autoCoach,
