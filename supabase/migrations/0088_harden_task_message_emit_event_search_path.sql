@@ -1,0 +1,29 @@
+-- 0088 — Harden the one SECURITY DEFINER function that lacked a fixed search_path
+--
+-- Finding (2026-07-07 security sweep): task_message_emit_event() (0021:151) is a
+-- SECURITY DEFINER trigger that inserts into `events` on every task_messages
+-- write, but it does NOT pin its search_path. A SECURITY DEFINER function without
+-- `set search_path` runs with the CALLER's search_path — the Supabase-advisor
+-- "Function Search Path Mutable" class, a search-path-injection vector: a caller
+-- who can create objects earlier in their search_path could shadow the objects
+-- the function resolves (its `events` insert, operators, casts), executing
+-- attacker-influenced code with the definer's elevated privileges.
+--
+-- Every OTHER security-definer function in the schema already pins search_path
+-- (e.g. auth_company_id() in 0001 sets `search_path = public`). A scan of all 71
+-- definer functions found this to be the SOLE omission.
+--
+-- Severity: 🟡 defense-in-depth. Exploitability in the Supabase authenticated-role
+-- context is low — that role generally cannot create objects to hijack the path —
+-- so this hardens against a real class rather than patching an active exploit.
+--
+-- Why this fix is safe: it is a METADATA-ONLY `alter function ... set search_path`.
+-- It does NOT touch the function body, so the event-emission logic is untouched
+-- and cannot regress. Idempotent (§A12): re-applying the same SET is a no-op, and
+-- if the function signature ever changed the ALTER fails atomically without
+-- corrupting anything.
+--
+-- Constitutional bearing: §1.7 ground-up audit (the foundational DB-privilege
+-- layer). Companion to the 0085/0086 append-only hardenings.
+
+alter function task_message_emit_event() set search_path = public;

@@ -25,16 +25,20 @@ If you only do a few things, do these, in order:
 
 Everything below is the full detail + the smaller flags.
 
-## 1. Apply three migrations (all additive, idempotent, safe)
+## 1. Apply four migrations (all additive, idempotent, safe)
 
 | Migration | What it does | Risk |
 |---|---|---|
 | `0085` | `care_widget_load_events` append-only at the DB level (§3.1) | none — adds `do instead nothing` rules to an insert-only table |
 | `0086` | `crm_activity_events` append-only at the DB level (§3.1) | none — same, write path verified insert-only |
 | `0087` | `last_message_author_type` on `support_conversations` (powers the inbox-wide chime) | none — nullable column + one-line trigger add + one-time backfill |
+| `0088` | 🟡 security hardening — pins `search_path` on `task_message_emit_event()`, the ONE security-definer fn that lacked it (found this session) | none — metadata-only `alter function`, does NOT touch the body; idempotent |
 
 The inbox-wide sound chime only becomes active after `0087`; before it, the
-open-conversation chime still works (no regression).
+open-conversation chime still works (no regression). `0088` closes a Supabase-advisor
+"Function Search Path Mutable" gap — low exploitability (the authenticated role
+can't easily hijack the path), but it's the correct hardening and every other
+definer function already has it.
 
 ## 2. Live tests (the one thing code can't verify)
 
