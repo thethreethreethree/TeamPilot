@@ -320,7 +320,7 @@ function FeedbackRowCard({
             {row.payload["source_context"] === "smoke_test" && (
               <>
                 <span>·</span>
-                <span className="text-ember-400">smoke test</span>
+                <span className="text-brand">smoke test</span>
               </>
             )}
             <span>·</span>

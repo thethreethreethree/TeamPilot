@@ -319,7 +319,7 @@ export function LiveCoachingPanel({
           actionable, self-clearing — §3.3 guide-don't-overtake. anchorHint is
           set by the hook only in-person + live, so no extra guard needed here. */}
       {anchorHint && !agentSpeaking && (
-        <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-ember-400/90">
+        <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-brand/90">
           <Hand className="w-3 h-3 mt-0.5 shrink-0" aria-hidden />
           <span>
             Hard to tell you and the prospect apart by voice right now — tap{" "}

@@ -354,7 +354,7 @@ function CorpusEditor() {
             principle="Tell the user the constraint up front, not at the moment of rejection.">
             <p
               className={`text-[10px] text-right ${
-                text.length > 100000 ? "text-ember-400" : "text-muted"
+                text.length > 100000 ? "text-brand" : "text-muted"
               }`}
             >
               {text.length.toLocaleString()} / 100,000 characters
@@ -503,7 +503,7 @@ function ProductEditor() {
 
           <p
             className={`text-[10px] text-right ${
-              text.length > 100000 ? "text-ember-400" : "text-muted"
+              text.length > 100000 ? "text-brand" : "text-muted"
             }`}
           >
             {text.length.toLocaleString()} / 100,000 characters
