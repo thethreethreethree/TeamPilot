@@ -39,14 +39,16 @@ Files: `speakerAttribution.ts`, `attribute/route.ts`, `pitchSeparation.ts`,
   session so a mislabel can't originate from an out-of-range acoustic artifact.
 
 **Flags**
-- 🟠 **Mic-only video misapplies two-speaker attribution.** *[surfaced —
-  founder-gated, part of the video A/B]* In video mode the mic is agent-only,
-  but the content-tell + LLM attribution still run and can label an agent turn
-  "customer" (e.g., the rep rehearsing "how much does it cost"), creating
-  phantom-prospect turns the cue engine reasons over. The pitch *cluster* is
-  safe; the content/LLM label is not. Resolution depends on the A/B: mic-only ⇒
-  force all video turns "agent"; far-end capture (`getDisplayMedia`) ⇒ leave as
-  is. Do not rewire until the A/B is decided.
+- 🟠 **Mic-only video misapplies two-speaker attribution.** *[RESOLVED
+  2026-07-06, commit `4354efc`]* Root cause: `useLiveCoaching` never received the
+  session `context`, so the two-speaker split ran identically in video, where the
+  mic is agent-only — content/LLM could label a rep turn "customer" (e.g.
+  rehearsing "how much does it cost"), creating phantom-prospect turns. Founder
+  decided the video A/B → **mic-only v1**. Fix: thread context page→panel→hook;
+  in video attribute every turn to the rep, skip the /attribute round-trip + L2
+  prospect schedule, keep rep-delivery cues. In-person unchanged. Live behavior
+  UNTESTED (needs a real video call). One `isVideo` branch to lift if far-end
+  capture is later chosen.
 - 🟡 **Content tells are English + literal-set (A13).** Non-English or heavily
   idiomatic turns fall through to voice/LLM. Acceptable now; note for i18n.
 
@@ -120,8 +122,8 @@ disclosure. Re-examine when the video A/B changes what the surface must promise.
 
 ## Open founder-gated decisions (not built — awaiting the call)
 
-1. **Video A/B** — capture far-end call audio (`getDisplayMedia`) vs stay
-   mic-only. Gates Layer-A flag #1.
+1. ~~**Video A/B**~~ — DECIDED 2026-07-06 → mic-only v1 (commit `4354efc`).
+   Far-end capture (`getDisplayMedia`) remains a later opt-in if wanted.
 2. **0083 manager read-set** — CEO/COO/admin only vs also `sales_coach_role='admin'`;
    then apply 0083.
 3. **`filler_spike` live STT check** — confirm Scribe preserves disfluencies.
