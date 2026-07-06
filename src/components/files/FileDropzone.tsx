@@ -183,7 +183,14 @@ export function FileDropzone({
         setUploading(false);
       }
     },
-    [linkedTopicId, linkedConversationId, linkedTaskId, onUploadComplete, endpoint]
+    [
+      linkedTopicId,
+      linkedConversationId,
+      linkedTaskId,
+      onUploadComplete,
+      endpoint,
+      toast,
+    ]
   );
 
   const handleFiles = useCallback(

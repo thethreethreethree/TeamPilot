@@ -104,7 +104,11 @@ export default function TeamChatListPage() {
   };
 
   useEffect(() => {
+    // Mount-only initial load. `refresh` is redefined each render (reads only
+    // stable setState setters), so depending on it would refetch every render;
+    // subsequent refreshes are driven explicitly (create/delete handlers).
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

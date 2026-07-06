@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -83,19 +84,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [dismiss]
   );
 
-  const api: ToastApi = Object.assign(
-    (opts: ToastOptions) => push(opts),
-    {
-      success: (title: string, description?: string) =>
-        push({ title, description, kind: "success" }),
-      error: (title: string, description?: string) =>
-        push({ title, description, kind: "error", duration: 6000 }),
-      warn: (title: string, description?: string) =>
-        push({ title, description, kind: "warn", duration: 5000 }),
-      info: (title: string, description?: string) =>
-        push({ title, description, kind: "info" }),
-      dismiss,
-    }
+  // Memoized so the context value is a STABLE reference — push + dismiss are
+  // already useCallback-stable, so `api` only needs to change when they do
+  // (never, in practice). Without this, Object.assign built a new object every
+  // provider render, forcing every useToast() consumer to re-render on any
+  // toast push/dismiss and making the value unusable as a hook dependency.
+  const api: ToastApi = useMemo(
+    () =>
+      Object.assign((opts: ToastOptions) => push(opts), {
+        success: (title: string, description?: string) =>
+          push({ title, description, kind: "success" }),
+        error: (title: string, description?: string) =>
+          push({ title, description, kind: "error", duration: 6000 }),
+        warn: (title: string, description?: string) =>
+          push({ title, description, kind: "warn", duration: 5000 }),
+        info: (title: string, description?: string) =>
+          push({ title, description, kind: "info" }),
+        dismiss,
+      }),
+    [push, dismiss]
   );
 
   return (
