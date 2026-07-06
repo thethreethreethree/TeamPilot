@@ -86,6 +86,20 @@ open-conversation chime still works (no regression).
   `sent=N failed=0` = the push WAS delivered, so check the OS/browser notification
   permission + Focus/Do-Not-Disturb. Test via a message to an ALREADY-ASSIGNED
   conversation (not a fresh email) to keep the variable clean.
+- **🟡 Team-chat push skips explicit-but-silent participants (your call).** Found
+  by a read-audit: `notify-message/route.ts` derives push recipients ONLY from the
+  recent message *authors* of a topic (last 50 messages), but its own comment says
+  the intent is "sent a message OR **joined explicitly**." The `chat_participants`
+  table + `addParticipantsToTopic` exist, but the notify path never reads them. So
+  **a teammate you ADD to a topic gets no push for new messages until they first
+  post** — they have to open the topic to discover activity. Not data loss (🟡),
+  but a real "I added them and they heard nothing" gap. *Also a 3rd push-diagnosis
+  confound:* if you tested push as an added-but-silent participant, no push is even
+  attempted — looks like non-delivery. **Recommend:** union the recent-authors set
+  with `chat_participants` for the topic (still excluding the sender), which
+  implements the "joined explicitly" half the comment already promises. It changes
+  who gets notified (a volume/behavior change for real users), so it's your call,
+  not mine to flip. ~5-line fix + I'd add a test. Say the word.
 - **Durability cron** — set `CRON_SECRET` in Vercel (needs Pro) to activate the
   §3.5 durability sweep + dissect-backfill crons.
 - **Email digest** — decide what/when to digest (frequency, recipients, content)
