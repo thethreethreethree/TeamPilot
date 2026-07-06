@@ -1,10 +1,36 @@
 import "server-only";
 import { liveSalesCue } from "@/lib/claude";
 import type { TranscriptSegment, CueMode, SalesContext } from "@/lib/data/salesCoach";
+import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
 import {
   buildLiveCueSystemPrompt,
   buildLiveCueUserMessage,
+  type CueGrounding,
 } from "./liveCuePrompt";
+
+// Compact company grounding for live cues, CACHED per company so it costs no
+// per-cue DB round-trip (founder 2026-07-06 — the compact + cached approach, so
+// helpfulness improves without adding to the response time). 5-min TTL covers a
+// session's worth of cues after a single fetch; corpus changes rarely.
+const CUE_GROUNDING_TTL_MS = 5 * 60 * 1000;
+const cueGroundingCache = new Map<string, { g: CueGrounding; at: number }>();
+
+async function getCueGrounding(companyId: string): Promise<CueGrounding> {
+  const now = Date.now();
+  const hit = cueGroundingCache.get(companyId);
+  if (hit && now - hit.at < CUE_GROUNDING_TTL_MS) return hit.g;
+  const [methodology, product] = await Promise.all([
+    getCurrentSalesCorpus(companyId, "methodology").catch(() => null),
+    getCurrentSalesCorpus(companyId, "product").catch(() => null),
+  ]);
+  // Compact — cues are latency-critical, so cap the injected text tightly.
+  const g: CueGrounding = {
+    methodology: methodology?.content?.trim().slice(0, 600) || null,
+    product: product?.content?.trim().slice(0, 400) || null,
+  };
+  cueGroundingCache.set(companyId, { g, at: now });
+  return g;
+}
 
 /**
  * Live Sales Coach — real-time cue engine (the coaching brain, minus the
@@ -98,7 +124,8 @@ export async function generateLiveCue(args: {
     if (args.segments.length < MIN_SEGMENTS) return silent;
     const recentSegments = args.segments.slice(-ROLLING_WINDOW);
 
-    let systemPrompt = buildLiveCueSystemPrompt(args.mode);
+    const grounding = await getCueGrounding(args.companyId);
+    let systemPrompt = buildLiveCueSystemPrompt(args.mode, grounding);
     if (args.force) {
       // F1 (audit 2026-06-27): the agent asked, so always RESPOND — but
       // never FABRICATE. Honesty over a forced tip (§3.4/§5). Give a real

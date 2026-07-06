@@ -40,7 +40,22 @@ SALES METHODOLOGY (reason FROM it; adapt to THIS moment):
 - CLOSING: make the next step easy and clear when value is established.
 `.trim();
 
-export function buildLiveCueSystemPrompt(mode: CueMode): string {
+/**
+ * Compact, company-specific grounding for the live cue (founder 2026-07-06).
+ * Fetched once + cached upstream (generateLiveCue) so it adds no per-cue DB
+ * round-trip and only a small token cost — a cue grounded in THIS company's
+ * methodology/product is more helpful than a generic one. Both fields optional;
+ * when absent the prompt falls back to the generic METHODOLOGY block (§3.4).
+ */
+export type CueGrounding = {
+  methodology?: string | null;
+  product?: string | null;
+};
+
+export function buildLiveCueSystemPrompt(
+  mode: CueMode,
+  grounding?: CueGrounding
+): string {
   const modeBlock =
     mode === "guide_response"
       ? `MODE: GUIDE MY RESPONSE. When a cue is warranted, give the agent
@@ -49,6 +64,14 @@ almost verbatim. First person, conversational, fits the moment.`
       : `MODE: SUGGESTION (tactic/strategy). When a cue is warranted, name
 the MOVE to make next — a short directive (e.g. "Ask about their
 timeline before pitching"). Not a script; a tactical nudge.`;
+
+  // Ground the cue in THIS company's actual approach when we have it — cues
+  // should fit their methodology + offering, not read as generic sales advice.
+  const companyBlock =
+    grounding && (grounding.methodology || grounding.product)
+      ? `\nTHIS COMPANY (ground your cue in their real approach, not generic advice):
+${grounding.product ? `- What they sell: ${grounding.product}\n` : ""}${grounding.methodology ? `- Their sales methodology: ${grounding.methodology}\n` : ""}`
+      : "";
 
   return `You are a live sales coach listening to an in-progress conversation
 through the agent's earpiece. Only the AGENT hears you — the customer
@@ -93,7 +116,7 @@ NEVER cue: while the customer is mid-thought, right after a close attempt,
 during rapport/small-talk, or when the rep is in flow and doing fine.
 
 ${METHODOLOGY}
-
+${companyBlock}
 LATENCY + LENGTH: one short line. No preamble. The agent is mid-sentence.
 §3.4: never fabricate. If you can't read it, phase "unknown", trigger
 "none", stay silent.
