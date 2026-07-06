@@ -73,6 +73,29 @@ open-conversation chime still works (no regression).
   flow, not a live-test blocker — but it needs a design call: should the diarized
   upload REPLACE the live transcript, or be blocked when one exists? Your decision
   (it touches the append-only transcript). I'll implement whichever you choose.
+- **Email AI first-responder never sends (🔴 layer-2 gap — your call to enable).**
+  A read-audit through the AMD-006 layer-2 lens found the inbound-email AI
+  responder (`runAiFirstResponder` in `api/care/inbound/email/route.ts`) *generates*
+  a reply and *inserts* it as an `ai` message (line 548) but **never dispatches it
+  as outbound email** — it doesn't call `dispatchOutboundEmailReply`. That function
+  exists and works, but its ONLY caller is the human-agent reply route
+  (`agent/conversations/[id]/messages/route.ts:144`). So today: a customer emails
+  in, the AI writes a reply, it lands in your agent inbox — **but the customer
+  never receives it** until a human agent replies. The feature returns 200 and
+  writes the row (looks complete) yet fails end-to-end (§1.5.1 — technically
+  complete but incomplete). Evidence it's a *missing wire*, not a deferral: the
+  route builds an elaborate loop-breaker against email ping-pong with "the
+  sender's own auto-responder" (lines 428–436) — a loop that can't happen unless
+  the AI reply is actually emailed out — and creates threads with
+  `ai_responding:true`. The outbound leg was intended for the AI path.
+  **Why I flagged instead of fixed:** wiring it makes the AI **autonomously email
+  real customers** (outward-facing, unrecallable) the moment `POSTMARK_SERVER_TOKEN`
+  + `CARE_EMAIL_HOST_DOMAIN` are set — I won't turn that on without your explicit
+  yes. **Recommendation:** enable it (it's the designed "AI first responder"
+  behavior, parity with the widget per §A16), but review the AI reply quality on a
+  test tenant first. The fix is ~3 lines (dispatch the inserted AI message id after
+  the insert, best-effort, same as the human path). Say the word and I'll wire it +
+  add a test asserting the AI path dispatches.
 - **HSTS header** (🟡 minor hardening) — the one absent security header. Confirm
   your domain + all subdomains are HTTPS-only, then add to `SECURITY_HEADERS` in
   `next.config.ts`: `{ key: "Strict-Transport-Security", value: "max-age=63072000;
