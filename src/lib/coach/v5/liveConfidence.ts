@@ -20,6 +20,7 @@ export type ConfidenceRead = {
   fillerHigh: boolean; // filler spiked on several recent rep turns
   rushing: boolean; // pace spiked on several recent rep turns
   repTalkShare: number; // 0..1 — the rep's share of recent words
+  talkShareKnown: boolean; // false when the prospect isn't audible (video mic-only)
   overTalking: boolean; // rep dominating the conversation
   hasEnough: boolean; // enough recent rep turns to read anything
   // §4 — always true here: this is a signal-based read, never a verdict.
@@ -37,7 +38,12 @@ export function computeConfidence(args: {
   recentStress: { filler: boolean; pace: boolean }[];
   repWords: number;
   customerWords: number;
+  // false in video (mic-only = agent-only): the prospect is on the far end and
+  // not in the mic, so talk-share is unmeasurable and over-talking cannot be
+  // judged. Defaults true (in-person, one mic holds both voices).
+  customerAudible?: boolean;
 }): ConfidenceRead {
+  const customerAudible = args.customerAudible !== false;
   const repTurns = args.recentStress.length;
   const totalWords = args.repWords + args.customerWords;
   const repTalkShare = totalWords > 0 ? args.repWords / totalWords : 0;
@@ -47,6 +53,7 @@ export function computeConfidence(args: {
     fillerHigh: false,
     rushing: false,
     repTalkShare,
+    talkShareKnown: customerAudible,
     overTalking: false,
     hasEnough: false,
     note: "Reading the room — a few more turns before there's a signal.",
@@ -57,8 +64,12 @@ export function computeConfidence(args: {
   const paceCount = args.recentStress.filter((s) => s.pace).length;
   const fillerHigh = fillerCount >= SPIKE_COUNT_HIGH;
   const rushing = paceCount >= SPIKE_COUNT_HIGH;
+  // Over-talking needs the prospect's share — meaningless when they're not
+  // audible (§3.4: don't infer a signal we can't measure). Video → always false.
   const overTalking =
-    totalWords >= OVER_TALK_MIN_WORDS && repTalkShare >= OVER_TALK_SHARE;
+    customerAudible &&
+    totalWords >= OVER_TALK_MIN_WORDS &&
+    repTalkShare >= OVER_TALK_SHARE;
 
   // Coarse level — deliberately three buckets, not a number (§3.4/§4).
   let level: ConfidenceLevel = "steady";
@@ -75,6 +86,7 @@ export function computeConfidence(args: {
     fillerHigh,
     rushing,
     repTalkShare,
+    talkShareKnown: customerAudible,
     overTalking,
     hasEnough: true,
     note,

@@ -131,11 +131,13 @@ export function LiveCoachingPanel({
               }`}
               title={`Signal-based read (NOT yet validated against outcomes). Fillers: ${
                 confidence.fillerHigh ? "high" : "ok"
-              } · Pace: ${
-                confidence.rushing ? "rushing" : "steady"
-              } · You're speaking ${Math.round(
-                confidence.repTalkShare * 100
-              )}% of recent words.`}
+              } · Pace: ${confidence.rushing ? "rushing" : "steady"}${
+                confidence.talkShareKnown
+                  ? ` · You're speaking ${Math.round(
+                      confidence.repTalkShare * 100
+                    )}% of recent words.`
+                  : "" // video mic-only: talk-share isn't measurable (prospect not in the mic)
+              }`}
             >
               ·{" "}
               {confidence.level === "steady"

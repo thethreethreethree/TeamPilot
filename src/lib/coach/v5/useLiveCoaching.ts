@@ -1031,6 +1031,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
               recentStress: recentStressRef.current,
               repWords: repW,
               customerWords: custW,
+              // Video is mic-only: the prospect isn't in the mic, so talk-share
+              // is unmeasurable (custW is always 0) — don't let it read as a
+              // false "over-talking" (§1.5 ripple of the video attribution gate).
+              customerAudible: !isVideo,
             });
             confidenceRef.current = conf;
             setConfidence(conf);
