@@ -95,7 +95,12 @@ export async function generateSalesMoments(args: {
   }
 }
 
-function parseMoments(
+// Exported for test: parseMoments enforces the §3.4 grounding invariant — a
+// moment whose atSeq does not reference a REAL transcript segment is dropped
+// (the coach cannot fabricate a moment that isn't in the transcript), timestamps
+// come only from real spoken_at (never invented), and malformed model output
+// degrades honestly. These are constitutional invariants worth pinning.
+export function parseMoments(
   text: string,
   segments: TranscriptSegment[]
 ): SalesMoments | null {
