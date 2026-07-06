@@ -22,6 +22,13 @@ import {
   shouldScheduleCueAtCommit,
   reconcileCueAfterClassify,
 } from "@/lib/coach/v5/cueCoordination";
+import { decideCueDelivery } from "@/lib/coach/v5/cueDelivery";
+import {
+  formatCueMetric,
+  summarizeCues,
+  type CueTrace,
+  type CueImportance,
+} from "@/lib/coach/v5/cueInstrument";
 import {
   computeConfidence,
   type ConfidenceRead,
@@ -296,6 +303,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const modeRef = useRef<CueMode>("suggestion");
   const lastCueAtRef = useRef(0); // F4 cooldown (ms epoch); 0 = never
   const currentCueIdRef = useRef<string | null>(null); // DB id of the shown cue
+  // A2 instrumentation: every cue's latency+relevance trace, for the live-test
+  // readout (median/p90 end-to-end + delivered/suppressed). Summary logged on stop.
+  const cueTracesRef = useRef<CueTrace[]>([]);
   const lastStressCueAtRef = useRef(0); // F2 — stress-cue cooldown (ms epoch)
   const autoCoachRef = useRef(true); // mirrors autoCoach for ws closures
   const agentSpeakingRef = useRef(false); // mirrors agentSpeaking for ws closure
@@ -417,7 +427,13 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       }
       cueInFlightRef.current = true;
       if (onDemand) setCueStatus("Thinking…");
+      // A2 instrumentation: the clock the agent experiences delay against starts
+      // the moment we decide to fetch a cue (the prospect's turn just ended, or
+      // they asked). llmStarted is marked at the fetch.
+      const triggeredAt = performance.now();
+      let llmStartedAt = triggeredAt;
       try {
+        llmStartedAt = performance.now();
         const res = await fetch(`/api/coach/sales-session/${sessionId}/cue`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -450,6 +466,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           if (onDemand) setCueStatus(`Cue request failed (${res.status}).`);
           return;
         }
+        const llmEndedAt = performance.now();
         const data = await res.json();
         const c = data?.cue ?? {};
         // Capture the coach's read of the moment (§3.6 make it visible),
@@ -459,21 +476,43 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           lastPhaseRef.current = c.phase;
           setPhase(c.phase);
         }
-        // eslint-disable-next-line no-console
-        console.info(
-          `[live-coaching] cue phase=${c.phase ?? "?"} trigger=${c.trigger ?? "?"} shouldCue=${!!c.shouldCue}`
-        );
-        if (c.shouldCue && c.cue) {
+        const importance: CueImportance =
+          c.importance === "high" || c.importance === "low" ? c.importance : "medium";
+        // Delivery gate (Piece 2 — the single best cue, §3.3): the engine already
+        // applied the §3.2 understanding gate; this drops "low" cues so only what
+        // matters reaches the ear. On-demand always delivers (the rep asked).
+        const decision = decideCueDelivery({
+          shouldCue: !!c.shouldCue,
+          hasCue: typeof c.cue === "string" && c.cue.length > 0,
+          importance,
+          onDemand,
+        });
+        const trace: CueTrace = {
+          triggeredAt,
+          llmStartedAt,
+          llmEndedAt,
+          importance,
+          phase: typeof c.phase === "string" ? c.phase : undefined,
+          trigger: typeof c.trigger === "string" ? c.trigger : undefined,
+          delivered: decision.deliver,
+          suppressReason: decision.suppressReason,
+          mode: contextRef.current === "video" ? "video" : "in_person",
+        };
+        if (decision.deliver) {
           lastCueAtRef.current = Date.now(); // start the cooldown
           // Track the persisted cue id so the rep can mark it "used" (0080).
           currentCueIdRef.current = (data?.cueId as string | null) ?? null;
           setCueMarked(false);
           setCurrentCue(c.cue);
+          trace.deliveredAt = performance.now(); // cue reaches the ear (TTS start)
           void speakCue(c.cue);
         } else if (onDemand) {
           // force was on, so this is rare — but don't leave the button dead.
           setCueStatus("Coach had nothing pressing to add right now.");
         }
+        cueTracesRef.current.push(trace);
+        // eslint-disable-next-line no-console
+        console.info(formatCueMetric(trace));
       } catch (err) {
         if (onDemand) setCueStatus("Cue request failed — see console.");
         // eslint-disable-next-line no-console
@@ -662,6 +701,16 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       /* noop */
     }
     wsRef.current = null;
+    // A2 readout: the "is it fluid?" summary for this call — median/p90 end-to-end
+    // cue latency + delivered/suppressed counts (§3.5 consequence, §3.6 visible).
+    if (cueTracesRef.current.length > 0) {
+      const s = summarizeCues(cueTracesRef.current);
+      // eslint-disable-next-line no-console
+      console.info(
+        `[cue-summary] delivered=${s.delivered} suppressed=${s.suppressed} ` +
+          `median=${s.medianTotalMs ?? "—"}ms p90=${s.p90TotalMs ?? "—"}ms`
+      );
+    }
     setStatus("idle");
     setPartial("");
     micLevelRef.current = 0;
