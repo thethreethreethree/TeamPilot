@@ -854,13 +854,22 @@ export function ConversationsApp({
   }, [selectedId, view, router]);
 
   // Load detail (messages + events) for selected conversation
+  // Guard against a stale-response race: clicking conversation A then quickly B,
+  // if A's fetch is slower, A's response must NOT overwrite B's messages (the
+  // agent would see B's header with A's messages — and could reply to B with A's
+  // context). Each call stamps the latest requested id; a response is applied
+  // only if it's still the latest.
+  const latestDetailReqRef = useRef<string | null>(null);
   const loadDetail = useCallback(async (id: string) => {
+    latestDetailReqRef.current = id;
     setDetailLoading(true);
     try {
       const [convRes, evRes] = await Promise.all([
         fetch(`/api/care/agent/conversations/${id}`),
         fetch(`/api/care/agent/conversations/${id}/events`),
       ]);
+      // A newer selection superseded this request — discard the stale response.
+      if (latestDetailReqRef.current !== id) return;
       if (convRes.ok) {
         const data = await convRes.json();
         setMessages(data.messages ?? []);
@@ -870,7 +879,8 @@ export function ConversationsApp({
         setEvents(data.events ?? []);
       }
     } finally {
-      setDetailLoading(false);
+      // Only the latest request owns the loading flag.
+      if (latestDetailReqRef.current === id) setDetailLoading(false);
     }
   }, []);
 
