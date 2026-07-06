@@ -113,6 +113,18 @@ open-conversation chime still works (no regression).
   dispatches when unrouted, (2) AI stays silent + does NOT dispatch when an agent
   was assigned. Say the word and I'll build that (the correct version, not the
   overtake-introducing shortcut).
+  *Same-class check (done, not assumed):* the widget customer-messages route
+  (`conversations/[id]/messages/route.ts:192`) has the same check-then-act on
+  `ai_responding`, loaded at handler-start. On a NEW widget conversation the
+  create route fires `void routeNewConversation` and returns the id before routing
+  finishes; the client's first-message POST can then read `ai_responding=true`
+  (pre-flip) and the AI first-responds even though an agent was auto-assigned. But
+  it's **milder and possibly acceptable-by-design**: first-turn-only (the
+  assignment persists, so turn 2+ stays silent — self-correcting), the reply IS
+  delivered, and an AI first-touch while a human picks up may be the behavior you
+  want. Logged for completeness at 🟡 — tell me if you want the widget create→first
+  -message flow to await routing before the AI first-responds, or to leave the AI
+  first-touch as-is. No action taken; your call on whether it's a defect or a feature.
 - **HSTS header** (🟡 minor hardening) — the one absent security header. Confirm
   your domain + all subdomains are HTTPS-only, then add to `SECURITY_HEADERS` in
   `next.config.ts`: `{ key: "Strict-Transport-Security", value: "max-age=63072000;
