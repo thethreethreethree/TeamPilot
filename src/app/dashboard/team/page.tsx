@@ -94,18 +94,18 @@ export default function TeamPage() {
 
         {supabaseEnabled && failedInvites.length > 0 && (
           <div className="glass-card p-4 border border-amber-400/40 bg-amber-400/5">
-            <p className="text-sm font-semibold text-amber-100 mb-2 flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-brand mb-2 flex items-center gap-1.5">
               <AlertTriangle className="w-4 h-4 text-amber-300" aria-hidden />
               {failedInvites.length} invite
               {failedInvites.length === 1 ? "" : "s"} from onboarding didn&apos;t
               land
             </p>
-            <p className="text-xs text-amber-200 leading-relaxed mb-3">
+            <p className="text-xs text-primary leading-relaxed mb-3">
               Either the email was already a member, the address was invalid,
               or the server rejected the request. Re-invite them from the
               Invite button below if you want to try again.
             </p>
-            <ul className="text-xs font-mono text-amber-100 bg-base/40 rounded-md p-2 space-y-1">
+            <ul className="text-xs font-mono text-primary bg-base/40 rounded-md p-2 space-y-1">
               {failedInvites.map((email) => (
                 <li key={email}>· {email}</li>
               ))}
@@ -113,7 +113,7 @@ export default function TeamPage() {
             <button
               type="button"
               onClick={() => setFailedInvites([])}
-              className="mt-3 text-[11px] text-amber-200 hover:text-amber-100 underline"
+              className="mt-3 text-[11px] text-brand hover:text-brand/80 underline"
             >
               Dismiss
             </button>

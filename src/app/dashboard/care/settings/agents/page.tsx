@@ -333,7 +333,7 @@ function RoutingControls({
                   key={c.key}
                   className={`inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded border cursor-pointer ${
                     on
-                      ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-200"
+                      ? "border-emerald-500/40 bg-emerald-500/5 text-primary"
                       : "border-default bg-surface/40 text-muted hover:border-strong"
                   }`}
                 >

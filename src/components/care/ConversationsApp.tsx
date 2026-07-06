@@ -3035,7 +3035,7 @@ function BulkCloseButton({
             onConfirm();
           }}
           disabled={acting}
-          className="inline-flex items-center gap-1.5 text-xs text-red-200 bg-red-500/15 border border-red-500/60 hover:bg-red-500/25 disabled:opacity-50 px-2.5 py-1 rounded-md font-semibold"
+          className="inline-flex items-center gap-1.5 text-xs text-primary bg-red-500/15 border border-red-500/60 hover:bg-red-500/25 disabled:opacity-50 px-2.5 py-1 rounded-md font-semibold"
         >
           <Lock className="w-3.5 h-3.5" aria-hidden />
           Confirm close {count}

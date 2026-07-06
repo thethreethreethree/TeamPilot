@@ -315,8 +315,8 @@ export default function CareWidgetSettingsPage() {
           {(!config?.allowed_origins ||
             config.allowed_origins.length === 0) &&
             originsRaw.trim().length === 0 && (
-              <div className="mb-3 p-3 rounded-md bg-amber-400/10 border border-amber-400/40 text-xs text-amber-200 leading-relaxed">
-                <p className="font-semibold text-amber-100 mb-1 flex items-center gap-1.5">
+              <div className="mb-3 p-3 rounded-md bg-amber-400/10 border border-amber-400/40 text-xs text-primary leading-relaxed">
+                <p className="font-semibold text-brand mb-1 flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5" aria-hidden />
                   Your widget won&apos;t load anywhere yet
                 </p>
@@ -325,7 +325,7 @@ export default function CareWidgetSettingsPage() {
                   nobody can embed your widget on a random site without
                   your permission. Add at least one origin below (the
                   domain where your widget will live, e.g.{" "}
-                  <code className="font-mono text-amber-100">
+                  <code className="font-mono text-brand">
                     https://yourbusiness.com
                   </code>
                   ) and save to enable it.
@@ -408,7 +408,7 @@ export default function CareWidgetSettingsPage() {
             </>
           ) : (
             <div className="bg-amber-500/5 border border-amber-500/30 rounded-md px-3 py-2.5">
-              <p className="text-xs text-amber-200">
+              <p className="text-xs text-primary">
                 Email channel not configured on this deployment yet.
                 Set <code className="font-mono">CARE_EMAIL_HOST_DOMAIN</code>{" "}
                 and <code className="font-mono">CARE_INBOUND_EMAIL_SECRET</code>{" "}

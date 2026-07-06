@@ -99,7 +99,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
           <ChevronRight className="w-4 h-4" aria-hidden />
         </button>
       ) : (
-        <aside className="w-56 flex-shrink-0 bg-[#0B1620] text-white/90 border-r border-white/[0.06] hidden md:flex flex-col h-full">
+        <aside className="w-56 flex-shrink-0 bg-brand-shell text-white/90 border-r border-white/[0.06] hidden md:flex flex-col h-full">
           {/* Brand */}
           <div className="px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
             <div className="flex items-start gap-2">
@@ -183,7 +183,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
       {/* Mobile bottom tab bar — the PWA nav (founder 2026-07-04). A flex
           sibling below <main> in the mobile column layout, so content sits
           above it with no overlap; hidden on desktop (the sidebar takes over). */}
-      <nav className="md:hidden flex-shrink-0 flex items-stretch justify-around bg-[#0B1620] border-t border-white/[0.08] pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))]">
+      <nav className="md:hidden flex-shrink-0 flex items-stretch justify-around bg-brand-shell border-t border-white/[0.08] pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))]">
         {MOBILE_TABS.map((tab) => {
           const Icon = tab.icon;
           const active =

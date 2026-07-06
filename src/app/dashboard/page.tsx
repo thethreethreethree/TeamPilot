@@ -219,14 +219,14 @@ export default function CommandDashboard() {
               className="w-3.5 h-3.5 text-amber-300 shrink-0"
               aria-hidden
             />
-            <p className="text-xs text-amber-200 leading-relaxed flex-1">
+            <p className="text-xs text-primary leading-relaxed flex-1">
               Couldn&apos;t load: {loadError.join(", ")}. The numbers
               below may be incomplete. Showing what loaded.
             </p>
             <button
               type="button"
               onClick={refresh}
-              className="text-[11px] text-amber-200 hover:text-amber-100 underline"
+              className="text-[11px] text-brand hover:text-brand/80 underline"
             >
               Retry
             </button>

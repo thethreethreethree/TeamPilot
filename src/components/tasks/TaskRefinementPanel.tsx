@@ -174,7 +174,7 @@ export default function TaskRefinementPanel({
       )}
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+        <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-primary">
           {error}
           <button
             type="button"

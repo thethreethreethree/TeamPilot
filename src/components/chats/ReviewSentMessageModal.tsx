@@ -236,7 +236,7 @@ export function ReviewSentMessageModal({
           <>
             {state.analysis.affirmation && (
               <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-2.5">
-                <p className="text-xs text-emerald-200 leading-relaxed">
+                <p className="text-xs text-primary leading-relaxed">
                   {state.analysis.affirmation}
                 </p>
               </div>

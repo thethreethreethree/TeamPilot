@@ -43,6 +43,11 @@ const config: Config = {
         // Canonical brand scales — the only two that exist now.
         ember,
         ink,
+        // Always-dark product chrome (product sidebars / nav / footers / status
+        // menus). Static BY DESIGN — the branded shell does not follow the
+        // theme (white text lives on it), so it is a named brand token, never a
+        // theme-adaptive surface. Replaces scattered bg-[#0B1620] literals.
+        "brand-shell": "#0B1620",
         // Semantic aliases — all pointing at ember.
         brand: ember,
         accent: ember,

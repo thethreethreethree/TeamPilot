@@ -333,7 +333,7 @@ export default function SalesCoachRoleplayPage() {
               )}
             </div>
 
-            <div className="flex-shrink-0 border-t border-white/[0.08] bg-[#0B1620] px-3 md:px-8 py-2.5 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
+            <div className="flex-shrink-0 border-t border-white/[0.08] bg-brand-shell px-3 md:px-8 py-2.5 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
               <div className="max-w-2xl mx-auto w-full flex items-center gap-2">
                 <button
                   type="button"

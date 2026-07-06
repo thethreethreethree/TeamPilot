@@ -1008,7 +1008,7 @@ export default function TeamChatTopicPage() {
               aria-hidden
             />
             <p className="text-[11px] text-secondary leading-relaxed">
-              <span className="text-amber-200 font-semibold">Locked.</span> Only
+              <span className="text-brand font-semibold">Locked.</span> Only
               its members can see or join this chat — not your teammates, not
               admins. The System still reads it for coaching and diagnosis.
             </p>

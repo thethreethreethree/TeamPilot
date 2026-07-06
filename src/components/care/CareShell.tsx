@@ -166,7 +166,7 @@ export function CareShell({ children }: { children: React.ReactNode }) {
           <ChevronRight className="w-4 h-4" aria-hidden />
         </button>
       ) : (
-      <aside className="w-56 flex-shrink-0 bg-[#0B1620] text-white/90 border-r border-white/[0.06] flex flex-col fixed md:relative inset-y-0 left-0 z-50 md:z-auto h-dvh md:h-auto">
+      <aside className="w-56 flex-shrink-0 bg-brand-shell text-white/90 border-r border-white/[0.06] flex flex-col fixed md:relative inset-y-0 left-0 z-50 md:z-auto h-dvh md:h-auto">
         {/* Header: brand + agent status.
             pt-[max(1rem,env(safe-area-inset-top))] pushes the C.A.R.E
             logo + title BELOW the iOS status bar / dynamic island on
@@ -443,7 +443,7 @@ function PresenceControl() {
         placement="bottom-stretch"
         onClose={() => setMenuOpen(false)}
         zIndex={50}
-        className="bg-[#0B1620] border border-white/[0.08] rounded-md shadow-lg py-1"
+        className="bg-brand-shell border border-white/[0.08] rounded-md shadow-lg py-1"
       >
         <StatusOption
           current={state.status}

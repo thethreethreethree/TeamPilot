@@ -280,7 +280,7 @@ export default function AfterPitchPage() {
           </div>
         ) : error ? (
           <div className="rounded-xl border border-ember-500/40 bg-ember-500/[0.06] p-4 text-center space-y-3">
-            <p className="text-xs text-amber-200">{error}</p>
+            <p className="text-xs text-primary">{error}</p>
             <button
               type="button"
               onClick={() => void generate()}

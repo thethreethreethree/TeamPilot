@@ -54,7 +54,7 @@ export function InstallInstructions({ app }: { app: InstallAppConfig }) {
   return (
     <div className="min-h-dvh bg-base text-primary flex flex-col items-center px-4 py-8 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
       {/* Card — dark with a soft gold frame + glow, echoing the reference. */}
-      <div className="relative w-full max-w-md rounded-3xl border border-ember-400/30 bg-[#0B0B0F] shadow-[0_0_60px_-15px_rgba(250,204,21,0.25)] overflow-hidden">
+      <div className="relative w-full max-w-md rounded-3xl border border-ember-400/30 bg-ink-950 shadow-[0_0_60px_-15px_rgba(250,204,21,0.25)] overflow-hidden">
         {/* Faint gold topographic wash, like the reference background. */}
         <div
           aria-hidden

@@ -87,7 +87,7 @@ export function CoachDebriefCard({
             {debrief.workOn.map((item, i) => (
               <li key={i} className="flex items-start gap-2">
                 <Target
-                  className="w-3.5 h-3.5 text-gold-400 mt-0.5 flex-shrink-0"
+                  className="w-3.5 h-3.5 text-accent-text mt-0.5 flex-shrink-0"
                   aria-hidden
                 />
                 <span className="text-xs text-primary leading-relaxed">
