@@ -107,6 +107,14 @@ never masquerades as empty (§3.4). The known-fragile area is robust.
   cosmetic: a few routes `await req.json()` without `.catch()` → 500 (not 400) on
   malformed JSON; both still reject. ✅
 
+## Secret handling
+
+No secret is client-exposed or logged. All four `NEXT_PUBLIC_` vars are
+legitimately public — `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, the
+RLS-gated `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (a
+public key). The service-role key, LLM provider keys, and webhook/cron secrets
+stay server-side (no `NEXT_PUBLIC_` prefix) and are not written to console. ✅
+
 ## Security posture (observed pattern)
 
 The service-role routes follow a consistent, mature isolation discipline: access
