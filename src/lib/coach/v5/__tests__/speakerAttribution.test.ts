@@ -44,6 +44,19 @@ describe("guessSpeakerFromContent — asymmetry + guards", () => {
     expect(guessSpeakerFromContent("do you have any questions so far?")).toBeNull();
     expect(guessSpeakerFromContent("we have about 50 people on the team")).toBeNull();
   });
+
+  it("covers the seller-pitch category (describing the offering)", () => {
+    expect(guessSpeakerFromContent("we offer a full onboarding package")).toBe("agent");
+    expect(guessSpeakerFromContent("our product handles that automatically")).toBe("agent");
+    expect(guessSpeakerFromContent("the way it works is you set it once")).toBe("agent");
+  });
+
+  it("covers the buyer-need category (stating own situation/doubt)", () => {
+    expect(guessSpeakerFromContent("honestly I'm not sure this is for us")).toBe("customer");
+    expect(guessSpeakerFromContent("we're looking for something simpler")).toBe("customer");
+    expect(guessSpeakerFromContent("my concern is the setup time")).toBe("customer");
+    expect(guessSpeakerFromContent("is there a discount for annual")).toBe("customer");
+  });
 });
 
 describe("composeProvisional — signal priority (A16)", () => {
