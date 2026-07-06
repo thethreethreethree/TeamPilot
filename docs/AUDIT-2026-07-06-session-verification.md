@@ -219,5 +219,29 @@ mutable-entity management outside that scope — NOT a §3.1 violation. The appe
 discipline is correctly *scoped* to where history-as-asset matters, not
 cargo-culted onto every table. A clean result, on the record per §1.7.3.
 
-**Gate at extension end:** 299 tests passing / 3 skipped (integration, live-DB
+**Multi-tenant read isolation (§1.7 foundation) — verified SOUND through the
+stack.** `rls:audit` proves a policy EXISTS per op but not that reads are correctly
+scoped, so this checked the deeper question (THINK-first: where would a cross-tenant
+read leak hide?) through three layers: (1) the audit allowlist has ZERO `.select`
+exemptions — 37 delete / 23 update / 7 insert, 0 select — so no company-data read
+was quietly exempted from needing a policy; (2) no `using (true)` over-permissive
+policy exists anywhere; (3) SELECT policies scope via `auth_company_id()` /
+`company_id`, and the linchpin `auth_company_id()` (0001:86) is correct + hardened:
+`security definer` WITH `set search_path = public` (blocks search-path injection),
+and fail-closed on a NULL `auth.uid()` (unauthenticated → sees nothing). The single
+biggest first-customer risk — a cross-tenant leak — is structurally sound. Clean
+result on the record per §1.7.3. (Not exhaustively per-policy-predicate audited;
+the linchpin + allowlist + no-`using(true)` cover the highest-leverage failure
+modes.)
+
+**§3.1 / §3.2 core guarantees — now integration-tested (were relied-on, untested).**
+Added to `chain.integration.test.ts` (`npm run test:chain`): §3.2 understanding gate
+(blocks surfacing under threshold, allows once met) and §3.1 immutability (UPDATE/
+DELETE are no-ops on events AND signals). Verified the enforcement from source first
+(§A22): the gate trigger fires on both the draft→non-draft UPDATE and direct
+non-draft INSERT and can't be bypassed by client role; immutability is `do instead
+nothing` rules. Protects the foundation against the silent-migration-regression class
+(the 2026-07-03 outage shape).
+
+**Gate at extension end:** 312 tests passing / 9 skipped (integration, live-DB
 gated), typecheck + lint + rls:audit (0 missing) green.
