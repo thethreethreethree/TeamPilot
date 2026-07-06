@@ -92,6 +92,21 @@ read failure — surfaced to the UI) from `live-empty` (genuinely no data), with
 degraded base-table fallback when the view is broken/missing, and a failed read
 never masquerades as empty (§3.4). The known-fragile area is robust.
 
+## Auth + input-validation coverage
+
+- **Auth**: every API route doing sensitive work authenticates — via
+  `getCurrentAuthContext` (super-admin-gated admin/CRM + files), `getUser`,
+  `requireCareAgent`, `getCurrentCompanyId`, or a webhook/cron secret. The only
+  unauthenticated non-stub is `llm/ping` (an LLM connectivity test used at setup)
+  — appropriately controlled by a rate limit (6/min/IP) and ~10 tokens/call
+  (negligible cost); the `ai/analyze|decision|finance|marketing` routes are
+  410-Gone deprecated stubs. ✅
+- **Input validation**: routes validate request bodies (Zod `readBody`/`safeParse`
+  where used, else manual `typeof`/non-empty checks + defensive `req.json()
+  .catch(() => ({}))` + 400s). No unvalidated field flows to a query/write. Minor
+  cosmetic: a few routes `await req.json()` without `.catch()` → 500 (not 400) on
+  malformed JSON; both still reject. ✅
+
 ## Security posture (observed pattern)
 
 The service-role routes follow a consistent, mature isolation discipline: access
