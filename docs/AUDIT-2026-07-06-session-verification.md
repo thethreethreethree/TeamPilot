@@ -291,5 +291,17 @@ Net (9 classes): 3 real hardenings shipped (0088 definer search_path + the `.or(
 injection guard + the SSRF guard), 6 verified clean. Not an exhaustive pentest —
 the highest-leverage classes for a multi-tenant first-customer launch.
 
-**Gate at extension end:** 322 tests passing / 9 skipped (integration, live-DB
-gated), typecheck + lint + rls:audit (0 missing) green.
+**Accessibility pass (this session's live surfaces).** FIXED: the live Sales Coach
+cue had no `aria-live`, so a screen-reader rep running visual-only (TTS off) got
+NOTHING — added a persistent `sr-only` assertive live region (`a39f90f`). Verified
+CLEAN: icon-only buttons carry `aria-label`s (the strict icon-only-unlabeled grep
+found zero; the C.A.R.E sound toggle is labeled). OPEN (polish, deferred): the
+C.A.R.E message thread has no `aria-live`, so a new customer message isn't announced
+to a screen-reader agent — but it's FUNCTIONAL (the chime alerts + the list is
+navigable), so this is optimization not a break. The clean fix (a persistent
+sr-only region driven by the same `hasNewCustomerMessage` trigger the chime uses)
+touches the core inbox poll, so it's flagged for founder-prioritized care rather
+than changed autonomously.
+
+**Gate at extension end:** 326 tests passing / 9 skipped (integration, live-DB
+gated), typecheck + lint + rls:audit (0 missing) green; production build clean.
