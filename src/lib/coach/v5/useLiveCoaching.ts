@@ -81,6 +81,11 @@ const VOICE_NOISE_FLOOR = 0.004;
 // provisional label; below it we defer to loudness (§3.4 — trust pitch only
 // once the two clusters are actually separated).
 const PITCH_TRUST = 0.5;
+// Below this per-turn separation confidence the voice split is "struggling".
+// If several recent in-person turns are this low AND the rep hasn't grounded
+// the split with the manual anchor, we nudge them to tap "I'm speaking".
+const PITCH_HINT_LOW_CONF = 0.5;
+const PITCH_HINT_MIN_TURNS = 3; // don't nag before the clusters have a chance
 // When only the salesperson's level is known yet, an utterance quieter than
 // this fraction of it is taken to be the (farther) prospect.
 const QUIET_RATIO = 0.65;
@@ -244,6 +249,13 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // "agent" — a hard override of the loudness/content guess — for clean script
   // separation on the rep's turns. OFF = the automatic attribution runs.
   const [agentSpeaking, setAgentSpeaking] = useState(false);
+  // Pitch-anchor nudge (founder 2026-07-06): true when the in-person voice
+  // separation is struggling and the rep hasn't anchored it yet — the panel
+  // surfaces a hint to tap "I'm speaking". Ref mirrors state so the commit
+  // handler can compare without a re-render churn; both reset on start/stop.
+  const [anchorHint, setAnchorHint] = useState(false);
+  const anchorHintRef = useRef(false);
+  const recentPitchConfRef = useRef<number[]>([]);
   // F2: the recorded call audio, available after Stop, to feed the S1a
   // upload→diarize→label→review pipeline so a live session leaves a
   // persisted, reviewable record (§1.1). In-person only — the mic holds
@@ -677,6 +689,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     lastStressCueAtRef.current = 0;
     recentStressRef.current = [];
     setConfidence(null);
+    recentPitchConfRef.current = [];
+    anchorHintRef.current = false;
+    setAnchorHint(false);
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     try {
       // 1. Mic.
@@ -1039,6 +1054,37 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             confidenceRef.current = conf;
             setConfidence(conf);
           }
+
+          // Pitch-anchor nudge (founder 2026-07-06): IN-PERSON only — video is
+          // mic-only agent, there is no voice split to sharpen. When the last
+          // few UNLOCKED turns keep separating with low confidence AND the rep
+          // hasn't grounded the split with the manual anchor, surface a hint to
+          // tap "I'm speaking". One tap anchors the agent cluster and sharpens
+          // the whole split. §3.3 — we GUIDE (show the hint); the rep acts. It
+          // self-clears once anchored (isAnchored) or confidence recovers.
+          if (!isVideo) {
+            if (!locked) {
+              recentPitchConfRef.current = [
+                ...recentPitchConfRef.current,
+                pitch.confidence,
+              ].slice(-PITCH_HINT_MIN_TURNS);
+            }
+            const recentConf = recentPitchConfRef.current;
+            const lowCount = recentConf.filter(
+              (c) => c < PITCH_HINT_LOW_CONF
+            ).length;
+            const hint =
+              !pitchSepRef.current.isAnchored() &&
+              recentConf.length >= PITCH_HINT_MIN_TURNS &&
+              lowCount >= 2;
+            if (hint !== anchorHintRef.current) {
+              anchorHintRef.current = hint;
+              setAnchorHint(hint);
+            }
+          } else if (anchorHintRef.current) {
+            anchorHintRef.current = false;
+            setAnchorHint(false);
+          }
           // Speech happened → reset the stall timer. After STALL_MS of
           // silence, consult the brain with the stall flag — it reads the
           // last AGENT turn and is the AUTHORITATIVE guard on the sacred
@@ -1094,6 +1140,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   return {
     agentSpeaking,
     toggleAgentSpeaking,
+    anchorHint,
     recordingBlob,
     clearRecording,
     transcriptSaved,

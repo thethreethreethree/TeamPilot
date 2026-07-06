@@ -44,6 +44,7 @@ export function LiveCoachingPanel({
     setAutoCoach,
     agentSpeaking,
     toggleAgentSpeaking,
+    anchorHint,
     mode,
     setMode,
     error,
@@ -250,7 +251,10 @@ export function LiveCoachingPanel({
               className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
                 agentSpeaking
                   ? "border-ember-400/50 bg-ember-400/10 text-brand"
-                  : "border-default text-muted hover:text-secondary"
+                  : anchorHint
+                    ? // pitch-anchor nudge: separation is struggling, draw the eye
+                      "border-ember-400/60 text-secondary ring-2 ring-ember-400/40 animate-pulse"
+                    : "border-default text-muted hover:text-secondary"
               }`}
             >
               <span
@@ -309,6 +313,21 @@ export function LiveCoachingPanel({
           </div>
         )}
       </div>
+
+      {/* Pitch-anchor nudge (founder 2026-07-06): only when the in-person voice
+          split is genuinely struggling and the rep hasn't anchored it. Gentle,
+          actionable, self-clearing — §3.3 guide-don't-overtake. anchorHint is
+          set by the hook only in-person + live, so no extra guard needed here. */}
+      {anchorHint && !agentSpeaking && (
+        <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-ember-400/90">
+          <Hand className="w-3 h-3 mt-0.5 shrink-0" aria-hidden />
+          <span>
+            Hard to tell you and the prospect apart by voice right now — tap{" "}
+            <strong className="font-semibold">&quot;I&apos;m speaking&quot;</strong>{" "}
+            while you talk to lock your voice in and sharpen the split.
+          </span>
+        </p>
+      )}
 
       {/* Build 5 — earpiece tap control on its OWN row so it doesn't crowd the
           controls band (founder 2026-07-01). Content + UX unchanged — moved
