@@ -45,6 +45,21 @@ Verified the rest already validate (drop malformed items): the coach parsers
 (review/dissect/moments/patterns/score), `salesPrep`, and the C.A.R.E grader. So
 no LLM-output consumer now surfaces or persists unvalidated model items.
 
+## Rate-limit coverage on LLM endpoints (cost / abuse)
+
+16 of 17 LLM-calling API routes are rate-limited. 🟡 **Flag — one gap:** the
+inbound-email AI-reply path (`care/inbound/email` → `generateCareReply`) has NO
+limit. Mitigated: it's webhook-secret authenticated (not publicly callable) and
+retry-deduped on `external_message_id` (no retry storms). Residual risk: a spam
+flood to a tenant's inbound address → one LLM call per distinct email, unbounded
+(cost/DoS). NOT a mechanical fix — the existing `rateLimit` is IP-keyed, wrong for
+a webhook (all calls share the provider IP → would throttle every tenant
+together). **Recommended (founder decision — a limit value + degradation
+behavior):** a per-tenant (companyId-keyed) cap on AUTO-replies only — ingest +
+store every email, but past the cap skip the AI reply and let a human agent
+handle it (correct degradation; never drop the email). Needs a tenant-keyed
+limiter, so flagged, not built blind.
+
 ## Performance (data-layer hot paths)
 
 Checked the frequently-hit read paths for N+1 queries (a query per item in a
@@ -88,8 +103,12 @@ routes) was hardened to fail-closed (`5e0f935`). This is a strong baseline.
 
 ## Open flags
 
-**None constitutional. None security.** Every invariant is enforced and (where
-testable) regression-pinned; the one security finding was fixed.
+**None constitutional. None critical-security** (the fail-open finding was
+fixed). **One 🟡 cost/DoS flag, founder-gated:** the inbound-email AI-reply path
+is unrate-limited (see the rate-limit section) — mitigated by webhook-secret auth
++ retry dedup, but a per-tenant auto-reply cap is recommended. Flagged not built
+because the fix is a design decision (limit + degradation) needing a tenant-keyed
+limiter.
 
 ## Owed to the operator (not code)
 
