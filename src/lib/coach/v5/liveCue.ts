@@ -1,7 +1,7 @@
 import "server-only";
 import { liveSalesCue } from "@/lib/claude";
 import type { TranscriptSegment, CueMode, SalesContext } from "@/lib/data/salesCoach";
-import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
+import { getCurrentSalesCorpus, getRepWinningLines } from "@/lib/data/salesCoach";
 import {
   buildLiveCueSystemPrompt,
   buildLiveCueUserMessage,
@@ -16,20 +16,30 @@ import type { CueImportance } from "./cueInstrument";
 const CUE_GROUNDING_TTL_MS = 5 * 60 * 1000;
 const cueGroundingCache = new Map<string, { g: CueGrounding; at: number }>();
 
-async function getCueGrounding(companyId: string): Promise<CueGrounding> {
+async function getCueGrounding(
+  companyId: string,
+  agentId?: string
+): Promise<CueGrounding> {
+  // Keyed by company+agent: the rep's winning lines are per-rep, so two reps in
+  // the same company must not share a cache entry.
+  const key = `${companyId}:${agentId ?? ""}`;
   const now = Date.now();
-  const hit = cueGroundingCache.get(companyId);
+  const hit = cueGroundingCache.get(key);
   if (hit && now - hit.at < CUE_GROUNDING_TTL_MS) return hit.g;
-  const [methodology, product] = await Promise.all([
+  const [methodology, product, repLines] = await Promise.all([
     getCurrentSalesCorpus(companyId, "methodology").catch(() => null),
     getCurrentSalesCorpus(companyId, "product").catch(() => null),
+    agentId
+      ? getRepWinningLines({ companyId, agentId, limit: 5 }).catch(() => [])
+      : Promise.resolve<string[]>([]),
   ]);
   // Compact — cues are latency-critical, so cap the injected text tightly.
   const g: CueGrounding = {
     methodology: methodology?.content?.trim().slice(0, 600) || null,
     product: product?.content?.trim().slice(0, 400) || null,
+    repLines: repLines.length > 0 ? repLines : null,
   };
-  cueGroundingCache.set(companyId, { g, at: now });
+  cueGroundingCache.set(key, { g, at: now });
   return g;
 }
 
@@ -103,6 +113,9 @@ const MIN_SEGMENTS = 2;
 
 export async function generateLiveCue(args: {
   companyId: string;
+  /** The rep whose session this is — grounds the cue in THIS rep's own proven
+   *  lines (§A8). Optional: absent → generic + company grounding only. */
+  agentId?: string;
   mode: CueMode;
   context?: SalesContext;
   segments: TranscriptSegment[];
@@ -129,7 +142,7 @@ export async function generateLiveCue(args: {
     if (args.segments.length < MIN_SEGMENTS) return silent;
     const recentSegments = args.segments.slice(-ROLLING_WINDOW);
 
-    const grounding = await getCueGrounding(args.companyId);
+    const grounding = await getCueGrounding(args.companyId, args.agentId);
     let systemPrompt = buildLiveCueSystemPrompt(args.mode, grounding);
     if (args.force) {
       // F1 (audit 2026-06-27): the agent asked, so always RESPOND — but

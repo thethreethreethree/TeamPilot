@@ -107,6 +107,8 @@ export async function POST(
 
   const result = await generateLiveCue({
     companyId,
+    // Grounds the cue in THIS rep's own proven lines (§A8 growth-participant).
+    agentId: session.agentId,
     mode: body.mode,
     context: session.context,
     segments,

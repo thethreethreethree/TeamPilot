@@ -35,4 +35,22 @@ describe("buildLiveCueSystemPrompt grounding", () => {
     const p = buildLiveCueSystemPrompt("suggestion", { product: null, methodology: null });
     expect(p).not.toContain("THIS COMPANY");
   });
+
+  it("injects the rep's own proven lines when present (§A8)", () => {
+    const p = buildLiveCueSystemPrompt("suggestion", {
+      repLines: ["let's lock in the pilot this week", "what's holding you back?"],
+    });
+    expect(p).toContain("THIS REP HAS CLOSED WITH THESE LINES");
+    expect(p).toContain('"let\'s lock in the pilot this week"');
+    expect(p).toContain('"what\'s holding you back?"');
+  });
+
+  it("omits the rep block when there are no lines (or only blank ones)", () => {
+    expect(buildLiveCueSystemPrompt("suggestion", { repLines: [] })).not.toContain(
+      "THIS REP HAS CLOSED"
+    );
+    expect(
+      buildLiveCueSystemPrompt("suggestion", { repLines: ["  ", ""] })
+    ).not.toContain("THIS REP HAS CLOSED");
+  });
 });

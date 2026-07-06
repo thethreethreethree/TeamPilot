@@ -50,6 +50,9 @@ SALES METHODOLOGY (reason FROM it; adapt to THIS moment):
 export type CueGrounding = {
   methodology?: string | null;
   product?: string | null;
+  // The rep's OWN proven lines — cues they followed in sessions that ended sold
+  // (§A8 growth-participant). Prefer these phrasings when they fit the moment.
+  repLines?: string[] | null;
 };
 
 export function buildLiveCueSystemPrompt(
@@ -67,10 +70,20 @@ timeline before pitching"). Not a script; a tactical nudge.`;
 
   // Ground the cue in THIS company's actual approach when we have it — cues
   // should fit their methodology + offering, not read as generic sales advice.
-  const companyBlock =
-    grounding && (grounding.methodology || grounding.product)
-      ? `\nTHIS COMPANY (ground your cue in their real approach, not generic advice):
-${grounding.product ? `- What they sell: ${grounding.product}\n` : ""}${grounding.methodology ? `- Their sales methodology: ${grounding.methodology}\n` : ""}`
+  const hasCompany =
+    grounding && (grounding.methodology || grounding.product);
+  const companyBlock = hasCompany
+    ? `\nTHIS COMPANY (ground your cue in their real approach, not generic advice):
+${grounding!.product ? `- What they sell: ${grounding!.product}\n` : ""}${grounding!.methodology ? `- Their sales methodology: ${grounding!.methodology}\n` : ""}`
+    : "";
+  // The rep's OWN proven lines (§A8 — coach them with what THEY have closed
+  // with, not just generic moves). Guidance, not a script to parrot.
+  const repLines = grounding?.repLines?.filter((l) => l && l.trim()) ?? [];
+  const repBlock =
+    repLines.length > 0
+      ? `\nTHIS REP HAS CLOSED WITH THESE LINES BEFORE (lean on their proven phrasing when it fits — don't force it):\n${repLines
+          .map((l) => `- "${l.trim()}"`)
+          .join("\n")}\n`
       : "";
 
   return `You are a live sales coach listening to an in-progress conversation
@@ -116,7 +129,7 @@ NEVER cue: while the customer is mid-thought, right after a close attempt,
 during rapport/small-talk, or when the rep is in flow and doing fine.
 
 ${METHODOLOGY}
-${companyBlock}
+${companyBlock}${repBlock}
 LATENCY + LENGTH: one short line. No preamble. The agent is mid-sentence.
 §3.4: never fabricate. If you can't read it, phase "unknown", trigger
 "none", stay silent.

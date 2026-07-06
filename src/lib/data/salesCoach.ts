@@ -466,6 +466,70 @@ export async function getSessionCueOutcomesAdmin(
   return Array.from(byCue.values());
 }
 
+/**
+ * The rep's own PROVEN lines: cue texts this agent FOLLOWED (rep-confirmed) in
+ * sessions that ended SOLD. Grounds the live cue in what THIS rep has actually
+ * closed with (§A8 growth-participant, §3.6), not just generic methodology.
+ * Service-role (the live-cue path is server-side). Compact + recent — the caller
+ * caches this per session, so the 3 small queries run once, not per cue (no
+ * per-cue latency).
+ */
+export async function getRepWinningLines(args: {
+  companyId: string;
+  agentId: string;
+  limit?: number;
+}): Promise<string[]> {
+  const sb = createServiceRoleClient();
+  // 1. This rep's SOLD sessions (bounded).
+  const { data: sessions } = await sb
+    .from("coaching_sessions")
+    .select("id")
+    .eq("company_id", args.companyId)
+    .eq("agent_id", args.agentId)
+    .eq("outcome", "sold")
+    .order("started_at", { ascending: false })
+    .limit(30);
+  const sessionIds = (sessions ?? []).map((s) => s.id as string);
+  if (sessionIds.length === 0) return [];
+  // 2. Cues the rep FOLLOWED in those sessions (rep-confirmed preferred; the
+  //    determination filter already restricts to 'followed').
+  const { data: outcomes } = await sb
+    .from("coaching_cue_outcomes")
+    .select("cue_id, created_at")
+    .in("session_id", sessionIds)
+    .eq("determination", "followed")
+    .order("created_at", { ascending: false })
+    .limit(40);
+  const cueIds = Array.from(
+    new Set((outcomes ?? []).map((o) => o.cue_id as string))
+  );
+  if (cueIds.length === 0) return [];
+  // 3. The cue texts.
+  const { data: cues } = await sb
+    .from("coaching_cues")
+    .select("id, text")
+    .in("id", cueIds);
+  const textById = new Map<string, string>();
+  for (const c of cues ?? []) {
+    const t = (c.text as string | null)?.trim();
+    if (t) textById.set(c.id as string, t);
+  }
+  // Preserve the outcome recency order; dedupe identical lines; cap for the prompt.
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const limit = args.limit ?? 5;
+  for (const id of cueIds) {
+    const t = textById.get(id);
+    if (!t) continue;
+    const line = t.slice(0, 140);
+    if (seen.has(line)) continue;
+    seen.add(line);
+    out.push(line);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /** Persist an assembled After Pitch Summary (append-only, §3.1). Service
  *  role — the row's privacy is enforced on READ by the owner-only RLS policy
  *  (0080); the route verifies the caller is the session's agent before this
