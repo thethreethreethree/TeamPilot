@@ -43,6 +43,15 @@ loop) — the class that bites at scale. Clean:
 - Earlier this session: fixed a real render-perf anti-pattern (ToastProvider
   rebuilt its context value every render → memoized, `8899c59`).
 
+## Accessibility (AMD-006 layer 4 — surface)
+
+Spot-checked the Sales Coach interactive surface (the founder's focus): every
+button carries a visible TEXT label (Start/Stop, mode toggles, "I'm speaking",
+"Coach me now") and its icon is `aria-hidden` — the correct pattern (text is the
+accessible name; decorative icons stay silent). No icon-only buttons without a
+name. The chime toggle added this session has a state-aware `aria-label` +
+`aria-pressed`. Clean.
+
 ## Security posture (observed pattern)
 
 The service-role routes follow a consistent, mature isolation discipline: access
