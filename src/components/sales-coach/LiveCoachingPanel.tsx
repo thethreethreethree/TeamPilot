@@ -393,7 +393,7 @@ export function LiveCoachingPanel({
           category="Sales Coach · Live coaching"
           title="Mic level"
           whatItIs="A live meter of how loud you're coming through — the same loudness read the coach uses to tell your voice from the prospect's."
-          why="You wear the mic, so you should be the louder voice. If the meter barely moves, the coach can't reliably separate the speakers, and everything downstream — cues, transcript, review — gets shakier."
+          why="Loudness is ONE of the signals the coach uses (alongside what's said, which leads) to tell you apart from the prospect. You wear the mic, so your voice should register — if the meter barely moves the acoustic signal is weak, though the content check still helps."
           how="Glance at it early. If it's reading 'quiet' while you talk, move the mic closer before you rely on the coaching."
           principle="Everything the coach knows starts with hearing you clearly."
         >
@@ -421,8 +421,8 @@ export function LiveCoachingPanel({
             />
           </div>
           <p className="text-[10px] text-muted mt-1">
-            You should be the louder voice — the coach uses loudness to tell
-            you apart from the prospect.
+            The coach tells you apart mainly by what&apos;s said; your voice and
+            loudness help — a steady meter keeps the separation clean.
           </p>
         </div>
         </LearningHint>
@@ -513,9 +513,9 @@ export function LiveCoachingPanel({
       )}
       {(live || turns.length > 0) && (
         <p className="text-[10px] text-muted mt-1.5">
-          Speaker labels use loudness (you wear the mic, so you&apos;re louder)
-          + content (a dim &ldquo;…&rdquo; means content is still classifying).
-          Cues fire when the prospect&apos;s turn ends.
+          Speaker labels lead with what&apos;s said (content), then use your
+          voice and loudness — a dim &ldquo;…&rdquo; means the content check is
+          still finishing. Cues fire when the prospect&apos;s turn ends.
         </p>
       )}
 
