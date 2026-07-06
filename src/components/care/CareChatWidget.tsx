@@ -480,8 +480,16 @@ export function CareChatWidget() {
           </div>
 
           {/* Message stream */}
+          {/* a11y: role=log + polite live region so a customer's screen reader
+              announces incoming agent/AI replies. Single conversation per widget
+              (no inbox-switch chatter), and SRs announce only ADDITIONS to a live
+              region, not its initial content — so opening the chat doesn't read the
+              whole history. */}
           <div
             ref={scrollRef}
+            role="log"
+            aria-live="polite"
+            aria-label="Support conversation"
             className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
           >
             {messages.length === 0 && (
@@ -572,6 +580,7 @@ export function CareChatWidget() {
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={handleKey}
                   placeholder="Type a message…"
+                  aria-label="Type your message"
                   rows={1}
                   disabled={sending}
                   className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"

@@ -456,7 +456,16 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
           </div>
 
           {/* Stream */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          {/* a11y: role=log + polite live region announces incoming replies to a
+              customer's screen reader (SRs announce only additions, not the initial
+              history). Same fix as CareChatWidget — the two widgets share this. */}
+          <div
+            ref={scrollRef}
+            role="log"
+            aria-live="polite"
+            aria-label="Support conversation"
+            className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
+          >
             {messages.length === 0 && (
               <div className="text-center px-4 py-8">
                 {config.logoUrl && (
@@ -526,6 +535,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
                 }}
                 rows={1}
                 placeholder="Type a message…"
+                aria-label="Type your message"
                 className="flex-1 min-w-0 bg-base border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-32"
               />
               {/* "Call Jeff" — customer opt-in to phone-call
