@@ -91,6 +91,11 @@ export function avatarTextColorFor(hex: string): string {
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
+  // A 6-char but non-hex string ("nothex") passes the length guard yet parses
+  // to NaN; without this, NaN >= 140 is false and we'd silently return light
+  // text. Fall back to dark text on any unparseable channel, same as a
+  // wrong-length input.
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return "#09090B";
   // YIQ approximation — heavier weighting on green because the eye
   // is most sensitive to it. The 128 threshold is empirical but very
   // standard across design systems.
@@ -103,8 +108,15 @@ export function isValidAvatarColor(input: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(input.trim());
 }
 
-/** Validate a candidate initials string. 1–3 chars, alphanumeric. */
+/**
+ * Validate a candidate initials string: 1–3 letters or digits.
+ *
+ * Was length-only, which contradicted this function's own "alphanumeric"
+ * contract — it accepted symbols and embedded spaces ("@#", "a b") as saveable
+ * initials. Now enforced with a UNICODE-aware class (\p{L}\p{N}) so it still
+ * accepts international initials (accented letters) while rejecting symbols and
+ * whitespace.
+ */
 export function isValidAvatarInitials(input: string): boolean {
-  const trimmed = input.trim();
-  return trimmed.length >= 1 && trimmed.length <= 3;
+  return /^[\p{L}\p{N}]{1,3}$/u.test(input.trim());
 }
