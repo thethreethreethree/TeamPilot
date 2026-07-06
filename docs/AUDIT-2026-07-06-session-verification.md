@@ -312,6 +312,20 @@ soft nudge, correct the 0021 comment to say "UI-enforced." Flagged not fixed: it
 changes transition behavior + needs the grandfathering migration, which is
 §3.1-sensitive-adjacent and your call.
 
+**Concurrency / race conditions (pivot audit — the productive vein).** Client-side
+stale-response races FIXED across all 4 detail surfaces (care inbox loadDetail +
+poll, operations/[id], sales-coach/[id]; crm/[id] + chats/[id] already guarded) —
+these could show the wrong conversation/task/session on rapid switching. Server-side
+get-or-create: the inbound-email CUSTOMER resolution FIXED (concurrent first-emails
+orphaned the 2nd with customer_id=null; now re-selects on the unique-constraint
+race). One same-class gap FLAGGED (very-low-priority, migration-gated): conversation
+threading resolves by `external_thread_id`, which has only an INDEX not a unique
+constraint (0041:53) — two concurrent emails in the same NEW thread could create
+duplicate conversations (split thread). Rare (needs concurrent same-thread emails) +
+low impact (split, not data-loss); the fix is a partial unique index
+`(company_id, external_thread_id) where external_thread_id is not null` + 23505
+handling — same class as the transcript-constraint flag, founder-gated.
+
 **Accessibility pass (this session's live surfaces).** FIXED: the live Sales Coach
 cue had no `aria-live`, so a screen-reader rep running visual-only (TTS off) got
 NOTHING — added a persistent `sr-only` assertive live region (`a39f90f`). Verified
