@@ -63,7 +63,11 @@ function otherProvider(selected: Provider): Provider | null {
   return null;
 }
 
-function shouldCascade(err: unknown): boolean {
+// Exported for unit testing — the cascade DECISION is the load-bearing part:
+// failover must happen on operator-fixable failures (auth/quota) and must NOT
+// happen on request-level ones (invalid_request/rate_limit/…), which would just
+// re-run the same doomed call against the other provider.
+export function shouldCascade(err: unknown): boolean {
   return (
     err instanceof LlmError && (err.kind === "auth" || err.kind === "quota")
   );
