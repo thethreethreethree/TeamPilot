@@ -9,7 +9,11 @@ import {
   isPaceSpike,
   type PaceBaseline,
 } from "@/lib/coach/v5/liveStress";
-import { detectF0, PitchSeparator } from "@/lib/coach/v5/pitchSeparation";
+import {
+  detectF0,
+  PitchSeparator,
+  shouldNudgeAnchor,
+} from "@/lib/coach/v5/pitchSeparation";
 import {
   guessSpeakerFromContent,
   composeProvisional,
@@ -1070,14 +1074,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
                 pitch.confidence,
               ].slice(-PITCH_HINT_MIN_TURNS);
             }
-            const recentConf = recentPitchConfRef.current;
-            const lowCount = recentConf.filter(
-              (c) => c < PITCH_HINT_LOW_CONF
-            ).length;
-            const hint =
-              !pitchSepRef.current.isAnchored() &&
-              recentConf.length >= PITCH_HINT_MIN_TURNS &&
-              lowCount >= 2;
+            const hint = shouldNudgeAnchor({
+              anchored: pitchSepRef.current.isAnchored(),
+              recentConfidences: recentPitchConfRef.current,
+              lowThreshold: PITCH_HINT_LOW_CONF,
+              minTurns: PITCH_HINT_MIN_TURNS,
+            });
             if (hint !== anchorHintRef.current) {
               anchorHintRef.current = hint;
               setAnchorHint(hint);

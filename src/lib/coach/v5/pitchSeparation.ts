@@ -118,6 +118,32 @@ export function detectF0(
   return f0;
 }
 
+/**
+ * Pitch-anchor nudge decision (founder 2026-07-06). IN-PERSON, when the recent
+ * turns keep separating with LOW confidence AND the rep hasn't grounded the
+ * split with the manual anchor, the panel prompts them to tap "I'm speaking"
+ * (one tap anchors the agent cluster and sharpens the whole split). Pure +
+ * tested so the §4 tuning thresholds are a PINNED SPEC, not a magic number
+ * buried in the hook. Self-clearing: returns false once anchored or once
+ * confidence recovers. The caller owns the rolling `recentConfidences` window
+ * and the in-person/video gate.
+ */
+export function shouldNudgeAnchor(args: {
+  anchored: boolean;
+  recentConfidences: number[]; // most recent last
+  lowThreshold: number; // a per-turn confidence below this is "struggling"
+  minTurns: number; // don't nudge before the clusters have had a chance
+  minLowCount?: number; // how many recent lows warrant the nudge (default 2)
+}): boolean {
+  if (args.anchored) return false;
+  if (args.recentConfidences.length < args.minTurns) return false;
+  const minLow = args.minLowCount ?? 2;
+  const lowCount = args.recentConfidences.filter(
+    (c) => c < args.lowThreshold
+  ).length;
+  return lowCount >= minLow;
+}
+
 function median(xs: number[]): number | null {
   if (xs.length === 0) return null;
   const s = [...xs].sort((a, b) => a - b);

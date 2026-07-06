@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectF0, PitchSeparator } from "../pitchSeparation";
+import { detectF0, PitchSeparator, shouldNudgeAnchor } from "../pitchSeparation";
 
 const SR = 16000;
 const N = 4096;
@@ -141,5 +141,39 @@ describe("PitchSeparator", () => {
     const lbl = sep.labelTurn("agent");
     expect(lbl.speaker).toBe("agent");
     expect(sep.centroids().customerF0).toBe(customerBefore); // untouched
+  });
+});
+
+describe("shouldNudgeAnchor — the pitch-anchor nudge spec (§4 thresholds)", () => {
+  const opts = { lowThreshold: 0.5, minTurns: 3 };
+
+  it("nudges when >=2 of the last 3 turns separate with low confidence, unanchored", () => {
+    expect(
+      shouldNudgeAnchor({ anchored: false, recentConfidences: [0.4, 0.8, 0.3], ...opts })
+    ).toBe(true);
+  });
+
+  it("does NOT nudge once the split is anchored (the rep already fixed it)", () => {
+    expect(
+      shouldNudgeAnchor({ anchored: true, recentConfidences: [0.1, 0.1, 0.1], ...opts })
+    ).toBe(false);
+  });
+
+  it("does NOT nudge before minTurns of history (no nagging on turn 1-2)", () => {
+    expect(
+      shouldNudgeAnchor({ anchored: false, recentConfidences: [0.1, 0.1], ...opts })
+    ).toBe(false);
+  });
+
+  it("does NOT nudge when confidence has recovered (only 1 recent low)", () => {
+    expect(
+      shouldNudgeAnchor({ anchored: false, recentConfidences: [0.4, 0.9, 0.85], ...opts })
+    ).toBe(false);
+  });
+
+  it("boundary: confidence exactly AT the threshold is not 'low' (strictly below)", () => {
+    expect(
+      shouldNudgeAnchor({ anchored: false, recentConfidences: [0.5, 0.5, 0.5], ...opts })
+    ).toBe(false);
   });
 });
