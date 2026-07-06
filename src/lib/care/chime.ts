@@ -47,6 +47,36 @@ function getSharedContext(): AudioContext | null {
   return sharedCtx;
 }
 
+/**
+ * Inbox-wide variant (needs migration 0087's last_message_author_type): should
+ * the chime fire for a conversation OTHER than the one open? True iff some
+ * conversation's most-recent message is now CUSTOMER-authored and it advanced
+ * since we last saw it (or the conversation is newly in the inbox). Excludes
+ * `excludeId` — the open conversation, whose new messages are already handled by
+ * the per-message path (hasNewCustomerMessage), so it never double-chimes. The
+ * caller must PRIME `seen` on the first inbox load (populate without calling
+ * this) so the initial list doesn't fire a storm.
+ */
+export function inboxHasNewCustomerMessage(
+  seen: ReadonlyMap<string, string | null>,
+  conversations: ReadonlyArray<{
+    id: string;
+    lastMessageAt: string | null;
+    lastMessageAuthorType?: string | null;
+  }>,
+  excludeId?: string | null
+): boolean {
+  for (const c of conversations) {
+    if (c.id === excludeId) continue;
+    if (c.lastMessageAuthorType !== "customer" || !c.lastMessageAt) continue;
+    const prev = seen.get(c.id);
+    if (prev === undefined) return true; // newly-appeared conversation, customer message
+    if (prev === null) return true; // was unknown-time, now has a customer message
+    if (Date.parse(c.lastMessageAt) > Date.parse(prev)) return true; // advanced
+  }
+  return false;
+}
+
 export function playNewMessageChime(): void {
   try {
     const ctx = getSharedContext();

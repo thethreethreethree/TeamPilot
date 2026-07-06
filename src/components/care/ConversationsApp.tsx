@@ -30,7 +30,11 @@ import {
   X,
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
-import { playNewMessageChime, hasNewCustomerMessage } from "@/lib/care/chime";
+import {
+  playNewMessageChime,
+  hasNewCustomerMessage,
+  inboxHasNewCustomerMessage,
+} from "@/lib/care/chime";
 import { FileDropzone } from "@/components/files/FileDropzone";
 import { InlineAttachment } from "@/components/files/InlineAttachment";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -87,6 +91,8 @@ type Conversation = {
   slaFirstResponseMinutes: number;
   firstMessageAt: string | null;
   lastMessageAt: string | null;
+  lastMessageAuthorType?: string | null; // 0087 — drives the inbox-wide chime
+
   firstResponseAt: string | null;
   resolvedAt: string | null;
   createdAt: string;
@@ -283,6 +289,14 @@ export function ConversationsApp({
   // re-subscribing the effect.
   const [soundOn, setSoundOn] = useState(false);
   const soundOnRef = useRef(false);
+  // Inbox-wide chime (0087): track each conversation's last-seen lastMessageAt
+  // so a NEW customer message in ANY conversation (not just the open one) chimes.
+  // Primed on the first inbox load so the initial list never storms. selectedId
+  // is mirrored so loadInbox (stable []-deps callback) can exclude the open
+  // conversation — that one already chimes via the per-message path.
+  const inboxSeenRef = useRef<Map<string, string | null>>(new Map());
+  const inboxPrimedRef = useRef(false);
+  const selectedIdRef = useRef<string | null>(null);
   useEffect(() => {
     try {
       setSoundOn(localStorage.getItem("care.msgChime") === "on");
@@ -320,6 +334,9 @@ export function ConversationsApp({
   const [view, setView] = useState<ViewKey>(initialView);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialId ?? null);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   // Detail state for selected conversation
   const [messages, setMessages] = useState<Message[]>([]);
@@ -524,7 +541,28 @@ export function ConversationsApp({
         return;
       }
       const data = await inboxRes.json();
-      setConversations(data.conversations ?? []);
+      const convos: Conversation[] = data.conversations ?? [];
+      // Inbox-wide chime (0087): after the first (priming) load, chime once if
+      // ANY conversation OTHER than the open one just got a new customer
+      // message. The open one is handled by the per-message path, so exclude it
+      // to avoid a double chime. Needs 0087's last_message_author_type — before
+      // it's applied lastMessageAuthorType is null and this simply never fires.
+      if (
+        inboxPrimedRef.current &&
+        soundOnRef.current &&
+        inboxHasNewCustomerMessage(
+          inboxSeenRef.current,
+          convos,
+          selectedIdRef.current
+        )
+      ) {
+        playNewMessageChime();
+      }
+      const nextSeen = new Map<string, string | null>();
+      for (const c of convos) nextSeen.set(c.id, c.lastMessageAt);
+      inboxSeenRef.current = nextSeen;
+      inboxPrimedRef.current = true;
+      setConversations(convos);
     } catch {
       setError("Couldn't reach the server.");
     }

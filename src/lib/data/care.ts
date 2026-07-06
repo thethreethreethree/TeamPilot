@@ -36,6 +36,7 @@ export type SupportConversation = {
   subject: string | null;
   firstMessageAt: string | null;
   lastMessageAt: string | null;
+  lastMessageAuthorType: string | null; // 0087 — author of the most recent message
   firstResponseAt: string | null;
   resolvedAt: string | null;
   // §0 Understanding Gate moment for support (0036). Null until
@@ -114,6 +115,10 @@ function mapConversation(row: Record<string, unknown>): SupportConversation {
     subject: (row.subject as string | null) ?? null,
     firstMessageAt: (row.first_message_at as string | null) ?? null,
     lastMessageAt: (row.last_message_at as string | null) ?? null,
+    // 0087 — who authored the most recent message (drives the inbox-wide new-
+    // customer-message chime). Null on rows that predate 0087 until re-stamped.
+    lastMessageAuthorType:
+      (row.last_message_author_type as string | null) ?? null,
     firstResponseAt: (row.first_response_at as string | null) ?? null,
     resolvedAt: (row.resolved_at as string | null) ?? null,
     readingCompleteAt: (row.reading_complete_at as string | null) ?? null,

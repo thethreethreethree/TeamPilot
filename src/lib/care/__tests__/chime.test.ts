@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasNewCustomerMessage } from "../chime";
+import { hasNewCustomerMessage, inboxHasNewCustomerMessage } from "../chime";
 
 const m = (id: string, authorType: string) => ({ id, authorType });
 
@@ -45,5 +45,48 @@ describe("hasNewCustomerMessage", () => {
     const prev = [m("1", "agent")];
     const next = [m("1", "agent"), m("2", "customer"), m("3", "agent")];
     expect(hasNewCustomerMessage(prev, next)).toBe(true);
+  });
+});
+
+const conv = (id: string, at: string | null, author: string | null) => ({
+  id,
+  lastMessageAt: at,
+  lastMessageAuthorType: author,
+});
+
+describe("inboxHasNewCustomerMessage — inbox-wide chime (0087)", () => {
+  it("fires when a conversation advances to a new customer message", () => {
+    const seen = new Map([["a", "2026-07-06T10:00:00Z"]]);
+    const now = [conv("a", "2026-07-06T10:05:00Z", "customer")];
+    expect(inboxHasNewCustomerMessage(seen, now)).toBe(true);
+  });
+
+  it("does NOT fire when the advance was an AI/agent message", () => {
+    const seen = new Map([["a", "2026-07-06T10:00:00Z"]]);
+    expect(inboxHasNewCustomerMessage(seen, [conv("a", "2026-07-06T10:05:00Z", "ai")])).toBe(false);
+    expect(inboxHasNewCustomerMessage(seen, [conv("a", "2026-07-06T10:06:00Z", "agent")])).toBe(false);
+  });
+
+  it("does NOT fire when nothing advanced (same timestamp)", () => {
+    const seen = new Map([["a", "2026-07-06T10:00:00Z"]]);
+    expect(inboxHasNewCustomerMessage(seen, [conv("a", "2026-07-06T10:00:00Z", "customer")])).toBe(false);
+  });
+
+  it("EXCLUDES the open conversation (handled by the per-message path — no double chime)", () => {
+    const seen = new Map([["a", "2026-07-06T10:00:00Z"]]);
+    const now = [conv("a", "2026-07-06T10:05:00Z", "customer")];
+    expect(inboxHasNewCustomerMessage(seen, now, "a")).toBe(false);
+  });
+
+  it("fires for a brand-new conversation with a customer message (already primed)", () => {
+    const seen = new Map<string, string | null>([["a", "2026-07-06T10:00:00Z"]]);
+    const now = [conv("a", "2026-07-06T10:00:00Z", "customer"), conv("b", "2026-07-06T10:03:00Z", "customer")];
+    expect(inboxHasNewCustomerMessage(seen, now)).toBe(true); // "b" is new
+  });
+
+  it("does NOT fire on a new conversation started by AI/agent", () => {
+    const seen = new Map<string, string | null>([["a", "2026-07-06T10:00:00Z"]]);
+    const now = [conv("a", "2026-07-06T10:00:00Z", "customer"), conv("b", "2026-07-06T10:03:00Z", "agent")];
+    expect(inboxHasNewCustomerMessage(seen, now)).toBe(false);
   });
 });
