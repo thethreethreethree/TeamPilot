@@ -639,6 +639,7 @@ export function ConversationsApp({
           // let this (now-stale) conversation's messages overwrite the new one.
           if (res.ok && !cancelled) {
             const data = await res.json();
+            if (cancelled) return; // switch landed mid-parse — don't cross-render
             // Only update if message count actually changed or last
             // message id moved — avoids re-render churn.
             setMessages((prev) => {
@@ -675,6 +676,7 @@ export function ConversationsApp({
           );
           if (evRes.ok && !cancelled) {
             const data = await evRes.json();
+            if (cancelled) return; // switch landed mid-parse — don't cross-render
             setEvents(data.events ?? []);
           }
         } catch {
@@ -871,13 +873,18 @@ export function ConversationsApp({
         fetch(`/api/care/agent/conversations/${id}/events`),
       ]);
       // A newer selection superseded this request — discard the stale response.
+      // Re-check after EACH json() await, not just here: the parse is another
+      // suspension point, so a switch landing mid-parse must not let this
+      // conversation's messages render into the newly-selected one.
       if (latestDetailReqRef.current !== id) return;
       if (convRes.ok) {
         const data = await convRes.json();
+        if (latestDetailReqRef.current !== id) return;
         setMessages(data.messages ?? []);
       }
       if (evRes.ok) {
         const data = await evRes.json();
+        if (latestDetailReqRef.current !== id) return;
         setEvents(data.events ?? []);
       }
     } finally {
