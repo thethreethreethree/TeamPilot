@@ -216,7 +216,7 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
         </LoadingButton>
       </div>
 
-      {error && <p className="text-xs text-red-300">{error}</p>}
+      {error && <p className="text-xs text-amber-300">{error}</p>}
 
       {!hasContent && loaded && !loading && !error && (
         <p className="text-[11px] text-muted">
@@ -391,7 +391,7 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
         </p>
       )}
       {error && (
-        <p className="text-xs text-red-300">
+        <p className="text-xs text-amber-300">
           {error}{" "}
           <button
             type="button"
@@ -487,7 +487,7 @@ function AskCoachPanel({ sessionId }: { sessionId: string }) {
       >
         Ask
       </LoadingButton>
-      {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
+      {error && <p className="text-xs text-amber-300 mt-2">{error}</p>}
       {answer && (
         <p className="text-xs text-secondary leading-relaxed mt-2 whitespace-pre-wrap">
           {answer}
