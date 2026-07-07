@@ -51,6 +51,25 @@ service-role, team route), and the RPCs for `role`/`company_id` (SECURITY DEFINE
 No `src/lib` writer, no server action. The care-agent-tenant `upsert` at
 `care/agent/tenant/route.ts:165` targets `care_agent_tenants`, not `profiles`.
 
+## HIGH — same class on the INSERT path — FIXED (0091, founder must apply)
+
+**File:** `supabase/migrations/0001_init.sql` (INSERT policy) + `:27` (`role default 'CEO'`).
+**Severity: HIGH** (CRITICAL impact, but gated by a pre-existing row in practice).
+
+The profiles INSERT policy is `for insert with check (id = auth.uid())` — constrains
+only `id`, not the privileged columns. A profile row normally always exists
+(`handle_new_user` runs synchronously on signup; no DELETE policy on profiles), so a
+second insert is a PK conflict — defense-by-circumstance, not by design. If a row is
+ever absent, `INSERT INTO profiles (id, company_id) VALUES (auth.uid(), '<tenant>')`
+escalates, and because `role` **defaults to `'CEO'`**, even omitting `role` lands an
+admin role (the default is applied before the BEFORE trigger fires). Same impact as
+the UPDATE vector.
+
+**Fix — 0091:** redefine the guard to run `BEFORE INSERT OR UPDATE`; on a direct
+end-user insert the privileged columns must hold their safe empty values (the exact
+shell `handle_new_user` creates). `create or replace` + trigger recreate so it applies
+whether or not 0090 landed first (never assume). Founder must apply 0090 **and** 0091.
+
 ## Verified SOUND (from source, not assumed)
 
 - `complete_company_onboarding` (0046/0047) — SECURITY DEFINER, `role='admin'`
