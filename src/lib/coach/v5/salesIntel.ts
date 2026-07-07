@@ -38,10 +38,30 @@ export async function generateSalesIntel(args: {
       }),
     });
     if (r.suppressed) return EMPTY;
-    return parseIntel(r.text) ?? EMPTY;
+    const parsed = parseIntel(r.text) ?? EMPTY;
+    // §3.4 grounding (audit 2026-07-07): COMPETITORS are a consequential,
+    // manager-visible factual claim ("X was mentioned") — drop any name that
+    // does NOT actually appear in the transcript, so the one extraction engine
+    // that could otherwise fabricate is anchored like its siblings. TOPICS are
+    // legitimately paraphrased (can't be substring-matched) and stay prompt-
+    // grounded.
+    return groundCompetitors(parsed, args.segments);
   } catch {
     return EMPTY;
   }
+}
+
+/** Keep only competitor names that actually appear (case-insensitive) in the
+ *  transcript. Exported for test. */
+export function groundCompetitors(
+  intel: SalesIntel,
+  segments: TranscriptSegment[]
+): SalesIntel {
+  const haystack = segments.map((s) => s.text.toLowerCase()).join(" \n ");
+  const competitors = intel.competitors.filter((c) =>
+    haystack.includes(c.toLowerCase())
+  );
+  return { competitors, topics: intel.topics };
 }
 
 /** Exported for test: strings only, trimmed, de-duped (case-insensitive),

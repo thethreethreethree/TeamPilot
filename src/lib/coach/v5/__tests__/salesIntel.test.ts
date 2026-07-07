@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseIntel } from "../salesIntel";
+import { parseIntel, groundCompetitors } from "../salesIntel";
+import type { TranscriptSegment } from "@/lib/data/salesCoach";
+
+const seg = (text: string): TranscriptSegment =>
+  ({ id: "s", sessionId: "x", speaker: "customer", text, seq: 0, spokenAt: null }) as TranscriptSegment;
 
 /**
  * parseIntel pins the conversation-intelligence extraction (§3.4 honesty, §A11
@@ -52,5 +56,33 @@ describe("parseIntel", () => {
     const r = parseIntel(JSON.stringify({ competitors: ["X"] }));
     expect(r?.competitors).toEqual(["X"]);
     expect(r?.topics).toEqual([]);
+  });
+});
+
+describe("groundCompetitors — §3.4 anti-fabrication (audit 2026-07-07)", () => {
+  const transcript = [
+    seg("I already have internet with Verizon."),
+    seg("It's fine but sometimes it drops."),
+  ];
+
+  it("keeps a competitor that was actually named (case-insensitive)", () => {
+    const r = groundCompetitors({ competitors: ["verizon"], topics: [] }, transcript);
+    expect(r.competitors).toEqual(["verizon"]);
+  });
+
+  it("DROPS a competitor the model invented that was never said", () => {
+    const r = groundCompetitors(
+      { competitors: ["Verizon", "AT&T", "Comcast"], topics: [] },
+      transcript
+    );
+    expect(r.competitors).toEqual(["Verizon"]); // AT&T + Comcast never appear
+  });
+
+  it("leaves topics untouched (they are legitimately paraphrased)", () => {
+    const r = groundCompetitors(
+      { competitors: [], topics: ["reliability", "pricing"] },
+      transcript
+    );
+    expect(r.topics).toEqual(["reliability", "pricing"]);
   });
 });

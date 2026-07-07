@@ -11,6 +11,7 @@ import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
 import {
   PivotAndScores,
+  evictScoresCache,
   type PivotMoment,
   type SalesMoment,
   type SalesIntel,
@@ -309,6 +310,9 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
   const [moments, setMoments] = useState<SalesMoment[]>([]);
   const [intel, setIntel] = useState<SalesIntel | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // Bumped on each POST (Re-summarize) to remount PivotAndScores so the private
+  // scores re-derive against the freshly-regenerated call (audit 2026-07-07).
+  const [scoresKey, setScoresKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const apply = useCallback((d: Record<string, unknown>) => {
@@ -331,6 +335,10 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
       apply(d);
+      // Re-summarize regenerated the call — drop the cached scores + remount so
+      // the private scores re-derive against the fresh timeline (audit fix).
+      evictScoresCache(sessionId);
+      setScoresKey((k) => k + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -403,6 +411,7 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
           scores at the END of the summary, via the shared component (§A13/§A21). */}
       {loaded && (
         <PivotAndScores
+          key={scoresKey}
           sessionId={sessionId}
           pivot={pivot}
           moments={moments}

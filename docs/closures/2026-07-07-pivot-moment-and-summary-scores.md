@@ -181,9 +181,24 @@ After a framework audit of the build, the founder approved the protocol. Fixed:
   regen. (`SessionCoachTools.tsx`)
 
 HELD for founder decision (not built — genuine choices, per the audit):
-- **Finding 2 [LOW-MED] §A21** — moments can diverge between the summary surface
-  and After Pitch (scores were made consistent; moments were not). Needs a
-  unify-vs-document decision.
+- **Finding 2 [LOW-MED] §A21 — RESOLVED as intentional divergence (§A15), 2026-07-07.**
+  On closer analysis the moments timeline CANNOT be made cross-surface-consistent
+  the way scores were, and forcing it would be a net-worse fix (§0/§5):
+  - The scores fix worked because scores are fetched on-demand from the OWNER-ONLY
+    `/summary-scores` endpoint at view time — always the latest, single source.
+  - Moments differ structurally: the summary timeline is a MANAGER-VISIBLE event
+    (`coach.session_moments_generated`), the After-Pitch timeline is OWNER-PRIVATE
+    (`after_pitch_summaries`). To force them equal you would either (a) couple the
+    manager-visible event to the owner-private table (an §A18 complication), or
+    (b) have the owner and a manager see DIFFERENT timelines on the SAME card
+    (owner reads their After-Pitch, manager reads the event) — a worse
+    inconsistency than the original.
+  - Impact is low: unlike a numeric score (where a differing number is jarring, so
+    consistency was worth forcing), the timeline is qualitative — both surfaces
+    show an honest LLM read of the same call; they'll be similar, not identical,
+    which is acceptable. Per §A15 this closes on the record as intentional, not a
+    defect. Revisit only if a single-source moments store is built for another
+    reason.
 - **Finding 4 [LOW] AMD-006 L2** — finalize fires 4 concurrent LLM calls under
   keepalive; a timeout could drop all post-call artifacts. Needs an architecture
   preference (sequence vs. move enrichment off the keepalive path).
