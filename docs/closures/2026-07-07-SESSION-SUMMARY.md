@@ -63,4 +63,10 @@ defense-in-depth. (Self-audit rationale: dissect closure doc.)
 
 ## Open decisions still on record (from earlier, not blocking)
 - Learning Mode F1: dormant hints on public/pre-auth surfaces.
-- Vercel cron for the §3.5 durability sweep (code ready, awaits operator config).
+- **Vercel crons** (§3.5 durability sweep + dissect backfill): code + `vercel.json`
+  schedules are DONE and secret-gated. The only pending action is **setting the
+  `CRON_SECRET` env var in Vercel** — both crons fail-closed (stay disabled) until
+  it's set; once set, both activate. (Verified this session: paths match routes,
+  constant-time Bearer check, fail-closed.)
+- Push delivery (from memory): still needs the server-side VAPID vars set in Vercel
+  env (not just .env.local) — separate from CRON_SECRET.
