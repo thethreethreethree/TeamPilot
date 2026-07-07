@@ -264,14 +264,16 @@ understanding is the failure mode this entire project was built to defeat.*
 **Security / data-architecture**
 - A12 · Migrations are safe-to-re-run by construction
 - A23 · Authz-bearing columns must be DB-frozen against direct end-user writes
+- A25 · Resolve an identifier by matching the FIELD + assert cardinality structurally (false match > miss)
 
 **Recurring-miss → structural fix (climb until the pattern resolves)**
 - A12 · Migrations idempotent by construction (authoring altitude)
 - A13 · The vocabulary-once discipline (author the space once, by category)
 - A14 · Data path complete ≠ render path complete (verify every branch)
+- A25 · A lesson left in memory (not promoted to an asset) does not gate builds → it recurs
 
 **Methodology evolution** (broad — nearly all assets; specific tags above are faster)
-- A1, A2, A3, A4, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24
+- A1, A2, A3, A4, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25
 
 **Discipline under temptation** (broad — nearly all assets)
 - A3, A4, A5, A7, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24
@@ -823,4 +825,17 @@ A22 was caught when the founder forced *"please review thinkerthinker.MD and Cla
 **Future-use note.** Under a continuous/autonomous mandate with the discovery rate near zero, run this before each action: (1) a genuinely un-checked surface/angle, or an untested security-critical function? Do it. (2) else, a real behavior-preserving refactor or a genuinely-useful doc clarification? Do it — but commit ONLY real changes; a confirmatory check needs no artifact. (3) else, do a genuine verification pass and report it truthfully as confirmatory, and state the founder-side lever plainly. NEVER: fabricate a finding, manufacture a coverage-for-its-own-sake test, or churn commits for the appearance of progress. The CATASTROPHIC version is a fabricated SECURITY finding, or a blind change to unverifiable-critical code (auth) "to have done something" — surface those, never perform them.
 
 **The lesson about the lesson.** A19–A23 were caught late (founder-forced) or, newest, pre-hoc. A24 is the first asset captured WHILE living the discipline in real time — dozens of unattended turns choosing genuine confirmatory verification + transparency over fabricated busywork. Whether it took is measurable: over a long unattended run, does the stream stay honest — real changes, honest "confirmatory" labels, plain "the lever is yours" — or drift into invented findings and churn? The metric is the ratio of genuine changes to turns, and the honesty of the status reports, when no one is watching.
+
+## A25 · Resolving an external identifier to a record must match the identifying FIELD exactly and assert cardinality structurally — a false MATCH is worse than a miss
+
+**Tags:** security / data-architecture · recurring-miss → structural fix · verification discipline · methodology evolution
+**Captured:** 2026-07-07
+
+**Context.** Founder-reported: inviting a new email (`jankinz1401@gmail.com`) showed *"Rebecca Lupague is already a member of this company"* — a false statement about an unrelated person, and it blocked every legitimate invite. Root cause: `findAuthUserByEmail` called GoTrue's admin `?email=` list endpoint (which does NOT filter on this instance — it returns the first page of ALL users) and took `users[0]` WITHOUT verifying its email field, so every lookup resolved to whoever sorts first in `auth.users`. The team route then correctly found that user in the company and named her. The IDENTICAL class was already on record — a 2026-06-28 incident where the same `?email=` list, looped over for a prod write, set 10 profiles — but that lesson lived only in operating MEMORY, never as an asset, so it did not gate this build.
+
+**Insight.** When code resolves an external identifier (email, name, handle, external id) to an internal record and then ACTS on the result, two independent properties must both hold. (1) **Match the identifying FIELD, in code** — never trust that the provider filtered ("`?email=`" is frequently ignored, returning an unfiltered page), and never trust `list[0]`; compare the actual field. (2) **Assert the expected CARDINALITY structurally** — exactly-one where the domain guarantees one, and the guarantee must be a DB constraint (unique index), not a per-query `.maybeSingle()` hope that *errors* (and so silently skips its own guard) when duplicates exist. A false MATCH is strictly worse than a miss: a miss merely degrades (permits a redundant action) while a false match operates on the WRONG entity and, when surfaced, asserts a false fact about a real person (§3.4 / A11). Therefore the safe default under ambiguous or unverifiable resolution is the MISS, never the confident guess.
+
+**Constitutional bearing.** AMD-006 **Layer 2** (operational effectivity) — the feature built and typechecked but did NOT work when invoked the way a real user invokes it; per the sieve a Layer-2 break is not survivable by composition or polish. §3.4 + A11 — the false "already a member" is the System asserting something untrue about a person, the exact mirror-not-verdict / honesty line. Companion to A14 (data-path-complete ≠ render-path-complete): A25 is *resolution-returned-a-row* ≠ *identity-actually-verified*. Companion to A12/A23 (structural over per-consumer): cardinality belongs in a DB constraint, not a per-call hope. Candidate §6-checklist item: *"Does this code resolve an external identifier to a record it then acts on? If so — do I compare the identifying field in code (not trust the query/`[0]`), and is the one-match assumption backed by a DB constraint?"*
+
+**The lesson about the lesson.** This class was diagnosed 2026-06-28 and written to operating MEMORY — yet it shipped AGAIN, in a different feature, with the same root. Memory records what happened; it does not GATE what gets built. The asset library (this file) is what a build is audited against under §0.1 / §6, so a lesson parked in memory is invisible to the next build's precondition check and recurs. §1.2 step 6 ("every resolution becomes a new asset") is NOT satisfied by a memory note — only by an asset. Meta-rule, now explicit: when an incident's lesson is general enough to bind future builds, it must be promoted from memory to a TT.md asset in the SAME session it is diagnosed; a validated lesson left only in memory is a latent recurrence with a fuse already lit.
 
