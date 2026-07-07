@@ -19,6 +19,7 @@ import {
   ChevronRight,
   LogOut,
   GitMerge,
+  Stethoscope,
   ShieldCheck,
   Sparkles,
   Beaker,
@@ -144,6 +145,19 @@ const productionNav: Array<{
       how: "Browse signals when you're investigating a specific suspicion ('did the System pick up the meeting overrun last Tuesday?'). The signal kinds tell you which event sources are emitting. A signal stream that's mostly one kind is a tenant that's only exercising one part of the System.",
       principle:
         "Diagnosis works backward from the record. The chain page is the record made navigable.",
+    },
+  },
+  {
+    label: "Dissect a Conversation",
+    href: "/dashboard/dissect",
+    icon: Stethoscope,
+    hint: {
+      whatItIs:
+        "Paste any conversation and the System summarizes it, then dissects the PROBLEM inside it — the Living Diagnosis method (§1) pointed at a pasted conversation instead of the team's own event chain. Comes with Ask Coach, a thread where you work the problem out with a coach that asks what you think first.",
+      why: "Not every problem lives in your event stream. A thread from a customer, a stuck decision pasted from elsewhere, a transcript — this is where you bring an outside conversation and run the same discipline on it: identify the problem from what actually occurred (§1.2), see it from the outside (§1.3), earn the root cause before solving (§0).",
+      how: "Paste the conversation, hit Dissect. Read the problem + the evidence quoted from the text. Then open Ask Coach — it asks how YOU would solve it before offering its own take with the why (§3.3). It's per-chat: nothing is saved unless you Save the topic; Close clears an unsaved one so you can start fresh.",
+      principle:
+        "Understanding precedes solving — even for a conversation that isn't yours. The dissect earns the problem; the coach guides you to the solution rather than handing it down.",
     },
   },
   {
