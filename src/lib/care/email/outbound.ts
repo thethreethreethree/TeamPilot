@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatEmailAddress } from "@/lib/care/email/sanitizeHeader";
 
 /**
  * Outbound email dispatch — Phase 4 commit 2.
@@ -177,8 +178,12 @@ export async function dispatchOutboundEmailReply(args: {
         "X-Postmark-Server-Token": apiToken,
       },
       body: JSON.stringify({
-        From: `"${displayName}" <${fromAddress}>`,
-        To: customer.name ? `"${customer.name}" <${customer.email}>` : customer.email,
+        // formatEmailAddress sanitizes the display name (§A13) so an
+        // attacker-controlled customer name can't inject a second recipient
+        // via the comma-separated To list (audit 2026-07-07). fromAddress +
+        // customer.email are trusted; only the NAMES need sanitizing.
+        From: formatEmailAddress(fromAddress, displayName),
+        To: formatEmailAddress(customer.email, customer.name),
         Subject: subject,
         TextBody: textBody,
         Headers: headers,
