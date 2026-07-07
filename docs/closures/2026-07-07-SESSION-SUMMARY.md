@@ -3,7 +3,15 @@
 Everything built/fixed this session, and the exact actions waiting on you. Detailed
 records linked inline.
 
-## What shipped (all committed + pushed; gate green: tsc 0, lint 0, 405 tests, next build 0)
+## What shipped (all committed + pushed; gate green: tsc 0, lint 0, 448 tests, next build 0)
+
+> Late-session additions (after the feature + audit): a security-test batch closing
+> previously-untested critical code — getAgentEloGames (admin-client agent scoping),
+> validateUploadCandidate (upload gate), strictMutate/One (mass-write guard),
+> emitAssetEvent (§3.1 contract), deriveCareAccess (C.A.R.E access matrix) — plus the
+> canonical `isAdminRole`/`ADMIN_ROLES` §A13 primitive (additive; adopted in
+> getCurrentAuthContext, ~11 other gates left to migrate incrementally). No behavior
+> change; all verified behavior-preserving against the full suite.
 
 ### 1. Security hardening — DB authorization (8 migrations, 0090–0097)
 A full RLS class-check across **all four command types** (see
