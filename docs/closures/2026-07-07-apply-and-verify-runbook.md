@@ -62,6 +62,9 @@ exact string and I'll adjust `guard_profile_privileged_columns` (0090/0091).
    Must flip.
 
 ## 4. Verify Dissect a Conversation (needs 0097 applied)
+> No new env var needed: Dissect's AI routes through the SAME LLM config as the
+> Sales Coach (`LLM_PROVIDER` + the provider's API key). If the coach works in prod,
+> Dissect's analyze + Ask Coach will too. Only migration 0097 gates the Save/load.
 1. Open **Dashboard → Dissect a Conversation** (sidebar, or ⌘K "dissect").
 2. Paste a real conversation with a problem in it → **Dissect**. Expect: summary +
    a problem statement + evidence quoted from YOUR text (no invented quotes) +
