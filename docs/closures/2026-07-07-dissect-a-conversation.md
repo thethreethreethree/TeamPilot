@@ -176,3 +176,16 @@ a documented proposal, not a blind edit (the middleware-migration lesson applied
 UX). Apply the patch + test with a screen reader (NVDA/VoiceOver): open a
 conversation, have a second browser send a customer message, confirm ONLY the new
 message is announced.
+
+## Migration-coupling resilience (§1.2 retrospective, ff25e44)
+The Team Chat outage (2026-07-03) taught: migration-coupled code must distinguish
+live-error from live-empty and never fail silently. The dissect store is coupled to
+migration **0097, which is not yet applied** — so this code runs against a missing
+table on every page load right now. Verified the feature already degrades (list → [],
+analyze unaffected, save → visible error), then closed the diagnosability gap:
+`listDissectTopics` was swallowing every error as `[]` (a real DB failure looked
+identical to "no saved topics"). Now all three data functions log a real error with
+its cause and name the "migration 0097 not applied" case specifically, while an
+expected empty stays silent. **Founder-visible effect:** if you open Dissect before
+applying 0097, the server log now tells you exactly that — no cryptic 500, no silent
+empty. Locked by 2 tests (8 dissect-data total).
