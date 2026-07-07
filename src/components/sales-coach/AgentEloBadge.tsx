@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Gauge, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
+import {
+  Gauge,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Loader2,
+  Info,
+  ChevronDown,
+} from "lucide-react";
 
 /**
  * Agent Sales Effectivity Rating badge (founder 2026-07-07). An ELO the rep
@@ -43,6 +51,8 @@ export function AgentEloBadge({
   const [state, setState] = useState<"loading" | "ok" | "empty" | "error">(
     "loading"
   );
+  // Founder 2026-07-07: click the score to reveal how it's calculated.
+  const [showExplain, setShowExplain] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,9 +116,16 @@ export function AgentEloBadge({
 
   return (
     <div className="rounded-xl border border-ember-400/30 bg-ember-400/[0.05] px-3 py-2.5">
-      <div className="flex items-center gap-2">
-        <Gauge className="w-4 h-4 text-brand shrink-0" aria-hidden />
-        <div className="flex items-baseline gap-2">
+      {/* Founder 2026-07-07: the score is clickable — reveals how it's calculated
+          (removed the inline "vs. the standard" descriptor). §3.6 make-visible. */}
+      <button
+        type="button"
+        onClick={() => setShowExplain((v) => !v)}
+        aria-expanded={showExplain}
+        className="w-full text-left group"
+      >
+        <div className="flex items-center gap-2">
+          <Gauge className="w-4 h-4 text-brand shrink-0" aria-hidden />
           <span className="text-xl font-bold text-primary tabular-nums">
             {e.rating}
           </span>
@@ -121,16 +138,68 @@ export function AgentEloBadge({
               provisional
             </span>
           )}
+          <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-muted group-hover:text-secondary shrink-0">
+            <Info className="w-3 h-3" aria-hidden />
+            how it&apos;s calculated
+            <ChevronDown
+              className={`w-3 h-3 transition-transform ${showExplain ? "rotate-180" : ""}`}
+              aria-hidden
+            />
+          </span>
         </div>
-      </div>
-      <p className="text-[11px] text-secondary mt-1.5 leading-snug">
-        {self ? "Your" : ""} <span className="text-primary">Sales Effectivity Rating</span>{" "}
-        — you vs. our measurement standard (1500), not other reps.{" "}
-        <span className="text-muted">
-          {e.gamesPlayed} scored call{e.gamesPlayed === 1 ? "" : "s"}
-          {e.provisional ? " · still settling" : ""}.
-        </span>
+        <p className="text-[11px] text-secondary mt-1 leading-snug">
+          {self ? "Your " : ""}
+          <span className="text-primary">Sales Effectivity Rating</span>
+          <span className="text-muted">
+            {" · "}
+            {e.gamesPlayed} scored call{e.gamesPlayed === 1 ? "" : "s"}
+            {e.provisional ? " · still settling" : ""}
+          </span>
+        </p>
+      </button>
+      {showExplain && <EloExplanation self={self} />}
+    </div>
+  );
+}
+
+/** Accurate, plain-language explanation of the ELO methodology (founder 2026-07-07:
+ *  "understand how the score is calculated"). Kept in sync with salesElo.ts —
+ *  1500 standard, K≈24, [100,3000] bounds, provisional < 5, balanced game score. */
+function EloExplanation({ self }: { self: boolean }) {
+  const you = self ? "you" : "the rep";
+  const your = self ? "your" : "their";
+  const You = self ? "You" : "They";
+  return (
+    <div className="mt-2 border-t border-ember-400/20 pt-2 space-y-1.5 text-[11px] leading-relaxed">
+      <p className="text-primary font-semibold">How this is calculated</p>
+      <p className="text-secondary">
+        System scoring analysis, based on {your} dissected agent sessions. It&apos;s
+        an ELO rating — like chess — but {you} play against our measurement standard
+        (a competent call = <span className="text-primary">1500</span>), never
+        against other reps.
       </p>
+      <ul className="space-y-1 text-muted">
+        <li>
+          <span className="text-secondary">Each dissected call is one “game.”</span>{" "}
+          {You} score 0–100%: half from the call&apos;s quality (Dissect strengths
+          vs growth + After-Pitch scores where available), half from the outcome
+          (sold / follow-up / no-sale) when it was logged — otherwise on quality
+          alone.
+        </li>
+        <li>
+          <span className="text-secondary">Beat the standard and the rating
+          climbs; fall short and it dips</span> — up to about 24 points a call.
+        </li>
+        <li>
+          <span className="text-secondary">The scale</span> starts at 1500, floors
+          at 100, and tops out at{" "}
+          <span className="text-primary">3000</span> (chess&apos;s max).
+        </li>
+        <li>
+          <span className="text-secondary">Under 5 scored calls</span> it&apos;s
+          marked <em>provisional</em> — still settling, don&apos;t over-read it yet.
+        </li>
+      </ul>
     </div>
   );
 }
