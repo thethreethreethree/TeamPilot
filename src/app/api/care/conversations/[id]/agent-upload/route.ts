@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createFileRecord } from "@/lib/data/files";
-import { postAgentMessage } from "@/lib/data/care";
+import { postAgentMessage, fetchAgentConversation } from "@/lib/data/care";
 import {
   buildStoragePath,
   uploadAssetBytes,
@@ -42,6 +42,22 @@ export async function POST(
   if (!auth) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
+
+  // Defense-in-depth + fail-fast: verify the conversation exists and belongs to
+  // the caller's company BEFORE doing any upload work — mirroring the sibling
+  // care/agent/conversations/[id]/messages guard (§A16). RLS already blocks a
+  // cross-tenant write, but without this the route would upload a file + create a
+  // classification suggestion + emit an asset event, then have postAgentMessage
+  // silently no-op under RLS — persisting a dangling link and a customer message
+  // that never posts (a §3.4 dishonest partial: 200 returned, attachment lost).
+  const convo = await fetchAgentConversation(id);
+  if (!convo || convo.conversation.companyId !== auth.companyId) {
+    return NextResponse.json(
+      { error: "Conversation not found." },
+      { status: 404 }
+    );
+  }
+
   let form: FormData;
   try {
     form = await req.formData();
@@ -165,7 +181,7 @@ export async function POST(
       user_action: "pending",
     });
   }
-  await postAgentMessage({
+  const posted = await postAgentMessage({
     conversationId: id,
     body: row.title,
     agentId: auth.userId,
@@ -174,6 +190,20 @@ export async function POST(
     mediaUrl: `assets-v1://${row.id}`,
     mediaType: row.mimeType,
   });
+  if (!posted) {
+    // The file uploaded but the attachment message did not post. Surface it
+    // honestly (§3.4) instead of returning 200 as if the customer received it —
+    // the file row persists and is recoverable, but the caller must know the
+    // send did not complete.
+    return NextResponse.json(
+      {
+        error:
+          "File uploaded but the attachment message could not be posted to the conversation. Please retry sending.",
+        file: row,
+      },
+      { status: 502 }
+    );
+  }
   // §3.1 chain event.
   await emitAssetEvent({
     companyId: auth.companyId,
