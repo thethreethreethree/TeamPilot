@@ -167,9 +167,12 @@ function ScoresSection({ sessionId }: { sessionId: string }) {
   // §A18 — a non-owner (manager) gets 403; render NOTHING for scores. Errors
   // also render nothing rather than a broken shell.
   if (!result) {
+    // Neutral loading text: a MANAGER also mounts this briefly before the 403
+    // resolves to "forbidden" (→ nothing). "Loading your scores…" would wrongly
+    // imply a manager has scores here (§A18 hygiene) — keep it generic.
     return (
       <div className="flex items-center gap-2 text-[11px] text-tertiary">
-        <Loader2 className="h-3 w-3 animate-spin" /> Loading your scores…
+        <Loader2 className="h-3 w-3 animate-spin" /> Loading…
       </div>
     );
   }
