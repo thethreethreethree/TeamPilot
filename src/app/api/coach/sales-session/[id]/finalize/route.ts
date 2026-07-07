@@ -97,49 +97,80 @@ export async function POST(
   //    earlier streamed segments).
   const segments = await getSessionTranscript(id);
 
-  // 3. Generate + store the Dissect, Summary, and Pivot Moment SERVER-SIDE, in
-  //    parallel. One failing does not block the others. The pivot is stored
-  //    alongside the summary so the Conversation-summary surface shows it the
-  //    moment the call ends (workflow continuity, §1.5.1) — not only after a
-  //    manual re-summarize.
+  // 3. Generate + store the Dissect, Summary, Timeline, Pivot, and Intel
+  //    SERVER-SIDE, in parallel. One failing does not block the others (each
+  //    .catch); the pivot/timeline are stored alongside the summary so the
+  //    Conversation-summary surface shows them the moment the call ends
+  //    (workflow continuity, §1.5.1) — not only after a manual re-summarize.
+  //
+  //    RESILIENCE (audit 2026-07-07, AMD-006 L2): each call is also bounded by a
+  //    timeout. This runs under keepalive; without the bound a single HUNG
+  //    provider call would hold the whole route (and the response) until the
+  //    platform kills the function, dropping every artifact. On timeout that one
+  //    engine degrades to its empty fallback (same as a failure — the
+  //    "Generate missing" backfill covers it) while the rest still persist. The
+  //    happy path is unchanged.
+  const CALL_TIMEOUT_MS = 25_000;
+  const withTimeout = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
+    Promise.race([
+      p,
+      new Promise<T>((resolve) =>
+        setTimeout(() => resolve(fallback), CALL_TIMEOUT_MS)
+      ),
+    ]);
   const [dissect, summary, moments, pivot, intel] = await Promise.all([
-    runAndStoreDissect({
-      companyId,
-      actorId: auth.user.id,
-      sessionId: id,
-      segments,
-      sessionTitle: session.clientLabel ?? undefined,
-      context: session.context,
-    }).catch(() => null),
-    runAndStoreSummary({
-      companyId,
-      actorId: auth.user.id,
-      sessionId: id,
-      segments,
-    }).catch(() => null),
-    runAndStoreMoments({
-      companyId,
-      actorId: auth.user.id,
-      sessionId: id,
-      context: session.context,
-      outcome: session.outcome,
-      segments,
-    }).catch(() => []),
-    runAndStorePivot({
-      companyId,
-      actorId: auth.user.id,
-      sessionId: id,
-      context: session.context,
-      outcome: session.outcome,
-      segments,
-    }).catch(() => null),
-    runAndStoreIntel({
-      companyId,
-      actorId: auth.user.id,
-      sessionId: id,
-      context: session.context,
-      segments,
-    }).catch(() => null),
+    withTimeout(
+      runAndStoreDissect({
+        companyId,
+        actorId: auth.user.id,
+        sessionId: id,
+        segments,
+        sessionTitle: session.clientLabel ?? undefined,
+        context: session.context,
+      }).catch(() => null),
+      null
+    ),
+    withTimeout(
+      runAndStoreSummary({
+        companyId,
+        actorId: auth.user.id,
+        sessionId: id,
+        segments,
+      }).catch(() => null),
+      null
+    ),
+    withTimeout(
+      runAndStoreMoments({
+        companyId,
+        actorId: auth.user.id,
+        sessionId: id,
+        context: session.context,
+        outcome: session.outcome,
+        segments,
+      }).catch(() => []),
+      []
+    ),
+    withTimeout(
+      runAndStorePivot({
+        companyId,
+        actorId: auth.user.id,
+        sessionId: id,
+        context: session.context,
+        outcome: session.outcome,
+        segments,
+      }).catch(() => null),
+      null
+    ),
+    withTimeout(
+      runAndStoreIntel({
+        companyId,
+        actorId: auth.user.id,
+        sessionId: id,
+        context: session.context,
+        segments,
+      }).catch(() => null),
+      null
+    ),
   ]);
 
   return NextResponse.json({
