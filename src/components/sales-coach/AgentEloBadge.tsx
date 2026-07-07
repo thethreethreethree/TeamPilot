@@ -10,6 +10,7 @@ import {
   Info,
   ChevronDown,
 } from "lucide-react";
+import { EloMeter } from "@/components/sales-coach/EloMeter";
 
 /**
  * Agent Sales Effectivity Rating badge (founder 2026-07-07). An ELO the rep
@@ -125,7 +126,7 @@ export function AgentEloBadge({
         className="w-full text-left group"
       >
         <div className="flex items-center gap-2">
-          <Gauge className="w-4 h-4 text-brand shrink-0" aria-hidden />
+          <EloMeter rating={e.rating} size={44} />
           <span className="text-xl font-bold text-primary tabular-nums">
             {e.rating}
           </span>
