@@ -371,9 +371,12 @@ function ScoresSection({ sessionId }: { sessionId: string }) {
         {result.scores.map((c) => (
           <div
             key={c.key}
-            className="rounded-md bg-white/[0.02] px-1 py-2 text-center"
+            className="rounded-md bg-white/[0.02] px-1 py-2 text-center flex flex-col"
           >
-            <div className="text-[10px] uppercase tracking-wide text-tertiary leading-tight">
+            {/* Fixed 2-line label box so a wrapping label (e.g. "Talk / Listen")
+                doesn't push its number off the shared baseline — §A21 parity with
+                the After-Pitch score strip. */}
+            <div className="text-[10px] uppercase tracking-wide text-tertiary leading-tight min-h-[1.6rem] flex items-center justify-center">
               {c.label}
             </div>
             <div className="text-sm font-semibold text-primary mt-1 tabular-nums">

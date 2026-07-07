@@ -24,6 +24,12 @@ import { DeckCard } from "@/components/sales-coach/ui/deck";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
+// §A13 — the moment/score shapes live once in summaryTypes (imported, not
+// re-declared) so a new field like `sentiment` can't silently drift this page.
+import type {
+  SalesMoment as Moment,
+  ScoreCategory,
+} from "@/lib/coach/v5/summaryTypes";
 
 /**
  * After Pitch Summary — the rep's private "between doors" debrief (AMD-006
@@ -43,34 +49,6 @@ import { LearningHint } from "@/components/learning/LearningHint";
  * carrying the same context — the rep never dead-ends.
  */
 
-type MomentKind =
-  | "opener"
-  | "discovery"
-  | "objection"
-  | "breakdown"
-  | "close"
-  | "other";
-type Correction = { correctLine: string; whyItWorks: string };
-type Moment = {
-  atSeq: number;
-  timestampLabel: string | null;
-  kind: MomentKind;
-  label: string;
-  customerLine: string | null;
-  repLine: string | null;
-  note: string | null;
-  isBreakdown: boolean;
-  correction: Correction | null;
-};
-type ScoreCategory = {
-  key: string;
-  label: string;
-  score: number;
-  display: string;
-  rationale: string;
-  citation: string | null;
-  computed: boolean;
-};
 type CueLoopEntry = {
   cueText: string;
   mode: "suggestion" | "guide_response";
@@ -512,6 +490,18 @@ function Timeline({ moments }: { moments: Moment[] }) {
             >
               {m.label}
             </p>
+            {/* Customer-sentiment direction at this moment — §A21 parity with the
+                summary-surface timeline (founder 2026-07-07). */}
+            {m.sentiment === "warming" && (
+              <p className="text-[10px] text-emerald-400 leading-none mt-0.5" title="customer warming">
+                ↗
+              </p>
+            )}
+            {m.sentiment === "cooling" && (
+              <p className="text-[10px] text-amber-400 leading-none mt-0.5" title="customer cooling">
+                ↘
+              </p>
+            )}
           </div>
           ))}
         </div>
