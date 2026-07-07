@@ -15,6 +15,15 @@ import { runAndStorePivot } from "@/lib/coach/v5/salesPivot";
 import { runAndStoreMoments } from "@/lib/coach/v5/salesMoments";
 import { runAndStoreIntel } from "@/lib/coach/v5/salesIntel";
 
+// The five post-call engines run concurrently, each bounded by a 25s in-code
+// timeout (CALL_TIMEOUT_MS below). That timeout is only effective if the platform
+// actually LETS the function run that long — Vercel's default (~10-15s) would kill
+// the function BEFORE the 25s timeout fires, dropping in-flight artifacts AND the
+// response. maxDuration declares the budget the resilience code already assumes.
+// (Reliability completion of the 2026-07-07 AMD-006 L2 audit — the timeout was
+// added but the matching duration budget was never declared.)
+export const maxDuration = 60;
+
 /**
  * POST /api/coach/sales-session/[id]/finalize
  *

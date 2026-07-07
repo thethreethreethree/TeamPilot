@@ -11,6 +11,13 @@ import {
 import { runAndStoreIntel, type SalesIntel } from "@/lib/coach/v5/salesIntel";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 
+// Four LLM engines run concurrently below; each is bounded by an in-code timeout,
+// so the platform must allow the function to run at least that long or it would be
+// killed mid-flight (dropping the response the user is waiting on, since this runs
+// on tab-open). Declares the duration budget the timeout assumes. (§A21 — parity
+// with the finalize route, which sets the same.)
+export const maxDuration = 60;
+
 /**
  * POST /api/coach/sales-session/[id]/summarize
  *
@@ -65,38 +72,65 @@ export async function POST(
   // Compose (§A16, does not fork): the factual summary, the Conversation Timeline
   // (3-5 key moments hero), AND the bidirectional Pivot Moment run concurrently.
   // All three are manager-visible observations (the owner-private SCORES are a
-  // separate owner-only endpoint, §A18). Each is best-effort — a summary still
-  // returns if the timeline / pivot came back empty.
+  // separate owner-only endpoint, §A18).
+  //
+  // RESILIENCE (§A21 — brought to parity with the finalize route): each engine is
+  // wrapped in its OWN .catch(fallback) + a timeout. Without the .catch, one engine
+  // throwing would reject Promise.all and 500 the WHOLE route — the user would get
+  // NOTHING even though the summary itself succeeded. Each runAndStore* persists its
+  // own result internally before returning, so partial success is real: a failed
+  // timeline still leaves the summary + pivot + intel stored and returned. The
+  // timeout bounds a hung provider call to the same fallback.
+  const CALL_TIMEOUT_MS = 25_000;
+  const withTimeout = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
+    Promise.race([
+      p,
+      new Promise<T>((resolve) =>
+        setTimeout(() => resolve(fallback), CALL_TIMEOUT_MS)
+      ),
+    ]);
   const [summary, moments, pivot, intel] = await Promise.all([
-    runAndStoreSummary({
-      companyId,
-      actorId: auth.user.id,
-      sessionId: id,
-      segments,
-    }),
-    runAndStoreMoments({
-      companyId,
-      actorId: auth.user.id,
-      sessionId: id,
-      context: session.context,
-      outcome: session.outcome,
-      segments,
-    }),
-    runAndStorePivot({
-      companyId,
-      actorId: auth.user.id,
-      sessionId: id,
-      context: session.context,
-      outcome: session.outcome,
-      segments,
-    }),
-    runAndStoreIntel({
-      companyId,
-      actorId: auth.user.id,
-      sessionId: id,
-      context: session.context,
-      segments,
-    }),
+    withTimeout(
+      runAndStoreSummary({
+        companyId,
+        actorId: auth.user.id,
+        sessionId: id,
+        segments,
+      }).catch(() => null),
+      null
+    ),
+    withTimeout(
+      runAndStoreMoments({
+        companyId,
+        actorId: auth.user.id,
+        sessionId: id,
+        context: session.context,
+        outcome: session.outcome,
+        segments,
+      }).catch(() => [] as SalesMoment[]),
+      [] as SalesMoment[]
+    ),
+    withTimeout(
+      runAndStorePivot({
+        companyId,
+        actorId: auth.user.id,
+        sessionId: id,
+        context: session.context,
+        outcome: session.outcome,
+        segments,
+      }).catch(() => null),
+      null
+    ),
+    withTimeout(
+      runAndStoreIntel({
+        companyId,
+        actorId: auth.user.id,
+        sessionId: id,
+        context: session.context,
+        segments,
+      }).catch(() => null),
+      null
+    ),
   ]);
   return NextResponse.json({ summary, moments, pivot, intel });
 }
