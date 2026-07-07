@@ -84,6 +84,23 @@ HARD RULES:
   useful. A wrong confident diagnosis is worse than an honest "not enough here".
 - Keep it tight: 2-5 evidence items, 2-4 angles.`;
 
+export type CoachTurn = { role: "user" | "coach"; text: string };
+
+/**
+ * §3.3 gate: has the user shared their own thinking yet? True if they filled the
+ * hypothesis box OR they've already spoken at least once in this thread (answering
+ * the coach's opening question counts). Deriving it ONLY from the box is the loop
+ * bug — the coach re-asks "what do you think?" after the user has plainly answered.
+ * Pure + exported so the §3.3 dialogue behavior is regression-locked.
+ */
+export function userHasSharedThinking(args: {
+  hypothesis?: string | null;
+  history: CoachTurn[];
+}): boolean {
+  const hyp = (args.hypothesis ?? "").trim();
+  return hyp.length > 0 || args.history.some((t) => t.role === "user");
+}
+
 /** The Ask Coach system prompt — §3.3 guide-don't-overtake, grounded in the
  *  pasted conversation + the dissection. Consumed by generateCareReply. */
 export function askCoachSystemPrompt(args: {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseConversationDissect,
   askCoachSystemPrompt,
+  userHasSharedThinking,
   EMPTY_DISSECT,
 } from "../engine";
 
@@ -92,5 +93,37 @@ describe("askCoachSystemPrompt (§3.3 guide-don't-overtake)", () => {
       userHasSharedTheirThinking: false,
     });
     expect(p).toContain("The deploy keeps failing at the migration step");
+  });
+});
+
+describe("userHasSharedThinking (§3.3 loop-fix regression lock)", () => {
+  it("false on a fresh thread with no hypothesis (coach asks first)", () => {
+    expect(userHasSharedThinking({ hypothesis: "", history: [] })).toBe(false);
+    expect(userHasSharedThinking({ history: [] })).toBe(false);
+  });
+
+  it("true when the hypothesis box was filled", () => {
+    expect(
+      userHasSharedThinking({ hypothesis: "I think it's the creds", history: [] })
+    ).toBe(true);
+  });
+
+  it("true once the user has spoken in the thread (the loop bug)", () => {
+    // A user who answered the coach's opening question WITHOUT the box must not
+    // be re-asked "what do you think?" forever.
+    expect(
+      userHasSharedThinking({
+        history: [
+          { role: "user", text: "how do I fix this?" },
+          { role: "coach", text: "what do you think?" },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  it("false when only the coach has spoken (still awaiting the user)", () => {
+    expect(
+      userHasSharedThinking({ history: [{ role: "coach", text: "what do you think?" }] })
+    ).toBe(false);
   });
 });

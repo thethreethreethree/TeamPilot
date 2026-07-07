@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { generateCareReply } from "@/lib/claude";
-import { askCoachSystemPrompt } from "@/lib/dissect/engine";
+import { askCoachSystemPrompt, userHasSharedThinking } from "@/lib/dissect/engine";
 
 /**
  * POST /api/dissect/ask-coach
@@ -68,8 +68,10 @@ export async function POST(req: NextRequest) {
   // already spoken at least once in this thread (answering the coach's opening
   // question counts). Deriving it only from the box was the loop bug — the coach
   // kept re-asking after the user had plainly answered.
-  const userHasSharedTheirThinking =
-    userHypothesis.length > 0 || history.some((t) => t.role === "user");
+  const userHasSharedTheirThinking = userHasSharedThinking({
+    hypothesis: userHypothesis,
+    history,
+  });
 
   const systemPrompt = askCoachSystemPrompt({
     sourceText: body.content,
