@@ -68,27 +68,53 @@ Re-read IN FULL this session, before building (not from cached labels):
   reused verbatim (A21 — flagged as a possible follow-up, not claimed as parity);
   saved dissections are owner-private. Founder can override either.
 
-## Post-ship proactive audit (§1.5.2, same session) — 4 fixes
+## Post-ship proactive audit (§1.5.2, same session) — 8 fixes + added coverage
 Applied the four-layer framework to the just-shipped feature AND adjacent surfaces;
-found and fixed:
-1. **§3.3 [layer 2] Ask Coach looped** — the route was stateless and derived
-   "user shared their thinking" only from the hypothesis box, so it re-asked "what
-   do you think?" forever. Gave it conversation memory (client sends thread
-   history; route builds a transcript + infers the flag from any prior user turn).
-   Extracted `userHasSharedThinking` as a pure helper + 4 regression tests (12 total).
-2. **§3.4/§A16 [layer 2] control-gate suppression** — `generateCareReply` stays
-   gated by the month-1 control unless `controlExempt`; the route didn't set it, so
-   Ask Coach was silently suppressed for month-1 teams while the dissect engine
-   (exempt) ran. Set `controlExempt:true` — Dissect works on external pasted data,
-   orthogonal to the §3.4 baseline. Class-checked all LLM callers (§1.2): the split
-   is consistent (team's-own-work gated; user-initiated tools day-1); no siblings.
-3. **[layer 4] a11y** — labeled the icon-only Ask Coach send button.
-4. **AMD-006 L3 / spec fidelity** — Ask Coach now renders after ANY analyzed paste,
-   not only when a problem is diagnosed (founder decision — the spec's "any questions
-   pertaining to the context" is broader than a diagnosed problem). No-problem state
-   points to the coach instead of a dead end.
+found and fixed (each real, thought-through, not grep-noise):
+1. **§3.3 [L2] Ask Coach looped** — stateless route derived "user shared thinking"
+   only from the hypothesis box, so it re-asked "what do you think?" forever. Gave it
+   conversation memory (client sends thread history; route builds a transcript +
+   infers the flag from any prior user turn). Extracted `userHasSharedThinking` +
+   `buildCoachUserMessage` as pure helpers, regression-locked.
+2. **§3.4/§A16 [L2] control-gate suppression** — `generateCareReply` stays gated by
+   the month-1 control unless `controlExempt`; the route didn't set it, so Ask Coach
+   was silently suppressed for month-1 teams while the dissect engine (exempt) ran.
+   Set `controlExempt:true` (external pasted data is orthogonal to the §3.4 baseline).
+   Class-checked all LLM callers (§1.2): the split is consistent; no siblings.
+3. **[L4] a11y** — labeled the icon-only Ask Coach send button.
+4. **AMD-006 L3 / spec fidelity** — Ask Coach renders after ANY analyzed paste, not
+   only when a problem is diagnosed (founder decision — "any questions pertaining to
+   the context" is broader than a diagnosed problem). No-problem state → the coach,
+   not a dead end.
+5. **§A13 [L1] source-limit drift** — accept (20k) / analyze (16k) / ground (12k)
+   were three different limits authored ad-hoc. Unified to one `MAX_SOURCE_CHARS`
+   constant in a framework-agnostic module (client + server reference it). Now
+   accept = analyze = ground = store.
+6. **A21 [L3] Learning Mode parity** — the new surface had zero LearningHint wrappers
+   while 54 peer pages integrate Learning Mode. Added 3 hints (header / problem /
+   Ask Coach); provider coverage verified.
+7. **§3.4 [L2] silent Save failure** — a failed save returned silently (button
+   re-enabled, no error) — indistinguishable from "not saved yet". Added a visible,
+   retryable error.
+8. **§3.4 [L2] fabricated-suffix grounding hole** — evidence grounding used a 60-char
+   PREFIX match, so a real opening + fabricated tail would render as a quote. Tightened
+   to a whitespace-normalized FULL-substring match. Class-checked the sales-coach
+   engines (§1.2): the hole was unique to this engine; siblings use sound grounding
+   (segment-index ref, word-boundary regex).
 
-Gate after all fixes: tsc 0, lint 0, 401 tests (12 dissect), `next build` 0.
+**Added coverage:** engine tests (parser grounding, §3.3 branches, helpers) + a
+data-layer DB-mock test (query shape, transform, and the server-derived owner/tenant
+security property). **24 dissect tests total** (18 engine + 6 data-layer).
+
+Final gate (whole session): tsc 0, lint 0, **407 tests**, `next build` 0. All pushed.
+
+## Note on the constitutional-fidelity + self-audit passes
+The Dissect prompts were audited from the source (§1.3 outside-view) and confirmed
+§3.3/A11-faithful (diagnose the problem with evidence §3.2; hand the *solution* to the
+user; angles are "directions to weigh, not instructions"). My own migration 0097 was
+self-audited: A23-compliant (owner-private, append-only, tenant-key pinned) and it
+follows the auto-grant convention (no missing table GRANT). The 0090/0091 guard's
+fail-mode (block-list vs fail-closed allow-list) is surfaced for the founder's decision.
 Still UNTESTED: migration 0097 application, live LLM quality, browser render.
 
 Session-Reads timestamps: CLAUDE.md, ThinkerThinker.md (A1-A22), AMD-006 — all
