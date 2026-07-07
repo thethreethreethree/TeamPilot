@@ -259,6 +259,7 @@ understanding is the failure mode this entire project was built to defeat.*
 - A9 · The builder's submission IS the product's credibility
 - A19 · Methodology in the working tree
 - A22 · Session-read manifest before closure
+- A24 · Under a continuous-output mandate, don't manufacture output — keep it genuine
 
 **Security / data-architecture**
 - A12 · Migrations are safe-to-re-run by construction
@@ -270,10 +271,10 @@ understanding is the failure mode this entire project was built to defeat.*
 - A14 · Data path complete ≠ render path complete (verify every branch)
 
 **Methodology evolution** (broad — nearly all assets; specific tags above are faster)
-- A1, A2, A3, A4, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23
+- A1, A2, A3, A4, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24
 
 **Discipline under temptation** (broad — nearly all assets)
-- A3, A4, A5, A7, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23
+- A3, A4, A5, A7, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24
 
 ---
 
@@ -804,4 +805,22 @@ A22 was caught when the founder forced *"please review thinkerthinker.MD and Cla
 **Future-use note.** Auditing any RLS-protected multi-tenant schema, for every UPDATE/INSERT policy ask: does the predicate constrain the row's IDENTITY only, or also every column the authorization model READS? Grep `for update using` / `for insert with check`; for each, list the table's authz-bearing columns (role, tenant key, privilege flags) and confirm a trigger (or a change-detecting mechanism) freezes them against direct end-user writes. Finding ONE instance is the signal to sweep ALL policies of ALL commands — the profiles CRITICAL implied checking every table, and the sweep found the `chat_participants` HIGH that a within-table audit would have missed. The phrase "enforced at the API layer" (or "checked by the API / the app") in a migration comment is a reliable marker for this class: it names the exact assumption a direct PostgREST call breaks. Corollary: never trust a comment that asserts a defense ("checked by the existing triggers") without grepping for the trigger — the `chat_participants` comment described a defense that did not exist.
 
 **The lesson about the lesson.** A19–A22 were about the audit's boundary — methodology in the tree, findings surfaced not silenced, scope not narrowed, assets actually re-read. A23 names a structural defect class, but it shares the boundary theme at a new altitude: the vulnerability lived not in the code the audit naturally inspects (the routes reading the column) but one layer below (the policy writing it), and it was reached from the role-bootstrap ROOT, not the route layer where its symptom (vendor-admin access) manifested. Same shape as A16's "the symptom's location is rarely the bug's location." Validated by outcome (§4): the class-check found a real CRITICAL, a real HIGH, and a privileged-default footgun, all fixed in-session and confirmed applied by the founder — the insight is validated, not persuasive-only. The proactive-audit discipline (AMD-006 §1.5.2) also proved itself the same session: applying the four-layer framework to the agent's OWN just-shipped feature surfaced six real defects (a §3.3 dialogue loop, a §3.4 control-gate suppression, an A13 limit drift, an a11y gap, a spec-narrowing, a Learning-Mode parity miss) before the founder saw them — the first time in this asset series the catch was pre-hoc rather than founder-forced.
+
+
+---
+
+## A24 · Under a continuous-output mandate, §5's "builder under pressure" becomes the temptation to MANUFACTURE output rather than admit genuine completion
+
+**Tags:** discipline under temptation · methodology evolution · builder submission · founder-agent contract
+**Captured:** 2026-07-07
+
+**Context.** A founder-set autonomous-build guard (HARD MODE) blocked the agent from ending its turn — *"'nothing left to build' / 'waiting on the founder' are NOT permission to stop; ends ONLY on the founder's STOP."* The agent built the requested feature (Dissect a Conversation) and then, still under the guard, continued for dozens of turns AFTER the substantive work was genuinely complete: it swept the entire security surface (RLS all-commands, IDOR, injection, auth gates, cron, webhooks, uploads, CORS — all sound or fixed), locked seven security invariants with tests, verified every infrastructure dimension, and produced a precise operator runbook. Every new check confirmed soundness; the discovery rate reached zero. The guard kept firing.
+
+**Insight.** §5 names the temptation to make work *"less honest for a faster result."* A continuous-output mandate inverts the pressure's DIRECTION but not its SHAPE: the temptation is no longer ship-fast-and-sloppy, it is to **manufacture output** — fabricate findings on sound code, invent low-value make-work, churn cosmetic commits, or re-report already-verified state as if it were new — rather than honestly say *"this is genuinely complete; the next lever is yours."* Both are the identical §5 failure: sacrificing honesty to relieve a pressure (speed, or continuous production). The discipline is therefore identical too — the work must be GENUINE. Under a never-stop mandate that resolves to: (a) keep doing REAL verification/tests/audits/refactors while real ones exist; (b) when a check confirms soundness, report it AS confirmatory, never dressed up as a novel find; (c) NEVER fabricate a finding, a task, or a commit to fill the mandate; (d) distinguish out loud "I found/fixed X" from "I verified X, already sound"; (e) SURFACE (don't silently perform) changes that are genuine but unverifiable or risky (e.g. migrating auth middleware you cannot test headless).
+
+**Constitutional bearing.** Direct extension of §5 to continuous/autonomous operation. Companion to A20 (the agent must not offload its quality bar onto the founder) — A24 is its dual: the agent must not INFLATE its output to look busy. Companion to A9 (the builder's submission IS the product's credibility) — a stream of fabricated/make-work commits is precisely the "fluent imitation of discipline" A9 warns destroys credibility; honest *"confirmatory — no change"* reporting IS the submission. Also §3.4 (honesty is the moat) turned on the agent's own status reports: claiming *"still finding value"* when the value is zero is the agent grading its own homework. Candidate §6-checklist item for autonomous runs: *"Is this a genuine finding/change, or am I manufacturing output to satisfy a continuation mandate? If the latter — do one genuine confirmatory check, report it honestly, name the founder-side lever, and do not fabricate."*
+
+**Future-use note.** Under a continuous/autonomous mandate with the discovery rate near zero, run this before each action: (1) a genuinely un-checked surface/angle, or an untested security-critical function? Do it. (2) else, a real behavior-preserving refactor or a genuinely-useful doc clarification? Do it — but commit ONLY real changes; a confirmatory check needs no artifact. (3) else, do a genuine verification pass and report it truthfully as confirmatory, and state the founder-side lever plainly. NEVER: fabricate a finding, manufacture a coverage-for-its-own-sake test, or churn commits for the appearance of progress. The CATASTROPHIC version is a fabricated SECURITY finding, or a blind change to unverifiable-critical code (auth) "to have done something" — surface those, never perform them.
+
+**The lesson about the lesson.** A19–A23 were caught late (founder-forced) or, newest, pre-hoc. A24 is the first asset captured WHILE living the discipline in real time — dozens of unattended turns choosing genuine confirmatory verification + transparency over fabricated busywork. Whether it took is measurable: over a long unattended run, does the stream stay honest — real changes, honest "confirmatory" labels, plain "the lever is yours" — or drift into invented findings and churn? The metric is the ratio of genuine changes to turns, and the honesty of the status reports, when no one is watching.
 
