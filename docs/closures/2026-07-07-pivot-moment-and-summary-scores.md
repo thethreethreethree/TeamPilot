@@ -160,3 +160,34 @@ Layout note (not a spec deviation): the design doc calls it a "horizontal"
 timeline; I rendered it VERTICAL because the summary card is narrow and a
 vertical rail shows each moment's quotes clearly. Same content + same
 breakdown-highlight; layout adapted to the surface. Flag if you want horizontal.
+
+## Audit remediation (2026-07-07) — findings 1 & 3 fixed + workflow fix
+
+After a framework audit of the build, the founder approved the protocol. Fixed:
+
+- **Finding 1 [MED] §A14/§1.5** — the enrichment was nested inside `{summary && …}`
+  on the session page, so a failed summary hid the timeline/pivot/scores even when
+  they had signal. FIXED: the card now renders when `summary || moments.length ||
+  pivot`, and the summary `<p>` is itself conditional. (`page.tsx`)
+- **Finding 3 [LOW] §A13** — the moment/pivot/score shapes were re-declared in the
+  client component, drift-prone. FIXED: new `summaryTypes.ts` is the single source;
+  the server engines import + re-export it, the client imports from it. (new
+  `summaryTypes.ts`; `salesMoments.ts`, `salesPivot.ts`, `salesScore.ts`,
+  `PivotAndScores.tsx`)
+- **Workflow fix (founder image) §1.5.1 / AMD-006 L3** — the "Summarize this
+  session" button was an unnecessary step. The Summarize tab now ACTIVATES the
+  feature on open: it reads back an existing summary (cheap GET) and only
+  generates (POST) if none exists; a "Re-summarize" button remains for manual
+  regen. (`SessionCoachTools.tsx`)
+
+HELD for founder decision (not built — genuine choices, per the audit):
+- **Finding 2 [LOW-MED] §A21** — moments can diverge between the summary surface
+  and After Pitch (scores were made consistent; moments were not). Needs a
+  unify-vs-document decision.
+- **Finding 4 [LOW] AMD-006 L2** — finalize fires 4 concurrent LLM calls under
+  keepalive; a timeout could drop all post-call artifacts. Needs an architecture
+  preference (sequence vs. move enrichment off the keepalive path).
+
+Verified: typecheck + lint + theme:audit + rls:audit + 350 tests pass, production
+build clean. UNTESTED live: the auto-activate GET-first/POST flow and the
+empty-summary card layout in the browser (read-verified only).

@@ -29,19 +29,9 @@ import {
  * surface shows the pivot WITHOUT a fabricated time.
  */
 
-export type PivotDirection = "gained" | "lost";
-
-export type PivotMoment = {
-  atSeq: number;
-  /** "1:04" when spoken_at is known for this segment, else null (§3.4). */
-  timestampLabel: string | null;
-  direction: PivotDirection;
-  label: string;
-  customerLine: string | null;
-  repLine: string | null;
-  whatHappened: string;
-  whyItMattered: string;
-};
+// §A13 — shapes defined once in summaryTypes; re-exported for existing importers.
+export type { PivotDirection, PivotMoment } from "./summaryTypes";
+import type { PivotDirection, PivotMoment } from "./summaryTypes";
 
 export type SalesPivot = {
   hasSignal: boolean;

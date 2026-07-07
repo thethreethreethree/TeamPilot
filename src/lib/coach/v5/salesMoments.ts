@@ -26,29 +26,18 @@ import {
  * null and the surface shows the ordered moment WITHOUT a fabricated time.
  */
 
-export type MomentKind =
-  | "opener"
-  | "discovery"
-  | "objection"
-  | "breakdown"
-  | "close"
-  | "other";
-
-export type MomentCorrection = { correctLine: string; whyItWorks: string };
-
-export type SalesMoment = {
-  atSeq: number;
-  /** "1:04" when spoken_at is known for this segment, else null (§3.4). */
-  timestampLabel: string | null;
-  kind: MomentKind;
-  label: string;
-  customerLine: string | null;
-  repLine: string | null;
-  note: string | null;
-  isBreakdown: boolean;
-  /** Present only on the breakdown moment. */
-  correction: MomentCorrection | null;
-};
+// §A13 — the shapes live in ONE place (summaryTypes) and are re-exported here so
+// existing importers (routes, tests) keep working and the client can share them.
+export type {
+  MomentKind,
+  MomentCorrection,
+  SalesMoment,
+} from "./summaryTypes";
+import type {
+  MomentKind,
+  MomentCorrection,
+  SalesMoment,
+} from "./summaryTypes";
 
 export type SalesMoments = {
   hasSignal: boolean;

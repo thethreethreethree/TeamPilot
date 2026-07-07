@@ -296,8 +296,11 @@ export default function SessionDetail() {
         </Link>
 
         {/* Auto-generated factual conversation summary (distinct from the
-            Dissect evaluation, §A11 — facts, not a verdict). */}
-        {summary && (
+            Dissect evaluation, §A11 — facts, not a verdict). The card renders
+            when ANY artifact has signal — summary, timeline, or pivot — each is
+            generated independently and best-effort, so a failed summary must NOT
+            hide the timeline (the hero) or pivot (audit finding 1, §A14/§1.5). */}
+        {(summary || moments.length > 0 || pivot) && (
           <LearningHint
             as="block"
             category="Sales Coach · Review"
@@ -313,9 +316,11 @@ export default function SessionDetail() {
                   Conversation summary
                 </h2>
               </div>
-              <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
-                {summary}
-              </p>
+              {summary && (
+                <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
+                  {summary}
+                </p>
+              )}
               {/* Founder 2026-07-07: the Pivot Moment + private scores at the END
                   of the conversation summary — same shared component as the
                   Summarize panel (§A13/§A21). The pivot is manager-visible; the

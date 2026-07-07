@@ -25,23 +25,9 @@ import {
  * produces the numbers. Never throws; thin/failed input → honest empty state.
  */
 
-export type ScoreKey = "opener" | "objection" | "talk_ratio" | "tone" | "close";
-
-export type ScoreCategory = {
-  key: ScoreKey;
-  label: string;
-  /** 0-10 for graded categories; for talk_ratio this is the rep's talk share
-   *  as a 0-10 (agentShare*10) so the strip renders uniformly — but `display`
-   *  is the honest ratio and `computed` marks it as hard data. */
-  score: number;
-  /** What the rep reads: "8/10" for graded; "62 / 38" for talk ratio. */
-  display: string;
-  rationale: string;
-  /** Transcript moment the score is grounded in; null for computed talk_ratio. */
-  citation: string | null;
-  /** True = deterministic (talk_ratio); false = corpus-graded assessment. */
-  computed: boolean;
-};
+// §A13 — shapes defined once in summaryTypes; re-exported for existing importers.
+export type { ScoreKey, ScoreCategory } from "./summaryTypes";
+import type { ScoreKey, ScoreCategory } from "./summaryTypes";
 
 export type SalesScores = {
   hasSignal: boolean;

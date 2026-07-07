@@ -25,45 +25,16 @@ import {
  * are `server-only` and cannot be imported into a client component.
  */
 
-type MomentKind =
-  | "opener"
-  | "discovery"
-  | "objection"
-  | "breakdown"
-  | "close"
-  | "other";
-export type SalesMoment = {
-  atSeq: number;
-  timestampLabel: string | null;
-  kind: MomentKind;
-  label: string;
-  customerLine: string | null;
-  repLine: string | null;
-  note: string | null;
-  isBreakdown: boolean;
-  correction: { correctLine: string; whyItWorks: string } | null;
-};
-
-type PivotDirection = "gained" | "lost";
-export type PivotMoment = {
-  atSeq: number;
-  timestampLabel: string | null;
-  direction: PivotDirection;
-  label: string;
-  customerLine: string | null;
-  repLine: string | null;
-  whatHappened: string;
-  whyItMattered: string;
-};
-type ScoreCategory = {
-  key: string;
-  label: string;
-  score: number;
-  display: string;
-  rationale: string;
-  citation: string | null;
-  computed: boolean;
-};
+// §A13 — the shapes come from the single shared source (summaryTypes), not a
+// client-local re-declaration. Re-exported so the surfaces that render this
+// component (SessionCoachTools, the session page) can keep importing from here.
+import type {
+  MomentKind,
+  SalesMoment,
+  PivotMoment,
+  ScoreCategory,
+} from "@/lib/coach/v5/summaryTypes";
+export type { SalesMoment, PivotMoment } from "@/lib/coach/v5/summaryTypes";
 
 type ScoresResult =
   | { state: "ok"; scores: ScoreCategory[]; hasSignal: boolean }

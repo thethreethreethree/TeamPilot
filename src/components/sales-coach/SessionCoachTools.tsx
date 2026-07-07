@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { FileText, MessageCircleQuestion, Microscope } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  FileText,
+  MessageCircleQuestion,
+  Microscope,
+  Loader2,
+} from "lucide-react";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
 import {
@@ -297,58 +302,108 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
 }
 
 function SummarizePanel({ sessionId }: { sessionId: string }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<string | null>(null);
   const [pivot, setPivot] = useState<PivotMoment | null>(null);
   const [moments, setMoments] = useState<SalesMoment[]>([]);
-  const [ran, setRan] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const run = async () => {
+  const apply = useCallback((d: Record<string, unknown>) => {
+    setSummary((d.summary as string | null) ?? null);
+    setPivot((d.pivot as PivotMoment | null) ?? null);
+    setMoments(Array.isArray(d.moments) ? (d.moments as SalesMoment[]) : []);
+    setLoaded(true);
+  }, []);
+
+  // Generate (POST) — the LLM run. Used when nothing is stored yet AND for the
+  // explicit "Re-summarize".
+  const generate = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/coach/sales-session/${sessionId}/summarize`,
-        { method: "POST" }
-      );
+      const res = await fetch(`/api/coach/sales-session/${sessionId}/summarize`, {
+        method: "POST",
+      });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
-      setSummary(d.summary ?? "No summary returned.");
-      setPivot((d.pivot as PivotMoment | null) ?? null);
-      setMoments(Array.isArray(d.moments) ? (d.moments as SalesMoment[]) : []);
-      setRan(true);
+      apply(d);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId, apply]);
+
+  // Founder 2026-07-07 (§1.5.1 / AMD-006 L3 — remove the unnecessary intermediate
+  // step): opening the Summarize tab ACTIVATES the feature. Read back an existing
+  // summary first (cheap GET, no LLM); only generate (POST) if none exists yet.
+  // No separate "Summarize this session" button.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/coach/sales-session/${sessionId}/summarize`
+        );
+        if (cancelled) return;
+        if (res.ok) {
+          const d = await res.json();
+          if (cancelled) return;
+          if (d.summary || (Array.isArray(d.moments) && d.moments.length) || d.pivot) {
+            apply(d);
+            setLoading(false);
+            return;
+          }
+        }
+        if (!cancelled) await generate();
+      } catch {
+        if (!cancelled) await generate();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, apply, generate]);
 
   return (
     <PanelBox>
-      <LoadingButton
-        pending={loading}
-        onClick={() => void run()}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-ember-400 disabled:opacity-60"
-      >
-        {summary ? "Re-summarize" : "Summarize this session"}
-      </LoadingButton>
-      {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
+      {loading && !loaded && (
+        <p className="inline-flex items-center gap-1.5 text-xs text-tertiary">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Summarizing this
+          session…
+        </p>
+      )}
+      {error && (
+        <p className="text-xs text-red-300">
+          {error}{" "}
+          <button
+            type="button"
+            onClick={() => void generate()}
+            className="underline hover:no-underline"
+          >
+            Try again
+          </button>
+        </p>
+      )}
       {summary && (
-        <p className="text-xs text-secondary leading-relaxed mt-2 whitespace-pre-wrap">
+        <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
           {summary}
         </p>
       )}
-      {/* Founder 2026-07-07: the Pivot Moment + private scores at the END of the
-          summary, composed via the shared component (§A13/§A21). Shown once the
-          summary has been generated in this panel. */}
-      {ran && (
-        <PivotAndScores
-          sessionId={sessionId}
-          pivot={pivot}
-          moments={moments}
-        />
+      {/* Founder 2026-07-07: the Conversation Timeline + Pivot Moment + private
+          scores at the END of the summary, via the shared component (§A13/§A21). */}
+      {loaded && (
+        <PivotAndScores sessionId={sessionId} pivot={pivot} moments={moments} />
+      )}
+      {loaded && (
+        <LoadingButton
+          pending={loading}
+          onClick={() => void generate()}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-ember-400 disabled:opacity-60"
+        >
+          Re-summarize
+        </LoadingButton>
       )}
     </PanelBox>
   );
