@@ -1,0 +1,38 @@
+-- 0094 — make resolutions append-only on DELETE (§3.1 / §1.1)
+--
+-- Found by the DELETE-policy class sweep (audit 2026-07-07).
+--
+-- resolutions is the close-the-loop record: action_taken + reasoning (the WHY,
+-- §2) + the §3.5 consequence fields. 0005 already encodes append-only INTENT —
+-- check_resolution_immutability() (0005:50) freezes action_taken / reasoning /
+-- decided_at on UPDATE while letting the outcome fields be filled later. But that
+-- trigger is BEFORE UPDATE only, and the RLS policy is
+--     create policy "resolutions - all" on resolutions
+--       for all using (company_id = auth_company_id()) with check (...);
+-- `for all` includes DELETE, and there is no no-delete rule. So any authenticated
+-- company member can DELETE a resolution row outright with one direct PostgREST
+-- call — destroying the record wholesale and bypassing the update-immutability
+-- trigger entirely. That contradicts:
+--   §3.1 — "Never update or delete — append. Full history must always be intact,
+--           because retrospective analysis and data-as-asset depend on it."
+--   §1.1 — "Nothing is discarded. Past resolutions are reusable material."
+-- and it undermines the very immutability the 0005 trigger was written to enforce.
+--
+-- FIX. A no-delete rewrite rule, matching the established pattern on events (0004),
+-- signals / problem_signals (0002), support_resolutions (0036), and
+-- brain_evolution_events (0007). `do instead nothing` makes DELETE a silent no-op
+-- for every caller (direct PostgREST AND service-role), so history cannot be
+-- destroyed. A resolution that turns out wrong is corrected by APPENDING a new
+-- resolution / event, never by deletion (the §3.1 model).
+--
+-- UPDATE is deliberately NOT frozen here — the 0005 trigger already allows the
+-- outcome/durability/review fields to be filled later (§3.5); freezing update
+-- would break consequence tracking. Only DELETE is closed.
+--
+-- Note: problems (0002) is intentionally NOT made no-delete — it is mutable
+-- derived state (status lifecycle draft→resolved) and is RLS deny-by-default to
+-- members (RLS enabled, no policy → service-role only), so it is not
+-- member-deletable and its history lives in the immutable events chain.
+
+create or replace rule resolutions_no_delete as
+  on delete to resolutions do instead nothing;
