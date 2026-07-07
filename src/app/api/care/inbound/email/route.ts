@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { routeNewConversation } from "@/lib/data/care";
@@ -354,13 +354,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Queue #2: push the assigned agent that the customer replied
-  // (fire-and-forget; no push if the conversation is unassigned).
+  // Queue #2: push the assigned agent that the customer replied.
+  // `after()` (not bare void): this runs AFTER the 200 is sent, but Vercel keeps
+  // the function alive until it settles — a bare `void` promise would be abandoned
+  // when the serverless instance freezes post-response, silently dropping the push.
   if (conversationId) {
-    void notifyAssignedAgentOfCustomerMessage({
-      conversationId,
-      body: body.TextBody,
-    });
+    after(() =>
+      notifyAssignedAgentOfCustomerMessage({
+        conversationId,
+        body: body.TextBody,
+      })
+    );
   }
 
   // ─── 8. AI first responder — §A16 composition ────────────────
@@ -376,12 +380,16 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-  void runAiFirstResponder({
-    conversationId,
-    companyId: tenant.company_id,
-    customerId,
-    customerMessage: body.TextBody,
-  });
+  // `after()` so the LLM call survives past the 200 — a bare `void` would be
+  // frozen with the instance post-response and the AI reply would never generate.
+  after(() =>
+    runAiFirstResponder({
+      conversationId,
+      companyId: tenant.company_id,
+      customerId,
+      customerMessage: body.TextBody,
+    })
+  );
 
   return NextResponse.json(
     { ok: true, conversationId, messageId: insertedMsg.id },
