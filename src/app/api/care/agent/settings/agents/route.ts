@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 async function requireCompanyAdmin() {
   const auth = await requireCareAgent();
@@ -93,10 +94,25 @@ export async function POST(req: NextRequest) {
   }
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
-  await ctx.sb
+  // Service-role write, gated by requireCompanyAdmin above and scoped to the
+  // admin's own company. Two reasons it must be service-role, not ctx.sb:
+  //  1. is_support_agent is a privileged column frozen against direct
+  //     authenticated writes by the 0090 guard trigger; the user client would
+  //     be rejected.
+  //  2. The self-only RLS UPDATE policy on profiles (0001) would otherwise let
+  //     an admin toggle only their OWN row, never a teammate's — the exact
+  //     admin-manages-team action this route exists for.
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("profiles")
     .update({ is_support_agent: body.isSupportAgent })
     .eq("id", body.id)
     .eq("company_id", ctx.companyId);
+  if (error) {
+    return NextResponse.json(
+      { error: "Could not update the agent." },
+      { status: 500 }
+    );
+  }
   return NextResponse.json({ ok: true });
 }
