@@ -168,10 +168,8 @@ export default function CoachAssessmentPage() {
                   ranking</span>
                   : everyone is measured against their own growth, never each
                   other. The{" "}
-                  <span className="text-primary">Sales ELO Rating</span> is a
-                  gamified score of each rep against our measurement standard
-                  (1500) — never against peers. Admins and managers see the
-                  team&apos;s; each rep sees their own.
+                  <span className="text-primary">Sales ELO Rating</span>
+                  {" is a gamified score of each rep against our measurement standard (1500) — never against peers. Admins and managers see the team’s; each rep sees their own."}
                 </p>
               </div>
             </LearningHint>
