@@ -77,6 +77,56 @@ describe("dissect data layer (DB-mock)", () => {
     expect(await getDissectTopic("nope")).toBeNull();
   });
 
+  // Migration-coupling resilience — the 2026-07-03 Team Chat outage lesson applied to
+  // the 0097-coupled dissect store: a missing table (migration not applied yet) must
+  // DEGRADE (list → [], surface stays up) AND be DIAGNOSABLE (server log), never a
+  // silent empty indistinguishable from "no saved topics", and never an uncaught throw.
+  it("listDissectTopics returns [] AND logs on a missing-table error (0097 not applied)", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(createClient).mockResolvedValue(
+      makeSupabaseClient(
+        {
+          dissect_topics: {
+            data: null,
+            error: { code: "42P01", message: 'relation "dissect_topics" does not exist' },
+          },
+        },
+        calls
+      ) as never
+    );
+    // Graceful: an empty list, not a throw — the surface (analyze) stays usable.
+    expect(await listDissectTopics()).toEqual([]);
+    // Diagnosable + distinguished: the log names the missing-migration cause.
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    expect(String(errSpy.mock.calls[0]?.[0])).toContain("0097");
+    errSpy.mockRestore();
+  });
+
+  it("saveDissectTopic returns null AND logs on a write error (never a phantom save)", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getCurrentAuthContext).mockResolvedValue({
+      userId: "u1",
+      companyId: "co1",
+      role: "admin",
+      isAdmin: true,
+    } as never);
+    vi.mocked(createClient).mockResolvedValue(
+      makeSupabaseClient(
+        {
+          dissect_topics: {
+            data: null,
+            error: { code: "23505", message: "duplicate key" },
+          },
+        },
+        calls
+      ) as never
+    );
+    const id = await saveDissectTopic({ title: "T", sourceText: "S", summary: null, dissect: null });
+    expect(id).toBeNull(); // §3.4 — no phantom save
+    expect(errSpy).toHaveBeenCalledTimes(1); // the real reason is on the record
+    errSpy.mockRestore();
+  });
+
   it("saveDissectTopic returns null when not authenticated (never a phantom save)", async () => {
     vi.mocked(getCurrentAuthContext).mockResolvedValue(null);
     const id = await saveDissectTopic({
