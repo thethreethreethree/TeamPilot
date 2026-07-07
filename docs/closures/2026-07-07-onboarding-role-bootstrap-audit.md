@@ -70,6 +70,16 @@ end-user insert the privileged columns must hold their safe empty values (the ex
 shell `handle_new_user` creates). `create or replace` + trigger recreate so it applies
 whether or not 0090 landed first (never assume). Founder must apply 0090 **and** 0091.
 
+## LOW / root-cause — `role default 'CEO'` removed (0092, defense-in-depth)
+
+The `role text default 'CEO'` column default (0001:27) is the footgun that makes an
+omitted `role` privileged. 0091 blocks it on the authenticated path, but privileged
+writers are EXEMPT — a future SECURITY DEFINER insert that forgets `role` would
+silently get CEO. 0092 does `alter column role drop default`. Safe: every legitimate
+writer sets `role` explicitly (`handle_new_user`→null, onboarding→admin, invite→invite
+role); nothing relies on the default; existing rows untouched. Root-cause fix (§0 —
+fix the cause, not the symptom).
+
 ## Verified SOUND (from source, not assumed)
 
 - `complete_company_onboarding` (0046/0047) — SECURITY DEFINER, `role='admin'`
