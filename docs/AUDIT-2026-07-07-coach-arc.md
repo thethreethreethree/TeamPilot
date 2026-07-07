@@ -27,15 +27,17 @@ data (founder confirmed live: 1496 / 1505).
   (or added transcript) the private scores froze/desynced for the SPA session.
   FIXED: `evictScoresCache` + a remount key on the Re-summarize path.
 
-## Findings — FOUNDER-GATED (surfaced, not built — genuine decisions)
-- **§A11/§A18 [HIGH] — multi-agent ELO on Coach Assessment is a de-facto
-  leaderboard** and CONTRADICTS the page's own copy ("no scores, no ranking, no
-  cross-agent comparison"). Alphabetical order softens but doesn't remove it. The
-  page copy is now literally false. NEEDS a decision: (a) remove the numbers from
-  the roster + move to a per-agent drill-down; (b) show only a non-numeric trend
-  glyph on the roster; or (c) keep the numbers and fix the copy. [Founder is
-  actively redesigning this badge — see the 2026-07-07 "explain the score"
-  request, which supersedes part of this.]
+## Findings — RESOLVED / FOUNDER-GATED
+- **§A11/§A18 [HIGH] — multi-agent ELO on Coach Assessment — RESOLVED (founder
+  decision 2026-07-07, commit 6c84a4e).** The founder chose option (c): the ELO
+  is a deliberate GAMIFIED feature (each rep vs the fixed 1500 standard, NOT a
+  peer leaderboard), visible to admins/managers here + each rep's own on Analytics
+  (§A10/§A18). The false "no scores" copy was amended to explain the gamification +
+  visibility honestly (§3.4); the coaching NOTES stay comparison-free; the roster
+  stays alphabetical, never rating-sorted (§A11). Contradiction closed.
+- **AMD-006 L2 [MED] — finalize's concurrent LLM calls — RESOLVED (commit
+  aade272).** Added a 25s per-call timeout so a hung provider call can't hold the
+  route/response until the platform kills it; the happy path is unchanged.
 - **§3.5 [MED] — outcome-less sessions rate on the System's own read alone**
   (no consequence anchor). This is the founder's DOCUMENTED relaxation (§A15-
   legit) so the back-catalogue rates; flagged for re-confirmation, on record.
