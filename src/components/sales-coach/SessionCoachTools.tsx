@@ -7,6 +7,7 @@ import { LearningHint } from "@/components/learning/LearningHint";
 import {
   PivotAndScores,
   type PivotMoment,
+  type SalesMoment,
 } from "@/components/sales-coach/PivotAndScores";
 
 /**
@@ -299,6 +300,7 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [pivot, setPivot] = useState<PivotMoment | null>(null);
+  const [moments, setMoments] = useState<SalesMoment[]>([]);
   const [ran, setRan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -314,6 +316,7 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
       if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
       setSummary(d.summary ?? "No summary returned.");
       setPivot((d.pivot as PivotMoment | null) ?? null);
+      setMoments(Array.isArray(d.moments) ? (d.moments as SalesMoment[]) : []);
       setRan(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -340,7 +343,13 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
       {/* Founder 2026-07-07: the Pivot Moment + private scores at the END of the
           summary, composed via the shared component (§A13/§A21). Shown once the
           summary has been generated in this panel. */}
-      {ran && <PivotAndScores sessionId={sessionId} pivot={pivot} />}
+      {ran && (
+        <PivotAndScores
+          sessionId={sessionId}
+          pivot={pivot}
+          moments={moments}
+        />
+      )}
     </PanelBox>
   );
 }

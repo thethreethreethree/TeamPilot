@@ -1,5 +1,6 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getCurrentSalesCorpus,
   type TranscriptSegment,
@@ -63,6 +64,47 @@ function mmss(deltaMs: number): string {
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/**
+ * Generate the Conversation Timeline (3-5 key moments) AND persist it as an
+ * append-only event (§3.1), mirroring runAndStoreSummary/runAndStorePivot so
+ * BOTH the on-demand summarize route and the server-side finalize produce it.
+ * The Conversation-summary + Summarize surfaces then read it back without an LLM
+ * call, and the timeline appears the moment the summary does (workflow
+ * continuity, §1.5.1). Manager-visible like the summary + pivot (the timeline is
+ * an observation of the call, founder decision 2026-07-07). Best-effort on the
+ * event store — the timeline still returns. Returns [] when there's no signal.
+ */
+export async function runAndStoreMoments(args: {
+  companyId: string;
+  actorId: string;
+  sessionId: string;
+  context?: SalesContext;
+  outcome?: string | null;
+  segments: TranscriptSegment[];
+}): Promise<SalesMoment[]> {
+  const result = await generateSalesMoments({
+    companyId: args.companyId,
+    context: args.context,
+    outcome: args.outcome,
+    segments: args.segments,
+  });
+  if (!result.hasSignal || result.moments.length === 0) return [];
+
+  try {
+    const admin = createAdminClient();
+    await admin.from("events").insert({
+      company_id: args.companyId,
+      actor: args.actorId,
+      kind: "coach.session_moments_generated",
+      subject: `sales_session:${args.sessionId}`,
+      payload: { moments: result.moments, coach_version: "moments-v1" },
+    });
+  } catch {
+    /* best-effort — the timeline still returns */
+  }
+  return result.moments;
 }
 
 export async function generateSalesMoments(args: {

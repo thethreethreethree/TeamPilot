@@ -131,3 +131,32 @@ Three genuine issues found + fixed in my OWN new code after the initial commit:
    were never manager-reachable; this was the transient label only.
 
 Gate + build stayed green across all three.
+
+## Follow-on: Conversation Timeline hero (founder 2026-07-07, 2nd request)
+
+Founder pointed at the "Conversation Timeline (Hero Visual)" design (3–5 key
+moments: opener → first objection → breakdown → close) and said it was missing.
+Decisions via AskUserQuestion: **keep both** (timeline hero on top + the pivot
+card below) and **manager-visible**.
+
+This is the existing `salesMoments` engine (already live on After Pitch) — so
+another compose-not-fork job (§A21):
+- `salesMoments.ts` — added `runAndStoreMoments` (mirrors `runAndStorePivot`):
+  generate + append-only `coach.session_moments_generated` event (§3.1),
+  manager-visible.
+- `.../summarize` route — POST composes summary + moments + pivot; GET reads all
+  three back. `.../finalize` — generates the timeline post-call too (continuity).
+- `PivotAndScores.tsx` — added a `MomentsTimeline` sub-component (vertical
+  timeline suited to the card width — same content as the After-Pitch horizontal
+  hero, laid out for this surface, AMD-006 L4). Breakdown node highlighted amber
+  with its "try instead" correction. Rendered ABOVE the pivot as the hero.
+- Both surfaces pass `moments` through.
+
+Verified: 350 tests pass, build clean. UNTESTED live: the timeline's browser
+render + LLM moment quality (the pivot's live render is already confirmed by the
+founder's screenshot; the moments engine is the same LLM path).
+
+Layout note (not a spec deviation): the design doc calls it a "horizontal"
+timeline; I rendered it VERTICAL because the summary card is narrow and a
+vertical rail shows each moment's quotes clearly. Same content + same
+breakdown-highlight; layout adapted to the surface. Flag if you want horizontal.

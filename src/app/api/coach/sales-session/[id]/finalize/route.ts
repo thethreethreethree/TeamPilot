@@ -12,6 +12,7 @@ import {
 import { runAndStoreDissect } from "@/lib/coach/v5/salesDissect";
 import { runAndStoreSummary } from "@/lib/coach/v5/salesSummary";
 import { runAndStorePivot } from "@/lib/coach/v5/salesPivot";
+import { runAndStoreMoments } from "@/lib/coach/v5/salesMoments";
 
 /**
  * POST /api/coach/sales-session/[id]/finalize
@@ -100,7 +101,7 @@ export async function POST(
   //    alongside the summary so the Conversation-summary surface shows it the
   //    moment the call ends (workflow continuity, §1.5.1) — not only after a
   //    manual re-summarize.
-  const [dissect, summary, pivot] = await Promise.all([
+  const [dissect, summary, moments, pivot] = await Promise.all([
     runAndStoreDissect({
       companyId,
       actorId: auth.user.id,
@@ -115,6 +116,14 @@ export async function POST(
       sessionId: id,
       segments,
     }).catch(() => null),
+    runAndStoreMoments({
+      companyId,
+      actorId: auth.user.id,
+      sessionId: id,
+      context: session.context,
+      outcome: session.outcome,
+      segments,
+    }).catch(() => []),
     runAndStorePivot({
       companyId,
       actorId: auth.user.id,
@@ -130,6 +139,7 @@ export async function POST(
     transcriptSegments: segments.length,
     dissectGenerated: !!dissect?.hasSignal,
     summaryGenerated: !!summary,
+    momentsGenerated: Array.isArray(moments) && moments.length > 0,
     pivotGenerated: !!pivot,
   });
 }

@@ -19,6 +19,7 @@ import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
 import {
   PivotAndScores,
   type PivotMoment,
+  type SalesMoment,
 } from "@/components/sales-coach/PivotAndScores";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
@@ -76,6 +77,7 @@ export default function SessionDetail() {
   const [review, setReview] = useState<Review | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [pivot, setPivot] = useState<PivotMoment | null>(null);
+  const [moments, setMoments] = useState<SalesMoment[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -106,6 +108,7 @@ export default function SessionDetail() {
         const sj = await sumRes.json();
         setSummary(sj.summary ?? null);
         setPivot((sj.pivot as PivotMoment | null) ?? null);
+        setMoments(Array.isArray(sj.moments) ? (sj.moments as SalesMoment[]) : []);
       }
       if (wRes && wRes.ok) {
         const w = await wRes.json();
@@ -318,7 +321,7 @@ export default function SessionDetail() {
                   Summarize panel (§A13/§A21). The pivot is manager-visible; the
                   scores are owner-only (the component's /summary-scores fetch
                   returns 403 to a manager and renders nothing, §A18). */}
-              <PivotAndScores sessionId={id} pivot={pivot} />
+              <PivotAndScores sessionId={id} pivot={pivot} moments={moments} />
             </section>
           </LearningHint>
         )}

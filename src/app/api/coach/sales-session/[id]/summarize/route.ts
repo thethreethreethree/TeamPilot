@@ -4,6 +4,10 @@ import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { runAndStoreSummary } from "@/lib/coach/v5/salesSummary";
 import { runAndStorePivot, type PivotMoment } from "@/lib/coach/v5/salesPivot";
+import {
+  runAndStoreMoments,
+  type SalesMoment,
+} from "@/lib/coach/v5/salesMoments";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 
 /**
@@ -57,15 +61,24 @@ export async function POST(
     );
   }
 
-  // Compose (§A16, does not fork): the factual summary AND the bidirectional
-  // Pivot Moment run concurrently. Both are manager-visible observations (the
-  // owner-private SCORES are a separate owner-only endpoint, §A18). The pivot is
-  // best-effort — a summary still returns if the pivot came back empty.
-  const [summary, pivot] = await Promise.all([
+  // Compose (§A16, does not fork): the factual summary, the Conversation Timeline
+  // (3-5 key moments hero), AND the bidirectional Pivot Moment run concurrently.
+  // All three are manager-visible observations (the owner-private SCORES are a
+  // separate owner-only endpoint, §A18). Each is best-effort — a summary still
+  // returns if the timeline / pivot came back empty.
+  const [summary, moments, pivot] = await Promise.all([
     runAndStoreSummary({
       companyId,
       actorId: auth.user.id,
       sessionId: id,
+      segments,
+    }),
+    runAndStoreMoments({
+      companyId,
+      actorId: auth.user.id,
+      sessionId: id,
+      context: session.context,
+      outcome: session.outcome,
       segments,
     }),
     runAndStorePivot({
@@ -77,7 +90,7 @@ export async function POST(
       segments,
     }),
   ]);
-  return NextResponse.json({ summary, pivot });
+  return NextResponse.json({ summary, moments, pivot });
 }
 
 /**
@@ -100,30 +113,29 @@ export async function GET(
   // manager-visible observations, stored append-only in `events`). No LLM cost.
   // Owner-private SCORES are NOT here — they come from the owner-gated
   // /summary-scores endpoint (§A18).
-  const [summaryRow, pivotRow] = await Promise.all([
+  const latest = (kind: string) =>
     supabase
       .from("events")
       .select("payload")
-      .eq("kind", "coach.session_summary_generated")
+      .eq("kind", kind)
       .eq("subject", `sales_session:${id}`)
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("events")
-      .select("payload")
-      .eq("kind", "coach.session_pivot_generated")
-      .eq("subject", `sales_session:${id}`)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .maybeSingle();
+  const [summaryRow, momentsRow, pivotRow] = await Promise.all([
+    latest("coach.session_summary_generated"),
+    latest("coach.session_moments_generated"),
+    latest("coach.session_pivot_generated"),
   ]);
   const summary = (summaryRow.data?.payload as Record<string, unknown> | undefined)
     ?.summary;
+  const moments = (momentsRow.data?.payload as Record<string, unknown> | undefined)
+    ?.moments as SalesMoment[] | undefined;
   const pivot = (pivotRow.data?.payload as Record<string, unknown> | undefined)
     ?.pivot as PivotMoment | undefined;
   return NextResponse.json({
     summary: typeof summary === "string" ? summary : null,
+    moments: Array.isArray(moments) ? moments : [],
     pivot: pivot ?? null,
   });
 }

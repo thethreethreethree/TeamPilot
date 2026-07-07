@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Loader2, ChevronDown } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Loader2,
+  ChevronDown,
+  AlertTriangle,
+} from "lucide-react";
 
 /**
  * PivotAndScores — the two additions the founder asked to append to the summary
@@ -18,6 +24,25 @@ import { TrendingUp, TrendingDown, Loader2, ChevronDown } from "lucide-react";
  * pivot but never the scores). Types are declared locally because the engines
  * are `server-only` and cannot be imported into a client component.
  */
+
+type MomentKind =
+  | "opener"
+  | "discovery"
+  | "objection"
+  | "breakdown"
+  | "close"
+  | "other";
+export type SalesMoment = {
+  atSeq: number;
+  timestampLabel: string | null;
+  kind: MomentKind;
+  label: string;
+  customerLine: string | null;
+  repLine: string | null;
+  note: string | null;
+  isBreakdown: boolean;
+  correction: { correctLine: string; whyItWorks: string } | null;
+};
 
 type PivotDirection = "gained" | "lost";
 export type PivotMoment = {
@@ -84,14 +109,99 @@ function fetchScores(sessionId: string): Promise<ScoresResult> {
 export function PivotAndScores({
   sessionId,
   pivot,
+  moments = [],
 }: {
   sessionId: string;
   pivot: PivotMoment | null;
+  moments?: SalesMoment[];
 }) {
   return (
     <div className="mt-4 space-y-4">
+      {/* Conversation Timeline — the hero visual (founder 2026-07-07): the whole
+          arc (opener → objection → breakdown → close), breakdown highlighted.
+          Above the pivot, which highlights the single decisive turning point. */}
+      {moments.length > 0 && <MomentsTimeline moments={moments} />}
       {pivot && <PivotCard pivot={pivot} />}
       <ScoresSection sessionId={sessionId} />
+    </div>
+  );
+}
+
+const KIND_LABEL: Record<MomentKind, string> = {
+  opener: "Opener",
+  discovery: "Discovery",
+  objection: "Objection",
+  breakdown: "Breakdown",
+  close: "Close",
+  other: "Moment",
+};
+
+function MomentsTimeline({ moments }: { moments: SalesMoment[] }) {
+  return (
+    <div className="rounded-lg border border-default bg-white/[0.01] p-3">
+      <h4 className="text-xs font-semibold text-primary mb-3">
+        Conversation timeline
+      </h4>
+      <ol className="relative border-l border-white/10 ml-1.5 space-y-3">
+        {moments.map((m, i) => (
+          <li key={`${m.atSeq}-${i}`} className="ml-3">
+            {/* node — amber + ring for the breakdown, muted dot otherwise */}
+            <span
+              className={`absolute -left-[5px] mt-1 h-2.5 w-2.5 rounded-full ${
+                m.isBreakdown
+                  ? "bg-amber-400 ring-2 ring-amber-400/30"
+                  : "bg-white/25"
+              }`}
+              aria-hidden
+            />
+            <div className="flex items-baseline gap-2 flex-wrap">
+              {m.timestampLabel && (
+                <span className="text-[11px] text-tertiary tabular-nums">
+                  {m.timestampLabel}
+                </span>
+              )}
+              <span
+                className={`text-[11px] font-semibold ${
+                  m.isBreakdown ? "text-amber-300" : "text-secondary"
+                }`}
+              >
+                {m.isBreakdown && (
+                  <AlertTriangle className="inline h-3 w-3 mr-0.5 -mt-0.5" />
+                )}
+                {KIND_LABEL[m.kind]} · {m.label}
+              </span>
+            </div>
+            {m.customerLine && (
+              <p className="text-[11px] text-secondary mt-1">
+                <span className="text-tertiary">Customer:</span> “
+                {m.customerLine}”
+              </p>
+            )}
+            {m.repLine && (
+              <p className="text-[11px] text-secondary">
+                <span className="text-tertiary">You:</span> “{m.repLine}”
+              </p>
+            )}
+            {m.note && (
+              <p className="text-[11px] text-tertiary mt-0.5">{m.note}</p>
+            )}
+            {/* The breakdown's correction — the "what to say instead" box. */}
+            {m.isBreakdown && m.correction && (
+              <div className="mt-2 rounded-md border border-amber-500/25 bg-amber-500/[0.05] p-2">
+                <p className="text-[11px] text-secondary">
+                  <span className="text-amber-300 font-medium">
+                    Try instead:{" "}
+                  </span>
+                  “{m.correction.correctLine}”
+                </p>
+                <p className="text-[11px] text-tertiary mt-0.5">
+                  {m.correction.whyItWorks}
+                </p>
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
