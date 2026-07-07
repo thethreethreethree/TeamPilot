@@ -22,6 +22,17 @@ by hand. Detailed closures: `2026-07-07-onboarding-role-bootstrap-audit.md`,
 | Event-chain integrity (§3.1) | **Clean** — company_id/actor always server-session-derived, never body | — |
 | Input validation (mutation routes) | **Clean** — manual (typeof/whitelist/length) but thorough; RLS + DB constraints backstop | — |
 
+## A23 INSERT-variant sweep (completing the class-check)
+The A23 discipline ("one instance → sweep ALL policies of ALL commands") was
+discharged for INSERT too: every table where inserting a privileged/owner value
+would matter pins the owner column, not just the tenant — coaching_sessions
+(`agent_id = auth.uid()`, 0082), coaching segments/cues/cue_outcomes (session-owner
+only), after_pitch_summaries (`agent_id = auth.uid()`, 0080), profiles (0091 guard),
+chat_participants (0093 guard), care_agent_state (admin-gated insert, 0042). No user
+can insert a row attributed to another user or with a privileged column they lack.
+So the class-check is complete across SELECT (clean) / UPDATE (fixed) / DELETE
+(fixed) / INSERT (clean).
+
 ## The through-line (§1.2)
 One root pattern under the CRITICAL, the HIGH, and the MED tier: **column-level authz
 enforced at the API layer, not the DB** — stated verbatim in 0018/0034/0042 and
