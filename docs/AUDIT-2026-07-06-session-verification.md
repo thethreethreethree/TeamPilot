@@ -348,12 +348,30 @@ isolation check above, swept four known classes:
   sufficient — service-role routes must be separately audited for their own
   authz, since they bypass the RLS layer entirely (the lesson for future audits).
 
+**Service-role IDOR class swept — CRM was ISOLATED (follow-up to the CRITICAL).**
+After fixing the CRM hole, applied its lesson as a class sweep (§A21): audited ALL
+24 `createAdminClient` routes in `src/app/api` (the routes that bypass RLS and must
+self-scope) for the same shape — a service-role read/write of a user-supplied id
+with no ownership check and no caller-derived company scoping. Done via 3 parallel
+audit agents. Result: the CRM routes were the ONLY instance. Every other
+service-role route either (a) derives `companyId` from the caller's own profile
+(never from the URL/body), (b) gates the privileged write behind an RLS-scoped read
+(`getSession`, `getFile`) so a cross-tenant id returns null→404, or (c) asserts
+explicit ownership (`created_by === auth.uid()`, `isUploader || (isAdmin &&
+sameCompany)`). The one user-supplied-id write that lacked an in-code check
+(`care/.../agent-upload`) routes through the RLS client whose insert policy enforces
+conversation-company match — not an admin-bypass path. So the CRITICAL was a genuine
+one-off, not the tip of a widespread class. (One informational same-tenant note: a
+sales-coach manager can overwrite another agent's session recording within the SAME
+company — consistent with the manager-visibility model, not cross-tenant.)
+
 Net (12 classes): 6 real hardenings shipped (0088 definer search_path + the `.or()`
 injection guard + the SSRF guard + the cue prompt-injection boundary + the outbound
 email recipient-injection fix + the CRITICAL vendor-CRM authz fix), 6 verified
 clean. Not an exhaustive pentest — the highest-leverage classes for a multi-tenant
 first-customer launch. KEY LESSON: the one CRITICAL lived in a service-role route
-that BYPASSES RLS — exactly the blind spot of an RLS-only isolation audit.
+that BYPASSES RLS — exactly the blind spot of an RLS-only isolation audit; the
+follow-up sweep confirmed it was isolated, not systemic.
 
 **§A6 / §3.2 — task Understanding Gate is UI-enforced, not structural (LOW, founder's
 call).** THINK-first audit of the Tasks (Operations) surface: the problems gate is
