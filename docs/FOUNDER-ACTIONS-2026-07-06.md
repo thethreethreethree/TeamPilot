@@ -70,6 +70,16 @@ definer function already has it.
   Volume icon in the Conversations header); confirm you hear the two-note chime
   when a customer message arrives (test in Chrome AND Safari — the audio unlock
   differs). It should NOT chime on your own sends or the AI's replies.
+- **⭐ C.A.R.E widget CROSS-ORIGIN embed (verify the X-Frame fix, `dc88d27`).** I
+  found + fixed a HIGH-severity latent bug: `X-Frame-Options: SAMEORIGIN` was on
+  EVERY route incl. `/widget/care/...`, which would have made the browser BLOCK the
+  widget iframe on any customer's (cross-origin) site — the core embed feature,
+  broken, invisible in same-origin dashboard previews. Fixed (widget route now
+  exempt). **After deploy, verify:** drop the `care-widget.js` snippet on a real
+  page NOT on your app's domain (e.g. a CodePen / a plain test site) and confirm
+  the widget bubble renders + opens (not a blank/blocked frame). If it renders,
+  the fix holds. (A stricter future hardening is per-tenant CSP `frame-ancestors`
+  so only a tenant's `allowed_origins` can frame — say the word.)
 - **(Optional) §3.1 chain + §3.2 gate integration test** — the hermetic
   `npm run check` suite can't touch a real DB, so the events→signals chain
   (triggers + `derive_signals_for_event`) AND the §3.2 understanding gate (the
