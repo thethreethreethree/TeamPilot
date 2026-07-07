@@ -293,9 +293,9 @@ export default function DissectPage() {
             <section className="rounded-xl border border-default bg-surface/40 p-4">
               <p className="text-sm text-secondary">
                 There isn&apos;t a clear problem to diagnose in what you pasted —
-                or there wasn&apos;t enough to go on. Add more of the conversation
-                and dissect again. (The System won&apos;t invent a problem that
-                isn&apos;t there.)
+                or there wasn&apos;t enough to go on. (The System won&apos;t invent
+                a problem that isn&apos;t there.) Add more of the conversation and
+                dissect again — or just ask the coach about it below.
               </p>
             </section>
           )}
@@ -422,8 +422,14 @@ export default function DissectPage() {
                   </div>
                 )}
               </div>
+            </section>
+          )}
 
-              {/* Ask Coach */}
+          {/* Ask Coach — available after ANY analyzed paste, even when no problem
+              was diagnosed (founder 2026-07-07: "any questions pertaining to the
+              context of the conversation"). Grounded in the paste regardless. */}
+          {dissect && (
+            <section className="space-y-4">
               <div className="rounded-xl border border-default bg-surface/40 p-4">
                 <h2 className="text-sm font-semibold text-primary flex items-center gap-1.5">
                   <MessageCircleQuestion className="w-4 h-4 text-ember-300" aria-hidden />
@@ -432,7 +438,9 @@ export default function DissectPage() {
                 <p className="text-[12px] text-muted mt-0.5">
                   {dissect!.guidingQuestion
                     ? dissect!.guidingQuestion
-                    : "How would you approach this? The coach starts from your thinking."}
+                    : dissect!.hasSignal
+                      ? "How would you approach this? The coach starts from your thinking."
+                      : "No clear problem was diagnosed — but you can still ask the coach anything about this conversation."}
                 </p>
 
                 {/* §3.3 — invite the user's own thinking first */}
