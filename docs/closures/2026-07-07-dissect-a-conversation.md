@@ -143,3 +143,36 @@ forms, modals, and route-param pages without the switch-mid-load shape, so a bli
 grep-sweep would be the mechanical pattern-matching §1.5.2 warns against, not genuine
 audit. The class is closed across the surfaces that actually exhibit it. This table is
 the concurrency baseline for the next §1.7 ground-up audit to compare against.
+
+## Accessibility pass (WCAG 4.1.3) + one flagged sibling proposal (2026-07-07)
+The Dissect page rendered its async result and its save/analyze errors with no
+screen-reader announcement — a real barrier for SR users (WCAG 4.1.3 Status
+Messages). Fixed on my own surface (536d9a3): a short sr-only `role="status"`
+aria-live region announces the result STATE (not the whole result — that would
+re-read summary+evidence+angles on every change); analyzeErr + saveErr are now
+`role="alert"`. Matches the existing `LiveCoachingPanel.tsx:469` sr-only pattern.
+
+**§1.2 sibling check → FLAGGED, not fixed (founder proposal):**
+The C.A.R.E agent console message stream (`ConversationsApp.tsx:1678`, the
+`ref={scrollRef}` div) has the SAME class of gap: new customer messages arrive via
+polling with an audio chime but NO SR announcement (audio conveys arrival, not
+content, and requires soundOn). An SR agent is under-served.
+
+Recommended patch (NOT applied — see why below):
+```
+<div ref={scrollRef} role="log" aria-live="polite" aria-relevant="additions"
+     aria-label="Conversation messages" className="...">
+```
+`aria-relevant="additions"` is load-bearing: without it, aria-live re-reads the
+ENTIRE log on every 5 s poll update — worse than silence.
+
+Why flagged, not fixed unprompted: (1) it's a complex production agent tool, not my
+feature; (2) correct SR behavior (announce only NEW messages, no over-announcement)
+is **not verifiable headless** — it needs a real screen reader; (3) per §1.5.2 the
+audit surfaces adjacent concerns as proposals with a recommended path while the
+founder retains authority, and per §3.3 the agent guides rather than overtakes. The
+disciplined output for an unverifiable change to a non-owned production component is
+a documented proposal, not a blind edit (the middleware-migration lesson applied to
+UX). Apply the patch + test with a screen reader (NVDA/VoiceOver): open a
+conversation, have a second browser send a customer message, confirm ONLY the new
+message is announced.
