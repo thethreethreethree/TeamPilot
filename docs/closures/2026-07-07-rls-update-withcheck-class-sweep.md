@@ -93,3 +93,32 @@ company, 0055), widget-logos storage (own path, 0064), file_access_grants
 (uploader/admin, 0065).
 
 Founder must also apply 0094.
+
+---
+
+## MED-tier systemic close-out (founder greenlit) → 0095
+
+Founder chose "yes, harden them" for the MED tier the sweeps flagged (the recurring
+"authz enforced at API not DB" pattern, verbatim in 0018/0034/0042). Migration 0095:
+
+**Mirror WITH CHECK on 10 UPDATE policies** — companies, feedback, smoke_test_versions,
+chat_pins, task_participants, support_customers, support_conversations,
+support_durability_checks, coaching_sessions, care_agent_state (self + admin). Each
+gets a WITH CHECK that mirrors its USING, so any same-tenant update passes but pushing
+the tenant key (company_id / task_id / agent_id) to a foreign value is blocked. No
+cross-tenant read today, so this is integrity/defense-in-depth, not a live breach.
+
+**care_agent_state column freeze trigger** — the founder's "freeze trigger" half.
+max_concurrent + channels are admin-controlled (0042 comments) but the self-update
+policy let an agent touch their own row; RLS is row-level so a column trigger is
+required. `guard_care_agent_state_admin_cols` blocks a non-admin agent from changing
+those two columns (status/last_seen_at stay agent-settable); admins and service-role
+pass. Verified the live flows: heartbeat (last_seen_at) + status change pass untouched;
+`setAgentRoutingSettings` (admin capacity) passes via the admin branch; only an agent
+self-setting capacity — the hole — is now blocked.
+
+**Deliberately deferred (§A15):** the "admin-only in app" gates on feedback triage /
+smoke_test authoring stay OUT of the policy per the 0018 documented decision ("role
+taxonomy still settling"); only the tenant WITH CHECK was added, not a role predicate.
+
+Founder must apply 0095.
