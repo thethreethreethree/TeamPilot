@@ -119,3 +119,27 @@ Still UNTESTED: migration 0097 application, live LLM quality, browser render.
 
 Session-Reads timestamps: CLAUDE.md, ThinkerThinker.md (A1-A22), AMD-006 — all
 re-read in the build session of 2026-07-07 immediately preceding this build.
+
+## Post-build concurrency-class sweep (§1.2 pattern-detection, 2026-07-07)
+Dissect's proactive audit surfaced a real bug the type-checker can't see: async
+handlers applied fetch results with no staleness guard, so a Close / new-run / load
+mid-flight let a stale response repopulate the reset workspace (dissection after
+Close; coach reply into a cleared thread). Fixed with a `requestSeq` ref that Close +
+each new request bump; every handler drops its result if superseded (98266db).
+
+Per §1.2 ("detect patterns across incidents, not just the symptom"), swept the sibling
+client surfaces that share the exact shape (async load whose result populates state a
+switch/close/select action also resets):
+
+| Surface | Verdict |
+|---|---|
+| `dashboard/dissect/page.tsx` | **Had the bug** — fixed, `requestSeq` guard (98266db) |
+| `care/ConversationsApp.tsx` | Guarded (`latestDetailReqRef` + poll `cancelled`) but re-checked staleness only BEFORE the `json()` await, not after — **narrow residual parse-window** tightened (9d52c0c) |
+| `sales-coach/[id]`, `chats/[id]`, `operations/[id]` | **Immune** — route-param detail pages; a switch is a route change → unmount → state cleared. No stale-write-into-live-view exists. |
+| `dashboard/search/page.tsx` | **Already correct** — `cancelled` checked AFTER `json()`, before setState, with a 250 ms debounce + cancel-in-cleanup. Reference-quality. |
+
+Boundary honesty: I did NOT sweep all 142 client components — the remaining ones are
+forms, modals, and route-param pages without the switch-mid-load shape, so a blind
+grep-sweep would be the mechanical pattern-matching §1.5.2 warns against, not genuine
+audit. The class is closed across the surfaces that actually exhibit it. This table is
+the concurrency baseline for the next §1.7 ground-up audit to compare against.
