@@ -1,0 +1,239 @@
+import "server-only";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { ScoreCategory } from "./summaryTypes";
+import type { SalesOutcome } from "@/lib/data/salesCoach";
+
+/**
+ * Agent Sales Effectivity Rating — an ELO the rep plays against OUR MEASUREMENT
+ * STANDARD, not against other reps (founder 2026-07-07). Each qualifying session
+ * is one "game": the rep's composite performance is scored 0..1 and run through
+ * the chess-ELO update against a FIXED opponent (the "competent call" standard).
+ * Beat the standard consistently → rating climbs.
+ *
+ * Constitutional shape:
+ *  - §A11 (mirror, not verdict) + §A18: this is growth-vs-a-standard, never a
+ *    leaderboard. The rep sees their OWN rating (§A10 — no shadow read), framed
+ *    as a curve; nobody sees another rep's number ranked against theirs.
+ *  - §3.5 (consequence, not agreement): the OUTCOME (did it actually sell /
+ *    advance) is half the game score; coached process quality is the other half.
+ *    Balanced (founder decision) — a strong call to a hopeless prospect still
+ *    gains, a sale confirms it.
+ *  - §4 (evolution gated by outcome): this is a NEW measurement method. It ships
+ *    PROVISIONAL and must be validated against an alternative before it is
+ *    trusted — the surface marks it provisional until a game threshold is met.
+ *
+ * Pure + dependency-free so the math is regression-pinned.
+ */
+
+export const STARTING_RATING = 1500;
+export const OPPONENT_RATING = 1500; // the fixed "competent call" standard
+export const K_FACTOR = 24;
+/** Below this many games the rating is PROVISIONAL (§4 — not yet trustworthy). */
+export const PROVISIONAL_GAMES = 5;
+
+export type EloFactors = {
+  /** After-pitch graded + computed categories for the session (the rating). */
+  scores: ScoreCategory[];
+  /** Quality signal from the growth review / dissect: counts of each. */
+  strengths: number;
+  growthAreas: number;
+  /** The recorded call outcome (the consequence). */
+  outcome: SalesOutcome | null;
+};
+
+export type EloGame = {
+  sessionId: string;
+  /** ISO time the session ended — games are replayed in this order. */
+  at: string;
+  factors: EloFactors;
+};
+
+export type EloHistoryEntry = {
+  sessionId: string;
+  at: string;
+  gameScore: number; // 0..1
+  ratingBefore: number;
+  ratingAfter: number;
+  delta: number;
+};
+
+export type AgentElo = {
+  rating: number;
+  gamesPlayed: number;
+  provisional: boolean;
+  history: EloHistoryEntry[];
+};
+
+/**
+ * Outcome → a 0..1 value (the consequence half). `no_contact` is NOT a game — no
+ * conversation happened — so it returns null and the session is excluded (§3.4 —
+ * don't score what didn't occur). `undecided` sits at the neutral midpoint.
+ */
+export function outcomeValue(outcome: SalesOutcome | null): number | null {
+  switch (outcome) {
+    case "sold":
+      return 1;
+    case "follow_up":
+      return 0.7;
+    case "undecided":
+      return 0.5;
+    case "no_sale":
+      return 0.35;
+    case "no_contact":
+      return null; // not a game
+    default:
+      return null; // no outcome recorded yet → not a completed game
+  }
+}
+
+/** Mean of the graded score categories, normalized to 0..1. Uses each category's
+ *  0-10 `score` (talk_ratio / question_rate carry a 0-10 proxy score too, so the
+ *  whole strip contributes uniformly). Returns null when there are no scores. */
+function meanScore01(scores: ScoreCategory[]): number | null {
+  if (scores.length === 0) return null;
+  const sum = scores.reduce((a, c) => a + Math.max(0, Math.min(10, c.score)), 0);
+  return sum / scores.length / 10;
+}
+
+/** Quality from the review: share of observations that were strengths vs growth
+ *  areas. Neutral 0.5 when the review had neither. */
+function quality01(strengths: number, growthAreas: number): number {
+  const total = strengths + growthAreas;
+  if (total <= 0) return 0.5;
+  return strengths / total;
+}
+
+/**
+ * The 0..1 game score for one session — BALANCED (founder): half consequence
+ * (outcome), half performance (the conversation rating + quality). Returns null
+ * when the session is not a completed game (no outcome, or no scores to rate).
+ */
+export function gameScoreFromFactors(f: EloFactors): number | null {
+  const outcome = outcomeValue(f.outcome);
+  if (outcome === null) return null; // not a completed game
+  const rating = meanScore01(f.scores);
+  if (rating === null) return null; // nothing to rate
+  const quality = quality01(f.strengths, f.growthAreas);
+  // Performance = the conversation rating + quality (the "conversation quality"
+  // half). Balanced against outcome 50/50.
+  const performance = 0.5 * rating + 0.5 * quality;
+  const game = 0.5 * outcome + 0.5 * performance;
+  return Math.max(0, Math.min(1, game));
+}
+
+/** Chess-ELO expected score for a player vs an opponent rating. */
+export function expectedScore(rating: number, opponent: number): number {
+  return 1 / (1 + Math.pow(10, (opponent - rating) / 400));
+}
+
+/** One ELO update: newRating = rating + K * (actual - expected). */
+export function updateElo(
+  rating: number,
+  gameScore: number,
+  opponent = OPPONENT_RATING,
+  k = K_FACTOR
+): number {
+  const expected = expectedScore(rating, opponent);
+  return Math.round(rating + k * (gameScore - expected));
+}
+
+/**
+ * Replay an agent's qualifying games chronologically from STARTING_RATING.
+ * Non-games (null game score) are skipped, not counted. The rating is PROVISIONAL
+ * until PROVISIONAL_GAMES completed games (§4).
+ */
+export function computeAgentElo(games: EloGame[]): AgentElo {
+  const ordered = [...games].sort((a, b) => a.at.localeCompare(b.at));
+  let rating = STARTING_RATING;
+  const history: EloHistoryEntry[] = [];
+  for (const g of ordered) {
+    const gameScore = gameScoreFromFactors(g.factors);
+    if (gameScore === null) continue; // not a completed game — skip
+    const before = rating;
+    rating = updateElo(rating, gameScore);
+    history.push({
+      sessionId: g.sessionId,
+      at: g.at,
+      gameScore,
+      ratingBefore: before,
+      ratingAfter: rating,
+      delta: rating - before,
+    });
+  }
+  return {
+    rating,
+    gamesPlayed: history.length,
+    provisional: history.length < PROVISIONAL_GAMES,
+    history,
+  };
+}
+
+/**
+ * Fetch an agent's ELO games from their after-pitch summaries (the rating +
+ * quality) joined with the session outcome. Reads the owner-private
+ * after_pitch_summaries via the ADMIN client — the CALLER (route) is responsible
+ * for verifying the viewer may see this agent's rating (the rep themselves, or a
+ * same-company manager/admin). The ELO number is a growth metric; the raw
+ * per-call private scores are NOT returned here.
+ */
+export async function getAgentEloGames(agentId: string): Promise<EloGame[]> {
+  const admin = createAdminClient();
+  const { data: aps } = await admin
+    .from("after_pitch_summaries")
+    .select("session_id, payload, created_at")
+    .eq("agent_id", agentId)
+    .order("created_at", { ascending: false });
+  if (!aps || aps.length === 0) return [];
+
+  // Latest after-pitch per session (multiple rebuilds are possible).
+  const bySession = new Map<string, (typeof aps)[number]>();
+  for (const row of aps) {
+    if (!bySession.has(row.session_id)) bySession.set(row.session_id, row);
+  }
+
+  const sessionIds = [...bySession.keys()];
+  const { data: sessions } = await admin
+    .from("coaching_sessions")
+    .select("id, outcome, ended_at, started_at")
+    .in("id", sessionIds);
+  const sessMap = new Map(
+    (sessions ?? []).map((s) => [s.id as string, s])
+  );
+
+  const games: EloGame[] = [];
+  for (const [sid, row] of bySession) {
+    const sess = sessMap.get(sid);
+    if (!sess) continue;
+    const payload = (row.payload ?? {}) as {
+      scores?: unknown;
+      narrative?: { strengths?: unknown; growthAreas?: unknown };
+    };
+    const scores = Array.isArray(payload.scores)
+      ? (payload.scores as ScoreCategory[])
+      : [];
+    const strengths = Array.isArray(payload.narrative?.strengths)
+      ? payload.narrative!.strengths.length
+      : 0;
+    const growthAreas = Array.isArray(payload.narrative?.growthAreas)
+      ? payload.narrative!.growthAreas.length
+      : 0;
+    games.push({
+      sessionId: sid,
+      at: (sess.ended_at ??
+        sess.started_at ??
+        row.created_at) as string,
+      factors: {
+        scores,
+        strengths,
+        growthAreas,
+        outcome: (sess.outcome ?? null) as SalesOutcome | null,
+      },
+    });
+  }
+  return games;
+}
+
+/** Fetch + replay in one call. Route-gated. */
+export async function getAgentEloRating(agentId: string): Promise<AgentElo> {
+  return computeAgentElo(await getAgentEloGames(agentId));
+}

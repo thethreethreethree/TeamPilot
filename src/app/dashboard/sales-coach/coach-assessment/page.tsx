@@ -12,6 +12,7 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
 
 /**
  * Sales Coach → Coach Assessment (admin). Per-agent coaching signal pulled
@@ -249,6 +250,14 @@ export default function CoachAssessmentPage() {
                   ) : (
                     dissectBadge
                   )}
+                </div>
+
+                {/* Agent Sales Effectivity Rating (founder 2026-07-07) — ELO vs.
+                    the standard, NOT a leaderboard. Cards stay alphabetical (never
+                    sorted by rating) so this doesn't become the ranking the page
+                    refuses (§A11/§A18). */}
+                <div className="mb-3">
+                  <AgentEloBadge agentId={a.agentId} />
                 </div>
 
                 {a.strategies.length > 0 &&

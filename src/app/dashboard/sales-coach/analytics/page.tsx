@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
 
 /**
  * Sales Coach → Analytics (Phase 2).
@@ -113,6 +114,9 @@ export default function SalesCoachAnalyticsPage() {
     <>
       <TopBar title="Analytics" subtitle="Your coaching over time" />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-6 bg-base">
+        {/* Your OWN Sales Effectivity Rating (§A10 — the rep sees what the System
+            reads about them). Self-framed as you-vs-the-standard, not a rank. */}
+        <AgentEloBadge self />
         <LearningHint
           as="block"
           category="Sales Coach · Analytics"
