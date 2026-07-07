@@ -46,6 +46,22 @@ export type CareAgentAuthResult =
       status: 401 | 403;
     };
 
+/**
+ * Pure derivation of C.A.R.E access from a profile's role + support-agent flag —
+ * the single-source-of-truth matrix this module exists to resolve once. Exported
+ * so the security gate is a tested unit: isAdmin = a leadership role (CEO/COO/
+ * admin); isAgent = a designated support agent OR an admin. A non-agent is denied.
+ */
+export function deriveCareAccess(args: {
+  role: string | null;
+  isSupportAgent: boolean | null | undefined;
+}): { isAdmin: boolean; isAgent: boolean } {
+  const isAdmin =
+    args.role === "CEO" || args.role === "COO" || args.role === "admin";
+  const isAgent = !!args.isSupportAgent || isAdmin;
+  return { isAdmin, isAgent };
+}
+
 export async function requireCareAgent(): Promise<CareAgentAuthResult> {
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
@@ -57,9 +73,10 @@ export async function requireCareAgent(): Promise<CareAgentAuthResult> {
     .select("is_support_agent, role, company_id")
     .eq("id", auth.user.id)
     .maybeSingle();
-  const role = (profile?.role as string | null) ?? null;
-  const isAdmin = role === "CEO" || role === "COO" || role === "admin";
-  const isAgent = !!profile?.is_support_agent || isAdmin;
+  const { isAdmin, isAgent } = deriveCareAccess({
+    role: (profile?.role as string | null) ?? null,
+    isSupportAgent: profile?.is_support_agent as boolean | null | undefined,
+  });
   if (!isAgent) {
     return { ok: false, error: "Care is agent-only.", status: 403 };
   }
