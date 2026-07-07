@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { MAX_SOURCE_CHARS } from "@/lib/dissect/constants";
+// Data-contract types from the shared, framework-agnostic module so the client and
+// the server engine can't drift (§A13/§A14).
+import type { ConversationDissect, CoachTurn } from "@/lib/dissect/types";
 
 /**
  * Dissect a Conversation (founder 2026-07-07).
@@ -28,20 +31,6 @@ import { MAX_SOURCE_CHARS } from "@/lib/dissect/constants";
  * clean slate. A saved topic persists in the Saved list.
  */
 
-type DissectEvidence = { observation: string; excerpt: string };
-type DissectAngle = { angle: string; why: string };
-type ConversationDissect = {
-  hasSignal: boolean;
-  summary: string;
-  problem: { statement: string; whyItMatters: string };
-  evidence: DissectEvidence[];
-  rootCause: string;
-  outsideView: string;
-  anglesToConsider: DissectAngle[];
-  guidingQuestion: string;
-};
-
-type CoachTurn = { role: "user" | "coach"; text: string };
 type SavedItem = { id: string; title: string; createdAt: string };
 
 export default function DissectPage() {

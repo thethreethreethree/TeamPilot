@@ -30,26 +30,16 @@ import { MAX_SOURCE_CHARS } from "./constants";
 // can reference the same value; re-exported here for server callers' convenience.
 export { MAX_SOURCE_CHARS } from "./constants";
 
-export type DissectEvidence = { observation: string; excerpt: string };
-export type DissectAngle = { angle: string; why: string };
-
-export type ConversationDissect = {
-  hasSignal: boolean;
-  /** Plain summary of the pasted conversation. */
-  summary: string;
-  /** The core problem present in the context, and why it matters. */
-  problem: { statement: string; whyItMatters: string };
-  /** Signals from the record (§1.2/§3.2) — observation + the quoted excerpt. */
-  evidence: DissectEvidence[];
-  /** Why the problem exists (§0) — root cause, not symptom. */
-  rootCause: string;
-  /** How a detached observer would see it (§1.3). */
-  outsideView: string;
-  /** Angles to CONSIDER — not prescriptions (§3.3 don't overtake). */
-  anglesToConsider: DissectAngle[];
-  /** Invites the user to render the verdict (§3.3 / A11). */
-  guidingQuestion: string;
-};
+// Data-contract types live in ./types (framework-agnostic) so the client page
+// imports the SAME shapes (§A13/§A14 — one source, no drift); re-exported here for
+// server callers that already import them from the engine.
+import type {
+  ConversationDissect,
+  DissectEvidence,
+  DissectAngle,
+  CoachTurn,
+} from "./types";
+export type { ConversationDissect, DissectEvidence, DissectAngle, CoachTurn };
 
 export const EMPTY_DISSECT: ConversationDissect = {
   hasSignal: false,
@@ -88,8 +78,6 @@ HARD RULES:
   return {"hasSignal": false} and nothing else. Never fabricate a problem to look
   useful. A wrong confident diagnosis is worse than an honest "not enough here".
 - Keep it tight: 2-5 evidence items, 2-4 angles.`;
-
-export type CoachTurn = { role: "user" | "coach"; text: string };
 
 /**
  * §3.3 gate: has the user shared their own thinking yet? True if they filled the
