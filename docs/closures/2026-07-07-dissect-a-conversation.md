@@ -137,6 +137,15 @@ switch/close/select action also resets):
 | `care/ConversationsApp.tsx` | Guarded (`latestDetailReqRef` + poll `cancelled`) but re-checked staleness only BEFORE the `json()` await, not after — **narrow residual parse-window** tightened (9d52c0c) |
 | `sales-coach/[id]`, `chats/[id]`, `operations/[id]` | **Immune** — route-param detail pages; a switch is a route change → unmount → state cleared. No stale-write-into-live-view exists. |
 | `dashboard/search/page.tsx` | **Already correct** — `cancelled` checked AFTER `json()`, before setState, with a 250 ms debounce + cancel-in-cleanup. Reference-quality. |
+| Type-ahead class (`FileMentionAutocomplete`, `MentionInput`, `AddParticipantsDialog`, `InviteMemberDialog`) | **Clean** — `FileMentionAutocomplete` uses the tight cancel-after-parse guard; `MentionInput`/`AddParticipantsDialog` filter a preloaded list client-side (no fetch, no class); `InviteMemberDialog`'s fetch is a one-shot POST submit, not keystroke-driven. |
+
+**Sweep exhausted (2026-07-07):** every client component *pattern* that can exhibit
+stale-response-after-reset has now been checked — single debounced fetch (correct
+throughout), detail-load-on-select (care console, tightened), multi-handler resettable
+workspace (dissect, the one real bug), route-param detail (immune by unmount), and
+type-ahead (clean). The class is closed. Debounced-fetch components are consistently
+guarded correctly in this codebase; the defects lived only in the harder multi-handler
+workspace pattern.
 
 Boundary honesty: I did NOT sweep all 142 client components — the remaining ones are
 forms, modals, and route-param pages without the switch-mid-load shape, so a blind
