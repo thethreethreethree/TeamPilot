@@ -272,6 +272,7 @@ export default function DissectPage() {
               onChange={(e) => setSourceText(e.target.value)}
               readOnly={readonly}
               maxLength={MAX_SOURCE_CHARS}
+              aria-label="The conversation to dissect"
               placeholder="Paste the conversation here — a chat thread, a transcript, an email exchange, anything with a problem in it."
               className="mt-2 w-full h-40 resize-y rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ember-400/40"
             />
@@ -431,6 +432,7 @@ export default function DissectPage() {
                     <input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
+                      aria-label="Name this topic"
                       placeholder="Name this topic (optional)"
                       className="flex-1 rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ember-400/40"
                     />
@@ -492,6 +494,7 @@ export default function DissectPage() {
                     <textarea
                       value={hypothesis}
                       onChange={(e) => setHypothesis(e.target.value)}
+                      aria-label="How you would solve the problem"
                       placeholder="Your read on the problem and how you'd tackle it…"
                       className="mt-1.5 w-full h-20 resize-y rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ember-400/40"
                     />
@@ -508,7 +511,7 @@ export default function DissectPage() {
 
                 {/* Thread */}
                 {thread.length > 0 && (
-                  <div className="mt-3 space-y-3">
+                  <div className="mt-3 space-y-3" aria-live="polite">
                     {thread.map((t, i) => (
                       <div
                         key={i}
@@ -547,6 +550,7 @@ export default function DissectPage() {
                   <input
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
+                    aria-label="Ask the coach a question"
                     placeholder="Ask the coach how to solve it, or anything about the conversation…"
                     className="flex-1 rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ember-400/40"
                   />
