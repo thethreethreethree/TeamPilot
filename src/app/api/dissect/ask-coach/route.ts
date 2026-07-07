@@ -28,6 +28,19 @@ const Body = z.object({
   userHypothesis: z.string().max(4000).optional(),
   /** The diagnosed problem statement, echoed from the client's ephemeral state. */
   problemStatement: z.string().max(1000).optional(),
+  /** Prior turns of THIS ephemeral thread, so the coach has conversation memory
+   *  (generateCareReply is single-shot; we pass the transcript in the message).
+   *  Without this the §3.3 dialogue loops — the coach re-asks "what do you think?"
+   *  because it never sees that the user already answered. */
+  history: z
+    .array(
+      z.object({
+        role: z.enum(["user", "coach"]),
+        text: z.string().max(6000),
+      })
+    )
+    .max(40)
+    .optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -48,17 +61,33 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
 
   const userHypothesis = (body.userHypothesis ?? "").trim();
+  const history = body.history ?? [];
+
+  // §3.3: the coach asks for the user's view FIRST, then builds on it. The user
+  // has "shared their thinking" if they filled the hypothesis box OR they've
+  // already spoken at least once in this thread (answering the coach's opening
+  // question counts). Deriving it only from the box was the loop bug — the coach
+  // kept re-asking after the user had plainly answered.
+  const userHasSharedTheirThinking =
+    userHypothesis.length > 0 || history.some((t) => t.role === "user");
+
   const systemPrompt = askCoachSystemPrompt({
     sourceText: body.content,
     problemStatement: body.problemStatement?.trim() || null,
-    userHasSharedTheirThinking: userHypothesis.length > 0,
+    userHasSharedTheirThinking,
   });
 
-  // The user's message to the coach: their question, plus their own thinking when
-  // they've shared it (so the coach can build on it per §3.3, not talk past it).
-  const userMessage = userHypothesis
-    ? `My question: ${body.question}\n\nHow I'm currently thinking about it: ${userHypothesis}`
-    : body.question;
+  // Give the coach the conversation so far (generateCareReply is single-shot, so
+  // the transcript rides in the message). Prior turns + the user's stated thinking
+  // + the current question.
+  const transcript = history
+    .map((t) => `${t.role === "user" ? "User" : "Coach"}: ${t.text}`)
+    .join("\n");
+  const parts: string[] = [];
+  if (transcript) parts.push(`Conversation so far:\n${transcript}`);
+  if (userHypothesis) parts.push(`How the user is thinking about it: ${userHypothesis}`);
+  parts.push(`User's new message: ${body.question}`);
+  const userMessage = parts.join("\n\n");
 
   const companyId = (await getCurrentCompanyId()) ?? undefined;
   let reply: string;

@@ -118,6 +118,10 @@ export default function DissectPage() {
   async function askCoach(q: string) {
     const question = q.trim();
     if (!question || asking) return;
+    // Capture the thread BEFORE appending this turn — it's the coach's memory of
+    // the conversation so far (§3.3 dialogue needs it, or it loops on "what do
+    // you think?"). Cap to the last 40 turns to bound payload.
+    const priorThread = thread.slice(-40);
     setAsking(true);
     setThread((t) => [...t, { role: "user", text: question }]);
     setQuestion("");
@@ -130,6 +134,7 @@ export default function DissectPage() {
           question,
           userHypothesis: sharedHypothesis ? hypothesis.trim() : undefined,
           problemStatement: dissect?.problem?.statement ?? undefined,
+          history: priorThread,
         }),
       });
       if (!res.ok) {
