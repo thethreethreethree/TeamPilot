@@ -55,17 +55,35 @@ describe("gameScoreFromFactors — balanced consequence + performance", () => {
     const lost = gameScoreFromFactors(factors({ outcome: "no_sale" }))!;
     expect(sold).toBeGreaterThan(lost);
   });
-  it("returns null when there is no outcome (not a completed game)", () => {
-    expect(gameScoreFromFactors(factors({ outcome: null }))).toBeNull();
+  it("counts on process/quality ALONE when no outcome was recorded (founder 2026-07-07)", () => {
+    // no outcome → game = performance = .5*rating(.7)+.5*quality(.75) = .725
+    const g = gameScoreFromFactors(factors({ outcome: null }));
+    expect(g).toBeCloseTo(0.725, 4);
+  });
+  it("no_contact is NEVER a game (no conversation happened)", () => {
     expect(gameScoreFromFactors(factors({ outcome: "no_contact" }))).toBeNull();
   });
-  it("returns null when there are no scores to rate", () => {
-    expect(gameScoreFromFactors(factors({ scores: [] }))).toBeNull();
+  it("returns null only when there is NO signal at all (no scores, no dissect)", () => {
+    expect(
+      gameScoreFromFactors(factors({ scores: [], strengths: 0, growthAreas: 0 }))
+    ).toBeNull();
+  });
+
+  it("rates on the DISSECT quality alone when there are no after-pitch scores", () => {
+    // scores empty; dissect 3 strengths / 1 growth → quality .75; outcome
+    // follow_up .7 → game = .5*.7 + .5*.75 = .725
+    const g = gameScoreFromFactors(factors({ scores: [] }))!;
+    expect(g).toBeCloseTo(0.725, 4);
+  });
+
+  it("rates on the SCORES alone when there is no dissect signal", () => {
+    // strengths/growth 0 → quality null; performance = rating(.7); outcome
+    // follow_up → game = .5*.7 + .5*.7 = .7 (rating is not diluted by a fake 0.5)
+    const g = gameScoreFromFactors(factors({ strengths: 0, growthAreas: 0 }))!;
+    expect(g).toBeCloseTo(0.7, 4);
   });
 
   it("audit A: EXCLUDES computed proxy-scores from the quality mean (§3.5)", () => {
-    // Graded 7s → quality mean .7. Adding a computed category with a low proxy
-    // score (2 = a balanced ratio's share) must NOT drag the mean down.
     const withoutComputed = gameScoreFromFactors(factors({ scores: [score(7), score(7)] }))!;
     const withComputed = gameScoreFromFactors(
       factors({ scores: [score(7), score(7), computed(2)] })
@@ -73,13 +91,12 @@ describe("gameScoreFromFactors — balanced consequence + performance", () => {
     expect(withComputed).toBeCloseTo(withoutComputed, 6);
   });
 
-  it("audit A: a session with ONLY computed scores is not a gradeable game", () => {
-    expect(gameScoreFromFactors(factors({ scores: [computed(4)] }))).toBeNull();
-  });
-  it("neutral quality (0.5) when the review had neither strengths nor growth", () => {
-    // perf = .5*.7 + .5*.5 = .6 ; game = .5*.7 + .5*.6 = .65
-    const g = gameScoreFromFactors(factors({ strengths: 0, growthAreas: 0 }))!;
-    expect(g).toBeCloseTo(0.65, 4);
+  it("audit A: only computed scores + no dissect → not a gradeable game", () => {
+    expect(
+      gameScoreFromFactors(
+        factors({ scores: [computed(4)], strengths: 0, growthAreas: 0 })
+      )
+    ).toBeNull();
   });
 });
 
@@ -128,13 +145,19 @@ describe("computeAgentElo — replay against the standard", () => {
     expect(r.history[0]!.ratingBefore).toBe(1500);
   });
 
-  it("skips non-games (no outcome / no_contact) — they don't count", () => {
+  it("skips no_contact + no-signal, but COUNTS a no-outcome session (process-only)", () => {
     const r = computeAgentElo([
       game("a", "2026-07-01T00:00:00Z", { outcome: "sold" }),
-      game("b", "2026-07-02T00:00:00Z", { outcome: "no_contact" }),
-      game("c", "2026-07-03T00:00:00Z", { outcome: null }),
+      game("b", "2026-07-02T00:00:00Z", { outcome: "no_contact" }), // skipped
+      game("c", "2026-07-03T00:00:00Z", { outcome: null }), // counts (process-only)
+      game("d", "2026-07-04T00:00:00Z", {
+        outcome: null,
+        scores: [],
+        strengths: 0,
+        growthAreas: 0,
+      }), // skipped — no signal at all
     ]);
-    expect(r.gamesPlayed).toBe(1);
+    expect(r.gamesPlayed).toBe(2); // a (sold) + c (no-outcome process-only)
   });
 
   it("replays in chronological order regardless of input order", () => {

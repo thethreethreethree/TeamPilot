@@ -114,20 +114,38 @@ function quality01(strengths: number, growthAreas: number): number {
 }
 
 /**
- * The 0..1 game score for one session — BALANCED (founder): half consequence
- * (outcome), half performance (the conversation rating + quality). Returns null
- * when the session is not a completed game (no outcome, or no scores to rate).
+ * The 0..1 game score for one session. BALANCED = half consequence (outcome) +
+ * half performance (the conversation quality). Performance is composed from
+ * whatever valid signal the session has: the after-pitch graded SCORES (rating)
+ * and/or the DISSECT's strengths-vs-growth (quality) — so a dissected session
+ * counts even without an after-pitch (founder 2026-07-07).
+ *
+ * OUTCOME handling (founder 2026-07-07): when an outcome was recorded it is half
+ * the game (§3.5 consequence anchor); when it was NOT recorded the session still
+ * counts on process/quality ALONE — a deliberate, founder-chosen relaxation so
+ * the back-catalogue of valid calls generates a rating. `no_contact` is never a
+ * game (no conversation happened, §3.4). Returns null when the session has no
+ * process signal at all (nothing to rate, §3.2/§3.4).
  */
 export function gameScoreFromFactors(f: EloFactors): number | null {
-  const outcome = outcomeValue(f.outcome);
-  if (outcome === null) return null; // not a completed game
-  const rating = meanScore01(f.scores);
-  if (rating === null) return null; // nothing to rate
-  const quality = quality01(f.strengths, f.growthAreas);
-  // Performance = the conversation rating + quality (the "conversation quality"
-  // half). Balanced against outcome 50/50.
-  const performance = 0.5 * rating + 0.5 * quality;
-  const game = 0.5 * outcome + 0.5 * performance;
+  if (f.outcome === "no_contact") return null; // no conversation → not a game
+
+  const rating = meanScore01(f.scores); // after-pitch graded scores, or null
+  const quality =
+    f.strengths + f.growthAreas > 0
+      ? quality01(f.strengths, f.growthAreas) // dissect strengths vs growth
+      : null;
+
+  // Performance = the conversation-quality signal. Prefer both; else whichever
+  // exists. No signal at all → not a gradeable game.
+  let performance: number | null;
+  if (rating !== null && quality !== null) performance = 0.5 * rating + 0.5 * quality;
+  else performance = rating ?? quality;
+  if (performance === null) return null;
+
+  const outcome = outcomeValue(f.outcome); // number if recorded, else null
+  const game =
+    outcome !== null ? 0.5 * outcome + 0.5 * performance : performance;
   return Math.max(0, Math.min(1, game));
 }
 
@@ -190,55 +208,85 @@ export function computeAgentElo(games: EloGame[]): AgentElo {
  */
 export async function getAgentEloGames(agentId: string): Promise<EloGame[]> {
   const admin = createAdminClient();
+
+  // 1. DISSECTS — the primary quality signal (founder 2026-07-07: use the reps'
+  //    existing valid session calls). Actor-keyed events, subject = the session.
+  const { data: dissectEvents } = await admin
+    .from("events")
+    .select("subject, payload, created_at")
+    .eq("kind", "coach.dissect_generated")
+    .eq("actor", agentId)
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  // 2. AFTER-PITCH SCORES — used where they exist (the numeric rating), else the
+  //    dissect quality stands alone.
   const { data: aps } = await admin
     .from("after_pitch_summaries")
     .select("session_id, payload, created_at")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false });
-  if (!aps || aps.length === 0) return [];
 
-  // Latest after-pitch per session (multiple rebuilds are possible).
-  const bySession = new Map<string, (typeof aps)[number]>();
-  for (const row of aps) {
-    if (!bySession.has(row.session_id)) bySession.set(row.session_id, row);
+  // Latest dissect per session → strengths / growth counts (the quality signal).
+  const dissectBySession = new Map<
+    string,
+    { strengths: number; growthAreas: number; at: string }
+  >();
+  for (const e of dissectEvents ?? []) {
+    const subject = (e.subject as string | null) ?? "";
+    const prefix = "sales_session:";
+    if (!subject.startsWith(prefix)) continue;
+    const sid = subject.slice(prefix.length);
+    if (dissectBySession.has(sid)) continue; // desc order → first is latest
+    const p = (e.payload ?? {}) as { strengths?: unknown; growth_areas?: unknown };
+    dissectBySession.set(sid, {
+      strengths: Array.isArray(p.strengths) ? p.strengths.length : 0,
+      growthAreas: Array.isArray(p.growth_areas) ? p.growth_areas.length : 0,
+      at: (e.created_at as string) ?? "",
+    });
   }
 
-  const sessionIds = [...bySession.keys()];
+  // Latest after-pitch scores per session.
+  const scoresBySession = new Map<string, ScoreCategory[]>();
+  for (const row of aps ?? []) {
+    const sid = row.session_id as string;
+    if (scoresBySession.has(sid)) continue;
+    const payload = (row.payload ?? {}) as { scores?: unknown };
+    scoresBySession.set(
+      sid,
+      Array.isArray(payload.scores) ? (payload.scores as ScoreCategory[]) : []
+    );
+  }
+
+  const sessionIds = new Set<string>([
+    ...dissectBySession.keys(),
+    ...scoresBySession.keys(),
+  ]);
+  if (sessionIds.size === 0) return [];
+
   const { data: sessions } = await admin
     .from("coaching_sessions")
     .select("id, outcome, ended_at, started_at")
-    .in("id", sessionIds);
-  const sessMap = new Map(
-    (sessions ?? []).map((s) => [s.id as string, s])
-  );
+    .in("id", [...sessionIds]);
+  const sessMap = new Map((sessions ?? []).map((s) => [s.id as string, s]));
 
   const games: EloGame[] = [];
-  for (const [sid, row] of bySession) {
+  for (const sid of sessionIds) {
     const sess = sessMap.get(sid);
-    if (!sess) continue;
-    const payload = (row.payload ?? {}) as {
-      scores?: unknown;
-      narrative?: { strengths?: unknown; growthAreas?: unknown };
-    };
-    const scores = Array.isArray(payload.scores)
-      ? (payload.scores as ScoreCategory[])
-      : [];
-    const strengths = Array.isArray(payload.narrative?.strengths)
-      ? payload.narrative!.strengths.length
-      : 0;
-    const growthAreas = Array.isArray(payload.narrative?.growthAreas)
-      ? payload.narrative!.growthAreas.length
-      : 0;
+    const dissect = dissectBySession.get(sid);
+    const at = (sess?.ended_at ??
+      sess?.started_at ??
+      dissect?.at ??
+      "") as string;
+    if (!at) continue; // no timestamp to order by — skip
     games.push({
       sessionId: sid,
-      at: (sess.ended_at ??
-        sess.started_at ??
-        row.created_at) as string,
+      at,
       factors: {
-        scores,
-        strengths,
-        growthAreas,
-        outcome: (sess.outcome ?? null) as SalesOutcome | null,
+        scores: scoresBySession.get(sid) ?? [],
+        strengths: dissect?.strengths ?? 0,
+        growthAreas: dissect?.growthAreas ?? 0,
+        outcome: (sess?.outcome ?? null) as SalesOutcome | null,
       },
     });
   }

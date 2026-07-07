@@ -88,7 +88,7 @@ export function AgentEloBadge({
         <Gauge className="w-3.5 h-3.5 text-muted" aria-hidden />
         <span className="text-[11px] text-muted">
           {self ? "Your effectivity rating" : "Effectivity rating"} — needs a
-          scored call with an outcome to start
+          dissected call to start
         </span>
       </div>
     );

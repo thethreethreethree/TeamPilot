@@ -84,3 +84,29 @@ breakdown of the rep's private scores.
 
 Tests: +4 (computed-exclusion ×2, clamp ceiling/floor ×2) — 20 ELO tests, 382
 total. Gate + build clean. STILL UNTESTED live: the end-to-end with real data.
+
+## Source from existing dissected calls (2026-07-07, founder-directed)
+
+**L2 effectivity gap (AMD-006):** the badge read "needs a scored call with an
+outcome" even for reps with 10–11 dissected sessions — because the engine sourced
+games ONLY from `after_pitch_summaries`, which those older dissected sessions
+lack. Decisions (AskUserQuestion): source from the **existing Dissect** (no new
+LLM calls) and **count sessions with no recorded outcome on process/quality
+alone**. Built:
+- `getAgentEloGames` now sources from `coach.dissect_generated` events (actor =
+  agent, subject = session) for the quality signal (strengths vs growth), joins
+  the after-pitch SCORES where they exist (the numeric rating), and the session
+  outcome. A session is a game if it has EITHER a dissect quality signal OR
+  after-pitch scores.
+- `gameScoreFromFactors`: performance now composes from scores and/or dissect
+  quality (whichever exist); when an outcome was recorded it's half the game
+  (§3.5), otherwise the session counts on process/quality alone (founder's
+  relaxation — a deliberate drop of the outcome anchor for un-logged calls, so the
+  back-catalogue rates). `no_contact` is still never a game; no-signal-at-all is
+  skipped (§3.2/§3.4).
+- Badge empty copy → "needs a dissected call to start".
+
+Framework note: this trades §3.5 strictness (outcome-anchored) for AMD-006 L2
+(the feature actually delivers on real data) — the founder's explicit call, on
+the record. Tests updated (+2 net) — 22 ELO / 384 total; gate + build clean.
+UNTESTED live: the dissect→session→outcome join against real rows.
