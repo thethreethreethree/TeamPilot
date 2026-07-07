@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { runAndStoreSummary } from "@/lib/coach/v5/salesSummary";
+import { runAndStorePivot, type PivotMoment } from "@/lib/coach/v5/salesPivot";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 
 /**
@@ -56,13 +57,27 @@ export async function POST(
     );
   }
 
-  const summary = await runAndStoreSummary({
-    companyId,
-    actorId: auth.user.id,
-    sessionId: id,
-    segments,
-  });
-  return NextResponse.json({ summary });
+  // Compose (§A16, does not fork): the factual summary AND the bidirectional
+  // Pivot Moment run concurrently. Both are manager-visible observations (the
+  // owner-private SCORES are a separate owner-only endpoint, §A18). The pivot is
+  // best-effort — a summary still returns if the pivot came back empty.
+  const [summary, pivot] = await Promise.all([
+    runAndStoreSummary({
+      companyId,
+      actorId: auth.user.id,
+      sessionId: id,
+      segments,
+    }),
+    runAndStorePivot({
+      companyId,
+      actorId: auth.user.id,
+      sessionId: id,
+      context: session.context,
+      outcome: session.outcome,
+      segments,
+    }),
+  ]);
+  return NextResponse.json({ summary, pivot });
 }
 
 /**
@@ -81,17 +96,34 @@ export async function GET(
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  const { data } = await supabase
-    .from("events")
-    .select("payload")
-    .eq("kind", "coach.session_summary_generated")
-    .eq("subject", `sales_session:${id}`)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const summary = (data?.payload as Record<string, unknown> | undefined)
+  // Read back the latest factual summary AND the latest Pivot Moment (both are
+  // manager-visible observations, stored append-only in `events`). No LLM cost.
+  // Owner-private SCORES are NOT here — they come from the owner-gated
+  // /summary-scores endpoint (§A18).
+  const [summaryRow, pivotRow] = await Promise.all([
+    supabase
+      .from("events")
+      .select("payload")
+      .eq("kind", "coach.session_summary_generated")
+      .eq("subject", `sales_session:${id}`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("events")
+      .select("payload")
+      .eq("kind", "coach.session_pivot_generated")
+      .eq("subject", `sales_session:${id}`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const summary = (summaryRow.data?.payload as Record<string, unknown> | undefined)
     ?.summary;
+  const pivot = (pivotRow.data?.payload as Record<string, unknown> | undefined)
+    ?.pivot as PivotMoment | undefined;
   return NextResponse.json({
     summary: typeof summary === "string" ? summary : null,
+    pivot: pivot ?? null,
   });
 }

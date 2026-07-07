@@ -11,6 +11,7 @@ import {
 } from "@/lib/data/salesCoach";
 import { runAndStoreDissect } from "@/lib/coach/v5/salesDissect";
 import { runAndStoreSummary } from "@/lib/coach/v5/salesSummary";
+import { runAndStorePivot } from "@/lib/coach/v5/salesPivot";
 
 /**
  * POST /api/coach/sales-session/[id]/finalize
@@ -94,9 +95,12 @@ export async function POST(
   //    earlier streamed segments).
   const segments = await getSessionTranscript(id);
 
-  // 3. Generate + store the Dissect and Summary SERVER-SIDE, in parallel.
-  //    One failing does not block the other.
-  const [dissect, summary] = await Promise.all([
+  // 3. Generate + store the Dissect, Summary, and Pivot Moment SERVER-SIDE, in
+  //    parallel. One failing does not block the others. The pivot is stored
+  //    alongside the summary so the Conversation-summary surface shows it the
+  //    moment the call ends (workflow continuity, §1.5.1) — not only after a
+  //    manual re-summarize.
+  const [dissect, summary, pivot] = await Promise.all([
     runAndStoreDissect({
       companyId,
       actorId: auth.user.id,
@@ -111,6 +115,14 @@ export async function POST(
       sessionId: id,
       segments,
     }).catch(() => null),
+    runAndStorePivot({
+      companyId,
+      actorId: auth.user.id,
+      sessionId: id,
+      context: session.context,
+      outcome: session.outcome,
+      segments,
+    }).catch(() => null),
   ]);
 
   return NextResponse.json({
@@ -118,5 +130,6 @@ export async function POST(
     transcriptSegments: segments.length,
     dissectGenerated: !!dissect?.hasSignal,
     summaryGenerated: !!summary,
+    pivotGenerated: !!pivot,
   });
 }

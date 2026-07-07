@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { FileText, MessageCircleQuestion, Microscope } from "lucide-react";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
+import {
+  PivotAndScores,
+  type PivotMoment,
+} from "@/components/sales-coach/PivotAndScores";
 
 /**
  * SessionCoachTools — C.A.R.E features applied to a Live Sales Coach
@@ -294,6 +298,8 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
 function SummarizePanel({ sessionId }: { sessionId: string }) {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
+  const [pivot, setPivot] = useState<PivotMoment | null>(null);
+  const [ran, setRan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const run = async () => {
@@ -307,6 +313,8 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
       setSummary(d.summary ?? "No summary returned.");
+      setPivot((d.pivot as PivotMoment | null) ?? null);
+      setRan(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -329,6 +337,10 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
           {summary}
         </p>
       )}
+      {/* Founder 2026-07-07: the Pivot Moment + private scores at the END of the
+          summary, composed via the shared component (§A13/§A21). Shown once the
+          summary has been generated in this panel. */}
+      {ran && <PivotAndScores sessionId={sessionId} pivot={pivot} />}
     </PanelBox>
   );
 }
