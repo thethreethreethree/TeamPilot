@@ -98,6 +98,13 @@ export async function POST(req: NextRequest) {
       companyId,
       systemPrompt,
       userMessage,
+      // §3.4: run day-1, NOT gated by the month-1 control. Dissect a Conversation
+      // works on EXTERNAL pasted data the user brings on demand — it is not the
+      // System guiding the team's own work, so it's orthogonal to the control
+      // baseline (same reasoning that makes the dissect engine controlExempt).
+      // Without this, Ask Coach would be silently suppressed for any month-1
+      // team while the dissect above still runs — an inconsistent, broken surface.
+      controlExempt: true,
     });
     reply = r.text;
   } catch {
