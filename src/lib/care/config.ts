@@ -100,6 +100,23 @@ export function resolveCareTenant(_hint?: {
  * status + allowed origins. Logs the load event regardless of
  * outcome so tenants see traffic and we see wrong-origin attempts.
  */
+/**
+ * Whether a widget request's Origin is allowed to embed this tenant's widget.
+ * SECURITY INVARIANT (pinned by a test): an exact allowlist match is always
+ * required; the wildcard "*" is honored ONLY in non-production (pilot/dev) — in
+ * production there is no wildcard, an explicit origin match is mandatory. Pure +
+ * exported so that invariant can't silently regress.
+ */
+export function isOriginAllowed(args: {
+  origin: string;
+  allowedOrigins: string[];
+  isProduction: boolean;
+}): boolean {
+  if (args.allowedOrigins.includes(args.origin)) return true;
+  if (!args.isProduction && args.allowedOrigins.includes("*")) return true;
+  return false;
+}
+
 export async function resolveCareTenantByEmbedToken(args: {
   embedToken: string;
   origin: string | null;
@@ -138,11 +155,11 @@ export async function resolveCareTenantByEmbedToken(args: {
 
   // Origin validation — wildcard is only honored in non-production
   // (pilot / dev). In prod, an explicit match is required.
-  const origin = args.origin ?? "";
-  const allows = config.allowedOrigins;
-  const matched =
-    allows.includes(origin) ||
-    (process.env.NODE_ENV !== "production" && allows.includes("*"));
+  const matched = isOriginAllowed({
+    origin: args.origin ?? "",
+    allowedOrigins: config.allowedOrigins,
+    isProduction: process.env.NODE_ENV === "production",
+  });
   if (!matched) {
     await logLoadEvent(admin, {
       companyId: config.companyId,
