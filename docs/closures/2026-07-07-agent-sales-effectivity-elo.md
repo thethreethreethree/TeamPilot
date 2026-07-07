@@ -60,3 +60,27 @@ typecheck + lint + theme:audit + rls:audit + 378 tests (16 new); build clean.
   store per-session ELO deltas as events. Deferred.
 - **Weighting/curve constants** (K=24, outcome map sold=1/follow_up=.7/no_sale=.35,
   1500 opponent) are the §4 knobs — tune once real data accrues.
+
+## Math audit + solidification (2026-07-07, founder-directed)
+
+Re-read the actual `salesElo.ts` and audited the math. Two real findings fixed:
+
+- **A [MED-HIGH] §3.5** — `meanScore01` averaged the COMPUTED categories
+  (talk_ratio, question_rate) whose `.score` is a share-proxy for uniform strip
+  rendering, NOT a 0-10 quality grade — so a balanced 50/50 talk ratio (good) read
+  as ~5/10 and dragged performance down. FIXED: the quality mean now averages only
+  the GRADED (`!computed`) categories; a session with no graded score is skipped
+  (§3.4). Class-checked: no other code averages `.score` — isolated to the ELO.
+- **B [MED] §3.5 + founder** — the rating was unbounded. FIXED: clamp to
+  **[100, 3000]** — 3000 is the chess max (founder), 100 the floor. Practical band
+  vs the 1500 standard is ~1000-1900; 3000 is the theoretical ceiling as in chess.
+- **C [LOW] §4** — the constants (K, outcome map, opponent) remain unvalidated
+  knobs; correctly ships provisional. No change.
+
+Also (§A18 exposure discipline): the `/elo` route now returns the per-session
+`history` (each game's derived score) ONLY to the OWNER; a manager gets rating +
+gamesPlayed + provisional + the latest trend delta, never the per-session
+breakdown of the rep's private scores.
+
+Tests: +4 (computed-exclusion ×2, clamp ceiling/floor ×2) — 20 ELO tests, 382
+total. Gate + build clean. STILL UNTESTED live: the end-to-end with real data.

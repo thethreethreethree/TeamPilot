@@ -26,6 +26,9 @@ type AgentElo = {
   rating: number;
   gamesPlayed: number;
   provisional: boolean;
+  /** Latest game's rating change. Always present; history may be empty for a
+   *  manager viewer (§A18 — the per-session breakdown is owner-only). */
+  lastDelta: number;
   history: EloHistoryEntry[];
 };
 
@@ -92,7 +95,7 @@ export function AgentEloBadge({
   }
 
   const e = elo!;
-  const lastDelta = e.history.length ? e.history[e.history.length - 1]!.delta : 0;
+  const lastDelta = e.lastDelta ?? 0;
   const Trend = lastDelta > 0 ? TrendingUp : lastDelta < 0 ? TrendingDown : Minus;
   const trendCls =
     lastDelta > 0

@@ -28,6 +28,11 @@ import type { SalesOutcome } from "@/lib/data/salesCoach";
 export const STARTING_RATING = 1500;
 export const OPPONENT_RATING = 1500; // the fixed "competent call" standard
 export const K_FACTOR = 24;
+/** Chess-scale bounds (founder 2026-07-07: 3000 = chess max rating). Against a
+ *  1500 standard the practical band is ~1000-1900; 3000 is the theoretical
+ *  ceiling as in chess, 100 the floor — the rating never goes negative/unbounded. */
+export const MAX_RATING = 3000;
+export const MIN_RATING = 100;
 /** Below this many games the rating is PROVISIONAL (§4 — not yet trustworthy). */
 export const PROVISIONAL_GAMES = 5;
 
@@ -86,13 +91,18 @@ export function outcomeValue(outcome: SalesOutcome | null): number | null {
   }
 }
 
-/** Mean of the graded score categories, normalized to 0..1. Uses each category's
- *  0-10 `score` (talk_ratio / question_rate carry a 0-10 proxy score too, so the
- *  whole strip contributes uniformly). Returns null when there are no scores. */
+/** Mean of the GRADED quality categories, normalized to 0..1. Audit finding A
+ *  (§3.5): only the graded categories (opener/objection/tone/close/next_step)
+ *  carry a genuine 0-10 QUALITY score. The COMPUTED categories (talk_ratio,
+ *  question_rate) put a share-proxy in `.score` for uniform strip rendering — a
+ *  balanced 50/50 talk ratio has `.score` 5, which is GOOD, not mediocre — so
+ *  averaging them would distort performance downward. Quality = graded only.
+ *  Returns null when there is no graded score to judge (§3.4 — don't rate thin). */
 function meanScore01(scores: ScoreCategory[]): number | null {
-  if (scores.length === 0) return null;
-  const sum = scores.reduce((a, c) => a + Math.max(0, Math.min(10, c.score)), 0);
-  return sum / scores.length / 10;
+  const graded = scores.filter((c) => !c.computed);
+  if (graded.length === 0) return null;
+  const sum = graded.reduce((a, c) => a + Math.max(0, Math.min(10, c.score)), 0);
+  return sum / graded.length / 10;
 }
 
 /** Quality from the review: share of observations that were strengths vs growth
@@ -126,7 +136,8 @@ export function expectedScore(rating: number, opponent: number): number {
   return 1 / (1 + Math.pow(10, (opponent - rating) / 400));
 }
 
-/** One ELO update: newRating = rating + K * (actual - expected). */
+/** One ELO update: newRating = rating + K * (actual - expected), clamped to the
+ *  chess-scale bounds [MIN_RATING, MAX_RATING] (audit finding B / founder 3000). */
 export function updateElo(
   rating: number,
   gameScore: number,
@@ -134,7 +145,8 @@ export function updateElo(
   k = K_FACTOR
 ): number {
   const expected = expectedScore(rating, opponent);
-  return Math.round(rating + k * (gameScore - expected));
+  const next = Math.round(rating + k * (gameScore - expected));
+  return Math.max(MIN_RATING, Math.min(MAX_RATING, next));
 }
 
 /**

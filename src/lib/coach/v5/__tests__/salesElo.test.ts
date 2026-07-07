@@ -7,6 +7,8 @@ import {
   computeAgentElo,
   STARTING_RATING,
   OPPONENT_RATING,
+  MAX_RATING,
+  MIN_RATING,
   type EloFactors,
   type EloGame,
 } from "../salesElo";
@@ -14,6 +16,11 @@ import type { ScoreCategory } from "../summaryTypes";
 
 const score = (n: number): ScoreCategory =>
   ({ key: "opener", label: "Opener", score: n, display: `${n}/10`, rationale: "r", citation: null, computed: false });
+
+// A COMPUTED category (talk_ratio / question_rate): `.score` is a share proxy,
+// NOT a quality grade — the ELO must exclude it from the performance mean.
+const computed = (n: number): ScoreCategory =>
+  ({ key: "talk_ratio", label: "Talk / Listen", score: n, display: "44 / 56", rationale: "r", citation: null, computed: true });
 
 const factors = (over: Partial<EloFactors> = {}): EloFactors => ({
   scores: [score(7), score(7)],
@@ -55,6 +62,20 @@ describe("gameScoreFromFactors — balanced consequence + performance", () => {
   it("returns null when there are no scores to rate", () => {
     expect(gameScoreFromFactors(factors({ scores: [] }))).toBeNull();
   });
+
+  it("audit A: EXCLUDES computed proxy-scores from the quality mean (§3.5)", () => {
+    // Graded 7s → quality mean .7. Adding a computed category with a low proxy
+    // score (2 = a balanced ratio's share) must NOT drag the mean down.
+    const withoutComputed = gameScoreFromFactors(factors({ scores: [score(7), score(7)] }))!;
+    const withComputed = gameScoreFromFactors(
+      factors({ scores: [score(7), score(7), computed(2)] })
+    )!;
+    expect(withComputed).toBeCloseTo(withoutComputed, 6);
+  });
+
+  it("audit A: a session with ONLY computed scores is not a gradeable game", () => {
+    expect(gameScoreFromFactors(factors({ scores: [computed(4)] }))).toBeNull();
+  });
   it("neutral quality (0.5) when the review had neither strengths nor growth", () => {
     // perf = .5*.7 + .5*.5 = .6 ; game = .5*.7 + .5*.6 = .65
     const g = gameScoreFromFactors(factors({ strengths: 0, growthAreas: 0 }))!;
@@ -75,6 +96,20 @@ describe("ELO update math", () => {
   it("a game score exactly at expected holds the rating", () => {
     // at equal ratings expected = 0.5; a 0.5 game leaves it unchanged
     expect(updateElo(1500, 0.5)).toBe(1500);
+  });
+
+  it("audit B: clamps to the chess ceiling 3000 (founder) — never exceeds it", () => {
+    expect(MAX_RATING).toBe(3000);
+    // A win from just below the ceiling can't push past 3000.
+    expect(updateElo(2995, 1)).toBeLessThanOrEqual(3000);
+    // From the ceiling, a win stays at the ceiling.
+    expect(updateElo(3000, 1)).toBe(3000);
+  });
+
+  it("audit B: clamps to the floor 100 — never goes below it", () => {
+    expect(MIN_RATING).toBe(100);
+    expect(updateElo(105, 0)).toBeGreaterThanOrEqual(100);
+    expect(updateElo(100, 0)).toBe(100);
   });
 });
 

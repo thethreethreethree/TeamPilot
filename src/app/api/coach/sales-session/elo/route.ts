@@ -73,5 +73,21 @@ export async function GET(req: NextRequest) {
   }
 
   const elo = await getAgentEloRating(agentId);
-  return NextResponse.json({ elo });
+  // §A18 exposure discipline: the per-session `history` (each game's derived
+  // gameScore) is a finer read of the rep's owner-private scores than "managers
+  // see the rating" needs. The OWNER gets their full history (§A10 — their own
+  // data); a MANAGER gets only the rating, games played, provisional flag, and
+  // the latest trend delta — never the per-session breakdown.
+  const lastDelta = elo.history.length
+    ? elo.history[elo.history.length - 1]!.delta
+    : 0;
+  return NextResponse.json({
+    elo: {
+      rating: elo.rating,
+      gamesPlayed: elo.gamesPlayed,
+      provisional: elo.provisional,
+      lastDelta,
+      history: isSelf ? elo.history : [],
+    },
+  });
 }
