@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
@@ -145,13 +145,17 @@ export async function POST(req: NextRequest) {
   // (the agent takes the conversation); otherwise the AI handles
   // first-response and the conversation waits in the unassigned
   // queue. Best-effort: routing failures don't break the create.
-  void routeNewConversation({
-    conversationId: conversation.id,
-    companyId: tenantId,
-    source: conversationSource,
-  }).catch(() => {
-    /* routing best-effort */
-  });
+  // after() so routing survives the post-response serverless freeze — a bare void
+  // would leave the new conversation unrouted (stuck unassigned) in production.
+  after(() =>
+    routeNewConversation({
+      conversationId: conversation.id,
+      companyId: tenantId,
+      source: conversationSource,
+    }).catch(() => {
+      /* routing best-effort */
+    })
+  );
 
   return NextResponse.json({
     conversationId: conversation.id,

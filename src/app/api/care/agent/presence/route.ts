@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import {
@@ -50,9 +50,11 @@ export async function GET() {
   // §A6 — touch the heartbeat so 'online' reflects real activity.
   // No-op if the agent_state row doesn't exist yet (handled by
   // strictMutate inside, returning silently). Best-effort.
-  void touchAgentHeartbeat(auth.agentId).catch(() => {
-    /* best-effort */
-  });
+  after(() =>
+    touchAgentHeartbeat(auth.agentId).catch(() => {
+      /* best-effort */
+    })
+  );
 
   const self = await fetchAgentPresence(auth.agentId);
 

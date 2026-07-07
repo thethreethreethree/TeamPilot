@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import {
@@ -117,12 +117,15 @@ export async function POST(
   // the message row (which we just persisted) so deliberate shape
   // choices are honored.
   if (!body.isInternalNote && msg) {
-    void gradeMessageAsync({
-      conversationId: id,
-      messageId: msg.id,
-      agentReply: body.body,
-      coPilotReasoning: msg.coPilotReasoning,
-    });
+    // after() (not void): survive the post-response serverless freeze.
+    after(() =>
+      gradeMessageAsync({
+        conversationId: id,
+        messageId: msg.id,
+        agentReply: body.body,
+        coPilotReasoning: msg.coPilotReasoning,
+      })
+    );
   }
 
   // Phase 4 outbound email dispatch — if the conversation source
@@ -141,14 +144,19 @@ export async function POST(
     // stale `sb` reference (auth.sb is available if needed).
     if (detail.conversation.source === "email") {
       emailDispatchPromised = true;
-      void dispatchOutboundEmailReply({
-        conversationId: id,
-        messageId: msg.id,
-      }).catch((e) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[care] outbound email dispatch error", e);
-        }
-      });
+      // after() is CRITICAL here: this is the OUTBOUND SEND of the agent's reply.
+      // As a bare void it would be abandoned when the serverless instance freezes
+      // post-response — the customer would never receive the agent's email.
+      after(() =>
+        dispatchOutboundEmailReply({
+          conversationId: id,
+          messageId: msg.id,
+        }).catch((e) => {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[care] outbound email dispatch error", e);
+          }
+        })
+      );
     }
   }
 
