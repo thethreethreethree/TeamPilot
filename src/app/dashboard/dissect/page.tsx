@@ -55,6 +55,10 @@ export default function DissectPage() {
   const [readonly, setReadonly] = useState(false); // viewing a loaded saved topic
 
   const threadEndRef = useRef<HTMLDivElement | null>(null);
+  // Staleness guard: Close / a new dissect / loading a saved topic bump this, so an
+  // in-flight async response that lands AFTER the user moved on is dropped instead
+  // of repopulating a reset/closed workspace (a real concurrency bug).
+  const requestSeq = useRef(0);
 
   const loadSavedList = useCallback(async () => {
     try {
@@ -83,6 +87,7 @@ export default function DissectPage() {
       );
       return;
     }
+    const seq = ++requestSeq.current; // this dissect supersedes any prior in-flight
     setAnalyzing(true);
     setAnalyzeErr(null);
     setDissect(null);
@@ -94,13 +99,16 @@ export default function DissectPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
+      if (seq !== requestSeq.current) return; // superseded (Close / new run) — drop
       if (!res.ok) {
         setAnalyzeErr("Couldn't dissect that just now. Please try again.");
         return;
       }
       const d = await res.json();
+      if (seq !== requestSeq.current) return;
       setDissect(d.dissect as ConversationDissect);
     } catch {
+      if (seq !== requestSeq.current) return;
       setAnalyzeErr("Couldn't dissect that just now. Please try again.");
     } finally {
       setAnalyzing(false);
@@ -114,6 +122,7 @@ export default function DissectPage() {
     // the conversation so far (§3.3 dialogue needs it, or it loops on "what do
     // you think?"). Cap to the last 40 turns to bound payload.
     const priorThread = thread.slice(-40);
+    const seq = requestSeq.current; // invalidated by Close / a new dissect / a load
     setAsking(true);
     setThread((t) => [...t, { role: "user", text: question }]);
     setQuestion("");
@@ -129,6 +138,7 @@ export default function DissectPage() {
           history: priorThread,
         }),
       });
+      if (seq !== requestSeq.current) return; // superseded — don't touch the reset thread
       if (!res.ok) {
         setThread((t) => [
           ...t,
@@ -137,8 +147,10 @@ export default function DissectPage() {
         return;
       }
       const d = await res.json();
+      if (seq !== requestSeq.current) return;
       setThread((t) => [...t, { role: "coach", text: d.reply as string }]);
     } catch {
+      if (seq !== requestSeq.current) return;
       setThread((t) => [
         ...t,
         { role: "coach", text: "I couldn't respond just now — try again in a moment." },
@@ -151,6 +163,7 @@ export default function DissectPage() {
   async function saveTopic() {
     if (saving || !dissect) return;
     const t = title.trim() || dissect.problem.statement.slice(0, 80) || "Untitled dissection";
+    const seq = requestSeq.current; // invalidated by Close / a new dissect / a load
     setSaving(true);
     setSaveErr(null);
     try {
@@ -164,6 +177,7 @@ export default function DissectPage() {
           dissect,
         }),
       });
+      if (seq !== requestSeq.current) return; // superseded — don't flip a fresh workspace to "Saved"
       if (!res.ok) {
         // §3.4: a failed save must be VISIBLE, not silent — otherwise the user
         // can't tell "save failed" from "haven't saved yet" and loses the work.
@@ -184,6 +198,7 @@ export default function DissectPage() {
   // server delete, §3.1). A saved topic persists in the list; Close just clears
   // the workspace so a fresh conversation can start.
   function closeTopic() {
+    requestSeq.current++; // invalidate any in-flight analyze/ask/load so it can't repopulate
     setSourceText("");
     setDissect(null);
     setThread([]);
@@ -198,10 +213,13 @@ export default function DissectPage() {
   }
 
   async function loadSaved(id: string) {
+    const seq = ++requestSeq.current; // loading supersedes any in-flight analyze/ask
     try {
       const res = await fetch(`/api/dissect/topics/${id}`);
+      if (seq !== requestSeq.current) return; // superseded (Close / another load) — drop
       if (!res.ok) return;
       const d = await res.json();
+      if (seq !== requestSeq.current) return;
       const topic = d.topic as {
         sourceText: string;
         dissect: ConversationDissect | null;
