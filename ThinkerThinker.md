@@ -219,33 +219,61 @@ understanding is the failure mode this entire project was built to defeat.*
 
 ## Index by topic
 
+> Rebuilt 2026-07-07 to cover A1–A23 (was stale at A11). The broad tags
+> (methodology evolution, discipline under temptation) carry most assets; the
+> specific tags below them are the faster entry points.
+
 **Communication**
-- A1 · Convergence test for external frameworks (2026-06-09)
-
-**Methodology evolution**
-- A1 · Convergence test for external frameworks (2026-06-09)
-- A2 · Design backwards from the §4 readout, not forward from features (2026-06-09)
-- A3 · Anti-game-your-own-evaluation defaults (2026-06-09)
-- A4 · Surface design uncertainties; defer them to §4 evidence (2026-06-09)
-
-**Discipline under temptation**
-- A3 · Anti-game-your-own-evaluation defaults (2026-06-09)
-- A4 · Surface design uncertainties; defer them to §4 evidence (2026-06-09)
-- A5 · Ripple-trace explicitly when adding a gating flag (2026-06-09)
-- A7 · Data about a user is presented with a constructive next step, never as a standalone warning (2026-06-09)
-- A10 · The user sees what the System sees about them (no shadow read) (2026-06-09)
-- A11 · The System does not judge; it mirrors (2026-06-09)
+- A1 · Convergence test for external frameworks
+- A8 · The System as a growth-aware participant
+- A9 · The builder's submission IS the product's credibility
 
 **Scoping & design practice**
-- A2 · Design backwards from the §4 readout, not forward from features (2026-06-09)
-- A4 · Surface design uncertainties; defer them to §4 evidence (2026-06-09)
-- A5 · Ripple-trace explicitly when adding a gating flag (2026-06-09)
-- A6 · The Effective-Task Triad — three pillars only work together (2026-06-09)
+- A2 · Design backwards from the §4 readout, not forward from features
+- A4 · Surface design uncertainties; defer them to §4 evidence
+- A5 · Ripple-trace explicitly when adding a gating flag
+- A6 · The Effective-Task Triad — three pillars only work together
 
 **System identity (what we are, not just what we do)**
-- A8 · The System as a growth-aware participant, not neutral infrastructure (2026-06-09)
-- A9 · The builder's submission to the discipline IS the product's credibility (2026-06-09)
-- A11 · The System does not judge; it mirrors (2026-06-09)
+- A7 · Data about a user comes with a constructive next step, never a standalone warning
+- A8 · The System as a growth-aware participant
+- A10 · The user sees what the System sees (no shadow read)
+- A11 · The System does not judge; it mirrors
+
+**Holistic discipline (a local symptom is a structural gap at a different altitude)**
+- A16 · Multiple AI surfaces on the same data must compose, not contradict
+- A17 · A tool serving >1 human contract must be designed against ALL of them
+- A18 · The label IS the structural defense when surfacing human data to a leader
+- A19 · Methodology that governs the build must live in the working tree
+- A22 · Constitutional citations without session-reading are undetected violations
+- A23 · RLS write policy constraining identity but not authz columns = escalation class
+
+**Proactive audit · scope & boundary honesty**
+- A15 · A flag honestly diagnosed may close without a fix
+- A20 · "Founder decision needed" is the agent substituting its own quality bar
+- A21 · Audits that look WITHIN modules but not ACROSS them miss same-name-different-feature
+- A22 · Citations without session-reading (audit-boundary failure)
+- A23 · One RLS instance implies sweeping ALL policies (class-check boundary)
+
+**Builder submission (the build IS the product's credibility)**
+- A9 · The builder's submission IS the product's credibility
+- A19 · Methodology in the working tree
+- A22 · Session-read manifest before closure
+
+**Security / data-architecture**
+- A12 · Migrations are safe-to-re-run by construction
+- A23 · Authz-bearing columns must be DB-frozen against direct end-user writes
+
+**Recurring-miss → structural fix (climb until the pattern resolves)**
+- A12 · Migrations idempotent by construction (authoring altitude)
+- A13 · The vocabulary-once discipline (author the space once, by category)
+- A14 · Data path complete ≠ render path complete (verify every branch)
+
+**Methodology evolution** (broad — nearly all assets; specific tags above are faster)
+- A1, A2, A3, A4, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23
+
+**Discipline under temptation** (broad — nearly all assets)
+- A3, A4, A5, A7, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23
 
 ---
 
