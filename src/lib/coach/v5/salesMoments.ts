@@ -195,6 +195,10 @@ export function parseMoments(
         : null;
     const note =
       typeof m.note === "string" && m.note.trim() ? m.note.trim() : null;
+    const sentiment =
+      m.sentiment === "warming" || m.sentiment === "cooling"
+        ? m.sentiment
+        : "neutral";
 
     // At most ONE breakdown (the pivotal one). A second flagged breakdown is
     // demoted to 'other' — the timeline highlights a single turning point.
@@ -228,6 +232,7 @@ export function parseMoments(
       note,
       isBreakdown,
       correction,
+      sentiment,
     });
   }
 

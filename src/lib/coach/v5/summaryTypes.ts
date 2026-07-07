@@ -22,6 +22,10 @@ export type MomentKind =
 
 export type MomentCorrection = { correctLine: string; whyItWorks: string };
 
+/** Customer-sentiment direction AT this moment — the continuous read across the
+ *  timeline (founder 2026-07-07), distinct from the single decisive Pivot. */
+export type MomentSentiment = "warming" | "cooling" | "neutral";
+
 export type SalesMoment = {
   atSeq: number;
   /** "1:04" when spoken_at is known for this segment, else null (§3.4). */
@@ -34,6 +38,9 @@ export type SalesMoment = {
   isBreakdown: boolean;
   /** Present only on the breakdown moment. */
   correction: MomentCorrection | null;
+  /** The customer's sentiment direction at this moment. Optional for backward
+   *  compatibility with moments stored before this field existed. */
+  sentiment?: MomentSentiment;
 };
 
 export type PivotDirection = "gained" | "lost";
@@ -49,7 +56,14 @@ export type PivotMoment = {
   whyItMattered: string;
 };
 
-export type ScoreKey = "opener" | "objection" | "talk_ratio" | "tone" | "close";
+export type ScoreKey =
+  | "opener"
+  | "objection"
+  | "talk_ratio"
+  | "question_rate"
+  | "tone"
+  | "close"
+  | "next_step";
 
 export type ScoreCategory = {
   key: ScoreKey;
@@ -59,4 +73,15 @@ export type ScoreCategory = {
   rationale: string;
   citation: string | null;
   computed: boolean;
+};
+
+/**
+ * Conversation-intelligence extraction (founder 2026-07-07): competitors named
+ * in the call + the topics discussed. Manager-visible observations (not scores).
+ */
+export type SalesIntel = {
+  /** Competitor / alternative-provider names actually mentioned in the call. */
+  competitors: string[];
+  /** 3-5 recurring topics discussed (e.g. "pricing", "contract length"). */
+  topics: string[];
 };

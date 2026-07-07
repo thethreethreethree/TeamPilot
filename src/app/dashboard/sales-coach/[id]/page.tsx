@@ -20,6 +20,7 @@ import {
   PivotAndScores,
   type PivotMoment,
   type SalesMoment,
+  type SalesIntel,
 } from "@/components/sales-coach/PivotAndScores";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
@@ -78,6 +79,7 @@ export default function SessionDetail() {
   const [summary, setSummary] = useState<string | null>(null);
   const [pivot, setPivot] = useState<PivotMoment | null>(null);
   const [moments, setMoments] = useState<SalesMoment[]>([]);
+  const [intel, setIntel] = useState<SalesIntel | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -109,6 +111,7 @@ export default function SessionDetail() {
         setSummary(sj.summary ?? null);
         setPivot((sj.pivot as PivotMoment | null) ?? null);
         setMoments(Array.isArray(sj.moments) ? (sj.moments as SalesMoment[]) : []);
+        setIntel((sj.intel as SalesIntel | null) ?? null);
       }
       if (wRes && wRes.ok) {
         const w = await wRes.json();
@@ -300,7 +303,7 @@ export default function SessionDetail() {
             when ANY artifact has signal — summary, timeline, or pivot — each is
             generated independently and best-effort, so a failed summary must NOT
             hide the timeline (the hero) or pivot (audit finding 1, §A14/§1.5). */}
-        {(summary || moments.length > 0 || pivot) && (
+        {(summary || moments.length > 0 || pivot || intel) && (
           <LearningHint
             as="block"
             category="Sales Coach · Review"
@@ -326,7 +329,12 @@ export default function SessionDetail() {
                   Summarize panel (§A13/§A21). The pivot is manager-visible; the
                   scores are owner-only (the component's /summary-scores fetch
                   returns 403 to a manager and renders nothing, §A18). */}
-              <PivotAndScores sessionId={id} pivot={pivot} moments={moments} />
+              <PivotAndScores
+                sessionId={id}
+                pivot={pivot}
+                moments={moments}
+                intel={intel}
+              />
             </section>
           </LearningHint>
         )}

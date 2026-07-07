@@ -51,6 +51,27 @@ describe("parseMoments — §3.4 grounding invariants", () => {
     expect(out!.moments[0]!.kind).toBe("other");
   });
 
+  it("parses per-moment sentiment; unknown/absent → 'neutral' (founder 2026-07-07)", () => {
+    const out = parseMoments(
+      JSON.stringify({
+        hasSignal: true,
+        moments: [
+          { atSeq: 0, kind: "opener", label: "a", sentiment: "warming" },
+          { atSeq: 1, kind: "objection", label: "b", sentiment: "cooling" },
+          { atSeq: 2, kind: "discovery", label: "c", sentiment: "bogus" },
+          { atSeq: 3, kind: "close", label: "d" },
+        ],
+      }),
+      SEGMENTS
+    );
+    expect(out!.moments.map((m) => m.sentiment)).toEqual([
+      "warming",
+      "cooling",
+      "neutral",
+      "neutral",
+    ]);
+  });
+
   it("promotes at most ONE breakdown; a second is demoted to 'other'", () => {
     const out = parseMoments(
       JSON.stringify({

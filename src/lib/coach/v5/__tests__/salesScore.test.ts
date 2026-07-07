@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseGraded } from "../salesScore";
+import { parseGraded, computeQuestionRate } from "../salesScore";
+import type { TranscriptSegment } from "@/lib/data/salesCoach";
 
 const cat = (over: Record<string, unknown> = {}) => ({
   key: "opener",
@@ -65,5 +66,53 @@ describe("parseGraded — measurement honesty", () => {
   it("hasSignal:false or malformed → empty list", () => {
     expect(parseGraded(JSON.stringify({ hasSignal: false, categories: [cat()] }))).toEqual([]);
     expect(parseGraded("not json")).toEqual([]);
+  });
+
+  it("accepts the new graded category next_step (founder 2026-07-07)", () => {
+    const out = parseGraded(
+      JSON.stringify({ categories: [cat({ key: "next_step", score: 3 })] })
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]!.key).toBe("next_step");
+    expect(out[0]!.display).toBe("3/10");
+  });
+});
+
+const seg = (
+  seq: number,
+  speaker: TranscriptSegment["speaker"],
+  text: string
+): TranscriptSegment =>
+  ({ id: `s${seq}`, sessionId: "x", speaker, text, seq, spokenAt: null }) as TranscriptSegment;
+
+/**
+ * computeQuestionRate is deterministic (like talk_ratio) — a COUNT surfaced as an
+ * observation (§A11), not an LLM grade. These pin the counting + honest empties.
+ */
+describe("computeQuestionRate — deterministic question share", () => {
+  it("counts rep turns that ask a question", () => {
+    const r = computeQuestionRate([
+      seg(0, "agent", "How long have you had this internet?"),
+      seg(1, "customer", "About two years."),
+      seg(2, "agent", "Got it, that makes sense."),
+      seg(3, "agent", "Would you want faster speed for the same price?"),
+    ]);
+    // 2 of 3 rep turns are questions.
+    expect(r?.key).toBe("question_rate");
+    expect(r?.display).toBe("2 of 3");
+    expect(r?.computed).toBe(true);
+    expect(r?.citation).toBeNull();
+  });
+
+  it("detects unpunctuated interrogatives", () => {
+    const r = computeQuestionRate([
+      seg(0, "agent", "what are you paying now"),
+      seg(1, "agent", "the weather is nice"),
+    ]);
+    expect(r?.display).toBe("1 of 2");
+  });
+
+  it("returns null when the rep never spoke", () => {
+    expect(computeQuestionRate([seg(0, "customer", "Not interested.")])).toBeNull();
   });
 });

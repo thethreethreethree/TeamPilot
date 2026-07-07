@@ -15,9 +15,10 @@ import { methodologyBlock } from "./salesReviewPrompt";
  * is an evidenced observation the rep can inspect and contest, not an
  * authority's decree. The rep renders the final verdict on themselves.
  *
- * Talk ratio is NOT graded here — the engine computes it deterministically
- * from the transcript (hard data, no LLM guess). This prompt grades the four
- * qualitative categories only: opener, objection handling, tone, close.
+ * Talk ratio + question rate are NOT graded here — the engine computes those
+ * deterministically from the transcript (hard data, no LLM guess). This prompt
+ * grades the five qualitative categories: opener, objection handling, tone,
+ * close, and next-step clarity.
  */
 
 function speakerLabel(speaker: TranscriptSegment["speaker"]): string {
@@ -34,11 +35,16 @@ comparison to other people.
 
 ${methodologyBlock(corpusOverride)}
 
-GRADE FOUR CATEGORIES, each 0-10, against the methodology above:
+GRADE FIVE CATEGORIES, each 0-10, against the methodology above:
 - opener       — how the rep opened and earned the first moments.
 - objection    — how the rep handled objections / resistance.
 - tone         — warmth, calm, matching the customer (read from word choice).
 - close        — the close attempt (asking for the next step at the right time).
+- next_step    — NEXT-STEP CLARITY: did the rep establish a concrete, agreed
+                 next step (a scheduled follow-up, a clear action, permission to
+                 return)? A vague "I'll leave my number" is weak; a specific
+                 agreed time/action is strong. Distinct from close: close is the
+                 ASK, next_step is whether a clear forward motion was actually set.
 
 NON-NEGOTIABLE (A11 — the System mirrors, it does not judge):
 - NEVER return a bare number. Every category MUST include:
@@ -61,7 +67,8 @@ OUTPUT — respond with ONLY a JSON object in this exact shape:
     { "key": "opener",    "score": 0-10, "rationale": "one line", "citation": "transcript quote" },
     { "key": "objection", "score": 0-10, "rationale": "one line", "citation": "transcript quote" },
     { "key": "tone",      "score": 0-10, "rationale": "one line", "citation": "transcript quote" },
-    { "key": "close",     "score": 0-10, "rationale": "one line", "citation": "transcript quote" }
+    { "key": "close",     "score": 0-10, "rationale": "one line", "citation": "transcript quote" },
+    { "key": "next_step", "score": 0-10, "rationale": "one line", "citation": "transcript quote" }
   ]
 }
 
@@ -82,6 +89,6 @@ export function buildSalesScoreUserMessage(args: {
 
 ${transcript}
 
-Grade the four categories now, each with a rationale and a transcript
+Grade the five categories now, each with a rationale and a transcript
 citation. JSON only.`;
 }

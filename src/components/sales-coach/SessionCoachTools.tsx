@@ -13,6 +13,7 @@ import {
   PivotAndScores,
   type PivotMoment,
   type SalesMoment,
+  type SalesIntel,
 } from "@/components/sales-coach/PivotAndScores";
 
 /**
@@ -306,6 +307,7 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
   const [summary, setSummary] = useState<string | null>(null);
   const [pivot, setPivot] = useState<PivotMoment | null>(null);
   const [moments, setMoments] = useState<SalesMoment[]>([]);
+  const [intel, setIntel] = useState<SalesIntel | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -313,6 +315,7 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
     setSummary((d.summary as string | null) ?? null);
     setPivot((d.pivot as PivotMoment | null) ?? null);
     setMoments(Array.isArray(d.moments) ? (d.moments as SalesMoment[]) : []);
+    setIntel((d.intel as SalesIntel | null) ?? null);
     setLoaded(true);
   }, []);
 
@@ -350,7 +353,12 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
         if (res.ok) {
           const d = await res.json();
           if (cancelled) return;
-          if (d.summary || (Array.isArray(d.moments) && d.moments.length) || d.pivot) {
+          if (
+            d.summary ||
+            (Array.isArray(d.moments) && d.moments.length) ||
+            d.pivot ||
+            d.intel
+          ) {
             apply(d);
             setLoading(false);
             return;
@@ -394,7 +402,12 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
       {/* Founder 2026-07-07: the Conversation Timeline + Pivot Moment + private
           scores at the END of the summary, via the shared component (§A13/§A21). */}
       {loaded && (
-        <PivotAndScores sessionId={sessionId} pivot={pivot} moments={moments} />
+        <PivotAndScores
+          sessionId={sessionId}
+          pivot={pivot}
+          moments={moments}
+          intel={intel}
+        />
       )}
       {loaded && (
         <LoadingButton

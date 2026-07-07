@@ -42,13 +42,55 @@ const LABELS: Record<ScoreKey, string> = {
   opener: "Opener",
   objection: "Objection",
   talk_ratio: "Talk / Listen",
+  question_rate: "Questions",
   tone: "Tone",
   close: "Close",
+  next_step: "Next step",
 };
 
 function wordCount(text: string): number {
   const t = text.trim();
   return t ? t.split(/\s+/).length : 0;
+}
+
+/** Does this rep utterance ask a question? A '?' is the strong signal; also
+ *  catch interrogative openers a transcript might not punctuate. Deterministic. */
+function isQuestion(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t) return false;
+  if (t.includes("?")) return true;
+  return /^(who|what|when|where|why|how|which|do|does|did|are|is|can|could|would|will|have|has|may|might)\b/.test(
+    t
+  );
+}
+
+/** Deterministic QUESTION RATE (hard data, founder 2026-07-07): the share of the
+ *  rep's turns that ask a question — a discovery-quality signal. Like talk_ratio
+ *  this is a COUNT surfaced as an observation (A11 — not a good/bad grade); the
+ *  `read` names the pattern, the rep decides. `score` is only for uniform strip
+ *  rendering; `display` + `computed` carry the honest meaning. */
+export function computeQuestionRate(
+  segments: TranscriptSegment[]
+): ScoreCategory | null {
+  const repTurns = segments.filter((s) => s.speaker === "agent");
+  if (repTurns.length === 0) return null;
+  const asked = repTurns.filter((s) => isQuestion(s.text)).length;
+  const pct = Math.round((asked / repTurns.length) * 100);
+  let read: string;
+  if (pct <= 15)
+    read = "Few questions — discovery leans on the customer opening up; ask more to learn their real need.";
+  else if (pct >= 55)
+    read = "Question-heavy — strong discovery; make sure you also land your value.";
+  else read = "A healthy amount of discovery questioning.";
+  return {
+    key: "question_rate",
+    label: LABELS.question_rate,
+    score: Math.round((asked / repTurns.length) * 10),
+    display: `${asked} of ${repTurns.length}`,
+    rationale: read,
+    citation: null,
+    computed: true,
+  };
 }
 
 /** Deterministic talk ratio (hard data). Returns rep vs customer share as
@@ -93,6 +135,7 @@ export async function generateSalesScores(args: {
     if (agentSegments.length < MIN_AGENT_SEGMENTS) return EMPTY;
 
     const talkRatio = computeTalkRatio(args.segments);
+    const questionRate = computeQuestionRate(args.segments);
 
     const corpus = await getCurrentSalesCorpus(args.companyId).catch(() => null);
     const systemPrompt = buildSalesScoreSystemPrompt(corpus?.content);
@@ -109,7 +152,7 @@ export async function generateSalesScores(args: {
     // If grading failed but we have the computed ratio, still surface that one
     // honest number rather than nothing (§3.4 — degrade, don't fabricate).
     const graded = r.suppressed ? [] : parseGraded(r.text);
-    const categories = orderCategories(graded, talkRatio);
+    const categories = orderCategories(graded, talkRatio, questionRate);
     if (categories.length === 0) return EMPTY;
     return { hasSignal: true, categories };
   } catch {
@@ -117,16 +160,27 @@ export async function generateSalesScores(args: {
   }
 }
 
-/** Keep a stable display order: opener, objection, talk_ratio, tone, close
- *  (matches the PDF strip), including only the categories we actually have. */
+/** Keep a stable display order (matches the score strip), including only the
+ *  categories we actually have. The two computed categories (talk_ratio,
+ *  question_rate) are interleaved by their natural place in the rubric. */
 function orderCategories(
   graded: ScoreCategory[],
-  talkRatio: ScoreCategory | null
+  talkRatio: ScoreCategory | null,
+  questionRate: ScoreCategory | null
 ): ScoreCategory[] {
   const byKey = new Map<ScoreKey, ScoreCategory>();
   for (const c of graded) byKey.set(c.key, c);
   if (talkRatio) byKey.set("talk_ratio", talkRatio);
-  const order: ScoreKey[] = ["opener", "objection", "talk_ratio", "tone", "close"];
+  if (questionRate) byKey.set("question_rate", questionRate);
+  const order: ScoreKey[] = [
+    "opener",
+    "objection",
+    "talk_ratio",
+    "question_rate",
+    "tone",
+    "close",
+    "next_step",
+  ];
   const out: ScoreCategory[] = [];
   for (const k of order) {
     const c = byKey.get(k);
@@ -150,7 +204,13 @@ export function parseGraded(text: string): ScoreCategory[] {
   const o = raw as Record<string, unknown>;
   if (o.hasSignal === false || !Array.isArray(o.categories)) return [];
 
-  const allowed: ScoreKey[] = ["opener", "objection", "tone", "close"];
+  const allowed: ScoreKey[] = [
+    "opener",
+    "objection",
+    "tone",
+    "close",
+    "next_step",
+  ];
   const out: ScoreCategory[] = [];
   for (const item of o.categories) {
     if (!item || typeof item !== "object") continue;

@@ -786,12 +786,12 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
           as="block"
           category="Sales Coach · After Pitch"
           title="Score strip"
-          whatItIs="The five dimensions of the call scored at a glance — each cell is one aspect of how the conversation went."
+          whatItIs="The dimensions of the call scored at a glance — each cell is one aspect of how the conversation went."
           why="A single overall number hides where you actually stand. Breaking it into dimensions tells you which specific skill to work, not just 'do better.'"
           how="Scan for your lowest cell, then tap Score Assessment Review below to read exactly what pulled it down."
           principle="One overall score tells you how you feel; the dimensions tell you what to change."
         >
-        <div className="grid grid-cols-5 gap-1.5">
+        <div className="grid grid-cols-4 gap-1.5">
           {scores.map((c) => (
           <div
             key={c.key}

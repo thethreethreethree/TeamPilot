@@ -7,6 +7,10 @@ import {
   Loader2,
   ChevronDown,
   AlertTriangle,
+  ArrowUpRight,
+  ArrowDownRight,
+  Swords,
+  Tag,
 } from "lucide-react";
 
 /**
@@ -30,11 +34,17 @@ import {
 // component (SessionCoachTools, the session page) can keep importing from here.
 import type {
   MomentKind,
+  MomentSentiment,
   SalesMoment,
   PivotMoment,
   ScoreCategory,
+  SalesIntel,
 } from "@/lib/coach/v5/summaryTypes";
-export type { SalesMoment, PivotMoment } from "@/lib/coach/v5/summaryTypes";
+export type {
+  SalesMoment,
+  PivotMoment,
+  SalesIntel,
+} from "@/lib/coach/v5/summaryTypes";
 
 type ScoresResult =
   | { state: "ok"; scores: ScoreCategory[]; hasSignal: boolean }
@@ -81,19 +91,82 @@ export function PivotAndScores({
   sessionId,
   pivot,
   moments = [],
+  intel = null,
 }: {
   sessionId: string;
   pivot: PivotMoment | null;
   moments?: SalesMoment[];
+  intel?: SalesIntel | null;
 }) {
   return (
     <div className="mt-4 space-y-4">
       {/* Conversation Timeline — the hero visual (founder 2026-07-07): the whole
-          arc (opener → objection → breakdown → close), breakdown highlighted.
-          Above the pivot, which highlights the single decisive turning point. */}
+          arc (opener → objection → breakdown → close), breakdown highlighted, with
+          the customer-sentiment direction per moment. Above the pivot. */}
       {moments.length > 0 && <MomentsTimeline moments={moments} />}
       {pivot && <PivotCard pivot={pivot} />}
+      {/* Conversation intelligence — competitors named + topics discussed
+          (manager-visible observation, founder 2026-07-07). */}
+      {intel && (intel.competitors.length > 0 || intel.topics.length > 0) && (
+        <IntelSection intel={intel} />
+      )}
       <ScoresSection sessionId={sessionId} />
+    </div>
+  );
+}
+
+const SENTIMENT_META: Record<
+  MomentSentiment,
+  { label: string; cls: string; Icon: typeof ArrowUpRight } | null
+> = {
+  warming: { label: "warming", cls: "text-emerald-400", Icon: ArrowUpRight },
+  cooling: { label: "cooling", cls: "text-amber-400", Icon: ArrowDownRight },
+  neutral: null,
+};
+
+function IntelSection({ intel }: { intel: SalesIntel }) {
+  return (
+    <div className="rounded-lg border border-default bg-white/[0.01] p-3 space-y-2">
+      {intel.competitors.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5">
+            <Swords className="h-3.5 w-3.5 text-tertiary" aria-hidden />
+            <h4 className="text-xs font-semibold text-primary">
+              Competitors mentioned
+            </h4>
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {intel.competitors.map((c) => (
+              <span
+                key={c}
+                className="rounded-full bg-amber-500/10 text-amber-300 text-[11px] px-2 py-0.5"
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {intel.topics.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5">
+            <Tag className="h-3.5 w-3.5 text-tertiary" aria-hidden />
+            <h4 className="text-xs font-semibold text-primary">
+              Topics discussed
+            </h4>
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {intel.topics.map((t) => (
+              <span
+                key={t}
+                className="rounded-full bg-white/[0.04] text-secondary text-[11px] px-2 py-0.5"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -141,6 +214,20 @@ function MomentsTimeline({ moments }: { moments: SalesMoment[] }) {
                 )}
                 {KIND_LABEL[m.kind]} · {m.label}
               </span>
+              {/* Customer-sentiment direction at this moment (founder 2026-07-07). */}
+              {m.sentiment &&
+                SENTIMENT_META[m.sentiment] &&
+                (() => {
+                  const s = SENTIMENT_META[m.sentiment]!;
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-0.5 text-[10px] ${s.cls}`}
+                    >
+                      <s.Icon className="h-3 w-3" aria-hidden />
+                      {s.label}
+                    </span>
+                  );
+                })()}
             </div>
             {m.customerLine && (
               <p className="text-[11px] text-secondary mt-1">
@@ -272,7 +359,7 @@ function ScoresSection({ sessionId }: { sessionId: string }) {
         <h4 className="text-xs font-semibold text-primary">Your scores</h4>
         <span className="text-[11px] text-tertiary">Private to you</span>
       </div>
-      <div className="mt-2 grid grid-cols-5 gap-1.5">
+      <div className="mt-2 grid grid-cols-4 gap-1.5">
         {result.scores.map((c) => (
           <div
             key={c.key}

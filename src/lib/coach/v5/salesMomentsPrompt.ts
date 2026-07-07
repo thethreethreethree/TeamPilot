@@ -42,6 +42,11 @@ YOUR TASK — pick the 3-5 moments that define this conversation, in order:
 Reference each moment by the SEGMENT NUMBER it anchors on (the [n] in the
 transcript). Do NOT invent timestamps — the app computes those.
 
+For EACH moment, also read the CUSTOMER's sentiment direction AT that moment —
+"warming" (interest/trust rising, leaning in), "cooling" (pulling back, guard
+up), or "neutral" (no clear shift). This is the continuous emotional arc across
+the call, read honestly from what the customer actually said.
+
 For the BREAKDOWN moment ONLY, also produce the CORRECTION: the exact better
 line the rep should have used, and why it works — grounded in the methodology
 above.
@@ -65,6 +70,7 @@ OUTPUT — respond with ONLY a JSON object in this exact shape:
       "customerLine": "the customer's words at this moment, or null",
       "repLine": "the rep's words at this moment, or null",
       "note": "one short line: what happened here",
+      "sentiment": "warming"|"cooling"|"neutral",  // the customer's direction here
       "isBreakdown": boolean,                  // true for AT MOST ONE moment
       "correction": {                          // ONLY on the breakdown moment; null otherwise
         "correctLine": "the exact better line the rep should have used",

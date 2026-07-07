@@ -8,6 +8,7 @@ import {
   runAndStoreMoments,
   type SalesMoment,
 } from "@/lib/coach/v5/salesMoments";
+import { runAndStoreIntel, type SalesIntel } from "@/lib/coach/v5/salesIntel";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 
 /**
@@ -66,7 +67,7 @@ export async function POST(
   // All three are manager-visible observations (the owner-private SCORES are a
   // separate owner-only endpoint, §A18). Each is best-effort — a summary still
   // returns if the timeline / pivot came back empty.
-  const [summary, moments, pivot] = await Promise.all([
+  const [summary, moments, pivot, intel] = await Promise.all([
     runAndStoreSummary({
       companyId,
       actorId: auth.user.id,
@@ -89,8 +90,15 @@ export async function POST(
       outcome: session.outcome,
       segments,
     }),
+    runAndStoreIntel({
+      companyId,
+      actorId: auth.user.id,
+      sessionId: id,
+      context: session.context,
+      segments,
+    }),
   ]);
-  return NextResponse.json({ summary, moments, pivot });
+  return NextResponse.json({ summary, moments, pivot, intel });
 }
 
 /**
@@ -122,10 +130,11 @@ export async function GET(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-  const [summaryRow, momentsRow, pivotRow] = await Promise.all([
+  const [summaryRow, momentsRow, pivotRow, intelRow] = await Promise.all([
     latest("coach.session_summary_generated"),
     latest("coach.session_moments_generated"),
     latest("coach.session_pivot_generated"),
+    latest("coach.session_intel_generated"),
   ]);
   const summary = (summaryRow.data?.payload as Record<string, unknown> | undefined)
     ?.summary;
@@ -133,9 +142,12 @@ export async function GET(
     ?.moments as SalesMoment[] | undefined;
   const pivot = (pivotRow.data?.payload as Record<string, unknown> | undefined)
     ?.pivot as PivotMoment | undefined;
+  const intel = (intelRow.data?.payload as Record<string, unknown> | undefined)
+    ?.intel as SalesIntel | undefined;
   return NextResponse.json({
     summary: typeof summary === "string" ? summary : null,
     moments: Array.isArray(moments) ? moments : [],
     pivot: pivot ?? null,
+    intel: intel ?? null,
   });
 }
