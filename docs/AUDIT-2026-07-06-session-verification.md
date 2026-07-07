@@ -338,5 +338,30 @@ sr-only region driven by the same `hasNewCustomerMessage` trigger the chime uses
 touches the core inbox poll, so it's flagged for founder-prioritized care rather
 than changed autonomously.
 
+**Serverless post-response background-work class (root-caused + closed as a class).**
+THINK-first: on Vercel a serverless instance freezes once the response is sent, so
+any `void asyncFn()` fired *before* `return` is not guaranteed to run — the job can
+be abandoned mid-flight. Swept the whole `src/app/api` surface for the two idioms
+(`void asyncFn()` and un-awaited `.catch()` chains). Found 5 sites across 4 routes,
+all fired-before-return. FIXED as a class by wrapping each in `after()` from
+`next/server` (keeps the instance alive until the callback settles):
+- `inbound/email` — notify-agent + AI first-responder (`e327d9e`).
+- `agent/.../messages` — Coach grade AND, **critically**,
+  `dispatchOutboundEmailReply`: the OUTBOUND SEND of a human agent's email reply. As
+  a bare `void` an agent's reply to an email-sourced customer could silently never
+  send in production — a customer-facing delivery failure invisible to the agent.
+- `conversations` — `routeNewConversation` (a dropped job leaves a new conversation
+  stuck unassigned).
+- `agent/presence` — `touchAgentHeartbeat` (lowest value; fixed for class
+  consistency). (`0b8c1af`)
+
+Ripple-traced (§1.5): none of the deferred callbacks read request-scoped context
+(`cookies()`/`headers()`) — all use the service-role admin client — so running them
+post-response in `after()` is sound. Class now BOUNDED: a follow-up sweep confirms
+zero remaining fire-and-forget-before-return sites (the only other `void` match is
+`void ZERO_COACH;`, an unused-const discard, not an async call). This class is
+distinct from the client-side stale-response races above — same session, different
+failure surface (server delivery vs. client render).
+
 **Gate at extension end:** 326 tests passing / 9 skipped (integration, live-DB
 gated), typecheck + lint + rls:audit (0 missing) green; production build clean.
