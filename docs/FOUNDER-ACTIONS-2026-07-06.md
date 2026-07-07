@@ -145,6 +145,17 @@ definer function already has it.
   ingest+store every email, skip only the AI auto-reply past the cap (agent
   handles it). Needs a tenant-keyed limiter (the current one is IP-keyed, wrong
   for a webhook).
+  - *Related, found this session (🟡 serverless-effectiveness):* the shared
+    `rateLimit` helper is **in-memory** (`src/lib/api/rateLimit.ts` — a per-process
+    `Map`; the code documents it: "sufficient for single-instance… swap for Redis
+    when horizontally scaled"). On Vercel's serverless (many ephemeral instances),
+    each instance keeps its own counter, so the configured limits (e.g. 60/min) are
+    effectively per-instance — much weaker than the number suggests, and the LLM
+    endpoints' cost protection with it. Works fine in local/single-instance testing
+    (false confidence). If cost/abuse protection matters at launch, the fix is a
+    shared store (Upstash Redis / Vercel KV) behind the same `rateLimit` seam — one
+    swap point, no call-site changes. Say the word and I'll wire it once you pick a
+    store. (Vercel's platform DDoS + the auth gates still apply meanwhile.)
 - **Transcript unique constraint** (🟡 §3.1-sensitive — your call) — a read-audit
   found `coaching_transcript_segments` has no `UNIQUE(session_id, seq)`, so a
   double-finalize would duplicate the transcript. I shipped a client guard
