@@ -4,7 +4,10 @@ import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
-import { generateConversationDissect } from "@/lib/dissect/engine";
+import {
+  generateConversationDissect,
+  MAX_SOURCE_CHARS,
+} from "@/lib/dissect/engine";
 
 /**
  * POST /api/dissect/analyze
@@ -17,7 +20,7 @@ import { generateConversationDissect } from "@/lib/dissect/engine";
  */
 
 const Body = z.object({
-  content: z.string().min(1).max(20000),
+  content: z.string().min(1).max(MAX_SOURCE_CHARS),
 });
 
 export async function POST(req: NextRequest) {

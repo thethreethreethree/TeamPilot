@@ -1,5 +1,6 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
+import { MAX_SOURCE_CHARS } from "./constants";
 
 /**
  * Dissect a Conversation — engine (founder 2026-07-07).
@@ -24,6 +25,10 @@ import { dissectCoachV5 } from "@/lib/claude";
  * Never throws: on sparse input / failure it returns EMPTY (hasSignal:false) so
  * the surface degrades honestly (§3.4), never a fabricated diagnosis.
  */
+
+// MAX_SOURCE_CHARS lives in ./constants (framework-agnostic) so the client page
+// can reference the same value; re-exported here for server callers' convenience.
+export { MAX_SOURCE_CHARS } from "./constants";
 
 export type DissectEvidence = { observation: string; excerpt: string };
 export type DissectAngle = { angle: string; why: string };
@@ -161,7 +166,7 @@ something the conversation can't answer, say so plainly.
 Keep replies focused — a few sentences, not an essay.
 
 --- PASTED CONVERSATION ---
-${args.sourceText.slice(0, 12000)}
+${args.sourceText.slice(0, MAX_SOURCE_CHARS)}
 --- END CONVERSATION ---`;
 }
 
@@ -254,7 +259,7 @@ export async function generateConversationDissect(args: {
     const r = await dissectCoachV5({
       companyId: args.companyId,
       systemPrompt: DISSECT_SYSTEM,
-      userMessage: source.slice(0, 16000),
+      userMessage: source.slice(0, MAX_SOURCE_CHARS),
     });
     return parseConversationDissect(r.text, source);
   } catch {

@@ -16,6 +16,7 @@ import {
   History,
 } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { MAX_SOURCE_CHARS } from "@/lib/dissect/constants";
 
 /**
  * Dissect a Conversation (founder 2026-07-07).
@@ -258,13 +259,22 @@ export default function DissectPage() {
         <div className="space-y-6 min-w-0">
           {/* Paste + Dissect */}
           <section className="rounded-xl border border-default bg-surface/40 p-4">
-            <label className="text-xs font-medium text-secondary uppercase tracking-wide">
-              The conversation
-            </label>
+            <div className="flex items-baseline justify-between">
+              <label className="text-xs font-medium text-secondary uppercase tracking-wide">
+                The conversation
+              </label>
+              {sourceText.length > MAX_SOURCE_CHARS * 0.75 && (
+                <span className="text-[11px] text-muted tabular-nums">
+                  {sourceText.length.toLocaleString()} /{" "}
+                  {MAX_SOURCE_CHARS.toLocaleString()}
+                </span>
+              )}
+            </div>
             <textarea
               value={sourceText}
               onChange={(e) => setSourceText(e.target.value)}
               readOnly={readonly}
+              maxLength={MAX_SOURCE_CHARS}
               placeholder="Paste the conversation here — a chat thread, a transcript, an email exchange, anything with a problem in it."
               className="mt-2 w-full h-40 resize-y rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ember-400/40"
             />

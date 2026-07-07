@@ -9,6 +9,7 @@ import {
   askCoachSystemPrompt,
   userHasSharedThinking,
   buildCoachUserMessage,
+  MAX_SOURCE_CHARS,
 } from "@/lib/dissect/engine";
 
 /**
@@ -26,7 +27,7 @@ import {
  */
 
 const Body = z.object({
-  content: z.string().min(1).max(20000),
+  content: z.string().min(1).max(MAX_SOURCE_CHARS),
   question: z.string().min(2).max(2000),
   /** The user's own thinking on how to solve it, if they've offered it (§3.3). */
   userHypothesis: z.string().max(4000).optional(),

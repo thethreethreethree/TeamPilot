@@ -4,6 +4,7 @@ import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 import { saveDissectTopic, listDissectTopics } from "@/lib/data/dissect";
+import { MAX_SOURCE_CHARS } from "@/lib/dissect/engine";
 
 /**
  * GET  /api/dissect/topics        — list the caller's saved dissections.
@@ -27,7 +28,7 @@ export async function GET() {
 
 const SaveBody = z.object({
   title: z.string().min(1).max(200),
-  content: z.string().min(1).max(20000),
+  content: z.string().min(1).max(MAX_SOURCE_CHARS),
   summary: z.string().max(8000).nullable().optional(),
   // The dissection object, echoed from the client's ephemeral state. Stored as
   // jsonb; shape is validated on read via the engine's parser, so accept loosely.
