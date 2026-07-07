@@ -15,13 +15,19 @@ import { withSentryConfig } from "@sentry/nextjs";
  * rather than re-enabling unrestricted optimization.
  */
 
-const SECURITY_HEADERS = [
-  {
-    key: "X-Frame-Options",
-    // Prevents the app from being embedded in iframes on other origins.
-    // Use SAMEORIGIN (not DENY) so internal embeds can still work if needed.
-    value: "SAMEORIGIN",
-  },
+// X-Frame-Options is split out because the C.A.R.E widget route MUST be
+// embeddable cross-origin (it's an iframe on the customer's site) — applying
+// SAMEORIGIN there would make the browser BLOCK the embed, breaking the core
+// feature. Every OTHER route keeps it for clickjacking protection.
+const X_FRAME_OPTIONS = {
+  key: "X-Frame-Options",
+  // Prevents the app from being embedded in iframes on other origins.
+  // Use SAMEORIGIN (not DENY) so internal embeds can still work if needed.
+  value: "SAMEORIGIN",
+};
+
+// Everything except X-Frame-Options — safe to send on the embeddable widget too.
+const BASE_SECURITY_HEADERS = [
   {
     key: "X-Content-Type-Options",
     // Stops the browser from MIME-sniffing JSON as something executable.
@@ -62,6 +68,9 @@ const SECURITY_HEADERS = [
   // strategy or a controlled allowlist — deferred to a dedicated change.
 ];
 
+// Full set (with X-Frame-Options) for normal app routes.
+const SECURITY_HEADERS = [X_FRAME_OPTIONS, ...BASE_SECURITY_HEADERS];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -76,9 +85,20 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Apply to every route.
-        source: "/:path*",
+        // Every route EXCEPT the embeddable C.A.R.E widget gets the full set
+        // (incl. X-Frame-Options: SAMEORIGIN for clickjacking protection).
+        source: "/((?!widget/care/).*)",
         headers: SECURITY_HEADERS,
+      },
+      {
+        // The C.A.R.E widget is DESIGNED to be iframe-embedded on customers'
+        // (cross-origin) sites via care-widget.js — so it must NOT send
+        // X-Frame-Options, which would make the browser block the embed. It keeps
+        // every other security header; its framing/tenant security is enforced at
+        // the API layer (bootstrap validates the embed token + the embedding
+        // origin against allowed_origins).
+        source: "/widget/care/:path*",
+        headers: BASE_SECURITY_HEADERS,
       },
     ];
   },
