@@ -3,7 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { generateSalesScores } from "@/lib/coach/v5/salesScore";
-import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
+import {
+  getSession,
+  getSessionTranscript,
+  getLatestAfterPitchSummaryAdmin,
+} from "@/lib/data/salesCoach";
 
 /**
  * POST /api/coach/sales-session/[id]/summary-scores
@@ -59,6 +63,21 @@ export async function POST(
       { error: "Scores are private to the rep who ran this call." },
       { status: 403 }
     );
+  }
+
+  // §A21 consistency: if the rep already generated an After Pitch Summary, reuse
+  // ITS scores so the same call never shows two different numbers across
+  // surfaces (the graded categories are LLM, so a fresh run would drift). Safe
+  // to read the owner's own after-pitch payload here — ownership is verified
+  // above. Only generate fresh when there is no prior After Pitch to reuse.
+  const priorPayload = (await getLatestAfterPitchSummaryAdmin(id).catch(
+    () => null
+  )) as { scores?: unknown } | null;
+  const priorScores = Array.isArray(priorPayload?.scores)
+    ? priorPayload.scores
+    : null;
+  if (priorScores && priorScores.length > 0) {
+    return NextResponse.json({ scores: priorScores, hasSignal: true });
   }
 
   const segments = await getSessionTranscript(id);

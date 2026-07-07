@@ -206,6 +206,7 @@ function ScoresSection({ sessionId }: { sessionId: string }) {
       <button
         type="button"
         onClick={() => setShowReview((v) => !v)}
+        aria-expanded={showReview}
         className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:text-ember-400"
       >
         Score assessment review
