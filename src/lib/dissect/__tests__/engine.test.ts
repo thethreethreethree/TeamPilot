@@ -3,6 +3,7 @@ import {
   parseConversationDissect,
   askCoachSystemPrompt,
   userHasSharedThinking,
+  buildCoachUserMessage,
   EMPTY_DISSECT,
 } from "../engine";
 
@@ -125,5 +126,41 @@ describe("userHasSharedThinking (§3.3 loop-fix regression lock)", () => {
     expect(
       userHasSharedThinking({ history: [{ role: "coach", text: "what do you think?" }] })
     ).toBe(false);
+  });
+});
+
+describe("buildCoachUserMessage (coach memory assembly)", () => {
+  it("includes the transcript when there is history (the coach's memory)", () => {
+    const msg = buildCoachUserMessage({
+      history: [
+        { role: "user", text: "how do I fix this?" },
+        { role: "coach", text: "what do you think?" },
+      ],
+      question: "I think it's the creds",
+    });
+    expect(msg).toContain("Conversation so far:");
+    expect(msg).toContain("User: how do I fix this?");
+    expect(msg).toContain("Coach: what do you think?");
+    expect(msg).toContain("User's new message: I think it's the creds");
+  });
+
+  it("omits the transcript block on a fresh thread", () => {
+    const msg = buildCoachUserMessage({ history: [], question: "where do I start?" });
+    expect(msg).not.toContain("Conversation so far:");
+    expect(msg).toContain("User's new message: where do I start?");
+  });
+
+  it("includes the user's stated thinking when present", () => {
+    const msg = buildCoachUserMessage({
+      history: [],
+      hypothesis: "it's probably the migration order",
+      question: "am I right?",
+    });
+    expect(msg).toContain("How the user is thinking about it: it's probably the migration order");
+  });
+
+  it("always ends with the new question", () => {
+    const msg = buildCoachUserMessage({ history: [], question: "final q" });
+    expect(msg.trim().endsWith("User's new message: final q")).toBe(true);
   });
 });

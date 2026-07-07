@@ -101,6 +101,28 @@ export function userHasSharedThinking(args: {
   return hyp.length > 0 || args.history.some((t) => t.role === "user");
 }
 
+/**
+ * Assemble the coach's user message: the thread transcript (its memory of the
+ * conversation so far), the user's stated thinking if any, and the new question.
+ * generateCareReply is single-shot, so this transcript IS the coach's memory —
+ * pure + exported so the §3.3 dialogue's continuity is regression-locked.
+ */
+export function buildCoachUserMessage(args: {
+  history: CoachTurn[];
+  hypothesis?: string | null;
+  question: string;
+}): string {
+  const transcript = args.history
+    .map((t) => `${t.role === "user" ? "User" : "Coach"}: ${t.text}`)
+    .join("\n");
+  const hyp = (args.hypothesis ?? "").trim();
+  const parts: string[] = [];
+  if (transcript) parts.push(`Conversation so far:\n${transcript}`);
+  if (hyp) parts.push(`How the user is thinking about it: ${hyp}`);
+  parts.push(`User's new message: ${args.question}`);
+  return parts.join("\n\n");
+}
+
 /** The Ask Coach system prompt — §3.3 guide-don't-overtake, grounded in the
  *  pasted conversation + the dissection. Consumed by generateCareReply. */
 export function askCoachSystemPrompt(args: {

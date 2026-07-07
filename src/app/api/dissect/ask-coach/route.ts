@@ -5,7 +5,11 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { generateCareReply } from "@/lib/claude";
-import { askCoachSystemPrompt, userHasSharedThinking } from "@/lib/dissect/engine";
+import {
+  askCoachSystemPrompt,
+  userHasSharedThinking,
+  buildCoachUserMessage,
+} from "@/lib/dissect/engine";
 
 /**
  * POST /api/dissect/ask-coach
@@ -82,14 +86,11 @@ export async function POST(req: NextRequest) {
   // Give the coach the conversation so far (generateCareReply is single-shot, so
   // the transcript rides in the message). Prior turns + the user's stated thinking
   // + the current question.
-  const transcript = history
-    .map((t) => `${t.role === "user" ? "User" : "Coach"}: ${t.text}`)
-    .join("\n");
-  const parts: string[] = [];
-  if (transcript) parts.push(`Conversation so far:\n${transcript}`);
-  if (userHypothesis) parts.push(`How the user is thinking about it: ${userHypothesis}`);
-  parts.push(`User's new message: ${body.question}`);
-  const userMessage = parts.join("\n\n");
+  const userMessage = buildCoachUserMessage({
+    history,
+    hypothesis: userHypothesis,
+    question: body.question,
+  });
 
   const companyId = (await getCurrentCompanyId()) ?? undefined;
   let reply: string;
