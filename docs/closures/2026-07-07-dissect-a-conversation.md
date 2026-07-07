@@ -68,5 +68,28 @@ Re-read IN FULL this session, before building (not from cached labels):
   reused verbatim (A21 — flagged as a possible follow-up, not claimed as parity);
   saved dissections are owner-private. Founder can override either.
 
+## Post-ship proactive audit (§1.5.2, same session) — 4 fixes
+Applied the four-layer framework to the just-shipped feature AND adjacent surfaces;
+found and fixed:
+1. **§3.3 [layer 2] Ask Coach looped** — the route was stateless and derived
+   "user shared their thinking" only from the hypothesis box, so it re-asked "what
+   do you think?" forever. Gave it conversation memory (client sends thread
+   history; route builds a transcript + infers the flag from any prior user turn).
+   Extracted `userHasSharedThinking` as a pure helper + 4 regression tests (12 total).
+2. **§3.4/§A16 [layer 2] control-gate suppression** — `generateCareReply` stays
+   gated by the month-1 control unless `controlExempt`; the route didn't set it, so
+   Ask Coach was silently suppressed for month-1 teams while the dissect engine
+   (exempt) ran. Set `controlExempt:true` — Dissect works on external pasted data,
+   orthogonal to the §3.4 baseline. Class-checked all LLM callers (§1.2): the split
+   is consistent (team's-own-work gated; user-initiated tools day-1); no siblings.
+3. **[layer 4] a11y** — labeled the icon-only Ask Coach send button.
+4. **AMD-006 L3 / spec fidelity** — Ask Coach now renders after ANY analyzed paste,
+   not only when a problem is diagnosed (founder decision — the spec's "any questions
+   pertaining to the context" is broader than a diagnosed problem). No-problem state
+   points to the coach instead of a dead end.
+
+Gate after all fixes: tsc 0, lint 0, 401 tests (12 dissect), `next build` 0.
+Still UNTESTED: migration 0097 application, live LLM quality, browser render.
+
 Session-Reads timestamps: CLAUDE.md, ThinkerThinker.md (A1-A22), AMD-006 — all
 re-read in the build session of 2026-07-07 immediately preceding this build.
