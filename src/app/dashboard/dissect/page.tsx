@@ -320,8 +320,22 @@ export default function DissectPage() {
                 </button>
               )}
             </div>
+            {/* WCAG 4.1.3 status message: the dissection result renders async, so a
+                screen-reader user gets no notice it arrived. A short sr-only live
+                region announces the STATE change (not the whole result, which would
+                re-read the entire summary/evidence/angles on every update). The
+                detailed region below stays navigable, unannounced. */}
+            <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+              {hasResult && dissect!.hasSignal
+                ? "Dissection ready. A problem was identified — review the summary, evidence, root cause, and outside-view angles below."
+                : noSignal
+                  ? "Analysis complete. No clear problem was found in the conversation you pasted."
+                  : ""}
+            </div>
             {analyzeErr && (
-              <p className="mt-2 text-[13px] text-amber-300">{analyzeErr}</p>
+              <p role="alert" className="mt-2 text-[13px] text-amber-300">
+                {analyzeErr}
+              </p>
             )}
           </section>
 
@@ -470,7 +484,9 @@ export default function DissectPage() {
                   </div>
                 )}
                 {saveErr && (
-                  <p className="mt-2 text-[13px] text-amber-300">{saveErr}</p>
+                  <p role="alert" className="mt-2 text-[13px] text-amber-300">
+                    {saveErr}
+                  </p>
                 )}
               </div>
             </section>
