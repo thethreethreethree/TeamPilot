@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
-import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
-import { findAuthUserByEmail } from "@/lib/supabase/admin";
+import { getCurrentCompanyId, isAdminRole } from "@/lib/supabase/auth-helpers";
+import { findAuthUserByEmail, createAdminClient } from "@/lib/supabase/admin";
 import { randomBytes } from "crypto";
 
 const ROLES = ["CEO", "COO", "Lead", "Member"] as const;
@@ -179,12 +179,47 @@ export async function DELETE(req: NextRequest) {
         { status: 400 }
       );
     }
-    const { error } = await c.supabase
+    // Removing a teammate is an ADMIN action on ANOTHER user's profile row. The
+    // user-scoped client CANNOT perform it: the profiles UPDATE RLS policy is
+    // self-only (0001: `using (id = auth.uid())`), so the soft-remove matched 0
+    // rows, returned NO error, and the route FALSELY replied ok — the "removed
+    // member stays in the list" bug (founder-reported 2026-07-07). Mirror the care
+    // agent-toggle route (care/agent/settings/agents): (1) verify the caller is a
+    // company admin, (2) write via the service-role admin client scoped to the
+    // caller's OWN company, (3) ASSERT a row was actually affected (§3.4 /
+    // strictUpdate — never claim a write that didn't land).
+    //
+    // The admin gate is now LOAD-BEARING: the admin client bypasses RLS, so without
+    // it any member could remove anyone. The old code was safe only by RLS accident
+    // (it silently no-op'd for everyone), which is exactly why the bug hid.
+    const { data: me } = await c.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", c.userId)
+      .maybeSingle();
+    if (!isAdminRole(me?.role as string | null | undefined)) {
+      return NextResponse.json(
+        { error: "Only a company admin can remove a member." },
+        { status: 403 }
+      );
+    }
+    const admin = createAdminClient();
+    const { data: removed, error } = await admin
       .from("profiles")
       .update({ status: "removed", removed_at: new Date().toISOString() })
-      .eq("id", memberId);
+      .eq("id", memberId)
+      .eq("company_id", c.companyId) // scope to the admin's own company
+      .select("id");
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!removed || removed.length === 0) {
+      // 0 rows = the target isn't in this admin's company (or was already removed).
+      // Report honestly instead of a phantom success.
+      return NextResponse.json(
+        { error: "That member isn't in your company, or was already removed." },
+        { status: 404 }
+      );
+    }
     return NextResponse.json({ ok: true });
   }
 
