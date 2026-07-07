@@ -8,6 +8,23 @@
 
 If you only do a few things, do these, in order:
 
+0. **🔴 CRITICAL SECURITY — vendor CRM was open to every customer admin (FIXED
+   in code `3b150b8`; you must apply migration `0089` + confirm one id).** The
+   `/api/admin/crm/*` routes (the vendor back-office: every company on the
+   platform, their contact PII, subscriptions, MRR, invoices) gated only on
+   per-company admin role — so ANY customer company's CEO/COO/admin could read
+   AND mutate the *entire* vendor CRM (list all customers + emails + MRR, change
+   any account's plan, delete contacts, generate invoices). The DB's own
+   `is_vendor_super_admin()` had the identical gap. I closed both: the routes now
+   require admin AND company === the vendor company, and migration `0089` fixes
+   the DB function. **Your actions:** (a) apply `0089`; (b) confirm the vendor
+   company id `c3e7f389-3df6-48c8-876b-0cd4baf5c2a7` is your prod home company —
+   if prod sets `CARE_DEFAULT_TENANT_ID` to something else, the routes already
+   respect it, but update the hardcoded literal in `0089` to match; (c) if you
+   want, I can add recipient/actor logging so any prior access is auditable.
+   The fix fails CLOSED — if the id is wrong, real vendor admins get a 403
+   (visible, non-destructive), never a silent re-open. (full detail: commit
+   `3b150b8` + the AUDIT doc's 2026-07-07 security sweep)
 1. **Run one live Sales Coach call and send me the Stop readout line.** It now
    reads `… median … · where: settle X · llm Y · tts Z` — the `where:` names which
    stage to attack, so your one call unblocks the whole deferred timing build.
@@ -25,7 +42,7 @@ If you only do a few things, do these, in order:
 
 Everything below is the full detail + the smaller flags.
 
-## 1. Apply four migrations (all additive, idempotent, safe)
+## 1. Apply five migrations (all additive, idempotent, safe)
 
 | Migration | What it does | Risk |
 |---|---|---|
@@ -33,6 +50,7 @@ Everything below is the full detail + the smaller flags.
 | `0086` | `crm_activity_events` append-only at the DB level (§3.1) | none — same, write path verified insert-only |
 | `0087` | `last_message_author_type` on `support_conversations` (powers the inbox-wide chime) | none — nullable column + one-line trigger add + one-time backfill |
 | `0088` | 🟡 security hardening — pins `search_path` on `task_message_emit_event()`, the ONE security-definer fn that lacked it (found this session) | none — metadata-only `alter function`, does NOT touch the body; idempotent |
+| `0089` | 🔴 CRITICAL security — adds the missing company predicate to `is_vendor_super_admin()` so the crm_* RLS layer is vendor-scoped (see triage #0) | none — `create or replace`, strictly TIGHTENS access, fails closed; confirm the vendor company id literal matches prod |
 
 The inbox-wide sound chime only becomes active after `0087`; before it, the
 open-conversation chime still works (no regression). `0088` closes a Supabase-advisor

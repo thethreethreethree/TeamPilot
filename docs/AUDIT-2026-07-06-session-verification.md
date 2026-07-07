@@ -321,10 +321,39 @@ isolation check above, swept four known classes:
   `sanitizeHeader.test.ts` (8 tests incl. the exact payload → single-recipient
   assertion).
 
-Net (11 classes): 5 real hardenings shipped (0088 definer search_path + the `.or()`
+- **Vendor CRM cross-tenant authorization (2026-07-07 extension) — 🔴 CRITICAL,
+  FIXED.** THE most serious finding of the session, and the one the earlier
+  "isolation verified sound" pass MISSED — because it audited RLS policies, and
+  these routes BYPASS RLS. The `/api/admin/crm/*` routes are the vendor's
+  cross-customer back-office (every company on the platform, contact PII,
+  subscriptions, MRR, invoices); every `crm/data.ts` function uses the
+  service-role client (bypasses RLS) and the data is NOT company-scoped
+  (`listAccounts` returns all accounts). The only gate was `ctx.isAdmin` =
+  `role in (CEO/COO/admin)` for the caller's OWN company. So ANY customer
+  company's admin could read + mutate the ENTIRE vendor CRM — enumerate every
+  customer with emails + MRR, change any account's plan/status, delete contacts,
+  generate invoices. The DB's own defense was equally broken: `is_vendor_super_
+  admin()` (0049) gates every crm_* RLS policy and its comment says it requires
+  the ELOSTATE company — but the SQL only checked the role, so user-client access
+  would have leaked too. BOTH layers admitted any customer admin. FIXED
+  (`3b150b8`): `requireVendorAdmin()` (§A13, fail-closed) gates on admin AND
+  company === vendor company (`CARE_DEFAULT_TENANT_ID ?? ELOSTATE`, same home-
+  company source as the C.A.R.E tenant layer), applied to all 6 route files;
+  migration 0089 adds the missing company predicate to `is_vendor_super_admin()`.
+  Pinned by `vendorAuth.test.ts` (5 tests). Severity CRITICAL, honestly bounded
+  (§A20): exploitable once a second company with an admin exists — the product
+  is explicitly multi-tenant, so already-live-or-one-customer-away. FOUNDER MUST
+  APPLY 0089 + confirm the vendor company id. This finding also revises the
+  earlier isolation "clean" result: RLS-policy verification is necessary but NOT
+  sufficient — service-role routes must be separately audited for their own
+  authz, since they bypass the RLS layer entirely (the lesson for future audits).
+
+Net (12 classes): 6 real hardenings shipped (0088 definer search_path + the `.or()`
 injection guard + the SSRF guard + the cue prompt-injection boundary + the outbound
-email recipient-injection fix — the one MEDIUM), 6 verified clean. Not an exhaustive
-pentest — the highest-leverage classes for a multi-tenant first-customer launch.
+email recipient-injection fix + the CRITICAL vendor-CRM authz fix), 6 verified
+clean. Not an exhaustive pentest — the highest-leverage classes for a multi-tenant
+first-customer launch. KEY LESSON: the one CRITICAL lived in a service-role route
+that BYPASSES RLS — exactly the blind spot of an RLS-only isolation audit.
 
 **§A6 / §3.2 — task Understanding Gate is UI-enforced, not structural (LOW, founder's
 call).** THINK-first audit of the Tasks (Operations) surface: the problems gate is
