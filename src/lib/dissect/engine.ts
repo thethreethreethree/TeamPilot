@@ -203,7 +203,14 @@ export function parseConversationDissect(
   // dissection — degrade to EMPTY rather than render an empty shell as a result.
   if (!problem.statement) return EMPTY_DISSECT;
 
-  const haystack = sourceText.toLowerCase();
+  // §1.2/§3.4: an evidence excerpt must be a REAL quote from the pasted text, in
+  // FULL. A prefix match would let the model keep a real opening and fabricate the
+  // tail ("<real 60 chars> because aliens hacked it") — the fabricated suffix would
+  // render as evidence, defeating the whole grounding. Require the entire excerpt
+  // to appear, whitespace-normalized on both sides so a reformatted-but-real quote
+  // (collapsed spaces/newlines) still passes.
+  const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  const haystack = normalize(sourceText);
   const evidence: DissectEvidence[] = (
     Array.isArray(o.evidence) ? o.evidence : []
   )
@@ -211,13 +218,11 @@ export function parseConversationDissect(
       const e = (x ?? {}) as Record<string, unknown>;
       return { observation: str(e.observation), excerpt: str(e.excerpt) };
     })
-    // §1.2/§3.4: drop any excerpt that is not actually in the pasted text — a
-    // fabricated quote must never render as evidence.
     .filter(
       (e) =>
         e.observation &&
         e.excerpt &&
-        haystack.includes(e.excerpt.toLowerCase().slice(0, 60))
+        haystack.includes(normalize(e.excerpt))
     )
     .slice(0, 5);
 

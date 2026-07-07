@@ -50,6 +50,38 @@ describe("parseConversationDissect", () => {
     expect(out.evidence[0]?.observation).toBe("real");
   });
 
+  it("drops an excerpt with a real prefix but a FABRICATED tail (§3.4 full-match)", () => {
+    const out = parseConversationDissect(
+      JSON.stringify({
+        problem: { statement: "The deploy fails.", whyItMatters: "W" },
+        evidence: [
+          {
+            observation: "prefix real, tail fabricated",
+            excerpt:
+              "The deploy keeps failing at the migration step because aliens hacked the server",
+          },
+        ],
+      }),
+      SOURCE
+    );
+    // The opening is a real quote but "because aliens hacked the server" is not in
+    // the source — a prefix match would have let it through; full-match drops it.
+    expect(out.evidence).toHaveLength(0);
+  });
+
+  it("keeps a real excerpt that differs only in whitespace", () => {
+    const out = parseConversationDissect(
+      JSON.stringify({
+        problem: { statement: "The deploy fails.", whyItMatters: "W" },
+        evidence: [
+          { observation: "reformatted", excerpt: "The deploy   keeps\n failing" },
+        ],
+      }),
+      SOURCE
+    );
+    expect(out.evidence).toHaveLength(1);
+  });
+
   it("caps evidence at 5 and angles at 4", () => {
     const many = (n: number, f: (i: number) => unknown) =>
       Array.from({ length: n }, (_, i) => f(i));
