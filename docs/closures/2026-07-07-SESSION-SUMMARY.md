@@ -61,6 +61,18 @@ so a "db push" won't auto-run it. Apply it in the SQL editor only if you want
 fail-closed, then re-run the runbook §3. Block-list is fine for Supabase; this is
 defense-in-depth. (Self-audit rationale: dissect closure doc.)
 
+**Late-session hardening (already shipped, no action needed):** a concurrency-class
+sweep fixed a real stale-response-after-reset bug in Dissect and tightened the C.A.R.E
+console's parse-window residual; a WCAG 4.1.3 pass added screen-reader announcement of
+Dissect's async result + errors. Full table + reasoning in the dissect closure doc.
+
+**One a11y proposal needs YOU (not shipped — needs a screen reader to verify):** the
+C.A.R.E console message stream (`ConversationsApp.tsx:1678`) doesn't announce new
+customer messages to screen-reader agents (audio chime only). Exact patch +
+`aria-relevant="additions"` caveat + test steps are in the dissect closure doc's
+accessibility section. I flagged rather than blind-applied it because correct SR
+behavior isn't verifiable headless.
+
 ## Open decisions still on record (from earlier, not blocking)
 - Learning Mode F1: dormant hints on public/pre-auth surfaces.
 - **Vercel crons** (§3.5 durability sweep + dissect backfill): code + `vercel.json`
