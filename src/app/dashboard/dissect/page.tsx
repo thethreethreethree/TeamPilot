@@ -59,6 +59,9 @@ export default function DissectPage() {
   // in-flight async response that lands AFTER the user moved on is dropped instead
   // of repopulating a reset/closed workspace (a real concurrency bug).
   const requestSeq = useRef(0);
+  // Focus target for Close: the Close button unmounts when the workspace clears, so
+  // focus would fall to <body> and a keyboard user would lose their place (WCAG 2.4.3).
+  const sourceRef = useRef<HTMLTextAreaElement | null>(null);
 
   const loadSavedList = useCallback(async () => {
     try {
@@ -210,6 +213,9 @@ export default function DissectPage() {
     setSaveErr(null);
     setAnalyzeErr(null);
     setReadonly(false);
+    // Move focus to the (now-empty) textarea — the logical next action — so a
+    // keyboard user isn't dropped to <body> when the Close button unmounts.
+    sourceRef.current?.focus();
   }
 
   async function loadSaved(id: string) {
@@ -286,6 +292,7 @@ export default function DissectPage() {
               )}
             </div>
             <textarea
+              ref={sourceRef}
               value={sourceText}
               onChange={(e) => setSourceText(e.target.value)}
               readOnly={readonly}
