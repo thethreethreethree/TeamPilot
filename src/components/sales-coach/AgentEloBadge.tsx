@@ -173,33 +173,18 @@ function EloExplanation({ self }: { self: boolean }) {
   return (
     <div className="mt-2 border-t border-ember-400/20 pt-2 space-y-1.5 text-[11px] leading-relaxed">
       <p className="text-primary font-semibold">How this is calculated</p>
+      {/* Rendered as template-literal strings so JSX never strips the space at an
+          {expr}↔text boundary (the "yourdissected" typo the founder caught). */}
       <p className="text-secondary">
-        System scoring analysis, based on {your} dissected agent sessions. It&apos;s
-        an ELO rating — like chess — but {you} play against our measurement standard
-        (a competent call = <span className="text-primary">1500</span>), never
-        against other reps.
+        {`System scoring analysis, based on ${your} dissected agent sessions. It's an ELO rating — like chess — but ${you} play against our measurement standard (a competent call = 1500), never against other reps.`}
       </p>
-      <ul className="space-y-1 text-muted">
+      <ul className="space-y-1 text-muted list-disc pl-4">
         <li>
-          <span className="text-secondary">Each dissected call is one “game.”</span>{" "}
-          {You} score 0–100%: half from the call&apos;s quality (Dissect strengths
-          vs growth + After-Pitch scores where available), half from the outcome
-          (sold / follow-up / no-sale) when it was logged — otherwise on quality
-          alone.
+          {`Each dissected call is one “game.” ${You} score 0–100%: half from the call's quality (Dissect strengths vs growth + After-Pitch scores where available), half from the outcome (sold / follow-up / no-sale) when it was logged — otherwise on quality alone.`}
         </li>
-        <li>
-          <span className="text-secondary">Beat the standard and the rating
-          climbs; fall short and it dips</span> — up to about 24 points a call.
-        </li>
-        <li>
-          <span className="text-secondary">The scale</span> starts at 1500, floors
-          at 100, and tops out at{" "}
-          <span className="text-primary">3000</span> (chess&apos;s max).
-        </li>
-        <li>
-          <span className="text-secondary">Under 5 scored calls</span> it&apos;s
-          marked <em>provisional</em> — still settling, don&apos;t over-read it yet.
-        </li>
+        <li>{`Beat the standard and the rating climbs; fall short and it dips — up to about 24 points a call.`}</li>
+        <li>{`The scale starts at 1500, floors at 100, and tops out at 3000 (chess's max).`}</li>
+        <li>{`Under 5 scored calls it's marked provisional — still settling, don't over-read it yet.`}</li>
       </ul>
     </div>
   );
