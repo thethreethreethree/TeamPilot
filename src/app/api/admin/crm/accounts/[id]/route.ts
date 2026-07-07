@@ -11,7 +11,7 @@ import {
   listSubscriptions,
   updateAccount,
 } from "@/lib/crm/data";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { requireVendorAdmin } from "@/lib/crm/vendorAuth";
 import { rateLimit } from "@/lib/api/rateLimit";
 import type { CrmLifecycleStage } from "@/lib/crm/types";
 
@@ -68,26 +68,11 @@ async function gate(): Promise<
   | { ok: true; userId: string }
   | { ok: false; res: NextResponse }
 > {
-  const ctx = await getCurrentAuthContext();
-  if (!ctx) {
-    return {
-      ok: false,
-      res: NextResponse.json(
-        { error: "Not authenticated." },
-        { status: 401 }
-      ),
-    };
-  }
-  if (!ctx.isAdmin) {
-    return {
-      ok: false,
-      res: NextResponse.json(
-        { error: "CRM is vendor admin only." },
-        { status: 403 }
-      ),
-    };
-  }
-  return { ok: true, userId: ctx.userId };
+  // Vendor-admin only: admin AND company === vendor company (audit 2026-07-07,
+  // CRITICAL). The prior check was ctx.isAdmin alone — any customer admin passed.
+  const ctxOrRes = await requireVendorAdmin();
+  if (ctxOrRes instanceof NextResponse) return { ok: false, res: ctxOrRes };
+  return { ok: true, userId: ctxOrRes.userId };
 }
 
 export async function GET(

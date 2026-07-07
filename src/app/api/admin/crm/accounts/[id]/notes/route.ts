@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import { addNote, listNotes } from "@/lib/crm/data";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { requireVendorAdmin } from "@/lib/crm/vendorAuth";
 
 const NewNoteSchema = z
   .object({
@@ -15,17 +15,9 @@ export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const ctx = await getCurrentAuthContext();
-  if (!ctx)
-    return NextResponse.json(
-      { error: "Not authenticated." },
-      { status: 401 }
-    );
-  if (!ctx.isAdmin)
-    return NextResponse.json(
-      { error: "CRM is vendor admin only." },
-      { status: 403 }
-    );
+  // Vendor-admin only (audit 2026-07-07, CRITICAL) — admin AND vendor company.
+  const gate = await requireVendorAdmin();
+  if (gate instanceof NextResponse) return gate;
   const { id } = await context.params;
   const notes = await listNotes(id);
   return NextResponse.json({ notes });
@@ -35,17 +27,9 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const ctx = await getCurrentAuthContext();
-  if (!ctx)
-    return NextResponse.json(
-      { error: "Not authenticated." },
-      { status: 401 }
-    );
-  if (!ctx.isAdmin)
-    return NextResponse.json(
-      { error: "CRM is vendor admin only." },
-      { status: 403 }
-    );
+  // Vendor-admin only (audit 2026-07-07, CRITICAL) — admin AND vendor company.
+  const ctx = await requireVendorAdmin();
+  if (ctx instanceof NextResponse) return ctx;
   const body = await readBody(req, NewNoteSchema);
   if (body instanceof NextResponse) return body;
   const { id } = await context.params;

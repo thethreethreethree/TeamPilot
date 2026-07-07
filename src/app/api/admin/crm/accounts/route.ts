@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listAccounts } from "@/lib/crm/data";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { requireVendorAdmin } from "@/lib/crm/vendorAuth";
 import { rateLimit } from "@/lib/api/rateLimit";
 import type { CrmLifecycleStage } from "@/lib/crm/types";
 
@@ -39,22 +39,11 @@ export async function GET(req: NextRequest) {
   });
   if (limited) return limited;
 
-  const ctx = await getCurrentAuthContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { error: "Not authenticated." },
-      { status: 401 }
-    );
-  }
-  if (!ctx.isAdmin) {
-    return NextResponse.json(
-      {
-        error:
-          "CRM is vendor-side back-office only (CEO / COO / admin).",
-      },
-      { status: 403 }
-    );
-  }
+  // Vendor-admin only: admin AND company === vendor company (audit 2026-07-07,
+  // CRITICAL). The prior check was ctx.isAdmin alone — any customer admin passed
+  // and this endpoint returns EVERY company on the platform via service-role.
+  const gate = await requireVendorAdmin();
+  if (gate instanceof NextResponse) return gate;
 
   const params = req.nextUrl.searchParams;
   const stageParam = params.get("stage") as CrmLifecycleStage | null;

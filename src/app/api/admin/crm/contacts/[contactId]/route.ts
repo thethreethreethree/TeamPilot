@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteContact } from "@/lib/crm/data";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { requireVendorAdmin } from "@/lib/crm/vendorAuth";
 
 export async function DELETE(
   _req: NextRequest,
   context: { params: Promise<{ contactId: string }> }
 ) {
-  const ctx = await getCurrentAuthContext();
-  if (!ctx)
-    return NextResponse.json(
-      { error: "Not authenticated." },
-      { status: 401 }
-    );
-  if (!ctx.isAdmin)
-    return NextResponse.json(
-      { error: "CRM is vendor admin only." },
-      { status: 403 }
-    );
+  // Vendor-admin only (audit 2026-07-07, CRITICAL) — admin AND vendor company.
+  const gate = await requireVendorAdmin();
+  if (gate instanceof NextResponse) return gate;
   const { contactId } = await context.params;
   const ok = await deleteContact(contactId);
   if (!ok) {

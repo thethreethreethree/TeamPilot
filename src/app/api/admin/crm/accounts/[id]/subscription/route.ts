@@ -6,7 +6,7 @@ import {
   generateInvoiceStub,
   updateSubscription,
 } from "@/lib/crm/data";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { requireVendorAdmin } from "@/lib/crm/vendorAuth";
 
 /**
  * PATCH /api/admin/crm/accounts/[id]/subscription
@@ -65,17 +65,9 @@ export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const ctx = await getCurrentAuthContext();
-  if (!ctx)
-    return NextResponse.json(
-      { error: "Not authenticated." },
-      { status: 401 }
-    );
-  if (!ctx.isAdmin)
-    return NextResponse.json(
-      { error: "CRM is vendor admin only." },
-      { status: 403 }
-    );
+  // Vendor-admin only (audit 2026-07-07, CRITICAL) — admin AND vendor company.
+  const gate = await requireVendorAdmin();
+  if (gate instanceof NextResponse) return gate;
   const { id } = await context.params;
   const subscription = await fetchActiveSubscription(id);
   return NextResponse.json({ subscription });
@@ -85,17 +77,9 @@ export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const ctx = await getCurrentAuthContext();
-  if (!ctx)
-    return NextResponse.json(
-      { error: "Not authenticated." },
-      { status: 401 }
-    );
-  if (!ctx.isAdmin)
-    return NextResponse.json(
-      { error: "CRM is vendor admin only." },
-      { status: 403 }
-    );
+  // Vendor-admin only (audit 2026-07-07, CRITICAL) — admin AND vendor company.
+  const gate = await requireVendorAdmin();
+  if (gate instanceof NextResponse) return gate;
   const body = await readBody(req, PatchSchema);
   if (body instanceof NextResponse) return body;
   const { id } = await context.params;
@@ -141,17 +125,9 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const ctx = await getCurrentAuthContext();
-  if (!ctx)
-    return NextResponse.json(
-      { error: "Not authenticated." },
-      { status: 401 }
-    );
-  if (!ctx.isAdmin)
-    return NextResponse.json(
-      { error: "CRM is vendor admin only." },
-      { status: 403 }
-    );
+  // Vendor-admin only (audit 2026-07-07, CRITICAL) — admin AND vendor company.
+  const gate = await requireVendorAdmin();
+  if (gate instanceof NextResponse) return gate;
   const body = await readBody(req, InvoiceSchema);
   if (body instanceof NextResponse) return body;
   const { id } = await context.params;

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import { addContact, listContacts } from "@/lib/crm/data";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { requireVendorAdmin } from "@/lib/crm/vendorAuth";
 
 const NewContactSchema = z
   .object({
@@ -15,21 +15,12 @@ const NewContactSchema = z
   })
   .strict();
 
-async function gate() {
-  const ctx = await getCurrentAuthContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { error: "Not authenticated." },
-      { status: 401 }
-    );
-  }
-  if (!ctx.isAdmin) {
-    return NextResponse.json(
-      { error: "CRM is vendor admin only." },
-      { status: 403 }
-    );
-  }
-  return null;
+// Vendor-admin only: admin AND company === vendor company (audit 2026-07-07,
+// CRITICAL). Prior check was ctx.isAdmin alone — any customer admin passed.
+// Returns a NextResponse to short-circuit, or null to proceed.
+async function gate(): Promise<NextResponse | null> {
+  const ctxOrRes = await requireVendorAdmin();
+  return ctxOrRes instanceof NextResponse ? ctxOrRes : null;
 }
 
 export async function GET(
