@@ -15,6 +15,7 @@ import {
   Check,
   History,
 } from "lucide-react";
+import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
  * Dissect a Conversation (founder 2026-07-07).
@@ -224,6 +225,15 @@ export default function DissectPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 space-y-6">
       {/* Header */}
+      <LearningHint
+        as="block"
+        category="Dissect · §1"
+        title="Dissect a Conversation"
+        whatItIs="Paste any conversation and the System summarizes it, then diagnoses the problem inside it — the §1 Living Diagnosis loop pointed at a pasted conversation instead of the team's own event chain. Ask Coach then works the problem out with you."
+        why="Not every problem lives in your event stream. A customer thread, a stuck decision, a transcript — bring it here and run the same discipline: identify the problem from what actually occurred (§1.2), see it from the outside (§1.3), earn the root cause before solving (§0)."
+        how="Paste the conversation and hit Dissect. Read the problem + the evidence quoted from the text. Open Ask Coach — it asks how YOU would solve it before offering its take with the why (§3.3). It's per-chat: nothing saves unless you Save the topic; Close clears an unsaved one."
+        principle="Understanding precedes solving — even for a conversation that isn't yours. The dissect earns the problem; the coach guides you to the solution rather than handing it down."
+      >
       <div className="flex items-start gap-3">
         <div className="rounded-xl border border-ember-400/30 bg-ember-400/[0.06] p-2.5">
           <Stethoscope className="w-5 h-5 text-ember-300" aria-hidden />
@@ -242,6 +252,7 @@ export default function DissectPage() {
           </div>
         )}
       </div>
+      </LearningHint>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-6">
         <div className="space-y-6 min-w-0">
@@ -314,6 +325,15 @@ export default function DissectPage() {
                 </div>
               )}
 
+              <LearningHint
+                as="block"
+                category="Dissect · §3.2"
+                title="The problem"
+                whatItIs="The core problem the System diagnosed from the pasted conversation, with why it matters. It's earned from evidence quoted out of the text (below), not asserted — the §3.2 Understanding Gate applied to a paste: no problem without supporting signal."
+                why="A problem named before it's understood is the most expensive kind of work. Stating it explicitly, grounded in the actual words of the conversation, is what makes the solving that follows honest instead of a guess."
+                how="Read it against the evidence beneath it. If it doesn't match what you saw, that's signal — add more of the conversation and dissect again, or take it to Ask Coach and push back. You render the final verdict, not the System (§3.3)."
+                principle="Understanding precedes solving. The problem statement is the understanding, made explicit and challengeable."
+              >
               <div className="rounded-xl border border-ember-400/30 bg-ember-400/[0.05] p-4">
                 <h2 className="text-xs font-medium text-ember-300 uppercase tracking-wide">
                   The problem
@@ -327,6 +347,7 @@ export default function DissectPage() {
                   </p>
                 )}
               </div>
+              </LearningHint>
 
               {dissect!.evidence.length > 0 && (
                 <div className="rounded-xl border border-default bg-surface/40 p-4">
@@ -430,6 +451,15 @@ export default function DissectPage() {
               context of the conversation"). Grounded in the paste regardless. */}
           {dissect && (
             <section className="space-y-4">
+              <LearningHint
+                as="block"
+                category="Dissect · §3.3"
+                title="Ask Coach"
+                whatItIs="A coach that helps you solve the problem — or answer any question about the pasted conversation. It's grounded in the exact text you pasted and won't invent anything that isn't there (§3.4)."
+                why="Guide, don't overtake (§3.3, non-negotiable): the coach asks how YOU would solve it before offering its own take. Making you a participant in the diagnosis transfers capability instead of creating dependence — and makes an accurate-but-unwelcome insight survivable."
+                how="Optionally share how you'd approach it first — the coach builds on your thinking rather than talking past it. Then ask anything. It answers with the how and, more importantly, the WHY, pointing to specific moments in the conversation."
+                principle="The reasoning is the transferable asset, not the answer. A coach that hands down solutions creates dependence; one that guides you to your own builds capability."
+              >
               <div className="rounded-xl border border-default bg-surface/40 p-4">
                 <h2 className="text-sm font-semibold text-primary flex items-center gap-1.5">
                   <MessageCircleQuestion className="w-4 h-4 text-ember-300" aria-hidden />
@@ -524,6 +554,7 @@ export default function DissectPage() {
                   </button>
                 </form>
               </div>
+              </LearningHint>
             </section>
           )}
         </div>
