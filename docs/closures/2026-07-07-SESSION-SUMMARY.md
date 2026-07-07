@@ -44,6 +44,15 @@ Full steps + exact SQL: **`2026-07-07-apply-and-verify-runbook.md`**.
 Reply "all green," or paste any failure string. If you want the next build, name it.
 To end the autonomous session, set `.claude/autonomous-build.flag` first line to STOP.
 
+## Optional, your call (not a fix — a security-posture choice)
+The 0090/0091 profiles guard uses a **block-list** exemption (never breaks onboarding;
+fails open only in the near-impossible case Supabase renames the `authenticated` role).
+A **fail-closed** variant is ready as a MANUAL-apply snippet —
+`docs/OPTIONAL-fail-closed-profile-guard.sql` — deliberately NOT in `supabase/migrations/`
+so a "db push" won't auto-run it. Apply it in the SQL editor only if you want
+fail-closed, then re-run the runbook §3. Block-list is fine for Supabase; this is
+defense-in-depth. (Self-audit rationale: dissect closure doc.)
+
 ## Open decisions still on record (from earlier, not blocking)
 - Learning Mode F1: dormant hints on public/pre-auth surfaces.
 - Vercel cron for the §3.5 durability sweep (code ready, awaits operator config).
