@@ -98,7 +98,7 @@ export function AgentEloBadge({
       <div className="inline-flex items-center gap-1.5 rounded-lg border border-default px-2.5 py-1.5">
         <Gauge className="w-3.5 h-3.5 text-muted" aria-hidden />
         <span className="text-[11px] text-muted">
-          {self ? "Your effectivity rating" : "Effectivity rating"} — needs a
+          {self ? "Your Sales ELO rating" : "Sales ELO rating"} — needs a
           dissected call to start
         </span>
       </div>
@@ -150,7 +150,7 @@ export function AgentEloBadge({
         </div>
         <p className="text-[11px] text-secondary mt-1 leading-snug">
           {self ? "Your " : ""}
-          <span className="text-primary">Sales Effectivity Rating</span>
+          <span className="text-primary">Sales ELO Rating</span>
           <span className="text-muted">
             {" · "}
             {e.gamesPlayed} scored call{e.gamesPlayed === 1 ? "" : "s"}

@@ -15,11 +15,14 @@ import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
 
 /**
- * Sales Coach → Coach Assessment (admin). Per-agent coaching signal pulled
- * from each agent's own Dissect evaluations: what they're doing well and
- * where to grow. §A18/§A10 — FOR COACHING, not a scoreboard: no scores, no
- * ranking, no cross-agent comparison; each agent measured against their own
- * conversations; alphabetical order. §3.4 — real text from the dissects.
+ * Sales Coach → Coach Assessment (admin/manager). Per-agent coaching signal
+ * pulled from each agent's own Dissect evaluations (what they're doing well and
+ * where to grow) PLUS the Sales ELO Rating — a gamified score of each rep against
+ * our measurement standard (1500), NOT a peer leaderboard (founder 2026-07-07).
+ * §A18/§A10 visibility: admins + managers see the team's ratings here; each rep
+ * sees their OWN on Analytics (no shadow read). The coaching NOTES stay
+ * comparison-free — measured against the rep's own growth. Order is alphabetical,
+ * never by rating (§A11 — not a rank). §3.4 — real text from the dissects.
  */
 
 type AgentAssessment = {
@@ -149,19 +152,26 @@ export default function CoachAssessmentPage() {
             <LearningHint
               as="block"
               category="Sales Coach · Assessment"
-              title="For coaching, not ranking"
-              whatItIs="The governing rule of this whole page: each person's coaching signal is drawn only from their own conversations, and everyone is measured against their own growth — never against each other."
-              why="A leaderboard makes reps optimize for looking good instead of getting better, and it punishes the people who need coaching most. Measuring each person against themselves is what keeps this a growth tool, not a scoreboard."
-              how="Read each agent's card on its own terms — 'is this person growing?' — not by comparing one agent's card to another's."
-              principle="The moment you rank people, they start managing the rank instead of the work."
+              title="Coaching notes + your ELO rating"
+              whatItIs="Two things live here: the coaching NOTES (Doing well / Coaching focus, drawn from each person's own Dissects) and the Sales ELO Rating (a gamified score of each rep against our measurement standard, not against peers)."
+              why="The coaching notes are never a leaderboard — a leaderboard makes reps optimize for looking good instead of getting better. The ELO is deliberately different: a game you play against a fixed standard (1500), so climbing means beating the standard, not out-scoring a teammate. Admins and managers see the team's; each rep sees their own on Analytics."
+              how="Read each agent's coaching notes on their own terms. Read the ELO as their trajectory against the standard over time — a rising number is real progress, not a rank."
+              principle="Measure people against a standard and their own growth, never against each other — that's what keeps a score motivating instead of political."
             >
               <div className="flex items-start gap-2 rounded-lg border border-ember-400/30 bg-ember-400/5 p-3">
                 <ClipboardCheck className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
                 <p className="text-xs text-secondary leading-relaxed">
-                  Each person&apos;s coaching signal from their own conversations —
-                  auto-built from their Dissects when sessions end.{" "}
-                  <span className="text-primary">For coaching, not ranking</span>:
-                  everyone is measured against their own growth, never each other.
+                  Each person&apos;s coaching signal is drawn from their own
+                  conversations — auto-built from their Dissects when sessions
+                  end.{" "}
+                  <span className="text-primary">The notes are for coaching, not
+                  ranking</span>
+                  : everyone is measured against their own growth, never each
+                  other. The{" "}
+                  <span className="text-primary">Sales ELO Rating</span> is a
+                  gamified score of each rep against our measurement standard
+                  (1500) — never against peers. Admins and managers see the
+                  team&apos;s; each rep sees their own.
                 </p>
               </div>
             </LearningHint>

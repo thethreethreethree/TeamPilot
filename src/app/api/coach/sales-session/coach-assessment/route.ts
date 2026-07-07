@@ -9,11 +9,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * agent's own Dissect evaluations — what they're doing well and where to
  * grow, FOR COACHING.
  *
- * §A18 / §A10 (load-bearing): this is per-agent but it is NOT a scoreboard.
- * No scores, no ranking, no cross-agent comparison. Each agent's growth is
- * relative to THEIR OWN conversations; agents are listed alphabetically so
- * order implies nothing. The strengths/growth are the REAL text from their
- * dissects (§3.4 — not invented "themes").
+ * §A18 / §A10 (load-bearing): the COACHING NOTES this route returns are NOT a
+ * scoreboard — no ranking, no cross-agent comparison; each agent's growth is
+ * relative to THEIR OWN conversations; agents are listed alphabetically so order
+ * implies nothing. The strengths/growth are the REAL text from their dissects
+ * (§3.4 — not invented "themes"). (The gamified Sales ELO Rating shown alongside
+ * on the page is a separate feature — each rep vs a fixed standard, not peers —
+ * fetched from /elo, not this route; see coach-assessment page 2026-07-07.)
  *
  * 403s non-managers — the endpoint IS the gate the page reads.
  */
