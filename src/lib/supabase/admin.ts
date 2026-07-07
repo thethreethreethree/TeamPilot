@@ -41,20 +41,34 @@ export async function findAuthUserByEmail(email: string): Promise<{
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
-  const res = await fetch(
-    `${url}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
-    {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-      },
-    }
-  );
-  if (!res.ok) return null;
-  const data = (await res.json()) as {
-    users?: Array<{ id: string; email?: string | null }>;
-  };
-  const u = data.users?.[0];
-  if (!u || !u.email) return null;
-  return { id: u.id, email: u.email };
+  const target = email.toLowerCase().trim();
+
+  // WHY THIS IS NOT `?email=` + users[0]:
+  // GoTrue's admin list-users endpoint does NOT reliably filter by the `?email=`
+  // query param on this instance — it returns the first page of ALL users in
+  // default order and ignores the param. The previous implementation took
+  // `data.users[0]` WITHOUT verifying its email, so for EVERY lookup it returned
+  // the same first-in-list user — producing the "wrong person is already a member
+  // of this company" defect (a new invitee's email resolved to whoever sorts
+  // first in auth.users). We must page through and match the `email` field
+  // EXACTLY. Lesson on the record: feedback_admin_users_email_filter (2026-06-28)
+  // — "verify the target by the actual email field; assert exactly one match
+  // before acting." A false MATCH here is worse than a miss: it blocks a
+  // legitimate invite and names an unrelated person (§3.4 — never assert a fact
+  // that isn't true).
+  const admin = createAdminClient();
+  const PER_PAGE = 200;
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: PER_PAGE,
+    });
+    if (error || !data) return null;
+    const match = data.users.find(
+      (u) => (u.email ?? "").toLowerCase().trim() === target
+    );
+    if (match?.email) return { id: match.id, email: match.email };
+    if (data.users.length < PER_PAGE) break; // last page reached, no match
+  }
+  return null;
 }
