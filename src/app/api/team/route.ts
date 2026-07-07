@@ -87,6 +87,14 @@ export async function POST(req: NextRequest) {
     .eq("email", normalizedEmail)
     .is("accepted_at", null)
     .is("revoked_at", null)
+    .order("invited_at", { ascending: false })
+    // .limit(1) BEFORE .maybeSingle(): there is no unique constraint on
+    // (company_id, email) for pending invites, so 2+ can exist. Without the
+    // limit, .maybeSingle() ERRORS on multiple rows → data is null → this
+    // duplicate-prevention guard silently SKIPS, letting yet another duplicate be
+    // created (the guard defeated by the very duplicates it exists to prevent).
+    // A DB partial-unique index is the structural fix — see the remediation plan.
+    .limit(1)
     .maybeSingle();
   if (existingInvite && new Date(existingInvite.expires_at) > new Date()) {
     return NextResponse.json(
