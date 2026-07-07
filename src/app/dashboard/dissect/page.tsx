@@ -61,6 +61,7 @@ export default function DissectPage() {
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedItem[]>([]);
   const [readonly, setReadonly] = useState(false); // viewing a loaded saved topic
 
@@ -162,6 +163,7 @@ export default function DissectPage() {
     if (saving || !dissect) return;
     const t = title.trim() || dissect.problem.statement.slice(0, 80) || "Untitled dissection";
     setSaving(true);
+    setSaveErr(null);
     try {
       const res = await fetch("/api/dissect/topics", {
         method: "POST",
@@ -173,12 +175,17 @@ export default function DissectPage() {
           dissect,
         }),
       });
-      if (!res.ok) return; // stays unsaved; button remains actionable (§3.4)
+      if (!res.ok) {
+        // §3.4: a failed save must be VISIBLE, not silent — otherwise the user
+        // can't tell "save failed" from "haven't saved yet" and loses the work.
+        setSaveErr("Couldn't save the topic. Please try again.");
+        return;
+      }
       const d = await res.json();
       setSavedId(d.id as string);
       void loadSavedList();
     } catch {
-      /* stays unsaved */
+      setSaveErr("Couldn't save the topic. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -196,6 +203,7 @@ export default function DissectPage() {
     setQuestion("");
     setTitle("");
     setSavedId(null);
+    setSaveErr(null);
     setAnalyzeErr(null);
     setReadonly(false);
   }
@@ -451,6 +459,9 @@ export default function DissectPage() {
                       Save the topic
                     </button>
                   </div>
+                )}
+                {saveErr && (
+                  <p className="mt-2 text-[13px] text-amber-300">{saveErr}</p>
                 )}
               </div>
             </section>
