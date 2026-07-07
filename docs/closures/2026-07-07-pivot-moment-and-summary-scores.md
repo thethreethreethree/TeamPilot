@@ -113,3 +113,21 @@ All read from the working tree this session (2026-07-07), not cached labels:
   After-Pitch "breakdown" (negative-only, part of the timeline) are related but
   distinct by design. If they ever read as the same feature to users, consider
   unifying (§A21); for now they are deliberately different per your spec.
+
+## Post-build hardening (same session, §1.5.2 proactive + §1.3 outside-view)
+
+Three genuine issues found + fixed in my OWN new code after the initial commit:
+
+1. `f7f9d7e` — the module score-cache stored ERROR results, so one transient
+   fetch failure hid the owner's scores until a full reload. Now evicts on error
+   (retriable); ok/forbidden still cache.
+2. `d6338bd` — §A21 consistency: the scores endpoint generated fresh scores, but
+   the After-Pitch page also generates them → the same call could show two
+   different graded numbers. Now reuses the persisted After-Pitch scores when
+   they exist (ownership already verified), generating fresh only otherwise.
+   Also added `aria-expanded` to the review toggle.
+3. `ccaf861` — a manager briefly saw "Loading your scores…" before the 403
+   resolved to nothing; changed to a neutral "Loading…" (§A18 hygiene). Scores
+   were never manager-reachable; this was the transient label only.
+
+Gate + build stayed green across all three.
