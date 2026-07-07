@@ -51,16 +51,21 @@ export async function generateSalesIntel(args: {
   }
 }
 
-/** Keep only competitor names that actually appear (case-insensitive) in the
- *  transcript. Exported for test. */
+/** Keep only competitor names that actually appear in the transcript as a bounded
+ *  token (case-insensitive) — a raw substring would false-positive a short name
+ *  inside an unrelated word (e.g. "Cox" in "coxswain"). Exported for test. */
 export function groundCompetitors(
   intel: SalesIntel,
   segments: TranscriptSegment[]
 ): SalesIntel {
   const haystack = segments.map((s) => s.text.toLowerCase()).join(" \n ");
-  const competitors = intel.competitors.filter((c) =>
-    haystack.includes(c.toLowerCase())
-  );
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const competitors = intel.competitors.filter((c) => {
+    const name = c.trim().toLowerCase();
+    if (!name) return false;
+    // Bounded by a non-word char or a string edge on each side.
+    return new RegExp(`(^|\\W)${escape(name)}(\\W|$)`).test(haystack);
+  });
   return { competitors, topics: intel.topics };
 }
 

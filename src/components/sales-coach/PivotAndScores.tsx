@@ -56,14 +56,6 @@ type ScoresResult =
 // its own LLM scoring call. Keyed by sessionId; holds the in-flight promise.
 const scoresCache = new Map<string, Promise<ScoresResult>>();
 
-/** Drop a session's cached scores so the next mount re-derives them. Call after
- *  Re-summarize (audit 2026-07-07): the cache otherwise freezes a settled `ok`
- *  result for the SPA session, so private scores would silently desync from a
- *  freshly-regenerated timeline. §A14 — data path complete ≠ render path fresh. */
-export function evictScoresCache(sessionId: string): void {
-  scoresCache.delete(sessionId);
-}
-
 function fetchScores(sessionId: string): Promise<ScoresResult> {
   const cached = scoresCache.get(sessionId);
   if (cached) return cached;

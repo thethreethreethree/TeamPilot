@@ -85,4 +85,17 @@ describe("groundCompetitors — §3.4 anti-fabrication (audit 2026-07-07)", () =
     );
     expect(r.topics).toEqual(["reliability", "pricing"]);
   });
+
+  it("word-boundary: a name that only appears INSIDE another word is dropped", () => {
+    // "Cox" must not match "coxswain"; "Sky" must not match "whiskey".
+    const t = [seg("The coxswain steered while I drank whiskey.")];
+    const r = groundCompetitors({ competitors: ["Cox", "Sky"], topics: [] }, t);
+    expect(r.competitors).toEqual([]);
+  });
+
+  it("matches a name bounded by punctuation (e.g. AT&T.)", () => {
+    const t = [seg("So I switched to AT&T.")];
+    const r = groundCompetitors({ competitors: ["AT&T"], topics: [] }, t);
+    expect(r.competitors).toEqual(["AT&T"]);
+  });
 });
