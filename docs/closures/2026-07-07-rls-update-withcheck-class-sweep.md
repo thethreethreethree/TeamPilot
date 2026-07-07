@@ -62,3 +62,34 @@ HIGH. Adding matching `WITH CHECK` / freeze triggers to the MED tier is the syst
 close-out; none is individually cross-tenant today, so logged as a follow-up, not built.
 
 Founder must apply 0093 (with 0090–0092 and the still-pending 0085–0089).
+
+---
+
+## DELETE-policy class sweep (same day) → 0094
+
+Applied the same discipline to DELETE. §3.1 makes append-only load-bearing for the
+`events → signals → problems → resolutions` chain, so an over-permissive DELETE (or a
+delete on a should-be-immutable table) is the analogous defect.
+
+**Append-only chain verified complete** — `do instead nothing` no-delete rules on
+events (0004), signals + problem_signals (0002), support_resolutions (0036),
+brain_evolution_events (0007), chat_messages (0010), feedback + smoke_tests (0018).
+
+**MED — resolutions member-deletable — FIXED (0094).** resolutions carries an
+UPDATE-only immutability trigger (0005:50, freezes action_taken/reasoning/decided_at)
+but its RLS is `for all` with no no-delete rule → any company member could DELETE the
+close-the-loop record via direct PostgREST, bypassing the trigger. Contradicts §3.1
+("never delete — append") and §1.1 ("nothing discarded; past resolutions are reusable
+material"). Fix: `resolutions_no_delete` rule. UPDATE left alone (§3.5 outcome fills).
+`problems` intentionally not touched — mutable status-lifecycle state, RLS
+deny-by-default to members (RLS enabled, no policy), history in the events chain.
+Verified no code deletes resolutions or problems.
+
+**The 7 intentional DELETE policies — all clean (own-tenant/owner/admin, no
+cross-tenant):** chat_pins (company + active participant, 0016), team_invitations
+(company, 0017), notification_subscriptions (own user_id, 0029), task_steps (company
+member, 0032 — history preserved in events), profile_departments (admin + same
+company, 0055), widget-logos storage (own path, 0064), file_access_grants
+(uploader/admin, 0065).
+
+Founder must also apply 0094.
