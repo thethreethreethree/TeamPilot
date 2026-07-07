@@ -67,13 +67,18 @@ const PostmarkInboundBody = z.object({
   To: z.string().min(1).max(1000),
   Subject: z.string().max(998).optional(),
   TextBody: z.string().min(1).max(50000),
+  // Bounded like every other field (defense-in-depth — the webhook is secret-
+  // gated so only the trusted provider sends, but real emails carry a bounded
+  // header set; caps keep a compromised/buggy provider from sending an unbounded
+  // payload). Generous vs. real email: message-id headers run well under 4000.
   Headers: z
     .array(
       z.object({
-        Name: z.string(),
-        Value: z.string(),
+        Name: z.string().max(200),
+        Value: z.string().max(4000),
       })
     )
+    .max(100)
     .optional()
     .default([]),
   Date: z.string().optional(),
