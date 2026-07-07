@@ -70,3 +70,9 @@ defense-in-depth. (Self-audit rationale: dissect closure doc.)
   constant-time Bearer check, fail-closed.)
 - Push delivery (from memory): still needs the server-side VAPID vars set in Vercel
   env (not just .env.local) — separate from CRON_SECRET.
+- **Next 16 deprecation (non-breaking, found this session):** `src/middleware.ts`
+  uses the deprecated `middleware` file convention (Next 16.2.6 → `proxy`). It still
+  works. It's the auth session-refresh + route guard, so migrate it to `proxy`
+  DELIBERATELY with a login/logout/route-guard smoke test — I left it untouched
+  (blind-migrating auth middleware is the catastrophic-risk class). Ask me to do it
+  with you verifying, or handle it when you touch the auth flow.
