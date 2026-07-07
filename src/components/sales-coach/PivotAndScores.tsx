@@ -70,7 +70,13 @@ function fetchScores(sessionId: string): Promise<ScoresResult> {
     } catch {
       return { state: "error" };
     }
-  })();
+  })().then((r) => {
+    // Cache only settled, meaningful results (ok / forbidden). A transient
+    // ERROR must NOT stick — otherwise one failed fetch would hide the owner's
+    // scores until a full page reload. Evicting on error lets a remount retry.
+    if (r.state === "error") scoresCache.delete(sessionId);
+    return r;
+  });
   scoresCache.set(sessionId, p);
   return p;
 }
