@@ -57,8 +57,18 @@ decisions), and the founder asked to FIX what was found — so they were applied
   made **owner-only** (7a9f8f8) — a security fix, not a decision. STILL FLAGGED for your
   decision: the **called** routes `finalize` / `upload-recording` / `label-transcript`
   also gate owner-OR-manager and write via service-role. These MAY have a legit
-  manager-finalizes-a-rep's-call workflow, so I did NOT change them. *Your decision:* is
-  manager-finalize intended, or should they be owner-only like `cue-outcome`/`why`?
+  manager-finalizes-a-rep's-call workflow, so I did NOT change them.
+  **Concrete detail for the decision (traced 2026-07-09):** `finalize` is only ever
+  called by the rep's own live-coaching hook (a manager never runs a rep's live call),
+  so it's owner-only in practice — safe to gate if you want. `upload-recording` /
+  `label-transcript` are called by `SessionRecordingUpload`, rendered **UNGATED** on the
+  session detail page (`[id]/page.tsx:822`, next to an equally-ungated `LiveCoachingPanel`).
+  So a manager who opens a rep's session (which the new flags feature now links them to)
+  sees the upload/live controls and CAN upload a recording that becomes the rep's
+  transcript. *Your decision:* is manager-upload-for-a-rep intended, or should the upload
+  UI + those two routes be owner-only? If owner-only: (a) wrap the two components in an
+  `isOwner` check, (b) add `session.agentId !== auth.user.id → 403` to the two routes —
+  applyable in minutes once you decide.
 - **A7: 9 data-layer reads swallow query errors** (agent3 #3) — partly by design
   (graceful empty). The consequential ones (ELO rating, why below-gate) are now logged;
   the rest degrade to empty and are lower-stakes.
