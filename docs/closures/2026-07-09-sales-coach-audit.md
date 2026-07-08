@@ -60,6 +60,21 @@ decisions), and the founder asked to FIX what was found — so they were applied
   (graceful empty). The consequential ones (ELO rating, why below-gate) are now logged;
   the rest degrade to empty and are lower-stakes.
 
+## App-wide extension — the auth-gap class was systemic (commit 5d1651a)
+The coach finding (#7 — 4 LLM routes with no auth check) prompted a sweep of EVERY
+LLM-invoking route in the app. **10 more** had the same gap (LLM reachable by an
+anonymous caller — gated only by rateLimit + `getCurrentCompanyId`, which returns null,
+not an error, for anon; middleware doesn't cover `/api/*`): `ai/briefing`,
+`chat/formulate|guide|summarize|similar`, `me/ask-jeff`, `tasks/spawn`,
+`diagnosis/outside-view|ripple-trace`, `ai/decision-dialogue`. All now require
+`getUser()` before the model call. **14 unauthenticated LLM routes closed total.**
+Confirmed-safe (verified, not assumed, left unchanged): `ai/briefing/stream` (gates on
+`!companyId`), `care/conversations/[id]/messages` (customer widget, token-gated),
+`care/inbound/email` (webhook-secret). *Consider:* `llm/ping` (a deliberate provider
+health-ping, rate-limited) — lower priority; decide if the connection test should
+require an admin. **Runtime caveat:** the gated routes are all dashboard features whose
+real callers are authenticated, but confirm none is invoked from a pre-auth surface.
+
 ## Audited and confirmed CLEAN (reported honestly, no change)
 ELO math (expected-score formula, K-update, clamps — correct); memory aggregation;
 winning-lines dedup/sort; afterPitch index-space + timestamp math; prep engines
