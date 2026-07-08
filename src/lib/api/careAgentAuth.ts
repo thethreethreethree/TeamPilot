@@ -55,7 +55,14 @@ export type CareAgentAuthResult =
 export function deriveCareAccess(args: {
   role: string | null;
   isSupportAgent: boolean | null | undefined;
+  isRemoved?: boolean | null;
 }): { isAdmin: boolean; isAgent: boolean } {
+  // A member REMOVED from the company retains NO C.A.R.E access — neither agent nor
+  // admin — regardless of role or the support-agent flag. Removal (team route) sets
+  // profiles.status='removed' but does NOT clear is_support_agent / role, so THIS
+  // gate is what actually revokes access. Without it a removed person would keep
+  // handling live customer conversations (found auditing the 2026-07-07 removal fix).
+  if (args.isRemoved) return { isAdmin: false, isAgent: false };
   const isAdmin =
     args.role === "CEO" || args.role === "COO" || args.role === "admin";
   const isAgent = !!args.isSupportAgent || isAdmin;
@@ -70,12 +77,13 @@ export async function requireCareAgent(): Promise<CareAgentAuthResult> {
   }
   const { data: profile } = await sb
     .from("profiles")
-    .select("is_support_agent, role, company_id")
+    .select("is_support_agent, role, company_id, status")
     .eq("id", auth.user.id)
     .maybeSingle();
   const { isAdmin, isAgent } = deriveCareAccess({
     role: (profile?.role as string | null) ?? null,
     isSupportAgent: profile?.is_support_agent as boolean | null | undefined,
+    isRemoved: (profile?.status as string | null) === "removed",
   });
   if (!isAgent) {
     return { ok: false, error: "Care is agent-only.", status: 403 };

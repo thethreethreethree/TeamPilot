@@ -54,4 +54,25 @@ describe("deriveCareAccess", () => {
     expect(deriveCareAccess({ role: "Lead", isSupportAgent: false }).isAdmin).toBe(false);
     expect(deriveCareAccess({ role: "administrator", isSupportAgent: false }).isAdmin).toBe(false);
   });
+
+  it("a REMOVED member has NO access, even as admin OR support agent", () => {
+    // Removal must revoke C.A.R.E access — a removed person cannot keep handling
+    // live customer conversations. Overrides role AND the support-agent flag.
+    expect(
+      deriveCareAccess({ role: "admin", isSupportAgent: true, isRemoved: true })
+    ).toEqual({ isAdmin: false, isAgent: false });
+    expect(
+      deriveCareAccess({ role: "CEO", isSupportAgent: false, isRemoved: true }).isAgent
+    ).toBe(false);
+    expect(
+      deriveCareAccess({ role: "Member", isSupportAgent: true, isRemoved: true }).isAgent
+    ).toBe(false);
+  });
+
+  it("isRemoved false/omitted preserves normal access (backward compatible)", () => {
+    expect(
+      deriveCareAccess({ role: "admin", isSupportAgent: false, isRemoved: false }).isAgent
+    ).toBe(true);
+    expect(deriveCareAccess({ role: "admin", isSupportAgent: false }).isAgent).toBe(true);
+  });
 });
