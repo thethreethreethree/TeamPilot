@@ -40,6 +40,11 @@ decisions), and the founder asked to FIX what was found — so they were applied
   authoritative), keeps only currently-`followed`. +2 tests.
 - **A3 — `getCueRelianceSeries`** silent 1000-row `.in()` truncation → undercounted
   reliance trend. Explicit 5000 bound + truncation log.
+- **A6 — no fetch-abort on live teardown** (5279c41): a `/cue` or `/attribute` in
+  flight during a stop→restart resolved into the new session. Fixed with a
+  session-epoch guard (bumped on start/stop; captured per request; stale results
+  dropped) — the same additive-safe pattern as the Dissect concurrency fix. UNTESTED
+  at runtime but regression-safe by construction (can only drop a superseded result).
 
 ## STILL FLAGGED — genuinely your decision, or a focused follow-up (not unilaterally changed)
 
@@ -51,11 +56,6 @@ decisions), and the founder asked to FIX what was found — so they were applied
   (owner OR same-company manager) then write via service-role. Migration 0082 called
   cross-agent transcript injection "a §A18 data-integrity hole." *Needs your decision:*
   is manager-finalizes-a-rep's-call intended, or owner-only like `cue-outcome`/`why`?
-- **A6: no fetch abort on live-coaching teardown** (agent2 #5) → a stale `/cue` or
-  `/attribute` resolving after stop→start can write onto a new-session turn. LOW
-  (needs stop→start inside the ~1-2s round-trip). A non-trivial concurrency refactor in
-  a hook that can't be runtime-tested here — a focused, verified follow-up (an
-  `AbortController` + session-epoch guard on `stop()`), not a blind change.
 - **A7: 9 data-layer reads swallow query errors** (agent3 #3) — partly by design
   (graceful empty). The consequential ones (ELO rating, why below-gate) are now logged;
   the rest degrade to empty and are lower-stakes.
