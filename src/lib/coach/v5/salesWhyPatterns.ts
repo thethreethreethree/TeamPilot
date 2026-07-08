@@ -251,13 +251,21 @@ export async function storeWhyPatterns(args: {
 }): Promise<void> {
   if (!args.result.hasEnoughData) return;
   const admin = createAdminClient();
-  await admin.from("events").insert({
+  const { error } = await admin.from("events").insert({
     company_id: args.companyId,
     actor: args.agentId,
     kind: PATTERNS_KIND,
     subject: `sales_agent:${args.agentId}`,
     payload: args.result,
   });
+  if (error) {
+    // Best-effort like every sibling runAndStore* — a failed cache-write must not
+    // throw to the caller and fail the whole pattern generation (audit 2026-07-09).
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesWhyPatterns.storeWhyPatterns] failed agent=${args.agentId}: ${error.message}`
+    );
+  }
 }
 
 /** F1 — the latest stored pattern set for a rep (no LLM), or null. */
@@ -273,5 +281,11 @@ export async function readStoredWhyPatterns(
     .order("created_at", { ascending: false })
     .limit(1);
   const row = (data ?? [])[0];
-  return row ? (row.payload as WhyPatterns) : null;
+  if (!row) return null;
+  // Validate the stored shape before trusting it (audit 2026-07-09): a shape-drifted
+  // old event cast blindly to WhyPatterns would crash a consumer doing
+  // `.patterns.map(...)`. Require the load-bearing fields; else treat as absent.
+  const p = row.payload as Partial<WhyPatterns> | null;
+  if (!p || typeof p !== "object" || !Array.isArray(p.patterns)) return null;
+  return p as WhyPatterns;
 }
