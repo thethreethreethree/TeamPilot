@@ -29,39 +29,36 @@ live-coaching hook fixes (#2, #5, #6, #10) are logic + build verified but **UNTE
 runtime** — they need a real live call to confirm behavior. Everything else is covered
 by unit tests or is a mechanical gate addition.
 
-## FLAGGED — not fixed (my call surfaced, per §3.3, for your decision)
+## ALSO FIXED (A3/A4/A5 — the flagged items that were clear bugs, not decisions; commit 78be8d2)
 
-These are LOW / by-design / need-a-product-decision. I did NOT unilaterally change them.
+On reflection these three were correctness bugs with unambiguous fixes (not product
+decisions), and the founder asked to FIX what was found — so they were applied:
+- **A4 — ELO replay sort key** mixed `ended_at`/`started_at` across sessions → a
+  path-dependent ordering inversion changed the rating. Now `started_at` uniformly.
+- **A5 — `getRepWinningLines`** matched any `followed` row incl. superseded ones → a
+  stale line resurfaced. Now collapses to each cue's latest outcome (rep_marked
+  authoritative), keeps only currently-`followed`. +2 tests.
+- **A3 — `getCueRelianceSeries`** silent 1000-row `.in()` truncation → undercounted
+  reliance trend. Explicit 5000 bound + truncation log.
+
+## STILL FLAGGED — genuinely your decision, or a focused follow-up (not unilaterally changed)
 
 - **A1: talk_ratio/question_rate `score` is raw magnitude, not quality** (agent1 #5).
-  An 80/20 over-talker shows `8/10` on the strip. The code comment says `display`/
-  `computed` carry the honest meaning; the number feeds the ELO, so changing it
-  **ripples into the rating** (§1.5) — a deliberate decision, not a silent fix. *Rec:*
-  decide whether the strip should invert these two, and re-baseline ELO if so.
-- **A2: manager can inject transcript into a rep's session** (agent4 #5). `segments`/
-  `finalize`/`label-transcript`/`upload-recording` gate on `getSession` (owner OR
-  same-company manager, 0084) then write via service-role. Migration 0082 called
-  cross-agent transcript injection "a §A18 data-integrity hole." Managers (not peers)
-  can append segments that feed the rep's Dissect/Review. *Needs your decision:* is
-  manager-finalizes-a-rep's-call intended, or should these be owner-only like
-  `cue-outcome`/`why` (which DO add `agentId !== auth.uid → 403`)?
-- **A3: unbounded `.in()` truncates at Supabase's 1000-row default** (agent3 #2).
-  `getCueRelianceSeries` + `salesElo` bulk-fetch rows; a very heavy user (>1000 cue
-  rows) silently undercounts, bending the reliance trend down. *Rec:* a SQL count
-  aggregate (bigger change) — directional-trend impact only.
-- **A4: ELO replay sort key mixes `ended_at`/`started_at`/`dissect.at`** (agent3 #4) →
-  a rare ordering inversion changes the path-dependent rating. LOW (ended≈started for
-  short calls).
-- **A5: `getRepWinningLines` doesn't collapse to the latest outcome per cue** (agent3
-  #5) → a superseded `followed` line can resurface. LOW (rep_marked taps ~always
-  followed).
+  An 80/20 over-talker shows `8/10`. The number feeds the ELO, so changing it
+  **ripples into the rating** (§1.5) — a deliberate decision. *Needs your call.*
+- **A2: manager can inject transcript into a rep's session** (agent4 #5).
+  `segments`/`finalize`/`label-transcript`/`upload-recording` gate on `getSession`
+  (owner OR same-company manager) then write via service-role. Migration 0082 called
+  cross-agent transcript injection "a §A18 data-integrity hole." *Needs your decision:*
+  is manager-finalizes-a-rep's-call intended, or owner-only like `cue-outcome`/`why`?
 - **A6: no fetch abort on live-coaching teardown** (agent2 #5) → a stale `/cue` or
   `/attribute` resolving after stop→start can write onto a new-session turn. LOW
-  (needs stop→start inside the ~1-2s round-trip). *Rec:* an `AbortController` on
-  `stop()` — a focused follow-up.
+  (needs stop→start inside the ~1-2s round-trip). A non-trivial concurrency refactor in
+  a hook that can't be runtime-tested here — a focused, verified follow-up (an
+  `AbortController` + session-epoch guard on `stop()`), not a blind change.
 - **A7: 9 data-layer reads swallow query errors** (agent3 #3) — partly by design
-  (graceful empty). The consequential ones (#8/#9 above) are now logged; the rest
-  degrade to empty and are lower-stakes.
+  (graceful empty). The consequential ones (ELO rating, why below-gate) are now logged;
+  the rest degrade to empty and are lower-stakes.
 
 ## Audited and confirmed CLEAN (reported honestly, no change)
 ELO math (expected-score formula, K-update, clamps — correct); memory aggregation;
