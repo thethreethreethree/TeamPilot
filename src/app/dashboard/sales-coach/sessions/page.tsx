@@ -794,7 +794,9 @@ export default function SalesCoachSessionsPage() {
                 onClick={() => setOpenFlag(null)}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-colors"
               >
-                Open this session to examine
+                {openFlag.flag.kind === "examination"
+                  ? "Open this session to examine"
+                  : "Open this session to review"}
                 <ArrowRight className="w-3.5 h-3.5" aria-hidden />
               </Link>
             </div>
