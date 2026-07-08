@@ -254,6 +254,7 @@ understanding is the failure mode this entire project was built to defeat.*
 - A21 · Audits that look WITHIN modules but not ACROSS them miss same-name-different-feature
 - A22 · Citations without session-reading (audit-boundary failure)
 - A23 · One RLS instance implies sweeping ALL policies (class-check boundary)
+- A26 · A found bug is a CLASS; sweep it to its codebase-wide boundary before "fixed"
 
 **Builder submission (the build IS the product's credibility)**
 - A9 · The builder's submission IS the product's credibility
@@ -273,7 +274,7 @@ understanding is the failure mode this entire project was built to defeat.*
 - A25 · A lesson left in memory (not promoted to an asset) does not gate builds → it recurs
 
 **Methodology evolution** (broad — nearly all assets; specific tags above are faster)
-- A1, A2, A3, A4, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25
+- A1, A2, A3, A4, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26
 
 **Discipline under temptation** (broad — nearly all assets)
 - A3, A4, A5, A7, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24
@@ -838,4 +839,17 @@ A22 was caught when the founder forced *"please review thinkerthinker.MD and Cla
 **Constitutional bearing.** AMD-006 **Layer 2** (operational effectivity) — the feature built and typechecked but did NOT work when invoked the way a real user invokes it; per the sieve a Layer-2 break is not survivable by composition or polish. §3.4 + A11 — the false "already a member" is the System asserting something untrue about a person, the exact mirror-not-verdict / honesty line. Companion to A14 (data-path-complete ≠ render-path-complete): A25 is *resolution-returned-a-row* ≠ *identity-actually-verified*. Companion to A12/A23 (structural over per-consumer): cardinality belongs in a DB constraint, not a per-call hope. Candidate §6-checklist item: *"Does this code resolve an external identifier to a record it then acts on? If so — do I compare the identifying field in code (not trust the query/`[0]`), and is the one-match assumption backed by a DB constraint?"*
 
 **The lesson about the lesson.** This class was diagnosed 2026-06-28 and written to operating MEMORY — yet it shipped AGAIN, in a different feature, with the same root. Memory records what happened; it does not GATE what gets built. The asset library (this file) is what a build is audited against under §0.1 / §6, so a lesson parked in memory is invisible to the next build's precondition check and recurs. §1.2 step 6 ("every resolution becomes a new asset") is NOT satisfied by a memory note — only by an asset. Meta-rule, now explicit: when an incident's lesson is general enough to bind future builds, it must be promoted from memory to a TT.md asset in the SAME session it is diagnosed; a validated lesson left only in memory is a latent recurrence with a fuse already lit.
+
+## A26 · A reported bug is one instance of a class; the fix is incomplete until the class is swept to its codebase-wide boundary
+
+**Tags:** verification discipline · proactive audit · security / data-architecture · methodology evolution · recurring-miss → structural fix
+**Captured:** 2026-07-09
+
+**Context.** A founder-reported "removing a member does nothing" bug (an admin write silently RLS-blocked, returned `ok`) was the ENTRY POINT to a class, not a one-off. Sweeping the class found the same false-ok write in the coach-role and resolution-review routes; a separate §A18 owner-private-leak class checked across C.A.R.E / files / CRM; and — most strikingly — an audit finding of "4 coach LLM routes with no auth check" that, swept app-wide, revealed 10 MORE unauthenticated LLM routes (a systemic anonymous-cost-abuse hole: 14 total). In every case the first instance was the tip; the value was in the sweep. A23 already established this for RLS policies ("one instance implies sweeping every policy"); this session validated it as a GENERAL law across unrelated bug classes — auth gaps, false-ok writes, §A18 leaks, LLM quote-fabrication, live-error-vs-empty swallowing.
+
+**Insight.** A bug is rarely unique; it is an instance of a class defined by its ROOT SHAPE, not its symptom or location. The completion criterion for a fix is therefore NOT "this instance is fixed" but "the class is swept to its boundary — every instance fixed or confirmed intentional." The method: (1) NAME the class by its root shape (e.g. "a mutation returning ok without asserting the write landed"; "an LLM route reachable without `getUser`"; "a manager-facing surface that could read an owner-private field"). (2) Find the class BOUNDARY — the exhaustive set of code that could exhibit the shape, via a grep/glob over the WHOLE codebase, not the neighborhood of the first find. (3) Verify each candidate ADVERSARIALLY — a pattern match is a SUSPECT, not a defect; confirm the shape actually manifests, and confirm each intentional exception is intentional (read it), not assumed. (4) Fix the real instances, FLAG the ones that turn on a product/founder decision (don't unilaterally resolve them), and RECORD the swept boundary as a baseline for the next §1.7 audit. When subagents scout a class, their findings are suspects to verify against the code, NEVER fixes to apply on trust.
+
+**Constitutional bearing.** Direct generalization of A23 (RLS class-check) to ALL bug classes, and the operational form of §1.2 (retrospective / pattern-detection) + §1.5.2 (proactive audit — THINK then search the class). Companion to A16 ("the symptom's location is rarely the bug's location") — A26 adds *"and rarely its only location."* §3.4 bearing: reporting "fixed" after one instance while the class stays open is a form of grading-your-own-homework; the honest report names the swept BOUNDARY, not the single fix. Companion to A24 (don't manufacture): a boundary sweep is the genuine high-value work a continuous mandate should spend on — it repeatedly finds real defects — as opposed to inventing a fourth marginal audit once the classes are closed. Candidate §6-checklist item: *"Is this bug an instance of a class? Have I named the class by its root shape and swept its full codebase boundary — or only patched the instance in front of me?"*
+
+**The lesson about the lesson.** A26 was validated in real time this session — EVERY class swept beyond its first instance found more (auth 4→14; false-ok across three product areas; §A18 across four surfaces). The measure of whether it "took": in a future audit, does a single reported bug trigger a boundary sweep + a recorded baseline, or a one-instance patch? A one-instance patch on a class bug is exactly the A25 latent-recurrence fuse, one altitude up — the class stays lit even after the reported instance is dark.
 
