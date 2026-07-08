@@ -51,24 +51,20 @@ decisions), and the founder asked to FIX what was found — so they were applied
 - **A1: talk_ratio/question_rate `score` is raw magnitude, not quality** (agent1 #5).
   An 80/20 over-talker shows `8/10`. The number feeds the ELO, so changing it
   **ripples into the rating** (§1.5) — a deliberate decision. *Needs your call.*
-- **A2: manager can inject transcript into a rep's session** (agent4 #5) — NARROWED.
-  The **`segments`** route (append live transcript) was the clear injection hole 0082
-  named; it has NO client caller (segments flow through `/finalize`'s body), so it was
-  made **owner-only** (7a9f8f8) — a security fix, not a decision. STILL FLAGGED for your
-  decision: the **called** routes `finalize` / `upload-recording` / `label-transcript`
-  also gate owner-OR-manager and write via service-role. These MAY have a legit
-  manager-finalizes-a-rep's-call workflow, so I did NOT change them.
-  **Concrete detail for the decision (traced 2026-07-09):** `finalize` is only ever
-  called by the rep's own live-coaching hook (a manager never runs a rep's live call),
-  so it's owner-only in practice — safe to gate if you want. `upload-recording` /
-  `label-transcript` are called by `SessionRecordingUpload`, rendered **UNGATED** on the
-  session detail page (`[id]/page.tsx:822`, next to an equally-ungated `LiveCoachingPanel`).
-  So a manager who opens a rep's session (which the new flags feature now links them to)
-  sees the upload/live controls and CAN upload a recording that becomes the rep's
-  transcript. *Your decision:* is manager-upload-for-a-rep intended, or should the upload
-  UI + those two routes be owner-only? If owner-only: (a) wrap the two components in an
-  `isOwner` check, (b) add `session.agentId !== auth.user.id → 403` to the two routes —
-  applyable in minutes once you decide.
+- **A2: manager can inject transcript into a rep's session** (agent4 #5) — mostly FIXED.
+  Traced each route's callers and closed the two with no manager path, as safe security
+  fixes (not decisions): **`segments`** (no caller at all — 7a9f8f8) and **`finalize`**
+  (only the rep's own live-coaching hook calls it, on Stop — 2157768) are now owner-only
+  (`session.agentId !== auth.user.id → 403`), closing the §A18 transcript-injection
+  vector 0082 named. Both cannot affect the rep's own flow (they ARE the owner).
+  **REMAINING (a genuine founder decision):** `upload-recording` / `label-transcript`,
+  called by `SessionRecordingUpload`, which is rendered **UNGATED** on the session detail
+  page (`[id]/page.tsx:822`, next to an equally-ungated `LiveCoachingPanel`). A manager
+  who opens a rep's session (which the new flags feature links them to) CAN upload a
+  recording that becomes the rep's transcript. *Your decision:* is manager-upload-for-a-rep
+  intended (helping process the recording), or should the upload UI + those 2 routes be
+  owner-only? If owner-only: (a) wrap the 2 components in an `isOwner` check, (b) add the
+  `agentId → 403` gate to the 2 routes — applyable in minutes on your word.
 - **A7: 9 data-layer reads swallow query errors** (agent3 #3) — partly by design
   (graceful empty). The consequential ones (ELO rating, why below-gate) are now logged;
   the rest degrade to empty and are lower-stakes.
