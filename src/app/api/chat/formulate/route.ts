@@ -1,7 +1,8 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { llmStream } from "@/lib/llm";
 import { runBrainStream, type ControlGate } from "@/lib/brain";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
 
@@ -50,6 +51,15 @@ function sse(event: string, data: unknown): string {
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "chat-formulate", windowMs: 60_000, max: 12 });
   if (limited) return limited;
+
+  // Auth gate (audit 2026-07-09): require a signed-in user before the LLM call — an
+  // anon caller otherwise drives the model on our bill (middleware doesn't cover
+  // /api/*; getCurrentCompanyId returns null, not an error, for anon).
+  const _authClient = await createClient();
+  const { data: _authData } = await _authClient.auth.getUser();
+  if (!_authData?.user) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
 
   const body = (await req.json().catch(() => ({}))) as {
     answers?: string[];
