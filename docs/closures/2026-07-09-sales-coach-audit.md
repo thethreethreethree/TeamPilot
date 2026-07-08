@@ -51,11 +51,14 @@ decisions), and the founder asked to FIX what was found — so they were applied
 - **A1: talk_ratio/question_rate `score` is raw magnitude, not quality** (agent1 #5).
   An 80/20 over-talker shows `8/10`. The number feeds the ELO, so changing it
   **ripples into the rating** (§1.5) — a deliberate decision. *Needs your call.*
-- **A2: manager can inject transcript into a rep's session** (agent4 #5).
-  `segments`/`finalize`/`label-transcript`/`upload-recording` gate on `getSession`
-  (owner OR same-company manager) then write via service-role. Migration 0082 called
-  cross-agent transcript injection "a §A18 data-integrity hole." *Needs your decision:*
-  is manager-finalizes-a-rep's-call intended, or owner-only like `cue-outcome`/`why`?
+- **A2: manager can inject transcript into a rep's session** (agent4 #5) — NARROWED.
+  The **`segments`** route (append live transcript) was the clear injection hole 0082
+  named; it has NO client caller (segments flow through `/finalize`'s body), so it was
+  made **owner-only** (7a9f8f8) — a security fix, not a decision. STILL FLAGGED for your
+  decision: the **called** routes `finalize` / `upload-recording` / `label-transcript`
+  also gate owner-OR-manager and write via service-role. These MAY have a legit
+  manager-finalizes-a-rep's-call workflow, so I did NOT change them. *Your decision:* is
+  manager-finalize intended, or should they be owner-only like `cue-outcome`/`why`?
 - **A7: 9 data-layer reads swallow query errors** (agent3 #3) — partly by design
   (graceful empty). The consequential ones (ELO rating, why below-gate) are now logged;
   the rest degrade to empty and are lower-stakes.
