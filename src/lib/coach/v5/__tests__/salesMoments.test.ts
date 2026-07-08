@@ -116,6 +116,26 @@ describe("parseMoments — §3.4 grounding invariants", () => {
     expect(out!.moments[1]!.kind).toBe("objection");
   });
 
+  it("demotes a second moment whose KIND is 'breakdown' to 'other' (bug fixed 2026-07-09)", () => {
+    // The model returned TWO moments explicitly kind:"breakdown". Before the fix the
+    // second kept kind:"breakdown" (only its isBreakdown FLAG was cleared, not its
+    // kind), so the timeline carried two "breakdown" moments — breaking the single-
+    // turning-point invariant. Now the non-first breakdown KIND demotes to "other".
+    const out = parseMoments(
+      JSON.stringify({
+        hasSignal: true,
+        moments: [
+          { atSeq: 0, kind: "breakdown", label: "first", isBreakdown: true },
+          { atSeq: 1, kind: "breakdown", label: "second", isBreakdown: true },
+        ],
+      }),
+      SEGMENTS
+    );
+    expect(out!.moments.filter((m) => m.kind === "breakdown")).toHaveLength(1);
+    expect(out!.moments[0]!.kind).toBe("breakdown"); // first kept
+    expect(out!.moments[1]!.kind).toBe("other"); // second demoted — the fix
+  });
+
   it("caps at 5 moments", () => {
     const out = parseMoments(
       JSON.stringify({
