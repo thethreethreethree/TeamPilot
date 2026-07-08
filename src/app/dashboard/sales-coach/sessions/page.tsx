@@ -111,8 +111,9 @@ export default function SalesCoachSessionsPage() {
   const [badgesAvailable, setBadgesAvailable] = useState(true);
 
   // The flag whose detailed explanation is open (null = closed). Carries the
-  // session's label + agent so the modal names which call it's about.
+  // session's id (to open it) + label + agent so the modal names which call it's about.
   const [openFlag, setOpenFlag] = useState<{
+    id: string;
     clientLabel: string | null;
     agentName: string | null;
     flag: SessionFlag;
@@ -680,6 +681,7 @@ export default function SalesCoachSessionsPage() {
                       flag={s.flag}
                       onOpen={() =>
                         setOpenFlag({
+                          id: s.id,
                           clientLabel: s.clientLabel,
                           agentName: s.agentName,
                           flag: s.flag!,
@@ -783,6 +785,19 @@ export default function SalesCoachSessionsPage() {
               the prospect&apos;s sentiment across the conversation. It does not use
               the rep&apos;s private after-pitch scores.
             </p>
+            {/* AMD-006 Layer 3 (workflow continuity): after reading WHY, the manager's
+                next action is to examine the call — link straight into it, not a
+                dead-end that forces close → find row → click. */}
+            <div className="flex justify-end pt-1">
+              <Link
+                href={`/dashboard/sales-coach/${openFlag.id}`}
+                onClick={() => setOpenFlag(null)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Open this session to examine
+                <ArrowRight className="w-3.5 h-3.5" aria-hidden />
+              </Link>
+            </div>
           </div>
         </Modal>
       )}
