@@ -86,7 +86,9 @@ describe("getAgentEloGames (DB-mock)", () => {
     expect(games).toHaveLength(1);
     expect(games[0]).toMatchObject({
       sessionId: "S1",
-      at: "2026-07-05T10:20:00Z", // ended_at preferred over started_at / dissect.at
+      // A4 fix (2026-07-09): started_at is the CONSISTENT chronological key across all
+      // games (a mixed ended_at/started_at key could invert the path-dependent replay).
+      at: "2026-07-05T10:00:00Z",
       factors: { strengths: 3, growthAreas: 1, outcome: "sold" },
     });
     expect(games[0]?.factors.scores).toHaveLength(1);

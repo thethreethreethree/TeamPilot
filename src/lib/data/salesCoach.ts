@@ -496,19 +496,37 @@ export async function getRepWinningLines(args: {
     .limit(30);
   const sessionIds = (sessions ?? []).map((s) => s.id as string);
   if (sessionIds.length === 0) return [];
-  // 2. Cues the rep FOLLOWED in those sessions (rep-confirmed preferred; the
-  //    determination filter already restricts to 'followed').
+  // 2. Cues the rep FOLLOWED in those sessions — by the cue's LATEST outcome.
+  //    A5 fix (audit 2026-07-09): filtering `determination='followed'` in the query
+  //    matched ANY followed row, even one later superseded by a correction, so a
+  //    stale "winning line" the rep no longer used could resurface. Instead pull ALL
+  //    determinations and collapse per cue (rep_marked authoritative, else newest —
+  //    same rule as getSessionCueOutcomesAdmin), then keep only cues whose CURRENT
+  //    determination is 'followed'.
   const { data: outcomes } = await sb
     .from("coaching_cue_outcomes")
-    .select("cue_id, created_at, source")
+    .select("cue_id, created_at, source, determination")
     .in("session_id", sessionIds)
-    .eq("determination", "followed")
     .order("created_at", { ascending: false })
-    .limit(40);
-  const rows = (outcomes ?? []).map((o) => ({
-    cue_id: o.cue_id as string,
-    source: o.source as string,
-  }));
+    .limit(200);
+  const latestByCue = new Map<string, { source: string; determination: string }>();
+  for (const o of outcomes ?? []) {
+    const cueId = o.cue_id as string;
+    const source = o.source as string;
+    const determination = o.determination as string;
+    const existing = latestByCue.get(cueId);
+    if (!existing) {
+      latestByCue.set(cueId, { source, determination }); // desc order → newest first
+      continue;
+    }
+    // rep_marked (explicit rep tap) overrides an inferred outcome even if newer.
+    if (source === "rep_marked" && existing.source !== "rep_marked") {
+      latestByCue.set(cueId, { source, determination });
+    }
+  }
+  const rows = Array.from(latestByCue.entries())
+    .filter(([, v]) => v.determination === "followed")
+    .map(([cue_id, v]) => ({ cue_id, source: v.source }));
   const cueIds = Array.from(new Set(rows.map((o) => o.cue_id)));
   if (cueIds.length === 0) return [];
   // 3. The cue texts.
@@ -630,10 +648,22 @@ export async function getCueRelianceSeries(
   // session in a loop. Now ONE query for all cues across these sessions, counted
   // in memory. Behavior-preserving; bounded row fetch (session_id only).
   const sessionIds = sessions.map((s) => s.id as string);
+  // A3 fix (audit 2026-07-09): an unqualified .in() is capped at PostgREST's default
+  // 1000 rows. Across ≤30 cue-heavy sessions the cue rows can exceed that, silently
+  // truncating the tail → some sessions undercounted → the reliance trend bends down
+  // falsely. Set an explicit bound well above the realistic max and flag if it's hit.
+  const CUE_ROW_CAP = 5000;
   const { data: cueRows } = await sb
     .from("coaching_cues")
     .select("session_id")
-    .in("session_id", sessionIds);
+    .in("session_id", sessionIds)
+    .limit(CUE_ROW_CAP);
+  if (cueRows && cueRows.length === CUE_ROW_CAP) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesCoach.getCueRelianceSeries] cue rows hit the ${CUE_ROW_CAP} cap for agent=${agentId} — counts may be undercounted; consider a SQL aggregate.`
+    );
+  }
   const countBySession = new Map<string, number>();
   for (const r of cueRows ?? []) {
     const sid = r.session_id as string;

@@ -297,10 +297,12 @@ export async function getAgentEloGames(agentId: string): Promise<EloGame[]> {
   for (const sid of sessionIds) {
     const sess = sessMap.get(sid);
     const dissect = dissectBySession.get(sid);
-    const at = (sess?.ended_at ??
-      sess?.started_at ??
-      dissect?.at ??
-      "") as string;
+    // Consistent chronological key across ALL games (audit 2026-07-09 A4): use
+    // started_at uniformly (always present when the session row exists) instead of
+    // mixing ended_at for some sessions and started_at for others. The ELO replay is
+    // path-dependent (updateElo applies games in order), so a mixed key can invert
+    // order and change the final rating. dissect.at only when the session row is absent.
+    const at = (sess?.started_at ?? dissect?.at ?? "") as string;
     if (!at) continue; // no timestamp to order by — skip
     games.push({
       sessionId: sid,

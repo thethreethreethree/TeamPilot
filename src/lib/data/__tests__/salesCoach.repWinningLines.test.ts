@@ -37,8 +37,8 @@ describe("getRepWinningLines (DB-mock)", () => {
     // Deliberately out of rank order: the inferred cue appears first in the rows.
     const coaching_cue_outcomes = {
       data: [
-        { cue_id: "c2", created_at: "2026-07-02T00:00:00Z", source: "inferred" },
-        { cue_id: "c1", created_at: "2026-07-01T00:00:00Z", source: "rep_marked" },
+        { cue_id: "c2", created_at: "2026-07-02T00:00:00Z", source: "inferred", determination: "followed" },
+        { cue_id: "c1", created_at: "2026-07-01T00:00:00Z", source: "rep_marked", determination: "followed" },
       ],
     };
     const coaching_cues = {
@@ -61,10 +61,58 @@ describe("getRepWinningLines (DB-mock)", () => {
       "Happy to walk you through the pricing.",
       "What would make this a yes today?",
     ]);
-    // Scoping: this rep's SOLD sessions + FOLLOWED cues only.
+    // Scoping: this rep's SOLD sessions. (The 'followed' filter is now applied in
+    // code after collapsing to each cue's LATEST outcome — see the A5 test below —
+    // so it is deliberately NO LONGER a query-level .eq(determination).)
     expect(eqIssued(calls, "agent_id", "a1")).toBe(true);
     expect(eqIssued(calls, "outcome", "sold")).toBe(true);
-    expect(eqIssued(calls, "determination", "followed")).toBe(true);
+  });
+
+  it("A5: a cue whose LATEST outcome is not 'followed' is excluded (no stale resurface)", async () => {
+    // c1 was followed (older) then CORRECTED to not_followed (newer). c2 is followed.
+    // Only c2 should surface — the superseded c1 must not resurface as a winning line.
+    const coaching_sessions = { data: [{ id: "s1" }] };
+    const coaching_cue_outcomes = {
+      data: [
+        { cue_id: "c1", created_at: "2026-07-03T00:00:00Z", source: "inferred", determination: "not_followed" },
+        { cue_id: "c1", created_at: "2026-07-01T00:00:00Z", source: "inferred", determination: "followed" },
+        { cue_id: "c2", created_at: "2026-07-02T00:00:00Z", source: "inferred", determination: "followed" },
+      ],
+    };
+    const coaching_cues = {
+      data: [
+        { id: "c1", text: "Superseded line the rep no longer used." },
+        { id: "c2", text: "The line that actually worked." },
+      ],
+    };
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeSupabaseClient(
+        { coaching_sessions, coaching_cue_outcomes, coaching_cues },
+        calls
+      ) as never
+    );
+    const lines = await getRepWinningLines({ companyId: "co1", agentId: "a1", limit: 5 });
+    expect(lines).toEqual(["The line that actually worked."]);
+  });
+
+  it("A5: a later rep_marked 'followed' overrides an earlier inferred 'not_followed'", async () => {
+    // The rep explicitly tapped it as followed — authoritative over any inferred.
+    const coaching_sessions = { data: [{ id: "s1" }] };
+    const coaching_cue_outcomes = {
+      data: [
+        { cue_id: "c1", created_at: "2026-07-03T00:00:00Z", source: "inferred", determination: "not_followed" },
+        { cue_id: "c1", created_at: "2026-07-01T00:00:00Z", source: "rep_marked", determination: "followed" },
+      ],
+    };
+    const coaching_cues = { data: [{ id: "c1", text: "Rep-confirmed winner." }] };
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeSupabaseClient(
+        { coaching_sessions, coaching_cue_outcomes, coaching_cues },
+        calls
+      ) as never
+    );
+    const lines = await getRepWinningLines({ companyId: "co1", agentId: "a1", limit: 5 });
+    expect(lines).toEqual(["Rep-confirmed winner."]);
   });
 
   it("returns [] and skips downstream queries when the rep has no sold sessions", async () => {
