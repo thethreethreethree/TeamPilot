@@ -1,6 +1,7 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { groundQuote } from "./grounding";
 import {
   getCurrentSalesCorpus,
   type TranscriptSegment,
@@ -167,14 +168,10 @@ export function parsePivot(
       : direction === "gained"
         ? "Where you gained ground"
         : "Where you lost ground";
-  const customerLine =
-    typeof p.customerLine === "string" && p.customerLine.trim()
-      ? p.customerLine.trim()
-      : null;
-  const repLine =
-    typeof p.repLine === "string" && p.repLine.trim()
-      ? p.repLine.trim()
-      : null;
+  // §3.4 grounding: drop a quote whose words aren't in the transcript (fabrication
+  // surfaced to a manager as verbatim). The pivot still stands on its grounded atSeq.
+  const customerLine = groundQuote(p.customerLine as string | null, segments);
+  const repLine = groundQuote(p.repLine as string | null, segments);
 
   // Clock offset from real spoken_at only (never invented). Origin = earliest
   // known spoken_at across the transcript, matching the moments engine's clock.

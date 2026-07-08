@@ -138,7 +138,7 @@ export async function gatherWhyPairs(args: {
   agentId: string;
 }): Promise<{ driver: string; outcome: string }[]> {
   const admin = createAdminClient();
-  const { data: sessionsData } = await admin
+  const { data: sessionsData, error: sessErr } = await admin
     .from("coaching_sessions")
     .select("id, outcome")
     .eq("agent_id", args.agentId)
@@ -146,6 +146,15 @@ export async function gatherWhyPairs(args: {
     .not("outcome", "is", null)
     .order("started_at", { ascending: false })
     .limit(SCAN_LIMIT);
+  if (sessErr) {
+    // §3.4 / live-error-vs-empty: without this, a transient error returns [] → the
+    // caller hits below-gate and tells the rep "keep going, need more sessions" even
+    // when they have dozens — a failure masquerading as an honest empty state.
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesWhyPatterns.gatherWhyPairs] sessions read failed agent=${args.agentId}: ${sessErr.message}`
+    );
+  }
   const sessions = sessionsData ?? [];
   if (sessions.length === 0) return [];
 
@@ -155,11 +164,17 @@ export async function gatherWhyPairs(args: {
   }
   const subjects = sessions.map((s) => `sales_session:${s.id}`);
 
-  const { data: whyEvents } = await admin
+  const { data: whyEvents, error: whyErr } = await admin
     .from("events")
     .select("subject, payload")
     .eq("kind", "coach.session_why_generated")
     .in("subject", subjects);
+  if (whyErr) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesWhyPatterns.gatherWhyPairs] why-events read failed agent=${args.agentId}: ${whyErr.message}`
+    );
+  }
 
   const pairs: { driver: string; outcome: string }[] = [];
   for (const e of whyEvents ?? []) {

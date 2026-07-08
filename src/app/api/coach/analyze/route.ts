@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { proposeCoachPatterns, type CoachLlmHit } from "@/lib/claude";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { createClient } from "@/lib/supabase/server";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
@@ -65,6 +66,15 @@ export async function POST(req: NextRequest) {
 
   const body = await readBody(req, AnalyzeSchema);
   if (body instanceof NextResponse) return body;
+
+  // Auth gate (audit 2026-07-09): require an authenticated user before the LLM call
+  // — anon callers otherwise drive the model on our bill (middleware doesn't cover
+  // /api/*; getCurrentCompanyId returns null, not an error, for anon).
+  const authClient = await createClient();
+  const { data: authData } = await authClient.auth.getUser();
+  if (!authData?.user) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
 
   try {
     const companyId = (await getCurrentCompanyId()) ?? undefined;

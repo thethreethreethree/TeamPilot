@@ -787,6 +787,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     utterEnergyRef.current = { sum: 0, count: 0 };
     pitchSepRef.current.reset();
     pitchAgreeRef.current = 0;
+    // Reset the separation-accuracy tally too (audit 2026-07-09): only pitchAgreeRef
+    // was reset here, so sepTotal/sepAgree carried across a stop→start and the logged
+    // "is separation better?" ratio was corrupted (stale denominator + out-of-sync
+    // pitch count) after any restart.
+    sepAgreeRef.current = 0;
+    sepTotalRef.current = 0;
     agentLevelRef.current = null;
     customerLevelRef.current = null;
     micLevelRef.current = 0;
@@ -1001,7 +1007,14 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           const pitch = pitchSepRef.current.labelTurn(
             agentSpeakingRef.current ? "agent" : undefined
           );
-          if (!text) return;
+          if (!text) {
+            // An empty commit (noise burst) still ENDS the current utterance —
+            // clear the per-utterance start so the NEXT turn measures pace from its
+            // OWN first partial, not across this gap (audit 2026-07-09: a stale start
+            // inflated durationSec → WPM too low → pace spikes silently missed).
+            utteranceStartRef.current = null;
+            return;
+          }
           const locked = agentSpeakingRef.current;
           // Accuracy measurement (§4/§3.6): when the rep has confirmed "I'm
           // speaking" (ground truth = agent), compare what the AUTO verdict
@@ -1119,8 +1132,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           utteranceStartRef.current = null;
           // Rep-delivery stress (filler/pace). In video every captured turn IS
           // the rep (mic-only), so measure all of them; in-person, only turns
-          // the loudness read attributes to the rep.
-          if (isVideo || v.speaker === "agent") {
+          // attributed to the rep by the COMPOSED read (content > pitch > loudness).
+          // Bug fix (audit 2026-07-09): this gated on `v.speaker` (loudness ONLY),
+          // so when content/pitch overrode loudness — the exact case attribution
+          // exists for — a steadying "you sound nervous" cue fired at the rep for
+          // the CUSTOMER's fillers, and skewed the confidence read. Use `provisional`.
+          if (isVideo || provisional === "agent") {
             const fillerSpike = isFillerSpike(text);
             let paceSpike = false;
             if (uttStart !== null) {

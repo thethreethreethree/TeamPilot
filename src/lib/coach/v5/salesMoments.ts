@@ -1,6 +1,7 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { groundQuote } from "./grounding";
 import {
   getCurrentSalesCorpus,
   type TranscriptSegment,
@@ -180,19 +181,17 @@ export function parseMoments(
     const seg = bySeq.get(atSeq);
     if (!seg) continue; // atSeq must reference a real segment (§3.4)
 
-    const kind = kinds.includes(m.kind as MomentKind)
+    let kind = kinds.includes(m.kind as MomentKind)
       ? (m.kind as MomentKind)
       : "other";
     const label =
       typeof m.label === "string" && m.label.trim() ? m.label.trim() : kind;
-    const customerLine =
-      typeof m.customerLine === "string" && m.customerLine.trim()
-        ? m.customerLine.trim()
-        : null;
-    const repLine =
-      typeof m.repLine === "string" && m.repLine.trim()
-        ? m.repLine.trim()
-        : null;
+    // §3.4 grounding: the quote must actually appear in the transcript, or it's a
+    // fabrication surfaced to a manager as a verbatim, timestamped statement. Ground
+    // the WORDS (punctuation-insensitive); drop the string if unverifiable — the
+    // moment still stands on its grounded atSeq.
+    const customerLine = groundQuote(m.customerLine as string | null, segments);
+    const repLine = groundQuote(m.repLine as string | null, segments);
     const note =
       typeof m.note === "string" && m.note.trim() ? m.note.trim() : null;
     const sentiment =
@@ -204,6 +203,11 @@ export function parseMoments(
     // demoted to 'other' — the timeline highlights a single turning point.
     const isBreakdown = m.isBreakdown === true && !breakdownTaken;
     if (isBreakdown) breakdownTaken = true;
+    // The 'breakdown' KIND must also demote — otherwise a second moment the model
+    // labelled kind:'breakdown' keeps that kind even though its isBreakdown flag was
+    // cleared, so surfaces/logic keyed on kind==='breakdown' would see TWO (the bug
+    // the comment above promised was fixed). Only the single taken breakdown keeps it.
+    if (kind === "breakdown" && !isBreakdown) kind = "other";
 
     let correction: MomentCorrection | null = null;
     if (isBreakdown && m.correction && typeof m.correction === "object") {

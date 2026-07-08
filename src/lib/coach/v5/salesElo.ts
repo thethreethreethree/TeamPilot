@@ -211,21 +211,34 @@ export async function getAgentEloGames(agentId: string): Promise<EloGame[]> {
 
   // 1. DISSECTS — the primary quality signal (founder 2026-07-07: use the reps'
   //    existing valid session calls). Actor-keyed events, subject = the session.
-  const { data: dissectEvents } = await admin
+  const { data: dissectEvents, error: dissectErr } = await admin
     .from("events")
     .select("subject, payload, created_at")
     .eq("kind", "coach.dissect_generated")
     .eq("actor", agentId)
     .order("created_at", { ascending: false })
     .limit(500);
+  if (dissectErr) {
+    // §3.4 / live-error-vs-empty: a swallowed error here silently thins the rating.
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesElo.getAgentEloGames] dissect read failed agent=${agentId}: ${dissectErr.message}`
+    );
+  }
 
   // 2. AFTER-PITCH SCORES — used where they exist (the numeric rating), else the
   //    dissect quality stands alone.
-  const { data: aps } = await admin
+  const { data: aps, error: apsErr } = await admin
     .from("after_pitch_summaries")
     .select("session_id, payload, created_at")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false });
+  if (apsErr) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesElo.getAgentEloGames] after-pitch read failed agent=${agentId}: ${apsErr.message}`
+    );
+  }
 
   // Latest dissect per session → strengths / growth counts (the quality signal).
   const dissectBySession = new Map<
@@ -264,10 +277,20 @@ export async function getAgentEloGames(agentId: string): Promise<EloGame[]> {
   ]);
   if (sessionIds.size === 0) return [];
 
-  const { data: sessions } = await admin
+  const { data: sessions, error: sessErr } = await admin
     .from("coaching_sessions")
     .select("id, outcome, ended_at, started_at")
     .in("id", [...sessionIds]);
+  if (sessErr) {
+    // The MOST consequential swallow: an error here empties sessMap, so EVERY game
+    // loses its outcome + timestamp and the rating is materially wrong yet looks
+    // authoritative. Log it loudly (§3.4 — a wrong rating must be diagnosable, not
+    // silent). A fail-closed rating signal is the deeper fix (flagged in the report).
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesElo.getAgentEloGames] sessions read FAILED agent=${agentId} — rating will be computed WITHOUT outcomes: ${sessErr.message}`
+    );
+  }
   const sessMap = new Map((sessions ?? []).map((s) => [s.id as string, s]));
 
   const games: EloGame[] = [];

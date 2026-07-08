@@ -207,6 +207,16 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, AnalyzeSchema);
   if (body instanceof NextResponse) return body;
 
+  // Auth gate (audit 2026-07-09): require an authenticated user BEFORE the ~9k-token
+  // LLM call. getCurrentCompanyId() returns null (not an error) for an anon caller,
+  // and middleware doesn't cover /api/*, so without this an unauthenticated caller
+  // could drive the model on our bill. Matches every sibling coach route's contract.
+  const authClient = await createClient();
+  const { data: authData } = await authClient.auth.getUser();
+  if (!authData?.user) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+
   try {
     const companyId = (await getCurrentCompanyId()) ?? undefined;
 

@@ -1,5 +1,6 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
+import { groundQuote } from "./grounding";
 import {
   getCurrentSalesCorpus,
   type TranscriptSegment,
@@ -151,7 +152,7 @@ export async function generateSalesScores(args: {
     });
     // If grading failed but we have the computed ratio, still surface that one
     // honest number rather than nothing (§3.4 — degrade, don't fabricate).
-    const graded = r.suppressed ? [] : parseGraded(r.text);
+    const graded = r.suppressed ? [] : parseGraded(r.text, args.segments);
     const categories = orderCategories(graded, talkRatio, questionRate);
     if (categories.length === 0) return EMPTY;
     return { hasSignal: true, categories };
@@ -193,7 +194,10 @@ function orderCategories(
 // CLAMPED to [0,10], only the four known categories are accepted, a non-numeric
 // score is dropped, and (A11) a score with NO rationale is dropped rather than
 // surface a number the rep can't inspect. Constitutional invariants worth pinning.
-export function parseGraded(text: string): ScoreCategory[] {
+export function parseGraded(
+  text: string,
+  segments: TranscriptSegment[] = []
+): ScoreCategory[] {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -222,10 +226,16 @@ export function parseGraded(text: string): ScoreCategory[] {
     const score = Math.max(0, Math.min(10, Math.round(rawScore)));
     const rationale =
       typeof c.rationale === "string" ? c.rationale.trim() : "";
+    // A11/§3.4: the citation must be a real transcript quote (the evidence a rep can
+    // inspect/contest). Ground it when segments are available; a citation whose words
+    // aren't in the transcript is dropped rather than surfaced as false evidence. The
+    // default (no segments — unit tests) keeps the prior trim-only behavior.
     const citation =
-      typeof c.citation === "string" && c.citation.trim()
-        ? c.citation.trim()
-        : null;
+      segments.length > 0
+        ? groundQuote(c.citation as string | null, segments)
+        : typeof c.citation === "string" && c.citation.trim()
+          ? c.citation.trim()
+          : null;
     // A11: a score with no rationale is a naked verdict — drop it rather than
     // surface a number the rep can't inspect.
     if (!rationale) continue;

@@ -74,6 +74,7 @@ export function useTapControls(args: {
   // "speaking" never swallows an activation and vice-versa.
   const lastSpeakingRef = useRef(0);
   const lastCoachRef = useRef(0);
+  const lastQuietRef = useRef(0);
 
   useEffect(() => {
     if (!args.active || !supported) return;
@@ -119,12 +120,13 @@ export function useTapControls(args: {
       ms.setActionHandler("nexttrack", () =>
         fire(lastCoachRef, cbRef.current.onCoachMe)
       );
-      // Triple-tap (previoustrack on many earbuds) → quiet toggle.
-      ms.setActionHandler("previoustrack", () => {
-        setLastTapAt(Date.now());
-        cbRef.current.onToggleQuiet();
-        keepAlive();
-      });
+      // Triple-tap (previoustrack on many earbuds) → quiet toggle. Must go through
+      // fire() like the others (audit 2026-07-09): without the dedup guard, the same
+      // hardware double-delivery this file documents (a single physical press → two
+      // events) toggled quiet on→off, so the triple-tap did nothing.
+      ms.setActionHandler("previoustrack", () =>
+        fire(lastQuietRef, cbRef.current.onToggleQuiet)
+      );
     } catch {
       /* setActionHandler / MediaMetadata unsupported — supported stays true but
          taps simply won't arrive; the UI legend is honest about that. */

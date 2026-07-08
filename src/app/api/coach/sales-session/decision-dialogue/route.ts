@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { proposeDecisionDialogue } from "@/lib/claude";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { createClient } from "@/lib/supabase/server";
 import { readBody, DialogueDecisionSchema } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
@@ -28,6 +29,15 @@ export async function POST(req: NextRequest) {
 
   const body = await readBody(req, DialogueDecisionSchema);
   if (body instanceof NextResponse) return body;
+
+  // Auth gate (audit 2026-07-09): require an authenticated user before the LLM call.
+  // controlExempt (below) is about the §3.4 control window, NOT authentication — this
+  // route had neither an auth nor a role check, so an anon caller reached the model.
+  const authClient = await createClient();
+  const { data: authData } = await authClient.auth.getUser();
+  if (!authData?.user) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
 
   try {
     const companyId = (await getCurrentCompanyId()) ?? undefined;
