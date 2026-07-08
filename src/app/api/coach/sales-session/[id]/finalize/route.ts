@@ -80,12 +80,24 @@ export async function POST(
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
 
-  // RLS scopes this to the caller's company.
+  // RLS scopes this to the caller's company; getSession returns owner OR manager.
   const session = await getSession(id);
   if (!session) {
     return NextResponse.json(
       { error: "Session not found or not accessible." },
       { status: 404 }
+    );
+  }
+  // OWNER-ONLY (audit 2026-07-09): finalize APPENDS the live transcript (body.segments)
+  // then generates the review from it. Only the session's own rep calls this (from the
+  // live-coaching hook on Stop — traced: no manager caller). Gating to the owner closes
+  // the §A18 transcript-injection vector (a manager appending fabricated segments via
+  // this route) with zero workflow cost, matching segments/cue-outcome/why. Cannot
+  // affect the rep's own flow — they ARE the owner.
+  if (session.agentId !== auth.user.id) {
+    return NextResponse.json(
+      { error: "Only the session's own rep can finalize it." },
+      { status: 403 }
     );
   }
 
