@@ -35,6 +35,20 @@ outcome + pivot direction + timeline sentiment — never scores. The detail moda
 this to the reader. **If the founder actually intended scores to drive it, that changes
 the privacy contract and needs an explicit decision.**
 
+## §A18 scores-leak class — swept, clean (post-build audit, 2026-07-09)
+The build turned on scores being owner-private. I then swept the whole class — every
+admin-client (RLS-bypassing) reader of the owner-private tables (`after_pitch_summaries`,
+`coaching_cue_outcomes`) and whether any manager-reachable path returns them raw:
+- `after-pitch/route.ts` — gates via `forViewer(summary, isOwner)`: a non-owner gets
+  `scores: []` (stripped); `isOwner` is true only when `auth.user.id === sessionAgentId`;
+  a peer (neither owner nor manager) is denied. **Sound.**
+- `summary-scores/route.ts` — owner-only, **403 to any non-owner** (even a company
+  admin), generated on-demand so no manager-readable copy exists. **Sound.**
+- `getSessionCueOutcomesAdmin` / `getRepWinningLines` — internal to after-pitch
+  generation + live-cue grounding, agent-scoped; never returned raw to a manager. **Sound.**
+No leak found. The scores-privacy contract holds on every path; this feature's
+score-avoidance is consistent with it. Baseline for the next §1.7 audit.
+
 ## What was built (file by file)
 - **`src/lib/coach/v5/sessionFlag.ts`** (new, pure, client-safe) —
   `classifySession()` (the rules above), `netSentimentFromMoments()` (per-moment tally),
