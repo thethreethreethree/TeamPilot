@@ -45,12 +45,25 @@ export async function POST(
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  // RLS-scoped read authorizes the write target.
+  // RLS-scoped read authorizes visibility; getSession returns owner OR same-company
+  // manager (0084). But APPENDING transcript is OWNER-ONLY (audit 2026-07-09): migration
+  // 0082 declared cross-agent transcript injection "a §A18 data-integrity hole …
+  // corrupting the transcript the post-call review reasons from", and tightened the
+  // direct-PostgREST INSERT to owner-only — but this service-role route re-opened it to
+  // managers (the same "RLS-fixed, service-role-route-missed" class as the CRM vendor
+  // fix). This route has no client caller (segments flow through /finalize's body), so
+  // matching the cue-outcome/why owner-gate closes the hole with no workflow cost.
   const session = await getSession(id);
   if (!session) {
     return NextResponse.json(
       { error: "Session not found or not accessible." },
       { status: 404 }
+    );
+  }
+  if (session.agentId !== auth.user.id) {
+    return NextResponse.json(
+      { error: "Only the session's own rep can append its transcript." },
+      { status: 403 }
     );
   }
 
