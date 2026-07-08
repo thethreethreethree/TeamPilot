@@ -49,6 +49,17 @@ admin-client (RLS-bypassing) reader of the owner-private tables (`after_pitch_su
 No leak found. The scores-privacy contract holds on every path; this feature's
 score-avoidance is consistent with it. Baseline for the next §1.7 audit.
 
+**Broader class sweep (2026-07-09) — two classes across all product areas:**
+- *False-ok writes* (a mutation returning ok without asserting the write landed):
+  FIXED in team removal (558ce56) + coach-role (194e4e2); confirmed sound elsewhere
+  (C.A.R.E agent toggle asserts; `files/[id]` asserts rowcount; `file_access_grants`
+  DELETE is RLS-protected with a benign idempotent 0-row; CRM writes all gated).
+- *Cross-tenant / §A18 authz* (data crossing owner/tenant boundary to a manager or
+  another tenant): FIXED in C.A.R.E removed-member access (b5b170a); confirmed sound in
+  Sales-Coach scores paths, C.A.R.E leadership (aggregate-only), files (uploader/admin
+  RLS), and CRM (`requireVendorAdmin`, admin AND vendor company, fail-closed). No new
+  holes. This table is the class-coverage baseline for the next §1.7 audit.
+
 ## What was built (file by file)
 - **`src/lib/coach/v5/sessionFlag.ts`** (new, pure, client-safe) —
   `classifySession()` (the rules above), `netSentimentFromMoments()` (per-moment tally),
