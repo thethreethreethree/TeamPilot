@@ -33,6 +33,30 @@ describe("parseGraded — measurement honesty", () => {
     expect(out[0]!.key).toBe("close");
   });
 
+  it("§3.4: grounds the CITATION when segments are provided — fabricated nulled, real kept", () => {
+    const segs = [seg(0, "agent", "Hi there, is this a good time to chat about savings")];
+    const out = parseGraded(
+      JSON.stringify({
+        categories: [
+          cat({ key: "opener", citation: "is this a good time to chat about savings" }),
+          cat({ key: "close", citation: "you just signed a three year deal congrats" }),
+        ],
+      }),
+      segs
+    );
+    expect(out.find((c) => c.key === "opener")?.citation).toBe(
+      "is this a good time to chat about savings"
+    );
+    expect(out.find((c) => c.key === "close")?.citation).toBeNull();
+  });
+
+  it("without segments, the citation is kept as-is (backward compatible)", () => {
+    const out = parseGraded(
+      JSON.stringify({ categories: [cat({ citation: "anything at all here goes" })] })
+    );
+    expect(out[0]!.citation).toBe("anything at all here goes");
+  });
+
   it("clamps scores to [0,10] and rounds", () => {
     const out = parseGraded(
       JSON.stringify({

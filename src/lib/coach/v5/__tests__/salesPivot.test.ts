@@ -54,6 +54,19 @@ describe("parsePivot", () => {
     expect(r?.pivot?.direction).toBe("lost");
   });
 
+  it("grounds QUOTES (§3.4): a fabricated repLine is nulled, a real customerLine kept", () => {
+    // The manager-visible fabrication risk: a real pivot carrying invented words.
+    const r = parsePivot(
+      pivot({
+        customerLine: "Oh really? Tell me more.", // real (seg 3)
+        repLine: "sign the contract right now today please", // not in transcript
+      }),
+      SEGMENTS
+    );
+    expect(r?.pivot?.customerLine).toBe("Oh really? Tell me more.");
+    expect(r?.pivot?.repLine).toBeNull();
+  });
+
   it("returns empty when hasSignal is false (honest silence)", () => {
     const r = parsePivot(JSON.stringify({ hasSignal: false, pivot: null }), SEGMENTS);
     expect(r?.hasSignal).toBe(false);

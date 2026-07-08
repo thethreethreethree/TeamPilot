@@ -43,6 +43,32 @@ describe("parseMoments — §3.4 grounding invariants", () => {
     expect(out!.moments[0]!.atSeq).toBe(1);
   });
 
+  it("grounds QUOTES (§3.4): a customerLine/repLine NOT in the transcript is nulled, a real one kept", () => {
+    // The specific fabrication a manager would see: a real atSeq carrying invented
+    // "customer's words". groundQuote must strip the unverifiable string.
+    const QSEG = [
+      seg(0, { text: "So how much does this cost per month exactly" }),
+      seg(1, { text: "It runs two hundred a seat billed annually" }),
+    ];
+    const out = parseMoments(
+      JSON.stringify({
+        hasSignal: true,
+        moments: [
+          {
+            atSeq: 0,
+            kind: "objection",
+            label: "price",
+            customerLine: "how much does this cost per month", // words ARE in seg 0
+            repLine: "I love it where do I sign right now", // fabricated
+          },
+        ],
+      }),
+      QSEG
+    );
+    expect(out!.moments[0]!.customerLine).toBe("how much does this cost per month");
+    expect(out!.moments[0]!.repLine).toBeNull();
+  });
+
   it("defaults an unknown kind to 'other'", () => {
     const out = parseMoments(
       JSON.stringify({ hasSignal: true, moments: [{ atSeq: 0, kind: "not-a-kind", label: "x" }] }),
