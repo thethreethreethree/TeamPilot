@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("resolutions")
     .update({
       observed_outcome: observedOutcome,
@@ -48,10 +48,21 @@ export async function PATCH(req: NextRequest) {
       reviewed_at: new Date().toISOString(),
       reviewer: auth.user.id,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  // §3.4 / strictUpdate (audit 2026-07-09): assert the review actually landed. RLS
+  // scopes resolutions to the caller's company, so an id outside it matches 0 rows —
+  // report it rather than a phantom "reviewed" (the same false-ok class already fixed
+  // in the problems route).
+  if (!updated || updated.length === 0) {
+    return NextResponse.json(
+      { error: "That resolution isn't accessible, or no longer exists." },
+      { status: 404 }
+    );
   }
 
   // Asset System v1 — emit asset.file.cited for every @file mention
