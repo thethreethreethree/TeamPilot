@@ -297,6 +297,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const ctxRef = useRef<AudioContext | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
   const turnsRef = useRef<Turn[]>([]);
+  // Session epoch — bumped on every start() and stop() (audit 2026-07-09 A6). An
+  // in-flight /cue or /attribute captures the epoch at request time; if it resolves
+  // after a stop→restart, the epoch no longer matches and the stale result is dropped
+  // instead of writing a cue / speaker label into the NEW session. Additive-safe: it
+  // can only DISCARD a superseded result, never suppress a valid one.
+  const sessionEpochRef = useRef(0);
   const cueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Idempotency guard (bug fix, 2026-07-06): finalize appends the transcript, and
   // coaching_transcript_segments has NO unique(session_id, seq) constraint — so a
@@ -422,6 +428,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       triggeredAtArg?: number
     ) => {
       const triggeredAt = triggeredAtArg ?? performance.now();
+      // A6: the session this cue belongs to. If it changes before we deliver (the
+      // rep hit Stop/Start during the round-trip), we drop the cue instead of
+      // speaking a stale-session cue into the new one.
+      const cueEpoch = sessionEpochRef.current;
       // Fix B (audit 2026-07-06): record a trace on EVERY exit branch, not just
       // the success path — else the readout undercounts failures + cooldown
       // suppressions (A14 completeness / A2 honest measurement).
@@ -518,7 +528,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           onDemand,
         });
         let deliveredAt: number | undefined;
-        if (decision.deliver) {
+        // A6: only deliver if we're still in the SAME session the cue was requested
+        // for. If not, fall through (deliveredAt stays undefined → recorded as
+        // not-delivered) rather than speaking a stale cue into the new session.
+        if (decision.deliver && cueEpoch === sessionEpochRef.current) {
           lastCueAtRef.current = Date.now(); // start the cooldown
           // Track the persisted cue id so the rep can mark it "used" (0080).
           currentCueIdRef.current = (data?.cueId as string | null) ?? null;
@@ -590,7 +603,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       priorSpeaker: TranscriptSpeaker,
       volHint: TranscriptSpeaker
     ) => {
+      // A6: the session this attribution belongs to. If /attribute resolves after a
+      // stop→restart, turnsRef has been reset/refilled by the new session, and writing
+      // `speaker` at `index` would mislabel a FRESH-session turn. Drop it instead.
+      const turnEpoch = sessionEpochRef.current;
       const settleLabel = (speaker: TranscriptSpeaker | null) => {
+        if (turnEpoch !== sessionEpochRef.current) return;
         turnsRef.current = turnsRef.current.map((t, i) =>
           i === index
             ? { ...t, speaker: speaker ?? t.speaker, pending: false }
@@ -674,6 +692,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   );
 
   const stop = useCallback(() => {
+    // A6: invalidate any in-flight /cue or /attribute so a late resolution can't
+    // write into a session that has ended (or the next one, after a restart).
+    sessionEpochRef.current += 1;
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     // #1 fix: persist the live attributed transcript (speaker-separated)
@@ -781,6 +802,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     setCueSummary(null);
     finalizedRef.current = false; // allow this session's finalize to fire once
     setStatus("connecting");
+    // A6: new session epoch — any /cue or /attribute still in flight from a prior
+    // session is now stale and will be dropped when it resolves.
+    sessionEpochRef.current += 1;
     setTurns([]);
     turnsRef.current = [];
     setTranscriptSaved(false);
