@@ -72,8 +72,11 @@ Confirmed-safe (verified, not assumed, left unchanged): `ai/briefing/stream` (ga
 `!companyId`), `care/conversations/[id]/messages` (customer widget, token-gated),
 `care/inbound/email` (webhook-secret). *Consider:* `llm/ping` (a deliberate provider
 health-ping, rate-limited) — lower priority; decide if the connection test should
-require an admin. **Runtime caveat:** the gated routes are all dashboard features whose
-real callers are authenticated, but confirm none is invoked from a pre-auth surface.
+require an admin. **Regression check DONE:** traced every client caller of the 10 gated
+routes — all live on the auth-gated dashboard (chat modals, dashboard pages, and the
+`LearningModeFab`/Ask-Jeff chain which mounts ONLY in `dashboard/layout.tsx`, itself
+server-side auth-gated). No pre-auth caller exists, so the gates are transparent to
+real users and close only the anonymous-abuse vector.
 
 ## Audited and confirmed CLEAN (reported honestly, no change)
 ELO math (expected-score formula, K-update, clamps — correct); memory aggregation;
