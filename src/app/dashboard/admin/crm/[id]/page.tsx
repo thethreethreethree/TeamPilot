@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { useToast } from "@/components/ui/toast";
 import {
   ArrowLeft,
   Loader2,
@@ -58,6 +59,7 @@ const ACTIVITY_LABEL: Record<CrmActivityEvent["kind"], string> = {
 
 export default function CrmAccountDetailPage() {
   const params = useParams();
+  const toast = useToast();
   const accountId = params?.id as string;
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -179,13 +181,17 @@ export default function CrmAccountDetailPage() {
             <button
               type="button"
               onClick={async () => {
-                await fetch(`/api/admin/crm/accounts/${account.id}`, {
+                const res = await fetch(`/api/admin/crm/accounts/${account.id}`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     isTestAccount: !account.isTestAccount,
                   }),
                 });
+                if (!res.ok) {
+                  toast.error("Couldn't update the account", "Please try again.");
+                  return;
+                }
                 void load();
               }}
               className="text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded border border-default bg-surface text-secondary hover:text-primary"
@@ -345,14 +351,21 @@ function LifecycleSwitcher({
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
   const change = async (stage: CrmLifecycleStage) => {
     setBusy(true);
-    await fetch(`/api/admin/crm/accounts/${accountId}`, {
+    const res = await fetch(`/api/admin/crm/accounts/${accountId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lifecycleStage: stage }),
     });
     setBusy(false);
+    // §3.4: a failed lifecycle change (the most important field) must be VISIBLE,
+    // not silently dropped while the UI re-fetches and looks unchanged.
+    if (!res.ok) {
+      toast.error("Couldn't change the lifecycle stage", "Please try again.");
+      return;
+    }
     onChanged();
   };
   return (
@@ -414,10 +427,11 @@ function OverviewTab({
     sourceNote: account.sourceNote ?? "",
   });
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const save = async () => {
     setSaving(true);
-    await fetch(`/api/admin/crm/accounts/${account.id}`, {
+    const res = await fetch(`/api/admin/crm/accounts/${account.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -431,6 +445,11 @@ function OverviewTab({
       }),
     });
     setSaving(false);
+    // §3.4: don't close the editor + claim saved if the write failed.
+    if (!res.ok) {
+      toast.error("Couldn't save the account", "Please try again.");
+      return;
+    }
     setEditing(false);
     onChanged();
   };
@@ -678,11 +697,12 @@ function ContactsTab({
     isDecisionMaker: false,
   });
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const submit = async () => {
     if (!form.fullName.trim()) return;
     setSaving(true);
-    await fetch(`/api/admin/crm/accounts/${accountId}/contacts`, {
+    const res = await fetch(`/api/admin/crm/accounts/${accountId}/contacts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -694,6 +714,10 @@ function ContactsTab({
       }),
     });
     setSaving(false);
+    if (!res.ok) {
+      toast.error("Couldn't add the contact", "Please try again.");
+      return;
+    }
     setAdding(false);
     setForm({
       fullName: "",
@@ -707,7 +731,11 @@ function ContactsTab({
 
   const remove = async (id: string) => {
     if (!confirm("Remove this contact?")) return;
-    await fetch(`/api/admin/crm/contacts/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/crm/contacts/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Couldn't remove the contact", "Please try again.");
+      return;
+    }
     onChanged();
   };
 
@@ -866,10 +894,11 @@ function SubscriptionTab({
     Math.floor((subscription?.monthlyRecurringRevenueCents ?? 0) / 100)
   );
   const [stubAmount, setStubAmount] = useState<string>("0");
+  const toast = useToast();
 
   const save = async () => {
     setSaving(true);
-    await fetch(`/api/admin/crm/accounts/${accountId}/subscription`, {
+    const res = await fetch(`/api/admin/crm/accounts/${accountId}/subscription`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -880,6 +909,12 @@ function SubscriptionTab({
       }),
     });
     setSaving(false);
+    // §3.4: MRR/plan/seats are the vendor's revenue truth — a silent failed save
+    // would corrupt the metrics the vendor reads. Surface it.
+    if (!res.ok) {
+      toast.error("Couldn't save the subscription", "Please try again.");
+      return;
+    }
     onChanged();
   };
 
@@ -890,7 +925,7 @@ function SubscriptionTab({
     const end = new Date(start);
     end.setUTCMonth(end.getUTCMonth() + 1);
     setSaving(true);
-    await fetch(`/api/admin/crm/accounts/${accountId}/subscription`, {
+    const res = await fetch(`/api/admin/crm/accounts/${accountId}/subscription`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -900,6 +935,10 @@ function SubscriptionTab({
       }),
     });
     setSaving(false);
+    if (!res.ok) {
+      toast.error("Couldn't generate the invoice", "Please try again.");
+      return;
+    }
     setStubAmount("0");
     onChanged();
   };
@@ -1113,16 +1152,21 @@ function NotesTab({
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const submit = async () => {
     if (!body.trim()) return;
     setSaving(true);
-    await fetch(`/api/admin/crm/accounts/${accountId}/notes`, {
+    const res = await fetch(`/api/admin/crm/accounts/${accountId}/notes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body: body.trim(), pinned }),
     });
     setSaving(false);
+    if (!res.ok) {
+      toast.error("Couldn't save the note", "Please try again.");
+      return;
+    }
     setBody("");
     setPinned(false);
     onChanged();
