@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useToast } from "@/components/ui/toast";
 
 export default function TeamPage() {
   const companyName = useCompanyName();
@@ -240,6 +241,7 @@ function MemberRow({
   onRemoved: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
   const remove = async () => {
     if (!confirm(`Remove ${member.fullName ?? "this member"}?`)) return;
     setBusy(true);
@@ -247,7 +249,19 @@ function MemberRow({
       method: "DELETE",
     });
     setBusy(false);
-    if (res.ok) onRemoved();
+    if (res.ok) {
+      onRemoved();
+      return;
+    }
+    // §3.4: a failed removal must be VISIBLE. This handler used to swallow
+    // failures — which masked the route's own false-ok bug for weeks (the member
+    // silently stayed). Route errors are honest now (403 not-admin / 404 not in
+    // company); show them.
+    const data = await res.json().catch(() => null);
+    toast.error(
+      "Couldn't remove the member",
+      data?.error ?? "Something went wrong — try again."
+    );
   };
   const initials = (member.fullName ?? "?")
     .split(" ")
