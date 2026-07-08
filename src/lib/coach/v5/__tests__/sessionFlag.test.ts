@@ -2,8 +2,39 @@ import { describe, expect, it } from "vitest";
 import {
   classifySession,
   extractSessionSignals,
+  gateSessionFlag,
   netSentimentFromMoments,
 } from "../sessionFlag";
+
+describe("gateSessionFlag (surface invariants)", () => {
+  const exam = { kind: "examination" as const, headline: "h", reasons: [] };
+  const outstanding = { kind: "outstanding" as const, headline: "h", reasons: [] };
+
+  it("an ACTIVE session is never flagged (even with a classified flag)", () => {
+    expect(gateSessionFlag(exam, { status: "active", isManager: true })).toBeNull();
+    expect(
+      gateSessionFlag(outstanding, { status: "active", isManager: true })
+    ).toBeNull();
+  });
+
+  it("Examination is MANAGER-ONLY — a rep never sees it on their own session", () => {
+    expect(gateSessionFlag(exam, { status: "ended", isManager: false })).toBeNull();
+    expect(gateSessionFlag(exam, { status: "ended", isManager: true })).toBe(exam);
+  });
+
+  it("Outstanding is visible to everyone (rep + manager)", () => {
+    expect(gateSessionFlag(outstanding, { status: "ended", isManager: false })).toBe(
+      outstanding
+    );
+    expect(gateSessionFlag(outstanding, { status: "reviewed", isManager: true })).toBe(
+      outstanding
+    );
+  });
+
+  it("null flag stays null", () => {
+    expect(gateSessionFlag(null, { status: "ended", isManager: true })).toBeNull();
+  });
+});
 
 /**
  * The session interaction classifier (founder 2026-07-09). Pins the founder's

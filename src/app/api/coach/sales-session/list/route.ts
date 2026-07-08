@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   classifySession,
   extractSessionSignals,
+  gateSessionFlag,
   type SessionFlag,
 } from "@/lib/coach/v5/sessionFlag";
 
@@ -158,21 +159,18 @@ export async function GET(req: Request) {
     outcome: string | null,
     status: string
   ): SessionFlag | null => {
-    // Only classify a FINISHED interaction. summarize can generate pivot/moments on
-    // a still-active session, but a flag reads as "how this call RESULTED" (founder
-    // wording) — flagging a live, mid-call session would be premature and wrong.
-    if (status === "active") return null;
     const signals = extractSessionSignals({
       outcome,
       pivotPayload: pivotPayloadBySession.get(id) ?? null,
       momentsPayload: momentsPayloadBySession.get(id) ?? null,
     });
-    const flag = classifySession(signals);
-    // Founder rule + §A18/§3.3: "Needs Examination" is manager/admin-only — a rep
-    // never sees a needs-examination badge on their own session. "Outstanding" is
-    // visible to everyone (positive reinforcement).
-    if (flag?.kind === "examination" && !ctx.isManager) return null;
-    return flag;
+    // gateSessionFlag enforces the two surface invariants (active-skip + manager-only
+    // examination) — extracted + unit-tested so the rep-never-sees-examination rule
+    // can't silently regress.
+    return gateSessionFlag(classifySession(signals), {
+      status,
+      isManager: ctx.isManager,
+    });
   };
 
   // Agent names — manager view only (per-agent visibility, not ranking).

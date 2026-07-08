@@ -65,6 +65,25 @@ export type SessionSignals = {
 };
 
 /**
+ * Apply the two SURFACE gates to a classified flag, returning the flag the caller may
+ * show or null. Pure so these invariants are a tested unit:
+ *   (1) Never flag an ACTIVE session — a flag reads as how the call RESULTED (founder
+ *       wording); a live, mid-call session is premature.
+ *   (2) "Examination" is MANAGER/ADMIN-only — a rep must NEVER see a needs-examination
+ *       badge on their own session (§3.3 guide-don't-overtake / A11 mirror-not-verdict).
+ *       "Outstanding" is visible to everyone (positive reinforcement).
+ */
+export function gateSessionFlag(
+  flag: SessionFlag | null,
+  ctx: { status: string; isManager: boolean }
+): SessionFlag | null {
+  if (ctx.status === "active") return null;
+  if (!flag) return null;
+  if (flag.kind === "examination" && !ctx.isManager) return null;
+  return flag;
+}
+
+/**
  * Net timeline sentiment from the per-moment sentiment tally (manager-visible
  * moments). More cooling moments than warming → "cooling"; more warming → "warming";
  * a tie with at least one signal → "flat"; no signal at all → null. Defensive: a
