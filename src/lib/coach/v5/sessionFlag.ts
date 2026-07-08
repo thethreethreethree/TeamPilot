@@ -81,6 +81,82 @@ export function netSentimentFromMoments(
   return "flat";
 }
 
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+}
+
+function str(v: unknown): string | null {
+  return typeof v === "string" && v.trim().length > 0 ? v : null;
+}
+
+/**
+ * Parse the stored pivot event payload ({ pivot: PivotMoment }) into the classifier's
+ * two fields. Defensive: any non-conforming payload yields nulls (no throw, no flag)
+ * — a malformed/absent pivot must not crash the list nor fabricate a direction (§3.4).
+ */
+function readPivot(payload: unknown): {
+  direction: "gained" | "lost" | null;
+  reason: string | null;
+} {
+  const pivot = asRecord(asRecord(payload)?.pivot);
+  const dir = pivot?.direction;
+  const direction = dir === "gained" || dir === "lost" ? dir : null;
+  if (!direction) return { direction: null, reason: null };
+  const reason =
+    [str(pivot?.whatHappened), str(pivot?.whyItMattered)]
+      .filter((x): x is string => x !== null)
+      .join(" — ") || null;
+  return { direction, reason };
+}
+
+type RawMoment = {
+  sentiment?: string | null;
+  note?: string | null;
+  label?: string | null;
+  customerLine?: string | null;
+};
+
+/** Parse the stored moments event payload ({ moments: SalesMoment[] }). Defensive:
+ *  a non-array payload yields []. */
+function readMoments(payload: unknown): RawMoment[] {
+  const moments = asRecord(payload)?.moments;
+  return Array.isArray(moments) ? (moments as RawMoment[]) : [];
+}
+
+/** Best manager-visible text for a moment, for the composed explanation. */
+function momentText(m: RawMoment): string {
+  return (m.note ?? m.label ?? m.customerLine ?? "").toString().trim();
+}
+
+/**
+ * The single seam between STORAGE (event payloads) and the pure classifier. Extracts
+ * the manager-visible signals from the raw pivot + moments payloads. Pure + tested so
+ * a field-name drift in the stored shapes is caught here (not discovered as silent
+ * "no flags ever appear" in production — the AMD-006 Layer-2 failure mode).
+ */
+export function extractSessionSignals(args: {
+  outcome: string | null;
+  pivotPayload: unknown;
+  momentsPayload: unknown;
+}): SessionSignals {
+  const pivot = readPivot(args.pivotPayload);
+  const moments = readMoments(args.momentsPayload);
+  return {
+    outcome: args.outcome,
+    pivotDirection: pivot.direction,
+    pivotReason: pivot.reason,
+    sentiment: netSentimentFromMoments(moments),
+    coolingMoments: moments
+      .filter((m) => m.sentiment === "cooling")
+      .map(momentText)
+      .filter(Boolean),
+    warmingMoments: moments
+      .filter((m) => m.sentiment === "warming")
+      .map(momentText)
+      .filter(Boolean),
+  };
+}
+
 const OUTCOME_LABEL: Record<string, string> = {
   sold: "Closed / sold",
   no_sale: "No sale",

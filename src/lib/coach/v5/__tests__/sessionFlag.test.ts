@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { classifySession, netSentimentFromMoments } from "../sessionFlag";
+import {
+  classifySession,
+  extractSessionSignals,
+  netSentimentFromMoments,
+} from "../sessionFlag";
 
 /**
  * The session interaction classifier (founder 2026-07-09). Pins the founder's
@@ -79,6 +83,84 @@ describe("classifySession", () => {
     expect(
       classifySession({ outcome: null, pivotDirection: null, sentiment: null })
     ).toBeNull();
+  });
+
+  describe("extractSessionSignals (the storage→classifier seam)", () => {
+    // Realistic payloads matching the ACTUAL stored shapes: pivot event payload is
+    // { pivot: PivotMoment }, moments event payload is { moments: SalesMoment[] }.
+    // These pin the field names (direction / whatHappened / whyItMattered / sentiment
+    // / note) so a drift in the stored shape fails HERE, not silently in production.
+    it("extracts a lost pivot + reason + cooling sentiment from real payloads", () => {
+      const pivotPayload = {
+        pivot: {
+          atSeq: 12,
+          direction: "lost",
+          label: "Lost them on price",
+          whatHappened: "Quoted before value was established",
+          whyItMattered: "The prospect anchored on cost and disengaged",
+        },
+        coach_version: "pivot-v1",
+      };
+      const momentsPayload = {
+        moments: [
+          { atSeq: 3, sentiment: "warming", note: "opened well" },
+          { atSeq: 9, sentiment: "cooling", note: "went quiet after the quote" },
+          { atSeq: 14, sentiment: "cooling", label: "guarded close" },
+        ],
+        coach_version: "moments-v1",
+      };
+      const sig = extractSessionSignals({
+        outcome: "no_sale",
+        pivotPayload,
+        momentsPayload,
+      });
+      expect(sig.pivotDirection).toBe("lost");
+      expect(sig.pivotReason).toContain("Quoted before value was established");
+      expect(sig.pivotReason).toContain("anchored on cost");
+      expect(sig.sentiment).toBe("cooling");
+      expect(sig.coolingMoments).toContain("went quiet after the quote");
+      // And end-to-end: those signals classify as Examination.
+      expect(classifySession(sig)?.kind).toBe("examination");
+    });
+
+    it("extracts a gained pivot + warming for an Outstanding sold call", () => {
+      const sig = extractSessionSignals({
+        outcome: "sold",
+        pivotPayload: {
+          pivot: { direction: "gained", whatHappened: "Reframed to outcome value" },
+        },
+        momentsPayload: {
+          moments: [
+            { sentiment: "warming", note: "leaned in" },
+            { sentiment: "warming", note: "asked about start dates" },
+          ],
+        },
+      });
+      expect(sig.pivotDirection).toBe("gained");
+      expect(sig.sentiment).toBe("warming");
+      expect(classifySession(sig)?.kind).toBe("outstanding");
+    });
+
+    it("is defensive: malformed / absent payloads → neutral signals, no throw", () => {
+      expect(
+        extractSessionSignals({ outcome: null, pivotPayload: null, momentsPayload: null })
+      ).toEqual({
+        outcome: null,
+        pivotDirection: null,
+        pivotReason: null,
+        sentiment: null,
+        coolingMoments: [],
+        warmingMoments: [],
+      });
+      // Garbage shapes don't crash and don't fabricate a direction.
+      const junk = extractSessionSignals({
+        outcome: "sold",
+        pivotPayload: { pivot: { direction: "sideways" } },
+        momentsPayload: { moments: "not-an-array" },
+      });
+      expect(junk.pivotDirection).toBeNull();
+      expect(junk.sentiment).toBeNull();
+    });
   });
 
   describe("netSentimentFromMoments", () => {
