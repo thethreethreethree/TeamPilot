@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  classifySession,
+  netSentimentFromMoments,
+  type SessionFlag,
+} from "@/lib/coach/v5/sessionFlag";
 
 /**
  * GET /api/coach/sales-session/list
@@ -116,6 +121,76 @@ export async function GET(req: Request) {
     }
   }
 
+  // Interaction-flag signals (founder 2026-07-09): the pivot direction + the
+  // timeline moments' sentiment, per session. §A18: these are MANAGER-VISIBLE
+  // observations — the flag deliberately does NOT read the owner-private After-Pitch
+  // scores, so it cannot leak them to a manager. Separate query so the badge query
+  // above stays payload-free (dissect/summary payloads are large; we don't need
+  // them). Latest event per (session, kind) wins — order desc, first seen kept.
+  type PivotSig = { direction: "gained" | "lost"; reason: string | null };
+  type MomentSig = { sentiment?: string | null; note?: string | null; label?: string | null; customerLine?: string | null };
+  const pivotBySession = new Map<string, PivotSig>();
+  const momentsBySession = new Map<string, MomentSig[]>();
+  if (subjects.length > 0) {
+    const { data: sig } = await admin
+      .from("events")
+      .select("kind, subject, payload, created_at")
+      .in("kind", [
+        "coach.session_pivot_generated",
+        "coach.session_moments_generated",
+      ])
+      .in("subject", subjects)
+      .order("created_at", { ascending: false });
+    for (const e of sig ?? []) {
+      const sid = String(e.subject ?? "").replace("sales_session:", "");
+      const payload = e.payload as Record<string, unknown> | null;
+      if (e.kind === "coach.session_pivot_generated" && !pivotBySession.has(sid)) {
+        const pivot = payload?.pivot as Record<string, unknown> | undefined;
+        const dir = pivot?.direction;
+        if (dir === "gained" || dir === "lost") {
+          const reason =
+            [pivot?.whatHappened, pivot?.whyItMattered]
+              .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+              .join(" — ") || null;
+          pivotBySession.set(sid, { direction: dir, reason });
+        }
+      } else if (
+        e.kind === "coach.session_moments_generated" &&
+        !momentsBySession.has(sid)
+      ) {
+        const moments = payload?.moments;
+        if (Array.isArray(moments)) momentsBySession.set(sid, moments as MomentSig[]);
+      }
+    }
+  }
+
+  const momentText = (m: MomentSig): string =>
+    (m.note ?? m.label ?? m.customerLine ?? "").toString().trim();
+
+  const flagFor = (id: string, outcome: string | null): SessionFlag | null => {
+    const moments = momentsBySession.get(id) ?? [];
+    const pivot = pivotBySession.get(id) ?? null;
+    const flag = classifySession({
+      outcome,
+      pivotDirection: pivot?.direction ?? null,
+      pivotReason: pivot?.reason ?? null,
+      sentiment: netSentimentFromMoments(moments),
+      coolingMoments: moments
+        .filter((m) => m.sentiment === "cooling")
+        .map(momentText)
+        .filter(Boolean),
+      warmingMoments: moments
+        .filter((m) => m.sentiment === "warming")
+        .map(momentText)
+        .filter(Boolean),
+    });
+    // Founder rule + §A18/§3.3: "Needs Examination" is manager/admin-only — a rep
+    // never sees a needs-examination badge on their own session. "Outstanding" is
+    // visible to everyone (positive reinforcement).
+    if (flag?.kind === "examination" && !ctx.isManager) return null;
+    return flag;
+  };
+
   // Agent names — manager view only (per-agent visibility, not ranking).
   const names = new Map<string, string | null>();
   if (ctx.isManager) {
@@ -144,6 +219,7 @@ export async function GET(req: Request) {
       hasDissect: dissect.has(id),
       hasSummary: summary.has(id),
       hasReview: review.has(id),
+      flag: flagFor(id, (s.outcome as string | null) ?? null),
     };
   });
 

@@ -17,9 +17,13 @@ import {
   Brain,
   Lightbulb,
   ChevronDown,
+  AlertTriangle,
+  Award,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import Modal from "@/components/ui/Modal";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
+import type { SessionFlag } from "@/lib/coach/v5/sessionFlag";
 import {
   DeckCard,
   DeckPill,
@@ -54,6 +58,9 @@ type Row = {
   hasDissect: boolean;
   hasSummary: boolean;
   hasReview: boolean;
+  /** Interaction flag (founder 2026-07-09): "Needs Examination" (manager-only) or
+   *  "Outstanding" (everyone). Null when the interaction was neutral or unanalyzed. */
+  flag: SessionFlag | null;
 };
 
 
@@ -102,6 +109,14 @@ export default function SalesCoachSessionsPage() {
   // F1: when the badge query failed, we don't claim "no dissect" — we say
   // the review/dissect status is unavailable.
   const [badgesAvailable, setBadgesAvailable] = useState(true);
+
+  // The flag whose detailed explanation is open (null = closed). Carries the
+  // session's label + agent so the modal names which call it's about.
+  const [openFlag, setOpenFlag] = useState<{
+    clientLabel: string | null;
+    agentName: string | null;
+    flag: SessionFlag;
+  } | null>(null);
 
   const [search, setSearch] = useState("");
   const [context, setContext] = useState<"all" | "in_person" | "video">("all");
@@ -651,6 +666,21 @@ export default function SalesCoachSessionsPage() {
                       {isManager && s.agentName ? ` · ${s.agentName}` : ""}
                     </span>
                   </span>
+                  {s.flag && (
+                    <FlagBadge
+                      flag={s.flag}
+                      onOpen={(e) => {
+                        // The row is a Link — don't navigate; open the explanation.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setOpenFlag({
+                          clientLabel: s.clientLabel,
+                          agentName: s.agentName,
+                          flag: s.flag!,
+                        });
+                      }}
+                    />
+                  )}
                   {s.outcome && (
                     <span className="shrink-0">
                       <DeckPill>{outcomeLabel(s.outcome)}</DeckPill>
@@ -701,7 +731,94 @@ export default function SalesCoachSessionsPage() {
           </p>
         )}
       </div>
+      {openFlag && (
+        <Modal
+          open
+          onClose={() => setOpenFlag(null)}
+          title={
+            openFlag.flag.kind === "examination"
+              ? "Needs Manager/Admin Examination"
+              : "Outstanding Performance Review"
+          }
+          size="md"
+        >
+          <div className="space-y-3">
+            <div className="flex items-start gap-2">
+              {openFlag.flag.kind === "examination" ? (
+                <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" aria-hidden />
+              ) : (
+                <Award className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" aria-hidden />
+              )}
+              <p className="text-sm text-primary leading-relaxed">
+                {openFlag.flag.headline}
+              </p>
+            </div>
+            <p className="text-[11px] text-muted">
+              {openFlag.clientLabel ?? "Untitled session"}
+              {openFlag.agentName ? ` · ${openFlag.agentName}` : ""}
+            </p>
+            <ul className="space-y-2">
+              {openFlag.flag.reasons.map((r, i) => (
+                <li
+                  key={i}
+                  className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
+                >
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-secondary mb-0.5">
+                    {r.label}
+                  </p>
+                  <p className="text-xs text-primary leading-relaxed">{r.detail}</p>
+                </li>
+              ))}
+            </ul>
+            {/* §A18/§3.4 honesty: name what the explanation is built from, and that
+                it is NOT the rep's private scores (which managers can't see). */}
+            <p className="text-[10px] text-muted leading-relaxed">
+              Composed from this call&apos;s recorded signals — the pivot moment and
+              the prospect&apos;s sentiment across the conversation. It does not use
+              the rep&apos;s private after-pitch scores.
+            </p>
+          </div>
+        </Modal>
+      )}
     </>
+  );
+}
+
+/**
+ * FlagBadge — the clickable interaction flag on a session row (founder
+ * 2026-07-09). Amber "Needs Examination" (manager-only; the route already
+ * suppresses it for non-managers) or emerald "Outstanding". Lives inside the row's
+ * <Link>, so onOpen preventDefault+stopPropagation to show the explanation instead
+ * of navigating into the session.
+ */
+function FlagBadge({
+  flag,
+  onOpen,
+}: {
+  flag: NonNullable<SessionFlag>;
+  onOpen: (e: React.MouseEvent) => void;
+}) {
+  const isExam = flag.kind === "examination";
+  const Icon = isExam ? AlertTriangle : Award;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 border transition-colors ${
+        isExam
+          ? "text-amber-300 border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/20"
+          : "text-emerald-300 border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/20"
+      }`}
+      title="Click for the detailed explanation"
+      aria-label={
+        isExam
+          ? "Needs manager examination — open the detailed explanation"
+          : "Outstanding performance — open the detailed explanation"
+      }
+    >
+      <Icon className="w-2.5 h-2.5" aria-hidden />
+      {isExam ? "Needs Examination" : "Outstanding"}
+    </button>
   );
 }
 
