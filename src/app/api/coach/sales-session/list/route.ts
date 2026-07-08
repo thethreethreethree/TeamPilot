@@ -153,7 +153,15 @@ export async function GET(req: Request) {
     }
   }
 
-  const flagFor = (id: string, outcome: string | null): SessionFlag | null => {
+  const flagFor = (
+    id: string,
+    outcome: string | null,
+    status: string
+  ): SessionFlag | null => {
+    // Only classify a FINISHED interaction. summarize can generate pivot/moments on
+    // a still-active session, but a flag reads as "how this call RESULTED" (founder
+    // wording) — flagging a live, mid-call session would be premature and wrong.
+    if (status === "active") return null;
     const signals = extractSessionSignals({
       outcome,
       pivotPayload: pivotPayloadBySession.get(id) ?? null,
@@ -195,7 +203,7 @@ export async function GET(req: Request) {
       hasDissect: dissect.has(id),
       hasSummary: summary.has(id),
       hasReview: review.has(id),
-      flag: flagFor(id, (s.outcome as string | null) ?? null),
+      flag: flagFor(id, (s.outcome as string | null) ?? null, s.status as string),
     };
   });
 
