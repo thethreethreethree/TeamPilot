@@ -95,15 +95,25 @@ export async function POST(req: NextRequest) {
   // Service-role update, scoped to the manager's company so a manager
   // can only change members of their own company.
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data: updated, error } = await admin
     .from("profiles")
     .update({ sales_coach_role: body.salesCoachRole })
     .eq("id", body.id)
-    .eq("company_id", ctx.companyId);
+    .eq("company_id", ctx.companyId)
+    .select("id");
   if (error) {
     return NextResponse.json(
       { error: "Couldn't update the role." },
       { status: 500 }
+    );
+  }
+  // §3.4 / strictUpdate: assert the write actually landed. 0 rows = the target
+  // isn't in this manager's company — report it, don't claim a phantom success
+  // (the same class as the team-removal false-ok bug, 558ce56).
+  if (!updated || updated.length === 0) {
+    return NextResponse.json(
+      { error: "That member isn't in your company." },
+      { status: 404 }
     );
   }
   return NextResponse.json({ ok: true });
