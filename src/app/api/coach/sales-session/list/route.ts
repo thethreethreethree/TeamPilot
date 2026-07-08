@@ -207,6 +207,26 @@ export async function GET(req: Request) {
     };
   });
 
+  // Diagnostic (instrument-first): if flags under-appear, this one line names why —
+  // how many ended sessions carry an outcome / pivot / moments, and how many
+  // classified. Read it in the server logs before any speculative re-fix.
+  if (ctx.isManager) {
+    const ended = sessions.filter((s) => s.status !== "active");
+    const flagged = rows.filter((r) => r.flag);
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesSession.list] flags: ended=${ended.length} withOutcome=${
+        ended.filter((s) => s.outcome).length
+      } withPivot=${pivotPayloadBySession.size} withMoments=${
+        momentsPayloadBySession.size
+      } flagged=${flagged.length} (exam=${
+        flagged.filter((r) => r.flag?.kind === "examination").length
+      } outstanding=${
+        flagged.filter((r) => r.flag?.kind === "outstanding").length
+      })`
+    );
+  }
+
   return NextResponse.json({
     isManager: ctx.isManager,
     sessions: rows,

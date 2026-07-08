@@ -54,6 +54,10 @@ export type SessionSignals = {
   pivotReason?: string | null;
   /** net timeline sentiment: more cooling than warming → "cooling", etc. */
   sentiment: "warming" | "cooling" | "flat" | null;
+  /** a breakdown moment exists in the timeline (a point the call went wrong) */
+  hasBreakdown?: boolean;
+  /** the breakdown moment's text, for the explanation */
+  breakdownText?: string | null;
   /** manager-visible timeline moments that cooled — for the explanation */
   coolingMoments?: string[];
   /** manager-visible timeline moments that warmed — for the explanation */
@@ -114,6 +118,8 @@ type RawMoment = {
   note?: string | null;
   label?: string | null;
   customerLine?: string | null;
+  isBreakdown?: boolean;
+  kind?: string | null;
 };
 
 /** Parse the stored moments event payload ({ moments: SalesMoment[] }). Defensive:
@@ -141,11 +147,16 @@ export function extractSessionSignals(args: {
 }): SessionSignals {
   const pivot = readPivot(args.pivotPayload);
   const moments = readMoments(args.momentsPayload);
+  const breakdown = moments.find(
+    (m) => m.isBreakdown === true || m.kind === "breakdown"
+  );
   return {
     outcome: args.outcome,
     pivotDirection: pivot.direction,
     pivotReason: pivot.reason,
     sentiment: netSentimentFromMoments(moments),
+    hasBreakdown: !!breakdown,
+    breakdownText: breakdown ? momentText(breakdown) || null : null,
     coolingMoments: moments
       .filter((m) => m.sentiment === "cooling")
       .map(momentText)
@@ -175,13 +186,22 @@ function outcomeLabel(outcome: string | null): string {
  * sessions are flagged, so the surface is a real signal, not noise.
  */
 export function classifySession(s: SessionSignals): SessionFlag | null {
-  const negative =
-    s.pivotDirection === "lost" || s.sentiment === "cooling";
+  // A negative INTERACTION: the call itself went wrong somewhere.
+  const negativeInteraction =
+    s.pivotDirection === "lost" ||
+    s.sentiment === "cooling" ||
+    s.hasBreakdown === true;
+  // A negative OUTCOME: the interaction resulted in no sale. (Broadened
+  // 2026-07-09 after v1 flagged almost nothing — the interaction signals above
+  // exist only for finalized/summarized sessions, so `no_sale` is the
+  // always-available signal that a session "resulted in a negative interaction".)
+  const negativeOutcome = s.outcome === "no_sale";
+  const negative = negativeInteraction || negativeOutcome;
   const positive =
     s.pivotDirection === "gained" || s.sentiment === "warming";
 
-  // Precedence: a negative interaction is examined regardless of outcome — even
-  // a sale that went badly (founder rule). Negative wins over positive.
+  // EXAMINATION — negative interaction OR negative outcome, any outcome otherwise.
+  // Precedence: negative wins (a sale that went badly is examined, not celebrated).
   if (negative) {
     const reasons: SessionFlagReason[] = [];
     if (s.pivotDirection === "lost") {
@@ -201,27 +221,41 @@ export function classifySession(s: SessionSignals): SessionFlag | null {
           "The prospect grew more guarded as the conversation went on.",
       });
     }
-    // Outcome is context, not a trigger — but a sold-yet-flagged call is exactly
-    // the case a manager most wants to see, so name it.
+    if (s.hasBreakdown) {
+      reasons.push({
+        label: "A breakdown moment",
+        detail:
+          s.breakdownText?.trim() ||
+          "The call hit a point where it clearly went wrong.",
+      });
+    }
     reasons.push({
       label: "Outcome",
       detail:
         s.outcome === "sold"
           ? "Closed the sale — but the interaction still went poorly; worth examining how it landed despite the rough patch."
-          : outcomeLabel(s.outcome),
+          : s.outcome === "no_sale"
+            ? "No sale — the conversation didn't convert. Worth a manager's look at what happened."
+            : outcomeLabel(s.outcome),
     });
     return {
       kind: "examination",
       headline:
         s.outcome === "sold"
           ? "Sold, but the prospect interaction went poorly — worth a look."
-          : "The prospect interaction went poorly — worth a manager's look.",
+          : negativeInteraction
+            ? "The prospect interaction went poorly — worth a manager's look."
+            : "This call didn't convert — worth a manager's look at what happened.",
       reasons,
     };
   }
 
-  // Outstanding: sold AND a positive interaction (and not negative, handled above).
-  if (s.outcome === "sold" && positive) {
+  // OUTSTANDING — closed the sale AND the interaction didn't go negative. A
+  // positive signal (gained pivot / warming) strengthens the read but isn't
+  // required, since those signals are only present on analyzed sessions and the
+  // sale itself is evidence the interaction landed (founder: "closing deals AND
+  // positive prospect interaction").
+  if (s.outcome === "sold" && !negativeInteraction) {
     const reasons: SessionFlagReason[] = [];
     reasons.push({ label: "Outcome", detail: "Closed the sale." });
     if (s.pivotDirection === "gained") {
@@ -243,7 +277,9 @@ export function classifySession(s: SessionSignals): SessionFlag | null {
     }
     return {
       kind: "outstanding",
-      headline: "Closed the deal with a strong, positive prospect interaction.",
+      headline: positive
+        ? "Closed the deal with a strong, positive prospect interaction."
+        : "Closed the deal — a clean, positive result.",
       reasons,
     };
   }

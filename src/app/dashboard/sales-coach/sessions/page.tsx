@@ -642,43 +642,49 @@ export default function SalesCoachSessionsPage() {
           >
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm divide-y divide-default overflow-hidden">
               {filtered.map((s) => (
-                <Link
+                // The row is a flex container; only the LEFT content is the
+                // navigating <Link>. The flag is an interactive <button> and MUST
+                // NOT be nested inside an <a> (invalid HTML — interactive-in-
+                // interactive breaks keyboard + screen-reader behavior), so it sits
+                // as a sibling of the Link, not a child.
+                <div
                   key={s.id}
-                  href={`/dashboard/sales-coach/${s.id}`}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors"
                 >
-                  <LinkProgress />
-                  <span className="shrink-0 text-muted">
-                    {s.context === "video" ? (
-                      <Video className="w-4 h-4" aria-hidden />
-                    ) : (
-                      <MapPin className="w-4 h-4" aria-hidden />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm text-primary truncate">
-                      {s.clientLabel ?? "Untitled session"}
+                  <Link
+                    href={`/dashboard/sales-coach/${s.id}`}
+                    className="flex items-center gap-3 min-w-0 flex-1"
+                  >
+                    <LinkProgress />
+                    <span className="shrink-0 text-muted">
+                      {s.context === "video" ? (
+                        <Video className="w-4 h-4" aria-hidden />
+                      ) : (
+                        <MapPin className="w-4 h-4" aria-hidden />
+                      )}
                     </span>
-                    <span className="block text-[10px] text-muted">
-                      {new Date(s.startedAt).toLocaleString()} ·{" "}
-                      {duration(s.startedAt, s.endedAt)} · {s.status}
-                      {s.territory ? ` · ${s.territory}` : ""}
-                      {isManager && s.agentName ? ` · ${s.agentName}` : ""}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm text-primary truncate">
+                        {s.clientLabel ?? "Untitled session"}
+                      </span>
+                      <span className="block text-[10px] text-muted">
+                        {new Date(s.startedAt).toLocaleString()} ·{" "}
+                        {duration(s.startedAt, s.endedAt)} · {s.status}
+                        {s.territory ? ` · ${s.territory}` : ""}
+                        {isManager && s.agentName ? ` · ${s.agentName}` : ""}
+                      </span>
                     </span>
-                  </span>
+                  </Link>
                   {s.flag && (
                     <FlagBadge
                       flag={s.flag}
-                      onOpen={(e) => {
-                        // The row is a Link — don't navigate; open the explanation.
-                        e.preventDefault();
-                        e.stopPropagation();
+                      onOpen={() =>
                         setOpenFlag({
                           clientLabel: s.clientLabel,
                           agentName: s.agentName,
                           flag: s.flag!,
-                        });
-                      }}
+                        })
+                      }
                     />
                   )}
                   {s.outcome && (
@@ -693,7 +699,7 @@ export default function SalesCoachSessionsPage() {
                       {s.hasSummary && <Badge icon={FileText} label="Summary" />}
                     </span>
                   )}
-                </Link>
+                </div>
               ))}
             </div>
           </LearningHint>
@@ -787,16 +793,16 @@ export default function SalesCoachSessionsPage() {
 /**
  * FlagBadge — the clickable interaction flag on a session row (founder
  * 2026-07-09). Amber "Needs Examination" (manager-only; the route already
- * suppresses it for non-managers) or emerald "Outstanding". Lives inside the row's
- * <Link>, so onOpen preventDefault+stopPropagation to show the explanation instead
- * of navigating into the session.
+ * suppresses it for non-managers) or emerald "Outstanding". Rendered as a SIBLING
+ * of the row's <Link> (not nested inside it — a button inside an anchor is invalid
+ * HTML), so a plain onClick opens the explanation without any navigation to cancel.
  */
 function FlagBadge({
   flag,
   onOpen,
 }: {
   flag: NonNullable<SessionFlag>;
-  onOpen: (e: React.MouseEvent) => void;
+  onOpen: () => void;
 }) {
   const isExam = flag.kind === "examination";
   const Icon = isExam ? AlertTriangle : Award;

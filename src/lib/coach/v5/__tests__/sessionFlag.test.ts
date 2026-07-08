@@ -60,23 +60,54 @@ describe("classifySession", () => {
     expect(f?.headline.toLowerCase()).toContain("sold");
   });
 
-  it("a graceful no-sale (warm, gained ground) is NOT flagged", () => {
+  // BROADENED 2026-07-09 (founder: v1 flagged almost nothing because it required
+  // interaction analysis most sessions lack). no_sale is now an examination trigger
+  // on its own, and a clean sale is Outstanding on its own.
+  it("no_sale with NO analysis → Examination (the always-available signal)", () => {
+    const f = classifySession({
+      outcome: "no_sale",
+      pivotDirection: null,
+      sentiment: null,
+    });
+    expect(f?.kind).toBe("examination");
+  });
+
+  it("even a 'graceful' no_sale (warm, gained) is Examination — it didn't convert", () => {
     const f = classifySession({
       outcome: "no_sale",
       pivotDirection: "gained",
       sentiment: "warming",
     });
-    expect(f).toBeNull();
+    expect(f?.kind).toBe("examination");
   });
 
-  it("sold but NEUTRAL interaction (no pivot, flat sentiment) is NOT Outstanding", () => {
-    // Outstanding requires a POSITIVE interaction, not merely a sale.
+  it("a breakdown moment → Examination even with no other negative signal", () => {
+    const f = classifySession({
+      outcome: "follow_up",
+      pivotDirection: null,
+      sentiment: null,
+      hasBreakdown: true,
+      breakdownText: "talked over the objection",
+    });
+    expect(f?.kind).toBe("examination");
+    expect(f?.reasons.some((r) => r.detail.includes("talked over"))).toBe(true);
+  });
+
+  it("sold with NO analysis → Outstanding (a clean close is evidence enough)", () => {
     const f = classifySession({
       outcome: "sold",
       pivotDirection: null,
-      sentiment: "flat",
+      sentiment: null,
     });
-    expect(f).toBeNull();
+    expect(f?.kind).toBe("outstanding");
+  });
+
+  it("follow_up / no_contact / undecided with no negative signal → no flag", () => {
+    for (const outcome of ["follow_up", "no_contact", "undecided"]) {
+      expect(
+        classifySession({ outcome, pivotDirection: null, sentiment: null })
+      ).toBeNull();
+    }
   });
 
   it("absent signals → no flag (only clear cases get a badge)", () => {
@@ -149,6 +180,8 @@ describe("classifySession", () => {
         pivotDirection: null,
         pivotReason: null,
         sentiment: null,
+        hasBreakdown: false,
+        breakdownText: null,
         coolingMoments: [],
         warmingMoments: [],
       });
