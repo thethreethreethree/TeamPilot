@@ -91,8 +91,13 @@ const ALLOWLIST = new Map([
   // the outcome and whether it held.
   ["decision_dialogues.update", "§3.1 decision dialogues are append-only."],
   ["decision_dialogues.delete", "§3.1 decision dialogues are append-only."],
-  ["resolutions.update", "§3.1 resolutions are append-only; consequence is measured in events, not edits."],
-  ["resolutions.delete", "§3.1 resolutions are append-only."],
+  // resolutions.update is NOT append-only: the 0005 "resolutions - all" for-all policy
+  // (company-scoped) covers it, and the resolution REVIEW legitimately edits
+  // observed_outcome/durability/reviewed_at (see /api/resolutions PATCH). It's listed
+  // here only because this audit's parser doesn't expand `for all` to per-op coverage.
+  // DELETE, by contrast, is genuinely blocked (0094 no-delete rule).
+  ["resolutions.update", "Covered by the 0005 'resolutions - all' for-all policy; the resolution review legitimately updates observed_outcome/durability/reviewed_at (company-scoped). Not append-only for update — only delete is blocked (0094)."],
+  ["resolutions.delete", "§3.1 resolutions are append-only for DELETE — blocked by the 0094 no-delete rule (do-instead-nothing)."],
   // Saved "Dissect a Conversation" topics (0097). Append-only by design: Close keeps a
   // saved topic, only an unsaved thread is discarded client-side; editing/removing a
   // saved dissection is out of scope for v1 (0097's own comment). Owner-only select +
