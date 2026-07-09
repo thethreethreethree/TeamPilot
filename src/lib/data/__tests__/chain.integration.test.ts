@@ -646,5 +646,20 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
       );
       expect((check.data as Array<{ id: string }>).length).toBe(1);
     });
+
+    it("silently drops a DELETE of the company_brain singleton — validates 0108", async () => {
+      // company_brain (the per-company learned model) auto-exists — a trigger on
+      // company insert seeds it (0007:70). 0108 added company_brain_no_delete so a
+      // member can't wipe the whole learned model; record_brain_learning is the
+      // only sanctioned mutate path. Assert a direct delete is a no-op. (The rule
+      // blocks DIRECT deletes only; the ON DELETE CASCADE from companies at
+      // teardown is unaffected, which is correct.)
+      await rest("DELETE", `/rest/v1/company_brain?company_id=eq.${companyId}`);
+      const check = await rest(
+        "GET",
+        `/rest/v1/company_brain?company_id=eq.${companyId}&select=company_id`
+      );
+      expect((check.data as Array<{ company_id: string }>).length).toBe(1);
+    });
   }
 );
