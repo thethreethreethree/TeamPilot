@@ -35,4 +35,19 @@ PATCH is safe (ai_guidance_* not in ALLOWED_FIELDS) — the hole is direct-RLS o
 for authenticated non-admin writers (mirrors guard_profile_privileged_columns);
 the admin unlock still passes, matching the route gate.** UNAPPLIED.
 
-**Bearing:** §3.4 (honesty is the moat / no-instant-results), §1.7 (ground-up audit), §A29 (clean sweep bounds a class). Verified from source 2026-07-09.
+## Broader sweep — can a member tamper with ANY core-thesis control? (2026-07-09)
+
+Generalized the finding into a class: a constitutional invariant stored in the DB
+that is route-gated (or convention-gated) but RLS-open, so a member defeats it via
+direct PostgREST. Swept the four core-thesis controls:
+
+| Control (thesis) | Storage | Member-tamperable? | Status |
+|---|---|---|---|
+| §3.4 month-1 control window | `companies.ai_guidance_*` | YES — company-scoped RLS, no role gate | **FIXED 0111** (guard trigger) |
+| brain / AI behavior | `company_brain.system_prompt_addendum` | YES — `for all` company-scoped → prompt injection | **FLAGGED** (docs/AUDIT-2026-07-09-brain-injection.md; risky fix, needs runtime test) |
+| §3.2 Understanding Gate thresholds | `problem_thresholds` (min_signals…) | NO — RLS enabled, SELECT-only, writes default-denied (rls-audit allowlisted as service-role-only) | **CLEAN** |
+| §3.1 derivation rules | `signal_sources` | NO — RLS enabled, read-only policy, writes default-denied (allowlisted) | **CLEAN** |
+
+So of the four constitutional controls a member might defeat, two were open (one fixed, one flagged) and two are correctly write-protected. The invariant a future §1.7 audit preserves: *every DB-stored constitutional control must be write-restricted to leadership/service-role at the RLS layer, not merely at a route or by convention* — the §3.4 window and company_brain both showed route/convention gates are not enough.
+
+**Bearing:** §3.4 (honesty is the moat / no-instant-results), §3.2/§3.1 (gate + chain integrity), §1.7 (ground-up audit), §A29 (clean sweep bounds a class). Verified from source 2026-07-09.
