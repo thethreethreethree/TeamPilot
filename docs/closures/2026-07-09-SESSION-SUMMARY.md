@@ -406,6 +406,17 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   measurement method isn't trusted until validated) and is growth-vs-a-fixed-standard, not a
   leaderboard (§A10/§A11/§A18). Known issue already flagged in-code: a `coaching_sessions` read
   failure computes the rating WITHOUT outcomes (logs loudly; fail-closed is the deeper fix).
+- **Public C.A.R.E widget surface (UNAUTHENTICATED) verified sound against IDOR — the highest-
+  risk attack surface (A21 cross-route sweep, 2026-07-09).** The widget visitor has no auth user,
+  so routes use the service-role client (RLS bypassed) and the SESSION TOKEN is the only authz —
+  and it holds: `session_token` is `gen_random_uuid()::text` (unguessable UUID v4, unique, DB-
+  defaulted, never code-set); `getCareConversationByToken` is an exact `.eq` match; and EVERY
+  conversation-scoped route (messages GET/POST, upload, file) re-checks `conversation.id === id`
+  → 404 otherwise, so a valid token reaches ONLY its own conversation. The file route adds
+  defense-in-depth: `linked_conversation_id === conv.id` (no cross-conversation file leak) +
+  `access_role === 'everyone'` (a customer can't pull an agent's admins-only attachment) +
+  600s signed-URL expiry + rate limit. No IDOR hole on any visitor route; the token→id→ownership
+  chain is airtight without an RLS backstop. Clean pass.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
