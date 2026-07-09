@@ -33,6 +33,14 @@ export default function TeamPage() {
     const snap = await fetchTeam();
     setMembers(snap.members);
     setInvitations(snap.invitations);
+    // §3.4 / A14: a failed load must NOT render as the "onboarding hasn't
+    // completed" empty state. fetchTeam now flags a query failure as
+    // "live-error" (distinct from "live-empty"); show it honestly.
+    if (snap.mode === "live-error") {
+      setError(
+        "Couldn't load the team — the database rejected the request. Refresh to retry; if it persists it's likely an access-policy issue."
+      );
+    }
     setLoading(false);
   };
 
@@ -159,7 +167,7 @@ export default function TeamPage() {
               <p className="text-xs text-red-400">{error}</p>
             )}
 
-            {!loading && (
+            {!loading && !error && (
               <>
                 <Section title={`Members (${members.length})`}>
                   {members.length === 0 ? (
@@ -305,6 +313,7 @@ function InviteRow({
 }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const toast = useToast();
 
   const inviteUrl =
     typeof window !== "undefined"
@@ -312,9 +321,16 @@ function InviteRow({
       : `/invite/${invitation.code}`;
 
   const copy = async () => {
-    await navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard can reject (denied permission / insecure context). Don't
+      // leave the user thinking the copy worked — the whole point is sharing
+      // the link. Show the URL so they can copy it manually.
+      toast.error("Couldn't copy the link", inviteUrl);
+    }
   };
 
   const revoke = async () => {
@@ -326,7 +342,20 @@ function InviteRow({
       { method: "DELETE" }
     );
     setBusy(false);
-    if (res.ok) onRevoked();
+    if (res.ok) {
+      onRevoked();
+      return;
+    }
+    // §3.4 + the 558ce56 lesson (MemberRow above): a failed revoke must be
+    // VISIBLE. This branch used to be absent — a rejected revoke (403 not-admin
+    // / 404 already gone / 500) silently stopped the spinner and left the invite
+    // in the list, exactly the false-ok-in-the-UI class the member-remove fix
+    // closed. Surface the route's honest error.
+    const data = await res.json().catch(() => null);
+    toast.error(
+      "Couldn't revoke the invitation",
+      data?.error ?? "Something went wrong — try again."
+    );
   };
 
   return (

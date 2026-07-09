@@ -23,7 +23,12 @@ export type TeamInvitation = {
 export type TeamSnapshot = {
   members: TeamMember[];
   invitations: TeamInvitation[];
-  mode: "live-data" | "live-empty" | "demo-unavailable";
+  // "live-error": a query FAILED (RLS/DB) — distinct from "live-empty" (query
+  // succeeded, no rows). Conflating them renders a DB error as the misleading
+  // "onboarding hasn't completed" empty state (§3.4 / A14 — live-error must not
+  // masquerade as live-empty). Callers that only care about data can keep
+  // ignoring `mode`; surfaces that show an empty state should branch on it.
+  mode: "live-data" | "live-empty" | "live-error" | "demo-unavailable";
 };
 
 export async function fetchTeam(): Promise<TeamSnapshot> {
@@ -66,8 +71,9 @@ export async function fetchTeam(): Promise<TeamSnapshot> {
   return {
     members,
     invitations,
-    mode:
-      members.length === 0 && invitations.length === 0
+    mode: membersRes.error || invitesRes.error
+      ? "live-error"
+      : members.length === 0 && invitations.length === 0
         ? "live-empty"
         : "live-data",
   };
