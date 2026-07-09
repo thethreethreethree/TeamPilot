@@ -86,7 +86,14 @@ export async function fetchAssetReadout(
     )
     .is("deprecated_at", null);
   if (startIso) filesQuery = filesQuery.gte("created_at", startIso);
-  const { data: files } = await filesQuery;
+  const { data: files, error: eFiles } = await filesQuery;
+  // §3.4 honest-error-state (audit 2026-07-09): the files read is the headline —
+  // everything below derives from it. On failure, don't return an all-zero readout
+  // as if there were no assets; throw so the route 500s and the page shows an
+  // honest error state (added alongside this).
+  if (eFiles) {
+    throw new Error(`asset readout: files read failed — ${eFiles.message}`);
+  }
   const fileList = files ?? [];
   const fileIds = fileList.map((f) => f.id as string);
 

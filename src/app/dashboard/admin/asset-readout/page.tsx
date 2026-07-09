@@ -102,9 +102,14 @@ export default function AssetReadoutPage() {
   const [windowParam, setWindowParam] = useState<Window>("30d");
   const [data, setData] = useState<Readout | null>(null);
   const [loading, setLoading] = useState(true);
+  // §3.4 honest-error-state (audit 2026-07-09): distinguish a load FAILURE from a
+  // genuinely-empty readout. Without this, a query error rendered the "upload files"
+  // empty state — an error dressed as "no assets yet", which is a lie.
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/admin/asset-readout?window=${windowParam}`);
       if (res.ok) {
@@ -112,7 +117,11 @@ export default function AssetReadoutPage() {
         setData(j.readout);
       } else {
         setData(null);
+        setError("Couldn't load the asset readout right now — this is an error, not an empty readout. Try again shortly.");
       }
+    } catch {
+      setData(null);
+      setError("Couldn't load the asset readout (network error). Try again shortly.");
     } finally {
       setLoading(false);
     }
@@ -132,6 +141,11 @@ export default function AssetReadoutPage() {
         subtitle={`${companyName ?? "Your team"} · §4 readout for the Asset System v1`}
       />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full">
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+            <p className="text-sm text-red-300">{error}</p>
+          </div>
+        )}
         <LearningHint
           as="block"
           category="Readout · §3.5"
