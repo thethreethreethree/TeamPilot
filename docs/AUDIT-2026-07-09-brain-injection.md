@@ -81,15 +81,43 @@ but "ensure the CONTENT (scores, dissect verdicts) is written by the grader/coac
 system, not client-suppliable" — i.e., the graded fields come from a DEFINER/service
 path, and members can create the shell row but not the score.
 
-Why flagged, not fixed: the legit `coach.dissect_generated` emission is USER-SCOPED
-(dissect/route.ts:35/73 `createClient`), so RLS can't distinguish legit emission from
-direct fabrication of the same kind by the same user. The clean fix is the same
-architectural change as the brain: route the SYSTEM-kind event emissions
-(`coach.*`, `problem.*`, etc.) through SECURITY DEFINER RPCs (or service-role), then
-constrain the `events` INSERT policy to deny direct member insert of those reserved
-kinds. That touches the whole event-emission system — needs design + runtime test,
-not a blind change. **Recommended: treat items brain + events as ONE remediation** —
-"make sanctioned writes privileged, then restrict direct member writes" — and stage
-it together.
+### CORRECTION (2026-07-09, traced to ground) — the dissect emission is SERVICE-ROLE, not user-scoped
+
+The claim above ("`coach.dissect_generated` emission is USER-SCOPED, dissect/route.ts")
+was WRONG — it mistook the dissect route's user-scoped READ (`.select().eq("kind",…)`,
+existence check) for the emission. Traced every reference: the ONLY insert of
+`coach.dissect_generated` in the codebase is **`salesDissect.ts:102` via
+`createAdminClient()` (service-role)**. So a member has NO legit path to emit it, and the
+fix is safe-by-construction — a NARROW kind-constraint on the events INSERT policy:
+
+```sql
+-- Ready. Verified: salesDissect.ts:102 (service-role) is the sole emitter of this kind.
+drop policy if exists "events - all" on events;
+create policy "events - all" on events
+  for all
+  using (company_id = auth_company_id())
+  with check (
+    company_id = auth_company_id()
+    and (actor = auth.uid() or actor is null)
+    and kind <> 'coach.dissect_generated'   -- NEW: block member fabrication of the ELO dissect event
+  );
+```
+
+**Why this is FLAGGED for your review, NOT auto-staged (unlike 0112/0113):** it edits the
+`events` INSERT policy — the single most critical RLS policy in the whole §3.1 chain. A
+typo here breaks EVERY event insert (a CAT-class outage) for a MED-severity fix. Editing
+the crown-jewel policy autonomously, under the continuous build mandate, is precisely the
+§5 "builder under pressure" risk. Apply on staging, insert a normal event + run the chain
+test, confirm nothing breaks, then promote.
+
+**Broader open question (separate §3.5 audit, NOT resolved here):** of the 14 `coach.*`
+event kinds, 7 are emitted SERVICE-ROLE (dissect, intel, moments, pivot, summary,
+status_changed, outcome_recorded) and **7 are emitted USER-SCOPED** (review, after_pitch
+[marker only — the scores live in the 0113-locked table], decision, analyze, debrief,
+grade_sent, observe). A broad `kind not like 'coach.%'` constraint would BREAK those 7
+legit user emitters. Before any broad reserved-kind restriction, someone must map which
+coach.* events actually FEED a score (only those need the harder "move emission to
+service, then restrict" treatment). `coach.dissect_generated` is the one confirmed
+ELO-feeding + service-only kind, hence the narrow fix above.
 
 **Bearing:** §3.1 (append-only / auditable chain + brain), §3.4/§3.6 (honest, visible learning), §3.5 (ELO/measurement integrity), §2 (surface don't overtake — flagged not shipped), A26 step 4 (flag the risky/decision ones). Verified from source 2026-07-09.
