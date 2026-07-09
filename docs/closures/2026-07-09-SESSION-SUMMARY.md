@@ -56,6 +56,16 @@ all verified sound (details in "Verified clean"). New decisions surfaced: 6b / 6
    perceived without navigating. Not built — proactive-surfacing shape is a product/UX decision.
    [add glance-card / leave on-demand]
 
+**Core-product capability gap (team-diagnosis — NOT sales-coach/care):**
+9. **`task_slipped` is a DEAD signal — the core product can't surface MISSED DEADLINES.** The chain
+   detects task BLOCKERS (`task.blocker_recorded` is wired) but `task.overran_due_date` (mapped
+   `0005:103` → `task_slipped`) is NEVER emitted — a deadline overrun is time-based, no trigger
+   catches it, and there's no task-overrun sweep. So things silently slipping past their deadline
+   never reach the §3.2 problem gate. Fix is precedent-decided (mirror `durability-sweep-cron`): a
+   scheduled sweep that emits `task.overran_due_date` for overdue incomplete tasks. Not built —
+   it's a new emitter for the not-currently-focused team-diagnosis core + needs a cron decision
+   (§2). Detail in "Finding: task_slipped is a DEAD signal." [build the overrun sweep / defer]
+
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
 8. Readout/analytics TRUNCATION: layer truncates at PostgREST's 1000-row cap (8+ unbounded queries, care + asset) → wrong metrics for a busy company → bounding pass (per-query limits or DB-side aggregation). [needs row-bound decision — still open]
@@ -360,6 +370,26 @@ share an identical `checks` query (disambiguation-tedious to edit, secondary sub
 state too. So: all high-value instances honest; the tail is a small, well-scoped, low-priority pass. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
+
+## Finding: `task_slipped` is a DEAD signal — missed-deadline problems can't surface (team-diagnosis core gap)
+Verifying the §3.1 chain's INPUT side (2026-07-09): the team-diagnosis product detects task
+BLOCKERS but NOT missed DEADLINES. `tasks_emit_events_trigger` (0006) correctly fires
+`task.blocker_recorded` → derives `task_blocked` on an update. But `task.overran_due_date` (mapped
+in `0005:103` → `task_slipped`) is **NEVER EMITTED** — a deadline overrun is time-based, not an
+UPDATE, so no trigger catches it, and there is NO task-overrun sweep (unlike care-durability, which
+HAS `durability-sweep-cron`). Confirmed no alternative path: nothing in `problems.ts` / `signals.ts`
+/ `diagnosis/*` reads `due_date` for overrun; `task_slipped` appears ONLY as the dead 0005 mapping,
+never produced, never consumed. **So a whole class of team problem (things silently slipping past
+their deadline) can't reach the §3.2 gate.** This is a real gap in the ORIGINAL ELOSTATE core, not
+sales-coach/care. **Fix (precedent-decided, mirrors `durability-sweep-cron`):** a scheduled sweep
+endpoint that finds incomplete tasks whose `due_date < now()` (not already flagged) and calls
+`record_event('task.overran_due_date', 'task:'||id, {task_id, due_date})` → `derive_signals_for_event`
+fires `task_slipped`. Code-ready pattern exists; needs the sweep + a cron config (operator), same as
+the durability sweep. **Not built — flagging first:** it's a substantial new emitter for a product
+area that isn't the current sales-coach/care focus, and it needs your cron decision (§2 — surface a
+scope expansion, don't unilaterally build it). My rec: build it when you return to the team-diagnosis
+core; it's the difference between the core product catching slips or being blind to them. [build the
+overrun sweep / defer]
 
 ## Verified clean this session (no action needed — recorded for confidence)
 - **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
