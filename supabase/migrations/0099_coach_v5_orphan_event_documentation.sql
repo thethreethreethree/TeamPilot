@@ -12,10 +12,11 @@
 -- mislabeled as sales-live-telemetry from their NAMES — the §5 confident-quick-answer
 -- trap; each §4 question below was re-derived from the VERIFIED emit semantics):
 --   • SALES coach (sales-session subjects): dissect / summary / pivot / moments /
---     intel / sales_review / after_pitch_summary / debrief / why_patterns /
+--     intel / sales_review / after_pitch_summary / why_patterns (sales_agent) /
 --     session_why_recorded / session_why_generated / session_decision /
 --     session_status_changed / session_outcome_recorded.
---   • COMMUNICATION coach (chat message grading): message_graded / analyze_returned.
+--   • COMMUNICATION / conversation coach: message_graded / analyze_returned (chat
+--     message grading) + debrief_generated (chat/care conversation debrief).
 --   • CONTROL-CYCLE honesty mechanism (§3.4): control_skipped — flagged as a likely
 --     ENABLED mapping, not a pure deferral (see its note).
 --   • Cross-cutting: mention.created (the one non-coach post-0026 orphan).
@@ -83,13 +84,7 @@ insert into signal_sources (event_kind, signal_kind, source_template, notes, ena
   ('coach.after_pitch_summary_generated',
    'coach_after_pitch_summary_deferred',
    'sales_session:${payload.session_id}',
-   'Deferred per A4. §4 question: is the after-pitch summary''s content a DISTINCT signal from the score, or a restatement of it? Held until the score''s own consequence question (coach.sales_review_generated, above) is answered — the same A18 privacy constraint applies.',
-   false),
-
-  ('coach.debrief_generated',
-   'coach_debrief_deferred',
-   'sales_session:${payload.session_id}',
-   'Deferred per A4. §4 question: does generating/reading a debrief correlate with rep improvement, or is it a comfort artifact? Same coachability question as coach.dissect_generated on a different surface — the two should be answered together so their overlap is not double-counted.',
+   'Deferred per A4. §4 question: does the after-pitch summary''s COARSE COUNTS (moments_count / has_breakdown / cue_loop_count / focus_present — deliberately NOT the score; verified §A18-SAFE company-visible event, unlike the owner-private sales_review) trajectory correlate with company-level outcomes? Because it carries no score, a signal from it needs NO aggregation guard — the OPPOSITE of the sales_review constraint above. (Corrected 2026-07-09: an earlier draft wrongly said "the same A18 privacy constraint applies.")',
    false),
 
   ('coach.why_patterns_generated',
@@ -120,11 +115,14 @@ insert into signal_sources (event_kind, signal_kind, source_template, notes, ena
    false)
 on conflict (event_kind, signal_kind) do nothing;
 
--- ─── Communication coach (chat message grading) ───────────────
+-- ─── Communication / conversation coach ───────────────────────
 -- CORRECTION (2026-07-09 self-check): message_graded + analyze_returned are the
 -- COMMUNICATION coach (the ELOSTATE chat-message coach), NOT sales-session events —
 -- verified at coach/v5/grade-sent + coach/v5/analyze (subject is the chat context,
--- not a sales_session). Their §4 questions are corrected accordingly.
+-- not a sales_session). debrief_generated was ALSO mis-grouped as a sales artifact in
+-- the first draft; its subject is `${surface}:${conversationId}` (coach/v5/debrief),
+-- i.e. a conversation debrief, not a sales-session one. All three §4 questions are
+-- re-derived from the verified emit semantics.
 insert into signal_sources (event_kind, signal_kind, source_template, notes, enabled) values
   ('coach.message_graded',
    'coach_message_graded_deferred',
@@ -136,6 +134,12 @@ insert into signal_sources (event_kind, signal_kind, source_template, notes, ena
    'coach_analyze_returned_deferred',
    'chat:${payload.context_type}',
    'Deferred per A4. §4 question: which communication PRINCIPLES (payload.principle / book) recur as needs_improvement across a team''s messages — a coaching-CURRICULUM signal for what the team most needs to learn — and do rising principle-application rates correlate with fewer clarification cycles / more durable resolutions? Measures the coach''s TEACHING effect on consequence (§3.5), never suggestion-acceptance (A11 — consequence, not agreement).',
+   false),
+
+  ('coach.debrief_generated',
+   'coach_debrief_deferred',
+   'conversation:${payload.surface}',
+   'Deferred per A4. §4 question: does a user generating/reading a CONVERSATION debrief (chat or care surface — subject ${surface}:${conversationId}) correlate with a measurable change on that surface (fewer reopens, shorter resolution)? The conversation analogue of the sales dissect''s coachability question — answer alongside message_graded so the communication coach''s review artifacts are not double-counted. (Corrected 2026-07-09: an earlier draft mis-grouped this as a sales-session artifact.)',
    false)
 on conflict (event_kind, signal_kind) do nothing;
 

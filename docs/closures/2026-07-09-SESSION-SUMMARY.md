@@ -74,12 +74,14 @@ AFTER 0026 that fires into the §3.1 chain (`events` table) with ZERO signal_sou
 undocumented orphans with the exact "indistinguishable from accidental omission" legibility
 problem 0026 exists to fix. **18 kinds** across SALES coach (14), COMMUNICATION coach
 (message_graded / analyze_returned), the §3.4 CONTROL-CYCLE (control_skipped), and
-mention.created. **§3.4 self-check catch:** a first draft mislabeled the two communication-
-coach kinds + control_skipped as sales-live-telemetry FROM THEIR NAMES (the §5 confident-
-quick-answer trap) and fabricated three wrong §4 questions; caught + corrected against the
-verified emit semantics before you'd apply it. `control_skipped` is now flagged as a likely
-ENABLED mapping (not deferral) — skipping the month-1 control degrades attribution on every
-downstream measurement. Wrote **`0099`** adding an `enabled=FALSE` signal_sources row for each, with a real
+mention.created. **§3.4 self-check catch (then A26-completed):** the first draft authored §4
+questions from the kind NAMES (the §5 confident-quick-answer trap); a systematic re-check of
+ALL 18 against verified emit semantics found **5 wrong** — message_graded + analyze_returned
+(communication coach, not sales), debrief_generated (conversation coach, not sales),
+control_skipped (the §3.4 control-cycle, not a UI cue), and after_pitch_summary (the
+§A18-SAFE coarse-count event, wrongly framed as privacy-constrained). All corrected before
+you'd apply it. `control_skipped` is now flagged as a likely ENABLED mapping (not deferral)
+— skipping the month-1 control degrades attribution on every downstream measurement. Wrote **`0099`** adding an `enabled=FALSE` signal_sources row for each, with a real
 §4 consequence question (A4 discipline — no vague filler), following 0026's pattern exactly.
 - **Zero behavior change** (enabled=false → no signal derived); the value is chain legibility.
 - **§4 questions are DRAFTED** from each event's purpose + the constitution's framing (§3.5
