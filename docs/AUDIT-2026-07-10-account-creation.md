@@ -126,3 +126,21 @@ create unique index … on team_invitations (company_id, lower(email))
 
 *Audited against the framework as written. Findings have quoted evidence; none fabricated,
 and the HIGH was not omitted to appear successful. §1.7 on-record audit.*
+
+---
+
+## Remediation status (built 2026-07-10 — commits 441c38f, 6357bd0)
+
+| # | Status | Where | Verified? |
+|---|--------|-------|-----------|
+| **F1** | **STAGED, UNAPPLIED** | `0114_accept_invitation_email_match.sql` | ❌ untested — DEFINER; needs a staging accept(match)=ok / accept(mismatch)=reject run. Policy = strict exact-match by default (founder can loosen). |
+| **F2** | **STAGED, UNAPPLIED** | `0115_member_joined_on_company_attach.sql` | ❌ untested — SQL; staging check = attach an orphan, expect exactly one `member.joined`. |
+| **F3** | **BUILT** | `team/route.ts` (auto-revoke expired before insert) | ⚠️ tsc-verified; the route branch is **not** runtime-tested (needs live DB / supabase mock). |
+| **F4** | **BUILT (scoped)** | `src/lib/roles.ts` + auth-helpers + team/route + InviteMemberDialog + chats + team-check ×2 + `roles.test.ts` | ✅ tsc 0, behavior-preservation test 6/6, suite 576. **~18 non-account feature gates deferred** (consistent, no live mis-grant). |
+| **F5** | **DEFERRED** | — | Depends on F1 applied+verified; not built (would ship UI over an unverified backend). |
+| **F6** | **BUILT** | `chats/page.tsx` (hint sourced from `INVITABLE_ROLES`) | ✅ tsc. |
+| **F7** | **BUILT** | `admin.ts` (accumulate + warn on >1) | ✅ tsc; existing test green. |
+
+**Net:** F3/F4/F6/F7 shipped + verified at type/unit level; F1/F2 staged and gated on your
+per-env apply + staging test; F5 waits on F1. The one HIGH (F1) is closed *in code* but not
+*in production* until 0114 is applied — do not treat it as fixed live until then.
