@@ -91,8 +91,13 @@ work is therefore mostly render-layer (Phase 3), not prompt-layer.
   (salesSummary, dissect, review, coach analysis, why, score, outside-view,
   ripple-trace) simplify at the RENDER layer per the ephemeral-vs-stored rule
   above — show the key field(s), collapse elaboration behind `AdvancedDetail`. No
-  prompt/schema risk. Runtime-unverifiable headless (can't see the render), so
-  best done with founder runtime review, but LOW-risk (reversible, cosmetic).
+  prompt/schema risk. **CAUTION (self-audit 2026-07-09): this is NOT safe to do
+  blind.** Attempting the diagnose page showed its "outside views" / "ripple
+  trace" are PRIMARY WORKFLOW content, not collapsible elaboration — collapsing
+  them would break the diagnostic flow. Distinguishing supplementary-elaboration
+  from load-bearing-content requires per-surface runtime judgment, so each surface
+  must be reviewed against a live render, NOT swept mechanically. Do this WITH
+  founder runtime review, surface by surface.
 - **Remaining ephemeral prose surfaces:** none material left — C.A.R.E summarize is
   threaded; the other generateCareReply callers are customer-facing (co-pilot,
   formulate, messages, inbound-email) and correctly stay full; ask-jeff is the
