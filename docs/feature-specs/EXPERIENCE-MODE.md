@@ -144,6 +144,27 @@ real render once 0110 is applied.
 IS the surface's answer (scores, institutional context, the read itself) stays. For the
 stored/JSON coach surfaces (salesSummary/dissect/review/analyze) the "primary vs
 supplementary" split can't be judged from code — those specifically need the live render.
+
+### Strategy correction (2026-07-10, from founder feedback "Standard looks identical")
+
+Two primitives now exist: `AdvancedDetail` (collapse secondary CONTENT behind a click) and
+`ExpertOnly` (fully hide supplementary ANNOTATION — §-footnotes, verbose microcopy). But an
+app-wide grep found the **visible UI is already nearly free of always-shown methodology
+annotation** — almost every `§`/explanation lives in code comments (invisible) or
+`LearningHint` props (already Learning-Mode-gated). So `ExpertOnly` has **small surface
+area**; hiding footnotes is not where the visible win is.
+
+**The two real visible levers for Standard, in priority order:**
+1. **Generation-layer (already built, 0110-gated):** Standard makes AI outputs (summaries,
+   replies) SHORTER. This is the biggest visible difference and it is DONE — but it cannot
+   manifest until `0110` is applied (with the column missing, the mode can't persist and
+   the GET falls back to standard for everyone). **Applying 0110 is the #1 unblock.**
+2. **Panel-level render simplification (needs live iteration):** reduce the NUMBER of
+   panels/controls a Standard user sees at once, and collapse genuinely-secondary ones.
+   This needs per-surface founder review against a live render (can't verify headless,
+   can't collapse primary content blind).
+
+Footnote-hiding via `ExpertOnly` is a minor polish, not the mechanism. Do not over-invest.
 - **Remaining ephemeral prose surfaces:** enumerated all 8 `generateCareReply` callers
   (2026-07-09). C.A.R.E summarize is threaded (agent-facing). The four customer-facing
   callers (co-pilot, formulate, messages, inbound-email) correctly stay full (§A17 —
