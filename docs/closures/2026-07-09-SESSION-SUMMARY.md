@@ -15,6 +15,19 @@ Gate green throughout: tsc 0, lint 0, next build 0, **502 tests**. All committed
 **Infra / ops decisions:**
 5. CI-invariant protection: run `chain.integration.test.ts` in CI (one env-var step — fully closes the §5 gap)? [y/n]
 6. Optional refactors flagged, your call: centralize coach event-kind consts; `vendor_config` table for the vendor id; de-dup `ELOSTATE_COMPANY_ID`.
+6b. **C.A.R.E durability → core diagnosis chain? [enhancement, NOT a bug — my rec: leave as-is].**
+   Completing the §A26 boundary sweep of the 0100 gap (durability outcome written to a column
+   but not emitted as an event) found its THIRD instance: `recordDurabilityOutcome` writes
+   `support_durability_checks.outcome` (held/reopened) with NO event/signal. But — unlike
+   resolutions — this is NOT the same bug: C.A.R.E is a deliberate parallel subsystem (ZERO
+   `care.*` signal_sources exist; care never feeds the core `problems` table), and the outcome
+   IS consumed — by the care readout layer directly. So the data doesn't vanish. Wiring care
+   durability into the core events→signals→problems chain would be a design decision (should
+   support recurrences surface as unified core problems via the §3.2 gate?), which per A28 has
+   no deciding precedent — the two precedents (0015, 0100) are both core-chain; care is not.
+   **My recommendation: leave the separation as-is** (care's own readouts are a complete §3.5
+   measurement today); only wire it in if you want ONE unified problem-surface across team +
+   support. I did NOT build this — it would be deciding C.A.R.E's architecture for you.
 
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
