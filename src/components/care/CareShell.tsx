@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FloatingMenu } from "@/components/ui/FloatingMenu";
+import { useToast } from "@/components/ui/toast";
 import {
   BarChart3,
   BookOpen,
@@ -328,6 +329,7 @@ type AgentPresenceState = {
 const PRESENCE_POLL_MS = 45_000;
 
 function PresenceControl() {
+  const toast = useToast();
   const [state, setState] = useState<AgentPresenceState | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const inflightRef = useRef(false);
@@ -380,7 +382,14 @@ function PresenceControl() {
             maxConcurrent: data.self.maxConcurrent,
           });
         }
+      } else {
+        // §3.4 / 558ce56 class: presence governs conversation ROUTING, so a
+        // silently-failed status change is consequential — the agent thinks
+        // they're away/offline but keep getting routed work. Surface it.
+        toast.error("Couldn't update your status", "Try again in a moment.");
       }
+    } catch {
+      toast.error("Couldn't update your status", "Check your connection and retry.");
     } finally {
       setMenuOpen(false);
     }

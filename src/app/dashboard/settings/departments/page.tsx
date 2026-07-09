@@ -64,23 +64,32 @@ export default function DepartmentsSettingsPage() {
     void refresh();
   };
 
-  const archive = async (id: string) => {
-    await fetch("/api/departments", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action: "archive" }),
-    });
+  // §3.4 / 558ce56 class: a failed archive/unarchive must be visible. These were
+  // bare `await fetch` with no res.ok check — the `create` handler above already
+  // setError; these two didn't, so a rejected PATCH silently left the row where
+  // it was after refresh.
+  const setArchivedState = async (id: string, action: "archive" | "unarchive") => {
+    setError(null);
+    try {
+      const res = await fetch("/api/departments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? `Couldn't ${action} the department (${res.status}).`);
+        return;
+      }
+    } catch {
+      setError(`Couldn't reach the server to ${action} the department.`);
+      return;
+    }
     void refresh();
   };
 
-  const unarchive = async (id: string) => {
-    await fetch("/api/departments", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action: "unarchive" }),
-    });
-    void refresh();
-  };
+  const archive = (id: string) => setArchivedState(id, "archive");
+  const unarchive = (id: string) => setArchivedState(id, "unarchive");
 
   return (
     <>

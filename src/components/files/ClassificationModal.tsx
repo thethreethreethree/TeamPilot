@@ -98,18 +98,31 @@ export function ClassificationModal({
     // The specific_people UI is replaced by a note in draft mode, so
     // this is unreachable there; guard anyway.
     if (!fileId) return;
-    if (grants.includes(profileId)) {
-      setGrants((g) => g.filter((x) => x !== profileId));
-      await fetch(`/api/files/${fileId}/access?profileId=${profileId}`, {
-        method: "DELETE",
-      });
-    } else {
-      setGrants((g) => [...g, profileId]);
-      await fetch(`/api/files/${fileId}/access`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId }),
-      });
+    const wasGranted = grants.includes(profileId);
+    // Optimistic flip for responsiveness.
+    setGrants((g) =>
+      wasGranted ? g.filter((x) => x !== profileId) : [...g, profileId]
+    );
+    try {
+      const res = wasGranted
+        ? await fetch(`/api/files/${fileId}/access?profileId=${profileId}`, {
+            method: "DELETE",
+          })
+        : await fetch(`/api/files/${fileId}/access`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ profileId }),
+          });
+      if (!res.ok) throw new Error("rejected");
+    } catch {
+      // §3.4: the server rejected the access change — REVERT the optimistic flip
+      // so the checkbox doesn't assert a grant/revoke that never happened. This
+      // is access control; a UI that silently lies here is the worst case of the
+      // 558ce56 silent-failure class.
+      setGrants((g) =>
+        wasGranted ? [...g, profileId] : g.filter((x) => x !== profileId)
+      );
+      setError("Couldn't update who can access this file — the change was reverted.");
     }
   };
   const [title, setTitle] = useState(initial.title ?? "");

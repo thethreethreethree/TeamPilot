@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { useToast } from "@/components/ui/toast";
 import {
   BookOpen,
   CheckCircle2,
@@ -59,6 +60,7 @@ export function ReadPhasePanel({
   conversationId: string;
   onReadComplete?: () => void;
 }) {
+  const toast = useToast();
   const [data, setData] = useState<ReadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
@@ -112,7 +114,14 @@ export function ReadPhasePanel({
         );
         setCollapsed(true);
         onReadComplete?.();
+      } else {
+        // §3.4 / 558ce56 class: marking the Read phase complete is a workflow gate
+        // — if it silently fails the panel just doesn't collapse and the agent is
+        // stuck with no reason why. Surface it.
+        toast.error("Couldn't mark reading complete", "Try again in a moment.");
       }
+    } catch {
+      toast.error("Couldn't mark reading complete", "Check your connection and retry.");
     } finally {
       setMarking(false);
     }

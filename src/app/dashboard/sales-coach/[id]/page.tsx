@@ -147,13 +147,24 @@ export default function SessionDetail() {
 
   const endSession = async () => {
     setEnding(true);
+    setError(null);
     try {
       const res = await fetch(`/api/coach/sales-session/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "ended" }),
       });
-      if (res.ok) setSession((await res.json()).session);
+      if (res.ok) {
+        setSession((await res.json()).session);
+      } else {
+        // §3.4 / 558ce56 class: a failed end-session must be visible (the sibling
+        // handlers here already setError; this one was the outlier). Otherwise the
+        // view stays "active" and the user thinks the session ended.
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Couldn't end the session — try again.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't reach the server to end the session.");
     } finally {
       setEnding(false);
     }

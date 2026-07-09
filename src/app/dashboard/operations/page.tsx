@@ -218,10 +218,22 @@ export default function OperationsPage() {
   const deleteTask = async (t: Task) => {
     if (!supabaseEnabled) return;
     if (!confirm(`Delete "${t.title}"? This emits a task.deleted event; the record is preserved.`)) return;
-    const res = await fetch(`/api/tasks?id=${encodeURIComponent(t.id)}`, {
-      method: "DELETE",
-    });
-    if (res.ok) refresh();
+    try {
+      const res = await fetch(`/api/tasks?id=${encodeURIComponent(t.id)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        refresh();
+        return;
+      }
+      // §3.4 / the 558ce56 class: a failed delete must be VISIBLE. Without this
+      // the task stayed on screen (refresh skipped) with no error — the user
+      // assumes it's gone.
+      const data = await res.json().catch(() => null);
+      setError(data?.error ?? "Couldn't delete the task — try again.");
+    } catch {
+      setError("Couldn't reach the server to delete the task — try again.");
+    }
   };
 
   return (
