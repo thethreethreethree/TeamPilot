@@ -215,7 +215,11 @@ set with NO `.limit()`, so each truncates at 1000. **assetReadout traced too (no
 (classification suggestions) all `.in()` over `fileIds` with no `.limit()`. So the class is
 SWEPT to its boundary: **8 confirmed instances across both readout modules** (care analytics +
 asset readout) — the readout layer systematically fans out into child queries without bounding
-them. **Same profile as rate-limit:** correct at current low volume, wrong at scale. **Fix (your call on the bound):** add an explicit `.limit()` +
+them. Worse in assetReadout: even the PARENT `files` list query (line 82) has no `.limit()`, so
+`fileIds` itself caps at 1000 → a company with >1000 files builds its whole asset readout from
+only the first 1000, then the child queries truncate again (double truncation). **Bottom line:**
+the readout/analytics layer needs a bounding pass (parent lists AND child fan-outs). **Same
+profile as rate-limit:** correct at current low volume, wrong at scale. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
