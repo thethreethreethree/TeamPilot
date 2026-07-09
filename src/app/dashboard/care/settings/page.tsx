@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Tag, Users, Zap, MessageCircle, Settings as SettingsIcon } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 
 const CARDS = [
   {
@@ -114,6 +115,12 @@ export default function CareSettingsLandingPage() {
               </LearningHint>
             );
           })}
+        </div>
+
+        {/* Experience Mode — the per-user Standard/Expert dial (0110), present in
+            C.A.R.E per founder spec. The same preference used everywhere. */}
+        <div className="mt-6">
+          <ExperienceModePanel />
         </div>
       </div>
     </>

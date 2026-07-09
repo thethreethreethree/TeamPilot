@@ -14,6 +14,7 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { LearningModePanel } from "@/components/settings/LearningModePanel";
+import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 
@@ -152,6 +153,9 @@ export default function SalesCoachSettingsPage() {
                     learning_mode_enabled). Toggling here flips it everywhere,
                     including Elostate. */}
                 <LearningModePanel />
+                {/* Experience Mode — the SAME per-user dial (0110), present in
+                    Sales Coach per founder spec; flipping here applies everywhere. */}
+                <ExperienceModePanel />
               </div>
             )}
 

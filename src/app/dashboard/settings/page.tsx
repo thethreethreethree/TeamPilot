@@ -22,6 +22,7 @@ import { LlmConnectionPanel } from "@/components/settings/LlmConnectionPanel";
 import { ChangePasswordPanel } from "@/components/settings/ChangePasswordPanel";
 import { CoachTogglePanel } from "@/components/settings/CoachTogglePanel";
 import { LearningModePanel } from "@/components/settings/LearningModePanel";
+import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 import { AvatarCustomizationPanel } from "@/components/settings/AvatarCustomizationPanel";
 
 interface Settings {
@@ -246,6 +247,9 @@ export default function SettingsPage() {
             only per the brand metaphor; enabling auto-switches the
             theme. */}
         <LearningModePanel />
+
+        {/* Experience Mode — the Standard/Expert complexity dial (0110). */}
+        <ExperienceModePanel />
 
         {!supabaseEnabled && (
           <div className="glass-card p-6 text-center">
