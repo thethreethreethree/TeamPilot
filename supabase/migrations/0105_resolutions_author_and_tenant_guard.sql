@@ -90,4 +90,14 @@ create policy "resolutions - insert" on resolutions
 create policy "resolutions - update" on resolutions
   for update
   using (company_id = auth_company_id())
-  with check (company_id = auth_company_id());
+  with check (
+    company_id = auth_company_id()
+    -- `reviewer` is the SECOND authorship column (who reviewed the outcome). The only
+    -- user-scoped path that sets it (resolutions/route.ts:80) sets reviewer = auth.uid();
+    -- the durability sweep is service-role (bypasses RLS). So constraining reviewer to
+    -- self-or-null closes the reviewer-spoof and completes the author-spoof class on this
+    -- table, breaking no legitimate path. (decided_by/company_id/problem_id are frozen by
+    -- the trigger above; reviewer is legitimately mutable across re-reviews, so it's guarded
+    -- here in the policy, not frozen.)
+    and (reviewer = auth.uid() or reviewer is null)
+  );
