@@ -1514,13 +1514,21 @@ export async function fetchCoachRubricReadout(args: {
   ).toISOString();
 
   // 1. Conversations with a completed durability check in the window.
-  const { data: checks } = await sb
+  const { data: checks, error: eChecks } = await sb
     .from("support_durability_checks")
     .select("conversation_id, outcome")
     .eq("company_id", args.companyId)
     .not("outcome", "is", null)
     .gte("checked_at", since)
     .limit(5000);
+  // §3.4 honest-error-state (audit 2026-07-09): this is the HEADLINE read. If it
+  // failed, do NOT fall through to the empty-cohorts return below as if there were
+  // no durability data — throw so the leadership route (which calls this via
+  // Promise.all with no try/catch) 500s and the page's existing error state fires,
+  // instead of showing a false "no activity" readout.
+  if (eChecks) {
+    throw new Error(`care coach-rubric readout: durability read failed — ${eChecks.message}`);
+  }
 
   type CheckRow = {
     conversation_id: string;
@@ -1549,12 +1557,15 @@ export async function fetchCoachRubricReadout(args: {
 
   // 2. Look at agent messages on those conversations to classify
   // each conversation's rubric version.
-  const { data: msgs } = await sb
+  const { data: msgs, error: eMsgs } = await sb
     .from("support_messages")
     .select("conversation_id, coach_counts, coach_grade")
     .in("conversation_id", conversationIds)
     .eq("author_type", "agent")
     .eq("is_internal_note", false);
+  if (eMsgs) {
+    throw new Error(`care coach-rubric readout: message classification read failed — ${eMsgs.message}`);
+  }
 
   type MsgRow = {
     conversation_id: string;
