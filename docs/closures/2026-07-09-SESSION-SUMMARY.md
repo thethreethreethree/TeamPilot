@@ -417,6 +417,18 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   `access_role === 'everyone'` (a customer can't pull an agent's admins-only attachment) +
   600s signed-URL expiry + rate limit. No IDOR hole on any visitor route; the token→id→ownership
   chain is airtight without an RLS backstop. Clean pass.
+- **Inbound-email webhook (public, spoofing-sensitive) verified sound (2026-07-09).** Authenticated
+  by a shared secret in `X-Care-Webhook-Secret` compared with `constantTimeEqual` (timing-safe),
+  fail-closed on a missing `CARE_INBOUND_EMAIL_SECRET` (500 → provider retries, no processing) —
+  so inbound email can't be spoofed without the secret. Defense-in-depth: bounded zod validation
+  (every field capped), `external_message_id` dedup + 23505 race handling (replay-safe, §3.1),
+  a per-conversation AI loop breaker (≥5/5min) AND a per-sender flood guard (≥12/10min) both
+  logged as append-only §3.1 events, §3.3 human-takeover respect (`ai_responding` re-checked
+  before any AI reply), and `after()` for serverless-correct post-response work. *Note (not a
+  defect):* it uses a shared secret rather than provider-native HMAC signature verification — a
+  REASONED §A4 deferral (provider-agnostic until the §4 provider choice); sound over HTTPS with
+  constant-time compare + dedup replay-protection. When the provider is chosen, native HMAC would
+  add payload-integrity — optional, post-decision.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
