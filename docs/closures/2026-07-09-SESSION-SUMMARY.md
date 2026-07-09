@@ -89,6 +89,14 @@ or confirmed sound.
    log holds full history. Resolutions is the only one of the three §3.5-durability surfaces
    that DOESN'T. Want me to mirror 0015 (emit `resolution.reviewed` on review), or is
    write-once-column the intended denormalization? One sentence and I'll build it.
+   **Verified nuance (2026-07-09):** the `check_resolution_immutability` trigger (0005:50-68)
+   freezes action_taken/reasoning/decided_at but EXPLICITLY allows durability/observed_outcome
+   to change — it does not restrict to once. So my app-level write-once guard (a68ce70) is the
+   ONLY enforcement; a direct service-role/PostgREST write could still overwrite durability
+   because the DB permits it. The 0015 event-sourcing approach is more robust precisely here:
+   it captures every change immutably regardless of write path, so even a DB-level correction
+   is preserved in history rather than lost. If you pick event-sourcing, I'd also add a
+   once-only DB guard (or emit-on-change) so the §3.5 metric is defended below the app layer.
 
 ## Migrations to apply (founder — I can't verify applied-state headless)
 This session added **`0098`** (team_invitations partial-unique index — dedup + no
