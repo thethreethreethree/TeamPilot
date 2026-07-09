@@ -18,7 +18,8 @@ Gate green throughout: tsc 0, lint 0, next build 0, **502 tests**. All committed
 
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
-8. Readout/analytics layer truncates at PostgREST's 1000-row cap (8+ unbounded queries, care + asset readouts) → wrong metrics for a busy company → bounding pass (per-query limits or DB-side aggregation). [needs row-bound decision]
+8. Readout/analytics TRUNCATION: layer truncates at PostgREST's 1000-row cap (8+ unbounded queries, care + asset) → wrong metrics for a busy company → bounding pass (per-query limits or DB-side aggregation). [needs row-bound decision — still open]
+8b. Readout ERROR-HANDLING (separate; mostly DONE this session): the 3 main readouts + the care §3.5 durability cohort now return honest failure states instead of false zeros. **Small tail left:** 5 care leadership fns (trivial ~5-min pattern replication) + asset-readout needs a small UI error state. [low-priority; I can finish on your word]
 
 **Apply (I can't, headless):** migrations `0098`, `0099`; confirm `0085`/`0086`/`0095`–`0097` applied.
 **Confirm in prod:** vendor company id is your real vendor + `0089` live; set server VAPID env vars.
