@@ -3,6 +3,27 @@
 Everything built/fixed today, and the exact decisions + retests waiting on you.
 Gate green throughout: tsc 0, lint 0, next build 0, **502 tests**. All committed + pushed (~56 commits).
 
+---
+## ⇒ WHAT NEEDS YOU (read this first; detail below)
+
+**Product decisions — each a one-sentence answer, fix pre-written (see "Decisions waiting on you"):**
+1. Talk-ratio/question-rate score: invert (raw magnitude → quality) + re-baseline ELO? [y/n]
+2. Company settings: gate to admin-only, or keep member-editable? [admin-only / keep]
+3. Session-detail upload/live-coaching controls: make owner-only + active-only? [y/n]
+4. **Resolution review: event-source it (mirror `0015`) or keep write-once column?** ← load-bearing [event / column]
+
+**Infra / ops decisions:**
+5. CI-invariant protection: run `chain.integration.test.ts` in CI (one env-var step — fully closes the §5 gap)? [y/n]
+6. Optional refactors flagged, your call: centralize coach event-kind consts; `vendor_config` table for the vendor id; de-dup `ELOSTATE_COMPANY_ID`.
+
+**Apply (I can't, headless):** migrations `0098`, `0099`; confirm `0085`/`0086`/`0095`–`0097` applied.
+**Confirm in prod:** vendor company id is your real vendor + `0089` live; set server VAPID env vars.
+**Retest:** flags on real sessions; a live call for the 5 cue fixes.
+
+*Reply with any answer above and I'll apply the pre-written fix immediately.*
+
+---
+
 ## What shipped
 
 ### 1. Feature — Session Interaction Flags (`/dashboard/sales-coach/sessions`)
