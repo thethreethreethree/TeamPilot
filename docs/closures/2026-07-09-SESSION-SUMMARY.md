@@ -1,7 +1,12 @@
 # Session summary — 2026-07-09 (single entry point)
 
 Everything built/fixed today, and the exact decisions + retests waiting on you.
-Gate green throughout: tsc 0, lint 0, next build 0, **502 tests**. All committed + pushed (~56 commits).
+Gate green throughout: tsc 0, lint 0, next build 0, **512 tests**. All committed + pushed.
+Later-session continuation added: `0100` (§3.1 resolutions loop) + its integration test; the brain
+§1.1 upgrade (learns from reopened/partial, not just held) + its unit test; a real security FIX
+(care upload mime-spoof, both routes) + test; the §3.4 control-gate ENFORCEMENT test; and a
+full audit sweep of the §3 constitutional core, the public attack surface, and §7 governance —
+all verified sound (details in "Verified clean"). New decisions surfaced: 6b / 6c / 6d.
 
 ---
 ## ⇒ WHAT NEEDS YOU (read this first; detail below)
@@ -43,6 +48,13 @@ Gate green throughout: tsc 0, lint 0, next build 0, **502 tests**. All committed
    learning, just coarsely, and conservatism is a feature). If chat-primary teams turn out
    common, the lightweight path is to pull only chat closes whose close_summary clears a
    length/structure bar. I did NOT build it — it changes the brain's learning discipline.
+6d. **§3.6 make-learning-visible: proactive surface? [optional UX — my rec: a small glance-card].**
+   The `/dashboard/brain` page is a rich §3.6 surface (brain version, learning-visible section,
+   evolution audit trail), but it's on-DEMAND — the user must navigate to it. §3.6 stresses
+   "adaptation the user cannot perceive = stagnation." Optional enhancement: a small dashboard
+   glance-card ("brain reached v3 this week · +2 patterns" → links to /brain) so the deepening is
+   perceived without navigating. Not built — proactive-surfacing shape is a product/UX decision.
+   [add glance-card / leave on-demand]
 
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
