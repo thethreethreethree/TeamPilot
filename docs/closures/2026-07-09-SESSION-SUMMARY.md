@@ -752,16 +752,29 @@ inert." Correct framing for prioritizing it.
    app layer, say so and I'll add a once-only DB write-guard; otherwise 0100's record-every-change
    is the more §3.1-faithful choice and I'd leave it.
 
-## Migrations to apply (founder — I can't verify applied-state headless)
-This session added **`0098`** (team_invitations partial-unique index — dedup + no
-duplicate pending invites) and **`0100`** (resolution durability review → event emission,
-closing the resolutions half of the §3.1 loop; mirrors 0015). Also confirm these earlier §3.1-enforcement migrations are
-applied, or the coded append-only protection isn't live: **`0085`**
-(care_widget_load_events do-instead-nothing), **`0086`** (crm_activity_events same), and
-whatever remained from the 2026-07-07 queue (`0095`/`0096`/`0097`). Verified this
-session: the CORE §3.1 chain (events/decision_dialogues/etc.) is immutable via
-do-instead-nothing rules; these are the peripheral tables whose enforcement migrations
-may be pending. `npm run rls:audit` is green (all tables covered-or-documented).
+## ⚙ MIGRATION APPLY CHECKLIST (founder — I can't verify applied-state headless; CONFIRM each, apply if pending)
+The COMPLETE documented-pending set, in order. Apply the whole set — a partial apply leaves the
+corresponding protection/feature dormant. `npm run rls:audit` is green (all tables covered-or-documented);
+these are the enforcement/feature migrations whose *applied-state* I can't see from here.
+
+| # | What it does | Why it matters if skipped |
+|---|---|---|
+| `0085` | care_widget_load_events append-only (`do instead nothing`) | §3.1 immutability not live on that table |
+| `0086` | crm_activity_events append-only | §3.1 immutability not live |
+| `0087` | last_message_author_type col + trigger (inbox chime) | inbox-wide new-message chime stays inert |
+| `0089` | vendor CRM authz (`is_vendor_super_admin`) — **was open to any customer admin (CRITICAL)** | cross-customer CRM exposure stays open; **confirm the vendor company id is yours** |
+| `0095` | MED-tier UPDATE `WITH CHECK` (tenant-key push-out) | members can push tenant keys to foreign values |
+| `0096` | definer `search_path` + guard triggers | search-path injection / column-freeze gaps |
+| `0097` | (2026-07-07 authz queue tail — confirm) | — |
+| `0098` | team_invitations partial-unique index (dedup) | duplicate pending invites possible |
+| `0099` | coach v5 orphan-event §4-question doc | (documentation only — low urgency) |
+| `0100` | resolution durability → event emission | **closes the resolutions half of the §3.1 loop** (missed deadlines/reopens don't signal) |
+| `0101` | task_steps UPDATE `WITH CHECK` | task_step tenant-key push-out (MED) |
+| `0102` | coaching_sessions UPDATE `WITH CHECK` | **ELO integrity — owner can reassign agent_id to skew a peer's rating** |
+
+**Plus (env, not migrations):** `CRON_SECRET` (activates the §3.5 durability sweep — dormant without
+it), VAPID×3 + REBUILD (push delivery), and the optional channels — see the ENV-VAR ACTIVATION MAP up top.
+**Highest-leverage to apply first:** `0100` (§3.5 loop) + `0102` (ELO integrity) + set `CRON_SECRET`.
 
 ## Retests I can't run headless
 - The flags on your real sessions (see #1).
