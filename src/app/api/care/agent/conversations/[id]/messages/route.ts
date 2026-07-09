@@ -151,11 +151,31 @@ export async function POST(
         dispatchOutboundEmailReply({
           conversationId: id,
           messageId: msg.id,
-        }).catch((e) => {
-          if (process.env.NODE_ENV !== "production") {
-            console.warn("[care] outbound email dispatch error", e);
-          }
         })
+          .then((r) => {
+            // §3.4 observability (audit 2026-07-09): a silent outbound failure means
+            // the CUSTOMER never received the agent's reply while the agent believes
+            // they did (emailDispatchPromised:true). dispatchOutboundEmailReply RETURNS
+            // { ok:false } on both the config skip (POSTMARK unset) AND a real Postmark/
+            // runtime failure — previously IGNORED, and the .catch only logged in dev,
+            // so a customer-facing channel failed into a production black hole. Log the
+            // named cause in ALL environments, matching this codebase's push-sender /
+            // loop-breaker discipline. (Agent-visible surfacing is a follow-up; the send
+            // is fire-and-forget after the response, so the floor is an operator log.)
+            if (!r.ok) {
+              // eslint-disable-next-line no-console
+              console.error(
+                `[care] outbound email dispatch FAILED conv=${id} msg=${msg.id}: ${r.error}`
+              );
+            }
+          })
+          .catch((e) => {
+            // eslint-disable-next-line no-console
+            console.error(
+              `[care] outbound email dispatch threw conv=${id} msg=${msg.id}:`,
+              e instanceof Error ? e.message : e
+            );
+          })
       );
     }
   }
