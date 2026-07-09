@@ -991,3 +991,25 @@ made runnable.
   runtime-verified.
 
 Reply with a yes/no on any decision and I'll apply the pre-written fix immediately.
+
+---
+
+## Session-end delta (appended after the body above)
+
+Two things happened after this doc's body was written:
+
+1. **Error-detail-leak class swept + bounded (LOW-MED, flagged not fixed).** The customer
+   C.A.R.E widget receives `detail: "${err.name}: ${err.message}"` on 500s at exactly 2
+   routes — `care/conversations` (172) and `care/conversations/[id]/messages` (306). Both
+   are the SAME intentional widget-diagnostic channel (the widget reads `.detail` at
+   `CareChatWidget:347/354` to build its `recoveryError` debug string), so it's a deliberate
+   tradeoff, not an accidental leak. The other 4 customer-facing care routes (upload / file /
+   stt / tts) return zero detail — clean. **One decision covers the class:** sanitize to an
+   error CATEGORY in production at both sites, or gate raw detail behind a debug flag (server
+   logs keep full detail either way). Recorded in the security index (`care-error-detail-leak`).
+
+2. **Final build verification (genuinely run, not asserted).** `npx tsc --noEmit` → exit 0;
+   `npx vitest run` → **570 passed / 15 skipped, 83 files**. The session's code changes
+   (Experience Mode `mode.ts`, the LLM `withModeDirective` threading, the touched routes) are
+   confirmed sound at the type + unit level. Runtime behavior of the render-layer + the flagged
+   migrations remains your per-env verification (nothing above changes that).
