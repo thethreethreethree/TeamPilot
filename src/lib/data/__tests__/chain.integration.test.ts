@@ -536,6 +536,7 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
     let eventId: string;
     let signalId: string;
     let problemId: string;
+    let resolutionId: string;
 
     beforeAll(async () => {
       const lookup = await rest(
@@ -586,6 +587,20 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
       });
       expect(p.status, JSON.stringify(p.data)).toBe(201);
       problemId = (p.data as Array<{ id: string }>)[0]!.id;
+
+      // resolutions is the FOURTH (terminal) chain table. resolutions_no_delete
+      // (0094) makes it delete-immutable; 0105 later split its for-all policy but
+      // the no-delete RULE is independent of the policy. Created here so the
+      // delete-block case proves the terminal link is protected too — the direct
+      // counterpart to WHY 0108 exists (problem-delete would CASCADE past this).
+      const r = await rest("POST", "/rest/v1/resolutions", {
+        company_id: companyId,
+        problem_id: problemId,
+        action_taken: `${runTag} action`,
+        reasoning: `${runTag} reasoning`,
+      });
+      expect(r.status, JSON.stringify(r.data)).toBe(201);
+      resolutionId = (r.data as Array<{ id: string }>)[0]!.id;
     });
 
     it("silently drops an UPDATE to an event (row byte-for-byte unchanged)", async () => {
@@ -660,6 +675,19 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
         `/rest/v1/company_brain?company_id=eq.${companyId}&select=company_id`
       );
       expect((check.data as Array<{ company_id: string }>).length).toBe(1);
+    });
+
+    it("silently drops a DELETE of a resolution (row still present) — validates 0094", async () => {
+      // The chain's terminal table. resolutions_no_delete (0094) makes a direct
+      // delete a no-op; this + the problems case above complete the §3.1 chain's
+      // delete-immutability picture (events → signals → problems → resolutions,
+      // all four now covered, plus company_brain).
+      await rest("DELETE", `/rest/v1/resolutions?id=eq.${resolutionId}`);
+      const check = await rest(
+        "GET",
+        `/rest/v1/resolutions?id=eq.${resolutionId}&select=id`
+      );
+      expect((check.data as Array<{ id: string }>).length).toBe(1);
     });
   }
 );
