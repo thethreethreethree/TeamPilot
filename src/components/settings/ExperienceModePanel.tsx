@@ -47,11 +47,12 @@ export function ExperienceModePanel() {
         <h2 className="text-sm font-semibold text-primary">Experience Mode</h2>
       </div>
       <p className="mb-4 text-xs text-secondary leading-relaxed">
-        Choose how much the System shows you at once. Set once here; it applies
-        across the whole app — including C.A.R.E and the Sales Coach — and
-        follows you across devices. It shapes what <span className="text-primary font-medium">you</span> read
-        (coaching, dissects, summaries); the messages you send to customers or
-        teammates stay full quality regardless.
+        Choose how much the System shows you at once. Set once here; it follows
+        you across devices. In Standard, the summaries{" "}
+        <span className="text-primary font-medium">you</span> read come back
+        shorter and plainer, and secondary detail tucks behind a one-click reveal
+        (the full version is never more than a click away). The messages you send
+        to customers or teammates stay full quality regardless.
       </p>
 
       <div
