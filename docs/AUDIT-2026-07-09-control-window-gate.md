@@ -47,6 +47,7 @@ direct PostgREST. Swept the four core-thesis controls:
 | brain / AI behavior | `company_brain.system_prompt_addendum` | YES — `for all` company-scoped → prompt injection | **FLAGGED** (docs/AUDIT-2026-07-09-brain-injection.md; risky fix, needs runtime test) |
 | §3.2 Understanding Gate thresholds | `problem_thresholds` (min_signals…) | NO — RLS enabled, SELECT-only, writes default-denied (rls-audit allowlisted as service-role-only) | **CLEAN** |
 | §3.1 derivation rules | `signal_sources` | NO — RLS enabled, read-only policy, writes default-denied (allowlisted) | **CLEAN** |
+| §3.5 consequence measurement (C.A.R.E) | `support_durability_checks.outcome` | NO to regular members — UPDATE gated to support-agent OR CEO/COO/admin (0095) | **CLEAN vs members** (residual: any *agent* can set any check, not just the owner — a permission-model question already in the flagged §3.5-integrity family, items 1/3) |
 
 So of the four constitutional controls a member might defeat, two were open (one fixed, one flagged) and two are correctly write-protected. The invariant a future §1.7 audit preserves: *every DB-stored constitutional control must be write-restricted to leadership/service-role at the RLS layer, not merely at a route or by convention* — the §3.4 window and company_brain both showed route/convention gates are not enough.
 
