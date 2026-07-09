@@ -91,6 +91,26 @@ from the leadership page; happy path unchanged + gate-verified) — worth a glan
 **Apply (I can't, headless):** migrations `0098`, `0099`, `0100` (closes the resolutions §3.1 loop); confirm `0085`/`0086`/`0095`–`0097` applied.
 **Confirm in prod:** vendor company id is your real vendor + `0089` live; set server VAPID env vars
 (+ REBUILD — see the push item: the public key is build-inlined).
+### ⚙ ENV-VAR ACTIVATION MAP (what's code-complete but DORMANT until you configure it)
+Swept every feature-gating env var (2026-07-09). Each feature is BUILT; the env var is the on-switch.
+Ordered by consequence:
+
+| Env var(s) | Activates | WITHOUT it | Priority |
+|---|---|---|---|
+| `DEEPSEEK_API_KEY` **or** `ANTHROPIC_API_KEY` | ALL AI — coach, C.A.R.E AI, brain, dialogues | No AI at all (the product's core) | 🔴 CRITICAL |
+| `NEXT_PUBLIC_SUPABASE_URL` + `_ANON_KEY` + `SUPABASE_SERVICE_ROLE_KEY` | The whole app (DB + service-role paths) | App can't run / demo mode only | 🔴 CRITICAL |
+| **`CRON_SECRET`** | Hourly §3.5 durability sweep (+ daily backfill-dissects) | **§3.5 moat DORMANT** — checks scheduled, never swept → consequence measurement never reaches agents | 🟠 HIGH (gates the constitutional measurement) |
+| `VAPID_SUBJECT` + `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (+ REBUILD) | Push notification DELIVERY | Push subscribes but 403s / never delivers | 🟡 MED (channel) |
+| `ELEVENLABS_API_KEY` | Voice — widget STT/TTS + sales-coach voice | Voice THROWS "Voice isn't available right now" | 🟡 channel (only if you use voice) |
+| `POSTMARK_SERVER_TOKEN` | Outbound email (agent email replies send) | Email replies **SILENTLY SKIP** (warn-log, no send) — quiet footgun | 🟡 channel (silent-skip: surface if email is live) |
+| `CARE_INBOUND_EMAIL_SECRET` + `CARE_EMAIL_HOST_DOMAIN` | Inbound email intake (webhook auth + tenant routing) | Can't receive customer emails | 🟡 channel |
+| `CARE_DEFAULT_TENANT_ID` | Vendor/default tenant resolution | Falls back to a hardcoded id (confirm it's yours) | confirm |
+
+**The two that matter most for the CONSTITUTION working:** an LLM key (no AI without it) and
+`CRON_SECRET` (the §3.5 moat is dormant without it). The rest are optional channels — set them when
+you turn that channel on. `POSTMARK`'s silent-skip is the one footgun: if you believe email replies
+are sending but the token is unset, they quietly don't.
+
 **⚠ Set `CRON_SECRET` (Vercel env) — ACTIVATES the §3.5 durability sweep.** Verified 2026-07-09:
 `vercel.json` declares the hourly cron (`/api/care/durability-sweep-cron`), but that endpoint 503s
 (no-ops) until `CRON_SECRET` is set. WITHOUT it, the §3.5 loop is DORMANT in the middle: the resolve
