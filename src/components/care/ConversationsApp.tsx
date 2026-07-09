@@ -2928,36 +2928,42 @@ function Composer({
           </>
         )}
       </div>
-      {aiReasoning && (
-        <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.04] text-[11px] text-arc-300 leading-relaxed">
-          <span className="font-semibold">Co-pilot reasoning (internal):</span>{" "}
-          {aiReasoning}
-        </div>
-      )}
+      {/* Standard (0110): the draft below is primary; the co-pilot's internal
+          reasoning is supplementary — hidden in Standard, shown in Expert. */}
+      <ExpertOnly>
+        {aiReasoning && (
+          <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.04] text-[11px] text-arc-300 leading-relaxed">
+            <span className="font-semibold">Co-pilot reasoning (internal):</span>{" "}
+            {aiReasoning}
+          </div>
+        )}
+      </ExpertOnly>
       {/* §3.6 make-learning-visible — the precedents the Co-Pilot drew
           from. Surfaced so the agent can verify they're real cases and
           judge whether the System's generalization is fair (§3.3). Per
           TT.md A21 audit MED fix (2026-06-18). */}
-      {aiPrecedents.length > 0 && (
-        <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.02] text-[11px] text-arc-300 leading-relaxed">
-          <p className="font-semibold mb-1">
-            Drew on {aiPrecedents.length} past resolution
-            {aiPrecedents.length === 1 ? "" : "s"}:
-          </p>
-          <ul className="space-y-0.5">
-            {aiPrecedents.map((p) => (
-              <li key={p.id} className="text-secondary">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-muted mr-1.5">
-                  {p.category ?? "uncat"}
-                </span>
-                {p.issueSummary.length > 80
-                  ? p.issueSummary.slice(0, 77) + "…"
-                  : p.issueSummary}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <ExpertOnly>
+        {aiPrecedents.length > 0 && (
+          <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.02] text-[11px] text-arc-300 leading-relaxed">
+            <p className="font-semibold mb-1">
+              Drew on {aiPrecedents.length} past resolution
+              {aiPrecedents.length === 1 ? "" : "s"}:
+            </p>
+            <ul className="space-y-0.5">
+              {aiPrecedents.map((p) => (
+                <li key={p.id} className="text-secondary">
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-muted mr-1.5">
+                    {p.category ?? "uncat"}
+                  </span>
+                  {p.issueSummary.length > 80
+                    ? p.issueSummary.slice(0, 77) + "…"
+                    : p.issueSummary}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </ExpertOnly>
       <div className="flex items-end gap-2">
         <textarea
           ref={composerRef}
