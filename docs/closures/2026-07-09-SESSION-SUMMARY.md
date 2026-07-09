@@ -88,7 +88,8 @@ got observability logs rather than a throw. **The whole readout error-handling c
 The only *runtime-unverified* bit is the assetReadout error banner render (new UI, pattern-matched
 from the leadership page; happy path unchanged + gate-verified) — worth a glance on a failed load.
 
-**Apply (I can't, headless):** migrations `0098`, `0099`, `0100` (closes the resolutions §3.1 loop); confirm `0085`/`0086`/`0095`–`0097` applied.
+**Apply (I can't, headless):** migrations `0098`, `0099`, `0100` (closes the resolutions §3.1 loop),
+`0101` + `0102` (the two RLS UPDATE WITH-CHECK gaps below); confirm `0085`/`0086`/`0095`–`0097` applied.
 **Confirm in prod:** vendor company id is your real vendor + `0089` live; set server VAPID env vars
 (+ REBUILD — see the push item: the public key is build-inlined).
 ### ⚙ ENV-VAR ACTIVATION MAP (what's code-complete but DORMANT until you configure it)
@@ -656,6 +657,19 @@ inert." Correct framing for prioritizing it.
   check). All OTHER cross-table policy refs are ONE-directional (file_departments/tasks/tags/suggestions
   → files, crm children → crm_accounts — the parent never references the children back), so no cycle.
   Clean negative on a catastrophe anchor: no third recursion cycle exists to become the next outage.
+- **RLS UPDATE tenant-key-push-out class (0095 anchor) — 2 gaps the audit MISSED, FIXED (A29 sweep,
+  2026-07-09).** An UPDATE policy with `USING` but no `WITH CHECK` lets a member push a row's tenant
+  key to a foreign value. The 2026-07-07 audit's 0095 covered the MED tier; sweeping the full class
+  (all ~20 UPDATE-no-WITH-CHECK tables) found the audit relied on freeze triggers for 5 tables
+  (files/team_invitations/chat_topics/chat_topic_decisions/departments freeze company_id) — and left
+  TWO with neither WITH CHECK nor a freeze: **`task_steps` (`0101`)** and **`coaching_sessions`
+  (`0102`)**. coaching_sessions is the sharp one: its owner-or-admin UPDATE let the OWNER change
+  `agent_id` to a peer — reassigning their session into that peer's ELO computation, skewing the
+  peer's rating (§3.5 integrity, no manager access needed) — or `company_id` cross-tenant. Both fixed
+  by WITH CHECK mirroring USING (admin reassignment preserved). Class now genuinely complete (every
+  table accounted for; 0101's "sole sibling" claim was premature — corrected in 0102). **Note the
+  §3.5 through-line:** coaching_sessions/agent_id (here) + `outcome` (item 3) are BOTH ELO-integrity
+  gaps — if you care about rating integrity, apply 0102 and gate `outcome` (item 3) together.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
