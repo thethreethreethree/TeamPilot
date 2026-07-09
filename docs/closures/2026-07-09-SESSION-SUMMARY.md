@@ -182,6 +182,22 @@ alternative — a create/drop-order-aware check in `rls-audit.mjs` — carries a
 false-positive-breaks-green risk I won't take autonomously and is unnecessary given the
 integration suite already exists.)
 
+## Finding: rate limiting is in-memory per-instance (best-effort on serverless)
+Verified `src/lib/api/rateLimit.ts` — a correct in-memory sliding-window limiter, but the
+`Map` is MODULE-LEVEL (per-instance). The code comment says so: "Sufficient for
+single-instance; for horizontally-scaled, swap for Redis." On Vercel serverless (scales
+horizontally under load), the cap is PER-INSTANCE, so it weakens precisely under an attack
+(load → more instances → weaker effective limit). **Accurate posture:** AUTH is the hard
+protection (an anon caller is blocked regardless — verified sound across the LLM/TTS/route
+gates); the rate-limit is best-effort defense-in-depth, NOT a hard global cap on serverless.
+**Where it matters most:** the token-gated customer-widget routes (`care/tts`, `care/.../upload`,
+`care/.../messages`) — a valid-token customer's spam/cost there is bounded *primarily* by the
+rate limit, which serverless weakens. **Low urgency now** (early-stage, low traffic, usually
+one warm instance) but real at scale/under deliberate abuse. **Fix (known, your call):**
+Redis/Upstash-backed rate limit (the code comment already names it) — a focused build I can
+do on your word; it needs an operator decision (which store) + env config, so flagging not
+building.
+
 ## Verified clean this session (no action needed — recorded for confidence)
 - **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
   event kind against every emitter across the app: all match. No manager-facing coach
