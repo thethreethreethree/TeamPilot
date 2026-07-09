@@ -76,6 +76,7 @@ covers `TG_OP='INSERT' AND NEW.status<>'draft'`, so a problem inserted *directly
 | Guarantee | Enforcing object | Migration | A DROP would let… |
 |---|---|---|---|
 | Every change to a topic's `close_durability` appends a `chat.topic_durability_reviewed` event (new + previous value) | `chat_topics_durability_review_trigger` → `chat_topics_emit_durability_review()` | `0015` | durability-over-time history be lost — the §3.5 consequence metric would live only in a mutable column |
+| Every change to a resolution's `durability` appends a `resolution.durability_reviewed` event → derives a resolution_held / problem_recurrence / partial_resolution signal | `resolutions_durability_review_trigger` → `resolutions_emit_durability_review()` | `0100` (UNAPPLIED) | the resolutions-table half of the §3.1 loop stay open — a reopened resolution (problem recurrence) would never re-enter events→signals, exactly the gap 0015 closed for chat topics |
 
 ## Security invariants (privilege-escalation defenses)
 
@@ -92,8 +93,11 @@ covers `TG_OP='INSERT' AND NEW.status<>'draft'`, so a problem inserted *directly
 - **`resolutions` durability review** is write-once at the **app layer only** (the route
   guard added 2026-07-09), NOT a DB trigger — the 0005 trigger permits `durability` to change.
   A direct service-role write could still overwrite it. Fails toward data-quality, not
-  exposure. See A27 + the resolutions event-sourcing decision (mirror `0015`) in
-  `docs/closures/2026-07-09-SESSION-SUMMARY.md`.
+  exposure. See A27. NOTE: the *event-sourcing* half of this gap is now closed by `0100`
+  (UNAPPLIED) — a durability change now emits `resolution.durability_reviewed` and derives a
+  signal, mirroring `0015`. What remains app-layer-only is the *write-once* enforcement (the
+  column can still change at the DB layer; the trigger records each change honestly rather
+  than freezing it — consistent with 0015, where re-review is allowed and re-emits).
 - **`support_durability_checks`** (care) has NO immutability trigger; write-once is enforced
   only in `recordDurabilityOutcome` (app layer, 2026-07-09). Same fail-toward-quality posture.
 - **`is_vendor_super_admin()`** hardcodes the vendor company id (a SQL function can't read

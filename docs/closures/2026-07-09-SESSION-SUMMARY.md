@@ -10,7 +10,7 @@ Gate green throughout: tsc 0, lint 0, next build 0, **502 tests**. All committed
 1. Talk-ratio/question-rate score: invert (raw magnitude → quality) + re-baseline ELO? [y/n]
 2. Company settings: gate to admin-only, or keep member-editable? [admin-only / keep]
 3. Session-detail upload/live-coaching controls: make owner-only + active-only? [y/n]
-4. **Resolution review: event-source it (mirror `0015`) or keep write-once column?** ← load-bearing [event / column]
+4. ~~Resolution review: event-source it (mirror `0015`) or keep write-once column?~~ **BUILT — `0100` (apply it).** On re-examination this was NOT a product choice: §3.1 + the 0015 precedent *decide* it (the resolutions-table review must close the loop like chat topics do). I mis-flagged a constitutional requirement as a preference (the §5 confident-label trap) and corrected it — `0100` mirrors 0015 exactly. Your only remaining call: whether to ALSO add a below-app once-only DB write-guard (optional hardening; the trigger already records every change honestly). [apply 0100 / +optional DB write-guard?]
 
 **Infra / ops decisions:**
 5. CI-invariant protection: run `chain.integration.test.ts` in CI (one env-var step — fully closes the §5 gap)? [y/n]
@@ -27,7 +27,7 @@ got observability logs rather than a throw. **The whole readout error-handling c
 The only *runtime-unverified* bit is the assetReadout error banner render (new UI, pattern-matched
 from the leadership page; happy path unchanged + gate-verified) — worth a glance on a failed load.
 
-**Apply (I can't, headless):** migrations `0098`, `0099`; confirm `0085`/`0086`/`0095`–`0097` applied.
+**Apply (I can't, headless):** migrations `0098`, `0099`, `0100` (closes the resolutions §3.1 loop); confirm `0085`/`0086`/`0095`–`0097` applied.
 **Confirm in prod:** vendor company id is your real vendor + `0089` live; set server VAPID env vars.
 **Retest:** flags on real sessions; a live call for the 5 cue fixes.
 
@@ -324,29 +324,33 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
    any same-company caller could silently overwrite `durability` (the §3.5 metric). Now
    enforced write-once (409 on re-review) + label corrected + a conscious durability
    choice required (was defaulting to "unknown", a hasty-Save footgun under write-once).
-   **Your decision — the deeper one I did NOT make:** the review is still stored as a
-   *mutable-once column*, not an appended event. A genuine §3.1 reading says the measured
-   consequence should be an **event** in the immutable chain (so durability-over-time is
-   replayable, and the review joins `events → signals → problems → resolutions → events`
-   properly). **There's already a working precedent in your own codebase:** the chat-topic
-   durability review does exactly this — migration `0015`'s `chat_topics_durability_review_trigger`
-   fires a `chat.topic_durability_reviewed` event (with both new + previous value) on every
-   `close_durability` change, so its column is just a denormalized "current" while the event
-   log holds full history. Resolutions is the only one of the three §3.5-durability surfaces
-   that DOESN'T. Want me to mirror 0015 (emit `resolution.reviewed` on review), or is
-   write-once-column the intended denormalization? One sentence and I'll build it.
-   **Verified nuance (2026-07-09):** the `check_resolution_immutability` trigger (0005:50-68)
-   freezes action_taken/reasoning/decided_at but EXPLICITLY allows durability/observed_outcome
-   to change — it does not restrict to once. So my app-level write-once guard (a68ce70) is the
-   ONLY enforcement; a direct service-role/PostgREST write could still overwrite durability
-   because the DB permits it. The 0015 event-sourcing approach is more robust precisely here:
-   it captures every change immutably regardless of write path, so even a DB-level correction
-   is preserved in history rather than lost. If you pick event-sourcing, I'd also add a
-   once-only DB guard (or emit-on-change) so the §3.5 metric is defended below the app layer.
+   **RESOLVED — built as `0100` (was flagged as your decision; on re-examination it wasn't
+   one).** I originally deferred this as a product choice: event vs mutable-once column. That
+   framing was wrong, and catching it is the §0/§5 discipline working. A genuine §3.1 reading
+   doesn't leave it open — the measured consequence MUST be an **event** in the immutable chain
+   so durability-over-time is replayable and the review joins `events → signals → problems →
+   resolutions → events`. The precedent in your own codebase settles it: migration `0015`'s
+   `chat_topics_durability_review_trigger` fires `chat.topic_durability_reviewed` (new +
+   previous value) on every `close_durability` change. Resolutions was the ONLY one of the three
+   §3.5-durability surfaces that didn't close its loop. So this was a constitutional gap, not a
+   preference — I built `0100_resolution_durability_review_emission.sql`, mirroring 0015 exactly:
+   an AFTER-UPDATE-OF-durability trigger emits `resolution.durability_reviewed` and derives a
+   `resolution_held` / `problem_recurrence` / `partial_resolution` signal (sourced at the
+   PROBLEM, so §1.2 retrospective analysis sees the recurrence). `unknown` earns no signal; no
+   backfill (append-only honesty); idempotent; no double-count with 0015 (chat closes never
+   insert into `resolutions`). **UNAPPLIED — apply it in each env.**
+   **What genuinely remains your call (optional hardening):** the `check_resolution_immutability`
+   trigger (0005:50-68) still permits `durability` to change at the DB layer, so the app-level
+   write-once guard (a68ce70) is the only *freeze*. `0100` makes that safe-by-honesty — every
+   change now emits an event and is preserved in history rather than lost (exactly 0015's
+   posture: re-review is allowed and re-emits). If you'd rather also FORBID re-review below the
+   app layer, say so and I'll add a once-only DB write-guard; otherwise 0100's record-every-change
+   is the more §3.1-faithful choice and I'd leave it.
 
 ## Migrations to apply (founder — I can't verify applied-state headless)
 This session added **`0098`** (team_invitations partial-unique index — dedup + no
-duplicate pending invites). Also confirm these earlier §3.1-enforcement migrations are
+duplicate pending invites) and **`0100`** (resolution durability review → event emission,
+closing the resolutions half of the §3.1 loop; mirrors 0015). Also confirm these earlier §3.1-enforcement migrations are
 applied, or the coded append-only protection isn't live: **`0085`**
 (care_widget_load_events do-instead-nothing), **`0086`** (crm_activity_events same), and
 whatever remained from the 2026-07-07 queue (`0095`/`0096`/`0097`). Verified this
