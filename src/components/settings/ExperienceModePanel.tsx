@@ -60,7 +60,12 @@ export function ExperienceModePanel() {
         className="grid gap-2 sm:grid-cols-2"
       >
         {OPTIONS.map(({ mode: m, label, blurb, Icon }) => {
-          const active = mode === m;
+          // Gate the active indicator on `loaded`: before the server read
+          // resolves, `mode` is the default 'standard', so an Expert user would
+          // briefly see Standard highlighted, then watch it correct — a
+          // wrong-state flash (§1.5.1 layer 4). Show neither as active until we
+          // actually know the user's preference.
+          const active = loaded && mode === m;
           return (
             <button
               key={m}

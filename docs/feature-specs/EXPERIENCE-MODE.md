@@ -64,11 +64,39 @@ A **single system with a per-user complexity dial**, NOT two parallel apps (two 
 3. In C.A.R.E, run **Summarize** on a conversation → the summary should come back short/plain (the first threaded surface). The co-pilot **reply** should stay full quality (the §A17 split).
 4. Report back what you see — that runtime feedback de-risks the JSON per-field work below, which I cannot verify headless.
 
+## Governing rule found by self-audit (2026-07-09): EPHEMERAL vs STORED outputs
+
+An AI output simplifies at a different LAYER depending on whether it's stored:
+
+- **Ephemeral** (generated on-demand, returned to the requesting agent, not stored
+  or shared) → simplify at **GENERATION** by threading `experienceMode`. The
+  generator IS the viewer, so their mode is correct. Example: **C.A.R.E summarize**
+  (returns the summary, stores nothing) — threaded, correct.
+- **Stored / shared** (written to the DB as an event/row, read later by possibly a
+  DIFFERENT user) → do NOT shape at generation (a Standard generator would store a
+  short artifact an Expert later sees). Keep the stored artifact **canonical/full**
+  and simplify at the **RENDER/VIEW** layer per the viewer's mode (Phase 3:
+  `AdvancedDetail` + conditional field display). Examples: **salesSummary**
+  (`runAndStoreSummary`, stores a `coach.session_summary_generated` event — left
+  UNthreaded, correct), dissect, review, coaching artifacts.
+
+**This resolves the JSON blind-risk:** the JSON surfaces (coach analysis, dissect,
+review) are also stored/structured, so they simplify at RENDER — I never touch
+their JSON prompts, so there's no schema-break risk to verify. The remaining AI
+work is therefore mostly render-layer (Phase 3), not prompt-layer.
+
 ## Remaining work (large — sequence is a founder call, "all means all")
 
-- **AI JSON surfaces** (coach analysis, dissect, review, why, score, outside-view, ripple-trace): per-FIELD prompt edits ("keep `whyContext` to one sentence in Standard"). Schema-preserving, but **not runtime-verifiable headless** — carries blind-risk.
-- **UI disclosure:** apply `AdvancedDetail` across surfaces — per-surface design judgment about what's safe to collapse; also runtime-unverifiable headless.
-- **Remaining prose surfaces:** none material left via generateCareReply besides those handled/excluded.
+- **Render-layer simplification (the bulk):** the stored/JSON agent-facing surfaces
+  (salesSummary, dissect, review, coach analysis, why, score, outside-view,
+  ripple-trace) simplify at the RENDER layer per the ephemeral-vs-stored rule
+  above — show the key field(s), collapse elaboration behind `AdvancedDetail`. No
+  prompt/schema risk. Runtime-unverifiable headless (can't see the render), so
+  best done with founder runtime review, but LOW-risk (reversible, cosmetic).
+- **Remaining ephemeral prose surfaces:** none material left — C.A.R.E summarize is
+  threaded; the other generateCareReply callers are customer-facing (co-pilot,
+  formulate, messages, inbound-email) and correctly stay full; ask-jeff is the
+  flagged drill-in.
 
 ## Open decisions flagged (not resolved silently)
 
