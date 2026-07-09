@@ -496,7 +496,13 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
    shows 8/10). Invert the two, and re-baseline ELO? (It feeds the rating.)
 2. **Company settings** are editable by any member (RLS-allowed; sensitive columns
-   frozen). Gate to admin-only, or keep member-editable?
+   frozen). Gate to admin-only, or keep member-editable? **Verified 2026-07-09:** both the
+   RLS `company - update` policy (`0001:118` — `using (id = auth_company_id())`) AND the
+   `PATCH /api/settings` route have NO role check, so any member can edit. **Fix pre-written
+   (if you choose admin-only):** in `PATCH /api/settings` after `companyId` resolves, read the
+   caller's `profiles.role` and return 403 unless it's leadership (CEO/COO — the exact `isAdmin`
+   set from `careAgentAuth.ts:66`); optionally a one-line migration tightening the `company -
+   update` RLS policy to the same predicate for DB-layer defense-in-depth. One word and I apply it.
 3. **Session-detail control gating** (the narrowed A2 §A18 question): `upload-recording`
    / `label-transcript` are reachable by a manager viewing a rep's session because
    `SessionRecordingUpload` is rendered ungated (`[id]/page.tsx:822`); and
