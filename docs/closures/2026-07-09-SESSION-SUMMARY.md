@@ -167,6 +167,15 @@ fixed or confirmed sound.
   deliver" bug — the sender now logs ONE aggregated line naming the VAPID-keypair-mismatch
   cause + fix when sends 403. Logging-only; doesn't resolve it (still needs your VAPID env
   config + a triggered push), but the log now reads the answer instead of requiring inference.
+  **Code-reviewed 2026-07-09 — NO code bug; the fix is sharper than "set the env vars":** the
+  send logic, dead-sub cleanup (404/410 → disable), and 403 diagnosis are all correct. The subtle
+  part that "set server VAPID vars" UNDERSTATES: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is inlined into the
+  CLIENT bundle at BUILD time, so the full fix is (1) generate ONE keypair
+  (`npx web-push generate-vapid-keys`), (2) set BOTH `NEXT_PUBLIC_VAPID_PUBLIC_KEY` +
+  `VAPID_PRIVATE_KEY` from that SAME pair in the DEPLOY env, (3) **REBUILD** (or the client keeps the
+  old/absent public key → still 403), (4) have users **re-subscribe**. If you set the vars but skip
+  the rebuild, it'll still 403 and look unfixed — that's the trap. The triggered-push 403 log
+  confirms the keypair-mismatch cause; a clean send (`sent>0`) confirms the fix.
 - **Constitutional DB-invariants registry** (`docs/constitutional-db-invariants.md` +
   `supabase/migrations/README.md`): a code-verified, grep-anchored, COMPLETE list (22
   append-only tables, 5 freeze triggers, the gate trigger, definer search_path, vendor/authz
