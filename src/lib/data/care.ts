@@ -1070,7 +1070,7 @@ export async function captureResolution(args: {
   precedentResolutionId?: string | null;
 }): Promise<SupportResolution | null> {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_resolutions")
     .insert({
       conversation_id: args.conversationId,
@@ -1083,6 +1083,13 @@ export async function captureResolution(args: {
     })
     .select("*")
     .single();
+  // §3.4 false-ok (audit 2026-07-09): a swallowed error returned null, which the
+  // route reported as { resolution: null } with HTTP 200 — SUCCESS on failure. This
+  // is worse than a lost record: inserting support_resolutions is what TRIGGERS the
+  // durability-check schedule (the §3.5 loop), so a silent failure means the §3.5
+  // consequence measurement for this conversation NEVER happens, while the agent
+  // sees "captured." Throw so the route surfaces it.
+  if (error) throw new Error(`captureResolution failed — ${error.message}`);
   if (!data) return null;
   return mapResolution(data);
 }

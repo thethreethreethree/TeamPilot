@@ -66,31 +66,62 @@ export async function POST(
     );
   }
 
-  const resolution = await captureResolution({
-    conversationId: id,
-    companyId: auth.companyId,
-    capturedBy: auth.agentId,
-    issueSummary: body.issueSummary,
-    whatWorked: body.whatWorked,
-    category: body.category ?? null,
-    precedentResolutionId: body.precedentResolutionId ?? null,
-  });
+  // §3.4 (audit 2026-07-09): captureResolution now THROWS on a DB error (was a silent
+  // null → HTTP 200, i.e. success-on-failure that also silently skipped the §3.5
+  // durability-check schedule). Catch it — plus the two secondary writes below, which
+  // also swallowed errors — so a failed capture surfaces as a real error instead of a
+  // phantom "captured". The category stamp / mark-resolved are best-effort denorm/status
+  // updates; a failure there shouldn't lose the (already-succeeded) resolution, so they
+  // are checked but only logged, not thrown.
+  try {
+    const resolution = await captureResolution({
+      conversationId: id,
+      companyId: auth.companyId,
+      capturedBy: auth.agentId,
+      issueSummary: body.issueSummary,
+      whatWorked: body.whatWorked,
+      category: body.category ?? null,
+      precedentResolutionId: body.precedentResolutionId ?? null,
+    });
 
-  if (body.category) {
-    // Also stamp the category on the conversation for fast filtering
-    // (pattern detection page reads from here directly).
-    await auth.sb
-      .from("support_conversations")
-      .update({ resolution_outcome_category: body.category })
-      .eq("id", id);
+    if (body.category) {
+      // Also stamp the category on the conversation for fast filtering
+      // (pattern detection page reads from here directly). Best-effort:
+      // the resolution is already captured; log a stamp failure, don't fail the call.
+      const { error: catErr } = await auth.sb
+        .from("support_conversations")
+        .update({ resolution_outcome_category: body.category })
+        .eq("id", id);
+      if (catErr) {
+        // eslint-disable-next-line no-console
+        console.error(`[care.resolution] category stamp failed id=${id}: ${catErr.message}`);
+      }
+    }
+
+    if (body.alsoMarkResolved) {
+      const { error: resErr } = await auth.sb
+        .from("support_conversations")
+        .update({ status: "resolved" })
+        .eq("id", id);
+      if (resErr) {
+        // eslint-disable-next-line no-console
+        console.error(`[care.resolution] mark-resolved failed id=${id}: ${resErr.message}`);
+      }
+    }
+
+    return NextResponse.json({ resolution });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[care.resolution] capture failed id=${id}:`,
+      err instanceof Error ? err.message : err
+    );
+    return NextResponse.json(
+      {
+        error:
+          "Couldn't save the resolution. Nothing was captured — please retry so it lands on the record.",
+      },
+      { status: 500 }
+    );
   }
-
-  if (body.alsoMarkResolved) {
-    await auth.sb
-      .from("support_conversations")
-      .update({ status: "resolved" })
-      .eq("id", id);
-  }
-
-  return NextResponse.json({ resolution });
 }
