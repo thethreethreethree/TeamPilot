@@ -45,5 +45,6 @@ The flagged items are ONE class: **an integrity-critical table whose sanctioned 
 - §3.2 gate thresholds (`problem_thresholds`) + §3.1 derivation rules (`signal_sources`): global config, RLS SELECT-only, writes default-denied.
 - §3.5 C.A.R.E measurement (`support_durability_checks`): agent/admin-gated, not member-forgeable.
 - Cross-tenant SELECT: 0 suspects (all 69 `p.id=auth.uid()` policies carry the company pin).
+- LLM-cost-abuse (rate-limit class): swept 2026-07-09 — every member-triggerable LLM route is rate-limited (`/api/brain/learn` was the last gap, fixed 618bd55); `care/inbound/email` is `CARE_INBOUND_EMAIL_SECRET`-gated (trusted webhook only). No member-facing LLM route is un-bounded. (Residual: the rate-limiter is in-memory per-instance — item 7 robustness; the customer widget is the priority surface.)
 
 *Compiled 2026-07-09 from the session's migrations + audit docs. §3.6 make-learning-visible.*
