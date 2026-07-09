@@ -93,6 +93,12 @@ const ALLOWLIST = new Map([
   ["decision_dialogues.delete", "§3.1 decision dialogues are append-only."],
   ["resolutions.update", "§3.1 resolutions are append-only; consequence is measured in events, not edits."],
   ["resolutions.delete", "§3.1 resolutions are append-only."],
+  // Saved "Dissect a Conversation" topics (0097). Append-only by design: Close keeps a
+  // saved topic, only an unsaved thread is discarded client-side; editing/removing a
+  // saved dissection is out of scope for v1 (0097's own comment). Owner-only select +
+  // insert exist; no update/delete policy = deny, which is the intended posture.
+  ["dissect_topics.update", "§3.1 saved dissections are append-only (0097): editing is out of scope for v1 by design."],
+  ["dissect_topics.delete", "§3.1 saved dissections are append-only (0097): Close keeps a saved topic; only an unsaved thread is discarded client-side."],
 
   // Brain evolution events — §3.4/§7.5 audit trail.
   [
