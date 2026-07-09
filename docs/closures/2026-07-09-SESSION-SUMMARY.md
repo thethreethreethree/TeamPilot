@@ -554,6 +554,16 @@ inert." Correct framing for prioritizing it.
   uncited — a technical incident fixed operationally, not one that amended the constitution. No
   dangling references either direction; the governance meta-process is internally consistent.
 
+- **§3.5 durability loop (THE constitutional measurement moat) verified COMPLETE + correct
+  end-to-end (2026-07-09).** All four links sound: (1) SCHEDULE — `schedule_support_durability_check`
+  (0039:151) fires ONLY on the transition to resolved (`new.status='resolved' AND old IS DISTINCT
+  FROM 'resolved'`), inserting one check at `now()+7d` (no spurious dupes on unrelated updates; a
+  re-resolution legitimately earns its own window); security-definer + search_path pinned. (2) SWEEP
+  — `sweepDurabilityChecks`, hardened this session (FIFO oldest-first + `bounded` honest-cap, tested).
+  (3) RECORD — `recordDurabilityOutcome` write-once (tested, 4 branches). (4) READOUT — the §3.5
+  durability readouts consume outcomes with honest-error states (fixed this session). So the moat
+  measurement works start→finish; no dead link (unlike `task_slipped`, which IS dead — item 9).
+
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
    shows 8/10). **Verified 2026-07-09 — GOOD NEWS, NO ELO re-baseline needed (I was wrong that
