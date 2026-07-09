@@ -977,12 +977,14 @@ these are the enforcement/feature migrations whose *applied-state* I can't see f
 it), VAPID×3 + REBUILD (push delivery), and the optional channels — see the ENV-VAR ACTIVATION MAP up top.
 **Highest-leverage to apply first:** `0100` (§3.5 loop) + `0102` (ELO integrity) + set `CRON_SECRET`.
 
-**After applying 0101–0108, VERIFY per-env** (verification discipline — rls-audit can't see a
+**After applying the queue, VERIFY per-env** (verification discipline — rls-audit can't see a
 live DB): run [`docs/closures/2026-07-09-authz-apply-verification.sql`](2026-07-09-authz-apply-verification.sql)
 in each environment's Supabase SQL editor. It's read-only and prints one PASS/FAIL row per fix
-(14 checks across the 8 migrations) — every row should read PASS; a FAIL names the migration that
-didn't land. This is the "never assert a migration is applied without per-env verification" rule
-made runnable.
+(**17 checks covering 0101–0108, 0110, 0111** — including the HIGH §3.4 control-window guard 0111
+and the `experience_mode` feature column; 0109 is a dormant fn, checked when its cron is wired) —
+every row should read PASS; a FAIL names the migration that didn't land. This is the "never assert
+a migration is applied without per-env verification" rule made runnable. **Apply 0111 too — don't
+stop at 0108**; it's the HIGH control-window fix and it's in the verified set.
 
 **Safe to re-run (idempotency swept 2026-07-09).** Because you apply these by hand in the SQL
 editor (no migration tracking), the whole queue was swept for re-run safety: every `create policy`

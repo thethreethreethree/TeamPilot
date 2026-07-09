@@ -1,11 +1,13 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- Post-apply verification for the 2026-07-09 authz queue (migrations 0101–0108 + 0111).
+-- Post-apply verification for the 2026-07-09 queue (migrations 0101–0108, 0110, 0111).
+-- 17 checks. (0109 task-overrun emit is a dormant feature fn — verified when its cron
+--  is wired, not part of this security apply.)
 --
 -- WHY THIS EXISTS (verification discipline / feedback_migration_coupling_no_assert):
 -- "Never assert a migration is applied without per-env verification." rls-audit
 -- (static, scans the migration FILES) cannot see whether a given DATABASE actually
 -- has these objects. Run this script IN EACH ENVIRONMENT (Supabase SQL editor →
--- your prod/staging project) AFTER applying 0101–0108 + 0111. Every row should read PASS.
+-- your prod/staging project) AFTER applying the queue. Every row should read PASS.
 -- Any FAIL means that migration did not land in this environment — apply it.
 --
 -- Read-only: this script only SELECTs from the catalog. Safe to run any time.
@@ -92,6 +94,15 @@ with checks(migration, fix, passed) as (
     exists (select 1 from pg_proc
             where proname = 'guard_company_guidance_columns'
               and prosrc ilike '%ai_guidance_enabled%')
+
+  -- 0110 — Experience Mode feature migration (not authz, but bundled in the same apply):
+  -- if profiles.experience_mode is missing, the whole feature is dead (getExperienceMode
+  -- reads a non-existent column, PATCH fails), so confirm it landed in the one-shot check.
+  union all select '0110', 'profiles.experience_mode column exists (Experience Mode feature)',
+    exists (select 1 from information_schema.columns
+            where table_name = 'profiles' and column_name = 'experience_mode')
+  -- (0109 task_overrun emit fn is intentionally NOT checked here — it's a dormant feature
+  --  function, verified when its cron is wired, not part of this security apply.)
 )
 select
   migration,
