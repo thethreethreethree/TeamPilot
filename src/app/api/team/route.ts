@@ -3,9 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { getCurrentCompanyId, isAdminRole } from "@/lib/supabase/auth-helpers";
 import { findAuthUserByEmail, createAdminClient } from "@/lib/supabase/admin";
+import { isInvitableRole } from "@/lib/roles";
 import { randomBytes } from "crypto";
-
-const ROLES = ["CEO", "COO", "Lead", "Member"] as const;
 
 function genCode(): string {
   return randomBytes(16).toString("base64url");
@@ -70,10 +69,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  const safeRole =
-    typeof role === "string" && (ROLES as readonly string[]).includes(role)
-      ? role
-      : "Member";
+  const safeRole = isInvitableRole(role) ? role : "Member";
   const normalizedEmail = email.toLowerCase().trim();
 
   // Duplicate-prevention #1: an active pending invitation for this
@@ -96,14 +92,34 @@ export async function POST(req: NextRequest) {
     // A DB partial-unique index is the structural fix — see the remediation plan.
     .limit(1)
     .maybeSingle();
-  if (existingInvite && new Date(existingInvite.expires_at) > new Date()) {
-    return NextResponse.json(
-      {
-        error:
-          "A pending invitation already exists for this email. Revoke it first if you want to reissue.",
-      },
-      { status: 409 }
-    );
+  if (existingInvite) {
+    if (new Date(existingInvite.expires_at) > new Date()) {
+      // A LIVE pending invite exists → reject (unchanged behaviour).
+      return NextResponse.json(
+        {
+          error:
+            "A pending invitation already exists for this email. Revoke it first if you want to reissue.",
+        },
+        { status: 409 }
+      );
+    }
+    // F3 (audit 2026-07-10): the existing invite is EXPIRED but still occupies the
+    // (company_id, lower(email)) partial-unique slot — 0098's index predicate is
+    // `accepted_at is null and revoked_at is null`, and expiry is NOT in it (now()
+    // can't live in an index predicate). The old code fell straight through to the
+    // insert here and hit a raw unique-violation → 500. Auto-revoke the expired
+    // invite first so re-inviting works AND the app agrees with the index (A16 —
+    // two enforcement layers must compose). The DB index remains the backstop for
+    // the concurrent-double-POST race.
+    await c.supabase
+      .from("team_invitations")
+      .update({
+        revoked_at: new Date().toISOString(),
+        revoked_by: c.userId,
+        revoke_reason: "Superseded — prior invite expired, re-invited",
+      })
+      .eq("id", existingInvite.id)
+      .is("accepted_at", null);
   }
 
   // Duplicate-prevention #2: the email already belongs to an active

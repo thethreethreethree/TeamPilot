@@ -10,6 +10,7 @@ import {
 import Modal from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { INVITABLE_ROLES, type InvitableRole } from "@/lib/roles";
 
 /**
  * InviteMemberDialog — shared invite modal mounted in-place wherever
@@ -32,8 +33,8 @@ import { LearningHint } from "@/components/learning/LearningHint";
  * when it doesn't would violate §5 honesty.
  */
 
-const ROLES = ["CEO", "COO", "Lead", "Member"] as const;
-type Role = (typeof ROLES)[number];
+// Role vocabulary sourced from the single client-safe source (§A13, audit F4).
+type Role = InvitableRole;
 
 export function InviteMemberDialog({
   open,
@@ -154,7 +155,7 @@ export function InviteMemberDialog({
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
               >
-                {ROLES.map((r) => (
+                {INVITABLE_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>

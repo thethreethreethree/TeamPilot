@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
+import { isAdminRole } from "@/lib/supabase/auth-helpers";
 
 /**
  * GET /api/admin/team-check
@@ -94,7 +95,7 @@ export async function GET() {
     .select("role, company_id")
     .eq("id", auth.user.id)
     .maybeSingle();
-  if (!profile || !["CEO", "COO", "admin"].includes(profile.role ?? "")) {
+  if (!profile || !isAdminRole(profile.role)) {
     return NextResponse.json(
       { error: "Team-check is an admin surface (CEO / COO / admin)." },
       { status: 403 }

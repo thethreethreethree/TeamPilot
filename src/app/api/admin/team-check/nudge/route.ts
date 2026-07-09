@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { isAdminRole } from "@/lib/supabase/auth-helpers";
 
 /**
  * POST /api/admin/team-check/nudge
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
     .select("role, company_id")
     .eq("id", auth.user.id)
     .maybeSingle();
-  if (!profile || !["CEO", "COO", "admin"].includes(profile.role ?? "")) {
+  if (!profile || !isAdminRole(profile.role)) {
     return NextResponse.json(
       { error: "Sending team-check nudges is an admin action." },
       { status: 403 }

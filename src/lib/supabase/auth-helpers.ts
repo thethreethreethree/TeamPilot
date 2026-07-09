@@ -1,20 +1,12 @@
 import "server-only";
 import { createClient } from "./server";
 
-/**
- * The company-admin (leadership) role set — the single source of truth for
- * "is this user a company admin?". Authored once (§A13) so a change to the set
- * (e.g. adding a role) happens in ONE place instead of the ~12 sites that
- * currently inline `role === 'CEO' || 'COO' || 'admin'`. New code should call
- * isAdminRole(); existing gates can migrate to it incrementally.
- */
-export const ADMIN_ROLES = ["CEO", "COO", "admin"] as const;
-
-/** True iff the role is a company-admin (leadership) role. Exact match — no
- *  accidental broadening (e.g. "Lead"/"administrator" are NOT admin). */
-export function isAdminRole(role: string | null | undefined): boolean {
-  return role != null && (ADMIN_ROLES as readonly string[]).includes(role);
-}
+// Role vocabulary now lives in the single client-safe source (src/lib/roles.ts,
+// §A13). Imported for local use (getCurrentAuthContext below) AND re-exported so
+// the ~20 existing server importers of auth-helpers keep working unchanged while
+// the definition exists in exactly one place.
+import { ADMIN_ROLES, isAdminRole } from "@/lib/roles";
+export { ADMIN_ROLES, isAdminRole };
 
 /**
  * Server-side helper: resolve the current authenticated user's company id.

@@ -58,17 +58,34 @@ export async function findAuthUserByEmail(email: string): Promise<{
   // that isn't true).
   const admin = createAdminClient();
   const PER_PAGE = 200;
+  // F7 (audit 2026-07-10): accumulate ALL field-matches rather than returning the
+  // first, so we can ASSERT cardinality (§A25's second half). GoTrue can hold >1
+  // auth row for one email (a stale signup + the active account); returning the
+  // first is a coin-flip that could pick the stale row.
+  const matches: Array<{ id: string; email: string }> = [];
   for (let page = 1; page <= 50; page++) {
     const { data, error } = await admin.auth.admin.listUsers({
       page,
       perPage: PER_PAGE,
     });
-    if (error || !data) return null;
-    const match = data.users.find(
-      (u) => (u.email ?? "").toLowerCase().trim() === target
-    );
-    if (match?.email) return { id: match.id, email: match.email };
-    if (data.users.length < PER_PAGE) break; // last page reached, no match
+    if (error || !data) break;
+    for (const u of data.users) {
+      if (u.email && u.email.toLowerCase().trim() === target) {
+        matches.push({ id: u.id, email: u.email });
+      }
+    }
+    if (data.users.length < PER_PAGE) break; // last page reached
   }
-  return null;
+  if (matches.length === 0) return null;
+  if (matches.length > 1) {
+    // This helper is company-agnostic, so it cannot pick the company-linked row
+    // definitively — surface the ambiguity for the operator instead of guessing
+    // silently (§3.4). A definitive fix needs the caller to pass company context;
+    // noted as a follow-up in the audit remediation (F7).
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[findAuthUserByEmail] ${matches.length} auth users match ${target} — returning the first; cannot disambiguate by company here.`
+    );
+  }
+  return matches[0] ?? null;
 }
