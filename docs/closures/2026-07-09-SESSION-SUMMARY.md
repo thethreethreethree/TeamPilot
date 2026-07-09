@@ -89,7 +89,14 @@ The only *runtime-unverified* bit is the assetReadout error banner render (new U
 from the leadership page; happy path unchanged + gate-verified) — worth a glance on a failed load.
 
 **Apply (I can't, headless):** migrations `0098`, `0099`, `0100` (closes the resolutions §3.1 loop); confirm `0085`/`0086`/`0095`–`0097` applied.
-**Confirm in prod:** vendor company id is your real vendor + `0089` live; set server VAPID env vars.
+**Confirm in prod:** vendor company id is your real vendor + `0089` live; set server VAPID env vars
+(+ REBUILD — see the push item: the public key is build-inlined).
+**⚠ Set `CRON_SECRET` (Vercel env) — ACTIVATES the §3.5 durability sweep.** Verified 2026-07-09:
+`vercel.json` declares the hourly cron (`/api/care/durability-sweep-cron`), but that endpoint 503s
+(no-ops) until `CRON_SECRET` is set. WITHOUT it, the §3.5 loop is DORMANT in the middle: the resolve
+trigger SCHEDULES durability checks, but nothing SWEEPS them → the held/reopened consequence
+measurement never reaches agents → the constitutional §3.5 moat produces nothing. Setting it turns
+on the (now FIFO + `bounded`-hardened, tested) sweep. Same secret gates the daily backfill-dissects cron.
 **Retest:** flags on real sessions; a live call for the 5 cue fixes.
 
 *Reply with any answer above and I'll apply the pre-written fix immediately.*
