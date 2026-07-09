@@ -397,6 +397,15 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   surface." *Optional enhancement (my rec):* a small dashboard glance-card ("brain reached v3 this
   week · +2 patterns" → links to /brain) so users perceive the deepening without navigating. I did
   NOT build it — the proactive-surfacing shape is a product/UX decision.
+- **§3.5 anti-gaming ("measure consequence, never agreement") verified EXEMPLARY on the ELO
+  rating — the highest-stakes surface (2026-07-09).** Traced the actual `salesElo.ts` math: the
+  agent rating's game score is HALF real deal outcome (`outcomeValue`: sold 1 / follow_up 0.7 /
+  undecided 0.5 / no_sale 0.35) + HALF independently-measured conversation quality (graded
+  categories + dissect strengths-vs-growth). Adopting the coach's cue NEVER raises the rating —
+  precisely the §3.5 forbidden shape avoided. Also ships provisional-until-5-games (§4 — a new
+  measurement method isn't trusted until validated) and is growth-vs-a-fixed-standard, not a
+  leaderboard (§A10/§A11/§A18). Known issue already flagged in-code: a `coaching_sessions` read
+  failure computes the rating WITHOUT outcomes (logs loudly; fail-closed is the deeper fix).
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
