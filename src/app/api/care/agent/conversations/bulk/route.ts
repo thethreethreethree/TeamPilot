@@ -69,36 +69,52 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, BulkBody);
   if (body instanceof NextResponse) return body;
 
-  if (body.action === "status") {
-    const affectedCount = await bulkSetConversationStatus({
-      ids: body.ids,
-      status: body.status as SupportConversation["status"],
-    });
-    return NextResponse.json({ ok: true, affectedCount });
-  }
+  // §3.4 (audit 2026-07-09): the bulk data fns now THROW on a DB error instead of
+  // returning a silent 0 that this route reported as { ok:true, affectedCount:0 }
+  // (success-on-failure). Catch it here for a structured 500 so the UI shows a real
+  // "couldn't archive/assign" instead of a misleading "0 affected".
+  try {
+    if (body.action === "status") {
+      const affectedCount = await bulkSetConversationStatus({
+        ids: body.ids,
+        status: body.status as SupportConversation["status"],
+      });
+      return NextResponse.json({ ok: true, affectedCount });
+    }
 
-  // assign
-  let ids = body.ids;
-  if (!auth.isAdmin) {
-    // Non-admin: filter to only conversations the caller is
-    // permitted to reassign. Same matrix as the single-action
-    // route — own + unclaimed only. Disallowed ids are silently
-    // dropped from the bulk update (the client gets affectedCount
-    // back and can show "3 of 5 assigned" if relevant).
-    const { data: allowed } = await auth.sb
-      .from("support_conversations")
-      .select("id")
-      .in("id", body.ids)
-      .or(`assigned_agent_id.is.null,assigned_agent_id.eq.${auth.agentId}`);
-    ids = (allowed ?? []).map((r) => r.id as string);
+    // assign
+    let ids = body.ids;
+    if (!auth.isAdmin) {
+      // Non-admin: filter to only conversations the caller is
+      // permitted to reassign. Same matrix as the single-action
+      // route — own + unclaimed only. Disallowed ids are silently
+      // dropped from the bulk update (the client gets affectedCount
+      // back and can show "3 of 5 assigned" if relevant).
+      const { data: allowed } = await auth.sb
+        .from("support_conversations")
+        .select("id")
+        .in("id", body.ids)
+        .or(`assigned_agent_id.is.null,assigned_agent_id.eq.${auth.agentId}`);
+      ids = (allowed ?? []).map((r) => r.id as string);
+    }
+    const affectedCount = await bulkAssignConversations({
+      ids,
+      targetAgentId: body.targetAgentId,
+    });
+    return NextResponse.json({
+      ok: true,
+      affectedCount,
+      requestedCount: body.ids.length,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[care.bulk] ${body.action} failed:`,
+      err instanceof Error ? err.message : err
+    );
+    return NextResponse.json(
+      { error: "Bulk action failed. No changes may have been applied — please retry." },
+      { status: 500 }
+    );
   }
-  const affectedCount = await bulkAssignConversations({
-    ids,
-    targetAgentId: body.targetAgentId,
-  });
-  return NextResponse.json({
-    ok: true,
-    affectedCount,
-    requestedCount: body.ids.length,
-  });
 }

@@ -522,11 +522,15 @@ export async function bulkSetConversationStatus(args: {
 }): Promise<number> {
   if (args.ids.length === 0) return 0;
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_conversations")
     .update({ status: args.status })
     .in("id", args.ids)
     .select("id");
+  // §3.4 false-ok (audit 2026-07-09): a swallowed error returned 0, which the route
+  // reported as { ok:true, affectedCount:0 } — SUCCESS on a real DB failure. Throw so
+  // the route surfaces the failure instead of "0 archived" masking it.
+  if (error) throw new Error(`bulkSetConversationStatus failed — ${error.message}`);
   return (data ?? []).length;
 }
 
@@ -547,11 +551,14 @@ export async function bulkAssignConversations(args: {
 }): Promise<number> {
   if (args.ids.length === 0) return 0;
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_conversations")
     .update({ assigned_agent_id: args.targetAgentId })
     .in("id", args.ids)
     .select("id");
+  // §3.4 false-ok (audit 2026-07-09): mirror bulkSetConversationStatus — a swallowed
+  // error returned 0 → route's { ok:true, affectedCount:0 } reported success on failure.
+  if (error) throw new Error(`bulkAssignConversations failed — ${error.message}`);
   return (data ?? []).length;
 }
 
