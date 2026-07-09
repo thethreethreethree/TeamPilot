@@ -28,6 +28,21 @@ Gate green throughout: tsc 0, lint 0, next build 0, **502 tests**. All committed
    **My recommendation: leave the separation as-is** (care's own readouts are a complete §3.5
    measurement today); only wire it in if you want ONE unified problem-surface across team +
    support. I did NOT build this — it would be deciding C.A.R.E's architecture for you.
+6c. **Brain learns richly from `resolutions` but only COARSELY from Team Chat closes [my rec:
+   leave as-is / optional lightweight path].** Verified asymmetry: after the §1.1 brain upgrade,
+   learn.ts pulls held/reopened/partial from the `resolutions` table WITH content (action_taken,
+   reasoning, observed_outcome) → validated_methods / disabled_suggestions. But chat_topics
+   closes (close_summary + close_durability, migration 0010/0015) — the OTHER durability surface —
+   are read by the brain NOWHERE; they reach it only as `problem_recurrence` signal FREQUENCY.
+   A chat-primary team's failure/success *content* is invisible to rich learning. The tension
+   that makes this YOUR call, not an auto-build: `resolutions` is DESIGNED as the structured
+   learning record (reasoning required); chat `close_summary` is one free-text field, and the
+   DISTILL prompt is deliberately conservative (§3.4/§4 — learn only from validated, structured
+   consequence). Pulling unstructured summaries in trades §1.1 coverage for §4 conservatism.
+   **My recommendation: leave as-is** (the separation is defensible — chat closes DO feed
+   learning, just coarsely, and conservatism is a feature). If chat-primary teams turn out
+   common, the lightweight path is to pull only chat closes whose close_summary clears a
+   length/structure bar. I did NOT build it — it changes the brain's learning discipline.
 
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
