@@ -94,6 +94,11 @@ in the MIGRATION APPLY CHECKLIST.
 
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
+   **PRIORITY surface (audit 2026-07-09):** the highest-exposure place this weakness bites is the
+   UNAUTHENTICATED customer widget `POST /api/care/conversations/[id]/messages` — it IS rate-limited,
+   but it triggers an LLM reply per message, so under a multi-instance serverless fleet an attacker
+   could exceed the per-instance limit and drive LLM cost. When you move to a Redis-backed limiter,
+   do this endpoint first. (Inbound email is separately safe — CARE_INBOUND_EMAIL_SECRET-gated.)
 7b. **C.A.R.E routing `maxConcurrent` can be exceeded under concurrency (check-then-act race, LOW).**
    `routeNewConversation` (care.ts:2419) READS each agent's open-conversation load, filters to
    `load < maxConcurrent`, then ASSIGNS — nothing atomic between read and write, and no DB constraint
