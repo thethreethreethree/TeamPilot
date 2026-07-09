@@ -14,6 +14,8 @@ import { computeFrequentSignalKinds } from "./frequentSignals";
  *   - reopened_resolutions: resolutions where durability='reopened' → what did NOT
  *     hold, per §1.1 ("errors, abandoned approaches, dead ends are assets equal to
  *     successes"). Feeds disabled_suggestions / known_patterns.
+ *   - partial_resolutions: resolutions where durability='partial' → refine-not-adopt
+ *     (§1.1 / §A26 — partial is the third MEASURED consequence; only 'unknown' is not).
  *   - dismissed_problems: problems explicitly dismissed → disabled_suggestions
  *   - frequent signals: patterns appearing repeatedly → known_patterns (low confidence)
  *
@@ -45,6 +47,13 @@ type LearningEvidence = {
     reasoning: string;
     observed_outcome: string | null;
   }>;
+  partialResolutions: Array<{
+    id: string;
+    problem_title: string | null;
+    action_taken: string;
+    reasoning: string;
+    observed_outcome: string | null;
+  }>;
   dismissedProblems: Array<{
     id: string;
     title: string;
@@ -61,7 +70,7 @@ async function gatherEvidence(supabase: Awaited<ReturnType<typeof createClient>>
   since.setDate(since.getDate() - 90);
   const sinceIso = since.toISOString();
 
-  const [heldRes, reopenedRes, dismissedRes, signalsRes] = await Promise.all([
+  const [heldRes, reopenedRes, partialRes, dismissedRes, signalsRes] = await Promise.all([
     supabase
       .from("resolutions")
       .select(
@@ -78,6 +87,17 @@ async function gatherEvidence(supabase: Awaited<ReturnType<typeof createClient>>
         "id, action_taken, reasoning, observed_outcome, problems(title)"
       )
       .eq("durability", "reopened")
+      .gte("decided_at", sinceIso)
+      .limit(20),
+    // §1.1 / §A26 boundary: PARTIAL is the third MEASURED consequence (only
+    // 'unknown' is unmeasured). A method that partially held is neither a clean
+    // success nor a clean failure — refine, don't fully trust or fully discard.
+    supabase
+      .from("resolutions")
+      .select(
+        "id, action_taken, reasoning, observed_outcome, problems(title)"
+      )
+      .eq("durability", "partial")
       .gte("decided_at", sinceIso)
       .limit(20),
     supabase
@@ -114,6 +134,13 @@ async function gatherEvidence(supabase: Awaited<ReturnType<typeof createClient>>
       reasoning: r.reasoning,
       observed_outcome: r.observed_outcome,
     })),
+    partialResolutions: (partialRes.data ?? []).map((r) => ({
+      id: r.id,
+      problem_title: (r.problems as { title?: string } | null)?.title ?? null,
+      action_taken: r.action_taken,
+      reasoning: r.reasoning,
+      observed_outcome: r.observed_outcome,
+    })),
     dismissedProblems: (dismissedRes.data ?? []).map((p) => ({
       id: p.id,
       title: p.title,
@@ -139,6 +166,10 @@ Inputs include:
     known_patterns (this class of fix tends to reopen). A held and a reopened
     resolution for the SAME action/problem-kind is a genuine tension — lower the
     confidence, do not silently prefer the success.
+  - partialResolutions: actions MEASURED to have held only partially — neither clean
+    success nor clean failure. Route into known_patterns as a refine-not-adopt signal
+    ("action X partially resolves problem-kind Y; it needs augmentation"). Never
+    promote a partial to a validated_method on its own.
   - dismissedProblems: problems explicitly rejected with reasons
   - frequentSignalKinds: observed-pattern frequency, NOT confirmed problems
 
@@ -173,6 +204,7 @@ export async function runLearningCycle(_companyId: string): Promise<{
   if (
     evidence.heldResolutions.length === 0 &&
     evidence.reopenedResolutions.length === 0 &&
+    evidence.partialResolutions.length === 0 &&
     evidence.dismissedProblems.length === 0 &&
     evidence.frequentSignalKinds.length === 0
   ) {

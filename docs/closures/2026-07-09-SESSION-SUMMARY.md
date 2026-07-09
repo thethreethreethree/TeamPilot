@@ -139,10 +139,13 @@ fixed or confirmed sound.
 - **Brain now learns from FAILURES, not just successes** (`learn.ts`) — **behavior change to
   the in-product AI, flagged for your awareness (§3.3).** The learning cycle pulled `held`
   resolutions (successes) + dismissed problems, but NEVER `reopened` resolutions — though §1.1
-  says "dead ends are assets equal to successes." Added `reopenedResolutions` as a first-class
-  learning input (mirrors the held query; routes into disabled_suggestions / known_patterns
-  via the existing prompt slots — no schema change). Carefully framed as MEASURED CONSEQUENCE
-  (enacted, then reopened), NOT the AMD-003-forbidden acceptance-learning. Notable sub-fix: the
+  says "dead ends are assets equal to successes." Added `reopenedResolutions` AND
+  `partialResolutions` as first-class learning inputs — the §A26 sweep to the boundary: held
+  (success) / reopened (failure) / partial (refine) are the THREE measured consequences; only
+  'unknown' is unmeasured and correctly stays out. Each mirrors the held query; reopened routes
+  into disabled_suggestions / known_patterns, partial into known_patterns as refine-not-adopt —
+  all via existing prompt slots, no schema change. Carefully framed as MEASURED CONSEQUENCE
+  (enacted, then measured), NOT the AMD-003-forbidden acceptance-learning. Notable sub-fix: the
   "nothing to learn, skip the LLM call" guard now counts reopened too — before, a team whose
   ONLY recent measured activity was failed fixes got "Brain unchanged," i.e. the brain was
   blind precisely to a struggling team. Constitutionally mandated (§1.1), but it changes what
