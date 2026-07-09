@@ -25,6 +25,27 @@ in the MIGRATION APPLY CHECKLIST.
 ---
 ## ⇒ WHAT NEEDS YOU (read this first; detail below)
 
+> **NEWEST FIRST — added after this list was first written (this window: Experience Mode +
+> a deeper security/migration pass).** The numbered decisions below (1–11) still stand; these
+> are additional and live in sibling docs so they aren't lost:
+>
+> - **Apply the migration queue `0101–0111`** (Supabase SQL editor, per-env), then run the
+>   17-check verifier `2026-07-09-authz-apply-verification.sql` (every row PASS). This is the
+>   single highest-leverage action — it lands the HIGH fixes incl. `0108` (problems no-delete)
+>   and `0111` (§3.4 control-window guard). The queue is now re-run-safe (0105 idempotency fixed).
+> - **HIGH — item 12 (brain/events fabrication):** `company_brain.system_prompt_addendum` is
+>   member-writable → company-wide prompt injection incl. customer-facing C.A.R.E. Fix is staged
+>   (DEFINER `record_brain_learning` + RLS restrict) but needs staging runtime-test. See
+>   [`docs/SECURITY-FINDINGS-2026-07-09.md`](../SECURITY-FINDINGS-2026-07-09.md) + `AUDIT-2026-07-09-brain-injection.md`.
+> - **Experience Mode — 3 §A17 decisions** (simplify each drill-in, or keep full teaching depth?):
+>   `ask-jeff`, `coach/sales-session/ask-coach`, `dissect/ask-coach`. One-line thread each if yes.
+>   Plus the render-layer application (founder runtime review, surface-by-surface). See
+>   [`docs/feature-specs/EXPERIENCE-MODE.md`](../feature-specs/EXPERIENCE-MODE.md).
+> - **LOW-MED flags (your call, not urgent):** care error-detail leak (2 intentional widget sites),
+>   care prompt-injection defense, input length-bounds. All in the SECURITY-FINDINGS index.
+>
+> Full detail for these is in the **Session-end delta** at the very bottom + the two sibling docs.
+
 **Product decisions — each a one-sentence answer, fix pre-written (see "Decisions waiting on you"):**
 1. Talk-ratio/question-rate score: invert (raw magnitude → quality) + re-baseline ELO? [y/n]
 2. Company settings: gate to admin-only, or keep member-editable? [admin-only / keep]
