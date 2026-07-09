@@ -71,15 +71,20 @@ in the MIGRATION APPLY CHECKLIST.
    [add glance-card / leave on-demand]
 
 **Core-product capability gap (team-diagnosis — NOT sales-coach/care):**
-9. **TWO dead signals — the core product is blind to MISSED DEADLINES and MEETING OVERRUNS.** An
+9. **TWO dead signals — the core product was blind to MISSED DEADLINES and MEETING OVERRUNS.** An
    §A26 sweep of ALL signal_source mappings found exactly two with no emitter, both TIME-BASED:
    `task.overran_due_date → task_slipped` (deadline slips) and `meeting.overran → meeting_overran`
    (meeting duration — a §3.5 HARD metric; the meetings entity isn't even built). Update-triggered
-   signals are all wired (0006 triggers); the time-based "overran" ones need a scheduler that was
-   never built. Fix (precedent-decided, mirror `durability-sweep-cron`): a scheduled task-overrun
-   sweep emits `task.overran_due_date` → `task_slipped`. Not built — new emitters for the not-
-   currently-focused team-diagnosis core + a cron decision (§2). Detail in the Finding below.
-   [build task-overrun sweep / defer both]
+   signals are all wired (0006 triggers); the time-based "overran" ones need a scheduler.
+   **UPDATE (2026-07-09): the task half is now BUILT — code-ready + dormant** (49af9ad, migration
+   `0109` + `src/lib/diagnosis/taskOverrunSweep.ts` + two routes + 4 tests), mirroring the
+   durability-sweep precedent: `run_task_overrun_sweep` finds overdue-and-open tasks without an
+   existing slip event and emits `task.overran_due_date` → `task_slipped`. It is NOT live — the
+   routes 503 until an operator sets the secret and wires the cron. **Your remaining calls:** (a)
+   go-live — add the Vercel cron entry (`{ "path": "/api/diagnosis/task-overrun-sweep-cron",
+   "schedule": "0 6 * * *" }`) + `CRON_SECRET` (reuses the durability one), or leave dormant; (b)
+   `meeting.overran` stays dead — it needs a `meetings` entity that isn't built (bigger scope, not
+   started). [wire the task-overrun cron / leave dormant · build meetings entity later?]
 
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
@@ -926,6 +931,7 @@ these are the enforcement/feature migrations whose *applied-state* I can't see f
 | `0106` | support_resolutions INSERT `captured_by` self-or-null | care-side sibling — an agent could capture a resolution attributed to a peer (skews the peer's captured-history/stats in the care brain). MED-LOW; completes the author-spoof class |
 | `0107` | tenant-key push-out residuals: pin `notification_subscriptions.company_id` + freeze `care_agent_state.company_id` | re-sweep of the 0095/0101/0102 class found 2 tables still let a member relocate their own row cross-tenant (notification_subscriptions owner-update; care_agent_state self-update — 0095 froze the wrong columns). Completes the tenant-key push-out class boundary (38 tables verified safe) |
 | `0108` | §3.1 immutability: no-delete rules on `problems` + `company_brain` | **HIGH — a member could `DELETE` a problem, and its ON DELETE CASCADE children (resolutions, problem_signals) get wiped, DEFEATING resolutions_no_delete (0094) via the cascade back door — the §3.1 chain's centre was the one link without a no-delete rule. company_brain (the learned-model singleton) was likewise member-deletable** |
+| `0109` | `emit_task_overran_event` + `run_task_overrun_sweep` (the dead `task_slipped` emitter, item 9) | not a security fix — a CAPABILITY: the core product couldn't see missed deadlines. Safe to apply anytime; stays dormant until you wire the cron (feature, not enforcement) |
 
 **Plus (env, not migrations):** `CRON_SECRET` (activates the §3.5 durability sweep — dormant without
 it), VAPID×3 + REBUILD (push delivery), and the optional channels — see the ENV-VAR ACTIVATION MAP up top.
