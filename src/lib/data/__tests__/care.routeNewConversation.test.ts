@@ -103,6 +103,36 @@ describe("routeNewConversation (DB-mock) — ai_responding coupling", () => {
     expect(upd && "ai_responding" in upd).toBe(false);
   });
 
+  it("breaks an equal-load tie by last_seen_at ascending (oldest-seen agent wins)", async () => {
+    // Both agents carry EQUAL load (1 each) and are under capacity, so the winner is
+    // decided purely by the tiebreak: sort by last_seen_at ASC → the agent seen
+    // longest ago gets the next conversation (fairness). a1 (07-01) is older than
+    // a2 (07-02), so a1 must win. Pins the tiebreak direction — a refactor flipping
+    // the sort would silently change routing fairness and no other test would catch it.
+    const care_agent_state = {
+      data: [
+        { agent_id: "a1", max_concurrent: 3, channels: ["email"], last_seen_at: "2026-07-01T00:00:00Z" },
+        { agent_id: "a2", max_concurrent: 3, channels: ["email"], last_seen_at: "2026-07-02T00:00:00Z" },
+      ],
+    };
+    const support_conversations = seq([
+      { data: [{ assigned_agent_id: "a1" }, { assigned_agent_id: "a2" }] }, // 1 each → tie
+      { data: [{ id: "c1" }], error: null },
+    ]);
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeSupabaseClient({ care_agent_state, support_conversations }, calls) as never
+    );
+
+    const res = await routeNewConversation({
+      conversationId: "c1",
+      companyId: "co1",
+      source: "email",
+    });
+
+    expect(res).toEqual({ assignedAgentId: "a1", routingMethod: "auto_least_loaded" });
+    expect(findUpdate(calls)).toMatchObject({ assigned_agent_id: "a1" });
+  });
+
   it("treats all-candidates-over-capacity as unrouted (ai_responding stays true)", async () => {
     const care_agent_state = {
       data: [{ agent_id: "a1", max_concurrent: 1, channels: ["email"], last_seen_at: "2026-07-01T00:00:00Z" }],
