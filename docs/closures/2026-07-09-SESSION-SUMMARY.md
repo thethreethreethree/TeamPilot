@@ -608,6 +608,17 @@ inert." Correct framing for prioritizing it.
   unique `(company_id, email)`; the rest are unique tokens or one-row-per-company tables. So the
   pending-invite instance was the SOLE one (fixed via 0098 + `.limit(1)`); no sibling remains.
 
+- **§1.5.1 workflow-continuity check — resolution-capture flow PASSES + the false-ok fix also
+  closed a continuity break (2026-07-09).** Traced the care resolution-capture workflow (AMD-006
+  layer 3, the Close-without-auto-advance discipline): on capture, `onCaptured` (ConversationsApp:1770)
+  AUTO-ADVANCES to the next conversation "without an empty-state interrupt" + fires the §3.6 debrief
+  overlay alongside — sound continuity, no dead-end. **Bonus insight:** the ResolutionCaptureModal
+  returns early on `!res.ok` BEFORE onCaptured, so with the captureResolution false-ok fix a FAILED
+  capture now shows "Couldn't capture" and keeps the agent put. BEFORE the fix (route 200 + null on
+  failure), the modal read success → auto-advanced the agent AWAY from a conversation whose
+  resolution silently failed. So that §3.4 fix also fixed a §1.5.1 break (advancing past a lost
+  capture) — the layers compound. Also: production build re-confirmed after the recent route changes.
+
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
    shows 8/10). **Verified 2026-07-09 — GOOD NEWS, NO ELO re-baseline needed (I was wrong that
