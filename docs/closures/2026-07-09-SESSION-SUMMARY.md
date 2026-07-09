@@ -18,6 +18,14 @@ Details: `2026-07-09-session-interaction-flags.md`.
 Examination", `sold` ones "Outstanding". A conditional server log prints why if none
 appear (needs an outcome, or a pivot/cooling/breakdown signal). Remove the log once
 confirmed.
+→ **Data-path VERIFIED (2026-07-09, A14):** traced emit→parse end-to-end — the queried
+event kinds (session_pivot_generated / session_moments_generated), the payload shapes
+(`{pivot:…}` / `{moments:[…]}`), and the field names (direction/whatHappened/whyItMattered;
+sentiment/isBreakdown/kind) ALL match between the engines and extractSessionSignals. So the
+wiring cannot silently fail the way v1 appeared to. If flags look sparse on retest, it's a
+data-availability signal (sessions genuinely lack an outcome/analysis), NOT a wiring bug —
+and the diagnostic log names which. This closes the AMD-006 L2 "does it actually work"
+question at the integration layer, not just the unit layer.
 
 ### 2. Founder-reported bugs — fixed
 - **Invite named the wrong person** ("Rebecca is already a member" for any email):
