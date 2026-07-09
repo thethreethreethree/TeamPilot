@@ -76,9 +76,16 @@
 --   • signals table: new resolution_held / problem_recurrence /
 --     partial_resolution signals will begin appearing from resolution
 --     reviews. This is the INTENDED effect — the loop closing — not a
---     regression. Downstream §3.2 problem-surfacing may consequently see
---     more recurrence evidence; that is the diagnosis engine doing its
---     job with data it was previously blind to.
+--     regression. Verified downstream consumers (§1.5 holistic trace):
+--     (a) fetchSignals (the signals feed / Command Center surface) shows
+--     the new signals; (b) learn.ts (the brain learning cycle) counts
+--     signal kinds and treats >=5 observations of a kind as a pattern, so
+--     resolution-review recurrences now feed pattern detection. NOTE: per
+--     0005, signals do NOT auto-create problems — a `problem_recurrence`
+--     signal becomes evidence AVAILABLE to be linked to a problem, and the
+--     §3.2 understanding gate then evaluates that link before any problem
+--     surfaces. 0100 supplies previously-missing evidence to that process;
+--     it does not (and must not) auto-surface a problem on its own.
 --   • No double-count with 0015: chat closes never insert into
 --     `resolutions` (the only INSERT is close_problem, 0005 L175), and
 --     the event kind/subject differ, so the two paths never emit twice
