@@ -11,16 +11,34 @@ import { computeFrequentSignalKinds } from "./frequentSignals";
  * that have *measured consequence* count toward "validated" learning:
  *
  *   - held_resolutions: resolutions where durability='held' → validated_methods
+ *   - reopened_resolutions: resolutions where durability='reopened' → what did NOT
+ *     hold, per §1.1 ("errors, abandoned approaches, dead ends are assets equal to
+ *     successes"). Feeds disabled_suggestions / known_patterns.
  *   - dismissed_problems: problems explicitly dismissed → disabled_suggestions
  *   - frequent signals: patterns appearing repeatedly → known_patterns (low confidence)
  *
  * Per AMD-003 risk-flag: this distillation MUST NOT update from acceptance alone
  * (rejected resolutions, accepted dialogues without held outcomes). Acceptance is
  * not consequence (§3.5). The learning cycle is the structural guard.
+ *
+ * NOTE on reopened_resolutions vs the AMD-003 prohibition: a REOPENED resolution is
+ * NOT acceptance-based learning. It is a resolution that was DECIDED, enacted, and
+ * then MEASURED to have failed (the problem came back) — measured consequence, the
+ * exact §3.5 basis the cycle is allowed to learn from, and the negative mirror of
+ * held. Learning "action X did not hold for problem-kind Y" is consequence, not
+ * agreement. The forbidden case is learning from a suggestion being accepted/rejected
+ * WITHOUT a measured outcome; reopened has the measured outcome by definition.
  */
 
 type LearningEvidence = {
   heldResolutions: Array<{
+    id: string;
+    problem_title: string | null;
+    action_taken: string;
+    reasoning: string;
+    observed_outcome: string | null;
+  }>;
+  reopenedResolutions: Array<{
     id: string;
     problem_title: string | null;
     action_taken: string;
@@ -43,13 +61,23 @@ async function gatherEvidence(supabase: Awaited<ReturnType<typeof createClient>>
   since.setDate(since.getDate() - 90);
   const sinceIso = since.toISOString();
 
-  const [heldRes, dismissedRes, signalsRes] = await Promise.all([
+  const [heldRes, reopenedRes, dismissedRes, signalsRes] = await Promise.all([
     supabase
       .from("resolutions")
       .select(
         "id, action_taken, reasoning, observed_outcome, problems(title)"
       )
       .eq("durability", "held")
+      .gte("decided_at", sinceIso)
+      .limit(20),
+    // §1.1 mirror of held: resolutions that REOPENED — measured failures the
+    // brain must learn from equally. Same shape/window as held.
+    supabase
+      .from("resolutions")
+      .select(
+        "id, action_taken, reasoning, observed_outcome, problems(title)"
+      )
+      .eq("durability", "reopened")
       .gte("decided_at", sinceIso)
       .limit(20),
     supabase
@@ -79,6 +107,13 @@ async function gatherEvidence(supabase: Awaited<ReturnType<typeof createClient>>
       reasoning: r.reasoning,
       observed_outcome: r.observed_outcome,
     })),
+    reopenedResolutions: (reopenedRes.data ?? []).map((r) => ({
+      id: r.id,
+      problem_title: (r.problems as { title?: string } | null)?.title ?? null,
+      action_taken: r.action_taken,
+      reasoning: r.reasoning,
+      observed_outcome: r.observed_outcome,
+    })),
     dismissedProblems: (dismissedRes.data ?? []).map((p) => ({
       id: p.id,
       title: p.title,
@@ -97,12 +132,20 @@ dismissal reasons does NOT count as learning. Acceptance is not consequence (§3
 
 Inputs include:
   - heldResolutions: actions that produced outcomes confirmed to have held
+  - reopenedResolutions: actions that were enacted and then MEASURED to have failed
+    (the problem reopened). These are consequence, not acceptance — learn what did
+    NOT hold from them, per §1.1 (dead ends are assets equal to successes). Route
+    them into disabled_suggestions (do not repeat action X for problem-kind Y) and/or
+    known_patterns (this class of fix tends to reopen). A held and a reopened
+    resolution for the SAME action/problem-kind is a genuine tension — lower the
+    confidence, do not silently prefer the success.
   - dismissedProblems: problems explicitly rejected with reasons
   - frequentSignalKinds: observed-pattern frequency, NOT confirmed problems
 
 For each learning, you must:
   - Cite the specific source ids
-  - Set confidence honestly: 'high' only when multiple held resolutions agree
+  - Set confidence honestly: 'high' only when multiple resolutions agree (held OR
+    reopened); a held/reopened split on the same method is at most 'medium'
   - Refuse to invent learnings for the sake of looking active
 
 Return strict JSON:
@@ -129,6 +172,7 @@ export async function runLearningCycle(_companyId: string): Promise<{
   // If nothing changed in the chain, don't burn an LLM call.
   if (
     evidence.heldResolutions.length === 0 &&
+    evidence.reopenedResolutions.length === 0 &&
     evidence.dismissedProblems.length === 0 &&
     evidence.frequentSignalKinds.length === 0
   ) {

@@ -131,6 +131,22 @@ fixed or confirmed sound.
   distinct-sources + diagnosis-length, INSERT-bypass closed); §3.5 measurement honesty (every
   readout anchors to consequence, disclaims agreement); search_path across all 82 definer
   occurrences (0088/0089 close it); service-role cross-tenant across 27 routes.
+- **§3.1 resolutions loop closed** (`0100` + integration test + registry): see item 4 in
+  WHAT-NEEDS-YOU. Resolution durability reviews now emit an event + derive a signal (mirrors
+  0015); pinned by a new DB-backed integration case; §A26 sweep found the 3rd instance
+  (C.A.R.E) and correctly FLAGGED it (item 6b) rather than building. Downstream consumers
+  traced + verified (signals feed + brain pattern detector; no double-count).
+- **Brain now learns from FAILURES, not just successes** (`learn.ts`) — **behavior change to
+  the in-product AI, flagged for your awareness (§3.3).** The learning cycle pulled `held`
+  resolutions (successes) + dismissed problems, but NEVER `reopened` resolutions — though §1.1
+  says "dead ends are assets equal to successes." Added `reopenedResolutions` as a first-class
+  learning input (mirrors the held query; routes into disabled_suggestions / known_patterns
+  via the existing prompt slots — no schema change). Carefully framed as MEASURED CONSEQUENCE
+  (enacted, then reopened), NOT the AMD-003-forbidden acceptance-learning. Notable sub-fix: the
+  "nothing to learn, skip the LLM call" guard now counts reopened too — before, a team whose
+  ONLY recent measured activity was failed fixes got "Brain unchanged," i.e. the brain was
+  blind precisely to a struggling team. Constitutionally mandated (§1.1), but it changes what
+  the brain injects into future prompts — review if you want, override if the framing is off.
 
 ## New: §1.7 audit extension — Coach v5 orphan-event documentation (migration 0099)
 Extended the founder's own 0026 orphan-event audit (2026-06-12) to every event kind added
