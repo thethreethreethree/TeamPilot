@@ -22,7 +22,7 @@ export async function GET() {
   }
   const agentId = auth.user.id;
 
-  const { data: sessionsData } = await supabase
+  const { data: sessionsData, error: eSessions } = await supabase
     .from("coaching_sessions")
     .select("id, status, started_at")
     .eq("agent_id", agentId);
@@ -50,7 +50,7 @@ export async function GET() {
 
   // Reviews generated + recent growth opportunities (real text, not
   // clustered "themes" we'd be inventing).
-  const { data: reviewEvents } = await supabase
+  const { data: reviewEvents, error: eReviews } = await supabase
     .from("events")
     .select("payload, created_at")
     .eq("actor", agentId)
@@ -68,6 +68,18 @@ export async function GET() {
         if (typeof opp === "string" && opp.trim()) recentGrowth.push(opp.trim());
       }
     }
+  }
+
+  // §3.4 honest-error-state (audit 2026-07-09): sessionsData drives EVERY stat —
+  // if it (or the reviews read) failed, don't return all-zeros as if the rep had
+  // no activity. Return 500 so the sessions page (which sets stats only on res.ok,
+  // and hides the stat cards when stats is null) shows nothing rather than a
+  // misleading empty readout. Happy path unchanged (fires only on a real error).
+  if (eSessions || eReviews) {
+    return NextResponse.json(
+      { error: (eSessions ?? eReviews)!.message },
+      { status: 500 }
+    );
   }
 
   // Cue-reliance trend (§3.5 "training wheels come off").

@@ -254,15 +254,16 @@ those sections. Extended the route's own pattern (any read error → 500 → the
 `!res.ok` state fires). Backend-only, happy path unchanged, gate green. So both HIGHEST-VALUE route-DIRECT
 readouts (command center + coach-readout) are now honest; the DATA-LAYER ones (care/asset)
 remain the scheduled propagation pass.
-**Full class boundary mapped (A26, 2026-07-09):** the swallowing-readout class is —
-(a) route-DIRECT, FIXED: `learning-summary` (command center), `admin/coach-readout` (leadership);
-(b) route-DIRECT, same clean pattern, NOT yet fixed (lower-value sales-coach readouts):
-`coach/sales-session/dashboard` (3 queries, feeds the sessions-page stats — currently hides on
-null, so a fix makes it hide-not-false-zeros), `coach/sales-session/team-analytics` (9 queries,
-manager analytics); (c) DATA-LAYER (needs the propagation pass): care.ts analytics, assetReadout.
-I fixed the 2 highest-value; (b) + (c) are the scheduled error-handling pass — I stopped there
-rather than execute the whole pass autonomously (some are more-involved; (b) UIs hide rather than
-show an explicit error, so lower-value). Whole boundary is now known, so the pass is well-scoped. **Fix (your call on the bound):** add an explicit `.limit()` +
+**Full class boundary mapped + route-direct subset FULLY FIXED (A26, 2026-07-09):**
+(a) route-DIRECT, ALL FIXED: `learning-summary` (command center), `admin/coach-readout`
+(leadership), `coach/sales-session/dashboard` (rep sessions-page stats — now 500s on the
+sessions read error so the stats hide instead of showing false zeros).
+(b) `coach/sales-session/team-analytics` — **already honest** (uses `if (res.error) degraded=true`
+→ `{degraded:true}`, UI handles it). Was mis-listed as unfixed from a grep that missed the
+`res.error` pattern; reading the code corrected it. NOT a bug.
+(c) DATA-LAYER (the remaining scheduled propagation pass): care.ts analytics, assetReadout —
+these swallow in the data-layer fns, need a shared-signature-aware pass, your call.
+So every route-DIRECT swallowing readout is now honest; only the data-layer pass remains. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
