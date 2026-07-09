@@ -760,6 +760,19 @@ inert." Correct framing for prioritizing it.
   false-negative MISS an existing user (a miss, never a false match, per the lesson). Fine at
   current scale; if the tenant base crosses ~10k users, switch to a server-side exact-email query.
 
+- **AMD-006 four-layer audit of the team-management surface (2026-07-09) → 2 fixes + a class
+  bound.** After verifying the team surface's BACKEND (the A25 class), I ran the §1.5.1 layer-2
+  (effectivity) lens on the surface itself — evidence-picked because it had 3 recent bugs. Found
+  two silent failures the backend fixes didn't cover: (1) `InviteRow.revoke` swallowed failure (no
+  else on `if (res.ok)`) — the exact 558ce56 false-ok-in-the-UI class, fixed for MemberRow but not
+  its sibling; now toasts the route's honest error. (2) `fetchTeam` conflated live-error with
+  live-empty (§3.4/A14 — no `live-error` mode, `data ?? []`), so a DB/RLS rejection rendered as
+  "No active members — onboarding hasn't completed"; added the mode + honest error UI + a 4-case
+  test (mirrors the fetchTopics outage guard). Then swept the live-error-vs-empty class across the
+  surface-fetchers: `fetchTopics` (chats) and `fetchProblems` already handle it correctly — so the
+  class (data-fetchers that render a *distinct, blame-implying* empty state) is bounded clean.
+  Shipped (e8f751d); 533 tests green.
+
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
    shows 8/10). **Verified 2026-07-09 — GOOD NEWS, NO ELO re-baseline needed (I was wrong that
