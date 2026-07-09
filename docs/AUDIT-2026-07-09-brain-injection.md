@@ -57,6 +57,24 @@ path's validation.** Two instances:
    `actor` must be self — but not self-fabrication) and of the same class as the brain.
    MED (within-tenant self-gaming of a performance metric, not cross-tenant).
 
+### Full class boundary (swept 2026-07-09) — all member-fabricable integrity tables
+
+| Table | Member can write? | What they can fabricate | Severity |
+|---|---|---|---|
+| `company_brain.system_prompt_addendum` | UPDATE (for-all, company) | instructions injected into EVERY AI call incl. customer-facing | **HIGH** |
+| `events` (coach.dissect_generated, actor=self) | INSERT (0103, no kind constraint) | own coaching dissects → self-inflate ELO | MED |
+| `after_pitch_summaries` (agent_id=self) | INSERT (0080, owner-scoped) | own pitch scores → self-inflate ELO | MED |
+| `coaching_sessions` (agent_id=self) | INSERT (0082, correctly owner-scoped) | own sessions → self-inflate ELO | MED |
+| `brain_evolution_events` | INSERT (for-all, company) | fake brain "learning" audit entries (§3.1 audit forgery) | MED |
+
+All five share the root cause and the remediation. 0102/0103 closed the CROSS-actor
+paths (can't fabricate for OTHERS); this is the SELF/company residual (fabricate your
+OWN records, or company-shared brain/audit). Note the ELO inputs are *supposed* to be
+self-created (an agent records their own session) — so the fix isn't "deny self-insert"
+but "ensure the CONTENT (scores, dissect verdicts) is written by the grader/coach
+system, not client-suppliable" — i.e., the graded fields come from a DEFINER/service
+path, and members can create the shell row but not the score.
+
 Why flagged, not fixed: the legit `coach.dissect_generated` emission is USER-SCOPED
 (dissect/route.ts:35/73 `createClient`), so RLS can't distinguish legit emission from
 direct fabrication of the same kind by the same user. The clean fix is the same
