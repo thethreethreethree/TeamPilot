@@ -57,14 +57,15 @@ all verified sound (details in "Verified clean"). New decisions surfaced: 6b / 6
    [add glance-card / leave on-demand]
 
 **Core-product capability gap (team-diagnosis — NOT sales-coach/care):**
-9. **`task_slipped` is a DEAD signal — the core product can't surface MISSED DEADLINES.** The chain
-   detects task BLOCKERS (`task.blocker_recorded` is wired) but `task.overran_due_date` (mapped
-   `0005:103` → `task_slipped`) is NEVER emitted — a deadline overrun is time-based, no trigger
-   catches it, and there's no task-overrun sweep. So things silently slipping past their deadline
-   never reach the §3.2 problem gate. Fix is precedent-decided (mirror `durability-sweep-cron`): a
-   scheduled sweep that emits `task.overran_due_date` for overdue incomplete tasks. Not built —
-   it's a new emitter for the not-currently-focused team-diagnosis core + needs a cron decision
-   (§2). Detail in "Finding: task_slipped is a DEAD signal." [build the overrun sweep / defer]
+9. **TWO dead signals — the core product is blind to MISSED DEADLINES and MEETING OVERRUNS.** An
+   §A26 sweep of ALL signal_source mappings found exactly two with no emitter, both TIME-BASED:
+   `task.overran_due_date → task_slipped` (deadline slips) and `meeting.overran → meeting_overran`
+   (meeting duration — a §3.5 HARD metric; the meetings entity isn't even built). Update-triggered
+   signals are all wired (0006 triggers); the time-based "overran" ones need a scheduler that was
+   never built. Fix (precedent-decided, mirror `durability-sweep-cron`): a scheduled task-overrun
+   sweep emits `task.overran_due_date` → `task_slipped`. Not built — new emitters for the not-
+   currently-focused team-diagnosis core + a cron decision (§2). Detail in the Finding below.
+   [build task-overrun sweep / defer both]
 
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
@@ -371,25 +372,31 @@ state too. So: all high-value instances honest; the tail is a small, well-scoped
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
-## Finding: `task_slipped` is a DEAD signal — missed-deadline problems can't surface (team-diagnosis core gap)
-Verifying the §3.1 chain's INPUT side (2026-07-09): the team-diagnosis product detects task
-BLOCKERS but NOT missed DEADLINES. `tasks_emit_events_trigger` (0006) correctly fires
-`task.blocker_recorded` → derives `task_blocked` on an update. But `task.overran_due_date` (mapped
-in `0005:103` → `task_slipped`) is **NEVER EMITTED** — a deadline overrun is time-based, not an
-UPDATE, so no trigger catches it, and there is NO task-overrun sweep (unlike care-durability, which
-HAS `durability-sweep-cron`). Confirmed no alternative path: nothing in `problems.ts` / `signals.ts`
-/ `diagnosis/*` reads `due_date` for overrun; `task_slipped` appears ONLY as the dead 0005 mapping,
-never produced, never consumed. **So a whole class of team problem (things silently slipping past
-their deadline) can't reach the §3.2 gate.** This is a real gap in the ORIGINAL ELOSTATE core, not
-sales-coach/care. **Fix (precedent-decided, mirrors `durability-sweep-cron`):** a scheduled sweep
-endpoint that finds incomplete tasks whose `due_date < now()` (not already flagged) and calls
-`record_event('task.overran_due_date', 'task:'||id, {task_id, due_date})` → `derive_signals_for_event`
-fires `task_slipped`. Code-ready pattern exists; needs the sweep + a cron config (operator), same as
-the durability sweep. **Not built — flagging first:** it's a substantial new emitter for a product
-area that isn't the current sales-coach/care focus, and it needs your cron decision (§2 — surface a
-scope expansion, don't unilaterally build it). My rec: build it when you return to the team-diagnosis
-core; it's the difference between the core product catching slips or being blind to them. [build the
-overrun sweep / defer]
+## Finding: TWO dead signals — the TIME-BASED team-diagnosis inputs never fire (§A26 sweep of ALL mappings)
+Verifying the §3.1 chain's INPUT side (2026-07-09) I swept EVERY `signal_source` event_kind against
+its emitter. Rigorous result (a first line-based grep flagged 13 false-positives — emitters span
+multiple lines; corrected per §0/§5): **exactly 2 are dead, and they form a clean class — the two
+TIME-BASED "overran" signals:**
+- **`task.overran_due_date` → `task_slipped`** (mapped `0005:103`): NEVER emitted. Missed deadlines
+  can't surface. `task_slipped` appears ONLY as the dead mapping — never produced, never consumed;
+  nothing in `problems.ts`/`signals.ts`/`diagnosis/*` reads `due_date` for overrun.
+- **`meeting.overran` → `meeting_overran`** (mapped `0005:105`): NEVER emitted. Its only other
+  occurrence is a column COMMENT (`0002:25`). There is no meetings migration and no `meetings.ts`
+  at all — the entity isn't built — yet meeting duration is a §3.5 **HARD metric**.
+
+**The insight (why exactly these two):** update-triggered signals are all WIRED via the 0006
+`tasks_emit_events_trigger` (blocker/status/priority/reassign) and other triggers (chat.*,
+feedback.*, smoke_test.*, resolution.durability_reviewed — all confirmed emitted). The two DEAD
+ones are precisely the signals that need TIME/duration detection — a row UPDATE never fires them, so
+they need a scheduler, and none was built. Both were mapped in 0005 anticipating detection logic that
+never landed. **Fix (precedent-decided, mirrors `durability-sweep-cron`):** a scheduled sweep that
+finds overdue-incomplete tasks (`due_date < now()`, not already flagged) and `record_event(
+'task.overran_due_date', …)` → `derive_signals_for_event` fires `task_slipped`; meeting-overran needs
+the meetings entity first. **Not built — flagging first (§2):** new emitters for the not-currently-
+focused team-diagnosis core, needing a cron/operator decision. Rec: build the task-overrun sweep when
+you return to team-diagnosis (meetings is a bigger lift — entity + capture). It's the difference
+between the core product catching slips/overruns or being blind to them. [build task-overrun sweep /
+defer both]
 
 ## Verified clean this session (no action needed — recorded for confidence)
 - **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
