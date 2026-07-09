@@ -210,10 +210,12 @@ applied to the parent but MISSED on the child (incomplete fix). **VERIFIED syste
 speculation):** the sibling care-analytics child queries all share it — care.ts:1719 (customer-
 message medium breakdown), :1821 (co-pilot agent-message analytics), :2260 (durability-check
 fan-out) all do `.in("conversation_id", conversationIds)` over the same parent-bounded-to-5000
-set with NO `.limit()`, so each truncates at 1000. So the care READOUT layer systematically
-truncates its child fan-out queries. (assetReadout ~108/151/173/208 not yet traced — same
-grep pattern, likely same.) **Same profile as rate-limit:** correct at current low volume,
-wrong at scale. **Fix (your call on the bound):** add an explicit `.limit()` +
+set with NO `.limit()`, so each truncates at 1000. **assetReadout traced too (now confirmed):**
+:108/:151 (file view/download/citation EVENTS — high fan-out per file) and :173/:208
+(classification suggestions) all `.in()` over `fileIds` with no `.limit()`. So the class is
+SWEPT to its boundary: **8 confirmed instances across both readout modules** (care analytics +
+asset readout) — the readout layer systematically fans out into child queries without bounding
+them. **Same profile as rate-limit:** correct at current low volume, wrong at scale. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
