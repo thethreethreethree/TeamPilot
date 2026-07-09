@@ -36,7 +36,13 @@ create policy "company_brain - select" on company_brain
 
 **Why NOT applied blind:** making `record_brain_learning` + `create_empty_brain_for_company` DEFINER changes who they run as; if anything subtle breaks (a table the owner can't see, `auth.uid()` semantics, the member-triggered learning cycle) the learning cycle / brain auto-creation could fail silently — and I cannot exercise the learning cycle or company onboarding headless. This is precisely the "genuinely necessary but risky, verify first" case. **Apply on staging, run a learning cycle + create a test company, confirm the brain still composes + learns, then promote.**
 
-**Also worth deciding (separate, lower):** `/api/brain/learn` is member-triggerable with no admin gate or rate-bound — a member can spam the learning cycle. Consider admin-gating or rate-limiting it.
+**Sub-item — /api/brain/learn spam: RATE-LIMITED (fixed 2026-07-09).** The route was
+member-triggerable with no bound, so a member could spam the LLM-heavy learning cycle
+(cost). Checked the caller: the brain page is member-facing (no admin gate), so admin-gating
+the route would BREAK member access — instead added a rate-limit (`brain-learn`, 5/hr/caller),
+which hardens the cost surface without changing who can use it. Admin-gating the whole
+brain-learn flow (page + route) remains a genuine PRODUCT decision (should learning be
+leadership-only, like the §3.4 unlock?) — flagged, not decided.
 
 ## Sibling instance (same class) — members can fabricate their OWN chain events → self-inflate ELO
 
