@@ -48,7 +48,7 @@ A **single system with a per-user complexity dial**, NOT two parallel apps (two 
 |---|---|---|
 | 0110 migration | rls-audit green | ❌ unapplied to any DB |
 | mode.ts (+13 unit tests) | ✅ | n/a (pure) |
-| route GET/PATCH | tsc/lint | ❌ never hit |
+| route GET/PATCH | tsc/lint + **9 handler tests** | ❌ never hit live, BUT the DB write-path is **source-verified**: the 0090/0091 profiles guard is a blacklist (freezes only role/company_id/sales_coach_role/is_support_agent) so `experience_mode` passes, and RLS self-update is the same path Learning Mode uses in prod |
 | provider | tsc/lint | ❌ never rendered |
 | central LLM injection + JSON guard | ✅ (pure-transform tests) | ❌ no live LLM call |
 | summarize threaded (1st prose surface) | tsc/lint | ❌ no live prompt |
