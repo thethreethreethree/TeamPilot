@@ -359,6 +359,16 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   routes (desync-RISK on a future rename). Centralizing all ~15 into one consts module,
   following the why-engine precedent, would kill the mismatch class structurally. One word
   and I'll do it.
+- **§3.3 "guide, don't overtake" — the non-negotiable — is server-enforced across BOTH
+  surfaces (A21 cross-module trace, 2026-07-09).** The System cannot assert its suggestion
+  until the user supplies their OWN situation + diagnosis + proposal. In-thread
+  (`/api/chat/topic-decisions/[id]/respond`): an explicit non-empty re-check (L89-97) the
+  route comment calls out as bypass-hardening "so a direct caller can't slip an empty dialogue
+  past the System." Off-thread (`/api/ai/decision-dialogue`): the same gate via
+  `DialogueDecisionSchema` (userProposal `.min(20)`). Both offer the suggestion WITH its
+  `why` + added perspective + comparison (§3.3 "how and why"), and the user picks
+  `chosen_path` (user/system/hybrid/defer) — the System never imposes. No ask-first gap on
+  either path; the ordering is structural, not UI convention.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
