@@ -2218,7 +2218,7 @@ export async function fetchPatternResolutionReadout(args: {
   ).toISOString();
 
   // 1. Pull all resolutions for the company in the window.
-  const { data: resolutionRows } = await sb
+  const { data: resolutionRows, error: eResolutions } = await sb
     .from("support_resolutions")
     .select("id, conversation_id, category, created_at")
     .eq("company_id", args.companyId)
@@ -2226,6 +2226,11 @@ export async function fetchPatternResolutionReadout(args: {
     .gte("created_at", since)
     .order("created_at", { ascending: true })
     .limit(5000);
+  // §3.4 honest-error-state: headline read — throw on failure (leadership route
+  // 500s via its no-try/catch Promise.all) instead of a false empty readout.
+  if (eResolutions) {
+    throw new Error(`care pattern-resolution readout: resolutions read failed — ${eResolutions.message}`);
+  }
 
   type ResRow = {
     id: string;
