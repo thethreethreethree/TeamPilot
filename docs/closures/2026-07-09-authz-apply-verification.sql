@@ -11,6 +11,11 @@
 -- Any FAIL means that migration did not land in this environment — apply it.
 --
 -- Read-only: this script only SELECTs from the catalog. Safe to run any time.
+--
+-- Provenance (2026-07-09): every expected object name below was cross-checked against
+-- the actual CREATE statement in its migration source — all 17 targets match (policy
+-- names, rule names, function names, trigger name, column name). So an all-PASS run
+-- means what it says; a FAIL is a genuinely-absent object, not a name typo in this file.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 with checks(migration, fix, passed) as (
