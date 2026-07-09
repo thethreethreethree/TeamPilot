@@ -75,6 +75,11 @@ export async function POST(
   const v = validateUploadCandidate({
     sizeBytes: file.size,
     mimeType: file.type || "application/octet-stream",
+    // Wire the BLOCKED_EXTENSIONS check (Audit F2 / security 2026-07-09): the
+    // browser MIME is spoofable, so the extension block-list is the intended
+    // defense-in-depth. Same class as the customer upload route — both call
+    // sites skipped filename, so the tested extension guard never fired.
+    filename: file.name,
     uploadedVia: "agent_dashboard",
   });
   if (!v.ok) {

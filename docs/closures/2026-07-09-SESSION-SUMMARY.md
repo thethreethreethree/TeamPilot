@@ -429,6 +429,20 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   REASONED §A4 deferral (provider-agnostic until the §4 provider choice); sound over HTTPS with
   constant-time compare + dedup replay-protection. When the provider is chosen, native HMAC would
   add payload-integrity — optional, post-decision.
+- **FIXED — mime-spoof upload bypass on BOTH care upload routes (real defect, security
+  2026-07-09).** `validateUploadCandidate` has a `BLOCKED_EXTENSIONS` check (blocks
+  .exe/.sh/.zip/.mp4/…) that exists BECAUSE the browser-supplied MIME is spoofable ("Audit F2")
+  — and it's unit-tested. But it only fires `if (args.filename)`, and NEITHER care upload route
+  passed `filename` — so on the PUBLIC customer widget route a visitor could upload `evil.exe`
+  with `Content-Type: image/png`, satisfy the `image/` allow list, and slip the type gate (the
+  extension guard never ran). §A26 class: the agent care-upload route had the identical omission.
+  Not RCE (served as the claimed type), but it defeats the intended defense-in-depth and lets
+  dangerous content into tenant storage on a public path. FIX: pass `filename: file.name` on both
+  routes (trivial, safe — legit image/pdf extensions aren't in the block-list, so no false
+  positives). Added a customer-path regression case pinning `invoice.exe`+`image/png` → blocked,
+  `screenshot.png` → allowed. Gate green (512 tests). *Coverage honesty:* the underlying block is
+  unit-tested and the routes now pass filename, but "the route passes filename" isn't itself
+  route-tested (no route harness) — verified by reading + tsc.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker

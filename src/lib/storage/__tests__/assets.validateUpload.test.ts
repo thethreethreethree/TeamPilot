@@ -56,6 +56,29 @@ describe("validateUploadCandidate", () => {
     ).toMatchObject({ ok: false, reason: "blocked_type" });
   });
 
+  it("blocks a MIME-spoofed executable on the PUBLIC customer path too (security 2026-07-09)", () => {
+    // The customer widget upload route is public + unauthenticated. Both care upload
+    // routes previously skipped `filename`, so this extension defense never fired on
+    // them; now that they pass it, a customer uploading evil.exe with a spoofed
+    // image/png MIME must be rejected. A legit image must still pass on the same path.
+    expect(
+      validateUploadCandidate({
+        sizeBytes: 100,
+        mimeType: "image/png",
+        filename: "invoice.exe",
+        uploadedVia: customer,
+      })
+    ).toMatchObject({ ok: false, reason: "blocked_type" });
+    expect(
+      validateUploadCandidate({
+        sizeBytes: 100,
+        mimeType: "image/png",
+        filename: "screenshot.png",
+        uploadedVia: customer,
+      })
+    ).toEqual({ ok: true });
+  });
+
   it("blocks archives by default but allows the scoped folder-zip via allowArchive", () => {
     expect(
       validateUploadCandidate({ sizeBytes: 100, mimeType: "application/zip", uploadedVia: agent })

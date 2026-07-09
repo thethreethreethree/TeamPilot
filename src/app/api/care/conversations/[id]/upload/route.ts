@@ -71,6 +71,13 @@ export async function POST(
   const v = validateUploadCandidate({
     sizeBytes: file.size,
     mimeType: file.type || "application/octet-stream",
+    // Pass the filename so the BLOCKED_EXTENSIONS check fires (Audit F2 / security
+    // 2026-07-09): the browser-supplied MIME is spoofable, so a customer could
+    // upload evil.exe with Content-Type image/png and satisfy the image/ allow
+    // list. The extension block-list is the defense-in-depth for exactly that —
+    // it was tested but never wired into this PUBLIC route. Legit image/pdf
+    // extensions are not in BLOCKED_EXTENSIONS, so this adds no false positives.
+    filename: file.name,
     uploadedVia: "customer_widget",
   });
   if (!v.ok) {
