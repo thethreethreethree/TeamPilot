@@ -443,6 +443,16 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   `screenshot.png` → allowed. Gate green (512 tests). *Coverage honesty:* the underlying block is
   unit-tested and the routes now pass filename, but "the route passes filename" isn't itself
   route-tested (no route harness) — verified by reading + tsc.
+  DEFINITIVE BOUNDARY (all 4 `validateUploadCandidate` callers, verified 2026-07-09): care/upload
+  ✗→fixed, care/agent-upload ✗→fixed, files/route.ts ✓ (always passed filename, L241),
+  files/upload-url ✓ (always, L54). So the bug was EXACTLY the 2 sibling care routes; the two
+  files/* routes always followed the pattern. (Mid-sweep I misread a truncated grep as a 3rd
+  instance in files/route.ts — the definitive grep corrected it BEFORE any edit to a correct file;
+  §0/§5.) Separate observation, NOT the same bug: `coach/.../upload-recording` uses its OWN inline
+  validation (size + audio/video mime prefix, no extension check) — agent-only, low impact (a
+  mime-spoofed non-audio file just fails transcription); `care/agent/tenant/logo` is sound (image
+  mime allowlist + server-DERIVED extension from mime, never the user filename; SVG is served via
+  `<img src>` which sandboxes script — no XSS).
 - **Voice endpoints (STT/TTS, public, cost-abuse-sensitive) verified sound — completes the
   public-surface sweep (2026-07-09).** Both token-gated (x-care-session → conversation), rate-
   limited, and input-bounded: TTS text ≤2000 chars @ 30/min; STT audio ≤2MB @ 8/min. STT was
