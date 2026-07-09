@@ -187,6 +187,20 @@ collapsed. Three treatments are in use:
 | C.A.R.E — composer (`ConversationsApp`) | `ExpertOnly` on co-pilot reasoning + precedents | done | tsc; **not visually** |
 | C.A.R.E — settings panel copy | honest to built state | done | tsc |
 
+### Self-audit finding (2026-07-10, §1.5.2 proactive) — §3.6 content should be one-click, not hidden
+
+Auditing my own batch surfaced a real tension informing the treatment decision: two displays
+of the SAME concept ("the prior cases / precedents the System drew on", §3.6
+make-learning-visible) got DIFFERENT treatments — `priorSimilar` (summarize) = `AdvancedDetail`
+(one-click reveal), but `aiPrecedents` (composer) = `ExpertOnly` (fully hidden). A21
+inconsistency. More importantly: **fully hiding §3.6 make-learning-visible content in Standard
+is a constitutional tension** — §3.6 says the System must surface evidence it's learning;
+hiding it entirely (vs one-click-away) under-serves that. **Recommendation (for the founder's
+treatment decision):** §3.6 content (precedents, prior cases, "what the System drew on") should
+use `AdvancedDetail` (one-click, same screen), NOT `ExpertOnly` (hidden). Pure reasoning/why
+elaboration can stay `ExpertOnly`. Flagged, not unilaterally changed — it's part of the global
+hide-vs-collapse call the founder is making.
+
 **First-pass sweep COMPLETE for the clear-safe supplementary targets** (2026-07-10). The
 consistent rule applied: keep the PRIMARY content (the score, the read, the draft, the
 takeaway, the "try instead" line), hide the SUPPLEMENTARY reasoning/precedents/citations via
