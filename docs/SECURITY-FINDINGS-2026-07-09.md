@@ -28,6 +28,7 @@ Detail: `docs/AUDIT-2026-07-07-*` (the 0089-0096 pre-session set), the closure-d
 | item 12 (sibling) | MED | Members can fabricate their OWN `events`/`after_pitch_summaries`/`coaching_sessions`/`brain_evolution_events` → self-inflate §3.5 ELO + forge brain audit | same root + same architectural fix — remediate WITH the brain (see below) |
 | items 10/11 | LOW-MED | `team_members` / `decisions` delete scope (member vs admin) — permission model | your call, one-line policy each |
 | items 1/3 | MED | §3.5 owner-gating (talk-ratio display, session `outcome`/upload/label owner-only) | permission model |
+| input-bounds | LOW-MED | ~15 mutation routes read raw `req.json()` — most TYPE-check manually (e.g. tasks validates `title`), but few LENGTH-bound: a member could store 10MB strings (`description`/`department`/free-text fields) → DB bloat / cost. Backstopped by DB column types + RLS (not a critical vuln), but real at scale | not fixed blind — a too-strict schema breaks a core flow; recommend a shared input-bound helper OR per-route zod matching the settings-route precedent (which already added typed+bounded fields). Routes: brain/unlock, chat/formulate\|guide\|summarize, decisions, departments, diagnosis/close, files+[id]+access, problems, resolutions, tasks, team+accept |
 
 Full class boundary + the correct fix framing: `docs/AUDIT-2026-07-09-brain-injection.md`.
 
