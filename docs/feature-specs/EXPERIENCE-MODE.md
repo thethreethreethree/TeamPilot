@@ -121,14 +121,20 @@ work is therefore mostly render-layer (Phase 3), not prompt-layer.
   from load-bearing-content requires per-surface runtime judgment, so each surface
   must be reviewed against a live render, NOT swept mechanically. Do this WITH
   founder runtime review, surface by surface.
-- **Remaining ephemeral prose surfaces:** none material left — C.A.R.E summarize is
-  threaded; the other generateCareReply callers are customer-facing (co-pilot,
-  formulate, messages, inbound-email) and correctly stay full; ask-jeff is the
-  flagged drill-in.
+- **Remaining ephemeral prose surfaces:** enumerated all 8 `generateCareReply` callers
+  (2026-07-09). C.A.R.E summarize is threaded (agent-facing). The four customer-facing
+  callers (co-pilot, formulate, messages, inbound-email) correctly stay full (§A17 —
+  a customer must not get terser support for their agent's UI choice). **Correction to
+  an earlier "none left" claim:** two MORE agent-facing ephemeral coach drill-ins exist
+  and are currently unthreaded — `coach/sales-session/ask-coach` and `dissect/ask-coach`
+  (both return prose to the agent, store nothing). They're the same "agent asks the coach
+  to explain" character as `ask-jeff`, so they're flagged as the same founder decision
+  below, not silently left out.
 
 ## Open decisions flagged (not resolved silently)
 
 - **`ask-jeff`**: left at FULL detail. It's the explicit "teach me more" drill-in invoked from Learning Mode — simplifying it fights its purpose (§A17). Override if you want it simplified too.
+- **The two coach drill-ins (`coach/sales-session/ask-coach`, `dissect/ask-coach`)**: same class as ask-jeff — the agent actively asks the coach to explain something, so a Standard agent might want *either* a simpler answer (thread the mode) *or* the full teaching depth the drill-in exists to give (leave as-is, like ask-jeff). Currently unthreaded (full). Both are ephemeral agent-facing prose (verified: return prose, store nothing), so if you want them simplified the fix is a one-line `experienceMode` thread each (like summarize), NOT a render-layer change. Your call — I did not thread them blind because "simplify a drill-in the agent chose to open" is a genuine §A17 judgment, not a mechanical gap.
 
 ## Commits (2026-07-09)
 `b2e5b7b` foundation · `bfa5449` central injection · `d5dbe08` shared-helper plumbing · `9d8966b` JSON-safety + summarize · `6b127d2` toggle ×3 · `be00e35` AdvancedDetail primitive.
