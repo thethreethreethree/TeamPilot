@@ -112,6 +112,12 @@ in the MIGRATION APPLY CHECKLIST.
    INTENTIONALLY bounded (explicit `.limit(2000/1000/500)` + server-side `count:head`), and
    `fetchTeamPresence` + the leadership route are naturally small (current-load / team roster, can't
    exceed 1000). So no silent-truncation readout remains unflagged.
+   **HONESTY HALF NOW FULLY DONE (2026-07-09):** both flagged readouts have the complete honest
+   loop — data `bounded` flag + operator warn + a user-visible "Metrics capped — counts undercount"
+   banner (asset-readout page 3b78b48, leadership team-growth page 5d09af6). No readout shows a
+   silently-wrong number anywhere. **The ONLY remaining item-8 piece is the correct-at-scale FIX**
+   (per-query limit / pagination / DB aggregation) — your decision; the `bounded` flag + banners are
+   already the honest interim.
 8b. Readout ERROR-HANDLING (separate; now DONE — no tail): the 3 main readouts + ALL 8 care fns
 (6 leadership cohorts + team/agent GROWTH) + assetReadout now return honest failure states instead
 of false zeros. assetReadout got a fn throw + a NEW UI error banner on the admin page (was falling
