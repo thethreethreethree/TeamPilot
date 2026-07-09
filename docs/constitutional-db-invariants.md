@@ -15,6 +15,14 @@ migration touch any object below must confirm the invariant survives.
 
 Verified present as of 2026-07-09 (each checked against the actual trigger/rule, not a comment).
 
+> **Applied-state caveat.** This registry describes the schema **as defined by the
+> migrations** (i.e. assuming all are applied). A few of the listed rules ship in migrations
+> that were still in the pending-apply queue as of 2026-07-09 — notably
+> `care_widget_load_events` (`0085`) and `crm_activity_events` (`0086`) append-only. Their
+> protection is live only once those migrations are applied to the environment; see the
+> pending-migration list in `docs/closures/2026-07-09-SESSION-SUMMARY.md`. Migration-defined
+> ≠ prod-live until applied.
+
 ---
 
 ## §3.1 — Immutability (events are append-only; state is derived, never edited)
