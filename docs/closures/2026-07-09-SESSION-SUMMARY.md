@@ -1,7 +1,7 @@
 # Session summary — 2026-07-09 (single entry point)
 
 Everything built/fixed today, and the exact decisions + retests waiting on you.
-Gate green throughout: tsc 0, lint 0, next build 0, 498 tests. All committed + pushed.
+Gate green throughout: tsc 0, lint 0, next build 0, **502 tests**. All committed + pushed (~56 commits).
 
 ## What shipped
 
@@ -63,10 +63,29 @@ cue truncation, stale-cue-after-restart. Full report: `2026-07-09-sales-coach-au
 
 ### 5. Methodology + records
 Captured ThinkerThinker.md **A26** (a found bug is a class; sweep it to its
-codebase-wide boundary). Cross-session memory updated with the open items. This session
-swept every class — auth, rate-limiting, input-validation, §A18, false-ok writes,
-quote-grounding, concurrency, migration-coupling, silent-mutation-failure — each fixed
-or confirmed sound.
+codebase-wide boundary) and **A27** (a false immutability label over a mutable write —
+the resolutions/care write-once class). Cross-session memory updated with the open items.
+This session swept every class — auth, rate-limiting, input-validation, §A18, false-ok
+writes, quote-grounding, concurrency, migration-coupling, silent-mutation-failure — each
+fixed or confirmed sound.
+
+### 6. Also shipped (later this session — after the sections above)
+- **Push 403-diagnosis aggregation** (`sender.ts`): the OPEN "subscribes but doesn't
+  deliver" bug — the sender now logs ONE aggregated line naming the VAPID-keypair-mismatch
+  cause + fix when sends 403. Logging-only; doesn't resolve it (still needs your VAPID env
+  config + a triggered push), but the log now reads the answer instead of requiring inference.
+- **Constitutional DB-invariants registry** (`docs/constitutional-db-invariants.md` +
+  `supabase/migrations/README.md`): a code-verified, grep-anchored, COMPLETE list (22
+  append-only tables, 5 freeze triggers, the gate trigger, definer search_path, vendor/authz
+  guards) of every schema-enforced constitutional guarantee — the human-review defense for
+  the CI-gap flagged above. Discoverable from the migrations README so authors hit the rule.
+- **Flags disclosure-note accuracy fix** (`sessions/page.tsx`): the modal's §A18 honesty
+  note under-described the flag's basis after the v2 broadening; now names all four (outcome,
+  pivot, sentiment, breakdown). Kept the "does not use private scores" line.
+- **Verified clean (no change):** §3.2 Understanding Gate (trigger enforces min-signals +
+  distinct-sources + diagnosis-length, INSERT-bypass closed); §3.5 measurement honesty (every
+  readout anchors to consequence, disclaims agreement); search_path across all 82 definer
+  occurrences (0088/0089 close it); service-role cross-tenant across 27 routes.
 
 ## New: §1.7 audit extension — Coach v5 orphan-event documentation (migration 0099)
 Extended the founder's own 0026 orphan-event audit (2026-06-12) to every event kind added
