@@ -85,6 +85,12 @@ in the MIGRATION APPLY CHECKLIST.
    "schedule": "0 6 * * *" }`) + `CRON_SECRET` (reuses the durability one), or leave dormant; (b)
    `meeting.overran` stays dead — it needs a `meetings` entity that isn't built (bigger scope, not
    started). [wire the task-overrun cron / leave dormant · build meetings entity later?]
+   **Composition verified (§1.5.1 layer-3):** `task_slipped` is not emitted into a void — both core
+   signal consumers read generically (no kind filter), so it flows automatically: the brain
+   (`learn.ts`) counts it toward the §4 pattern-evidence gate (≥5 observations = a learned pattern),
+   and the signals reader (`signals.ts`) surfaces it. And a critical §0 catch during the build: the
+   emit fn originally forgot `derive_signals_for_event` (events don't auto-derive), so the signal
+   would never have materialized — fixed + guarded by integration-test path C before ship.
 
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
