@@ -590,6 +590,15 @@ inert." Correct framing for prioritizing it.
   invitation stayed LIVE (admin thinks it's dead; invitee can still accept). FIXED by mirroring the
   member-removal strictUpdate (`.select` + 0-row → 404). Lesson: the member-removal fix should have
   swept its own sibling — a class fix must check the whole handler, not just the reported branch.
+  **RLS-blocked-false-ok class swept codebase-wide (2026-07-09):** grepped every route doing
+  `const { error } = await …update/delete` with no rowcount check (8 sites). Triaged by OUTCOME:
+  the two with a HARMFUL outcome (member-removal, invitation-revoke — the desired change silently
+  didn't happen) are FIXED. The rest are benign — `chat/topics/lock` verifies `created_by` before
+  the update (sound, not a gap); `files/[id]/access` revoke, `tasks` update/delete, and the
+  agent-toggle all end in the intended/benign state on a 0-row write (revoke-of-absent = already
+  revoked; wrong-id = no-op) and RLS protects the data. So no HARMFUL false-ok remains; the class
+  is bounded. (Low-value tail: those benign sites could still add a rowcount check for a crisper
+  404 — not built, no data/outcome risk.)
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
