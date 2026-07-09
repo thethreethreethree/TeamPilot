@@ -2825,6 +2825,22 @@ export async function fetchTeamGrowth(
       .gte("created_at", since),
   ]);
 
+  // §3.4 honest-error-state (audit 2026-07-09): if ANY parallel growth read
+  // failed, throw so the caller route 500s (no try/catch) and the team page's
+  // existing error state fires — instead of a false low/zero growth snapshot.
+  const teamGrowthReadError =
+    agents.error ??
+    resolutions.error ??
+    durability.error ??
+    edits.error ??
+    claimedConvs.error ??
+    awaitingConvs.error ??
+    agentReplies.error ??
+    coachCountsRows.error;
+  if (teamGrowthReadError) {
+    throw new Error(`care team-growth readout: read failed — ${teamGrowthReadError.message}`);
+  }
+
   const durRows = (durability.data ?? []) as Array<{ outcome: string | null }>;
   const editRows = (edits.data ?? []) as Array<{
     edit_magnitude: string | null;
@@ -3199,6 +3215,21 @@ export async function fetchAgentGrowth(
       .not("coach_counts", "is", null)
       .gte("created_at", since),
   ]);
+
+  // §3.4 honest-error-state (audit 2026-07-09): if ANY parallel growth read
+  // failed, throw so the caller route 500s (no try/catch) and the growth page's
+  // existing error state fires — instead of a false low/zero growth snapshot.
+  const agentGrowthReadError =
+    resolutions.error ??
+    durability.error ??
+    edits.error ??
+    claimedConvs.error ??
+    awaitingConvs.error ??
+    agentReplies.error ??
+    coachCountsRows.error;
+  if (agentGrowthReadError) {
+    throw new Error(`care agent-growth readout: read failed — ${agentGrowthReadError.message}`);
+  }
 
   const durRows = (durability.data ?? []) as Array<{ outcome: string | null }>;
   const editRows = (edits.data ?? []) as Array<{
