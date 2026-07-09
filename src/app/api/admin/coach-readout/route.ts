@@ -291,7 +291,7 @@ export async function GET(req: NextRequest) {
   // 'intervention' or 'ongoing' are post-Coach. The readout
   // surfaces this so the reader interprets the comparison
   // honestly (§3.5).
-  const { data: company } = await supabase
+  const { data: company, error: eCompany } = await supabase
     .from("companies")
     .select(
       "cycle_started_at, cycle_control_skipped_at, cycle_control_skip_reason"
@@ -320,7 +320,7 @@ export async function GET(req: NextRequest) {
   // structured sources (decisions, chats) actually producing
   // better outcomes than directly-created tasks? This is the
   // mechanism check — better diagnosis → better action.
-  const { data: tasksRows } = await supabase
+  const { data: tasksRows, error: eTasks } = await supabase
     .from("tasks")
     .select(
       "id, status, linked_decision_id, linked_chat_topic_id, created_at, updated_at"
@@ -366,7 +366,7 @@ export async function GET(req: NextRequest) {
   const stepWindowStart = new Date(
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
-  const { data: stepEvents } = await supabase
+  const { data: stepEvents, error: eSteps } = await supabase
     .from("events")
     .select("kind, subject, created_at")
     .in("kind", ["task.step_completed", "task.step_reopened"])
@@ -396,7 +396,7 @@ export async function GET(req: NextRequest) {
   const last30 = new Date(
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
-  const { data: gradeEvents } = await supabase
+  const { data: gradeEvents, error: eGrade } = await supabase
     .from("events")
     .select("payload, created_at")
     .eq("kind", "coach.message_graded")
@@ -425,7 +425,7 @@ export async function GET(req: NextRequest) {
   // Analyze patterns — top principles cited across the company in
   // the last 30 days. Surfaces what the Coach has been TEACHING,
   // not whether the team is accepting.
-  const { data: analyzeEvents } = await supabase
+  const { data: analyzeEvents, error: eAnalyze } = await supabase
     .from("events")
     .select("payload, created_at")
     .eq("kind", "coach.analyze_returned")
@@ -468,6 +468,20 @@ export async function GET(req: NextRequest) {
     total: analyzeTotal,
     topPrinciples,
   };
+
+  // §3.4 honest-error-state (audit 2026-07-09): this route already returns 500 on
+  // its critical query errors (topics/msgs/coachEvents above). The 5 SECONDARY
+  // reads (company/tasks/steps/grade/analyze) silently swallowed theirs — so a
+  // grade/analyze failure showed misleading zeros in those sections while the rest
+  // rendered. Extend the route's OWN pattern to them: any read failure → 500 → the
+  // page's existing `!res.ok` honest-error state fires. Happy path unchanged.
+  const secondaryReadError = eCompany ?? eTasks ?? eSteps ?? eGrade ?? eAnalyze;
+  if (secondaryReadError) {
+    return NextResponse.json(
+      { error: secondaryReadError.message },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({
     coached,

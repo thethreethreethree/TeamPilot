@@ -246,7 +246,14 @@ functions (care.ts analytics) swallowing errors before they reach the UI. So the
 is a focused DATA-LAYER error-propagation pass (make the analytics fns signal read failures →
 routes return non-ok → the existing UI error states fire), NOT UI work. More tractable than it
 sounded — but it changes shared data-layer signatures (other-caller risk), so it's scheduled,
-not autonomous. The command-center fix was clean-and-done because that route queries directly. **Fix (your call on the bound):** add an explicit `.limit()` +
+not autonomous. The command-center fix was clean-and-done because that route queries directly.
+**Second route-direct fix done (2026-07-09):** `admin/coach-readout` was inconsistent — it
+already 500'd on its 3 critical query errors but SWALLOWED on 5 secondary reads
+(company/tasks/steps/grade/analyze), so a grade/analyze failure showed misleading zeros in
+those sections. Extended the route's own pattern (any read error → 500 → the page's existing
+`!res.ok` state fires). Backend-only, happy path unchanged, gate green. So both route-DIRECT
+readouts (command center + coach-readout) are now honest; the DATA-LAYER ones (care/asset)
+remain the scheduled propagation pass. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
