@@ -8,11 +8,14 @@ import {
   ThumbsUp,
   Lightbulb,
   Star,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 
 /**
  * Sales Coach → Coach Assessment (admin/manager). Per-agent coaching signal
@@ -44,6 +47,24 @@ export default function CoachAssessmentPage() {
   const [degraded, setDegraded] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
+  // Per-agent card collapse (founder 2026-07-10 annotated spec): each agent's
+  // dissect detail (strategy tags + doing-well + coaching-focus) is collapsed by
+  // default so the roster is scannable; clicking the agent's ELO badge reveals it.
+  // Keyed by agentId so each card toggles independently.
+  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
+  const toggleAgent = useCallback((id: string) => {
+    setExpandedAgents((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  // Experience Mode (founder 2026-07-10 clarification): Standard MINIMIZES what an
+  // agent sees — so the dissect detail is collapsed by default here. Expert is the
+  // FULL system, nothing collapsed — so Expert always renders expanded and shows no
+  // collapse chrome. The click-to-reveal exists only in Standard.
+  const { isExpert } = useExperienceMode();
 
   const load = useCallback(async () => {
     try {
@@ -229,6 +250,9 @@ export default function CoachAssessmentPage() {
 
             {withContent.map((a, cardIdx) => {
               const isFirstCard = cardIdx === 0;
+              // Expert: always expanded (full system). Standard: collapsed until the
+              // user clicks this agent's ELO badge to reveal.
+              const isExpanded = isExpert || expandedAgents.has(a.agentId);
               const dissectBadge = (
                 <span className="text-[10px] text-muted">
                   {a.dissectCount} session{a.dissectCount === 1 ? "" : "s"} dissected
@@ -264,10 +288,48 @@ export default function CoachAssessmentPage() {
                     the standard, NOT a leaderboard. Cards stay alphabetical (never
                     sorted by rating) so this doesn't become the ranking the page
                     refuses (§A11/§A18). */}
-                <div className="mb-3">
-                  <AgentEloBadge agentId={a.agentId} />
-                </div>
+                {/* Expert: plain badge, full detail below (nothing collapsed).
+                    Standard: the ELO badge is the collapse trigger — clicking it
+                    reveals/hides this agent's coaching detail. role=button (not
+                    <button>) because AgentEloBadge contains its own <button>; that
+                    inner button stops propagation so "explain" doesn't also toggle
+                    the card. (founder 2026-07-10 annotated spec + Standard clarification) */}
+                {isExpert ? (
+                  <div className="mb-3">
+                    <AgentEloBadge agentId={a.agentId} />
+                  </div>
+                ) : (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isExpanded}
+                    aria-label={`${isExpanded ? "Hide" : "Show"} coaching detail for ${a.agentName}`}
+                    onClick={() => toggleAgent(a.agentId)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleAgent(a.agentId);
+                      }
+                    }}
+                    className="mb-3 flex items-center gap-2 cursor-pointer rounded-lg -mx-1 px-1 py-1 transition-colors hover:bg-white/[0.03] focus:outline-none focus-visible:ring-1 focus-visible:ring-ember-400/50"
+                  >
+                    <AgentEloBadge agentId={a.agentId} />
+                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-[10px] text-muted">
+                      {isExpanded ? (
+                        <>
+                          <ChevronDown className="w-3 h-3" aria-hidden /> Hide detail
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-3 h-3" aria-hidden /> Show detail
+                        </>
+                      )}
+                    </span>
+                  </div>
+                )}
 
+                {isExpanded && (
+                <>
                 {a.strategies.length > 0 &&
                   (isFirstCard ? (
                     <LearningHint
@@ -401,6 +463,8 @@ export default function CoachAssessmentPage() {
                     </div>
                   )}
                 </div>
+                </>
+                )}
               </section>
               );
             })}

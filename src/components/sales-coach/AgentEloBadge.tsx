@@ -121,7 +121,13 @@ export function AgentEloBadge({
           (removed the inline "vs. the standard" descriptor). §3.6 make-visible. */}
       <button
         type="button"
-        onClick={() => setShowExplain((v) => !v)}
+        onClick={(e) => {
+          // The coach-assessment card may wrap this badge in a role="button"
+          // collapse toggle (Standard mode). Stop propagation so clicking the
+          // score to see how it's calculated doesn't also collapse the card.
+          e.stopPropagation();
+          setShowExplain((v) => !v);
+        }}
         aria-expanded={showExplain}
         className="w-full text-left group"
       >
