@@ -104,4 +104,18 @@ describe("fetchPatternResolutionReadout (DB-mock)", () => {
     const out = await fetchPatternResolutionReadout({ companyId: "co1" });
     expect(out.patterns).toEqual([]);
   });
+
+  // §3.4 honest-error-state (audit 2026-07-09): a resolutions read failure must
+  // throw, not return an empty pattern set as if there were no data.
+  it("THROWS on a resolutions read error", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      makeSupabaseClient(
+        { support_resolutions: { data: null, error: { message: "db down" } } },
+        calls
+      ) as never
+    );
+    await expect(fetchPatternResolutionReadout({ companyId: "co1" })).rejects.toThrow(
+      "resolutions read failed"
+    );
+  });
 });

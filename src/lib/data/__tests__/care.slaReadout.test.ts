@@ -76,4 +76,18 @@ describe("fetchSlaWithDurabilityReadout (DB-mock)", () => {
     expect(out.falseSlaSuccessesRate).toBeNull();
     expect(out.fullyHonoredRate).toBeNull();
   });
+
+  // §3.4 honest-error-state (audit 2026-07-09): a durability read failure must
+  // throw, not return an empty/zero SLA readout as if there were no data.
+  it("THROWS on a durability read error", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      makeSupabaseClient(
+        { support_durability_checks: { data: null, error: { message: "db down" } } },
+        calls
+      ) as never
+    );
+    await expect(fetchSlaWithDurabilityReadout({ companyId: "co1" })).rejects.toThrow(
+      "durability read failed"
+    );
+  });
 });

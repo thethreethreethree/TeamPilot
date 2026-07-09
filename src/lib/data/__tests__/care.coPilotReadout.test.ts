@@ -75,4 +75,18 @@ describe("fetchCoPilotValueReadout (DB-mock)", () => {
       durabilityHeldRate: null, // honest: no data, not a fabricated 0
     });
   });
+
+  // §3.4 honest-error-state (audit 2026-07-09): a read failure must throw, not
+  // return false-empty cohorts as if there were no data.
+  it("THROWS on a durability read error", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      makeSupabaseClient(
+        { support_durability_checks: { data: null, error: { message: "db down" } } },
+        calls
+      ) as never
+    );
+    await expect(fetchCoPilotValueReadout({ companyId: "co1" })).rejects.toThrow(
+      "durability read failed"
+    );
+  });
 });
