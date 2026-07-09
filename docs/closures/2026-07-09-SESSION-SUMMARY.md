@@ -95,6 +95,24 @@ you'd apply it. `control_skipped` is now flagged as a likely ENABLED mapping (no
 - **Founder action:** review the drafted §4 questions, then apply 0099 (idempotent — on
   conflict do nothing). This is the §1.7 legibility fix, not a functional one.
 
+## Verified: vendor authz company-id consistency (CRITICAL — the "confirm vendor company id" item)
+Code-side confirmation of the 2026-07-07 vendor-CRM authz fix is DONE. The vendor company
+id is byte-identical across all three enforcement points: the `0089` DB literal, `care/
+config.ts:20`, and `crm/vendorAuth.ts:34` (`c3e7f389-…`). Route layer respects
+`CARE_DEFAULT_TENANT_ID` (getVendorCompanyId / resolveCareTenant) — 0089's comment claim is
+accurate (§3.4). **Still yours:** confirm the LIVE prod DB has 0089 applied AND that this id
+is your actual vendor company's id in prod (I can only verify code/migration consistency,
+not prod data).
+Two flagged observations (NOT changed — security-critical, §2/§5):
+- **Env-override footgun (LOW, fails-closed):** the SQL function can't read env, so setting
+  `CARE_DEFAULT_TENANT_ID` desyncs the DB layer from the route layer. Documented in 0089's
+  comment; fails CLOSED (locks out, never exposes). A `vendor_config` table read by the
+  function would remove the manual-sync requirement — structural, your call.
+- **Duplicated security constant:** `ELOSTATE_COMPANY_ID` is hardcoded in care/config.ts AND
+  vendorAuth.ts (identical now, no sync enforcement). One exported constant would prevent
+  divergence of a CRITICAL-authz value. Small, but it's a security constant — your call on
+  the module-dependency direction.
+
 ## Verified clean this session (no action needed — recorded for confidence)
 - **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
   event kind against every emitter across the app: all match. No manager-facing coach
