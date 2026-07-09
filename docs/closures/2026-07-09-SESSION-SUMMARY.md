@@ -206,11 +206,14 @@ conversations with NO `.limit()` — while its PARENT check query HAS `.limit(50
 parent allows up to 5000 conversations but the child truncates their agent-messages at 1000;
 conversations whose messages fall past the cap default to "ungraded" (line 1568), MIS-classifying
 them → wrong v5/v6/ungraded durability cohort readout for a busy support desk. The limit was
-applied to the parent but MISSED on the child (incomplete fix). **Sibling analytics `.in()`
-child queries** (care.ts ~1719/1821/2260, assetReadout ~108/151/173/208) likely share the
-pattern — not each traced (30+ `.in()` sites; most are bounded by small company-scoped parents,
-so a full trace is high-false-positive). **Same profile as rate-limit:** correct at current
-low volume, wrong at scale. **Fix (your call on the bound):** add an explicit `.limit()` +
+applied to the parent but MISSED on the child (incomplete fix). **VERIFIED systematic (not
+speculation):** the sibling care-analytics child queries all share it — care.ts:1719 (customer-
+message medium breakdown), :1821 (co-pilot agent-message analytics), :2260 (durability-check
+fan-out) all do `.in("conversation_id", conversationIds)` over the same parent-bounded-to-5000
+set with NO `.limit()`, so each truncates at 1000. So the care READOUT layer systematically
+truncates its child fan-out queries. (assetReadout ~108/151/173/208 not yet traced — same
+grep pattern, likely same.) **Same profile as rate-limit:** correct at current low volume,
+wrong at scale. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
