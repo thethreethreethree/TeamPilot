@@ -494,7 +494,14 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
-   shows 8/10). Invert the two, and re-baseline ELO? (It feeds the rating.)
+   shows 8/10). **Verified 2026-07-09 — GOOD NEWS, NO ELO re-baseline needed (I was wrong that
+   "it feeds the rating"):** both are `computed: true` categories (`salesScore.ts:93,125`), and the
+   ELO's quality mean EXCLUDES computed categories (`salesElo.meanScore01` filters `!c.computed` —
+   code comment: "averaging them would distort performance downward"). So they do NOT feed the
+   rating; the ELO already ignores them. The fix is therefore DISPLAY-ONLY: a raw share shown as
+   "8/10" reads as a quality VERDICT it isn't (§A11 — a proxy dressed as a score). Reframe the
+   strip — either invert magnitude→quality, or render it as a neutral share bar, not a /10. No
+   rating recompute, no migration, no rep-facing rating change. Small + safe; one word and I apply it.
 2. **Company settings** are editable by any member (RLS-allowed; sensitive columns
    frozen). Gate to admin-only, or keep member-editable? **Verified 2026-07-09:** both the
    RLS `company - update` policy (`0001:118` — `using (id = auth_company_id())`) AND the
