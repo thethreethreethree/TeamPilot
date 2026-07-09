@@ -779,11 +779,15 @@ export default function SalesCoachSessionsPage() {
               ))}
             </ul>
             {/* §A18/§3.4 honesty: name what the explanation is built from, and that
-                it is NOT the rep's private scores (which managers can't see). */}
+                it is NOT the rep's private scores (which managers can't see). Names
+                ALL the bases the classifier actually uses — the outcome (the primary
+                basis for most flags since the v2 broadening), the pivot, the prospect's
+                sentiment, and any breakdown moment — so the note isn't accurate only
+                for the pivot/sentiment case (§3.4: the disclosure must match the basis). */}
             <p className="text-[10px] text-muted leading-relaxed">
-              Composed from this call&apos;s recorded signals — the pivot moment and
-              the prospect&apos;s sentiment across the conversation. It does not use
-              the rep&apos;s private after-pitch scores.
+              Composed from this call&apos;s recorded signals — its outcome, the pivot
+              moment, the prospect&apos;s sentiment across the conversation, and any
+              breakdown point. It does not use the rep&apos;s private after-pitch scores.
             </p>
             {/* AMD-006 Layer 3 (workflow continuity): after reading WHY, the manager's
                 next action is to examine the call — link straight into it, not a
