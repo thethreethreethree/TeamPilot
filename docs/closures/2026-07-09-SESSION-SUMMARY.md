@@ -19,7 +19,12 @@ Gate green throughout: tsc 0, lint 0, next build 0, **502 tests**. All committed
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
 8. Readout/analytics TRUNCATION: layer truncates at PostgREST's 1000-row cap (8+ unbounded queries, care + asset) → wrong metrics for a busy company → bounding pass (per-query limits or DB-side aggregation). [needs row-bound decision — still open]
-8b. Readout ERROR-HANDLING (separate; now ~DONE): the 3 main readouts + ALL 6 care leadership fns now return honest failure states instead of false zeros. **Only tail left:** `fetchAssetReadout` needs a fn throw AND a small UI error state (the asset-readout page has no explicit error branch — its `if(res.ok)` falls to an "upload files" empty state on error). [low-priority admin readout; I can finish the fn but the UI render needs your eyes]
+8b. Readout ERROR-HANDLING (separate; now ~DONE): the 3 main readouts + ALL 8 care fns (6
+leadership cohorts + team/agent GROWTH — the growth surface; an A26 boundary check caught the 2
+growth fns my first sweep missed) now return honest failure states instead of false zeros.
+**Only tail left:** `fetchAssetReadout` needs a fn throw AND a small UI error state (the
+asset-readout page has no explicit error branch — its `if(res.ok)` falls to an "upload files"
+empty state on error). [low-priority admin readout; I can finish the fn but the UI render needs your eyes]
 
 **Apply (I can't, headless):** migrations `0098`, `0099`; confirm `0085`/`0086`/`0095`–`0097` applied.
 **Confirm in prod:** vendor company id is your real vendor + `0089` live; set server VAPID env vars.
