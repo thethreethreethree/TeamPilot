@@ -448,11 +448,16 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   files/upload-url ✓ (always, L54). So the bug was EXACTLY the 2 sibling care routes; the two
   files/* routes always followed the pattern. (Mid-sweep I misread a truncated grep as a 3rd
   instance in files/route.ts — the definitive grep corrected it BEFORE any edit to a correct file;
-  §0/§5.) Separate observation, NOT the same bug: `coach/.../upload-recording` uses its OWN inline
-  validation (size + audio/video mime prefix, no extension check) — agent-only, low impact (a
-  mime-spoofed non-audio file just fails transcription); `care/agent/tenant/logo` is sound (image
-  mime allowlist + server-DERIVED extension from mime, never the user filename; SVG is served via
-  `<img src>` which sandboxes script — no XSS).
+  §0/§5.) Two adjacent upload paths use custom (non-`validateUploadCandidate`) validation — BOTH
+  verified CORRECT for their context, not gaps: (1) `coach/.../upload-recording` allows audio/video
+  by design and therefore CANNOT use the shared `BLOCKED_EXTENSIONS` block-list (which forbids
+  `.mp4`/`.webm`/`.mov` — the exact recording formats); its size + audio/video-mime-prefix check is
+  right, and path traversal is already prevented by `buildStoragePath` (server path =
+  `companyId/randomUUID.sanitizedExt`, never the raw filename); agent-only, and a spoofed non-audio
+  file merely fails transcription. (2) `care/agent/tenant/logo` is sound (image-mime allowlist +
+  server-DERIVED extension from the mime, never the user filename; SVG served via `<img src>` which
+  sandboxes script → no XSS). Reaching "not a gap" on (1) required THINKING it through (§1.5.2/§0):
+  the naive "add the block-list" fix would have BROKEN legitimate video recordings.
 - **Voice endpoints (STT/TTS, public, cost-abuse-sensitive) verified sound — completes the
   public-surface sweep (2026-07-09).** Both token-gated (x-care-session → conversation), rate-
   limited, and input-bounded: TTS text ≤2000 chars @ 30/min; STT audio ≤2MB @ 8/min. STT was
