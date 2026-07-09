@@ -2,6 +2,7 @@ import "server-only";
 
 import { llmCall } from "@/lib/llm";
 import { runBrainCall } from "@/lib/brain";
+import type { ExperienceMode } from "@/lib/experience/mode";
 
 /**
  * All AI functions in this file are server-only entry points used by /api/ai/*
@@ -22,6 +23,9 @@ type CallArgs = {
   /** Sales-Coach-only: exempt from the §3.4 month-1 control gate (see
    *  runBrainCall). Elostate + C.A.R.E callers leave this unset. */
   controlExempt?: boolean;
+  /** The acting user's Experience Mode (0110), forwarded to the LLM so Standard
+   *  users get simplified output (§A16). Unset → Expert (unchanged). */
+  experienceMode?: ExperienceMode;
 };
 
 type CallResult = {
@@ -41,6 +45,7 @@ async function call(args: CallArgs): Promise<CallResult> {
       maxTokens: args.maxTokens,
       expectJson: args.expectJson,
       controlExempt: args.controlExempt,
+      experienceMode: args.experienceMode,
     });
     if (!r.gate.guidanceEnabled) {
       return {
@@ -63,6 +68,7 @@ async function call(args: CallArgs): Promise<CallResult> {
     messages: [{ role: "user", content: args.userContent }],
     maxTokens: args.maxTokens,
     expectJson: args.expectJson,
+    experienceMode: args.experienceMode,
   });
   return {
     text: r.text,

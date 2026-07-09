@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { llmCall, llmStream, type LlmCallArgs, type LlmResult } from "@/lib/llm";
+import type { ExperienceMode } from "@/lib/experience/mode";
 import type {
   BrainRecord,
   BrainPattern,
@@ -273,6 +274,9 @@ export async function runBrainCall(args: {
    * this.
    */
   controlExempt?: boolean;
+  /** The acting user's Experience Mode (0110). Forwarded to llmCall so the
+   *  brain-routed AI simplifies for Standard users (§A16). */
+  experienceMode?: ExperienceMode;
 }): Promise<LlmResult & { gate: ControlGate; brainVersion: number }> {
   const [brain, gate] = await Promise.all([
     loadBrain(args.companyId),
@@ -297,6 +301,7 @@ export async function runBrainCall(args: {
     messages: args.messages,
     maxTokens: args.maxTokens,
     expectJson: args.expectJson,
+    experienceMode: args.experienceMode,
   });
 
   return { ...result, gate, brainVersion: brain.version };
@@ -316,6 +321,8 @@ export async function* runBrainStream(args: {
   messages: LlmCallArgs["messages"];
   maxTokens?: number;
   expectJson?: boolean;
+  /** The acting user's Experience Mode (0110), forwarded to llmStream (§A16). */
+  experienceMode?: ExperienceMode;
 }): AsyncGenerator<string, { gate: ControlGate; brainVersion: number }, void> {
   const [brain, gate] = await Promise.all([
     loadBrain(args.companyId),
@@ -332,6 +339,7 @@ export async function* runBrainStream(args: {
     messages: args.messages,
     maxTokens: args.maxTokens,
     expectJson: args.expectJson,
+    experienceMode: args.experienceMode,
   })) {
     yield delta;
   }
