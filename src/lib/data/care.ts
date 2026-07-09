@@ -324,10 +324,24 @@ export async function markConversationHandedOff(
   conversationId: string
 ): Promise<void> {
   const sb = createServiceRoleClient();
-  await sb
+  const { error } = await sb
     .from("support_conversations")
     .update({ ai_responding: false })
     .eq("id", conversationId);
+  // Observability (audit 2026-07-09): a silent failure here is a BROKEN PROMISE
+  // to the customer — both call sites have already told them "I'm bringing in a
+  // teammate", but if this flip doesn't land, ai_responding stays true and the
+  // next customer message gets ANOTHER AI reply instead of the human. Log it in
+  // all environments so the operator sees a stuck handoff, matching the
+  // create-conversation / post-message pattern in this file. (Kept void: both
+  // callers are post-message fire-and-forget; escalate to retry only if the log
+  // shows real failures — §1.5 organic.)
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[care.markConversationHandedOff] flip failed conversationId=${conversationId} error=${error.message} — AI may keep replying after a handoff was promised`
+    );
+  }
 }
 
 // ─── Agent-side (authenticated; RLS-scoped) ──────────────────
