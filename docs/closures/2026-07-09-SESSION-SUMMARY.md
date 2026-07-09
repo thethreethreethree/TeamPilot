@@ -706,6 +706,17 @@ inert." Correct framing for prioritizing it.
   0096. I judged these LOW-consequence and did not migrate them; if you want belt-and-suspenders
   attribution integrity on those too, it's a mechanical follow-up (same one-line `= auth.uid() or
   null` pattern), not an urgent gap.
+- **Tenant-key push-out class re-swept to boundary (A26 refinement, 2026-07-09) → 0107.** 0105
+  revealing resolutions had been missed by this class (0095/0101/0102) was the tell that the class
+  was *believed* complete but never exhaustively verified — so I re-swept every `company_id` table's
+  member-reachable UPDATE path. Result: 38 tables verified SAFE (no member UPDATE / company_id
+  pinned in with-check / company_id freeze trigger) and 2 net residuals, both fixed in 0107:
+  `notification_subscriptions` (owner-update pinned only user_id) and `care_agent_state` (0095's
+  guard froze max_concurrent/channels but not company_id — an agent could push their routing-state
+  row cross-tenant). The class boundary is now recorded and auditable; a future §1.7 audit can diff
+  against it. This is the concrete payoff of the A26 addendum's refinement #1 (check every
+  candidate against ALL open classes): sweeping author-spoof surfaced a tenant-key gap, which
+  surfaced a whole under-verified class boundary.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
@@ -811,6 +822,7 @@ these are the enforcement/feature migrations whose *applied-state* I can't see f
 | `0104` | chat_messages + support_messages INSERT `author_id` self-or-null (row-level twin of 0103) | **impersonation — any topic participant can post a message under a co-worker's name (feeds §3.1 + brain); an agent can post as a peer. 0103 only transitively blocks the event-emitting kinds; `kind='system'` slips past it — apply 0103 THEN 0104** |
 | `0105` | resolutions: split for-all policy + INSERT `decided_by`/`reviewer` self-or-null + freeze decided_by/company_id/problem_id | **resolutions was exposed in BOTH swept classes at once — a member could fabricate/reattribute a resolution decision to a colleague (`decided_by` spoof → pollutes §3.1 + brain + §3.5 durability) AND relocate a resolution cross-tenant (`company_id` mutable). Immutability trigger froze only action/reasoning/decided_at** |
 | `0106` | support_resolutions INSERT `captured_by` self-or-null | care-side sibling — an agent could capture a resolution attributed to a peer (skews the peer's captured-history/stats in the care brain). MED-LOW; completes the author-spoof class |
+| `0107` | tenant-key push-out residuals: pin `notification_subscriptions.company_id` + freeze `care_agent_state.company_id` | re-sweep of the 0095/0101/0102 class found 2 tables still let a member relocate their own row cross-tenant (notification_subscriptions owner-update; care_agent_state self-update — 0095 froze the wrong columns). Completes the tenant-key push-out class boundary (38 tables verified safe) |
 
 **Plus (env, not migrations):** `CRON_SECRET` (activates the §3.5 durability sweep — dormant without
 it), VAPID×3 + REBUILD (push delivery), and the optional channels — see the ENV-VAR ACTIVATION MAP up top.
