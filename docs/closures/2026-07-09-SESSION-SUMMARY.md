@@ -584,6 +584,12 @@ inert." Correct framing for prioritizing it.
   returns `!error`. The append-only §3.1 EVENT inserts that swallow are INTENTIONAL best-effort
   (documented — the column write is the visible result, a failed bonus-event mustn't undo it). So
   the false-ok write class is comprehensively addressed, not just the 2 ad-hoc fixes.
+  **+ team route (2026-07-09):** swept the team DELETE handler after the 2026-07-07 member-removal
+  false-ok fix and found its SIBLING unfixed — invitation-REVOKE checked `error` only, not rowcount,
+  so revoking a nonexistent / already-accepted / RLS-blocked invite returned ok:true while the
+  invitation stayed LIVE (admin thinks it's dead; invitee can still accept). FIXED by mirroring the
+  member-removal strictUpdate (`.select` + 0-row → 404). Lesson: the member-removal fix should have
+  swept its own sibling — a class fix must check the whole handler, not just the reported branch.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
