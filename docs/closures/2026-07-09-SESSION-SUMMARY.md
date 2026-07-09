@@ -68,6 +68,17 @@ swept every class — auth, rate-limiting, input-validation, §A18, false-ok wri
 quote-grounding, concurrency, migration-coupling, silent-mutation-failure — each fixed
 or confirmed sound.
 
+## Verified clean this session (no action needed — recorded for confidence)
+- **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
+  event kind against every emitter across the app: all match. No manager-facing coach
+  badge/metric is silently broken by a kind mismatch (the §3.5 honest-measurement risk).
+  *Recommendation (not built — a broad no-behavior-change refactor is review burden you
+  didn't ask for):* the kinds are declared two ways — shared named consts in the `why` /
+  `why_patterns` engines (desync-PROOF) vs bare string literals in the list + analytics
+  routes (desync-RISK on a future rename). Centralizing all ~15 into one consts module,
+  following the why-engine precedent, would kill the mismatch class structurally. One word
+  and I'll do it.
+
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
    shows 8/10). Invert the two, and re-baseline ELO? (It feeds the rating.)
