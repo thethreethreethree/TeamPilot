@@ -115,6 +115,11 @@ export async function sendPushToUsers(args: {
   const payloadString = JSON.stringify(payload);
   let sent = 0;
   let failed = 0;
+  // Track 403s specifically: a 403 is a GLOBAL config fault (the keypair),
+  // not a per-subscription one, so counting them lets us name the actionable
+  // cause once at the end instead of scattering N identical per-send lines
+  // (matching this file's "name the cause out loud" philosophy above).
+  let forbidden = 0;
 
   await Promise.all(
     subs.map(async (sub) => {
@@ -152,6 +157,7 @@ export async function sendPushToUsers(args: {
             .eq("id", sub.id as string)
             .then(() => undefined, () => undefined);
         }
+        if (statusCode === 403) forbidden += 1;
         // Log in ALL environments — a production-only silent failure is
         // undebuggable. statusCode is the named cause: 403 = VAPID key
         // mismatch (the public key used to subscribe ≠ the keypair used
@@ -170,5 +176,21 @@ export async function sendPushToUsers(args: {
   console.info(
     `[push-sender] result sent=${sent} failed=${failed} skipped=0 across ${subs.length} subscription(s)`
   );
+  // Aggregated diagnosis for the OPEN "subscribes but doesn't deliver" issue:
+  // if sends failed with 403, the single actionable cause is a VAPID keypair
+  // mismatch. Named once, loudly, with the fix — so a reader doesn't have to
+  // infer it from N scattered per-send 403 lines.
+  if (forbidden > 0) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[push-sender] ${forbidden}/${subs.length} send(s) returned 403 FORBIDDEN. ` +
+        `This is almost certainly a VAPID KEYPAIR MISMATCH: the NEXT_PUBLIC_VAPID_PUBLIC_KEY ` +
+        `the client SUBSCRIBED with (inlined into the client bundle at BUILD time) does not ` +
+        `match the VAPID_PRIVATE_KEY the server SIGNS with at runtime. Fix: generate one keypair ` +
+        `(npx web-push generate-vapid-keys), set NEXT_PUBLIC_VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY ` +
+        `from THAT SAME pair in the deploy env (not just .env.local), REBUILD so the client picks ` +
+        `up the public key, then have users re-subscribe.`
+    );
+  }
   return { sent, failed, skipped: 0 };
 }
