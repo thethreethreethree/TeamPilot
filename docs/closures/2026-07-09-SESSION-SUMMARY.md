@@ -573,6 +573,18 @@ inert." Correct framing for prioritizing it.
   durability readouts consume outcomes with honest-error states (fixed this session). So the moat
   measurement works start→finish; no dead link (unlike `task_slipped`, which IS dead — item 9).
 
+- **§3.4 false-ok WRITE class swept across the data layer (§A26 boundary, 2026-07-09).** "Report
+  success on a failed write" — the class behind the readout, write-once, and now bulk +
+  captureResolution fixes. Swept `care.ts` / `chats.ts` / `salesCoach.ts` / `problems.ts` write
+  functions: **only care.ts had genuine instances** — `bulkSet/AssignConversations` (returned 0 →
+  route `ok:true`) and `captureResolution` (returned null → route HTTP 200, silently skipping the
+  §3.5 durability schedule). Both FIXED + tested. All others are honest: `closeTopic` / `postMessage`
+  (primary) / `toggleCoach` THROW; `setSessionStatus` / `setSessionOutcome` return null AND their
+  routes return 500 on null (the check `captureResolution`'s route was missing); `appendSalesCorpusVersion`
+  returns `!error`. The append-only §3.1 EVENT inserts that swallow are INTENTIONAL best-effort
+  (documented — the column write is the visible result, a failed bonus-event mustn't undo it). So
+  the false-ok write class is comprehensively addressed, not just the 2 ad-hoc fixes.
+
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
    shows 8/10). **Verified 2026-07-09 — GOOD NEWS, NO ELO re-baseline needed (I was wrong that
