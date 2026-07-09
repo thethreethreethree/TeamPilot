@@ -157,7 +157,14 @@ export async function DELETE(req: NextRequest) {
   if (invitationId) {
     const reason =
       url.searchParams.get("reason") ?? "Revoked by company admin";
-    const { error } = await c.supabase
+    // §3.4 / strictUpdate (audit 2026-07-09): assert a row was actually revoked.
+    // This is the SIBLING of the member-removal false-ok fixed below in the same
+    // route — it checked `error` only, so revoking a nonexistent id, an
+    // already-accepted invite (excluded by .is("accepted_at", null)), or an
+    // RLS-blocked one matched 0 rows and FALSELY replied ok:true. The dangerous case:
+    // a "revoked" invitation that is actually still LIVE — the admin thinks it's dead,
+    // the invitee can still accept. Add .select + a rowcount check to report honestly.
+    const { data: revoked, error } = await c.supabase
       .from("team_invitations")
       .update({
         revoked_at: new Date().toISOString(),
@@ -165,9 +172,19 @@ export async function DELETE(req: NextRequest) {
         revoke_reason: reason,
       })
       .eq("id", invitationId)
-      .is("accepted_at", null);
+      .is("accepted_at", null)
+      .select("id");
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!revoked || revoked.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "That invitation couldn't be revoked — it doesn't exist, was already accepted, or was already revoked.",
+        },
+        { status: 404 }
+      );
+    }
     return NextResponse.json({ ok: true });
   }
 
