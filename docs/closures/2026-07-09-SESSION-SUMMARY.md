@@ -150,6 +150,13 @@ fixed or confirmed sound.
   ONLY recent measured activity was failed fixes got "Brain unchanged," i.e. the brain was
   blind precisely to a struggling team. Constitutionally mandated (§1.1), but it changes what
   the brain injects into future prompts — review if you want, override if the framing is off.
+  UNIT-TESTED (`learn.evidence.test.ts`): I first flagged the three-way durability split as
+  un-unit-testable (mock keys on table, not filter) — that was wrong. The mock's sequence-
+  function feature hands each of the 3 ordered `.from("resolutions")` calls its own rows, so a
+  real test pins that held/reopened/partial land in distinct buckets, target exactly those
+  durabilities (never 'unknown'), and that a reopened-only team no longer short-circuits to
+  "Brain unchanged." Retracted the flag by writing the test (§0/§5 — verify the claim, don't
+  assert infeasibility).
 
 ## New: §1.7 audit extension — Coach v5 orphan-event documentation (migration 0099)
 Extended the founder's own 0026 orphan-event audit (2026-06-12) to every event kind added
