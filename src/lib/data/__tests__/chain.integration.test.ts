@@ -535,6 +535,7 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
     let companyId: string;
     let eventId: string;
     let signalId: string;
+    let problemId: string;
 
     beforeAll(async () => {
       const lookup = await rest(
@@ -572,6 +573,19 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
       });
       expect(s.status, JSON.stringify(s.data)).toBe(201);
       signalId = (s.data as Array<{ id: string }>)[0]!.id;
+
+      // problems is the THIRD core chain table (events → signals → problems →
+      // resolutions). Unlike events/signals it is legitimately UPDATE-able
+      // (status transitions draft→surfaced→resolved), so it has only a
+      // no_delete rule (problems_no_delete, migration 0108), NOT a no_update
+      // rule. Created here so the delete-blocking case below can prove that rule.
+      const p = await rest("POST", "/rest/v1/problems", {
+        company_id: companyId,
+        kind: `${runTag}.chain_problem`,
+        title: `${runTag} immutability probe`,
+      });
+      expect(p.status, JSON.stringify(p.data)).toBe(201);
+      problemId = (p.data as Array<{ id: string }>)[0]!.id;
     });
 
     it("silently drops an UPDATE to an event (row byte-for-byte unchanged)", async () => {
@@ -614,6 +628,21 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
       const check = await rest(
         "GET",
         `/rest/v1/signals?id=eq.${signalId}&select=id`
+      );
+      expect((check.data as Array<{ id: string }>).length).toBe(1);
+    });
+
+    it("silently drops a DELETE of a problem (row still present) — validates 0108", async () => {
+      // problems is the chain's centre; before 0108 it had NO no_delete rule, so
+      // a member could delete a problem and CASCADE-wipe its resolutions (past
+      // resolutions_no_delete/0094). This asserts problems_no_delete makes the
+      // delete a no-op. Requires 0108 applied; a 🔴 failure here means the §3.1
+      // chain's centre is still deletable in this environment. (No UPDATE case:
+      // problems are legitimately mutable via status transitions.)
+      await rest("DELETE", `/rest/v1/problems?id=eq.${problemId}`);
+      const check = await rest(
+        "GET",
+        `/rest/v1/problems?id=eq.${problemId}&select=id`
       );
       expect((check.data as Array<{ id: string }>).length).toBe(1);
     });
