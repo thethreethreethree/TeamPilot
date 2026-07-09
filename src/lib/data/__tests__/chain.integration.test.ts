@@ -253,6 +253,162 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
 );
 
 // ─────────────────────────────────────────────────────────────
+// §3.1 chain — RESOLUTION durability review (migration 0100).
+//
+// Path B (above) proves the CHAT-TOPIC durability review closes the loop
+// (migration 0015). 0100 applies the identical pattern to the `resolutions`
+// table — the problems-workflow surface, fed by close_problem(), which chat
+// closes never touch. Reviewing a resolution's durability (UPDATE
+// resolutions SET durability='reopened') must emit a
+// `resolution.durability_reviewed` event and derive a `problem_recurrence`
+// signal SOURCED AT THE PROBLEM (so §1.2 retrospective analysis sees the
+// recurrence). This pins 0100 exactly as Path B pins 0015 — in the only
+// harness that exercises the real Postgres trigger. Without it, a future
+// change to the trigger / signal_sources / derive fn would silently re-open
+// the resolutions half of the §3.1 loop and the default gate would stay green.
+// ─────────────────────────────────────────────────────────────
+describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
+  "§3.1 chain — resolution durability review → problem_recurrence signal (0100)",
+  () => {
+    const TEST_COMPANY_NAME = "EXECOS Chain Integration Test";
+    const runTag = `res-dur-test-${Date.now()}`;
+    const DIAGNOSIS =
+      "Integration-test problem for the resolution durability review path, " +
+      "comfortably over the eighty-character diagnosis minimum the gate requires.";
+    let companyId: string;
+    let problemId: string;
+    let resolutionId: string;
+
+    beforeAll(async () => {
+      const lookup = await rest(
+        "GET",
+        `/rest/v1/companies?name=eq.${encodeURIComponent(TEST_COMPANY_NAME)}&select=id`
+      );
+      const found = lookup.data as Array<{ id: string }>;
+      if (found.length > 0) {
+        companyId = found[0]!.id;
+      } else {
+        const c = await rest("POST", "/rest/v1/companies", {
+          name: TEST_COMPANY_NAME,
+        });
+        expect(c.status, JSON.stringify(c.data)).toBe(201);
+        companyId = (c.data as Array<{ id: string }>)[0]!.id;
+      }
+
+      // A problem to hang the resolution off (FK target; draft status is fine —
+      // resolutions.problem_id has no status constraint).
+      const p = await rest("POST", "/rest/v1/problems", {
+        company_id: companyId,
+        kind: `${runTag}-kind`,
+        title: `${runTag}:problem`,
+        diagnosis: DIAGNOSIS,
+      });
+      expect(p.status, JSON.stringify(p.data)).toBe(201);
+      problemId = (p.data as Array<{ id: string }>)[0]!.id;
+
+      // A resolution with durability still NULL — the REVIEW is the UPDATE in
+      // the test below. action_taken/reasoning are NOT NULL per 0005.
+      const r = await rest("POST", "/rest/v1/resolutions", {
+        company_id: companyId,
+        problem_id: problemId,
+        action_taken: "integration-test action taken",
+        reasoning: "integration-test reasoning (required, not optional per 0005)",
+      });
+      expect(r.status, JSON.stringify(r.data)).toBe(201);
+      resolutionId = (r.data as Array<{ id: string }>)[0]!.id;
+    });
+
+    afterAll(async () => {
+      // §3.1 — no cleanup of events/signals (immutable by SQL rule). Problems
+      // and resolutions accumulate in the persistent test company; per §3.1
+      // past data IS past data, and each run scopes assertions to its own IDs.
+    });
+
+    it("durability='reopened' emits resolution.durability_reviewed and derives a problem_recurrence signal sourced at the problem", async () => {
+      const upd = await rest(
+        "PATCH",
+        `/rest/v1/resolutions?id=eq.${resolutionId}`,
+        {
+          durability: "reopened",
+          observed_outcome: "the problem came back within a week of the fix",
+        }
+      );
+      expect(upd.status, JSON.stringify(upd.data)).toBe(200);
+      await settle();
+
+      // Event fired with the review payload (new + previous durability, ids).
+      const ev = await rest(
+        "GET",
+        `/rest/v1/events?company_id=eq.${companyId}&kind=eq.resolution.durability_reviewed&subject=eq.resolution:${resolutionId}&select=kind,payload`
+      );
+      const evRows = ev.data as Array<{
+        kind: string;
+        payload: { durability: string; problem_id: string };
+      }>;
+      expect(evRows.length).toBe(1);
+      expect(evRows[0]!.payload.durability).toBe("reopened");
+      expect(evRows[0]!.payload.problem_id).toBe(problemId);
+
+      // Signal derived: problem_recurrence, sourced at the PROBLEM (0100 design
+      // + the 0014 substitution reading the real payload key, not 'unknown').
+      const sig = await rest(
+        "GET",
+        `/rest/v1/signals?company_id=eq.${companyId}&kind=eq.problem_recurrence&source=eq.problem:${problemId}&select=kind,source`
+      );
+      const sigRows = sig.data as Array<{ kind: string; source: string }>;
+      expect(sigRows.length).toBe(1);
+      expect(sigRows[0]!.source).toBe(`problem:${problemId}`);
+    });
+
+    it("durability='unknown' fires the review event but derives NO signal (honest empty)", async () => {
+      // Own problem + resolution so the assertion is a crisp ZERO rather than a
+      // count coupled to the prior test's side effect.
+      const p2 = await rest("POST", "/rest/v1/problems", {
+        company_id: companyId,
+        kind: `${runTag}-kind2`,
+        title: `${runTag}:problem2`,
+        diagnosis: DIAGNOSIS,
+      });
+      expect(p2.status, JSON.stringify(p2.data)).toBe(201);
+      const problemId2 = (p2.data as Array<{ id: string }>)[0]!.id;
+
+      const r2 = await rest("POST", "/rest/v1/resolutions", {
+        company_id: companyId,
+        problem_id: problemId2,
+        action_taken: "unknown-path action taken",
+        reasoning: "unknown-path reasoning (required per 0005)",
+      });
+      expect(r2.status, JSON.stringify(r2.data)).toBe(201);
+      const rid2 = (r2.data as Array<{ id: string }>)[0]!.id;
+
+      const upd = await rest("PATCH", `/rest/v1/resolutions?id=eq.${rid2}`, {
+        durability: "unknown",
+      });
+      expect(upd.status).toBe(200);
+      await settle();
+
+      // Review event SHOULD fire — it is still a review action.
+      const ev = await rest(
+        "GET",
+        `/rest/v1/events?company_id=eq.${companyId}&kind=eq.resolution.durability_reviewed&subject=eq.resolution:${rid2}&select=payload`
+      );
+      const evRows = ev.data as Array<{ payload: { durability: string } }>;
+      expect(evRows.length).toBe(1);
+      expect(evRows[0]!.payload.durability).toBe("unknown");
+
+      // ...but NO signal is derived — unknown earns nothing (no signal_source
+      // predicate matches durability='unknown'). Scoped to this fresh problem,
+      // so the honest expectation is exactly zero.
+      const sig = await rest(
+        "GET",
+        `/rest/v1/signals?company_id=eq.${companyId}&source=eq.problem:${problemId2}&select=kind`
+      );
+      expect((sig.data as Array<unknown>).length).toBe(0);
+    });
+  }
+);
+
+// ─────────────────────────────────────────────────────────────
 // §3.2 Understanding Gate — the OTHER core structural guarantee.
 //
 // Why this exists: §3.2 says a problem "may NOT be surfaced until it links to a
