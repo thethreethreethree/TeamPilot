@@ -82,4 +82,25 @@ describe("fetchCoachRubricReadout (DB-mock)", () => {
       });
     }
   });
+
+  // §3.4 honest-error-state (audit 2026-07-09): a durability READ FAILURE must
+  // NOT return empty cohorts as if there were no data — it must throw so the
+  // leadership route 500s and the page shows an honest error. Pins that the throw
+  // (and the distinction between failure and genuinely-empty above) can't regress.
+  it("THROWS on a durability read error (does not render false-empty cohorts)", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      makeSupabaseClient(
+        {
+          support_durability_checks: {
+            data: null,
+            error: { message: "connection reset" },
+          },
+        },
+        calls
+      ) as never
+    );
+    await expect(fetchCoachRubricReadout({ companyId: "co1" })).rejects.toThrow(
+      "durability read failed"
+    );
+  });
 });
