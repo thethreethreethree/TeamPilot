@@ -1,5 +1,13 @@
 # Audit — §3.4 control-window gate integrity across all AI surfaces (2026-07-09)
 
+> **§3.4 protection is now confirmed complete at all THREE layers:** (1) LOGIC —
+> `evaluateControlGate` is unit-tested (`controlGate.test.ts`, 6 cases incl.
+> fail-closed on null + malformed unlock dates); (2) ENFORCEMENT — every AI surface
+> routes company-context calls through the gated `runBrainCall`/`runBrainStream`
+> (this doc); (3) STATE — the `ai_guidance_*` columns are frozen against non-admin
+> writes (0111). No layer is unprotected.
+
+
 **Trigger:** working in the LLM layer for Experience Mode surfaced the question — `runBrainCall`/`runBrainStream` enforce the §3.4 month-1 control window (guidance OFF during the baseline month; the "honesty is the moat" rule), but **direct `llmCall`/`llmStream` callers bypass that gate**. Any diagnostic surface that reaches the model directly, when a real company is present, would violate §3.4 — the System would be guiding when it is supposed to be silently capturing a baseline.
 
 **Method (§1.2 retrospective + §1.7 ground-up):** enumerated every direct `llmCall`/`llmStream` caller and classified each as legitimately-exempt or a gate-bypass.
