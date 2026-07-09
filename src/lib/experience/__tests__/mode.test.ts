@@ -4,6 +4,7 @@ import {
   modeDirective,
   getExperienceMode,
   isExperienceMode,
+  shapeSystemPrompt,
   DEFAULT_EXPERIENCE_MODE,
 } from "../mode";
 
@@ -26,6 +27,25 @@ describe("experience mode — the per-user complexity dial (0110)", () => {
       // Must explicitly forbid dropping caveats / overstating confidence.
       expect(d).toContain("presentation only");
       expect(d).toMatch(/never omit a material caveat|simpler, not less honest/);
+    });
+  });
+
+  describe("shapeSystemPrompt (the central llmCall/llmStream injection)", () => {
+    const BASE = "You are a helpful coach. Do X.";
+
+    it("leaves the prompt UNCHANGED for expert (today's behavior)", () => {
+      expect(shapeSystemPrompt(BASE, "expert")).toBe(BASE);
+    });
+
+    it("leaves the prompt UNCHANGED when mode is undefined (a surface that didn't thread it)", () => {
+      expect(shapeSystemPrompt(BASE, undefined)).toBe(BASE);
+    });
+
+    it("APPENDS the Standard directive for standard (keeps the base prompt intact, adds shaping)", () => {
+      const out = shapeSystemPrompt(BASE, "standard");
+      expect(out.startsWith(BASE)).toBe(true); // never replaces the feature's own instructions
+      expect(out.length).toBeGreaterThan(BASE.length);
+      expect(out).toContain("STANDARD");
     });
   });
 

@@ -57,6 +57,19 @@ export function modeDirective(mode: ExperienceMode): string {
 }
 
 /**
+ * Apply a user's mode to a system prompt. The pure transform behind the central
+ * llmCall/llmStream injection (0110 Phase 2) — kept here (not in the llm module)
+ * so it's co-located with modeDirective and unit-testable without mocking any
+ * provider. Expert / undefined → returned unchanged (directive is "").
+ */
+export function shapeSystemPrompt(
+  systemPrompt: string,
+  mode: ExperienceMode | undefined
+): string {
+  return systemPrompt + modeDirective(mode ?? "expert");
+}
+
+/**
  * Server-side read of a user's Experience Mode from their profile. Prompt
  * builders call this with the acting user's id + a supabase client. Fails safe
  * to the default (standard) on any error/missing row — the same posture as the

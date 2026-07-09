@@ -20,6 +20,14 @@ export type LlmCallArgs = {
   maxTokens?: number;
   /** Pass true when the caller wants raw text rather than parsed JSON. */
   expectJson?: boolean;
+  /**
+   * The acting user's Experience Mode (0110). When 'standard', llmCall/llmStream
+   * append modeDirective() to the system prompt centrally, so EVERY AI surface
+   * simplifies consistently (§A16). Omitted / 'expert' → no change (today's
+   * behavior). This is the single point where the Standard/Expert dial reshapes
+   * AI output; callers thread the user's mode in rather than editing prompts.
+   */
+  experienceMode?: import("../experience/mode").ExperienceMode;
 };
 
 /**

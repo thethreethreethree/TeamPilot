@@ -4,8 +4,25 @@ import { deepseekProvider } from "./deepseek";
 import { anthropicProvider } from "./anthropic";
 import { LlmError } from "./errors";
 import type { LlmCallArgs, LlmResult, Provider } from "./types";
+import { shapeSystemPrompt } from "@/lib/experience/mode";
 
 export * from "./types";
+
+/**
+ * Experience Mode injection (0110, Phase 2). The SINGLE point where the
+ * Standard/Expert dial reshapes AI output: shapeSystemPrompt() appends the
+ * Standard directive for every call that carries the user's mode. Expert / unset
+ * → unchanged (today's behavior). Because both llmCall and llmStream funnel
+ * through here, a Standard user gets consistent simplification across EVERY
+ * surface that threads its mode (§A16). A surface that doesn't thread it stays
+ * Expert-verbose — the honest bound of this approach, tracked per-surface in
+ * Phase 2's threading pass.
+ */
+function withModeDirective(args: LlmCallArgs): LlmCallArgs {
+  const shaped = shapeSystemPrompt(args.systemPrompt, args.experienceMode);
+  if (shaped === args.systemPrompt) return args;
+  return { ...args, systemPrompt: shaped };
+}
 
 /**
  * Provider selection.
@@ -81,8 +98,9 @@ export function shouldCascade(err: unknown): boolean {
  */
 export async function llmCall(args: LlmCallArgs): Promise<LlmResult> {
   const provider = chooseProvider();
+  const shaped = withModeDirective(args);
   try {
-    return await provider.call(args);
+    return await provider.call(shaped);
   } catch (err) {
     if (shouldCascade(err)) {
       const fallback = otherProvider(provider);
@@ -91,7 +109,7 @@ export async function llmCall(args: LlmCallArgs): Promise<LlmResult> {
         console.warn(
           `[llm] primary provider ${provider.name} failed (${(err as LlmError).kind}); cascading to ${fallback.name}.`
         );
-        return await fallback.call(args);
+        return await fallback.call(shaped);
       }
     }
     throw err;
@@ -106,12 +124,13 @@ export async function llmCall(args: LlmCallArgs): Promise<LlmResult> {
  */
 export async function* llmStream(args: LlmCallArgs): AsyncIterable<string> {
   const provider = chooseProvider();
+  const shaped = withModeDirective(args);
   try {
     if (provider.stream) {
-      yield* provider.stream(args);
+      yield* provider.stream(shaped);
       return;
     }
-    const r = await provider.call(args);
+    const r = await provider.call(shaped);
     yield r.text;
   } catch (err) {
     if (shouldCascade(err)) {
@@ -122,10 +141,10 @@ export async function* llmStream(args: LlmCallArgs): AsyncIterable<string> {
           `[llm] primary stream ${provider.name} failed (${(err as LlmError).kind}); cascading to ${fallback.name}.`
         );
         if (fallback.stream) {
-          yield* fallback.stream(args);
+          yield* fallback.stream(shaped);
           return;
         }
-        const r = await fallback.call(args);
+        const r = await fallback.call(shaped);
         yield r.text;
         return;
       }
