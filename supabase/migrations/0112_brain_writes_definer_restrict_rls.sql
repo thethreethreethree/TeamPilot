@@ -11,6 +11,9 @@
 -- cycle (record_brain_learning writes), (3) confirmed the brain still composes into AI
 -- calls. See docs/AUDIT-2026-07-09-brain-injection.md for the full framing.
 --
+-- AFTER applying (before the behavioral test), run the shape verifier:
+--   docs/closures/2026-07-09-item12-0112-staging-verification.sql  (read-only, PASS/FAIL per object).
+--
 -- ─────────────────────────────────────────────────────────────────────────────
 -- THE FINDING (verified from source 2026-07-09)
 -- ─────────────────────────────────────────────────────────────────────────────
