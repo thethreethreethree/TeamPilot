@@ -148,13 +148,18 @@ disclaims agreement). **But nothing in CI verifies they STAY.** `npm run check` 
 tsc/lint/theme/rls-coverage/tests — NOT the DB triggers/rules that enforce these invariants.
 A future migration that drops the gate trigger or an immutability rule would pass green while
 silently removing a constitutional guarantee (the §5 "builder drops a protection under
-pressure" risk, at the schema level). The proper fix is infra (yours): get
-`chain.integration.test.ts` (currently skipped — needs a live DB) running against a CI test
-DB, OR extend `scripts/rls-audit.mjs` into a "constitutional-invariant presence + not-dropped"
-check (create/drop-order-aware — a naive grep would false-green on a later DROP). Both are
-real work I can build on your word; flagging rather than building because the CI-DB path is
-an infrastructure decision and the audit-script path carries a false-positive-breaks-green
-risk I won't take autonomously.
+pressure" risk, at the schema level). **Good news — the test already exists and is
+comprehensive.** Verified 2026-07-09: `chain.integration.test.ts` has THREE env-gated blocks
+that already assert all three invariant classes — §3.1 chain derivation (events→signals),
+§3.2 gate (blocked without evidence / allowed at threshold), and §3.1 immutability (UPDATE +
+DELETE are silent no-ops, tested on events AND signals independently so a drop of either
+rule is caught). So the fix is PURE INFRA, no test-authoring: run this suite against a live
+DB in CI (set `EXECOS_INTEGRATION_TEST=1` + `NEXT_PUBLIC_SUPABASE_URL` +
+`SUPABASE_SERVICE_ROLE_KEY`). That single step fully closes the gap — it turns "the
+invariants are verified today" into "the invariants are verified on every push." (The
+alternative — a create/drop-order-aware check in `rls-audit.mjs` — carries a
+false-positive-breaks-green risk I won't take autonomously and is unnecessary given the
+integration suite already exists.)
 
 ## Verified clean this session (no action needed — recorded for confidence)
 - **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
