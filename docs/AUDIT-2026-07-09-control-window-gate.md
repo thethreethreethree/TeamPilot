@@ -17,4 +17,22 @@
 
 **Conclusion:** no AI surface reaches the model directly when a real company is present — the §3.4 baseline-capture guarantee cannot be silently violated by a bypass. This is a clean bound (per §A29 a clean sweep is a real result) on a class critical to the product's core thesis. A future §1.7 audit can diff against it: the invariant to preserve is *every company-context AI call goes through `runBrainCall`/`runBrainStream`; a new direct `llmCall` in a company-context path is a §3.4 regression.*
 
+## Sibling audit — the gate STATE (write side) — found a real gap → 0111
+
+Enforcement (above) is clean, but the READ is only half. The gate STATE lives on
+`companies.ai_guidance_enabled / ai_guidance_unlock_at / ai_guidance_enabled_at`.
+Who can WRITE it? The intended unlock (`/api/brain/unlock`) is correctly
+admin-gated ("only CEO/COO/admin can unlock the §3.4 control window — a
+constitutional override"). But the RLS `company - update` policy (0095) is
+`using/with check (id = auth_company_id())` — company-scoped, NOT role-scoped —
+so ANY member can bypass that gate with a direct PostgREST
+`UPDATE companies SET ai_guidance_enabled = true` and turn guidance ON during the
+control month, defeating the §3.4 baseline (the single-variable experiment that
+makes Month-2 improvement attributable to the method). Same route-gated-but-
+RLS-open class as 0089/0090, on the product's CORE honesty control. The settings
+PATCH is safe (ai_guidance_* not in ALLOWED_FIELDS) — the hole is direct-RLS only.
+**Fixed: `0111` — a BEFORE UPDATE guard trigger freezing the ai_guidance_* columns
+for authenticated non-admin writers (mirrors guard_profile_privileged_columns);
+the admin unlock still passes, matching the route gate.** UNAPPLIED.
+
 **Bearing:** §3.4 (honesty is the moat / no-instant-results), §1.7 (ground-up audit), §A29 (clean sweep bounds a class). Verified from source 2026-07-09.
