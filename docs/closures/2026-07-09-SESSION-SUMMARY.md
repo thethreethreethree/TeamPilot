@@ -443,6 +443,15 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   `screenshot.png` → allowed. Gate green (512 tests). *Coverage honesty:* the underlying block is
   unit-tested and the routes now pass filename, but "the route passes filename" isn't itself
   route-tested (no route harness) — verified by reading + tsc.
+- **Voice endpoints (STT/TTS, public, cost-abuse-sensitive) verified sound — completes the
+  public-surface sweep (2026-07-09).** Both token-gated (x-care-session → conversation), rate-
+  limited, and input-bounded: TTS text ≤2000 chars @ 30/min; STT audio ≤2MB @ 8/min. STT was
+  ALREADY hardened against the vendor-cost-abuse vector by a prior A21 audit (10MB→2MB, 30→8/min,
+  documented in-route: "Scribe bills per minute; a single request could cost real money"). The
+  per-instance rate-limit weakness is the already-flagged item 7. **Public attack surface now
+  swept end-to-end:** widget messages IDOR ✓, file access IDOR+access_role ✓, upload mime-spoof
+  ⇒ FIXED, inbound email spoofing ✓, TTS ✓, STT ✓. One real defect (upload) found + fixed; the
+  rest sound with defense-in-depth.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
