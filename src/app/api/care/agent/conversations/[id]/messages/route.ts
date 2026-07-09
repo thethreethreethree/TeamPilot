@@ -103,10 +103,17 @@ export async function POST(
         agentSent: body.body,
       });
     } catch (e) {
-      if (process.env.NODE_ENV !== "production") {
-        // eslint-disable-next-line no-console
-        console.warn("[care] co-pilot edit capture failed", e);
-      }
+      // §3.6 observability (audit 2026-07-09): this captures the agent's edit of an
+      // AI Co-Pilot draft — the corpus that TEACHES the Co-Pilot the company's voice
+      // (§3.5 learning). A silent prod failure = the learning degrades INVISIBLY, the
+      // exact anti-§3.6 shape. Log in ALL environments (was dev-only), matching this
+      // codebase's push-sender / loop-breaker discipline. Non-fatal: the agent's reply
+      // already landed; only the training capture missed.
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care] co-pilot edit capture failed conv=${id}:`,
+        e instanceof Error ? e.message : e
+      );
     }
   }
 
