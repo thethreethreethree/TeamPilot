@@ -136,5 +136,27 @@ work is therefore mostly render-layer (Phase 3), not prompt-layer.
 - **`ask-jeff`**: left at FULL detail. It's the explicit "teach me more" drill-in invoked from Learning Mode — simplifying it fights its purpose (§A17). Override if you want it simplified too.
 - **The two coach drill-ins (`coach/sales-session/ask-coach`, `dissect/ask-coach`)**: same class as ask-jeff — the agent actively asks the coach to explain something, so a Standard agent might want *either* a simpler answer (thread the mode) *or* the full teaching depth the drill-in exists to give (leave as-is, like ask-jeff). Currently unthreaded (full). Both are ephemeral agent-facing prose (verified: return prose, store nothing), so if you want them simplified the fix is a one-line `experienceMode` thread each (like summarize), NOT a render-layer change. Your call — I did not thread them blind because "simplify a drill-in the agent chose to open" is a genuine §A17 judgment, not a mechanical gap.
 
+## Scope boundary — deliberately NOT threaded (not gaps) (2026-07-09)
+
+Experience Mode's central injection makes it *architecturally global* (any surface that
+threads its mode simplifies), but the founder scoped *application* to **C.A.R.E + Sales
+Coach**. So these prose surfaces are unthreaded ON PURPOSE — future scope, not defects.
+Recorded so a later audit doesn't re-flag them as missing (A26 honest boundary):
+
+- **Team chat — `chat/formulate`, `chat/guide`, `chat/summarize`** (verified unthreaded,
+  ephemeral prose). `formulate`/`guide` are the **communication coach** (§3.5's
+  differentiated metric) — the most significant deferred surface; when the founder scopes
+  Experience Mode into team chat, each is a one-line `experienceMode` thread (same as
+  summarize). Deferred, architecturally ready.
+- **Executive briefing — `ai/briefing/stream`** + **`chat/similar`**: structured/JSON
+  output (strict-JSON daily questions / similarity), so they simplify at the RENDER layer
+  per the ephemeral-vs-stored rule, never by a generation thread. Not a prose-thread
+  candidate at all.
+
+The full 8-caller `generateCareReply` enumeration + these direct `runBrain*`/`llm*`
+callers were swept 2026-07-09; within the C.A.R.E+Sales-Coach scope, every ephemeral
+agent-facing prose surface is now either threaded (summarize) or flagged as a founder
+decision (ask-jeff + the 2 coach drill-ins above). Nothing in-scope is silently unhandled.
+
 ## Commits (2026-07-09)
 `b2e5b7b` foundation · `bfa5449` central injection · `d5dbe08` shared-helper plumbing · `9d8966b` JSON-safety + summarize · `6b127d2` toggle ×3 · `be00e35` AdvancedDetail primitive.
