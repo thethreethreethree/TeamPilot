@@ -1,12 +1,26 @@
 # Session summary — 2026-07-09 (single entry point)
 
 Everything built/fixed today, and the exact decisions + retests waiting on you.
-Gate green throughout: tsc 0, lint 0, next build 0, **512 tests**. All committed + pushed.
+Gate green throughout: tsc 0, lint 0, next build 0, **533 tests** (+13 gated integration cases).
+All committed + pushed.
 Later-session continuation added: `0100` (§3.1 resolutions loop) + its integration test; the brain
 §1.1 upgrade (learns from reopened/partial, not just held) + its unit test; a real security FIX
 (care upload mime-spoof, both routes) + test; the §3.4 control-gate ENFORCEMENT test; and a
 full audit sweep of the §3 constitutional core, the public attack surface, and §7 governance —
 all verified sound (details in "Verified clean"). New decisions surfaced: 6b / 6c / 6d.
+
+**Final continuation — a complete four-verb authz audit + a UI silent-failure sweep.** Anchored on
+the events actor-spoof fix, a verb-by-verb RE-sweep found SIX write/delete gaps the 2026-07-07
+audit had missed → **migrations `0101`–`0108`** (author-spoof at events/messages/resolutions/
+support_resolutions; tenant-key push-out at resolutions/notification_subscriptions/care_agent_state;
+and the HIGH one — `problems`, the §3.1 chain's centre, was member-deletable and CASCADE-wiped its
+resolutions past 0094 → `0108`). SELECT (cross-tenant read) re-verified 0-suspects; A25 identity/
+cardinality bounded clean. Then an AMD-006 pass on the team surface + an A29 sweep of the UI
+`if(res.ok){…}`-no-else class fixed **9 user-facing silent-failure bugs** (already live — no apply
+needed). Shipped a per-env post-apply verification SQL script and integration-test coverage for the
+0108 rules. New decisions surfaced: **10 (team_members delete scope) / 11 (decisions delete scope)**.
+Full through-lines below under "Verified clean"; the migration apply order + verification script are
+in the MIGRATION APPLY CHECKLIST.
 
 ---
 ## ⇒ WHAT NEEDS YOU (read this first; detail below)
@@ -88,8 +102,14 @@ got observability logs rather than a throw. **The whole readout error-handling c
 The only *runtime-unverified* bit is the assetReadout error banner render (new UI, pattern-matched
 from the leadership page; happy path unchanged + gate-verified) — worth a glance on a failed load.
 
+10. **`team_members` delete scope** — any member (not just admin) can remove a teammate. Admin-only? [y/n — my rec: yes]
+11. **`decisions` delete scope** — a decision outcome is deletable by any member. Owner/admin-only? [y/n]
+
 **Apply (I can't, headless):** migrations `0098`, `0099`, `0100` (closes the resolutions §3.1 loop),
-`0101` + `0102` (the two RLS UPDATE WITH-CHECK gaps below); confirm `0085`/`0086`/`0095`–`0097` applied.
+then the full authz queue **`0101`–`0108`** (four-verb boundary — see the MIGRATION APPLY CHECKLIST
+for order + why-if-skipped; **`0108`** is load-bearing — `problems` cascade-deletes resolutions past
+0094). **After applying, run** `docs/closures/2026-07-09-authz-apply-verification.sql` per-env (PASS/FAIL
+per fix). Confirm `0085`/`0086`/`0095`–`0097` applied.
 **Confirm in prod:** vendor company id is your real vendor + `0089` live; set server VAPID env vars
 (+ REBUILD — see the push item: the public key is build-inlined).
 ### ⚙ ENV-VAR ACTIVATION MAP (what's code-complete but DORMANT until you configure it)
@@ -866,7 +886,7 @@ inert." Correct framing for prioritizing it.
    app layer, say so and I'll add a once-only DB write-guard; otherwise 0100's record-every-change
    is the more §3.1-faithful choice and I'd leave it.
 
-5. **`team_members` delete scope** (surfaced by the DELETE-side sweep). Any company MEMBER — not
+10. **`team_members` delete scope** (surfaced by the DELETE-side sweep). Any company MEMBER — not
    just an admin — can delete a `team_members` row (the `team_members - all` policy is
    company-scoped, not role-scoped). Its natural comparison, `profile_departments`, correctly gates
    delete to `role in ('CEO','COO','admin')`. Question: should removing a teammate be admin-only?
@@ -874,7 +894,7 @@ inert." Correct framing for prioritizing it.
    role-scoped delete policy in one migration. If member self-removal is intended, it stays. Not
    changed unilaterally — it's your permission model (§2/§3.3).
 
-6. **`decisions` delete scope.** A decision outcome row is deletable by any company member (same
+11. **`decisions` delete scope.** A decision outcome row is deletable by any company member (same
    company-scoped `for all`). Unlike the §3.1 chain tables, `decisions` is a mutable entity with a
    real delete path (`decisions/route.ts:103`), so it's correctly NOT append-only-frozen — but the
    delete is company-wide, not owner/admin-only. Question: should deleting a decision be restricted
