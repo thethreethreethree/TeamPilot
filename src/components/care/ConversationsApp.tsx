@@ -39,6 +39,7 @@ import { FileDropzone } from "@/components/files/FileDropzone";
 import { InlineAttachment } from "@/components/files/InlineAttachment";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { AdvancedDetail } from "@/components/experience/AdvancedDetail";
+import { ExpertOnly } from "@/components/experience/ExpertOnly";
 import Modal from "@/components/ui/Modal";
 import { CoachDebriefCard } from "@/components/coach/CoachDebriefCard";
 import type { CoachDebrief } from "@/lib/coach/v5/types";
@@ -3557,10 +3558,12 @@ function SummarizeCarePanel({
           <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
             {summary}
           </p>
-          <p className="text-[10px] text-muted italic mt-3">
-            §3.3 — this is the System&apos;s read, not a verdict.
-            Confirm or correct it against the conversation itself.
-          </p>
+          <ExpertOnly>
+            <p className="text-[10px] text-muted italic mt-3">
+              §3.3 — this is the System&apos;s read, not a verdict.
+              Confirm or correct it against the conversation itself.
+            </p>
+          </ExpertOnly>
           {/* Experience Mode Standard (0110, Phase 3 render-layer): the summary
               above is the PRIMARY read (generation-simplified for Standard). The
               "prior similar" panel is SUPPLEMENTARY institutional context (§3.6) —
