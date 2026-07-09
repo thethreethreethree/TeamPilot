@@ -1,11 +1,11 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- Post-apply verification for the 2026-07-09 authz queue (migrations 0101–0108).
+-- Post-apply verification for the 2026-07-09 authz queue (migrations 0101–0108 + 0111).
 --
 -- WHY THIS EXISTS (verification discipline / feedback_migration_coupling_no_assert):
 -- "Never assert a migration is applied without per-env verification." rls-audit
 -- (static, scans the migration FILES) cannot see whether a given DATABASE actually
 -- has these objects. Run this script IN EACH ENVIRONMENT (Supabase SQL editor →
--- your prod/staging project) AFTER applying 0101–0108. Every row should read PASS.
+-- your prod/staging project) AFTER applying 0101–0108 + 0111. Every row should read PASS.
 -- Any FAIL means that migration did not land in this environment — apply it.
 --
 -- Read-only: this script only SELECTs from the catalog. Safe to run any time.
@@ -83,6 +83,15 @@ with checks(migration, fix, passed) as (
   union all select '0108', 'company_brain_no_delete rule exists',
     exists (select 1 from pg_rules
             where tablename = 'company_brain' and rulename = 'company_brain_no_delete')
+
+  -- 0111 — §3.4 control-window columns (companies.ai_guidance_*) frozen vs non-admin
+  union all select '0111', 'companies_guard_guidance trigger exists',
+    exists (select 1 from pg_trigger
+            where tgname = 'companies_guard_guidance' and not tgisinternal)
+  union all select '0111', 'guard_company_guidance_columns freezes ai_guidance_enabled',
+    exists (select 1 from pg_proc
+            where proname = 'guard_company_guidance_columns'
+              and prosrc ilike '%ai_guidance_enabled%')
 )
 select
   migration,
