@@ -510,6 +510,13 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
    Should the live-coaching + upload controls be OWNER-only and (for the live panel)
    ACTIVE-session-only, leaving managers/ended-sessions the review tools? Fix ready
    (isOwner UI wrap + `agentId → 403` on the 2 routes + status-gate the live panel).
+   **Verified 2026-07-09 — premise + fix confirmed, and SEVERITY calibrated for you:** the
+   upload-recording route authenticates + company-scopes but has NO owner check — `getSession(id)`
+   succeeds for any same-company reader (RLS is company-scoped), so a manager CAN upload to a rep's
+   session. This is a same-company manager WRITE (they already have READ access), so it's a
+   data-integrity/gating question — a non-owner write pollutes the rep's session and thus their ELO
+   — NOT a cross-tenant leak. Legitimate to decide, not urgent. The `agentId → 403` fix is exact
+   (`session.agentId !== auth.user.id`); one word and I apply it.
 4. **Resolution review — write-once column vs appended event** (§3.1 architecture).
    FIXED the immediate defect this session (a68ce70): the review UI promised "you don't
    edit prior reviews" but the API had no write-once guard and did an in-place UPDATE —
