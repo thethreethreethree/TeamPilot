@@ -198,6 +198,22 @@ Redis/Upstash-backed rate limit (the code comment already names it) — a focuse
 do on your word; it needs an operator decision (which store) + env config, so flagging not
 building.
 
+## Finding: PostgREST 1000-row truncation on unbounded child queries (analytics wrong at scale)
+A26 sweep of the row-cap class I fixed in `getCueRelianceSeries` this session (silent 1000-row
+default cap → undercounted metric). Found another instance: the **care cohort/durability
+analytics** (`care.ts` ~1552) reads `support_messages` for the durability cohort's
+conversations with NO `.limit()` — while its PARENT check query HAS `.limit(5000)`. So the
+parent allows up to 5000 conversations but the child truncates their agent-messages at 1000;
+conversations whose messages fall past the cap default to "ungraded" (line 1568), MIS-classifying
+them → wrong v5/v6/ungraded durability cohort readout for a busy support desk. The limit was
+applied to the parent but MISSED on the child (incomplete fix). **Sibling analytics `.in()`
+child queries** (care.ts ~1719/1821/2260, assetReadout ~108/151/173/208) likely share the
+pattern — not each traced (30+ `.in()` sites; most are bounded by small company-scoped parents,
+so a full trace is high-false-positive). **Same profile as rate-limit:** correct at current
+low volume, wrong at scale. **Fix (your call on the bound):** add an explicit `.limit()` +
+truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
+Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
+
 ## Verified clean this session (no action needed — recorded for confidence)
 - **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
   event kind against every emitter across the app: all match. No manager-facing coach
