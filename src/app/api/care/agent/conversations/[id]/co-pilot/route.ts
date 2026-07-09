@@ -29,6 +29,10 @@ import { requireCareAgent } from "@/lib/api/careAgentAuth";
  * The agent reviews the draft, edits as needed, and sends through
  * the normal agent reply endpoint.
  */
+// LLM route: allow a longer LLM/stream budget than Vercel's short default (class-swept
+// 2026-07-09 — 50e4ba1 declared maxDuration on finalize/summarize only; this closes the class).
+export const maxDuration = 60;
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }

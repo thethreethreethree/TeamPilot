@@ -32,6 +32,10 @@ import { transcribeSpeech } from "@/lib/care/voice/elevenlabs";
 // legitimate use).
 const STT_MAX_BYTES = 2 * 1024 * 1024;
 
+// LLM route: allow a longer LLM/stream budget than Vercel's short default (class-swept
+// 2026-07-09 — 50e4ba1 declared maxDuration on finalize/summarize only; this closes the class).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
     id: "care-stt",

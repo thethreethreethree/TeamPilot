@@ -23,6 +23,10 @@ import { LlmError } from "@/lib/llm/errors";
 const FIELDS_SELECT =
   "id, company_id, topic_id, opened_by, opened_at, phase, situation, user_diagnosis, user_proposal, system_response, chosen_path, chosen_note, decided_at, persisted_decision_id, updated_at";
 
+// LLM route: allow a longer LLM/stream budget than Vercel's short default (class-swept
+// 2026-07-09 — 50e4ba1 declared maxDuration on finalize/summarize only; this closes the class).
+export const maxDuration = 60;
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

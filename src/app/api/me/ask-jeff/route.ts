@@ -74,6 +74,10 @@ Operating rules (these are non-negotiable):
 
 Output format: plain prose, no markdown headers, no bullet points unless a comparison genuinely needs them. Write as a thoughtful peer.`;
 
+// LLM route: allow a longer LLM/stream budget than Vercel's short default (class-swept
+// 2026-07-09 — 50e4ba1 declared maxDuration on finalize/summarize only; this closes the class).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
     id: "ask-jeff",
