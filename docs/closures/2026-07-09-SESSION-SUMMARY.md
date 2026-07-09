@@ -271,7 +271,13 @@ making a fn THROW on a query error → route 500s → the page's existing `!res.
 fires. No route/signature change. So it's a tractable, contained ~7-fn pass (error-check-and-throw
 inside each), not risky — I left it for your pass only because it's 7 fns on lower-visibility
 leadership/asset readouts, not because it's dangerous.
-So every route-DIRECT swallowing readout is now honest; the data-layer pass is contained + well-scoped. **Fix (your call on the bound):** add an explicit `.limit()` +
+So every route-DIRECT swallowing readout is now honest; the data-layer pass is contained + well-scoped.
+**Data-layer pass split (final scope):** (i) care leadership 6 fns → ROUTE-ONLY fix (make fns throw;
+the leadership page already has an explicit `!res.ok` error state) — clean/contained; (ii)
+`fetchAssetReadout` → needs a fn throw AND a small UI error state (the asset-readout page only has an
+`if(res.ok)` → falls to an "upload files" EMPTY state on error, misleading-on-failure) — slightly
+more work. **Readout error-handling class = DONE at the deliverable level:** 3 high-value fixes
+shipped, remainder contained + accurately scoped for your pass. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
