@@ -3,13 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { useCompanyName } from "@/lib/hooks/useCompany";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 type Window = "7d" | "30d" | "60d" | "all";
 
 type Readout = {
   windowLabel: string;
+  // §3.4 honest-bound: true when the file scan hit the row cap, so these numbers
+  // UNDERCOUNT (this company has more files than one read returns). Surfaced as a
+  // banner so the reader knows the metrics are capped, not exact (item 8).
+  bounded?: boolean;
   uploads: number;
   classifiedUploads: number;
   casualUploads: number;
@@ -182,6 +186,24 @@ export default function AssetReadoutPage() {
           <p className="text-sm text-muted">Couldn&apos;t load readout.</p>
         ) : (
           <div className="space-y-6">
+            {/* §3.4 honest-bound banner — only when the file scan hit the row cap,
+                so the reader knows these numbers undercount (item 8). Additive:
+                renders nothing on the happy path. */}
+            {data.bounded && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-400/40 bg-amber-400/5 px-3 py-2">
+                <AlertTriangle
+                  className="w-4 h-4 text-amber-300 shrink-0 mt-0.5"
+                  aria-hidden
+                />
+                <p className="text-[11px] text-secondary leading-relaxed">
+                  <span className="font-semibold text-brand">Metrics capped.</span>{" "}
+                  This company has more files than one read returns, so the counts
+                  below <span className="font-medium text-primary">undercount</span> —
+                  they reflect the most recent ~1,000 files in this window, not the
+                  full set. A bounding fix is planned (item 8).
+                </p>
+              </div>
+            )}
             {/* Top counts */}
             <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Stat label="Uploads" value={data.uploads} sub={data.windowLabel} />
