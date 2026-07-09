@@ -670,6 +670,15 @@ inert." Correct framing for prioritizing it.
   table accounted for; 0101's "sole sibling" claim was premature — corrected in 0102). **Note the
   §3.5 through-line:** coaching_sessions/agent_id (here) + `outcome` (item 3) are BOTH ELO-integrity
   gaps — if you care about rating integrity, apply 0102 and gate `outcome` (item 3) together.
+- **§3.5 ELO-integrity class swept to its THREE inputs (A29, 2026-07-09).** The ELO
+  (`getAgentEloGames`) reads three things attributed to an agent — I swept all three: (1)
+  `coaching_sessions` (agent_id + outcome) → 0102 + item 3; (2) `after_pitch_summaries` (graded
+  scores) → already SAFE (INSERT is owner-scoped `agent_id = auth.uid()`, 0080); (3) `events`
+  (`coach.dissect_generated` by actor) → **0103** — the events INSERT policy had no actor
+  constraint, so a member could attribute a FABRICATED dissect to a victim and skew their rating
+  (and, more broadly, inject actor-spoofed §3.1/brain events). So rating integrity is now closed at
+  every input: apply **0102 + 0103** and gate **`outcome`** (item 3), and no member can move
+  another rep's ELO.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
@@ -771,6 +780,7 @@ these are the enforcement/feature migrations whose *applied-state* I can't see f
 | `0100` | resolution durability → event emission | **closes the resolutions half of the §3.1 loop** (missed deadlines/reopens don't signal) |
 | `0101` | task_steps UPDATE `WITH CHECK` | task_step tenant-key push-out (MED) |
 | `0102` | coaching_sessions UPDATE `WITH CHECK` | **ELO integrity — owner can reassign agent_id to skew a peer's rating** |
+| `0103` | events INSERT actor guard (self-or-null) | **ELO + §3.1 + brain integrity — a member can attribute FABRICATED events to a victim (spoof a dissect → skew their ELO; inject false chain events)** |
 
 **Plus (env, not migrations):** `CRON_SECRET` (activates the §3.5 durability sweep — dormant without
 it), VAPID×3 + REBUILD (push delivery), and the optional channels — see the ENV-VAR ACTIVATION MAP up top.
