@@ -1689,13 +1689,19 @@ export async function fetchVoiceValueReadout(args: {
     Date.now() - windowDays * 24 * 60 * 60 * 1000
   ).toISOString();
 
-  const { data: checks } = await sb
+  const { data: checks, error: eChecks } = await sb
     .from("support_durability_checks")
     .select("conversation_id, outcome")
     .eq("company_id", args.companyId)
     .not("outcome", "is", null)
     .gte("checked_at", since)
     .limit(5000);
+  // §3.4 honest-error-state: headline read — throw on failure so the leadership
+  // route 500s (no try/catch on its Promise.all) instead of falling through to a
+  // false "no data" empty readout.
+  if (eChecks) {
+    throw new Error(`care voice-value readout: durability read failed — ${eChecks.message}`);
+  }
 
   type CheckRow = {
     conversation_id: string;
