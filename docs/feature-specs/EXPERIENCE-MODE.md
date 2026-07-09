@@ -50,7 +50,7 @@ A **single system with a per-user complexity dial**, NOT two parallel apps (two 
 | mode.ts (+13 unit tests) | ✅ | n/a (pure) |
 | route GET/PATCH | tsc/lint + **9 handler tests** | ❌ never hit live, BUT the DB write-path is **source-verified**: the 0090/0091 profiles guard is a blacklist (freezes only role/company_id/sales_coach_role/is_support_agent) so `experience_mode` passes, and RLS self-update is the same path Learning Mode uses in prod |
 | provider | tsc/lint | ❌ never rendered |
-| central LLM injection + JSON guard | ✅ (pure-transform tests) | ❌ no live LLM call |
+| central LLM injection + JSON guard | ✅ pure-transform tests **+ 6 injection integration tests** (llmCall/llmStream append the directive for Standard prose; don't for JSON/expert/unset; providers mocked) | ❌ no *real provider* call / live prompt |
 | summarize threaded (1st prose surface) | tsc/lint | ❌ no live prompt |
 | AdvancedDetail | tsc/lint/theme | ❌ no component-test harness in repo |
 | toggle panel ×3 | tsc/lint/theme | ❌ never clicked |
