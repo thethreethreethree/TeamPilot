@@ -38,6 +38,7 @@ import {
 import { FileDropzone } from "@/components/files/FileDropzone";
 import { InlineAttachment } from "@/components/files/InlineAttachment";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { AdvancedDetail } from "@/components/experience/AdvancedDetail";
 import Modal from "@/components/ui/Modal";
 import { CoachDebriefCard } from "@/components/coach/CoachDebriefCard";
 import type { CoachDebrief } from "@/lib/coach/v5/types";
@@ -3560,7 +3561,20 @@ function SummarizeCarePanel({
             §3.3 — this is the System&apos;s read, not a verdict.
             Confirm or correct it against the conversation itself.
           </p>
+          {/* Experience Mode Standard (0110, Phase 3 render-layer): the summary
+              above is the PRIMARY read (generation-simplified for Standard). The
+              "prior similar" panel is SUPPLEMENTARY institutional context (§3.6) —
+              a Standard agent doesn't need it up front, so collapse it behind a
+              one-click reveal. Non-destructive: Expert sees it inline exactly as
+              before; Standard sees it one click away, never removed. UNTESTED at
+              runtime (0110 unapplied — needs founder live review of this surface). */}
           {priorSimilar.length > 0 && (
+            <AdvancedDetail
+              className="mt-3"
+              label={`Show ${priorSimilar.length} related past case${
+                priorSimilar.length > 1 ? "s" : ""
+              }`}
+            >
             <div className="mt-4 pt-3 border-t border-default">
               <p className="text-xs uppercase tracking-widest text-muted font-bold mb-2">
                 We&apos;ve handled this kind of issue before
@@ -3586,6 +3600,7 @@ function SummarizeCarePanel({
                 reply.
               </p>
             </div>
+            </AdvancedDetail>
           )}
         </>
       )}
