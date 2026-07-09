@@ -34,7 +34,8 @@ security definer
 set search_path = public
 as $$
 declare
-  v_task tasks%rowtype;
+  v_task     tasks%rowtype;
+  v_event_id uuid;
 begin
   select * into v_task from tasks where id = p_task_id;
   if v_task.id is null then
@@ -71,7 +72,16 @@ begin
       'days_overdue', (current_date - v_task.due_date)
     ),
     now()
-  );
+  )
+  returning id into v_event_id;
+
+  -- CRITICAL: events do NOT auto-derive signals — there is no trigger on the
+  -- events table. Every emitter explicitly derives (0006 task emitters, 0012 chat
+  -- emitters all `perform derive_signals_for_event`). Without this call the event
+  -- is emitted but the `task_slipped` signal (signal_sources 0005:103) never
+  -- materializes — the whole point of the sweep. (The durability emitter omits
+  -- this only because its notification event has NO signal_source; ours does.)
+  perform derive_signals_for_event(v_event_id);
 end;
 $$;
 

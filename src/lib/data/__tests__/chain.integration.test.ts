@@ -182,6 +182,52 @@ describe.skipIf(!enabled || !SUPABASE_URL || !SERVICE_KEY)(
       expect(sigRows[0]!.source).toBe(`chat_message:${messageId}`);
     });
 
+    it("path C — an overdue open task, swept, emits task.overran_due_date AND derives task_slipped (item 9)", async () => {
+      // A task already past due and not completed — the deadline-slip case the
+      // core product was blind to. run_task_overrun_sweep (0109) is the emitter.
+      const tk = await rest("POST", "/rest/v1/tasks", {
+        company_id: companyId,
+        title: `${runTag}:overdue task`,
+        due_date: "2020-01-01",
+        status: "In Progress",
+      });
+      expect(tk.status, JSON.stringify(tk.data)).toBe(201);
+      const taskId = (tk.data as Array<{ id: string }>)[0]!.id;
+
+      const sweep = await rest("POST", "/rest/v1/rpc/run_task_overrun_sweep", {
+        p_limit: 500,
+      });
+      expect(sweep.status, JSON.stringify(sweep.data)).toBe(200);
+      await settle();
+
+      // The slip event must exist...
+      const ev = await rest(
+        "GET",
+        `/rest/v1/events?company_id=eq.${companyId}&kind=eq.task.overran_due_date&subject=eq.task:${taskId}&select=kind,subject`
+      );
+      expect((ev.data as unknown[]).length).toBe(1);
+
+      // ...AND the task_slipped signal must be DERIVED. This assertion is the one
+      // that fails if emit_task_overran_event forgets `derive_signals_for_event`
+      // (events don't auto-derive) — i.e. it guards the exact half-built bug.
+      const sig = await rest(
+        "GET",
+        `/rest/v1/signals?company_id=eq.${companyId}&kind=eq.task_slipped&source=eq.task:${taskId}&select=kind,source`
+      );
+      const sigRows = sig.data as Array<{ kind: string; source: string }>;
+      expect(sigRows.length).toBe(1);
+      expect(sigRows[0]!.source).toBe(`task:${taskId}`);
+
+      // Idempotent: a second sweep emits no duplicate slip for the same task.
+      await rest("POST", "/rest/v1/rpc/run_task_overrun_sweep", { p_limit: 500 });
+      await settle();
+      const ev2 = await rest(
+        "GET",
+        `/rest/v1/events?company_id=eq.${companyId}&kind=eq.task.overran_due_date&subject=eq.task:${taskId}&select=id`
+      );
+      expect((ev2.data as unknown[]).length).toBe(1);
+    });
+
     it("path B — close_durability='held' emits chat.topic_durability_reviewed and derives resolution_held signal", async () => {
       const upd = await rest(
         "PATCH",
