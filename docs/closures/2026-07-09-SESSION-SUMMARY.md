@@ -690,6 +690,14 @@ inert." Correct framing for prioritizing it.
    (`outcome`, `decision`, `upload-recording`, `label-transcript`) with the same `agentId → 403`. My
    rec: at minimum gate `outcome` owner-only regardless (ELO integrity shouldn't be manager-writable
    without an explicit "manager correction" flow); the rest are your call.
+   **Severity re-calibrated (verified 2026-07-09):** NOT a silent hole — `setSessionOutcome` emits
+   `coach.session_outcome_recorded` with `actor: <setter>`, so a manager setting an outcome is AUDITED
+   (the event names who did it). And the UI already shows the control to viewing managers (item 3's
+   premise), so this is an EXISTING capability, not a new exposure. That reframes it: the decision is
+   permission-model ("should managers be able to set/correct a rep's outcome?"), not close-a-breach.
+   So it's genuinely your call, not urgent — but if the answer is "no," `outcome` is the one to gate
+   first (it moves the ELO). My build stays flagged, not applied, because gating REMOVES a current
+   manager capability.
 4. **Resolution review — write-once column vs appended event** (§3.1 architecture).
    FIXED the immediate defect this session (a68ce70): the review UI promised "you don't
    edit prior reviews" but the API had no write-once guard and did an in-place UPDATE —
