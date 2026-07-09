@@ -261,9 +261,17 @@ sessions read error so the stats hide instead of showing false zeros).
 (b) `coach/sales-session/team-analytics` — **already honest** (uses `if (res.error) degraded=true`
 → `{degraded:true}`, UI handles it). Was mis-listed as unfixed from a grep that missed the
 `res.error` pattern; reading the code corrected it. NOT a bug.
-(c) DATA-LAYER (the remaining scheduled propagation pass): care.ts analytics, assetReadout —
-these swallow in the data-layer fns, need a shared-signature-aware pass, your call.
-So every route-DIRECT swallowing readout is now honest; only the data-layer pass remains. **Fix (your call on the bound):** add an explicit `.limit()` +
+(c) DATA-LAYER (the remaining pass): care.ts analytics (6 fns: fetchCoachRubric/Voice/CoPilot/
+Routing/Sla/PatternResolution → all called ONLY by `care/leadership/readouts`), assetReadout
+(`fetchAssetReadout` → only `admin/asset-readout`). **CORRECTED (2026-07-09): NOT shared-signature-
+risky — each fn has EXACTLY ONE caller (verified), so it's CONTAINED.** My earlier "shared-signature"
+reason was wrong (asserted without checking — the verify-don't-assume trap on my own flag). Clean
+approach: the leadership route calls the 6 fns via `await Promise.all(...)` with NO try/catch, so
+making a fn THROW on a query error → route 500s → the page's existing `!res.ok` honest-error state
+fires. No route/signature change. So it's a tractable, contained ~7-fn pass (error-check-and-throw
+inside each), not risky — I left it for your pass only because it's 7 fns on lower-visibility
+leadership/asset readouts, not because it's dangerous.
+So every route-DIRECT swallowing readout is now honest; the data-layer pass is contained + well-scoped. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
