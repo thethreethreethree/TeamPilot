@@ -2942,8 +2942,17 @@ function Composer({
           from. Surfaced so the agent can verify they're real cases and
           judge whether the System's generalization is fair (§3.3). Per
           TT.md A21 audit MED fix (2026-06-18). */}
-      <ExpertOnly>
-        {aiPrecedents.length > 0 && (
+      {/* §3.6 make-learning-visible (the precedents the co-pilot drew on) — a
+          Standard user still gets it, ONE CLICK away, never fully hidden (self-audit
+          2026-07-10: §3.6 content uses AdvancedDetail, not ExpertOnly, so Standard
+          doesn't lose the evidence the System is learning). Expert shows it inline. */}
+      {aiPrecedents.length > 0 && (
+        <AdvancedDetail
+          className="mb-2"
+          label={`Show ${aiPrecedents.length} precedent${
+            aiPrecedents.length === 1 ? "" : "s"
+          } the co-pilot drew on`}
+        >
           <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.02] text-[11px] text-arc-300 leading-relaxed">
             <p className="font-semibold mb-1">
               Drew on {aiPrecedents.length} past resolution
@@ -2962,8 +2971,8 @@ function Composer({
               ))}
             </ul>
           </div>
-        )}
-      </ExpertOnly>
+        </AdvancedDetail>
+      )}
       <div className="flex items-end gap-2">
         <textarea
           ref={composerRef}
