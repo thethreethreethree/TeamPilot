@@ -679,6 +679,17 @@ inert." Correct framing for prioritizing it.
   (and, more broadly, inject actor-spoofed §3.1/brain events). So rating integrity is now closed at
   every input: apply **0102 + 0103** and gate **`outcome`** (item 3), and no member can move
   another rep's ELO.
+- **Author-spoof class extended to the message tables (A29, 2026-07-09) → 0104.** 0103's
+  fix (constrain the authorship column WHERE it's written) is a class, not a one-off. Sweeping
+  it found the same shape at `chat_messages` and `support_messages`: the INSERT check gated the
+  *caller* (participant / agent) but not that `author_id` is the caller, so a topic participant
+  could post a message under a **co-worker's name** (impersonation, and chat feeds §3.1 + the
+  brain), and an agent could post as a peer. Subtlety worth noting: 0103 *transitively* blocks
+  the chat spoof for event-emitting kinds (the emit trigger is INVOKER and stamps the event
+  actor from author_id, so it rolls back) — but `kind='system'` returns before emit and slips
+  past, and the transitive cover evaporates if 0103 is unapplied or the trigger is switched to
+  DEFINER. 0104 validates author_id at the row's own table (§1.5 defense-in-depth). **Apply 0103
+  then 0104.**
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
@@ -781,6 +792,7 @@ these are the enforcement/feature migrations whose *applied-state* I can't see f
 | `0101` | task_steps UPDATE `WITH CHECK` | task_step tenant-key push-out (MED) |
 | `0102` | coaching_sessions UPDATE `WITH CHECK` | **ELO integrity — owner can reassign agent_id to skew a peer's rating** |
 | `0103` | events INSERT actor guard (self-or-null) | **ELO + §3.1 + brain integrity — a member can attribute FABRICATED events to a victim (spoof a dissect → skew their ELO; inject false chain events)** |
+| `0104` | chat_messages + support_messages INSERT `author_id` self-or-null (row-level twin of 0103) | **impersonation — any topic participant can post a message under a co-worker's name (feeds §3.1 + brain); an agent can post as a peer. 0103 only transitively blocks the event-emitting kinds; `kind='system'` slips past it — apply 0103 THEN 0104** |
 
 **Plus (env, not migrations):** `CRON_SECRET` (activates the §3.5 durability sweep — dormant without
 it), VAPID×3 + REBUILD (push delivery), and the optional channels — see the ENV-VAR ACTIVATION MAP up top.
