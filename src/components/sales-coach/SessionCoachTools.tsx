@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { ExpertOnly } from "@/components/experience/ExpertOnly";
 import {
   PivotAndScores,
   type PivotMoment,
@@ -234,16 +235,18 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
               <p className="text-sm font-semibold text-primary">
                 {dissect.standoutStrategy.name}
               </p>
-              {dissect.standoutStrategy.example && (
-                <p className="text-xs text-secondary italic mt-1">
-                  &ldquo;{dissect.standoutStrategy.example}&rdquo;
-                </p>
-              )}
-              {dissect.standoutStrategy.why && (
-                <p className="text-xs text-secondary mt-1">
-                  {dissect.standoutStrategy.why}
-                </p>
-              )}
+              <ExpertOnly>
+                {dissect.standoutStrategy.example && (
+                  <p className="text-xs text-secondary italic mt-1">
+                    &ldquo;{dissect.standoutStrategy.example}&rdquo;
+                  </p>
+                )}
+                {dissect.standoutStrategy.why && (
+                  <p className="text-xs text-secondary mt-1">
+                    {dissect.standoutStrategy.why}
+                  </p>
+                )}
+              </ExpertOnly>
             </div>
           )}
 
@@ -256,14 +259,20 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
                 {dissect.strengths.map((s, i) => (
                   <div key={i} className="text-xs">
                     <p className="text-primary font-medium">{s.point}</p>
-                    {s.example && (
-                      <p className="text-muted italic mt-0.5">
-                        &ldquo;{s.example}&rdquo;
-                      </p>
-                    )}
-                    {s.why && (
-                      <p className="text-secondary mt-0.5">{s.why}</p>
-                    )}
+                    {/* Standard (0110): the point is the takeaway; the quote +
+                        reasoning are the "explanation" the founder asked to
+                        simplify away. Expert sees them; Standard sees just the
+                        point. Switch to Expert for the full dissect. */}
+                    <ExpertOnly>
+                      {s.example && (
+                        <p className="text-muted italic mt-0.5">
+                          &ldquo;{s.example}&rdquo;
+                        </p>
+                      )}
+                      {s.why && (
+                        <p className="text-secondary mt-0.5">{s.why}</p>
+                      )}
+                    </ExpertOnly>
                   </div>
                 ))}
               </div>
@@ -284,7 +293,9 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
                         <span className="text-brand">Try next:</span> {g.nextStep}
                       </p>
                     )}
-                    {g.why && <p className="text-muted mt-0.5">{g.why}</p>}
+                    <ExpertOnly>
+                      {g.why && <p className="text-muted mt-0.5">{g.why}</p>}
+                    </ExpertOnly>
                   </div>
                 ))}
               </div>
