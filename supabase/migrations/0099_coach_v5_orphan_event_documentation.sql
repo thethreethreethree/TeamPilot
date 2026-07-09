@@ -19,6 +19,12 @@
 --     no-op, and a later real (enabled=true) mapping for any pair will correctly
 --     conflict-fail rather than silently coexist with a disabled marker.
 --
+-- SCOPE: the same 2026-07-09 sweep that found the Coach v5 orphans also checked
+-- every other namespace emitting into `events` (asset.*, decision.*, mention.*).
+-- asset.* and decision.* are already fully documented (0026 + the asset migrations);
+-- the ONLY other undocumented chain orphan was `mention.created`, folded in at the
+-- end of this migration so one file closes the whole post-0026 orphan set.
+--
 -- NOTE (founder review): the §4 questions below are DRAFTED from each event's
 -- evident purpose + the constitution's measurement framing (§3.5 consequence,
 -- §A11 mirror-not-verdict, §A18 owner-privacy, §3.3 guide-don't-overtake). They
@@ -136,6 +142,15 @@ insert into signal_sources (event_kind, signal_kind, source_template, notes, ena
    'coach_session_outcome_deferred',
    'sales_session:${payload.outcome}',
    'Deferred per A4. §4 question: the outcome already drives the 2026-07-09 interaction-flags as a per-session column read; does it ALSO belong as a SIGNAL feeding the diagnosis chain — a rep''s no_sale STREAK → problem.opened? The flags surface it per-session; the open question is per-rep-trajectory, which is a different derivation.',
+   false)
+on conflict (event_kind, signal_kind) do nothing;
+
+-- ─── Non-coach post-0026 orphan (same sweep) ──────────────────
+insert into signal_sources (event_kind, signal_kind, source_template, notes, enabled) values
+  ('mention.created',
+   'mention_created_deferred',
+   'user:${payload.target_user_id}',
+   'Deferred per A4. §4 question: does INBOUND @-mention volume on a person proxy a coordination bottleneck / key-person dependency — i.e., work routing THROUGH one individual (an over-centralization signal the System exists to diagnose) — vs ordinary collaboration? The subject is the source (message/task); the candidate signal keys on payload.target_user_id''s inbound rate over time. Held until a per-person inbound-mention baseline exists to distinguish "central" from "overloaded."',
    false)
 on conflict (event_kind, signal_kind) do nothing;
 

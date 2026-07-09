@@ -80,6 +80,10 @@ to fix. Wrote **`0099`** adding an `enabled=FALSE` signal_sources row for each, 
   consequence, §A11 mirror, §A18 owner-privacy, §3.3 guide-don't-overtake). Edit any before
   applying if the intended question differs — applying as-is is safe.
 - **Answers Checklist #9** (last ground-up audit + open flags) for the newest subsystem.
+- **Comprehensive:** the same sweep checked EVERY namespace emitting into `events`
+  (asset.*, decision.*, mention.*). asset.* + decision.* are already documented; the only
+  other undocumented orphan was `mention.created` (folded into 0099). So 0099 closes the
+  WHOLE post-0026 orphan set, not just coach — the §1.7 orphan audit is now current.
 - **Founder action:** review the drafted §4 questions, then apply 0099 (idempotent — on
   conflict do nothing). This is the §1.7 legibility fix, not a functional one.
 
