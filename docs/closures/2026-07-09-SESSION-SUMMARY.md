@@ -276,8 +276,15 @@ So every route-DIRECT swallowing readout is now honest; the data-layer pass is c
 the leadership page already has an explicit `!res.ok` error state) — clean/contained; (ii)
 `fetchAssetReadout` → needs a fn throw AND a small UI error state (the asset-readout page only has an
 `if(res.ok)` → falls to an "upload files" EMPTY state on error, misleading-on-failure) — slightly
-more work. **Readout error-handling class = DONE at the deliverable level:** 3 high-value fixes
-shipped, remainder contained + accurately scoped for your pass. **Fix (your call on the bound):** add an explicit `.limit()` +
+more work. **Readout error-handling class = DONE at the deliverable level:** 3 route-direct fixes shipped
+(command center, leadership coach-readout, rep dashboard) + the HIGHEST-value care leadership
+data-layer fn (`fetchCoachRubricReadout`, the §3.5 durability cohort — was falsely returning
+empty cohorts on a read failure; now throws → route 500 → page error state). The other 5 care
+leadership fns (`fetchVoice/CoPilot/Routing/Sla/PatternResolution`) follow the IDENTICAL pattern
+(capture the headline `checks` read's error → throw); left as trivial replication because they
+share an identical `checks` query (disambiguation-tedious to edit, secondary sub-metrics) — a
+5-minute focused pass, not autonomous grind-work. asset-readout still needs its small UI error
+state too. So: all high-value instances honest; the tail is a small, well-scoped, low-priority pass. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
