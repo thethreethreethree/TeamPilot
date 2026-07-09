@@ -66,6 +66,19 @@ or confirmed sound.
    Should the live-coaching + upload controls be OWNER-only and (for the live panel)
    ACTIVE-session-only, leaving managers/ended-sessions the review tools? Fix ready
    (isOwner UI wrap + `agentId → 403` on the 2 routes + status-gate the live panel).
+4. **Resolution review — write-once column vs appended event** (§3.1 architecture).
+   FIXED the immediate defect this session (a68ce70): the review UI promised "you don't
+   edit prior reviews" but the API had no write-once guard and did an in-place UPDATE —
+   any same-company caller could silently overwrite `durability` (the §3.5 metric). Now
+   enforced write-once (409 on re-review) + label corrected + a conscious durability
+   choice required (was defaulting to "unknown", a hasty-Save footgun under write-once).
+   **Your decision — the deeper one I did NOT make:** the review is still stored as a
+   *mutable-once column*, not an appended event. A genuine §3.1 reading says the measured
+   consequence should be an **event** in the immutable chain (so durability-over-time is
+   replayable, and the review joins `events → signals → problems → resolutions → events`
+   properly). Want me to event-source the resolution review (emit a `resolution.reviewed`
+   event alongside the write), or is write-once-column the intended denormalization? One
+   sentence and I'll build it.
 
 ## Migrations to apply (founder — I can't verify applied-state headless)
 This session added **`0098`** (team_invitations partial-unique index — dedup + no
