@@ -65,7 +65,7 @@ path's validation.** Two instances:
 | `events` (coach.dissect_generated, actor=self) | INSERT (0103, no kind constraint) | own coaching dissects → self-inflate ELO | MED |
 | `after_pitch_summaries` (agent_id=self) | INSERT (0080, owner-scoped) | own pitch scores → self-inflate ELO | MED |
 | `coaching_sessions` (agent_id=self) | INSERT (0082, correctly owner-scoped) | own sessions → self-inflate ELO | MED |
-| `brain_evolution_events` | INSERT (for-all, company) | fake brain "learning" audit entries (§3.1 audit forgery) | MED |
+| `brain_evolution_events` | INSERT only (for-all, but no-update+no-delete rules from 0007:103/105 hold) | can ADD fake "learning" audit entries; CANNOT erase/tamper real ones (append-only is intact) | LOW-MED |
 
 All five share the root cause and the remediation. 0102/0103 closed the CROSS-actor
 paths (can't fabricate for OTHERS); this is the SELF/company residual (fabricate your
