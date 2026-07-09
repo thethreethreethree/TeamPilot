@@ -1798,13 +1798,18 @@ export async function fetchCoPilotValueReadout(args: {
     Date.now() - windowDays * 24 * 60 * 60 * 1000
   ).toISOString();
 
-  const { data: checks } = await sb
+  const { data: checks, error: eChecks } = await sb
     .from("support_durability_checks")
     .select("conversation_id, outcome")
     .eq("company_id", args.companyId)
     .not("outcome", "is", null)
     .gte("checked_at", since)
     .limit(5000);
+  // §3.4 honest-error-state: headline read — throw on failure (leadership route
+  // 500s via its no-try/catch Promise.all) instead of a false empty readout.
+  if (eChecks) {
+    throw new Error(`care co-pilot-value readout: durability read failed — ${eChecks.message}`);
+  }
 
   type CheckRow = {
     conversation_id: string;
