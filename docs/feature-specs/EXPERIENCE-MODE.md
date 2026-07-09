@@ -198,8 +198,11 @@ is a constitutional tension** — §3.6 says the System must surface evidence it
 hiding it entirely (vs one-click-away) under-serves that. **Recommendation (for the founder's
 treatment decision):** §3.6 content (precedents, prior cases, "what the System drew on") should
 use `AdvancedDetail` (one-click, same screen), NOT `ExpertOnly` (hidden). Pure reasoning/why
-elaboration can stay `ExpertOnly`. Flagged, not unilaterally changed — it's part of the global
-hide-vs-collapse call the founder is making.
+elaboration can stay `ExpertOnly`. **RESOLVED for §3.6 content (commit bc07128):** aiPrecedents
+→ `AdvancedDetail` (one-click), now consistent with priorSimilar; both §3.6 precedent displays
+are one-click-away in Standard, never fully hidden. The reasoning/why/citation fields stay
+`ExpertOnly` pending the founder's global hide-vs-one-click call (that call is now scoped to
+PURE reasoning, since §3.6 content is settled on constitutional grounds).
 
 **First-pass sweep COMPLETE for the clear-safe supplementary targets** (2026-07-10). The
 consistent rule applied: keep the PRIMARY content (the score, the read, the draft, the
