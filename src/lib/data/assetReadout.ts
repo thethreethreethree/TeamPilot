@@ -36,6 +36,14 @@ export type AssetReadoutWindow = "7d" | "30d" | "60d" | "all";
 export type AssetReadout = {
   windowLabel: string;
   windowStartIso: string | null;
+  // §3.4 honest-bound (2026-07-09): true when the file scan hit the PostgREST
+  // row cap, i.e. this company has MORE files than one read returns, so every
+  // count + retrieval metric below is COMPUTED OVER A CAPPED SUBSET and
+  // undercounts. Surface it so the readout can say "capped" rather than show a
+  // silently-wrong number (the full fix — pagination or DB-side aggregation — is
+  // the founder's row-bound decision, closure item 8). Same posture as the
+  // durabilitySweep `bounded` flag.
+  bounded: boolean;
   // Counts
   uploads: number;
   classifiedUploads: number;
@@ -96,6 +104,18 @@ export async function fetchAssetReadout(
   }
   const fileList = files ?? [];
   const fileIds = fileList.map((f) => f.id as string);
+
+  // §3.4 honest-bound: PostgREST caps an unbounded select (default max-rows=1000).
+  // If we got a full page, the company has more files than one read returns and
+  // every metric below undercounts — flag it rather than report a silent wrong count.
+  const FILE_SCAN_CAP = 1000;
+  const bounded = fileList.length >= FILE_SCAN_CAP;
+  if (bounded) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[assetReadout] file scan hit the ${FILE_SCAN_CAP}-row cap — metrics are computed over a CAPPED subset and undercount. Full fix (pagination / DB-side aggregation) is the row-bound decision (closure item 8).`
+    );
+  }
 
   const uploads = fileList.length;
   const classifiedUploads = fileList.filter(
@@ -243,6 +263,7 @@ export async function fetchAssetReadout(
   return {
     windowLabel,
     windowStartIso: startIso,
+    bounded,
     uploads,
     classifiedUploads,
     casualUploads,
