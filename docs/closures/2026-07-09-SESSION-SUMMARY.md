@@ -678,6 +678,18 @@ inert." Correct framing for prioritizing it.
    data-integrity/gating question — a non-owner write pollutes the rep's session and thus their ELO
    — NOT a cross-tenant leak. Legitimate to decide, not urgent. The `agentId → 403` fix is exact
    (`session.agentId !== auth.user.id`); one word and I apply it.
+   **CLASS EXPANDED (A29 sweep, 2026-07-09 — item 3 named too few routes):** the owner-only precedent
+   is `finalize` + `transcript-append` (both explicitly gate `session.agentId !== auth.user.id → 403`,
+   NOT trusting the RLS read). The SELECT RLS is owner+admin+**manager** (0084), so EVERY session-write
+   route that relies on "RLS read = access check" lets a manager/admin write to a rep's session. The
+   full class (not just upload-recording/label-transcript): **`outcome` is the HIGH-consequence sibling
+   item 3 MISSED — a manager/admin can SET another rep's call outcome (sold/no_sale), which is HALF the
+   ELO game score → directly skews that rep's rating (§3.5 integrity).** `decision` is lower (it inserts
+   an event attributed to the actor's own id). So decide the class ONCE: should session writes be
+   owner-only (matching finalize/transcript-append) or manager-allowed? If owner-only, I gate all four
+   (`outcome`, `decision`, `upload-recording`, `label-transcript`) with the same `agentId → 403`. My
+   rec: at minimum gate `outcome` owner-only regardless (ELO integrity shouldn't be manager-writable
+   without an explicit "manager correction" flow); the rest are your call.
 4. **Resolution review — write-once column vs appended event** (§3.1 architecture).
    FIXED the immediate defect this session (a68ce70): the review UI promised "you don't
    edit prior reviews" but the API had no write-once guard and did an in-place UPDATE —
