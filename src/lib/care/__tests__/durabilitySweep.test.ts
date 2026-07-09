@@ -36,7 +36,7 @@ describe("sweepDurabilityChecks — §3.5 due-check sweep", () => {
 
     const res = await sweepDurabilityChecks();
 
-    expect(res).toMatchObject({ ok: true, scanned: 2, emittedAttempts: 2 });
+    expect(res).toMatchObject({ ok: true, scanned: 2, emittedAttempts: 2, bounded: false });
     // THE FIFO fix: ordered by scheduled_for ASC so a >500 backlog can't starve the
     // oldest checks. If this ever drops, old due checks silently never get swept.
     expect(
@@ -74,6 +74,18 @@ describe("sweepDurabilityChecks — §3.5 due-check sweep", () => {
     const res = await sweepDurabilityChecks();
     expect(res.scanned).toBe(2);
     expect(res.emittedAttempts).toBe(1);
+  });
+
+  it("sets bounded=true when the run hits the scan cap (§3.4 honest-bound — a backlog exists)", async () => {
+    // A full page (>= DUE_SCAN_LIMIT=500) means there may be more due than one run
+    // processes. bounded must surface it so a silent cap can't read as "all done."
+    const fullPage = Array.from({ length: 500 }, (_, i) => ({ id: `k${i}` }));
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeSupabaseClient({ support_durability_checks: { data: fullPage } }, calls) as never
+    );
+    const res = await sweepDurabilityChecks();
+    expect(res.scanned).toBe(500);
+    expect(res.bounded).toBe(true);
   });
 
   it("THROWS on a read error (not a silent empty sweep)", async () => {
