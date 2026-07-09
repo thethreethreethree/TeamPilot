@@ -717,6 +717,17 @@ inert." Correct framing for prioritizing it.
   against it. This is the concrete payoff of the A26 addendum's refinement #1 (check every
   candidate against ALL open classes): sweeping author-spoof surfaced a tenant-key gap, which
   surfaced a whole under-verified class boundary.
+- **DELETE-side authz class swept to boundary (2026-07-09) → 0108 + 2 founder flags.** The two
+  UPDATE-side misses (0105/0107) made the 2026-07-07 audit's DELETE-side completeness suspect, so
+  I swept every `for delete` / `for all` policy (for-all grants delete too). Boundary: most tables
+  are safe via a `do instead nothing` rule, no delete policy (default-deny), or correct company/
+  owner scoping. **One HIGH breach fixed (0108):** `problems` — the §3.1 chain's centre — was the
+  only chain link without a no-delete rule, and its ON DELETE CASCADE children (resolutions,
+  problem_signals) meant a member deleting a problem wiped its resolutions THROUGH the cascade,
+  defeating resolutions_no_delete (0094). Plus `company_brain` (member-deletable learned-model
+  singleton). Two suspects were correctly EXCLUDED from the fix by intent, not pattern: `decisions`
+  has a real delete path (mutable entity, not append-only) and `team_members` delete is a
+  permission choice — both surfaced as founder decisions below rather than unilaterally changed.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
@@ -799,6 +810,21 @@ inert." Correct framing for prioritizing it.
    app layer, say so and I'll add a once-only DB write-guard; otherwise 0100's record-every-change
    is the more §3.1-faithful choice and I'd leave it.
 
+5. **`team_members` delete scope** (surfaced by the DELETE-side sweep). Any company MEMBER — not
+   just an admin — can delete a `team_members` row (the `team_members - all` policy is
+   company-scoped, not role-scoped). Its natural comparison, `profile_departments`, correctly gates
+   delete to `role in ('CEO','COO','admin')`. Question: should removing a teammate be admin-only?
+   If yes (my recommendation — it aligns with 558ce56's admin-mediated removal), I'll add a
+   role-scoped delete policy in one migration. If member self-removal is intended, it stays. Not
+   changed unilaterally — it's your permission model (§2/§3.3).
+
+6. **`decisions` delete scope.** A decision outcome row is deletable by any company member (same
+   company-scoped `for all`). Unlike the §3.1 chain tables, `decisions` is a mutable entity with a
+   real delete path (`decisions/route.ts:103`), so it's correctly NOT append-only-frozen — but the
+   delete is company-wide, not owner/admin-only. Question: should deleting a decision be restricted
+   to its author or an admin? One-line policy change if yes; left as-is if collaborative delete is
+   intended.
+
 ## ⚙ MIGRATION APPLY CHECKLIST (founder — I can't verify applied-state headless; CONFIRM each, apply if pending)
 The COMPLETE documented-pending set, in order. Apply the whole set — a partial apply leaves the
 corresponding protection/feature dormant. `npm run rls:audit` is green (all tables covered-or-documented);
@@ -823,6 +849,7 @@ these are the enforcement/feature migrations whose *applied-state* I can't see f
 | `0105` | resolutions: split for-all policy + INSERT `decided_by`/`reviewer` self-or-null + freeze decided_by/company_id/problem_id | **resolutions was exposed in BOTH swept classes at once — a member could fabricate/reattribute a resolution decision to a colleague (`decided_by` spoof → pollutes §3.1 + brain + §3.5 durability) AND relocate a resolution cross-tenant (`company_id` mutable). Immutability trigger froze only action/reasoning/decided_at** |
 | `0106` | support_resolutions INSERT `captured_by` self-or-null | care-side sibling — an agent could capture a resolution attributed to a peer (skews the peer's captured-history/stats in the care brain). MED-LOW; completes the author-spoof class |
 | `0107` | tenant-key push-out residuals: pin `notification_subscriptions.company_id` + freeze `care_agent_state.company_id` | re-sweep of the 0095/0101/0102 class found 2 tables still let a member relocate their own row cross-tenant (notification_subscriptions owner-update; care_agent_state self-update — 0095 froze the wrong columns). Completes the tenant-key push-out class boundary (38 tables verified safe) |
+| `0108` | §3.1 immutability: no-delete rules on `problems` + `company_brain` | **HIGH — a member could `DELETE` a problem, and its ON DELETE CASCADE children (resolutions, problem_signals) get wiped, DEFEATING resolutions_no_delete (0094) via the cascade back door — the §3.1 chain's centre was the one link without a no-delete rule. company_brain (the learned-model singleton) was likewise member-deletable** |
 
 **Plus (env, not migrations):** `CRON_SECRET` (activates the §3.5 durability sweep — dormant without
 it), VAPID×3 + REBUILD (push delivery), and the optional channels — see the ENV-VAR ACTIVATION MAP up top.
