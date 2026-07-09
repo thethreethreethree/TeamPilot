@@ -3,6 +3,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import CommandPalette from "@/components/layout/CommandPalette";
 import { ToastProvider } from "@/components/ui/toast";
 import { LearningModeProvider } from "@/components/learning/LearningModeProvider";
+import { ExperienceModeProvider } from "@/components/experience/ExperienceModeProvider";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import { AskJeffPanel } from "@/components/learning/AskJeffPanel";
 import { redirect } from "next/navigation";
@@ -75,6 +76,7 @@ export default async function DashboardLayout({
   return (
     <ToastProvider>
       <LearningModeProvider>
+       <ExperienceModeProvider>
         <div className="flex min-h-screen bg-base overflow-x-hidden">
           {/* Skip-to-content link for keyboard / screen-reader users.
               Hidden by default; appears in the top-left when focused
@@ -105,6 +107,7 @@ export default async function DashboardLayout({
               Jeff what this does" button is clicked. */}
           <AskJeffPanel />
         </div>
+       </ExperienceModeProvider>
       </LearningModeProvider>
     </ToastProvider>
   );
