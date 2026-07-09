@@ -42,6 +42,29 @@ A **single system with a per-user complexity dial**, NOT two parallel apps (two 
 **Layer 4 — toggle**
 - `ExperienceModePanel` — Standard/Expert selector, mounted in main Settings + Sales Coach settings + C.A.R.E settings. Copy is §A8/§A18-disciplined (a growth choice, not a "lite version").
 
+### Composition with Learning Mode (AMD-006 layer-3 synergetic trace, 2026-07-09)
+
+The obvious composition worry: Experience Mode Standard = *less* teaching, Learning
+Mode = *more* teaching — do the two per-user dials contradict (§A16)? **Traced from the
+code; they compose cleanly, no conflict.** They operate on different objects:
+
+- **Learning Mode** (`LearningHint`, gated by `useLearningMode().shouldRender`) is a
+  client-side, **opt-in, hover-triggered** overlay teaching about the **product's UI
+  features** (meta-level: "what is this Dissect?"). It is dormant until the user turns it
+  on and hovers. It does **not** touch LLM prompts.
+- **Experience Mode** Standard simplifies **AI-generated content** length (object-level:
+  the answer itself) + (future) collapses advanced detail.
+
+A Standard user who *also* enables Learning Mode is coherently asking "give me simple AI
+answers, but let me hover-learn the product" — orthogonal concerns, both opt-in, no
+silent fight. The one soft edge — the pulsing hint outlines add visual load, against
+Standard's reduce-load intent — is gated behind the user's **own explicit** opt-in to
+Learning Mode, so it's a chosen combination, not an automatic contradiction. When the
+render-layer lands: a collapsed advanced element that carries a `LearningHint` simply
+reveals both the detail and its hint on the one-click expand (the §A17 valve) — still
+coherent. **No remediation needed; recorded so the composition question is closed, not
+re-litigated.**
+
 ## Build status (honest)
 
 | Piece | Static-verified (tsc/lint/unit/theme) | Runtime-verified |
