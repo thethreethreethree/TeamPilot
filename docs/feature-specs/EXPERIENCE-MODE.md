@@ -74,7 +74,7 @@ re-litigated.**
 | route GET/PATCH | tsc/lint + **9 handler tests** | ❌ never hit live, BUT the DB write-path is **source-verified**: the 0090/0091 profiles guard is a blacklist (freezes only role/company_id/sales_coach_role/is_support_agent) so `experience_mode` passes, and RLS self-update is the same path Learning Mode uses in prod |
 | provider | tsc/lint | ❌ never rendered |
 | central LLM injection + JSON guard | ✅ pure-transform tests **+ 6 injection integration tests** (llmCall/llmStream append the directive for Standard prose; don't for JSON/expert/unset; providers mocked) | ❌ no *real provider* call / live prompt |
-| summarize threaded (1st prose surface) | tsc/lint | ❌ no live prompt |
+| summarize threaded (1st prose surface) | tsc/lint + **thread source-verified end-to-end (2026-07-09)**: route:111 `getExperienceMode(sb, agentId)` → :116 `generateCareReply` → claude.ts:634 `call({experienceMode, expectJson:false})` → call:40 companyId→brain branch → :46-48 forwards both → `runBrainCall`:304 → `llmCall` → `shapeSystemPrompt(prompt,"standard",{expectJson:false})` → guard doesn't fire → Standard directive appended. Every hop confirmed from source | ❌ no live prompt — the WIRING is verified; the remaining unknowns are the live mode-read + the real provider honoring the directive (the founder's smoke-test step 3) |
 | AdvancedDetail | tsc/lint/theme | ❌ no component-test harness in repo |
 | toggle panel ×3 | tsc/lint/theme | ❌ never clicked |
 
