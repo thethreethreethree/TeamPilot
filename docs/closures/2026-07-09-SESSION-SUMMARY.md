@@ -238,7 +238,15 @@ surface unavailable" (the list-route/sessions-page pattern). Backend-only, no UI
 unchanged (error-gate only fires on a real query error); gate green. Runtime-unverified only for
 the failure render, which reuses an existing proven UI path. STILL FLAGGED: the OTHER readouts
 (care analytics, assetReadout) error-swallowing + the truncation/bounding across all — lower
-visibility (internal analytics), same fix pattern, your call on scheduling.** **Fix (your call on the bound):** add an explicit `.limit()` +
+visibility (internal analytics), same fix pattern, your call on scheduling.**
+**Fix-scope clarified (2026-07-09):** the consuming UIs are mostly ALREADY error-ready — the
+care leadership page (`if (!res.ok)` → "Could not load"), the sessions page (`degraded`), and
+now the command center all render an honest failure state. The gap is the **data-layer**
+functions (care.ts analytics) swallowing errors before they reach the UI. So the remaining fix
+is a focused DATA-LAYER error-propagation pass (make the analytics fns signal read failures →
+routes return non-ok → the existing UI error states fire), NOT UI work. More tractable than it
+sounded — but it changes shared data-layer signatures (other-caller risk), so it's scheduled,
+not autonomous. The command-center fix was clean-and-done because that route queries directly. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
