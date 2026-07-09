@@ -384,6 +384,19 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   would have broken demo mode — the reason to verify intent before "fixing." *Very-low-severity
   note (not a §3.4 hole):* such a companyless-but-authed real-mode user can drive the model
   ungated; the auth gate + per-route rate limit bound the cost. Optional hardening only.
+- **§3.6 "Make Learning Visible" verified — richly implemented (content), one depth-note on
+  surfacing (2026-07-09).** The `/dashboard/brain` page is a genuine §3.6 surface: brain VERSION
+  progression, a `LearningVisibleSection` (chain growth vs prior week — real deepening evidence),
+  the validated-methods / disabled-suggestions / known-patterns contents, the injected addendum,
+  and an EVOLUTION AUDIT TRAIL where each entry shows `v{before} → v{after}` + the learned claim +
+  reasoning + timestamp — exactly §3.6's "catches it would have missed earlier, references to its
+  own deepening model." **Depth-note (NOT a violation — a UX judgment for you):** that section is
+  mounted ONLY on `/dashboard/brain`, i.e. visible ON-DEMAND, not proactively surfaced where users
+  look daily. §3.6 stresses "continuous adaptation the user CANNOT PERCEIVE is indistinguishable
+  from stagnation," so a navigate-to page is a legitimate-but-not-maximal reading of "periodically
+  surface." *Optional enhancement (my rec):* a small dashboard glance-card ("brain reached v3 this
+  week · +2 patterns" → links to /brain) so users perceive the deepening without navigating. I did
+  NOT build it — the proactive-surfacing shape is a product/UX decision.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
