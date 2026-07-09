@@ -61,6 +61,9 @@ type TeamPresence = {
 type TeamSnapshot = {
   companyId: string;
   windowDays: number;
+  // §3.4 honest-bound (item 8): true when a growth read hit the row cap → the
+  // counts below undercount. Surfaced as a banner so the leader knows they're capped.
+  bounded?: boolean;
   agentCount: number;
   resolutions: number;
   durabilityHeld: number;
@@ -198,6 +201,24 @@ export default function CareLeadershipPage() {
 
         {snap && (
           <>
+            {/* §3.4 honest-bound banner — only when a growth read hit the row cap,
+                so the leader reads the counts as capped, not exact (item 8).
+                Additive: renders nothing on the happy path. */}
+            {snap.bounded && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-400/40 bg-amber-400/5 px-3 py-2">
+                <TriangleAlert
+                  className="w-4 h-4 text-amber-300 shrink-0 mt-0.5"
+                  aria-hidden
+                />
+                <p className="text-[11px] text-secondary leading-relaxed">
+                  <span className="font-semibold text-brand">Metrics capped.</span>{" "}
+                  The team has more records this window than one read returns, so
+                  the counts below{" "}
+                  <span className="font-medium text-primary">undercount</span>. A
+                  bounding fix is planned (item 8).
+                </p>
+              </div>
+            )}
             {/* §A10 + §A18 structural preamble */}
             <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
               <ShieldCheck
