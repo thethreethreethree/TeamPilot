@@ -68,6 +68,21 @@ swept every class — auth, rate-limiting, input-validation, §A18, false-ok wri
 quote-grounding, concurrency, migration-coupling, silent-mutation-failure — each fixed
 or confirmed sound.
 
+## New: §1.7 audit extension — Coach v5 orphan-event documentation (migration 0099)
+Extended the founder's own 0026 orphan-event audit (2026-06-12) to the Coach v5 sales
+subsystem, which was built AFTER 0026. Verified: **17 coach.* sales event kinds** fire
+into the §3.1 chain (`events` table) with ZERO signal_sources rows — undocumented orphans
+with the exact "indistinguishable from accidental omission" legibility problem 0026 exists
+to fix. Wrote **`0099`** adding an `enabled=FALSE` signal_sources row for each, with a real
+§4 consequence question (A4 discipline — no vague filler), following 0026's pattern exactly.
+- **Zero behavior change** (enabled=false → no signal derived); the value is chain legibility.
+- **§4 questions are DRAFTED** from each event's purpose + the constitution's framing (§3.5
+  consequence, §A11 mirror, §A18 owner-privacy, §3.3 guide-don't-overtake). Edit any before
+  applying if the intended question differs — applying as-is is safe.
+- **Answers Checklist #9** (last ground-up audit + open flags) for the newest subsystem.
+- **Founder action:** review the drafted §4 questions, then apply 0099 (idempotent — on
+  conflict do nothing). This is the §1.7 legibility fix, not a functional one.
+
 ## Verified clean this session (no action needed — recorded for confidence)
 - **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
   event kind against every emitter across the app: all match. No manager-facing coach
