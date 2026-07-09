@@ -131,9 +131,9 @@ export function AgentEloBadge({
         aria-expanded={showExplain}
         className="w-full text-left group"
       >
-        <div className="flex items-center gap-2">
-          <EloMeter rating={e.rating} size={44} />
-          <span className="text-xl font-bold text-primary tabular-nums">
+        <div className="flex items-center gap-3">
+          <EloMeter rating={e.rating} size={76} />
+          <span className="text-3xl font-extrabold text-primary tabular-nums tracking-tight">
             {e.rating}
           </span>
           <span className={`inline-flex items-center gap-0.5 text-[11px] ${trendCls}`}>
