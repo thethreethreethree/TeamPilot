@@ -106,6 +106,12 @@ in the MIGRATION APPLY CHECKLIST.
    choice. [harden when inbound rate grows / accept the soft cap]
 8. Readout/analytics TRUNCATION: layer truncates at PostgREST's 1000-row cap (8+ unbounded queries, care + asset) → wrong metrics for a busy company → bounding pass (per-query limits or DB-side aggregation). [needs row-bound decision — still open]
    **UPDATE 2026-07-09 — precise scope + a reference fix:** `assetReadout.ts` is now **honest-bounded** (b583f5a): its unbounded `files` select (line 82) capped `uploads`/`classifiedUploads`/`casualUploads` + all retrieval metrics silently; added a `bounded` flag + operator warn + a unit test — the number now reads as "capped, undercounts" not silently-wrong (§3.4), WITHOUT pre-empting your fix approach. **`fetchTeamGrowth` (care.ts:2776) now ALSO honest-bounded (db5e45d):** its 8 unbounded aggregation selects (`support_resolutions`/`support_durability_checks`/`support_ai_co_pilot_edits`/`support_conversations`×2/`support_messages`×2) get a `bounded` flag + operator warn too. So the HONESTY half of item 8 is DONE for both flagged readouts — neither shows a silently-wrong number anymore. **What remains YOUR decision:** the actual FIX approach (per-query limit / pagination / DB-side aggregation) to make the numbers *correct* at scale, + surfacing `bounded` in the UI (a "metrics capped" badge). The `bounded` flag is the hook for that UI. assetReadout is the unit-tested reference.
+   **Truncation CLASS swept to boundary (A26, 2026-07-09):** the SILENT 1000-cap instances (unbounded
+   select → silent undercount) are all handled — `getCueRelianceSeries` (earlier), `assetReadout` +
+   `fetchTeamGrowth` (honest-bound flags). The rest are safe: `brain/learning-summary` is
+   INTENTIONALLY bounded (explicit `.limit(2000/1000/500)` + server-side `count:head`), and
+   `fetchTeamPresence` + the leadership route are naturally small (current-load / team roster, can't
+   exceed 1000). So no silent-truncation readout remains unflagged.
 8b. Readout ERROR-HANDLING (separate; now DONE — no tail): the 3 main readouts + ALL 8 care fns
 (6 leadership cohorts + team/agent GROWTH) + assetReadout now return honest failure states instead
 of false zeros. assetReadout got a fn throw + a NEW UI error banner on the admin page (was falling
