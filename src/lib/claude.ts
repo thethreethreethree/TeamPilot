@@ -602,6 +602,14 @@ export async function generateCareReply(args: {
   /** Shared helper: the SALES COACH caller (session summary) sets this to
    *  run day-1; C.A.R.E itself leaves it unset (stays gated). */
   controlExempt?: boolean;
+  /**
+   * The acting agent's Experience Mode (0110). Set ONLY by callers whose output
+   * is AGENT-FACING (the conversation SUMMARY the agent reads). Do NOT set it for
+   * CUSTOMER-facing generation (the co-pilot reply, the auto-reply) — a customer
+   * must not get terser support because their agent chose a simpler UI (§A17,
+   * founder decision 2026-07-09). Unset → Expert → unchanged.
+   */
+  experienceMode?: ExperienceMode;
 }): Promise<CallResult> {
   // Voice replies should be 1 sentence — see buildVoiceAddendum()
   // in src/lib/care/prompt.ts. 80 tokens caps generation at ~55
@@ -623,5 +631,6 @@ export async function generateCareReply(args: {
     systemPrompt: args.systemPrompt,
     userContent: args.userMessage,
     controlExempt: args.controlExempt,
+    experienceMode: args.experienceMode,
   });
 }

@@ -61,11 +61,19 @@ export function modeDirective(mode: ExperienceMode): string {
  * llmCall/llmStream injection (0110 Phase 2) — kept here (not in the llm module)
  * so it's co-located with modeDirective and unit-testable without mocking any
  * provider. Expert / undefined → returned unchanged (directive is "").
+ *
+ * JSON-safety (§A14): the Standard directive tells the model to drop structure
+ * and answer in 2–3 plain sentences — SAFE for prose, but it would corrupt an
+ * expectJson call (the model returns prose, JSON.parse throws downstream). So a
+ * JSON call is returned UNCHANGED; JSON surfaces (coach analysis, dissect,
+ * review) simplify via per-FIELD prompt changes instead, handled per-surface.
  */
 export function shapeSystemPrompt(
   systemPrompt: string,
-  mode: ExperienceMode | undefined
+  mode: ExperienceMode | undefined,
+  opts?: { expectJson?: boolean }
 ): string {
+  if (opts?.expectJson) return systemPrompt;
   return systemPrompt + modeDirective(mode ?? "expert");
 }
 

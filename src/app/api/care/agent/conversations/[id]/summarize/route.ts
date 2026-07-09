@@ -7,6 +7,7 @@ import {
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
+import { getExperienceMode } from "@/lib/experience/mode";
 
 /**
  * POST /api/care/agent/conversations/[id]/summarize
@@ -104,10 +105,15 @@ export async function POST(
     // so the §3.4 control window applies. During month-1 the
     // agent reads the thread themselves — same honesty as the
     // rest of the System.
+    // The summary is AGENT-FACING (the agent reads it), so it simplifies for a
+    // Standard-mode agent (0110 / §A17 — unlike the co-pilot reply, which is
+    // customer-facing and must NOT).
+    const experienceMode = await getExperienceMode(auth.sb, auth.agentId);
     const r = await generateCareReply({
       companyId: detail.conversation.companyId,
       systemPrompt: SYSTEM,
       userMessage: `Product context the agent is grounded in:\n${productContext}\n\nConversation:\n${turns}\n\nWrite the summary.`,
+      experienceMode,
     });
     if (r.suppressed) {
       return NextResponse.json(

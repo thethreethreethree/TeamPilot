@@ -47,6 +47,21 @@ describe("experience mode — the per-user complexity dial (0110)", () => {
       expect(out.length).toBeGreaterThan(BASE.length);
       expect(out).toContain("STANDARD");
     });
+
+    it("JSON-safety (§A14): a Standard expectJson call is returned UNCHANGED — the prose directive would break the parse", () => {
+      // This is the guard that keeps the coach-analysis / dissect / review JSON
+      // surfaces from returning prose and throwing on JSON.parse.
+      expect(shapeSystemPrompt(BASE, "standard", { expectJson: true })).toBe(
+        BASE
+      );
+    });
+
+    it("a Standard prose call (expectJson false/absent) still gets the directive", () => {
+      expect(shapeSystemPrompt(BASE, "standard", { expectJson: false })).toContain(
+        "STANDARD"
+      );
+      expect(shapeSystemPrompt(BASE, "standard")).toContain("STANDARD");
+    });
   });
 
   describe("isExperienceMode", () => {

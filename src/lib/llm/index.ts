@@ -19,7 +19,11 @@ export * from "./types";
  * Phase 2's threading pass.
  */
 function withModeDirective(args: LlmCallArgs): LlmCallArgs {
-  const shaped = shapeSystemPrompt(args.systemPrompt, args.experienceMode);
+  // shapeSystemPrompt applies the JSON-safety guard (§A14): a JSON call is
+  // returned unchanged so the Standard directive can't corrupt the parse.
+  const shaped = shapeSystemPrompt(args.systemPrompt, args.experienceMode, {
+    expectJson: args.expectJson,
+  });
   if (shaped === args.systemPrompt) return args;
   return { ...args, systemPrompt: shaped };
 }
