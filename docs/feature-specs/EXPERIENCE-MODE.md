@@ -165,6 +165,33 @@ area**; hiding footnotes is not where the visible win is.
    can't collapse primary content blind).
 
 Footnote-hiding via `ExpertOnly` is a minor polish, not the mechanism. Do not over-invest.
+
+### Standard rollout tracker (2026-07-10, 0110 now APPLIED)
+
+Founder clarification (2026-07-10): *"Standard minimizes the features a Customer/Sales
+Agent might not need, simplifies all content so users aren't overwhelmed; Expert is always
+the full system."* So Standard COLLAPSES/HIDES supplementary detail; Expert = full, nothing
+collapsed. Three treatments are in use:
+- **`ExpertOnly`** — hide supplementary annotation/fields in Standard (switch to Expert for full).
+- **`AdvancedDetail`** — collapse secondary CONTENT behind a one-click reveal (Standard).
+- **Per-surface Standard-gated collapse** — e.g. the coach-assessment card collapses its
+  dissect detail behind the ELO badge in Standard; Expert renders expanded, no chrome.
+
+| Surface (in scope: C.A.R.E + Sales Coach) | Treatment | Status | Verified |
+|---|---|---|---|
+| Sales Coach — Dissect (`SessionCoachTools`) | `ExpertOnly` on each item's example/why | done | tsc+unit; **not visually** |
+| Sales Coach — coach-assessment team cards | Standard-gated collapse behind ELO badge | done | tsc+unit; **not visually** |
+| Sales Coach — ELO meter | larger/sportier (not a mode thing) | done | tsc; **not visually** |
+| C.A.R.E — Summarize (`ConversationsApp`) | `AdvancedDetail` on prior-cases panel | done | tsc; **not visually** |
+| C.A.R.E — settings panel copy | honest to built state | done | tsc |
+
+**Awaiting founder review before the comprehensive sweep** (per §1.5 organic — confirm the
+pattern on the exemplars before replicating, to avoid mass rework). Open pattern question:
+should the agent's OWN dissect (`SessionCoachTools`) match the team-card FULL collapse, or
+stay at the partial (points shown, reasoning hidden)? A21 "same concept, two treatments" —
+founder's call. Remaining in-scope surfaces (session summary blob, live-coaching panel,
+C.A.R.E read-phase [primary — likely leave], compose) to be swept once the treatment is
+confirmed. Nothing here is visually verified — 0110 is applied so the founder can now review live.
 - **Remaining ephemeral prose surfaces:** enumerated all 8 `generateCareReply` callers
   (2026-07-09). C.A.R.E summarize is threaded (agent-facing). The four customer-facing
   callers (co-pilot, formulate, messages, inbound-email) correctly stay full (§A17 —
