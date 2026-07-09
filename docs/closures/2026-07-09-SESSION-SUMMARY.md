@@ -392,11 +392,16 @@ they need a scheduler, and none was built. Both were mapped in 0005 anticipating
 never landed. **Fix (precedent-decided, mirrors `durability-sweep-cron`):** a scheduled sweep that
 finds overdue-incomplete tasks (`due_date < now()`, not already flagged) and `record_event(
 'task.overran_due_date', …)` → `derive_signals_for_event` fires `task_slipped`; meeting-overran needs
-the meetings entity first. **Not built — flagging first (§2):** new emitters for the not-currently-
-focused team-diagnosis core, needing a cron/operator decision. Rec: build the task-overrun sweep when
-you return to team-diagnosis (meetings is a bigger lift — entity + capture). It's the difference
-between the core product catching slips/overruns or being blind to them. [build task-overrun sweep /
-defer both]
+the meetings entity first. **Not built — flagging first (§2), and it's genuinely a DESIGN decision, not a mechanical mirror.**
+The `durability-sweep-cron` precedent decides the MECHANISM (a `CRON_SECRET`-gated route + a sweep fn
++ an emit fn with existing-event dedup, mirroring `emit_care_durability_due_event` in 0054). But a
+task-overrun sweep has PRODUCT-DESIGN choices that are yours: **(a) grace period** — overdue by how
+long before it counts as a slip (an hour? a day? end-of-day)?; **(b) scope** — all incomplete tasks,
+or only assigned / above a priority?; **(c) re-slip** — emit once when it first goes overdue, or
+again if it stays overdue N days? I attempted the build and stopped here precisely because these
+aren't mechanical — imposing them would be overtaking (§2). Tell me (a)/(b)/(c) and I build it in
+one pass (meetings is a bigger lift — needs the entity first). It's the difference between the core
+product catching slips/overruns or being blind to them. [decide grace/scope/re-slip → I build / defer both]
 
 **Severity calibration (verified 2026-07-09):** these 2 gaps are holes in an OTHERWISE-WORKING
 chain, NOT a dead product. Confirmed the rest is functional end-to-end: events→signals fire via
