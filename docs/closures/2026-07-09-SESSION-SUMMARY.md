@@ -398,6 +398,16 @@ you return to team-diagnosis (meetings is a bigger lift — entity + capture). I
 between the core product catching slips/overruns or being blind to them. [build task-overrun sweep /
 defer both]
 
+**Severity calibration (verified 2026-07-09):** these 2 gaps are holes in an OTHERWISE-WORKING
+chain, NOT a dead product. Confirmed the rest is functional end-to-end: events→signals fire via
+triggers (all but the 2 time-based); signals→problems is wired AND reachable — the Diagnose page
+(`diagnose/page.tsx:291`) + Problems page POST `/api/problems` to create a problem and link its
+signals, with the §3.2 gate enforcing ≥3 signals / ≥2 sources; problems→resolutions closes via
+`close_problem` + the 0100 loop. Auto-derivation of problems from signal clusters is DEFERRED BY
+DESIGN (0005 — "a future amendment-scoped decision"), not missing. So item 9 is "the working core
+is blind to two INPUT types (deadline slips, meeting overruns)," an enhancement — not "the core is
+inert." Correct framing for prioritizing it.
+
 ## Verified clean this session (no action needed — recorded for confidence)
 - **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
   event kind against every emitter across the app: all match. No manager-facing coach
