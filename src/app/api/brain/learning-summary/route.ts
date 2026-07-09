@@ -94,7 +94,7 @@ export async function GET() {
     "coach.suggestion_accepted",
     "coach.suggestion_dismissed",
   ];
-  const { data: coachEvents } = await supabase
+  const { data: coachEvents, error: eCoach } = await supabase
     .from("events")
     .select("kind, payload, occurred_at")
     .eq("company_id", companyId)
@@ -152,7 +152,7 @@ export async function GET() {
     }));
 
   // ─── Cumulative pattern observations (all time) ────────────
-  const { count: cumulativePatternsRaw } = await supabase
+  const { count: cumulativePatternsRaw, error: eCumulative } = await supabase
     .from("events")
     .select("id", { count: "exact", head: true })
     .eq("company_id", companyId)
@@ -160,7 +160,7 @@ export async function GET() {
   const cumulativePatterns = cumulativePatternsRaw ?? 0;
 
   // ─── Decision activity (last 28d) ──────────────────────────
-  const { data: decisionEvents } = await supabase
+  const { data: decisionEvents, error: eDecision } = await supabase
     .from("events")
     .select("kind, payload, occurred_at")
     .eq("company_id", companyId)
@@ -188,7 +188,7 @@ export async function GET() {
   }
 
   // ─── Topic activity (last 28d) + durability ────────────────
-  const { data: topicRows } = await supabase
+  const { data: topicRows, error: eTopic } = await supabase
     .from("chat_topics")
     .select("id, status, close_durability, created_at, closed_at")
     .eq("company_id", companyId)
@@ -214,12 +214,12 @@ export async function GET() {
   }
 
   // ─── Chain activity (last 7d vs prior 7d) ──────────────────
-  const { count: chainLast7 } = await supabase
+  const { count: chainLast7, error: eChain7 } = await supabase
     .from("events")
     .select("id", { count: "exact", head: true })
     .eq("company_id", companyId)
     .gte("occurred_at", last7);
-  const { count: chainPrior7 } = await supabase
+  const { count: chainPrior7, error: eChainP } = await supabase
     .from("events")
     .select("id", { count: "exact", head: true })
     .eq("company_id", companyId)
@@ -230,10 +230,26 @@ export async function GET() {
   // total, we haven't accumulated enough to make any readout
   // meaningful. Be explicit about that instead of showing tiny
   // numbers as if they were signal.
-  const { count: chainTotalAllTime } = await supabase
+  const { count: chainTotalAllTime, error: eChainTotal } = await supabase
     .from("events")
     .select("id", { count: "exact", head: true })
     .eq("company_id", companyId);
+
+  // §3.4 honest-error-state (audit 2026-07-09): if ANY chain read failed, do NOT
+  // render zeros/low numbers as if they were real activity — that makes the
+  // §3.6 command center LIE about team health on a transient DB hiccup ("the
+  // team did nothing" when the read just failed). Return the route's own
+  // ready:false + reason contract, which the UI already renders honestly as
+  // "Learning surface unavailable" (same discipline as the list route +
+  // sessions page). Happy path unchanged: no error → ready:true below.
+  const chainReadError =
+    eCoach ?? eCumulative ?? eDecision ?? eTopic ?? eChain7 ?? eChainP ?? eChainTotal;
+  if (chainReadError) {
+    return NextResponse.json({
+      ready: false,
+      reason: "Couldn't read the chain right now — try again shortly.",
+    });
+  }
   const accumulating = (chainTotalAllTime ?? 0) < 30;
 
   return NextResponse.json({

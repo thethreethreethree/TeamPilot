@@ -230,11 +230,15 @@ child fan-outs) AND honest error handling (distinguish failure from empty). **Sa
 rate-limit:** correct at current low volume, wrong/misleading at scale or on transient failure.
 **Severity escalation (verified 2026-07-09):** the error-swallowing isn't just internal
 analytics — `brain/learning-summary` (the §3.6 command-center metrics the founder reads to gauge
-team health) swallows errors on EVERY query too (no `error` check anywhere). So a transient DB
-failure makes the PRIMARY health dashboard show misleadingly-low activity/durability — "the team
-did nothing" when it's a hiccup. That's the honest-error-state discipline the founder cares about
-(§3.4) failing on the most-watched surface. Bumps the error-handling half from "internal polish"
-to "user-facing correctness." Bounding is still low-urgency; honest-error-state deserves priority. **Fix (your call on the bound):** add an explicit `.limit()` +
+team health) swallowed errors on EVERY query. A transient DB failure made the PRIMARY health
+dashboard show misleadingly-low activity/durability — "the team did nothing" when it's a hiccup.
+**→ FIXED (2026-07-09, this route only): now captures `error` on each chain read and returns the
+route's own `ready:false` + reason on failure — which the UI ALREADY renders honestly as "Learning
+surface unavailable" (the list-route/sessions-page pattern). Backend-only, no UI change, happy path
+unchanged (error-gate only fires on a real query error); gate green. Runtime-unverified only for
+the failure render, which reuses an existing proven UI path. STILL FLAGGED: the OTHER readouts
+(care analytics, assetReadout) error-swallowing + the truncation/bounding across all — lower
+visibility (internal analytics), same fix pattern, your call on scheduling.** **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
