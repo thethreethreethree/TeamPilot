@@ -76,7 +76,16 @@ end $$;
 -- (trigger resolutions_immutable from 0005 already binds this function; no re-create needed.)
 
 -- ── 2. Split `resolutions - all` so the decided_by check is INSERT-only ────────
+-- Drop-if-exists BEFORE each create (not just the old `- all` name): the founder
+-- applies this manually in the Supabase SQL editor (no migration tracking), so a
+-- re-run or retry-after-partial-failure must not error on "policy already exists".
+-- Without the three guards below, a second apply fails at `create "- select"` even
+-- though the first apply succeeded — a false alarm mid-security-apply. This is what
+-- makes the §A12-idempotent claim (line 49) actually true. (Fixed 2026-07-09.)
 drop policy if exists "resolutions - all" on resolutions;
+drop policy if exists "resolutions - select" on resolutions;
+drop policy if exists "resolutions - insert" on resolutions;
+drop policy if exists "resolutions - update" on resolutions;
 
 create policy "resolutions - select" on resolutions
   for select using (company_id = auth_company_id());

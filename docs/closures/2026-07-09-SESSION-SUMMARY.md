@@ -984,6 +984,15 @@ in each environment's Supabase SQL editor. It's read-only and prints one PASS/FA
 didn't land. This is the "never assert a migration is applied without per-env verification" rule
 made runnable.
 
+**Safe to re-run (idempotency swept 2026-07-09).** Because you apply these by hand in the SQL
+editor (no migration tracking), the whole queue was swept for re-run safety: every `create policy`
+/ `create rule` / `create function` is drop-if-exists-first or create-or-replace, so re-running the
+batch after a partial failure won't error on "already exists". **One gap was found and fixed:**
+`0105` created 3 split policies (`resolutions - select`/`insert`/`update`) but only dropped the old
+`- all` name first — a second apply would have errored at `create "- select"`. Now drop-guarded per
+name (commit in this session). The other 10 were clean (incl. `0107`'s unquoted policy name and
+`0108`'s `create or replace rule`).
+
 ## Retests I can't run headless
 - The flags on your real sessions (see #1).
 - A live call to confirm the 5 live-coaching cue fixes (stress speaker, empty-commit
