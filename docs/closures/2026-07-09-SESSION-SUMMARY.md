@@ -369,6 +369,21 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   `why` + added perspective + comparison (§3.3 "how and why"), and the user picks
   `chosen_path` (user/system/hybrid/defer) — the System never imposes. No ask-first gap on
   either path; the ordering is structural, not UI convention.
+- **§3.4 control gate ("honesty is the moat" — no AI guidance in Month 1) verified sound
+  end-to-end (2026-07-09).** `evaluateControlGate` is fail-CLOSED (null/malformed unlock_at →
+  suppressed — "the default must be suppressed, never enabled"); `runBrainCall`/`runBrainStream`
+  return a suppressed placeholder with NO provider call during the control window; the Sales
+  Coach `controlExempt` is a documented, scoped founder decision (2026-06-30 — it coaches from a
+  corpus, not a learned baseline) that STILL composes the brain (skips only suppression). NEARLY
+  FLAGGED a fail-open: the guidance wrappers take an UNgated direct-`llmCall` branch when
+  companyId is absent (`getCurrentCompanyId() ?? undefined`). Verified before flagging (§0/§5) —
+  that branch is INTENTIONAL DEMO MODE (chat/guide L223-4: "no Supabase: bypass brain and call
+  provider directly"). No real company = no control window to protect; the only real-mode way to
+  hit it is an authenticated user whose company won't resolve (pre-onboarding / broken profile),
+  who is in NO company's control baseline, so nothing is contaminated. Fixing it to fail-closed
+  would have broken demo mode — the reason to verify intent before "fixing." *Very-low-severity
+  note (not a §3.4 hole):* such a companyless-but-authed real-mode user can drive the model
+  ungated; the auth gate + per-route rate limit bound the cost. Optional hardening only.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
