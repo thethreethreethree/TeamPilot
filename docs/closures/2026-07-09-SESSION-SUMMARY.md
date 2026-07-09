@@ -905,6 +905,14 @@ inert." Correct framing for prioritizing it.
    role-scoped delete policy in one migration. If member self-removal is intended, it stays. Not
    changed unilaterally — it's your permission model (§2/§3.3).
 
+12. **⚠ HIGH — `company_brain` prompt-injection (fix ready, NOT applied — needs your runtime test).**
+   Any member can `UPDATE company_brain SET system_prompt_addendum=...` → injected into EVERY AI
+   call their company makes (incl. customer-facing C.A.R.E replies) + bypasses the §3.1 brain audit.
+   Not auto-fixed because the clean fix makes `record_brain_learning` + the auto-create trigger
+   SECURITY DEFINER + restricts the RLS — a security-mode change to the learning-cycle core I can't
+   runtime-verify headless. Ready SQL + rationale: **docs/AUDIT-2026-07-09-brain-injection.md**.
+   Apply on staging, run a learning cycle + create a test company to confirm, then promote. [review + verify]
+
 11. **`decisions` delete scope.** A decision outcome row is deletable by any company member (same
    company-scoped `for all`). Unlike the §3.1 chain tables, `decisions` is a mutable entity with a
    real delete path (`decisions/route.ts:103`), so it's correctly NOT append-only-frozen — but the
