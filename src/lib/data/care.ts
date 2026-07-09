@@ -2727,6 +2727,13 @@ export async function setAgentRoutingSettings(args: {
 export type TeamGrowthSnapshot = {
   companyId: string;
   windowDays: number;
+  // §3.4 honest-bound (2026-07-09): true when ANY of the aggregation reads hit the
+  // PostgREST row cap — the company has more rows (resolutions / conversations /
+  // messages) than one read returns, so every count/rate below UNDERCOUNTS.
+  // Surface it so the growth readout reads "capped" not silently-wrong. Full fix
+  // (per-query bound / DB aggregation) is the founder's row-bound decision, item 8.
+  // Same posture as assetReadout.bounded + durabilitySweep.bounded.
+  bounded: boolean;
   agentCount: number;
 
   // §1.6 close-the-loop — team aggregate
@@ -2855,6 +2862,25 @@ export async function fetchTeamGrowth(
     throw new Error(`care team-growth readout: read failed — ${teamGrowthReadError.message}`);
   }
 
+  // §3.4 honest-bound: each read above is an unbounded select (PostgREST caps at
+  // ~1000). If any aggregation feed hit the cap, every count/rate below undercounts.
+  const GROWTH_SCAN_CAP = 1000;
+  const bounded = [
+    resolutions,
+    durability,
+    edits,
+    claimedConvs,
+    awaitingConvs,
+    agentReplies,
+    coachCountsRows,
+  ].some((r) => (r.data?.length ?? 0) >= GROWTH_SCAN_CAP);
+  if (bounded) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[fetchTeamGrowth] a growth read hit the ${GROWTH_SCAN_CAP}-row cap — team-growth metrics undercount. Full fix is the row-bound decision (closure item 8).`
+    );
+  }
+
   const durRows = (durability.data ?? []) as Array<{ outcome: string | null }>;
   const editRows = (edits.data ?? []) as Array<{
     edit_magnitude: string | null;
@@ -2895,6 +2921,7 @@ export async function fetchTeamGrowth(
   return {
     companyId,
     windowDays: 30,
+    bounded,
     agentCount: agents.data?.length ?? 0,
     resolutions: resolutions.data?.length ?? 0,
     durabilityHeld: durRows.filter((r) => r.outcome === "held").length,
