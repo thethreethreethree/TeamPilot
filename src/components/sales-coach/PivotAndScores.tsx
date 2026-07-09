@@ -12,6 +12,7 @@ import {
   Swords,
   Tag,
 } from "lucide-react";
+import { ExpertOnly } from "@/components/experience/ExpertOnly";
 
 /**
  * PivotAndScores — the two additions the founder asked to append to the summary
@@ -252,9 +253,11 @@ function MomentsTimeline({ moments }: { moments: SalesMoment[] }) {
                   </span>
                   “{m.correction.correctLine}”
                 </p>
-                <p className="text-[11px] text-tertiary mt-0.5">
-                  {m.correction.whyItWorks}
-                </p>
+                <ExpertOnly>
+                  <p className="text-[11px] text-tertiary mt-0.5">
+                    {m.correction.whyItWorks}
+                  </p>
+                </ExpertOnly>
               </div>
             )}
           </li>
@@ -310,10 +313,12 @@ function PivotCard({ pivot }: { pivot: PivotMoment }) {
       <p className="text-xs text-secondary leading-relaxed mt-2">
         {pivot.whatHappened}
       </p>
-      <p className="text-[11px] text-tertiary leading-relaxed mt-1">
-        <span className="font-medium text-secondary">Why it mattered: </span>
-        {pivot.whyItMattered}
-      </p>
+      <ExpertOnly>
+        <p className="text-[11px] text-tertiary leading-relaxed mt-1">
+          <span className="font-medium text-secondary">Why it mattered: </span>
+          {pivot.whyItMattered}
+        </p>
+      </ExpertOnly>
     </div>
   );
 }
@@ -400,14 +405,16 @@ function ScoresSection({ sessionId }: { sessionId: string }) {
                   </span>
                 )}
               </p>
-              <p className="text-[11px] text-tertiary leading-relaxed">
-                {c.rationale}
-              </p>
-              {c.citation && (
-                <p className="text-[11px] text-tertiary italic leading-relaxed">
-                  “{c.citation}”
+              <ExpertOnly>
+                <p className="text-[11px] text-tertiary leading-relaxed">
+                  {c.rationale}
                 </p>
-              )}
+                {c.citation && (
+                  <p className="text-[11px] text-tertiary italic leading-relaxed">
+                    “{c.citation}”
+                  </p>
+                )}
+              </ExpertOnly>
             </div>
           ))}
           <p className="text-[10px] text-tertiary pt-1">
