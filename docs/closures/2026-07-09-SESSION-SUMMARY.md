@@ -221,9 +221,13 @@ SWEPT to its boundary: **8 confirmed instances across both readout modules** (ca
 asset readout) — the readout layer systematically fans out into child queries without bounding
 them. Worse in assetReadout: even the PARENT `files` list query (line 82) has no `.limit()`, so
 `fileIds` itself caps at 1000 → a company with >1000 files builds its whole asset readout from
-only the first 1000, then the child queries truncate again (double truncation). **Bottom line:**
-the readout/analytics layer needs a bounding pass (parent lists AND child fan-outs). **Same
-profile as rate-limit:** correct at current low volume, wrong at scale. **Fix (your call on the bound):** add an explicit `.limit()` +
+only the first 1000, then the child queries truncate again (double truncation). **Related (same
+layer, distinct class):** these readout queries also use `const { data } = ...` and IGNORE the
+`error` — so a query FAILURE returns empty → the readout silently shows zeros, indistinguishable
+from "no activity" (the §3.4 live-error-vs-empty class, same one fixed in `salesElo`). **Bottom
+line:** the readout/analytics layer needs a hardening pass covering BOTH bounding (parent lists +
+child fan-outs) AND honest error handling (distinguish failure from empty). **Same profile as
+rate-limit:** correct at current low volume, wrong/misleading at scale or on transient failure. **Fix (your call on the bound):** add an explicit `.limit()` +
 truncation log (the `getCueRelianceSeries` pattern) or paginate the child analytics queries.
 Low urgency now; a focused pass I can do on your word (needs a decision on the row bound).
 
