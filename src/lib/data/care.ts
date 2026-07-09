@@ -1304,16 +1304,37 @@ export async function recordDurabilityOutcome(args: {
   checkId: string;
   outcome: "held" | "reopened" | "inconclusive";
   notes?: string;
-}): Promise<void> {
+}): Promise<"recorded" | "already_recorded" | "not_found"> {
   const sb = await createServerClient();
-  await sb
+  // WRITE-ONCE (§3.5 / audit 2026-07-09): the durability outcome IS a §3.5
+  // consequence metric ("did it reopen?"). Recording it must be one-shot — a
+  // second POST would silently overwrite held→reopened, corrupting the held-rate.
+  // The due-list only surfaces still-unchecked rows, but this write had NO server
+  // guard and always reported success (false-ok). Scope the write to still-unchecked
+  // rows (idempotent + race-safe) and report the actual result. Same class as the
+  // resolutions-review write-once fix; the care durability table has no freeze
+  // trigger, so this code path is the only defense.
+  const { data, error } = await sb
     .from("support_durability_checks")
     .update({
       checked_at: new Date().toISOString(),
       outcome: args.outcome,
       notes: args.notes ?? null,
     })
-    .eq("id", args.checkId);
+    .eq("id", args.checkId)
+    .is("checked_at", null)
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (data && data.length > 0) return "recorded";
+  // 0 rows: the check is either not visible to this caller (RLS — wrong company
+  // or nonexistent) or already recorded. Distinguish for an honest message; the
+  // follow-up read is RLS-scoped, so a peer-tenant id reads as not_found.
+  const { data: existing } = await sb
+    .from("support_durability_checks")
+    .select("id")
+    .eq("id", args.checkId)
+    .maybeSingle();
+  return existing ? "already_recorded" : "not_found";
 }
 
 /**

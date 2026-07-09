@@ -46,6 +46,12 @@ cue truncation, stale-cue-after-restart. Full report: `2026-07-09-sales-coach-au
 - **Transcript-injection vectors closed** — `segments` + `finalize` (both traced:
   only the rep calls them) are now owner-only, closing the §A18 hole migration 0082 named.
 - **Resolution-review false-ok** fixed (rowcount assertion).
+- **§3.5 durability write-once class swept (A26)** — the resolution-review overwrite bug
+  was a CLASS; swept all three §3.5-durability surfaces. Chat-topic review: verified
+  CORRECT (event-sourced via 0015). Care support durability (`recordDurabilityOutcome`):
+  had the SAME unguarded overwrite + false-ok (a re-POST silently overwrote held→reopened,
+  always returned `{ok:true}`) → fixed (write-once `.is(checked_at,null)` guard + honest
+  404/409 + POST company-context check). No UI caller yet, so forward-compatible.
 
 ### 5. Methodology + records
 Captured ThinkerThinker.md **A26** (a found bug is a class; sweep it to its
@@ -76,9 +82,13 @@ or confirmed sound.
    *mutable-once column*, not an appended event. A genuine §3.1 reading says the measured
    consequence should be an **event** in the immutable chain (so durability-over-time is
    replayable, and the review joins `events → signals → problems → resolutions → events`
-   properly). Want me to event-source the resolution review (emit a `resolution.reviewed`
-   event alongside the write), or is write-once-column the intended denormalization? One
-   sentence and I'll build it.
+   properly). **There's already a working precedent in your own codebase:** the chat-topic
+   durability review does exactly this — migration `0015`'s `chat_topics_durability_review_trigger`
+   fires a `chat.topic_durability_reviewed` event (with both new + previous value) on every
+   `close_durability` change, so its column is just a denormalized "current" while the event
+   log holds full history. Resolutions is the only one of the three §3.5-durability surfaces
+   that DOESN'T. Want me to mirror 0015 (emit `resolution.reviewed` on review), or is
+   write-once-column the intended denormalization? One sentence and I'll build it.
 
 ## Migrations to apply (founder — I can't verify applied-state headless)
 This session added **`0098`** (team_invitations partial-unique index — dedup + no
