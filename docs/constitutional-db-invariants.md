@@ -19,14 +19,39 @@ Verified present as of 2026-07-09 (each checked against the actual trigger/rule,
 
 ## §3.1 — Immutability (events are append-only; state is derived, never edited)
 
+**Complete append-only set (verified 2026-07-09).** Every table below is enforced by a
+`do instead nothing` rule on UPDATE + DELETE (`<table>_no_update` / `_no_delete`). This is
+the FULL current set — 22 tables — not a highlight; a reviewer touching any of them must
+confirm the rule survives. Authoritative always-current check (re-run to detect additions):
+`grep -rhoE "on (update|delete) to [a-z_]+ do instead nothing" supabase/migrations/*.sql | sort -u`.
+
+```
+after_pitch_summaries      coaching_cues                  smoke_test_results
+brain_evolution_events     coaching_transcript_segments   smoke_test_versions
+care_widget_load_events    crm_activity_events            support_ai_co_pilot_edits
+chat_messages              decision_dialogues (+0025)     support_conversation_events
+coaching_cue_outcomes      events                         support_messages
+feedback                   problem_signals                support_resolutions
+resolutions (delete-only)  sales_coach_corpus_versions    task_messages
+signals
+```
+
+**High-salience rows (the core chain — a DROP here is most consequential):**
+
 | Table | Enforcing object | Migration | A DROP would let… |
 |---|---|---|---|
-| `events` | `do instead nothing` on update + delete | `0004` | the chain be rewritten — retrospective analysis (§1.2) reasons from a falsified history |
+| `events` | `events_no_update` / `_no_delete` rules | `0004` | the chain be rewritten — retrospective analysis (§1.2) reasons from a falsified history |
+| `signals` | `signals_no_update` / `_no_delete` rules | `0002` | derived signals be edited, breaking the events→signals→problems chain |
 | `problem_signals` | `problem_signals_no_update` / `_no_delete` rules | `0002` | the evidence trail behind a surfaced problem be edited after the fact |
 | `decision_dialogues` | `decision_dialogues_no_update` rule (`0025`) + `decision_dialogues_immutable` column-freeze trigger (`0003`) | `0025` + `0003` | a recorded guide-don't-overtake dialogue + its reasoning be silently altered |
-| `brain_evolution_events` | `do instead nothing` on update + delete | `0007` | the System's own learning record be rewritten |
-| `chat_topic_decisions` | `chat_topic_decisions_immutable` trigger (freezes once `phase='decided'`) | `0022` | a decided in-thread dialogue's chosen path / reasoning change after the fact |
-| `resolutions` | `check_resolution_immutability` trigger (freezes `action_taken` / `reasoning` / `decided_at`) | `0005` | the captured decision + why be edited (NOTE: `observed_outcome`/`durability` are intentionally mutable-once; see A27 + the write-once route guard) |
+| `brain_evolution_events` | `brain_evolution_no_update` / `_no_delete` rules | `0007` | the System's own learning record be rewritten |
+
+**Column-freeze triggers** (the row stays, but specific columns can't change) — full set:
+`chat_topic_decisions` (`chat_topic_decisions_immutable`, freezes once `phase='decided'`, `0022`);
+`resolutions` (`check_resolution_immutability`, freezes `action_taken`/`reasoning`/`decided_at`,
+`0005` — but `observed_outcome`/`durability` intentionally mutable-once, see A27);
+`decision_dialogues` (`0003`, freezes the dialogue fields); `chat_topics` + `team_invitations`
+(freeze identity/ownership columns). A DROP lets the frozen column be rewritten after capture.
 
 ## §3.2 — Understanding Gate (a problem cannot surface under-supported)
 
