@@ -599,6 +599,14 @@ inert." Correct framing for prioritizing it.
   revoked; wrong-id = no-op) and RLS protects the data. So no HARMFUL false-ok remains; the class
   is bounded. (Low-value tail: those benign sites could still add a rowcount check for a crisper
   404 — not built, no data/outcome risk.)
+- **`.maybeSingle`-on-2+-rows class (ae7eddf sibling sweep) — CLEAN codebase-wide (2026-07-09).**
+  ae7eddf fixed a `.maybeSingle()` duplicate-guard that ERRORED on 2+ rows (pending invites had no
+  DB uniqueness) → guard silently skipped → more dupes. Swept all 132 `.maybeSingle()` calls;
+  triaged the ~22 on non-`id` filters. EVERY one is protected: `chat_participants` PK `(topic_id,
+  user_id)`; `chat_topic_decisions` partial-unique open-dialogue index (route:118 / topicDecisions:108
+  / the §3.3 participant checks); `smoke_test` one-active-per-company unique index; `support_customers`
+  unique `(company_id, email)`; the rest are unique tokens or one-row-per-company tables. So the
+  pending-invite instance was the SOLE one (fixed via 0098 + `.limit(1)`); no sibling remains.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
