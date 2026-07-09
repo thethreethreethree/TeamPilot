@@ -181,9 +181,21 @@ collapsed. Three treatments are in use:
 |---|---|---|---|
 | Sales Coach — Dissect (`SessionCoachTools`) | `ExpertOnly` on each item's example/why | done | tsc+unit; **not visually** |
 | Sales Coach — coach-assessment team cards | Standard-gated collapse behind ELO badge | done | tsc+unit; **not visually** |
+| Sales Coach — `PivotAndScores` | `ExpertOnly` on whyItWorks / whyItMattered / score rationale+citation | done | tsc; **not visually** |
 | Sales Coach — ELO meter | larger/sportier (not a mode thing) | done | tsc; **not visually** |
 | C.A.R.E — Summarize (`ConversationsApp`) | `AdvancedDetail` on prior-cases panel | done | tsc; **not visually** |
+| C.A.R.E — composer (`ConversationsApp`) | `ExpertOnly` on co-pilot reasoning + precedents | done | tsc; **not visually** |
 | C.A.R.E — settings panel copy | honest to built state | done | tsc |
+
+**First-pass sweep COMPLETE for the clear-safe supplementary targets** (2026-07-10). The
+consistent rule applied: keep the PRIMARY content (the score, the read, the draft, the
+takeaway, the "try instead" line), hide the SUPPLEMENTARY reasoning/precedents/citations via
+`ExpertOnly` (Expert sees all). **Deliberately NOT swept** (need founder judgment / risky):
+`LiveCoachingPanel` (real-time cues — time-critical, don't simplify blind), C.A.R.E
+`ReadPhasePanel` (its content IS the point — anti-amnesia), the session-summary blob
+(generation-layer, already a short artifact). All done items are tsc-verified, NONE visually
+verified — the whole batch needs one founder pass in Standard vs Expert to confirm the
+treatment before it's "done for real."
 
 **Awaiting founder review before the comprehensive sweep** (per §1.5 organic — confirm the
 pattern on the exemplars before replicating, to avoid mass rework). Open pattern question:
