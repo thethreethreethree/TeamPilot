@@ -69,11 +69,17 @@ quote-grounding, concurrency, migration-coupling, silent-mutation-failure — ea
 or confirmed sound.
 
 ## New: §1.7 audit extension — Coach v5 orphan-event documentation (migration 0099)
-Extended the founder's own 0026 orphan-event audit (2026-06-12) to the Coach v5 sales
-subsystem, which was built AFTER 0026. Verified: **17 coach.* sales event kinds** fire
-into the §3.1 chain (`events` table) with ZERO signal_sources rows — undocumented orphans
-with the exact "indistinguishable from accidental omission" legibility problem 0026 exists
-to fix. Wrote **`0099`** adding an `enabled=FALSE` signal_sources row for each, with a real
+Extended the founder's own 0026 orphan-event audit (2026-06-12) to every event kind added
+AFTER 0026 that fires into the §3.1 chain (`events` table) with ZERO signal_sources rows —
+undocumented orphans with the exact "indistinguishable from accidental omission" legibility
+problem 0026 exists to fix. **18 kinds** across SALES coach (14), COMMUNICATION coach
+(message_graded / analyze_returned), the §3.4 CONTROL-CYCLE (control_skipped), and
+mention.created. **§3.4 self-check catch:** a first draft mislabeled the two communication-
+coach kinds + control_skipped as sales-live-telemetry FROM THEIR NAMES (the §5 confident-
+quick-answer trap) and fabricated three wrong §4 questions; caught + corrected against the
+verified emit semantics before you'd apply it. `control_skipped` is now flagged as a likely
+ENABLED mapping (not deferral) — skipping the month-1 control degrades attribution on every
+downstream measurement. Wrote **`0099`** adding an `enabled=FALSE` signal_sources row for each, with a real
 §4 consequence question (A4 discipline — no vague filler), following 0026's pattern exactly.
 - **Zero behavior change** (enabled=false → no signal derived); the value is chain legibility.
 - **§4 questions are DRAFTED** from each event's purpose + the constitution's framing (§3.5

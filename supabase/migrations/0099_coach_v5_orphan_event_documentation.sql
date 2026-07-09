@@ -1,13 +1,24 @@
--- 0099 — Document Coach v5 (sales) orphan event kinds as A4-deferred signal_sources
+-- 0099 — Document POST-0026 orphan event kinds as A4-deferred signal_sources
 --
--- Extends the §1.7 audit that produced 0026 (2026-06-12) to the Coach v5 SALES
--- subsystem, which was built AFTER 0026 and emits ~17 event kinds into the §3.1
--- chain (the `events` table) with NO signal_sources mapping. Verified 2026-07-09:
--- every kind below inserts into `events` and has zero signal_sources row — so an
--- outside auditor reading signal_sources alone sees "these events emit nothing,"
--- which 0026 established is indistinguishable from ACCIDENTAL omission. This
--- migration makes the deferral intentional and legible, exactly as 0026 did for
--- the coach.*/decision.*/task.* kinds that predated the sales subsystem.
+-- (Filename says "coach_v5" loosely; the accurate scope is below.) Extends the §1.7
+-- audit that produced 0026 (2026-06-12) to every event kind added AFTER 0026 that
+-- fires into the §3.1 chain (the `events` table) with NO signal_sources mapping.
+-- Verified 2026-07-09 (each inserts into `events`, zero signal_sources row). An
+-- auditor reading signal_sources alone sees "these emit nothing," which 0026
+-- established is indistinguishable from ACCIDENTAL omission; this makes the deferral
+-- intentional and legible, as 0026 did for the pre-sales coach/decision/task kinds.
+--
+-- SCOPE (corrected after a 2026-07-09 §3.4 self-check that caught three kinds first
+-- mislabeled as sales-live-telemetry from their NAMES — the §5 confident-quick-answer
+-- trap; each §4 question below was re-derived from the VERIFIED emit semantics):
+--   • SALES coach (sales-session subjects): dissect / summary / pivot / moments /
+--     intel / sales_review / after_pitch_summary / debrief / why_patterns /
+--     session_why_recorded / session_why_generated / session_decision /
+--     session_status_changed / session_outcome_recorded.
+--   • COMMUNICATION coach (chat message grading): message_graded / analyze_returned.
+--   • CONTROL-CYCLE honesty mechanism (§3.4): control_skipped — flagged as a likely
+--     ENABLED mapping, not a pure deferral (see its note).
+--   • Cross-cutting: mention.created (the one non-coach post-0026 orphan).
 --
 -- Same disciplines as 0026:
 --   - ENABLED=FALSE on every row: pure documentation. NO signal is derived; there
@@ -109,24 +120,36 @@ insert into signal_sources (event_kind, signal_kind, source_template, notes, ena
    false)
 on conflict (event_kind, signal_kind) do nothing;
 
--- ─── Live-coaching telemetry ──────────────────────────────────
+-- ─── Communication coach (chat message grading) ───────────────
+-- CORRECTION (2026-07-09 self-check): message_graded + analyze_returned are the
+-- COMMUNICATION coach (the ELOSTATE chat-message coach), NOT sales-session events —
+-- verified at coach/v5/grade-sent + coach/v5/analyze (subject is the chat context,
+-- not a sales_session). Their §4 questions are corrected accordingly.
 insert into signal_sources (event_kind, signal_kind, source_template, notes, enabled) values
   ('coach.message_graded',
    'coach_message_graded_deferred',
-   'sales_session:${payload.session_id}',
-   'Deferred per A4. §4 question: does within-call grade TRAJECTORY predict the call outcome (a real-time leading signal that could drive a live nudge), or is it only useful post-hoc? The live vs post-hoc distinction determines whether it belongs in the live loop or only the review chain.',
+   'chat:${payload.message_id}',
+   'Deferred per A4 + A11. §4 question: does a team''s message-grade MIX (productive / neutral / needsGuidance) trajectory correlate with downstream TOPIC DURABILITY (held vs reopened) — i.e., does the communication coach''s per-message grade actually predict better team outcomes, or only measure surface compliance? A11 anchor: grade is the coach''s READ, durability is the CONSEQUENCE; only a grade→durability correlation makes grade a real signal rather than vanity.',
    false),
 
   ('coach.analyze_returned',
    'coach_analyze_returned_deferred',
-   'sales_session:${payload.session_id}',
-   'Deferred per A4. §4 question: is analyze frequency/latency a SYSTEM-HEALTH signal (provider degradation surfaced to ops) or noise? Held until a coach-reliability readout exists — this is plumbing telemetry, not a diagnosis-chain signal, and may never earn an enabled mapping.',
-   false),
+   'chat:${payload.context_type}',
+   'Deferred per A4. §4 question: which communication PRINCIPLES (payload.principle / book) recur as needs_improvement across a team''s messages — a coaching-CURRICULUM signal for what the team most needs to learn — and do rising principle-application rates correlate with fewer clarification cycles / more durable resolutions? Measures the coach''s TEACHING effect on consequence (§3.5), never suggestion-acceptance (A11 — consequence, not agreement).',
+   false)
+on conflict (event_kind, signal_kind) do nothing;
 
+-- ─── Control-cycle honesty mechanism (§3.4) ───────────────────
+-- CORRECTION (2026-07-09 self-check): control_skipped is NOT a rep dismissing a live
+-- cue — it is an ADMIN skipping the MONTH-1 CONTROL PERIOD (emitted at
+-- CoachTogglePanel; payload days_into_cycle / reason; subject company). This is a §3.4
+-- honesty-moat event and is materially more consequential than a deferred readout — so
+-- it is flagged, not silently parked.
+insert into signal_sources (event_kind, signal_kind, source_template, notes, enabled) values
   ('coach.control_skipped',
    'coach_control_skipped_deferred',
-   'sales_session:${payload.session_id}',
-   'Deferred per A4 + A11. §4 question: does control-skip frequency (the rep dismissing a live cue — i.e., skipping the mirror) predict outcome — a RESISTANCE signal — or is it just UI preference? A11 (mirror-not-verdict) makes the distinction load-bearing: dismissing a mirror is not the same as rejecting a verdict, and only the outcome-correlated case is a real signal.',
+   'company:${payload.days_into_cycle}',
+   'Deferred per A4 — but FLAGGED for the founder as a likely ENABLED mapping, not a pure deferral. This event records an admin BYPASSING the month-1 control period — the clean baseline the entire §3.4 no-instant-results thesis rests on. §4 question: does skipping the control measurably degrade the ATTRIBUTABILITY of the month-2 intervention (contaminated baseline → wider confidence intervals on every downstream gain claim)? Unlike the other rows here, a "signal" from this is a DATA-QUALITY WARNING that should arguably attach to every subsequent measurement for that company — i.e., it may warrant a problem.opened (degraded-attribution) mapping rather than deferral. Founder decision.',
    false)
 on conflict (event_kind, signal_kind) do nothing;
 
