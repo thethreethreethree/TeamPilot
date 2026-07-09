@@ -74,6 +74,18 @@ export function shapeSystemPrompt(
   opts?: { expectJson?: boolean }
 ): string {
   if (opts?.expectJson) return systemPrompt;
+  // DELIBERATE: undefined → "expert" (no-op), NOT DEFAULT_EXPERIENCE_MODE
+  // ("standard"). These answer DIFFERENT questions and must stay divergent:
+  //   - getExperienceMode(): "a real user's pref is unreadable" → standard
+  //     (don't overwhelm someone who exists but whom we couldn't identify).
+  //   - here, undefined mode: "this CALL SITE never opted into Experience Mode"
+  //     → expert/no-op, so unthreaded surfaces keep today's behavior (the honest
+  //     bound documented in llm/index.ts).
+  // DO NOT "reconcile" this to `?? DEFAULT_EXPERIENCE_MODE` — that would append
+  // the Standard directive to EVERY unthreaded LLM call, including JSON calls
+  // that don't set expectJson, corrupting their parse (§A14). The expectJson
+  // guard above only protects call sites that KNOW they return JSON and say so;
+  // a surface that never opted in wouldn't set it.
   return systemPrompt + modeDirective(mode ?? "expert");
 }
 
