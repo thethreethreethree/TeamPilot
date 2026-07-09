@@ -34,8 +34,11 @@ in the MIGRATION APPLY CHECKLIST.
 >   single highest-leverage action — it lands the HIGH fixes incl. `0108` (problems no-delete)
 >   and `0111` (§3.4 control-window guard). The queue is now re-run-safe (0105 idempotency fixed).
 > - **HIGH — item 12 (brain/events fabrication):** `company_brain.system_prompt_addendum` is
->   member-writable → company-wide prompt injection incl. customer-facing C.A.R.E. Fix is staged
->   (DEFINER `record_brain_learning` + RLS restrict) but needs staging runtime-test. See
+>   member-writable → company-wide prompt injection incl. customer-facing C.A.R.E. Fix is now
+>   written as migration **`0112_brain_writes_definer_restrict_rls.sql`** (DEFINER the sanctioned
+>   write paths + restrict RLS to SELECT). Static safety verified headless; **apply on STAGING and
+>   run a learning cycle + create a test company before promoting — it is NOT part of the safe
+>   0101-0111 batch** (it's the only migration that flips function security mode). See
 >   [`docs/SECURITY-FINDINGS-2026-07-09.md`](../SECURITY-FINDINGS-2026-07-09.md) + `AUDIT-2026-07-09-brain-injection.md`.
 > - **Experience Mode — 3 §A17 decisions** (simplify each drill-in, or keep full teaching depth?):
 >   `ask-jeff`, `coach/sales-session/ask-coach`, `dissect/ask-coach`. One-line thread each if yes.
