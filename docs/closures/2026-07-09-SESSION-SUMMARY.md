@@ -69,6 +69,16 @@ all verified sound (details in "Verified clean"). New decisions surfaced: 6b / 6
 
 **Scale-hardening — correct NOW, wrong at scale (schedule before you grow traffic; details in Findings):**
 7. Rate limiting is in-memory per-instance (weak on serverless) → Redis/Upstash-backed. [needs store decision]
+7b. **C.A.R.E routing `maxConcurrent` can be exceeded under concurrency (check-then-act race, LOW).**
+   `routeNewConversation` (care.ts:2419) READS each agent's open-conversation load, filters to
+   `load < maxConcurrent`, then ASSIGNS — nothing atomic between read and write, and no DB constraint
+   enforces the cap (soft code-side check). Two new conversations for the same tenant within the
+   routing window (~tens of ms) can both pick the same least-loaded agent and both assign → that
+   agent goes one over `maxConcurrent`. Bounded (overload by ~1, self-corrects on next routing);
+   matters only for a high-inbound-rate desk. **Fix (has a design choice):** make assign atomic —
+   either a DB function that re-checks load inside the write, or an optimistic conditional-update +
+   retry, or a per-agent advisory lock. Not built — low severity + the atomicity mechanism is a
+   choice. [harden when inbound rate grows / accept the soft cap]
 8. Readout/analytics TRUNCATION: layer truncates at PostgREST's 1000-row cap (8+ unbounded queries, care + asset) → wrong metrics for a busy company → bounding pass (per-query limits or DB-side aggregation). [needs row-bound decision — still open]
 8b. Readout ERROR-HANDLING (separate; now DONE — no tail): the 3 main readouts + ALL 8 care fns
 (6 leadership cohorts + team/agent GROWTH) + assetReadout now return honest failure states instead
