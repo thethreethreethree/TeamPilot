@@ -103,6 +103,12 @@ config.ts:20`, and `crm/vendorAuth.ts:34` (`c3e7f389-…`). Route layer respects
 accurate (§3.4). **Still yours:** confirm the LIVE prod DB has 0089 applied AND that this id
 is your actual vendor company's id in prod (I can only verify code/migration consistency,
 not prod data).
+**Route CLASS swept (A26), clean:** the CRITICAL bug pattern (a service-role route touching
+vendor data gated on per-company isAdmin) has no surviving instance. All 7 `crm_*` tables
+(incl. subscriptions/MRR/invoices) are reached ONLY via the `lib/crm/data.ts` chokepoint,
+which is imported ONLY by the 6 `/admin/crm/*` routes, ALL gated on `requireVendorAdmin`.
+Triple-layered: route gate + single data chokepoint + 0089 RLS. No leak path.
+
 Two flagged observations (NOT changed — security-critical, §2/§5):
 - **Env-override footgun (LOW, fails-closed):** the SQL function can't read env, so setting
   `CARE_DEFAULT_TENANT_ID` desyncs the DB layer from the route layer. Documented in 0089's
