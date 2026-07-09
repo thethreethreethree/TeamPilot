@@ -67,6 +67,16 @@ or confirmed sound.
    ACTIVE-session-only, leaving managers/ended-sessions the review tools? Fix ready
    (isOwner UI wrap + `agentId → 403` on the 2 routes + status-gate the live panel).
 
+## Migrations to apply (founder — I can't verify applied-state headless)
+This session added **`0098`** (team_invitations partial-unique index — dedup + no
+duplicate pending invites). Also confirm these earlier §3.1-enforcement migrations are
+applied, or the coded append-only protection isn't live: **`0085`**
+(care_widget_load_events do-instead-nothing), **`0086`** (crm_activity_events same), and
+whatever remained from the 2026-07-07 queue (`0095`/`0096`/`0097`). Verified this
+session: the CORE §3.1 chain (events/decision_dialogues/etc.) is immutable via
+do-instead-nothing rules; these are the peripheral tables whose enforcement migrations
+may be pending. `npm run rls:audit` is green (all tables covered-or-documented).
+
 ## Retests I can't run headless
 - The flags on your real sessions (see #1).
 - A live call to confirm the 5 live-coaching cue fixes (stress speaker, empty-commit
