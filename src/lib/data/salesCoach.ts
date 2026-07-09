@@ -635,13 +635,23 @@ export async function getCueRelianceSeries(
   limit = 30
 ): Promise<Array<{ sessionId: string; startedAt: string; cueCount: number }>> {
   const sb = await createServerClient();
-  const { data: sessions } = await sb
+  const { data: sessions, error: eSessions } = await sb
     .from("coaching_sessions")
     .select("id, started_at")
     .eq("agent_id", agentId)
     .in("status", ["ended", "reviewed"])
     .order("started_at", { ascending: true })
     .limit(limit);
+  if (eSessions) {
+    // §3.4 observability (audit 2026-07-09): this read is swallowed (returns []
+    // below on error, rendering the cue-reliance chart's soft "not enough
+    // sessions" empty state). Kept non-throwing (2 callers), but LOG the real
+    // cause so a failure isn't invisible — matching the cue-row cap log below.
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesCoach.getCueRelianceSeries] sessions read failed for agent=${agentId} — reliance series renders empty. ${eSessions.message}`
+    );
+  }
   if (!sessions || sessions.length === 0) return [];
 
   // Perf (audit "same class elsewhere", 2026-07-06): was N+1 — a count query per
@@ -653,11 +663,17 @@ export async function getCueRelianceSeries(
   // truncating the tail → some sessions undercounted → the reliance trend bends down
   // falsely. Set an explicit bound well above the realistic max and flag if it's hit.
   const CUE_ROW_CAP = 5000;
-  const { data: cueRows } = await sb
+  const { data: cueRows, error: eCueRows } = await sb
     .from("coaching_cues")
     .select("session_id")
     .in("session_id", sessionIds)
     .limit(CUE_ROW_CAP);
+  if (eCueRows) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesCoach.getCueRelianceSeries] cue rows read failed for agent=${agentId} — reliance counts render as zero. ${eCueRows.message}`
+    );
+  }
   if (cueRows && cueRows.length === CUE_ROW_CAP) {
     // eslint-disable-next-line no-console
     console.error(
