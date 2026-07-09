@@ -468,6 +468,18 @@ Low urgency now; a focused pass I can do on your word (needs a decision on the r
   ⇒ FIXED, inbound email spoofing ✓, TTS ✓, STT ✓. One real defect (upload) found + fixed; the
   rest sound with defense-in-depth.
 
+- **§7 amendment / governance integrity verified sound (2026-07-09).** Cross-checked every
+  amendment reference against the files: all 6 (AMD-001–006) exist and are ratified; CLAUDE.md
+  inline-cites 001/004/005/006 (the section-ADDERS, each with a "> Added by" marker). AMD-002
+  (gate numeric defaults) is ratified and correctly lives in migration 0002's `problem_thresholds`
+  row (schema, not prose — §3.2 already described the gate); AMD-003 (per-company brain as the
+  §3.4 IMPLEMENTATION) is ratified and reflected in CLAUDE.md §3.4 (month-1 control / no-fixed-
+  day-one behavior) — it implements an existing principle, so no new-section marker was due. So
+  002/003 lacking inline cites is CONSISTENT, not a §7.4 violation. CAT-001 cited (→ triggered
+  AMD-005 §0.1); CAT-002 (chat-RLS recursion, the 2026-07-03 outage) recorded but correctly
+  uncited — a technical incident fixed operationally, not one that amended the constitution. No
+  dangling references either direction; the governance meta-process is internally consistent.
+
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
    shows 8/10). Invert the two, and re-baseline ELO? (It feeds the rating.)
