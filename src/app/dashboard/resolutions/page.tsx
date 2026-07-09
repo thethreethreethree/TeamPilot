@@ -255,7 +255,7 @@ function ResolutionRow({
             <LearningHint
               category="Resolution · §3.5 review"
               title="Review outcome"
-              whatItIs="Opens the durability review modal for this resolution. Lets you record what ACTUALLY happened (observed outcome, ≥20 chars) and pick a durability state — HELD (problem didn't reopen), PARTIAL (some closure, some leakage), REOPENED (the fix didn't stick), INCONCLUSIVE (window expired without enough signal). The decision is appended; you don't edit prior reviews."
+              whatItIs="Opens the durability review modal for this resolution. Lets you record what ACTUALLY happened (observed outcome, ≥20 chars) and pick a durability state — HELD (problem didn't reopen), PARTIAL (some closure, some leakage), REOPENED (the fix didn't stick), INCONCLUSIVE (window expired without enough signal). The review is recorded once and then locked (§3.1) — you don't edit a prior review. Review AFTER the durability window, when the signal actually exists."
               why="The capture moment recorded WHAT the team did and the expected outcome. The review moment compares that expectation against reality. §3.5 says only this comparison counts as validated learning — acceptance, click-through, or close rate are vanity. Review is the load-bearing measurement."
               how="Wait until enough time has passed for the underlying problem to credibly come back (typically 7 days for support, 28 days for operational decisions). Then click. Write what actually happened, plainly. Pick the durability state honestly — even when partial or reopened. The honest record is what makes the System smarter."
               principle="The review is where vanity becomes consequence. Skipping it means the team never finds out whether the work worked."
@@ -285,16 +285,27 @@ function ReviewModal({
   onSaved: () => void;
 }) {
   const [observedOutcome, setObservedOutcome] = useState(resolution.observedOutcome ?? "");
-  const [durability, setDurability] = useState<string>(resolution.durability ?? "unknown");
+  // No default durability: the review is write-once (§3.1), so "unknown/inconclusive"
+  // must be a CONSCIOUS choice (§3.5), never an accidental lock from a hasty Save on a
+  // pre-selected value. Empty until the reviewer deliberately picks one.
+  const [durability, setDurability] = useState<string>(resolution.durability ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const outcomeRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const DURABILITY_CHOICES = ["held", "partial", "reopened", "unknown"];
+  const durabilityChosen = DURABILITY_CHOICES.includes(durability);
   const MIN_OUTCOME_CHARS = 20;
   const submit = async () => {
     if (observedOutcome.trim().length < MIN_OUTCOME_CHARS) {
       setError(
         `Observed outcome needs at least ${MIN_OUTCOME_CHARS} characters — currently ${observedOutcome.trim().length}.`
+      );
+      return;
+    }
+    if (!durabilityChosen) {
+      setError(
+        "Pick a durability state — even 'inconclusive' is a conscious call. This review is recorded once and can't be edited later."
       );
       return;
     }
@@ -399,7 +410,7 @@ function ReviewModal({
           <button
             type="button"
             onClick={submit}
-            disabled={submitting}
+            disabled={submitting || observedOutcome.trim().length < MIN_OUTCOME_CHARS || !durabilityChosen}
             className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 disabled:opacity-40 text-[#09090B] font-semibold px-4 py-2 rounded-lg transition-all text-xs"
           >
             {submitting ? "Saving…" : "Save outcome"}

@@ -40,6 +40,37 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
+  // WRITE-ONCE (audit 2026-07-09): the review surface PROMISES the user "you don't
+  // edit prior reviews" (§A18 — the label IS the defense), and the UI enforces it by
+  // hiding the button once durability is set. But this route had NO server-side guard:
+  // any same-company caller could PATCH the same id repeatedly, silently OVERWRITING
+  // observed_outcome/durability — corrupting the one field §3.5 names by name
+  // ("resolution durability — did it reopen?"). A false immutability label over a
+  // mutable write is the §3.4 failure the constitution exists to prevent. Enforce the
+  // promised write-once: a resolution is reviewed exactly once. (If it later reopens,
+  // that is recorded here as durability="reopened" at review time — reviews are meant
+  // to run AFTER the durability window, when the signal exists.)
+  const { data: existing } = await supabase
+    .from("resolutions")
+    .select("id, reviewed_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (!existing) {
+    return NextResponse.json(
+      { error: "That resolution isn't accessible, or no longer exists." },
+      { status: 404 }
+    );
+  }
+  if (existing.reviewed_at) {
+    return NextResponse.json(
+      {
+        error:
+          "This resolution has already been reviewed. Reviews are recorded once and then locked (§3.1) — a prior review can't be edited.",
+      },
+      { status: 409 }
+    );
+  }
+
   const { data: updated, error } = await supabase
     .from("resolutions")
     .update({
@@ -49,6 +80,9 @@ export async function PATCH(req: NextRequest) {
       reviewer: auth.user.id,
     })
     .eq("id", id)
+    // Race guard: only write if still unreviewed. A concurrent double-submit that
+    // passed the check above still lands exactly one review (the second matches 0 rows).
+    .is("reviewed_at", null)
     .select("id");
 
   if (error) {
@@ -57,11 +91,12 @@ export async function PATCH(req: NextRequest) {
   // §3.4 / strictUpdate (audit 2026-07-09): assert the review actually landed. RLS
   // scopes resolutions to the caller's company, so an id outside it matches 0 rows —
   // report it rather than a phantom "reviewed" (the same false-ok class already fixed
-  // in the problems route).
+  // in the problems route). With the write-once guard above, 0 rows here means a
+  // concurrent review won the race.
   if (!updated || updated.length === 0) {
     return NextResponse.json(
-      { error: "That resolution isn't accessible, or no longer exists." },
-      { status: 404 }
+      { error: "This resolution was just reviewed by someone else." },
+      { status: 409 }
     );
   }
 
