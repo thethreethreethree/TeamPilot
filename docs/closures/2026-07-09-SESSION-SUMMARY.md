@@ -911,6 +911,13 @@ these are the enforcement/feature migrations whose *applied-state* I can't see f
 it), VAPID×3 + REBUILD (push delivery), and the optional channels — see the ENV-VAR ACTIVATION MAP up top.
 **Highest-leverage to apply first:** `0100` (§3.5 loop) + `0102` (ELO integrity) + set `CRON_SECRET`.
 
+**After applying 0101–0108, VERIFY per-env** (verification discipline — rls-audit can't see a
+live DB): run [`docs/closures/2026-07-09-authz-apply-verification.sql`](2026-07-09-authz-apply-verification.sql)
+in each environment's Supabase SQL editor. It's read-only and prints one PASS/FAIL row per fix
+(14 checks across the 8 migrations) — every row should read PASS; a FAIL names the migration that
+didn't land. This is the "never assert a migration is applied without per-env verification" rule
+made runnable.
+
 ## Retests I can't run headless
 - The flags on your real sessions (see #1).
 - A live call to confirm the 5 live-coaching cue fixes (stress speaker, empty-commit
