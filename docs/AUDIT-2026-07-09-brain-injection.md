@@ -38,4 +38,34 @@ create policy "company_brain - select" on company_brain
 
 **Also worth deciding (separate, lower):** `/api/brain/learn` is member-triggerable with no admin gate or rate-bound — a member can spam the learning cycle. Consider admin-gating or rate-limiting it.
 
-**Bearing:** §3.1 (append-only / auditable brain), §3.4/§3.6 (honest, visible learning), §2 (surface don't overtake — flagged not shipped), A26 step 4 (flag the risky/decision ones). Verified from source 2026-07-09.
+## Sibling instance (same class) — members can fabricate their OWN chain events → self-inflate ELO
+
+Generalizing: the root class is **an integrity-critical table whose sanctioned write
+path is SECURITY INVOKER / user-scoped, so members must have direct INSERT/UPDATE
+permission — which they can abuse to write fabricated data directly, bypassing the
+path's validation.** Two instances:
+
+1. `company_brain` (via `record_brain_learning`, invoker) → prompt injection (above).
+2. **`events`** (via `record_event`, invoker at 0004:60, + the invoker emit triggers,
+   + many user-scoped route inserts): the `events - all` INSERT policy (0103) checks
+   `company_id = auth_company_id() AND (actor = auth.uid() OR actor is null)` — but has
+   **no constraint on `kind` or `payload`.** So a member can direct-PostgREST-insert a
+   fabricated `coach.dissect_generated` event with `actor = self` and a payload showing
+   all-strengths/no-growth, and `getAgentEloGames` (salesElo.ts:217, reads
+   `coach.dissect_generated` by `actor = agentId`) counts it → **the member inflates
+   their OWN §3.5 ELO.** This is a RESIDUAL of 0103 (which closed cross-actor spoofing —
+   `actor` must be self — but not self-fabrication) and of the same class as the brain.
+   MED (within-tenant self-gaming of a performance metric, not cross-tenant).
+
+Why flagged, not fixed: the legit `coach.dissect_generated` emission is USER-SCOPED
+(dissect/route.ts:35/73 `createClient`), so RLS can't distinguish legit emission from
+direct fabrication of the same kind by the same user. The clean fix is the same
+architectural change as the brain: route the SYSTEM-kind event emissions
+(`coach.*`, `problem.*`, etc.) through SECURITY DEFINER RPCs (or service-role), then
+constrain the `events` INSERT policy to deny direct member insert of those reserved
+kinds. That touches the whole event-emission system — needs design + runtime test,
+not a blind change. **Recommended: treat items brain + events as ONE remediation** —
+"make sanctioned writes privileged, then restrict direct member writes" — and stage
+it together.
+
+**Bearing:** §3.1 (append-only / auditable chain + brain), §3.4/§3.6 (honest, visible learning), §3.5 (ELO/measurement integrity), §2 (surface don't overtake — flagged not shipped), A26 step 4 (flag the risky/decision ones). Verified from source 2026-07-09.

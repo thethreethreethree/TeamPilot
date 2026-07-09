@@ -912,6 +912,12 @@ inert." Correct framing for prioritizing it.
    SECURITY DEFINER + restricts the RLS — a security-mode change to the learning-cycle core I can't
    runtime-verify headless. Ready SQL + rationale: **docs/AUDIT-2026-07-09-brain-injection.md**.
    Apply on staging, run a learning cycle + create a test company to confirm, then promote. [review + verify]
+   **Sibling (same class):** members can also direct-insert fabricated `coach.dissect_generated`
+   events (actor=self, no kind constraint on the events INSERT policy) → self-inflate their §3.5
+   ELO (a residual of 0103, which closed cross-actor but not self-fabrication). Same root: an
+   invoker/user-scoped sanctioned write path forces member INSERT, abusable directly. Recommended:
+   remediate brain + events TOGETHER — route system-kind writes through DEFINER RPCs, then restrict
+   direct member writes. Detail in the same audit doc.
 
 11. **`decisions` delete scope.** A decision outcome row is deletable by any company member (same
    company-scoped `for all`). Unlike the §3.1 chain tables, `decisions` is a mutable entity with a
