@@ -772,6 +772,18 @@ inert." Correct framing for prioritizing it.
   surface-fetchers: `fetchTopics` (chats) and `fetchProblems` already handle it correctly — so the
   class (data-fetchers that render a *distinct, blame-implying* empty state) is bounded clean.
   Shipped (e8f751d); 533 tests green.
+- **Silent-mutation-failure UI class swept to boundary (A29, 2026-07-09) → 7 fixes (bda22b0).**
+  The InviteRow fix was one instance of a class: a user-triggered mutation whose FAILURE path
+  shows nothing, so the user believes it worked. Swept every client mutation handler (30 dashboard
+  + 23 component files): the SAFE majority already toast/setError; 7 siblings matched the exact
+  `if(res.ok){…}`-no-else / bare-unchecked-`await` shape. HIGH: `operations.deleteTask` (task
+  stayed on screen), `files ClassificationModal.toggleGrant` (optimistic access-control flip that
+  LIED on failure — now reverts). MED: `sales-coach.endSession`, `care CareShell` presence
+  `setStatus` (governs routing), `care ReadPhasePanel.markComplete` (a workflow gate), `settings
+  departments archive/unarchive`. All mirror existing in-file patterns; the 3 documented
+  fire-and-forgets (debrief, learning-mode toggle, push fan-out) were correctly excluded. This is
+  the UX-layer twin of the backend false-ok class (558ce56) — the same "a failed write must be
+  VISIBLE" §3.4 principle, applied above the API line.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
