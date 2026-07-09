@@ -30,6 +30,13 @@ export async function sweepDurabilityChecks(): Promise<{
   const { data: due, error } = await admin
     .from("support_durability_checks")
     .select("id")
+    // FIFO — oldest-due first (security/correctness 2026-07-09): the query is
+    // capped at 500/run, so under a backlog of >500 due checks the UNORDERED
+    // default could starve the oldest ones indefinitely (their §3.5 consequence
+    // measurement would never reach the agent). Ordering by scheduled_for ASC
+    // guarantees every due check is eventually processed, oldest first. No policy
+    // choice — oldest-due-first is the only correct order for a due-queue sweep.
+    .order("scheduled_for", { ascending: true })
     .is("checked_at", null)
     .lte("scheduled_for", nowIso)
     .limit(500);

@@ -52,5 +52,15 @@ export function makeSupabaseClient(
       const result = typeof spec === "function" ? spec() : spec ?? { data: [] };
       return builder(result);
     },
+    // rpc(fnName, args): records the call and resolves to a canned result. Supply a
+    // per-fn result via byTable["rpc:<fnName>"] (value or () => value); default
+    // { data: null, error: null } (success). Lets tests cover .rpc-using functions
+    // (e.g. sweepDurabilityChecks, runLearningCycle's record_brain_learning).
+    rpc: (fnName: string, args?: unknown) => {
+      calls.push(["rpc", [fnName, args]]);
+      const spec = byTable[`rpc:${fnName}`];
+      const result = typeof spec === "function" ? spec() : spec ?? { data: null, error: null };
+      return Promise.resolve(result);
+    },
   };
 }
