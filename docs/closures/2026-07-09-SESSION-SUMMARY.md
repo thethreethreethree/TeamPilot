@@ -744,6 +744,21 @@ inert." Correct framing for prioritizing it.
   2026-07-07 audit *claimed* completeness but missed six write/delete gaps a verb-by-verb
   exhaustive re-sweep found — "audited" is not "exhaustively bounded" unless the boundary is
   enumerated and recorded (captured as the A26 addendum in the reasoning store).
+- **A25 identity-resolution / cardinality class BOUNDED clean (2026-07-09).** Anchored on the
+  three invite-cluster fixes (ae7eddf `.maybeSingle`-on-2+-rows, 46f1bf5 email-not-matched,
+  feedback_admin_users_email_filter `?email=`-returns-a-list). Verified every choke point to
+  ground: (1) admin email resolution goes through ONE helper, `findAuthUserByEmail` — it pages all
+  users and matches the `email` field EXACTLY (never trusts the unreliable `?email=` param or
+  `users[0]`), returns null on a miss, has a regression test, and NOTHING bypasses it; (2) the
+  invite route matches the resolved user's id + company (`.eq("id", authUser.id).eq("company_id"…)`
+  — the specific person, not "whoever sorts first") and guards `.maybeSingle` with `.limit(1)` /
+  unique keys; (3) write cardinality is defended by reusable primitives — `strictMutate` (asserts
+  the write landed) and `strictMutateOne` (throws if >1 row). The high-consequence facet (silent
+  false-MATCH) is fixed + choke-pointed; the `.single()` facet fails LOUD (throws on ≠1), the safe
+  failure mode. **One honest scale note (fails safe, not a bug):** `findAuthUserByEmail` pages up to
+  50×200 = 10,000 users then returns null — on an instance with >10k auth users a lookup could
+  false-negative MISS an existing user (a miss, never a false match, per the lesson). Fine at
+  current scale; if the tenant base crosses ~10k users, switch to a server-side exact-email query.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
