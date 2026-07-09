@@ -728,6 +728,22 @@ inert." Correct framing for prioritizing it.
   singleton). Two suspects were correctly EXCLUDED from the fix by intent, not pattern: `decisions`
   has a real delete path (mutable entity, not append-only) and `team_members` delete is a
   permission choice — both surfaced as founder decisions below rather than unilaterally changed.
+- **SELECT (cross-tenant READ) swept — 0 suspects, the highest-stakes vector BOUNDED (2026-07-09).**
+  With INSERT/UPDATE/DELETE swept, I closed the loop on the one remaining DML verb — and the most
+  consequential, since a read leak beats any write bug. Every `for select`/`for all` policy on a
+  tenant table pins visible rows to the caller's company (69 `p.id = auth.uid()` occurrences ALL
+  carry the `and p.company_id = <table>.company_id` pin — the subtle authenticate-but-don't-scope
+  leak occurs NOWHERE; no `using(true)`). The only two role-only SELECTs (`problem_thresholds`,
+  `signal_sources`) are verified non-tenant global catalogs (no company_id column). So the read
+  side was already solid — my write/delete finds were the real gaps, and the 2026-07-07 audit's
+  SELECT work held up even though its write-side had holes.
+- **⇒ Four-verb authz boundary COMPLETE (a §1.7 audit result — answers checklist #9).** INSERT
+  (author-spoof, 0103-0106), UPDATE (tenant-key push-out, 38 tables + 0107), DELETE (immutability,
+  0108 + 2 flags), SELECT (0 suspects) are each swept to a recorded, auditable boundary. This is a
+  full ground-up authz audit; a future §1.7 pass can diff against it. The lesson worth keeping: the
+  2026-07-07 audit *claimed* completeness but missed six write/delete gaps a verb-by-verb
+  exhaustive re-sweep found — "audited" is not "exhaustively bounded" unless the boundary is
+  enumerated and recorded (captured as the A26 addendum in the reasoning store).
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
