@@ -646,6 +646,17 @@ inert." Correct framing for prioritizing it.
   resolution silently failed. So that §3.4 fix also fixed a §1.5.1 break (advancing past a lost
   capture) — the layers compound. Also: production build re-confirmed after the recent route changes.
 
+- **RLS infinite-recursion class (CAT-002 anchor) verified BOUNDED — no latent outage (A29 sweep,
+  2026-07-09).** RLS recursion (42P17) is outage-grade — a policy on A that queries B whose policy
+  queries A → Postgres refuses to evaluate → the table is unreadable. Swept for cross-table policy
+  cycles. Both cycles that EVER existed are fixed: chat_topics↔chat_participants (`0081`, the CAT-002
+  outage — `security definer` helper `is_topic_participant()` breaks the loop) and files↔file_access_grants
+  (`0063`/`0065` — `file_access_grants_select` tightened to grantee-only `profile_id = auth.uid()`, so
+  it stops referencing files; the uploader-sees-grants capability moved to a stronger route auth
+  check). All OTHER cross-table policy refs are ONE-directional (file_departments/tasks/tags/suggestions
+  → files, crm children → crm_accounts — the parent never references the children back), so no cycle.
+  Clean negative on a catastrophe anchor: no third recursion cycle exists to become the next outage.
+
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
    shows 8/10). **Verified 2026-07-09 — GOOD NEWS, NO ELO re-baseline needed (I was wrong that
