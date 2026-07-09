@@ -690,6 +690,22 @@ inert." Correct framing for prioritizing it.
   past, and the transitive cover evaporates if 0103 is unapplied or the trigger is switched to
   DEFINER. 0104 validates author_id at the row's own table (§1.5 defense-in-depth). **Apply 0103
   then 0104.**
+- **Author-spoof class swept to its boundary (A29, 2026-07-09) → 0103–0106.** "Constrain the
+  authorship column WHERE it's written" is a class. I enumerated every authorship column
+  schema-wide (→ auth.users / profiles) and closed the consequential surfaces — those feeding
+  ELO, the §3.1 chain, the brains, or communication-surface impersonation: `events.actor` (0103),
+  `chat_messages`/`support_messages.author_id` (0104), `resolutions.decided_by`/`reviewer` (0105),
+  `support_resolutions.captured_by` (0106). Two class-completeness catches worth noting: (a)
+  resolutions was ALSO in the tenant-key push-out class (`company_id`/`problem_id` were mutable —
+  the immutability trigger froze only action/reasoning/decided_at), fixed in the same 0105; (b)
+  `problems`/`signals` are derivation-engine tables with no member INSERT path, so their
+  `created_by` isn't member-spoofable. **Bounded residual (honest, not ignored):** the remaining
+  authorship columns — entity `created_by`/`opened_by`/`closed_by`/`invited_by`/`added_by`/
+  `assigned_by` on chat_topics, departments, tasks, team_invitations, etc. — are audit/display
+  attribution (they don't feed ELO/decisions/impersonation), and several are freeze-protected by
+  0096. I judged these LOW-consequence and did not migrate them; if you want belt-and-suspenders
+  attribution integrity on those too, it's a mechanical follow-up (same one-line `= auth.uid() or
+  null` pattern), not an urgent gap.
 
 ## Decisions waiting on you (each answerable in a sentence; fixes pre-written)
 1. **talk-ratio / question-rate score** is raw magnitude, not quality (an over-talker
@@ -793,6 +809,8 @@ these are the enforcement/feature migrations whose *applied-state* I can't see f
 | `0102` | coaching_sessions UPDATE `WITH CHECK` | **ELO integrity — owner can reassign agent_id to skew a peer's rating** |
 | `0103` | events INSERT actor guard (self-or-null) | **ELO + §3.1 + brain integrity — a member can attribute FABRICATED events to a victim (spoof a dissect → skew their ELO; inject false chain events)** |
 | `0104` | chat_messages + support_messages INSERT `author_id` self-or-null (row-level twin of 0103) | **impersonation — any topic participant can post a message under a co-worker's name (feeds §3.1 + brain); an agent can post as a peer. 0103 only transitively blocks the event-emitting kinds; `kind='system'` slips past it — apply 0103 THEN 0104** |
+| `0105` | resolutions: split for-all policy + INSERT `decided_by`/`reviewer` self-or-null + freeze decided_by/company_id/problem_id | **resolutions was exposed in BOTH swept classes at once — a member could fabricate/reattribute a resolution decision to a colleague (`decided_by` spoof → pollutes §3.1 + brain + §3.5 durability) AND relocate a resolution cross-tenant (`company_id` mutable). Immutability trigger froze only action/reasoning/decided_at** |
+| `0106` | support_resolutions INSERT `captured_by` self-or-null | care-side sibling — an agent could capture a resolution attributed to a peer (skews the peer's captured-history/stats in the care brain). MED-LOW; completes the author-spoof class |
 
 **Plus (env, not migrations):** `CRON_SECRET` (activates the §3.5 durability sweep — dormant without
 it), VAPID×3 + REBUILD (push delivery), and the optional channels — see the ENV-VAR ACTIVATION MAP up top.
