@@ -121,6 +121,29 @@ work is therefore mostly render-layer (Phase 3), not prompt-layer.
   from load-bearing-content requires per-surface runtime judgment, so each surface
   must be reviewed against a live render, NOT swept mechanically. Do this WITH
   founder runtime review, surface by surface.
+
+### Per-surface render-layer safety assessment (2026-07-10, from code inspection)
+
+Before any render-layer work, each surface was classified as **supplementary-safe**
+(a secondary block a Standard user doesn't need up front → safe to collapse) vs
+**primary-load-bearing** (the surface's core content → collapsing it breaks the workflow,
+do NOT). This is the map for the founder's live review — confirm/correct each against a
+real render once 0110 is applied.
+
+| Surface / block | Class | Render-layer action | Status |
+|---|---|---|---|
+| C.A.R.E summarize — `priorSimilar` "we've handled this before" panel | **supplementary** (§3.6 institutional memory, secondary to the read) | collapse behind `AdvancedDetail` | **DONE** (ConversationsApp, commit 5c7e518) — **UNTESTED runtime** |
+| C.A.R.E summarize — "The System's read" summary | primary (+ already generation-simplified) | leave inline | no change |
+| `PivotAndScores` — the score categories | **primary** (the agent's own performance feedback) | do NOT collapse | leave |
+| `ReadPhasePanel` — institutional context | **primary** (the surface's whole purpose — "structural anti-amnesia") | do NOT collapse | leave |
+| Teaching / "why this works" methodology copy (all surfaces) | already gated by **Learning Mode**, not Standard's to touch | none | n/a |
+| diagnose page — outside-views / ripple-trace | **primary** (load-bearing workflow content — the 2026-07-09 finding) | do NOT collapse | leave |
+
+**Rule the assessment yields:** only a clearly-**secondary related/prior-context panel**
+(the `priorSimilar` shape) is safe to collapse from code structure alone. Everything that
+IS the surface's answer (scores, institutional context, the read itself) stays. For the
+stored/JSON coach surfaces (salesSummary/dissect/review/analyze) the "primary vs
+supplementary" split can't be judged from code — those specifically need the live render.
 - **Remaining ephemeral prose surfaces:** enumerated all 8 `generateCareReply` callers
   (2026-07-09). C.A.R.E summarize is threaded (agent-facing). The four customer-facing
   callers (co-pilot, formulate, messages, inbound-email) correctly stay full (§A17 —
