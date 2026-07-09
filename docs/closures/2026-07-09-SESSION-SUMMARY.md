@@ -119,6 +119,24 @@ Two flagged observations (NOT changed — security-critical, §2/§5):
   divergence of a CRITICAL-authz value. Small, but it's a security constant — your call on
   the module-dependency direction.
 
+## Recommendation: the constitutional DB invariants aren't CI-verified (§5 structural gap)
+This session independently re-verified the constitution's structural core is enforced-in-
+schema and airtight TODAY: §3.1 immutability (do-instead-nothing rules on every chain
+table), §3.2 Understanding Gate (`problems_understanding_gate` trigger — min-signals +
+distinct-sources + diagnosis-length, fires on INSERT OR UPDATE so a direct-insert-as-
+surfaced can't bypass it), §3.5 measurement honesty (every readout anchors to consequence,
+disclaims agreement). **But nothing in CI verifies they STAY.** `npm run check` covers
+tsc/lint/theme/rls-coverage/tests — NOT the DB triggers/rules that enforce these invariants.
+A future migration that drops the gate trigger or an immutability rule would pass green while
+silently removing a constitutional guarantee (the §5 "builder drops a protection under
+pressure" risk, at the schema level). The proper fix is infra (yours): get
+`chain.integration.test.ts` (currently skipped — needs a live DB) running against a CI test
+DB, OR extend `scripts/rls-audit.mjs` into a "constitutional-invariant presence + not-dropped"
+check (create/drop-order-aware — a naive grep would false-green on a later DROP). Both are
+real work I can build on your word; flagging rather than building because the CI-DB path is
+an infrastructure decision and the audit-script path carries a false-positive-breaks-green
+risk I won't take autonomously.
+
 ## Verified clean this session (no action needed — recorded for confidence)
 - **Coach event-kind wiring (A14, whole surface).** Diffed EVERY queried `coach.*`
   event kind against every emitter across the app: all match. No manager-facing coach
