@@ -40,6 +40,38 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  // F5 (audit 2026-07-10): a user who signed up WITHOUT an invite link lands here
+  // with no company and can only create one — a dead end if they were meant to JOIN
+  // an existing company. This path lets them enter an invite code instead. Safe now
+  // that 0114 (email-match) is applied: accept_invitation verifies the code was sent
+  // to THIS user's email before attaching them.
+  const [joinMode, setJoinMode] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState("");
+
+  const handleJoin = async () => {
+    const code = joinCode.trim();
+    if (!code) return;
+    setJoining(true);
+    setJoinError("");
+    try {
+      const res = await fetch("/api/team/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Couldn't join with that code.");
+      router.push("/dashboard");
+    } catch (err) {
+      setJoinError(
+        err instanceof Error ? err.message : "Couldn't join with that code."
+      );
+    } finally {
+      setJoining(false);
+    }
+  };
   const [form, setForm] = useState({
     companyName: "",
     industry: "",
@@ -282,6 +314,61 @@ export default function OnboardingPage() {
                 className="w-full bg-surface border border-default rounded-lg px-4 py-3 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors text-base"
               />
               </LearningHint>
+
+              {/* F5 (audit 2026-07-10): join-existing alternative so a user who
+                  signed up without an invite link isn't dead-ended at create-only. */}
+              <div className="mt-6 pt-5 border-t border-default">
+                {!joinMode ? (
+                  <button
+                    type="button"
+                    onClick={() => setJoinMode(true)}
+                    className="text-xs text-muted hover:text-secondary transition-colors"
+                  >
+                    Already invited to a company?{" "}
+                    <span className="text-brand">Join with an invite code →</span>
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-secondary">
+                      Paste the invite code your admin sent you — you&apos;ll join
+                      their company instead of creating a new one.
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={joinCode}
+                        onChange={(e) => setJoinCode(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void handleJoin();
+                        }}
+                        placeholder="Invite code"
+                        className="flex-1 bg-surface border border-default rounded-lg px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleJoin()}
+                        disabled={joining || !joinCode.trim()}
+                        className="px-4 py-2 rounded-lg bg-ember-400/15 border border-ember-400/40 text-sm text-brand font-medium disabled:opacity-50 hover:bg-ember-400/20 transition-colors"
+                      >
+                        {joining ? "Joining…" : "Join"}
+                      </button>
+                    </div>
+                    {joinError && (
+                      <p className="text-xs text-red-300">{joinError}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setJoinMode(false);
+                        setJoinError("");
+                      }}
+                      className="text-[11px] text-muted hover:text-secondary"
+                    >
+                      ← Back to creating a company
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
