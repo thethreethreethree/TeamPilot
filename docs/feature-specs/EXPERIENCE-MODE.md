@@ -204,6 +204,12 @@ are one-click-away in Standard, never fully hidden. The reasoning/why/citation f
 `ExpertOnly` pending the founder's global hide-vs-one-click call (that call is now scoped to
 PURE reasoning, since §3.6 content is settled on constitutional grounds).
 
+**Reachability verified (AMD-006 L2, 2026-07-10):** the Standard toggle IS reachable by its
+target users — `ExperienceModePanel` renders ungated on C.A.R.E settings (Customer Agent) and
+in the Sales Coach settings *account* tab (Sales Agent; the `isManager` gate there only hides
+the *Coaching* tab, not the account tab where the toggle lives). Confirmed from source — the
+feature isn't accidentally admin-gated away from the agents it's built for.
+
 **First-pass sweep COMPLETE for the clear-safe supplementary targets** (2026-07-10). The
 consistent rule applied: keep the PRIMARY content (the score, the read, the draft, the
 takeaway, the "try instead" line), hide the SUPPLEMENTARY reasoning/precedents/citations via
