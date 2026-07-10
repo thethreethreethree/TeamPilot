@@ -137,7 +137,7 @@ and the HIGH was not omitted to appear successful. §1.7 on-record audit.*
 | **F2** | **STAGED, UNAPPLIED** | `0115_member_joined_on_company_attach.sql` | ❌ untested — SQL; staging check = attach an orphan, expect exactly one `member.joined`. |
 | **F3** | **BUILT** | `team/route.ts` (auto-revoke expired before insert) | ⚠️ tsc-verified; the route branch is **not** runtime-tested (needs live DB / supabase mock). |
 | **F4** | **BUILT (scoped)** | `src/lib/roles.ts` + auth-helpers + team/route + InviteMemberDialog + chats + team-check ×2 + `roles.test.ts` | ✅ tsc 0, behavior-preservation test 6/6, suite 576. **~18 non-account feature gates deferred** (consistent, no live mis-grant). |
-| **F5** | **DEFERRED** | — | Depends on F1 applied+verified; not built (would ship UI over an unverified backend). |
+| **F5** | **BUILT** (unblocked) | `onboarding/page.tsx` — "join via invite code" path on step 1 | Now safe: founder applied 0114 (F1), so accept_invitation email-verifies the code. tsc+test; **runtime-untested** (needs a live orphan + valid code). |
 | **F6** | **BUILT** | `chats/page.tsx` (hint sourced from `INVITABLE_ROLES`) | ✅ tsc. |
 | **F7** | **BUILT** | `admin.ts` (accumulate + warn on >1) | ✅ tsc; existing test green. |
 
