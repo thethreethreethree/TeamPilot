@@ -138,6 +138,9 @@ function WiredDashboard({ s }: { s: Summary }) {
         <a href="/dashboard/finance/expenses" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
           Expense Reports →
         </a>
+        <a href="/dashboard/finance/periods" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
+          Fiscal Periods →
+        </a>
       </div>
 
       {/* Empty ledger — real, but nothing posted yet */}
