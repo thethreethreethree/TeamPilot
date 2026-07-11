@@ -28,15 +28,15 @@ currency), `fin_roles` (the 5-role finance dimension), and the `fin_effective_ro
 NOT_STARTED until their full scope (delegation, etc.) is built, but the authority spine is in.*
 
 ## PHASE 2 — Transactions
-**Accounts Payable**
+**Accounts Payable**  *(0122 subledger foundation: fin_post_system_entry + fin_source_postings + fin_account_by_code)*
 | Feature | Status |
 |---|---|
-| Vendor / supplier master records | NOT_STARTED |
-| Purchase orders | NOT_STARTED |
-| Bill / invoice capture and entry (file ingestion / OCR) | NOT_STARTED |
-| Payment scheduling and execution | NOT_STARTED |
-| Recurring expenses (rent, subscriptions, utilities) | NOT_STARTED |
-| Approval workflows with role-based spend limits | NOT_STARTED |
+| Vendor / supplier master records | BUILT (0123 fin_vendors; acceptance tests/0123_ap_core.test.sql — awaiting live-DB run) |
+| Purchase orders | NOT_STARTED (Increment 2D) |
+| Bill / invoice capture and entry (file ingestion / OCR) | BUILT — manual entry (0123 fin_bills + fin_bill_lines + fin_approve_bill→GL). FLAGGED: OCR/file-ingestion recommended as a document-AI INTEGRATION (build-vs-buy), your call |
+| Payment scheduling and execution | NOT_STARTED — next AP increment (Dr AP, Cr Cash + FX gain/loss). FLAGGED: payment execution = processor/bank integration |
+| Recurring expenses (rent, subscriptions, utilities) | NOT_STARTED (Increment 2D) |
+| Approval workflows with role-based spend limits | PARTIAL — bill approval built (fin_approve_bill, approve-capability gated); FLAGGED: role-based spend-LIMIT thresholds need your $ values |
 
 **Accounts Receivable**
 | Feature | Status |
