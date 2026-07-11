@@ -56,7 +56,17 @@ begin
 
   if NEW.currency = v_base then
     NEW.fx_rate := 1;
+  elsif current_setting('fin.trust_provided_rate', true) = '1' then
+    -- System operation (e.g. a reversal): trust the PROVIDED fx_rate so the base amount matches
+    -- the original exactly. Only reachable from SECURITY DEFINER functions that set this flag —
+    -- a client PostgREST insert never sets it, so manual entries always take the authoritative
+    -- lookup path below.
+    if NEW.fx_rate is null or NEW.fx_rate <= 0 then
+      raise exception 'fin: system line missing a valid fx_rate';
+    end if;
+    -- keep NEW.fx_rate as provided
   else
+    -- Manual path: the rate is AUTHORITATIVE from the table (client fx_rate is ignored).
     select entry_date into v_date from fin_journal_entries where id = NEW.entry_id;
     v_rate := fin_get_rate(NEW.company_id, NEW.currency, v_base, v_date);
     if v_rate is null then

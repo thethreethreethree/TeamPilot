@@ -244,10 +244,15 @@ begin
     values (v_company, p_entry_date, p_period_id,
             'Reversal of entry ' || p_entry_id::text, 'system', p_entry_id, auth.uid(), 'draft')
     returning id into v_new;
-  -- swap debit<->credit on every line (base amounts are recomputed by the line trigger)
+  -- swap debit<->credit on every line. Preserve the ORIGINAL fx_rate so the reversal EXACTLY
+  -- negates the original in base currency — reversing a foreign-currency entry at a later date's
+  -- rate would otherwise not balance and could not post. The trust flag tells the base-computation
+  -- trigger (0119) to use the provided rate for THIS system operation instead of re-looking-it-up.
+  perform set_config('fin.trust_provided_rate', '1', true);
   insert into fin_journal_lines (company_id, entry_id, line_no, account_id, debit, credit, currency, fx_rate, memo)
     select v_company, v_new, line_no, account_id, credit, debit, currency, fx_rate, 'Reversal'
     from fin_journal_lines where entry_id = p_entry_id;
+  perform set_config('fin.trust_provided_rate', '', true);
   return v_new;  -- a DRAFT — post via fin_post_entry (a DIFFERENT approver; SoD preserved)
 end $$;
 
