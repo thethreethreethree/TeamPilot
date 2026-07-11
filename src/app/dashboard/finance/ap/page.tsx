@@ -1,0 +1,228 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import TopBar from "@/components/layout/TopBar";
+import { useToast } from "@/components/ui/toast";
+import { Loader2, Plus, CheckCircle2, DollarSign } from "lucide-react";
+
+type Vendor = { id: string; name: string };
+type Account = { id: string; code: string; name: string; type: string };
+type Bill = {
+  id: string;
+  vendor_id: string;
+  bill_number: string;
+  bill_date: string;
+  status: string;
+};
+
+export default function ApPage() {
+  const toast = useToast();
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const [v, a, b] = await Promise.all([
+      fetch("/api/finance/ap/vendors").then((r) => r.json()),
+      fetch("/api/finance/accounts").then((r) => r.json()),
+      fetch("/api/finance/ap/bills").then((r) => r.json()),
+    ]);
+    setVendors(v.vendors ?? []);
+    setAccounts(a.accounts ?? []);
+    setBills(b.bills ?? []);
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // new vendor
+  const [vName, setVName] = useState("");
+  const addVendor = async () => {
+    if (!vName.trim()) return;
+    setBusy(true);
+    const res = await fetch("/api/finance/ap/vendors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: vName.trim() }),
+    });
+    const j = await res.json();
+    setBusy(false);
+    if (res.ok) {
+      setVName("");
+      toast.success("Vendor added");
+      void load();
+    } else toast.error("Couldn't add vendor", j?.error ?? "");
+  };
+
+  // new bill (single line, minimal)
+  const expenseAccounts = accounts.filter((a) => a.type === "expense" || a.type === "asset");
+  const [bVendor, setBVendor] = useState("");
+  const [bNumber, setBNumber] = useState("");
+  const [bDate, setBDate] = useState("");
+  const [bAccount, setBAccount] = useState("");
+  const [bAmount, setBAmount] = useState("");
+  const addBill = async () => {
+    if (!bVendor || !bNumber || !bDate || !bAccount || !bAmount) {
+      toast.error("Fill vendor, number, date, account, and amount");
+      return;
+    }
+    setBusy(true);
+    const res = await fetch("/api/finance/ap/bills", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vendorId: bVendor,
+        billNumber: bNumber,
+        billDate: bDate,
+        lines: [{ accountId: bAccount, amount: Number(bAmount) }],
+      }),
+    });
+    const j = await res.json();
+    setBusy(false);
+    if (res.ok) {
+      setBNumber("");
+      setBAmount("");
+      toast.success("Draft bill created");
+      void load();
+    } else toast.error("Couldn't create bill", j?.error ?? "");
+  };
+
+  const act = async (billId: string, action: "approve" | "pay", amount?: number) => {
+    setBusy(true);
+    const url = `/api/finance/ap/bills/${billId}/${action}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body:
+        action === "pay"
+          ? JSON.stringify({ amount, paymentDate: new Date().toISOString().slice(0, 10) })
+          : undefined,
+    });
+    const j = await res.json();
+    setBusy(false);
+    if (res.ok) {
+      toast.success(action === "approve" ? "Approved & posted to the ledger" : "Paid");
+      void load();
+    } else toast.error(`Couldn't ${action}`, j?.error ?? "");
+  };
+
+  return (
+    <div className="min-h-screen bg-base">
+      <TopBar title="Accounts Payable" subtitle="Vendors, bills, approvals & payments" />
+      <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+        <p className="text-xs text-muted">
+          Functional first pass. Creating a bill and approving it posts a real double-entry journal
+          entry (Dr expense / Cr Accounts Payable); paying posts Dr AP / Cr Cash. Single line + no
+          tax here yet — the API supports multi-line + tax; a fuller UI is a follow-up.
+        </p>
+
+        {/* Vendors */}
+        <section className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-primary mb-3">Vendors</h2>
+          <div className="flex gap-2 mb-3">
+            <input
+              value={vName}
+              onChange={(e) => setVName(e.target.value)}
+              placeholder="Vendor name"
+              className="flex-1 bg-surface rounded-lg px-3 py-2 text-sm text-primary border border-default"
+            />
+            <button
+              onClick={addVendor}
+              disabled={busy}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-brand text-black text-sm font-medium disabled:opacity-60"
+            >
+              <Plus className="w-4 h-4" /> Add
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {vendors.map((v) => (
+              <span key={v.id} className="text-xs px-2 py-1 rounded-full bg-surface-raised text-secondary">
+                {v.name}
+              </span>
+            ))}
+            {vendors.length === 0 && <span className="text-xs text-muted">No vendors yet.</span>}
+          </div>
+        </section>
+
+        {/* New bill */}
+        <section className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-primary mb-3">New bill</h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <select value={bVendor} onChange={(e) => setBVendor(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
+              <option value="">Vendor…</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </select>
+            <input value={bNumber} onChange={(e) => setBNumber(e.target.value)} placeholder="Bill #" className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+            <input type="date" value={bDate} onChange={(e) => setBDate(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+            <select value={bAccount} onChange={(e) => setBAccount(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
+              <option value="">Account…</option>
+              {expenseAccounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.code} {a.name}</option>
+              ))}
+            </select>
+            <input value={bAmount} onChange={(e) => setBAmount(e.target.value)} inputMode="decimal" placeholder="Amount" className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+          </div>
+          <button onClick={addBill} disabled={busy} className="mt-3 inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-brand text-black text-sm font-medium disabled:opacity-60">
+            <Plus className="w-4 h-4" /> Create draft bill
+          </button>
+        </section>
+
+        {/* Bills */}
+        <section className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-primary mb-3">Bills</h2>
+          {bills.length === 0 ? (
+            <p className="text-xs text-muted">No bills yet.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-default text-muted text-xs uppercase tracking-wider">
+                  <th className="text-left pb-2 pr-3">Bill #</th>
+                  <th className="text-left pb-2 pr-3">Date</th>
+                  <th className="text-left pb-2 pr-3">Status</th>
+                  <th className="text-right pb-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-default">
+                {bills.map((b) => (
+                  <tr key={b.id}>
+                    <td className="py-2 pr-3 text-primary">{b.bill_number}</td>
+                    <td className="py-2 pr-3 font-mono text-muted text-xs">{b.bill_date}</td>
+                    <td className="py-2 pr-3">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-surface-raised text-secondary">{b.status}</span>
+                    </td>
+                    <td className="py-2 text-right">
+                      {b.status === "draft" && (
+                        <button onClick={() => act(b.id, "approve")} disabled={busy} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-emerald-500/15 text-emerald-300 disabled:opacity-60">
+                          <CheckCircle2 className="w-3 h-3" /> Approve
+                        </button>
+                      )}
+                      {b.status === "approved" && (
+                        <PayButton onPay={(amt) => act(b.id, "pay", amt)} disabled={busy} />
+                      )}
+                      {b.status === "paid" && <span className="text-xs text-emerald-400">Paid</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function PayButton({ onPay, disabled }: { onPay: (amount: number) => void; disabled: boolean }) {
+  const [amt, setAmt] = useState("");
+  return (
+    <span className="inline-flex items-center gap-1">
+      <input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="Amt" className="w-16 bg-surface rounded px-1.5 py-1 text-xs text-primary border border-default" />
+      <button onClick={() => onPay(Number(amt))} disabled={disabled || !amt} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-brand/20 text-brand disabled:opacity-60">
+        <DollarSign className="w-3 h-3" /> Pay
+      </button>
+    </span>
+  );
+}

@@ -130,6 +130,13 @@ function WiredDashboard({ s }: { s: Summary }) {
 
   return (
     <>
+      {/* Reachability (AMD-006 L3): the operational subledger surfaces. */}
+      <div className="flex flex-wrap gap-2">
+        <a href="/dashboard/finance/ap" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
+          Manage Accounts Payable →
+        </a>
+      </div>
+
       {/* Empty ledger — real, but nothing posted yet */}
       {!s.has_data && (
         <div className="glass-card p-4 border-brand/20 text-sm text-secondary">
