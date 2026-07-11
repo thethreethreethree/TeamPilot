@@ -19,7 +19,7 @@ manual FX now, API-ready · separate finance-role dimension, approval gated to E
 | Double-entry general ledger — balanced debits/credits every transaction | BUILT (0118; two-layer DB balance enforcement [post-RPC + deferred constraint triggers on BOTH entries and lines], debit-XOR-credit CHECK, server-computed base amounts, posted+closed-period immutability. Acceptance: tests/0118_ledger.test.sql — awaiting live-DB run) |
 | Journal entries — manual + automated, with approval workflow | BUILT (0118; draft→post via fin_post_entry with approver-role gate + SoD [approved_by<>created_by] + open-period + balance checks; fin_reverse_entry creates an SoD-preserving draft reversal. App UI for the workflow is a later Phase-9/UI increment) |
 | Fiscal periods — open/close; closed periods locked | BUILT (0117; table + non-overlap + close/reopen/lock RPCs. The closed-period IMMUTABILITY trigger on entries ships with the ledger, Increment 3. Acceptance: tests/0117_periods.test.sql — awaiting live-DB run) |
-| Multi-currency support — exchange rates, FX gain/loss | NOT_STARTED (Increment 4) |
+| Multi-currency support — exchange rates, FX gain/loss | BUILT (0119; fin_exchange_rates + fin_get_rate + authoritative FX in base-amount computation + fin_init_company COA seed incl. FX Gain/Loss account. REALIZED FX gain/loss posting is at settlement, Phase 2; period-end unrealized revaluation FLAGGED for later. Acceptance: tests/0119_multicurrency.test.sql) |
 | Immutable audit trail — append-only who/what/when/prior-value | NOT_STARTED (Increment 5) |
 
 *Increment 1 (0116) also laid the foundation for Phase 9's RBAC + SoD: `fin_settings` (base
