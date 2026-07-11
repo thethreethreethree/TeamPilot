@@ -15,12 +15,17 @@ manual FX now, API-ready · separate finance-role dimension, approval gated to E
 ## PHASE 1 — Foundation
 | Feature | Status |
 |---|---|
-| Chart of Accounts (COA) — configurable account tree (Asset/Liability/Equity/Revenue/Expense + sub-accounts) | NOT_STARTED |
-| Double-entry general ledger — balanced debits/credits every transaction | NOT_STARTED |
-| Journal entries — manual + automated, with approval workflow | NOT_STARTED |
-| Fiscal periods — open/close; closed periods locked | NOT_STARTED |
-| Multi-currency support — exchange rates, FX gain/loss | NOT_STARTED |
-| Immutable audit trail — append-only who/what/when/prior-value | NOT_STARTED |
+| Chart of Accounts (COA) — configurable account tree (Asset/Liability/Equity/Revenue/Expense + sub-accounts) | BUILT (0116; acceptance script docs/financial-system/tests/0116_foundation.test.sql — awaiting live-DB run to reach TESTED) |
+| Double-entry general ledger — balanced debits/credits every transaction | NOT_STARTED (Increment 3) |
+| Journal entries — manual + automated, with approval workflow | NOT_STARTED (Increment 3) |
+| Fiscal periods — open/close; closed periods locked | NOT_STARTED (Increment 2) |
+| Multi-currency support — exchange rates, FX gain/loss | NOT_STARTED (Increment 4) |
+| Immutable audit trail — append-only who/what/when/prior-value | NOT_STARTED (Increment 5) |
+
+*Increment 1 (0116) also laid the foundation for Phase 9's RBAC + SoD: `fin_settings` (base
+currency), `fin_roles` (the 5-role finance dimension), and the `fin_effective_role()` /
+`fin_can_*` capability helpers with the platform-role→CFO bridge. Those Phase-9 rows stay
+NOT_STARTED until their full scope (delegation, etc.) is built, but the authority spine is in.*
 
 ## PHASE 2 — Transactions
 **Accounts Payable**
