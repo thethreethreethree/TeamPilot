@@ -16,8 +16,8 @@ manual FX now, API-ready · separate finance-role dimension, approval gated to E
 | Feature | Status |
 |---|---|
 | Chart of Accounts (COA) — configurable account tree (Asset/Liability/Equity/Revenue/Expense + sub-accounts) | BUILT (0116; acceptance script docs/financial-system/tests/0116_foundation.test.sql — awaiting live-DB run to reach TESTED) |
-| Double-entry general ledger — balanced debits/credits every transaction | NOT_STARTED (Increment 3) |
-| Journal entries — manual + automated, with approval workflow | NOT_STARTED (Increment 3) |
+| Double-entry general ledger — balanced debits/credits every transaction | BUILT (0118; two-layer DB balance enforcement [post-RPC + deferred constraint triggers on BOTH entries and lines], debit-XOR-credit CHECK, server-computed base amounts, posted+closed-period immutability. Acceptance: tests/0118_ledger.test.sql — awaiting live-DB run) |
+| Journal entries — manual + automated, with approval workflow | BUILT (0118; draft→post via fin_post_entry with approver-role gate + SoD [approved_by<>created_by] + open-period + balance checks; fin_reverse_entry creates an SoD-preserving draft reversal. App UI for the workflow is a later Phase-9/UI increment) |
 | Fiscal periods — open/close; closed periods locked | BUILT (0117; table + non-overlap + close/reopen/lock RPCs. The closed-period IMMUTABILITY trigger on entries ships with the ledger, Increment 3. Acceptance: tests/0117_periods.test.sql — awaiting live-DB run) |
 | Multi-currency support — exchange rates, FX gain/loss | NOT_STARTED (Increment 4) |
 | Immutable audit trail — append-only who/what/when/prior-value | NOT_STARTED (Increment 5) |
