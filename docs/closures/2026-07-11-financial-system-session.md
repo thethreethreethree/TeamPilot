@@ -20,12 +20,21 @@ Management System (FinancialSystem.md) from nothing to an operational Phase-1 + 
 - 0124 AP payments — fin_pay_bill→GL (Dr AP / Cr Cash), partial + over-pay guard
 - 0125 Expenses — reports/items, approve→GL (SoD: not your own) → reimburse→GL
 
+**Post-build adversarial audit (0126–0129) — 4 genuine issues found + fixed**
+- 0126 fin_init_company seeds an open period (fresh company couldn't post → would break verification)
+- 0127 fin_pay_bill locks the bill row (over-payment race)
+- 0128 AP bills editable only while DRAFT (edit-after-approval integrity — missed analogue of the 0125 expense fix)
+- 0129 config-immutability guards (base_currency + account type/normal_balance frozen once used)
+
 **App surface**
 - Finance dashboard wired to the real ledger (Initialize CTA, real Cash/Revenue/Expenses/Net,
   trial-balance integrity badge, real expense breakdown; AR/burn/runway honestly deferred, not mocked)
-- API: /api/finance/summary, /init, /accounts, /ap/vendors, /ap/bills(+/[id]/approve,/pay),
+- API: /api/finance/summary, /init, /accounts, /periods(+/[id]), /ap/vendors, /ap/bills(+/[id]/approve,/pay),
   /expenses/reports(+/[id])
-- UI: /dashboard/finance/ap and /dashboard/finance/expenses (functional first-pass, single-line/no-tax)
+- UI: /dashboard/finance/{ap, expenses, periods} (functional first-pass, single-line/no-tax)
+
+**APPLY STATE: founder confirmed applied through 0121. Migrations 0122–0129 built this session
+still need applying** before the Phase-2 features + audit fixes take effect.
 
 ## Governance record (the founder ran a strict per-phase protocol)
 
