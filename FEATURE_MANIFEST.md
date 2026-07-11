@@ -20,7 +20,7 @@ manual FX now, API-ready · separate finance-role dimension, approval gated to E
 | Journal entries — manual + automated, with approval workflow | BUILT (0118; draft→post via fin_post_entry with approver-role gate + SoD [approved_by<>created_by] + open-period + balance checks; fin_reverse_entry creates an SoD-preserving draft reversal. App UI for the workflow is a later Phase-9/UI increment) |
 | Fiscal periods — open/close; closed periods locked | BUILT (0117; table + non-overlap + close/reopen/lock RPCs. The closed-period IMMUTABILITY trigger on entries ships with the ledger, Increment 3. Acceptance: tests/0117_periods.test.sql — awaiting live-DB run) |
 | Multi-currency support — exchange rates, FX gain/loss | BUILT (0119; fin_exchange_rates + fin_get_rate + authoritative FX in base-amount computation + fin_init_company COA seed incl. FX Gain/Loss account. REALIZED FX gain/loss posting is at settlement, Phase 2; period-end unrealized revaluation FLAGGED for later. Acceptance: tests/0119_multicurrency.test.sql) |
-| Immutable audit trail — append-only who/what/when/prior-value | NOT_STARTED (Increment 5) |
+| Immutable audit trail — append-only who/what/when/prior-value | BUILT (0120; generic fin_audit trigger on all 7 fin_ tables → fin_audit_log with actor/action/before/after; append-only trigger rejects UPDATE/DELETE even from service role. Acceptance: tests/0120_audit.test.sql) |
 
 *Increment 1 (0116) also laid the foundation for Phase 9's RBAC + SoD: `fin_settings` (base
 currency), `fin_roles` (the 5-role finance dimension), and the `fin_effective_role()` /
@@ -168,5 +168,10 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 
 ---
 
-*Updated at each phase boundary per section 2.2. Current phase: **PHASE 1 — data model proposed,
-awaiting founder confirmation before implementation code.***
+*Updated at each phase boundary per section 2.2. Current phase: **PHASE 1 — all 6 foundation
+features BUILT (migrations 0116–0120, Increments 1–5). NONE are TESTED yet: verified by
+construction only, because Postgres can't run headless. To reach TESTED, apply 0116→0120 on
+staging and run docs/financial-system/tests/0116–0120*.sql (each rolls back; every line should
+read PASS), plus the app-layer assertions (RLS isolation, RPC authority/SoD) once the finance UI
+exists. No Phase-2 work begins until Phase-1 is TESTED — "never build on a ledger that isn't
+trustworthy yet."***
