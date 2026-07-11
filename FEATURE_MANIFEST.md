@@ -18,7 +18,7 @@ manual FX now, API-ready · separate finance-role dimension, approval gated to E
 | Chart of Accounts (COA) — configurable account tree (Asset/Liability/Equity/Revenue/Expense + sub-accounts) | BUILT (0116; acceptance script docs/financial-system/tests/0116_foundation.test.sql — awaiting live-DB run to reach TESTED) |
 | Double-entry general ledger — balanced debits/credits every transaction | NOT_STARTED (Increment 3) |
 | Journal entries — manual + automated, with approval workflow | NOT_STARTED (Increment 3) |
-| Fiscal periods — open/close; closed periods locked | NOT_STARTED (Increment 2) |
+| Fiscal periods — open/close; closed periods locked | BUILT (0117; table + non-overlap + close/reopen/lock RPCs. The closed-period IMMUTABILITY trigger on entries ships with the ledger, Increment 3. Acceptance: tests/0117_periods.test.sql — awaiting live-DB run) |
 | Multi-currency support — exchange rates, FX gain/loss | NOT_STARTED (Increment 4) |
 | Immutable audit trail — append-only who/what/when/prior-value | NOT_STARTED (Increment 5) |
 
