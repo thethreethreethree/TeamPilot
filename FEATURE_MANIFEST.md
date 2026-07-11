@@ -48,15 +48,15 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Dunning / collections workflow | NOT_STARTED |
 | Credit notes and refunds | NOT_STARTED |
 
-**Expense Management**
+**Expense Management**  *(0125)*
 | Feature | Status |
 |---|---|
-| Employee expense submission (receipt capture) | NOT_STARTED |
-| Expense categorization | NOT_STARTED |
-| Reimbursement workflow and approvals | NOT_STARTED |
-| Corporate card transaction reconciliation | NOT_STARTED |
-| Mileage / per-diem handling | NOT_STARTED |
-| Policy enforcement (limits, disallowed categories) | NOT_STARTED |
+| Employee expense submission (receipt capture) | BUILT (fin_expense_reports + fin_expense_items, receipt_url field; submission open to any company member — FLAGGED access-model decision) |
+| Expense categorization | BUILT (category field per item) |
+| Reimbursement workflow and approvals | BUILT (fin_approve_expense_report→GL with employee≠approver SoD; fin_reimburse_expense_report→GL) |
+| Corporate card transaction reconciliation | NOT_STARTED (Increment 2D) |
+| Mileage / per-diem handling | NOT_STARTED (Increment 2D) |
+| Policy enforcement (limits, disallowed categories) | NOT_STARTED (Increment 2D) |
 
 ## PHASE 3 — Banking & Reconciliation
 | Feature | Status |
