@@ -12,8 +12,8 @@ export async function GET() {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { data, error } = await sb
-    .from("fin_invoices")
-    .select("id, customer_id, invoice_number, invoice_date, due_date, currency, status")
+    .from("fin_invoice_summary")
+    .select("id, customer_id, invoice_number, invoice_date, due_date, currency, status, total, received")
     .order("invoice_date", { ascending: false });
   if (error) return NextResponse.json({ invoices: [] });
   return NextResponse.json({ invoices: data });

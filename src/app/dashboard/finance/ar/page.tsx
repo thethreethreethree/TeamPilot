@@ -8,7 +8,7 @@ import { Plus, Send, DollarSign } from "lucide-react";
 
 type Customer = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
-type Invoice = { id: string; invoice_number: string; invoice_date: string; status: string };
+type Invoice = { id: string; invoice_number: string; invoice_date: string; status: string; total?: number; received?: number };
 type Aging = {
   current: number;
   d1_30: number;
@@ -189,6 +189,8 @@ export default function ArPage() {
                 <tr className="border-b border-default text-muted text-xs uppercase tracking-wider">
                   <th className="text-left pb-2 pr-3">Invoice #</th>
                   <th className="text-left pb-2 pr-3">Date</th>
+                  <th className="text-right pb-2 pr-3">Amount</th>
+                  <th className="text-right pb-2 pr-3">Outstanding</th>
                   <th className="text-left pb-2 pr-3">Status</th>
                   <th className="text-right pb-2">Actions</th>
                 </tr>
@@ -198,6 +200,8 @@ export default function ArPage() {
                   <tr key={inv.id}>
                     <td className="py-2 pr-3 text-primary">{inv.invoice_number}</td>
                     <td className="py-2 pr-3 font-mono text-muted text-xs">{inv.invoice_date}</td>
+                    <td className="py-2 pr-3 text-right font-mono text-secondary">{money(inv.total ?? 0)}</td>
+                    <td className="py-2 pr-3 text-right font-mono text-secondary">{money((inv.total ?? 0) - (inv.received ?? 0))}</td>
                     <td className="py-2 pr-3"><span className="text-xs px-2 py-0.5 rounded-full bg-surface-raised text-secondary">{inv.status}</span></td>
                     <td className="py-2 text-right">
                       {inv.status === "draft" && (

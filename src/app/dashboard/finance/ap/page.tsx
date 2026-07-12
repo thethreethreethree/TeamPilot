@@ -14,7 +14,10 @@ type Bill = {
   bill_number: string;
   bill_date: string;
   status: string;
+  total?: number;
+  paid?: number;
 };
+const money = (n: number) => `$${(Number(n) || 0).toFixed(2)}`;
 
 export default function ApPage() {
   const toast = useToast();
@@ -187,6 +190,8 @@ export default function ApPage() {
                 <tr className="border-b border-default text-muted text-xs uppercase tracking-wider">
                   <th className="text-left pb-2 pr-3">Bill #</th>
                   <th className="text-left pb-2 pr-3">Date</th>
+                  <th className="text-right pb-2 pr-3">Amount</th>
+                  <th className="text-right pb-2 pr-3">Outstanding</th>
                   <th className="text-left pb-2 pr-3">Status</th>
                   <th className="text-right pb-2">Actions</th>
                 </tr>
@@ -196,6 +201,8 @@ export default function ApPage() {
                   <tr key={b.id}>
                     <td className="py-2 pr-3 text-primary">{b.bill_number}</td>
                     <td className="py-2 pr-3 font-mono text-muted text-xs">{b.bill_date}</td>
+                    <td className="py-2 pr-3 text-right font-mono text-secondary">{money(b.total ?? 0)}</td>
+                    <td className="py-2 pr-3 text-right font-mono text-secondary">{money((b.total ?? 0) - (b.paid ?? 0))}</td>
                     <td className="py-2 pr-3">
                       <span className="text-xs px-2 py-0.5 rounded-full bg-surface-raised text-secondary">{b.status}</span>
                     </td>

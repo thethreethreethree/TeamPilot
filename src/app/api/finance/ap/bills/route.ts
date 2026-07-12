@@ -17,8 +17,8 @@ export async function GET() {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { data, error } = await sb
-    .from("fin_bills")
-    .select("id, vendor_id, bill_number, bill_date, due_date, currency, status")
+    .from("fin_bill_summary")
+    .select("id, vendor_id, bill_number, bill_date, due_date, currency, status, total, paid")
     .order("bill_date", { ascending: false });
   if (error) return NextResponse.json({ bills: [] });
   return NextResponse.json({ bills: data });
