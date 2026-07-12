@@ -101,12 +101,12 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 ## PHASE 5 — Budgeting & Forecasting
 | Feature | Status |
 |---|---|
-| Budget creation (annual/quarterly, by dept & cost center) | NOT_STARTED |
-| Budget vs. actual tracking with variance alerts | NOT_STARTED |
-| Rolling forecasts | NOT_STARTED |
-| Cash flow forecasting / projection | NOT_STARTED |
-| Scenario modeling | NOT_STARTED |
-| Runway calculation | NOT_STARTED |
+| Budget creation (annual/quarterly, by dept & cost center) | BUILT (0149 fin_budgets + fin_budget_lines, account × cost-center × quarter; /dashboard/finance/budgets) |
+| Budget vs. actual tracking with variance alerts | BUILT (0149 fin_budget_variance view — budget vs posted actuals by account × cost-center × quarter; variance colored by direction; threshold in fin_settings.variance_alert_pct default 10%. Acceptance: tests/0149) |
+| Rolling forecasts | NOT_STARTED — deferred to Phase-5 increment 2 (per proposal) |
+| Cash flow forecasting / projection | NOT_STARTED — deferred to Phase-5 increment 2 |
+| Scenario modeling | NOT_STARTED — deferred to Phase-5 increment 2 (needs assumptions) |
+| Runway calculation | BUILT (0149 fin_runway: cash / avg-3mo monthly burn; on /budgets. Cash uses the dashboard cash-name heuristic — flagged) |
 
 ## PHASE 6 — Reporting
 **Core financial statements**  *(0134 fin_statements — derived, read-only; /dashboard/finance/statements)*

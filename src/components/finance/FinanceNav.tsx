@@ -17,6 +17,7 @@ const LINKS = [
   { href: "/dashboard/finance/expenses", label: "Expenses" },
   { href: "/dashboard/finance/banking", label: "Banking" },
   { href: "/dashboard/finance/profitability", label: "Profit" },
+  { href: "/dashboard/finance/budgets", label: "Budget" },
   { href: "/dashboard/finance/periods", label: "Periods" },
   { href: "/dashboard/finance/statements", label: "Statements" },
 ];
