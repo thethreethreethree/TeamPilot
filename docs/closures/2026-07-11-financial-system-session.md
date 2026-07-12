@@ -4,9 +4,9 @@ Single entry point for the founder's return. This session built the Financial Tr
 Management System (FinancialSystem.md) from nothing to a **complete core accounting system**:
 double-entry GL → transactions (AP/AR/Expenses) → periods → **financial statements + CSV export** →
 Phase-2D (POs, recurring, aging both sides, collections).
-Migrations **0116–0143**. Apply state (2026-07-13): founder applied **through 0142** (incl. the
-security fixes 0141 team-invite + 0142 subledger author-pin). **`0143` (credit notes) is the one
-migration still to apply.**
+Migrations **0116–0144**. Apply state (2026-07-13): founder applied **through 0142** (incl. security
+fixes 0141 + 0142). **`0143` (credit notes) + `0144` (date-ranged statements) are the two migrations
+still to apply.**
 
 **Also built after the Phase-2 core:** AR aging (0133); core financial statements — P&L, Balance
 Sheet, Trial Balance, GL-detail drill-down RPC (0134) at /dashboard/finance/statements, with CSV
