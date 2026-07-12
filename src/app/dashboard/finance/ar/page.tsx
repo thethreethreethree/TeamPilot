@@ -8,23 +8,35 @@ import { Plus, Send, DollarSign } from "lucide-react";
 type Customer = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
 type Invoice = { id: string; invoice_number: string; invoice_date: string; status: string };
+type Aging = {
+  current: number;
+  d1_30: number;
+  d31_60: number;
+  d61_90: number;
+  d90_plus: number;
+  total: number;
+};
+const money = (n: number) => `$${(Number(n) || 0).toFixed(2)}`;
 
 export default function ArPage() {
   const toast = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [aging, setAging] = useState<Aging | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [c, a, i] = await Promise.all([
+    const [c, a, i, g] = await Promise.all([
       fetch("/api/finance/ar/customers").then((r) => r.json()),
       fetch("/api/finance/accounts").then((r) => r.json()),
       fetch("/api/finance/ar/invoices").then((r) => r.json()),
+      fetch("/api/finance/ar/aging").then((r) => r.json()),
     ]);
     setCustomers(c.customers ?? []);
     setAccounts(a.accounts ?? []);
     setInvoices(i.invoices ?? []);
+    setAging(g.aging ?? null);
   }, []);
   useEffect(() => {
     void load();
@@ -107,6 +119,27 @@ export default function ArPage() {
           Cash / Cr AR. Note: you can&apos;t issue an invoice you created (segregation of duties) — a
           second finance user issues it. Single line + no tax here yet.
         </p>
+
+        {aging && aging.total > 0 && (
+          <section className="glass-card p-5">
+            <h2 className="text-sm font-semibold text-primary mb-3">Aging — outstanding receivables</h2>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-center">
+              {[
+                { label: "Current", v: aging.current },
+                { label: "1–30", v: aging.d1_30 },
+                { label: "31–60", v: aging.d31_60 },
+                { label: "61–90", v: aging.d61_90 },
+                { label: "90+", v: aging.d90_plus, warn: true },
+                { label: "Total", v: aging.total, bold: true },
+              ].map((b) => (
+                <div key={b.label} className="rounded-lg bg-surface-raised p-2">
+                  <p className="text-[10px] text-muted uppercase tracking-wider">{b.label}</p>
+                  <p className={`text-sm font-mono ${b.warn && b.v > 0 ? "text-red-400" : b.bold ? "text-primary font-semibold" : "text-secondary"}`}>{money(b.v)}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="glass-card p-5">
           <h2 className="text-sm font-semibold text-primary mb-3">Customers</h2>
