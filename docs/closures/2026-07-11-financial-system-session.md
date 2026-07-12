@@ -2,8 +2,10 @@
 
 Single entry point for the founder's return. This session built the Financial Tracking &
 Management System (FinancialSystem.md) from nothing to a **complete core accounting system**:
-double-entry GL → transactions (AP/AR/Expenses) → periods → **financial statements + CSV export**.
-Migrations **0116–0134**. Apply state: founder confirmed through 0121; **0122–0134 need applying**.
+double-entry GL → transactions (AP/AR/Expenses) → periods → **financial statements + CSV export** →
+Phase-2D (POs, recurring, aging both sides, collections).
+Migrations **0116–0140**. Apply state: founder confirmed through 0121; **0122–0140 need applying**
+(one contiguous range, dependency-order-verified — apply in numeric order).
 
 **Also built after the Phase-2 core:** AR aging (0133); core financial statements — P&L, Balance
 Sheet, Trial Balance, GL-detail drill-down RPC (0134) at /dashboard/finance/statements, with CSV
@@ -15,7 +17,7 @@ satisfied; consistent with the aging/dashboard readouts). All three subledgers a
 spend-limits/mileage/policy — some need values); Phases 3 (banking), 5 (budget/forecast), 7 (tax),
 8 (payroll/assets), 9 (governance) — each ADDS a data model, so each needs a proposal + confirmation.
 
-## What was built (migrations 0116–0125 + finance app surface)
+## What was built (migrations 0116–0140 + finance app surface)
 
 **Phase 1 — Foundation (VERIFIED by founder: all acceptance scripts PASS)**
 - 0116 settings + finance roles + capability helpers + platform-role→CFO bridge + Chart of Accounts
@@ -55,8 +57,9 @@ spend-limits/mileage/policy — some need values); Phases 3 (banking), 5 (budget
   /expenses/reports(+/[id])
 - UI: /dashboard/finance/{ap, expenses, periods} (functional first-pass, single-line/no-tax)
 
-**APPLY STATE: founder confirmed applied through 0121. Migrations 0122–0129 built this session
-still need applying** before the Phase-2 features + audit fixes take effect.
+**APPLY STATE: founder confirmed applied through 0121. Migrations 0122–0140 built this session
+still need applying** (contiguous, dependency-order-verified) before the Phase-2 features, audit
+fixes, AR, statements, and Phase-2D enrichments take effect.
 
 ## Governance record (the founder ran a strict per-phase protocol)
 
@@ -67,7 +70,7 @@ still need applying** before the Phase-2 features + audit fixes take effect.
   bridge" couldn't serve customer tenants. Founder chose **Option B (finance-native AR)** — BUILT
   (0131 fin_customers+fin_invoices+issue→GL, 0132 receipts→GL, + API/UI). Founder also confirmed
   adding **bill-approval SoD** (creator≠approver, 0130). **Phase-2 core (AP + AR + Expenses) is now
-  COMPLETE + operational.** Migrations to apply: **0122–0132**.
+  COMPLETE + operational.** (Full apply range including Phase-2D: **0122–0140** — see top of doc.)
 
 ## 5 real defects self-caught + fixed before commit (all verified-by-construction only)
 1. FX reversal negated at the wrong (reversal-date) rate → wouldn't balance; fixed via a trust flag.
@@ -85,4 +88,4 @@ still need applying** before the Phase-2 features + audit fixes take effect.
 
 ## Key files
 - FEATURE_MANIFEST.md (status of every feature) · docs/financial-system/ (data-model proposals,
-  acceptance tests, runbook) · supabase/migrations/0116–0125 · src/app/dashboard/finance/ + src/app/api/finance/
+  acceptance tests, runbook) · supabase/migrations/0116–0140 · src/app/dashboard/finance/ + src/app/api/finance/
