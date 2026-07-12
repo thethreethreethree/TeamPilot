@@ -16,6 +16,7 @@ type Report = {
   employee_user_id: string;
   total?: number;
 };
+type ExpItem = { accountId: string; category: string; amount: string; taxAmount: string; description: string };
 const money = formatMoney;
 
 export default function ExpensesPage() {
@@ -40,25 +41,38 @@ export default function ExpensesPage() {
 
   const expenseAccounts = accounts.filter((a) => a.type === "expense");
   const [title, setTitle] = useState("");
-  const [account, setAccount] = useState("");
-  const [amount, setAmount] = useState("");
+  const [items, setItems] = useState<ExpItem[]>([{ accountId: "", category: "", amount: "", taxAmount: "", description: "" }]);
+  const setItem = (i: number, patch: Partial<ExpItem>) =>
+    setItems((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const addItem = () => setItems((xs) => [...xs, { accountId: "", category: "", amount: "", taxAmount: "", description: "" }]);
+  const rmItem = (i: number) => setItems((xs) => (xs.length > 1 ? xs.filter((_, j) => j !== i) : xs));
+  const itemsTotal = items.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.taxAmount) || 0), 0);
 
   const create = async () => {
-    if (!title || !account || !amount) {
-      toast.error("Fill title, account, and amount");
+    const valid = items
+      .filter((x) => x.accountId && x.amount)
+      .map((x) => ({
+        accountId: x.accountId,
+        amount: Number(x.amount),
+        taxAmount: Number(x.taxAmount) || 0,
+        category: x.category || undefined,
+        description: x.description || undefined,
+      }));
+    if (!title || valid.length === 0) {
+      toast.error("Fill a title and at least one item (account + amount)");
       return;
     }
     setBusy(true);
     const res = await fetch("/api/finance/expenses/reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, items: [{ accountId: account, amount: Number(amount) }] }),
+      body: JSON.stringify({ title, items: valid }),
     });
     const j = await res.json();
     setBusy(false);
     if (res.ok) {
       setTitle("");
-      setAmount("");
+      setItems([{ accountId: "", category: "", amount: "", taxAmount: "", description: "" }]);
       toast.success("Draft report created");
       void load();
     } else toast.error("Couldn't create report", j?.error ?? "");
@@ -96,22 +110,42 @@ export default function ExpensesPage() {
       <FinanceNav />
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
         <p className="text-xs text-muted">
-          Functional first pass. Submitting a report and approving it (by a DIFFERENT finance user —
-          you can&apos;t approve your own) posts Dr expense / Cr Employee Reimbursements Payable;
-          reimbursing posts Dr that payable / Cr Cash. Single item, no tax here yet.
+          Submitting a report and approving it (by a DIFFERENT finance user — you can&apos;t approve
+          your own) posts Dr expense / Cr Employee Reimbursements Payable; reimbursing posts Dr that
+          payable / Cr Cash. Add one line per expense (account, category, amount, tax).
         </p>
 
         <section className="glass-card p-5">
           <h2 className="text-sm font-semibold text-primary mb-3">New expense report</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Client trip)" className="md:col-span-2 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
-            <select value={account} onChange={(e) => setAccount(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
-              <option value="">Expense account…</option>
-              {expenseAccounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.code} {a.name}</option>
-              ))}
-            </select>
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="Amount" className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Report title (e.g. Client trip — Berlin)" className="w-full mb-3 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+          <div className="space-y-2">
+            <div className="hidden md:grid grid-cols-12 gap-2 text-[10px] uppercase tracking-wider text-muted px-1">
+              <span className="col-span-4">Expense account</span>
+              <span className="col-span-3">Category</span>
+              <span className="col-span-2">Description</span>
+              <span className="col-span-1 text-right">Amount</span>
+              <span className="col-span-1 text-right">Tax</span>
+              <span className="col-span-1" />
+            </div>
+            {items.map((x, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <select value={x.accountId} onChange={(e) => setItem(i, { accountId: e.target.value })} className="col-span-12 md:col-span-4 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
+                  <option value="">Expense account…</option>
+                  {expenseAccounts.map((a) => (<option key={a.id} value={a.id}>{a.code} {a.name}</option>))}
+                </select>
+                <input value={x.category} onChange={(e) => setItem(i, { category: e.target.value })} placeholder="Category" className="col-span-6 md:col-span-3 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+                <input value={x.description} onChange={(e) => setItem(i, { description: e.target.value })} placeholder="Note" className="col-span-6 md:col-span-2 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+                <input value={x.amount} onChange={(e) => setItem(i, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" className="col-span-6 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
+                <input value={x.taxAmount} onChange={(e) => setItem(i, { taxAmount: e.target.value })} inputMode="decimal" placeholder="Tax" className="col-span-4 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
+                <button onClick={() => rmItem(i)} disabled={items.length === 1} title="Remove item" className="col-span-2 md:col-span-1 text-xs text-muted hover:text-red-400 disabled:opacity-30 py-1">✕</button>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <button onClick={addItem} className="text-xs text-brand hover:underline inline-flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Add item
+            </button>
+            <span className="text-xs text-muted">Total <span className="font-mono text-secondary">{money(itemsTotal)}</span></span>
           </div>
           <button onClick={create} disabled={busy} className="mt-3 inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-brand text-black text-sm font-medium disabled:opacity-60">
             <Plus className="w-4 h-4" /> Create draft
