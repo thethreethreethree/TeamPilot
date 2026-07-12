@@ -9,7 +9,7 @@ insert into companies (id, name) values ('00000000-0000-0000-0000-0000000000c1',
 insert into fin_settings (company_id, base_currency) values ('00000000-0000-0000-0000-0000000000c1','USD')
   on conflict (company_id) do nothing;
 insert into fin_periods (id, company_id, name, start_date, end_date, status)
-  values ('00000000-0000-0000-0000-0000000000p1','00000000-0000-0000-0000-0000000000c1','2026','2026-01-01','2026-12-31','open')
+  values ('00000000-0000-0000-0000-000000000f01','00000000-0000-0000-0000-0000000000c1','2026','2026-01-01','2026-12-31','open')
   on conflict (id) do nothing;
 insert into fin_accounts (id, company_id, code, name, type, normal_balance) values
   ('00000000-0000-0000-0000-00000000ac01','00000000-0000-0000-0000-0000000000c1','1000','Cash','asset','debit'),
@@ -25,7 +25,7 @@ end $$;
 
 -- Post a balanced entry (direct, service role) so the guards engage.
 insert into fin_journal_entries (id, company_id, entry_date, period_id, description, status)
-  values ('00000000-0000-0000-0000-0000000000e1','00000000-0000-0000-0000-0000000000c1','2026-07-15','00000000-0000-0000-0000-0000000000p1','seed','posted');
+  values ('00000000-0000-0000-0000-0000000000e1','00000000-0000-0000-0000-0000000000c1','2026-07-15','00000000-0000-0000-0000-000000000f01','seed','posted');
 insert into fin_journal_lines (company_id, entry_id, line_no, account_id, debit, credit) values
   ('00000000-0000-0000-0000-0000000000c1','00000000-0000-0000-0000-0000000000e1',1,'00000000-0000-0000-0000-00000000ac01',100,0),
   ('00000000-0000-0000-0000-0000000000c1','00000000-0000-0000-0000-0000000000e1',2,'00000000-0000-0000-0000-00000000ac02',0,100);

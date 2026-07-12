@@ -13,7 +13,7 @@ insert into companies (id, name) values ('00000000-0000-0000-0000-0000000000c1',
 insert into fin_settings (company_id, base_currency) values ('00000000-0000-0000-0000-0000000000c1','USD')
   on conflict (company_id) do nothing;
 insert into fin_periods (id, company_id, name, start_date, end_date, status)
-  values ('00000000-0000-0000-0000-0000000000p1','00000000-0000-0000-0000-0000000000c1','2026-07','2026-07-01','2026-07-31','open')
+  values ('00000000-0000-0000-0000-000000000f01','00000000-0000-0000-0000-0000000000c1','2026-07','2026-07-01','2026-07-31','open')
   on conflict (id) do nothing;
 insert into fin_accounts (id, company_id, code, name, type, normal_balance) values
   ('00000000-0000-0000-0000-00000000ac01','00000000-0000-0000-0000-0000000000c1','1000','Cash','asset','debit'),
@@ -24,7 +24,7 @@ insert into fin_accounts (id, company_id, code, name, type, normal_balance) valu
 create or replace function _mk_draft() returns uuid language plpgsql as $$
 declare v uuid; begin
   insert into fin_journal_entries (company_id, entry_date, period_id, description)
-    values ('00000000-0000-0000-0000-0000000000c1','2026-07-15','00000000-0000-0000-0000-0000000000p1','test')
+    values ('00000000-0000-0000-0000-0000000000c1','2026-07-15','00000000-0000-0000-0000-000000000f01','test')
     returning id into v; return v; end $$;
 
 -- ── T-10: a line is debit XOR credit ──
@@ -82,10 +82,10 @@ end $$;
 
 -- ── T-18: closed period rejects new entries ──
 do $$ declare e uuid; begin
-  update fin_periods set status='closed' where id='00000000-0000-0000-0000-0000000000p1';
+  update fin_periods set status='closed' where id='00000000-0000-0000-0000-000000000f01';
   begin
     insert into fin_journal_entries (company_id, entry_date, period_id, description)
-      values ('00000000-0000-0000-0000-0000000000c1','2026-07-20','00000000-0000-0000-0000-0000000000p1','into closed');
+      values ('00000000-0000-0000-0000-0000000000c1','2026-07-20','00000000-0000-0000-0000-000000000f01','into closed');
     raise notice 'T-18 FAIL: entry created in a CLOSED period';
   exception when others then raise notice 'T-18 PASS: write to closed period rejected (%).', sqlerrm; end;
 end $$;

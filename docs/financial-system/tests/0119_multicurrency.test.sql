@@ -9,7 +9,7 @@ insert into companies (id, name) values ('00000000-0000-0000-0000-0000000000c1',
 insert into fin_settings (company_id, base_currency) values ('00000000-0000-0000-0000-0000000000c1','USD')
   on conflict (company_id) do nothing;
 insert into fin_periods (id, company_id, name, start_date, end_date, status)
-  values ('00000000-0000-0000-0000-0000000000p1','00000000-0000-0000-0000-0000000000c1','2026-07','2026-07-01','2026-07-31','open')
+  values ('00000000-0000-0000-0000-000000000f01','00000000-0000-0000-0000-0000000000c1','2026-07','2026-07-01','2026-07-31','open')
   on conflict (id) do nothing;
 insert into fin_accounts (id, company_id, code, name, type, normal_balance) values
   ('00000000-0000-0000-0000-00000000ac01','00000000-0000-0000-0000-0000000000c1','1000','Cash','asset','debit'),
@@ -32,7 +32,7 @@ end $$;
 -- T-23 / T-24: a EUR line's base amount is round(face * rate, 4)
 do $$ declare e uuid; v numeric; begin
   insert into fin_journal_entries (company_id, entry_date, period_id, description)
-    values ('00000000-0000-0000-0000-0000000000c1','2026-07-15','00000000-0000-0000-0000-0000000000p1','fx test')
+    values ('00000000-0000-0000-0000-0000000000c1','2026-07-15','00000000-0000-0000-0000-000000000f01','fx test')
     returning id into e;
   insert into fin_journal_lines (company_id, entry_id, line_no, account_id, debit, credit, currency)
     values ('00000000-0000-0000-0000-0000000000c1', e, 1, '00000000-0000-0000-0000-00000000ac01', 100, 0, 'EUR');
@@ -44,7 +44,7 @@ end $$;
 -- 100 EUR debit (=108.50 base) + 108.50 USD credit (=108.50 base) → balances in base.
 do $$ declare e uuid; d numeric; c numeric; begin
   insert into fin_journal_entries (company_id, entry_date, period_id, description)
-    values ('00000000-0000-0000-0000-0000000000c1','2026-07-15','00000000-0000-0000-0000-0000000000p1','mixed ccy')
+    values ('00000000-0000-0000-0000-0000000000c1','2026-07-15','00000000-0000-0000-0000-000000000f01','mixed ccy')
     returning id into e;
   insert into fin_journal_lines (company_id, entry_id, line_no, account_id, debit, credit, currency) values
     ('00000000-0000-0000-0000-0000000000c1', e, 1, '00000000-0000-0000-0000-00000000ac01', 100, 0, 'EUR'),
