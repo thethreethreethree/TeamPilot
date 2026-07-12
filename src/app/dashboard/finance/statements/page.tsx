@@ -41,6 +41,13 @@ export default function StatementsPage() {
     <div className="min-h-screen bg-base">
       <TopBar title="Financial Statements" subtitle="Derived from your posted ledger" />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
+        {!loading && s && (
+          <p className="text-[11px] text-muted">
+            Showing <strong>all-time cumulative</strong> figures from all posted entries. Date-ranged
+            period statements (this month, this quarter, period-over-period) are a planned enhancement
+            — labeled here so these aren&apos;t mistaken for a single period.
+          </p>
+        )}
         {loading && (
           <div className="glass-card p-8 flex items-center justify-center gap-2 text-muted">
             <Loader2 className="w-4 h-4 animate-spin" /> Deriving statements…
