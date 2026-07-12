@@ -45,6 +45,22 @@ build-decision. They are correctly in the open-items list (closure + manifest); 
 terminal state when the founder either approves the defer or supplies the values/decisions. This is
 the honest status — flagged and awaiting, not silently closed.
 
+## Minor robustness observations (not conformance failures)
+
+From a correctness review of `fin_dashboard_summary` + the balance views (2026-07-12):
+
+- **Sign conventions verified sound.** `fin_account_balances.balance` normalizes by `normal_balance`
+  (each type shows its natural positive), so `net_income = revenue − expenses`, every total is
+  positive-natural, the balance sheet ties out (Assets = Liabilities + Equity + Net Income, correct
+  pre-close), and the trial-balance difference is 0 when balanced. No sign/classification bug.
+- **`cash_on_hand` uses a name heuristic** (`name ilike '%cash%' or '%bank%'`). Correct for the seeded
+  COA (1000 Cash), but fragile: a renamed cash account is missed, and a misleadingly-named asset
+  (e.g. "Petty Cash Advance *Receivable*") would be wrongly counted as cash. **Flag, not a bug** — the
+  robust fix is an explicit cash designation (a `is_cash` flag or a code allowlist), which is a
+  founder-gated model choice (what counts as "cash"?). Total assets/liabilities/equity are unaffected
+  (they sum by type, not name); only the Cash-on-Hand KPI depends on the heuristic. 0121 is already
+  applied, so any change ships as a new migration.
+
 ## What this pass did NOT do
 
 Phases 3–9 are out of scope here (each is a future phase behind the per-phase proposal gate; Phase-3
