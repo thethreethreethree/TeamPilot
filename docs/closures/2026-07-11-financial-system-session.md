@@ -41,10 +41,11 @@ still need applying** before the Phase-2 features + audit fixes take effect.
 - Confirmed build params (7): multi-tenant RLS, existing stack, numeric(19,4) math-in-SQL, manual-FX
   API-ready, separate finance-role dim + exec/admin approval + SoD, COMPLETE from-scratch GL, Supabase encryption.
 - Phase-1 model confirmed (5 decisions); Phase-2 model confirmed (bridge=A, system-post, tax-capture-only).
-- **§0 correction surfaced + still OPEN:** the CRM is vendor-side only (Elostate's customers), while
-  finance AR is per-tenant — so the confirmed "Option A bridge" only serves Elostate's own books, not
-  customer tenants. Recommended **Option B (finance-native fin_customers + fin_invoices)**. **AR (2A)
-  is blocked on the founder's B / A' / Hybrid decision.**
+- **§0 correction (RESOLVED 2026-07-12):** the CRM is vendor-side only, so the original "Option A
+  bridge" couldn't serve customer tenants. Founder chose **Option B (finance-native AR)** — BUILT
+  (0131 fin_customers+fin_invoices+issue→GL, 0132 receipts→GL, + API/UI). Founder also confirmed
+  adding **bill-approval SoD** (creator≠approver, 0130). **Phase-2 core (AP + AR + Expenses) is now
+  COMPLETE + operational.** Migrations to apply: **0122–0132**.
 
 ## 5 real defects self-caught + fixed before commit (all verified-by-construction only)
 1. FX reversal negated at the wrong (reversal-date) rate → wouldn't balance; fixed via a trust flag.
