@@ -133,7 +133,10 @@ function WiredDashboard({ s }: { s: Summary }) {
       {/* Reachability (AMD-006 L3): the operational subledger surfaces. */}
       <div className="flex flex-wrap gap-2">
         <a href="/dashboard/finance/ap" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
-          Manage Accounts Payable →
+          Accounts Payable →
+        </a>
+        <a href="/dashboard/finance/ar" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
+          Accounts Receivable →
         </a>
         <a href="/dashboard/finance/expenses" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
           Expense Reports →
@@ -271,15 +274,15 @@ function WiredDashboard({ s }: { s: Summary }) {
         <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-primary">Invoices &amp; Receivables</h2>
-            <span className="text-[10px] uppercase tracking-widest font-mono text-muted">Phase 2</span>
           </div>
           <div className="flex items-start gap-2 text-sm text-secondary">
             <TrendingDown className="w-4 h-4 text-muted shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              Accounts Receivable — customer invoices, aging, and collections — is Phase 2. Rather
-              than show mock invoices, this stays empty until the AR ledger is built and your real
-              invoices post to it. <span className="text-muted">Monthly burn &amp; runway follow in
-              Phase 5 (forecasting).</span>
+              Accounts Receivable is live — issue customer invoices (Dr AR / Cr Revenue) and record
+              receipts. Manage them on{" "}
+              <a href="/dashboard/finance/ar" className="text-brand hover:underline">Accounts Receivable</a>.
+              The AR balance is reflected in Assets above. <span className="text-muted">Aging /
+              dunning + monthly burn &amp; runway (forecasting) are later increments.</span>
             </p>
           </div>
         </div>
