@@ -80,11 +80,20 @@ fixes, AR, statements, and Phase-2D enrichments take effect.
 5. A messy vendors route → rewritten with getCurrentCompanyId.
 
 ## What NEEDS the founder (open)
-1. **Verify Phase 2** by click-through: Finance → Manage AP → add vendor → bill → approve → pay;
-   confirm the dashboard AP/Cash/Expenses move and Books stay Balanced. (Phase-1 SQL scripts already PASS.)
-2. **AR direction: B / A' / Hybrid** (recommend B) — unblocks the last Phase-2 core subsystem.
-3. Phase-2D enrichment VALUES (spend-limit thresholds, mileage rate, expense policy).
-4. Phases 3–9 each start with a data-model proposal + confirmation (per-phase gate).
+1. **Apply `0122`–`0140` + walk the runbook** (VERIFICATION-RUNBOOK-FULL.md — AP/AR/Expenses/POs/
+   Recurring/Statements). The range is dependency-ordered AND idempotent (re-runnable), both verified
+   2026-07-12. Confirm the dashboard figures move and Books stay Balanced. (Phase-1 SQL scripts PASS;
+   aging + recurring have acceptance scripts to run too.)
+2. **Credit notes — DESIGNED, awaiting your call.** Full proposal at CREDIT-NOTES-DATA-MODEL.md;
+   answer its 5 decisions (accounting treatment [recommend contra-revenue 4900], application model,
+   lines-vs-amount, over-credit, cash refunds) and I build migration `0141` + route + UI.
+3. **Recurring monthly-drift semantics** (surfaced 2026-07-12, test 0140): a bill due the 31st drifts
+   to the 28th permanently after February. Keep calendar +1 month / anchor to day-of-month / last-day-
+   of-month? Latter two need an `anchor_day` column.
+4. **Phase-2D enrichment VALUES** — spend-limit thresholds, mileage/per-diem rate, expense policy
+   rules (I can't guess these; they're your numbers).
+5. **Phases 3–9** each start with a data-model proposal + confirmation (Phase-3 Banking proposal is
+   already written: PHASE-3-DATA-MODEL.md — 3 decisions).
 
 ## Key files
 - FEATURE_MANIFEST.md (status of every feature) · docs/financial-system/ (data-model proposals,
