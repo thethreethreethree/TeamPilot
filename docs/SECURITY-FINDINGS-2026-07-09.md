@@ -152,4 +152,26 @@ integrity holds. **Minor DiD observation (not a bug):** the subledger documents 
 ≠ draft → the UPDATE `using` clause fails), without a trigger backstop like the ledger has. Adequate for
 client access, and the GL it posted to is independently trigger-immutable, so a stray edit couldn't
 corrupt the authoritative record — but the ledger/subledger asymmetry is worth an eventual
-`fin_docs_immutable`-style trigger if you want defense in depth. Left as a flag, not auto-built.*
+`fin_docs_immutable`-style trigger if you want defense in depth. Left as a flag, not auto-built.
+
+**2026-07-13 (4) — tenant-key push-out class: CLEAN across finance.** Ran the 0101/0102/0107 class
+(UPDATE with-check omitting `company_id` → a user changes a row's `company_id` to push it to another
+tenant). Every finance write policy — the `for update` ones (entries/expenses/bills/invoices/POs) AND
+the `for all` ones (vendors/customers/recurring/line tables) AND the config tables
+(`fin_settings`/`fin_roles`/`fin_accounts`/`fin_periods`) — re-asserts `company_id = auth_company_id()`
+in its WITH CHECK. No push-out path. The config tables are additionally authority-gated: `fin_accounts`/
+`fin_settings` need `fin_can_configure()`, periods need `fin_can_manage_periods()`, and **`fin_roles`
+(finance-role assignment) needs `fin_can_configure()` — the finance-role authority-write IS properly
+gated** (the correct version of what team_invitations was missing).
+
+### Finance authz sweep scorecard (2026-07-13)
+| Class | Result |
+|---|---|
+| Authority-write (role/config grant) | team_invitations HIGH → **fixed 0141**; fin_roles CLEAN (configure-gated) |
+| Author-spoof (`created_by` unpinned) | bills/invoices/POs MED-HIGH → **fixed 0142** (insert pin + update freeze) |
+| Posted-record immutability | Ledger CLEAN (trigger-enforced); subledger 1 minor DiD flag |
+| Tenant-key push-out (`company_id` on UPDATE) | CLEAN (every with-check re-asserts company_id) |
+| Capability enforcement (write RPCs) | CLEAN, two-layer (AUDIT-2026-07-12-rpc-capability-enforcement.md) |
+| Service-role client in finance routes | CLEAN (zero — verified) |
+Two real holes found + fixed (0141, 0142, both UNAPPLIED); the rest clean-and-substantiated. Remaining
+to run: cross-tenant SELECT + DELETE-scope on the finance-specific tables.*
