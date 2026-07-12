@@ -45,7 +45,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Invoice generation and delivery | BUILT — generation (fin_invoices + fin_issue_invoice→GL, SoD issuer≠creator). Delivery (email/PDF) FLAGGED follow-up |
 | Payment tracking and application | BUILT (fin_receipts + fin_record_receipt→GL; partial + over-receipt guard + row lock) |
 | Aging reports (30/60/90) | BUILT (0133 fin_ar_aging view + summary RPC + AR-page buckets panel) |
-| Dunning / collections workflow | NOT_STARTED (2D) |
+| Dunning / collections workflow | PARTIAL — collections worklist (overdue invoices) built (/api/finance/ar/collections + AR-page section); automated email reminders = integration follow-up |
 | Credit notes and refunds | NOT_STARTED (2D) |
 
 **Expense Management**  *(0125)*
