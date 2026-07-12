@@ -153,23 +153,35 @@ function WiredDashboard({ s }: { s: Summary }) {
         how="Read cash against net income for the shape of the month. The 'Books balanced' badge is the integrity check — if it ever reads OFF, a data-integrity alarm is firing and nothing else should be trusted until it's resolved."
         principle="Every derived figure traces to its source transactions — and says so."
       >
+        {/* Each KPI links to where it can be traced to source — the statements drill-down
+            (Trial Balance → account → posted GL lines → source doc) or the AR/AP transaction lists.
+            Satisfies the non-negotiable "every derived figure is traceable via full drill-down." */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
-            { label: "Cash on Hand", value: fmtMoney(s.cash_on_hand), color: "text-emerald-400" },
-            { label: "Revenue (to date)", value: fmtMoney(s.total_revenue), color: "text-yellow-400" },
-            { label: "Expenses (to date)", value: fmtMoney(s.total_expenses), color: "text-orange-400" },
+            { label: "Cash on Hand", value: fmtMoney(s.cash_on_hand), color: "text-emerald-400", href: "/dashboard/finance/statements", trace: "Trace in Trial Balance" },
+            { label: "Revenue (to date)", value: fmtMoney(s.total_revenue), color: "text-yellow-400", href: "/dashboard/finance/statements", trace: "Trace in Income Statement" },
+            { label: "Expenses (to date)", value: fmtMoney(s.total_expenses), color: "text-orange-400", href: "/dashboard/finance/statements", trace: "Trace in Income Statement" },
             {
               label: "Net Income",
               value: fmtMoney(s.net_income),
               color: Number(s.net_income) >= 0 ? "text-emerald-400" : "text-red-400",
+              href: "/dashboard/finance/statements",
+              trace: "Trace in Income Statement",
             },
-            { label: "Receivable (owed to you)", value: fmtMoney(s.ar_outstanding), color: "text-sky-400" },
-            { label: "Payable (you owe)", value: fmtMoney(s.ap_outstanding), color: "text-amber-400" },
+            { label: "Receivable (owed to you)", value: fmtMoney(s.ar_outstanding), color: "text-sky-400", href: "/dashboard/finance/ar", trace: "See invoices" },
+            { label: "Payable (you owe)", value: fmtMoney(s.ap_outstanding), color: "text-amber-400", href: "/dashboard/finance/ap", trace: "See bills" },
           ].map((stat) => (
-            <div key={stat.label} className="glass-card p-4">
+            <a
+              key={stat.label}
+              href={stat.href}
+              className="glass-card p-4 block hover:border-brand/40 transition-colors group"
+            >
               <p className="text-xs text-muted uppercase tracking-widest mb-2">{stat.label}</p>
               <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-            </div>
+              <p className="text-[10px] text-muted mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {stat.trace} →
+              </p>
+            </a>
           ))}
         </div>
       </LearningHint>

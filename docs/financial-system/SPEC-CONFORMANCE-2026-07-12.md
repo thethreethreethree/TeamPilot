@@ -11,13 +11,16 @@ the honest build report the governance asks for: what's met, what's partial, wha
 |---|---|---|
 | Ledger always balances, enforced at DB level | **MET** | 0118 two-layer: `fin_post_entry` inline check + deferred balance triggers on entries AND lines (fire at COMMIT), not app-code only. |
 | Never floating point for money; exact decimal | **MET** | `numeric(19,4)` throughout; all money math in SQL. Audited end-to-end 2026-07-12 (AUDIT-2026-07-12-money-math-boundary.md) — no JS computes a stored/derived money value. |
-| Every derived figure traceable to source (full drill-down) | **MET (statements) / PARTIAL (dashboard)** | Statements: Trial Balance → click account → `fin_gl_detail` posted lines → `fin_source_postings` → source bill/invoice. The full chain exists and is drillable. **Gap:** the dashboard summary figures (Cash/Revenue/Expenses/Net) are not themselves click-drillable — the data chain exists but that surface doesn't expose it. Follow-up: make dashboard KPIs link into the statement drill-down. |
+| Every derived figure traceable to source (full drill-down) | **MET** | Statements: Trial Balance → click account → `fin_gl_detail` posted lines → `fin_source_postings` → source bill/invoice. The dashboard-gap noted in the first pass is **now closed** — every KPI card (Cash/Revenue/Expenses/Net → statements drill-down; Receivable → AR invoices; Payable → AP bills) links into where the figure traces to source (dashboard commit follows this audit). |
 | Closed periods immutable | **MET** | 0117 close/lock + 0118 closed-period immutability trigger (rejects posting into non-open periods, even service-role). |
 | All records append-only; corrections via reversals | **MET** | 0118 immutability triggers on posted entries/lines; `fin_reverse_entry` creates an SoD-preserving draft reversal; 0120 audit log is append-only (rejects UPDATE/DELETE). |
 | Write tests for every calculation | **PARTIAL** | Tested: ledger balance (0118), FX (0119), config immutability (0129), aging boundaries (0133/0138), recurring dates (0140), statement helpers (TS, vitest). **Gap:** the subledger→GL posting *amounts* (`fin_approve_bill`, `fin_pay_bill`, `fin_issue_invoice`, `fin_record_receipt`, expense approve/reimburse — the Dr/Cr each computes) are verified-by-construction + structural acceptance scripts + live UI, but have no executable SQL acceptance test because they are `auth_company_id()`-gated (service-role returns empty; simulating auth needs fragile `auth.users` seeding). Closable by driving them through the app-layer integration tests (a real approver + open period), or a staging harness with a seeded auth user. |
 | Encrypt at rest and in transit | **MET (delegated)** | Founder chose "existing Supabase encryption" — at-rest (Postgres/disk) + in-transit (TLS) handled by the platform. No app-level field encryption added (not requested). |
 
-**Verdict:** 5 fully met, 2 partial with honest, specific follow-ups. No requirement is unmet or faked.
+**Verdict:** 6 fully met (the dashboard drill-down follow-up was built same-session), 1 partial —
+"test every calculation," where the subledger→GL posting amounts lack an *executable* SQL test
+because they're auth-gated (covered by construction + structural scripts + live UI). No requirement
+is unmet or faked.
 
 ## Section 2.1 — every Phase-2 feature at a terminal state (no silent drops)
 
