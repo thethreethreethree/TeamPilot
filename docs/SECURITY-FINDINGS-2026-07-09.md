@@ -139,4 +139,17 @@ status/approved_by, never `created_by`, so the freeze doesn't break them; API ro
 `created_by = auth.uid()`. `fin_vendors`/`fin_customers` `created_by` is informational (no SoD depends
 on it) → left as optional hardening. Same class, one surface further out; the ledger core was hardened,
 its subledger siblings were missed — and the fix had to cover BOTH insert and update to actually close
-it (caught by continuing the audit past the first patch).*
+it (caught by continuing the audit past the first patch).
+
+**2026-07-13 (3) — posted-record immutability: VERIFIED clean (ledger), one minor DiD note (subledger).**
+Ran the immutability class. The `fin_journal_lines` RLS write policy (0118) is a permissive `for all …
+fin_can_enter` with no parent-status check — BUT the `fin_lines_immutable` trigger backstops it: before
+insert/update/delete it looks up the parent entry status and raises if `posted` (and blocks
+closed/locked periods); `fin_entries_immutable` does the same for entries. So a posted ledger amount
+CANNOT be altered by any client write — trigger-enforced, not RLS-dependent. Authoritative-record
+integrity holds. **Minor DiD observation (not a bug):** the subledger documents (`fin_bills`/
+`fin_invoices` + their lines) enforce post-approval immutability via the RLS draft-lock ALONE (approved
+≠ draft → the UPDATE `using` clause fails), without a trigger backstop like the ledger has. Adequate for
+client access, and the GL it posted to is independently trigger-immutable, so a stray edit couldn't
+corrupt the authoritative record — but the ledger/subledger asymmetry is worth an eventual
+`fin_docs_immutable`-style trigger if you want defense in depth. Left as a flag, not auto-built.*
