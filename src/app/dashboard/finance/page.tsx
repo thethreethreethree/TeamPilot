@@ -36,6 +36,8 @@ type Summary = {
   total_revenue: number;
   total_expenses: number;
   net_income: number;
+  ar_outstanding: number;
+  ap_outstanding: number;
   expense_breakdown: ExpenseRow[];
   trial_balance: { debits: number; credits: number; difference: number };
 };
@@ -151,7 +153,7 @@ function WiredDashboard({ s }: { s: Summary }) {
         how="Read cash against net income for the shape of the month. The 'Books balanced' badge is the integrity check — if it ever reads OFF, a data-integrity alarm is firing and nothing else should be trusted until it's resolved."
         principle="Every derived figure traces to its source transactions — and says so."
       >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
             { label: "Cash on Hand", value: fmtMoney(s.cash_on_hand), color: "text-emerald-400" },
             { label: "Revenue (to date)", value: fmtMoney(s.total_revenue), color: "text-yellow-400" },
@@ -161,6 +163,8 @@ function WiredDashboard({ s }: { s: Summary }) {
               value: fmtMoney(s.net_income),
               color: Number(s.net_income) >= 0 ? "text-emerald-400" : "text-red-400",
             },
+            { label: "Receivable (owed to you)", value: fmtMoney(s.ar_outstanding), color: "text-sky-400" },
+            { label: "Payable (you owe)", value: fmtMoney(s.ap_outstanding), color: "text-amber-400" },
           ].map((stat) => (
             <div key={stat.label} className="glass-card p-4">
               <p className="text-xs text-muted uppercase tracking-widest mb-2">{stat.label}</p>
