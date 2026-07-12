@@ -16,24 +16,30 @@ type Report = {
   employee_user_id: string;
   total?: number;
 };
-type ExpItem = { accountId: string; category: string; amount: string; taxAmount: string; description: string };
+type ExpItem = { accountId: string; category: string; amount: string; taxAmount: string; description: string; costCenterId: string; projectId: string };
+type Dim = { id: string; code: string; name: string };
 const money = formatMoney;
 
 export default function ExpensesPage() {
   const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [costCenters, setCostCenters] = useState<Dim[]>([]);
+  const [projects, setProjects] = useState<Dim[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [a, r] = await Promise.all([
+    const [a, r, dim] = await Promise.all([
       fetch("/api/finance/accounts").then((x) => x.json()),
       fetch("/api/finance/expenses/reports").then((x) => x.json()),
+      fetch("/api/finance/dimensions").then((x) => x.json()),
     ]);
     setAccounts(a.accounts ?? []);
     setLoaded(true);
     setReports(r.reports ?? []);
+    setCostCenters(dim.costCenters ?? []);
+    setProjects(dim.projects ?? []);
   }, []);
   useEffect(() => {
     void load();
@@ -41,10 +47,10 @@ export default function ExpensesPage() {
 
   const expenseAccounts = accounts.filter((a) => a.type === "expense");
   const [title, setTitle] = useState("");
-  const [items, setItems] = useState<ExpItem[]>([{ accountId: "", category: "", amount: "", taxAmount: "", description: "" }]);
+  const [items, setItems] = useState<ExpItem[]>([{ accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
   const setItem = (i: number, patch: Partial<ExpItem>) =>
     setItems((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-  const addItem = () => setItems((xs) => [...xs, { accountId: "", category: "", amount: "", taxAmount: "", description: "" }]);
+  const addItem = () => setItems((xs) => [...xs, { accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
   const rmItem = (i: number) => setItems((xs) => (xs.length > 1 ? xs.filter((_, j) => j !== i) : xs));
   const itemsTotal = items.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.taxAmount) || 0), 0);
 
@@ -57,6 +63,8 @@ export default function ExpensesPage() {
         taxAmount: Number(x.taxAmount) || 0,
         category: x.category || undefined,
         description: x.description || undefined,
+        costCenterId: x.costCenterId || undefined,
+        projectId: x.projectId || undefined,
       }));
     if (!title || valid.length === 0) {
       toast.error("Fill a title and at least one item (account + amount)");
@@ -72,7 +80,7 @@ export default function ExpensesPage() {
     setBusy(false);
     if (res.ok) {
       setTitle("");
-      setItems([{ accountId: "", category: "", amount: "", taxAmount: "", description: "" }]);
+      setItems([{ accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
       toast.success("Draft report created");
       void load();
     } else toast.error("Couldn't create report", j?.error ?? "");
@@ -138,6 +146,18 @@ export default function ExpensesPage() {
                 <input value={x.amount} onChange={(e) => setItem(i, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" className="col-span-6 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <input value={x.taxAmount} onChange={(e) => setItem(i, { taxAmount: e.target.value })} inputMode="decimal" placeholder="Tax" className="col-span-4 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <button onClick={() => rmItem(i)} disabled={items.length === 1} title="Remove item" className="col-span-2 md:col-span-1 text-xs text-muted hover:text-red-400 disabled:opacity-30 py-1">✕</button>
+                {(costCenters.length > 0 || projects.length > 0) && (
+                  <div className="col-span-12 flex flex-wrap gap-2 pl-1">
+                    <select value={x.costCenterId} onChange={(e) => setItem(i, { costCenterId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
+                      <option value="">Cost center…</option>
+                      {costCenters.map((c) => (<option key={c.id} value={c.id}>{c.code} {c.name}</option>))}
+                    </select>
+                    <select value={x.projectId} onChange={(e) => setItem(i, { projectId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
+                      <option value="">Project…</option>
+                      {projects.map((p) => (<option key={p.id} value={p.id}>{p.code} {p.name}</option>))}
+                    </select>
+                  </div>
+                )}
               </div>
             ))}
           </div>
