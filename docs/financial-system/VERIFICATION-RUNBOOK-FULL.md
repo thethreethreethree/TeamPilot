@@ -8,9 +8,11 @@ Steps 1–5 are the core double-entry proof (AP → AR → statements). Steps 6�
 enrichments (Expenses, Purchase Orders, Recurring bills). Aging + collections are checked inline.
 
 ## Step 1 — apply migrations
-Apply **0122 → 0140** (you confirmed through 0121) in numeric order. This one contiguous range covers
-Phase 2, the audit fixes, AR, statements, and all Phase-2D features. Two properties were verified
-2026-07-12 so the apply is low-risk:
+Apply **0122 → 0146** in numeric order (on a fresh DB, apply 0116 → 0146). Covers Phase 2, the audit
+fixes, AR, statements + date-ranged statements, all Phase-2D features, credit notes (0143), the
+security fixes (0141/0142), **Phase 3 Banking (0145)**, and duplicate detection (0146). *(As of
+2026-07-13 the founder has applied through 0144; `0145` + `0146` are the outstanding two.)* Two
+properties are verified so the apply is low-risk:
 - **Dependency order** — every object is defined before its consumers (no forward references).
 - **Idempotent / re-runnable** — tables + indexes use `if not exists`; policies and triggers are
   `drop … if exists` before create; functions/views are `create or replace`; the three top-level
@@ -75,17 +77,43 @@ Phase 2, the audit fixes, AR, statements, and all Phase-2D features. Two propert
    like any bill. (The dormant fin_run_due_recurring batch runner does this for all due templates
    once a cron is wired — not required for this verification.)
 
+## Step 9 — Credit notes (0143 — reduce an issued invoice, contra-revenue)
+1. **Finance → Credit Notes** → pick an **issued (sent)** invoice, enter a credit # + date + amount
+   (less than the invoice's outstanding) → Create draft.
+2. A **different** finance user **Issues** it (SoD) → posts **Dr Sales Returns 4900 / Cr AR**. Confirm
+   the invoice's **outstanding drops** on the Receivable page + aging, and Books stay Balanced.
+3. Try to issue a credit **larger** than the outstanding → rejected (over-credit guard).
+
+## Step 10 — Date-ranged statements + period-over-period (0144)
+1. **Finance → Statements** → the period selector: **All time / This month / This quarter / This
+   year / Custom**. Pick "This month" → the **Income Statement** covers this month; the **Balance
+   Sheet + Trial Balance** are **as of** the month end (a snapshot).
+2. A **"Period over period"** card appears comparing this period's revenue/expenses/net income to the
+   prior same-length window, with Δ and %.
+
+## Step 11 — Banking & Reconciliation (0145 — Phase 3)
+1. **Finance → Banking** → add a bank account, linking it to a **cash GL account** (e.g. 1000 Cash).
+2. **Import CSV** — a statement with a header row (date, amount, description). Deposits are +, withdrawals −.
+3. **Auto-match** → bank lines that equal a posted cash entry within **±3 days** flip to *matched*
+   (a fin_reconciliation_match links them); the rest stay *unmatched* in the worklist. **Ignore**
+   dismisses a non-ledger line. The account tile shows its GL cash balance + unmatched count.
+
+## Step 12 — Duplicate-payment detection (0146)
+On the **Payable** page, if two bills share the **same vendor + same total within 7 days**, a
+**"Possible duplicate bills"** prompt lists the pair — review before approving/paying (a candidate,
+not a verdict).
+
 ## What "pass" means
 Every posted transaction moved the statements, the Trial Balance stayed **debits = credits**, and the
 Balance Sheet **tied out** — i.e., the double-entry spine holds end-to-end through the subledgers to
 the statements. That's the whole system verified on real data.
 
 ## Known limits (by design, flagged in the audit doc)
-- Bill/invoice UIs are now **multi-line + per-line tax** (2026-07-13) — add/remove lines, a running
-  total; the expense-report UI remains single-item (a later polish).
+- Bill / invoice / **expense** entry are all **multi-line + per-line tax/category** (2026-07-13).
 - Foreign-currency settlement is rejected (FX-on-payment is a later increment), base-currency works.
-- Expense/AR issue need a second finance user (SoD). Cash Flow, PDF export, and Phases 3/5/7/8/9 are
-  not built (each new phase needs a data-model proposal).
+- Expense/AR issue + credit-note issue need a second finance user (SoD).
+- Cash Flow Statement + PDF export not built. **Phase 3 (Banking) IS built** (Step 11). Phases
+  4 (proposed) / 5 / 7 / 8 / 9 pending — each new phase needs a data-model proposal + confirmation.
 
 *If any step doesn't behave as above, tell me which step + what you saw and I diagnose from the
 named behavior — the honest-error discipline, not a guess.*
