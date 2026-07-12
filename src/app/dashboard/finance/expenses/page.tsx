@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
+import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, CheckCircle2, DollarSign } from "lucide-react";
 
@@ -19,6 +20,7 @@ const money = (n: number) => `$${(Number(n) || 0).toFixed(2)}`;
 export default function ExpensesPage() {
   const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -28,6 +30,7 @@ export default function ExpensesPage() {
       fetch("/api/finance/expenses/reports").then((x) => x.json()),
     ]);
     setAccounts(a.accounts ?? []);
+    setLoaded(true);
     setReports(r.reports ?? []);
   }, []);
   useEffect(() => {
@@ -76,6 +79,15 @@ export default function ExpensesPage() {
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
   };
+
+  if (loaded && accounts.length === 0)
+    return (
+      <div className="min-h-screen bg-base">
+        <TopBar title="Expenses" subtitle="Employee expense reports & reimbursement" />
+        <FinanceNav />
+        <FinanceNotSetUp feature="Expenses" />
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-base">

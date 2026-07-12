@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
+import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { useToast } from "@/components/ui/toast";
 import { Loader2, Plus, CheckCircle2, DollarSign } from "lucide-react";
 
@@ -29,6 +30,7 @@ export default function ApPage() {
   const [openBill, setOpenBill] = useState<string | null>(null);
   const [billLines, setBillLines] = useState<Record<string, { line_no: number; account_id: string; amount: number; tax_amount: number }[]>>({});
   const [aging, setAging] = useState<Aging | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const acctName = (id: string) => {
     const a = accounts.find((x) => x.id === id);
@@ -54,6 +56,7 @@ export default function ApPage() {
     setAccounts(a.accounts ?? []);
     setBills(b.bills ?? []);
     setAging(g.aging ?? null);
+    setLoaded(true);
   }, []);
   useEffect(() => {
     void load();
@@ -138,6 +141,9 @@ export default function ApPage() {
     <div className="min-h-screen bg-base">
       <TopBar title="Accounts Payable" subtitle="Vendors, bills, approvals & payments" />
       <FinanceNav />
+      {loaded && accounts.length === 0 ? (
+        <FinanceNotSetUp feature="Accounts Payable" />
+      ) : (
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
         <p className="text-xs text-muted">
           Functional first pass. Creating a bill and approving it posts a real double-entry journal
@@ -294,6 +300,7 @@ export default function ApPage() {
           )}
         </section>
       </div>
+      )}
     </div>
   );
 }

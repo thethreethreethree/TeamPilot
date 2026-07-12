@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
+import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, DollarSign } from "lucide-react";
 
@@ -24,6 +25,7 @@ export default function ArPage() {
   const toast = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [aging, setAging] = useState<Aging | null>(null);
   const [overdue, setOverdue] = useState<Overdue[]>([]);
@@ -54,6 +56,7 @@ export default function ArPage() {
     ]);
     setCustomers(c.customers ?? []);
     setAccounts(a.accounts ?? []);
+    setLoaded(true);
     setInvoices(i.invoices ?? []);
     setAging(g.aging ?? null);
     setOverdue(o.overdue ?? []);
@@ -129,6 +132,15 @@ export default function ArPage() {
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
   };
+
+  if (loaded && accounts.length === 0)
+    return (
+      <div className="min-h-screen bg-base">
+        <TopBar title="Accounts Receivable" subtitle="Customers, invoices & receipts" />
+        <FinanceNav />
+        <FinanceNotSetUp feature="Accounts Receivable" />
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-base">

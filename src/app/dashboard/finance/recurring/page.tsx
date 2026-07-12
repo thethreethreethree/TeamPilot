@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
+import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Play, Power } from "lucide-react";
 
@@ -24,6 +25,7 @@ export default function RecurringPage() {
   const toast = useToast();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -35,6 +37,7 @@ export default function RecurringPage() {
     ]);
     setVendors(v.vendors ?? []);
     setAccounts(a.accounts ?? []);
+    setLoaded(true);
     setTemplates(t.templates ?? []);
   }, []);
   useEffect(() => {
@@ -86,6 +89,15 @@ export default function RecurringPage() {
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
   };
+
+  if (loaded && accounts.length === 0)
+    return (
+      <div className="min-h-screen bg-base">
+        <TopBar title="Recurring Bills" subtitle="Rent, subscriptions, utilities — templates that generate bills" />
+        <FinanceNav />
+        <FinanceNotSetUp feature="Recurring Bills" />
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-base">

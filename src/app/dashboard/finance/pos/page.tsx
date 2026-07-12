@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
+import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { useToast } from "@/components/ui/toast";
 import { Plus, CheckCircle2, FileOutput } from "lucide-react";
 
@@ -14,6 +15,7 @@ export default function PosPage() {
   const toast = useToast();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [pos, setPos] = useState<PO[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -25,6 +27,7 @@ export default function PosPage() {
     ]);
     setVendors(v.vendors ?? []);
     setAccounts(a.accounts ?? []);
+    setLoaded(true);
     setPos(p.pos ?? []);
   }, []);
   useEffect(() => {
@@ -79,6 +82,15 @@ export default function PosPage() {
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
   };
+
+  if (loaded && accounts.length === 0)
+    return (
+      <div className="min-h-screen bg-base">
+        <TopBar title="Purchase Orders" subtitle="Commitments to buy — convert to a bill when received" />
+        <FinanceNav />
+        <FinanceNotSetUp feature="Purchase Orders" />
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-base">
