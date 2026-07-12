@@ -8,10 +8,15 @@ Steps 1–5 are the core double-entry proof (AP → AR → statements). Steps 6�
 enrichments (Expenses, Purchase Orders, Recurring bills). Aging + collections are checked inline.
 
 ## Step 1 — apply migrations
-Apply **0122 → 0140** (you confirmed through 0121) in numeric order. They're idempotent and ordered;
-the chain was audited for dependency order (every object defined before its consumers, verified
-2026-07-12). This one contiguous range covers Phase 2, the audit fixes, AR, statements, and all
-Phase-2D features.
+Apply **0122 → 0140** (you confirmed through 0121) in numeric order. This one contiguous range covers
+Phase 2, the audit fixes, AR, statements, and all Phase-2D features. Two properties were verified
+2026-07-12 so the apply is low-risk:
+- **Dependency order** — every object is defined before its consumers (no forward references).
+- **Idempotent / re-runnable** — tables + indexes use `if not exists`; policies and triggers are
+  `drop … if exists` before create; functions/views are `create or replace`; the three top-level
+  backfills (Tax Receivable 1200, Employee Reimbursements Payable 2200, current-year period) are
+  `where not exists`-guarded. So a re-run — or resuming a partially-applied chain — cannot throw an
+  "already exists" / unique-violation error. If an apply is interrupted, just re-run the range.
 
 ## Step 2 — initialize + confirm the dashboard
 1. Open **Finance**. If it shows "Your ledger isn't set up," click **Initialize finance (USD)**.
