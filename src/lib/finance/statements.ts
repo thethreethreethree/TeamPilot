@@ -1,6 +1,8 @@
 // Pure, testable finance-statement helpers (no React, no DB) — so the CSV export + tie-out logic
 // have real headless unit coverage (the SQL acceptance tests need a live DB; these don't).
 
+import { neutralizeCsvFormula } from "@/lib/export/csvSafe";
+
 export type StmtLine = { code: string; name: string; amount: number };
 export type TbRow = {
   account_id: string;
@@ -44,21 +46,14 @@ export function trialBalances(tb: Statements["trial_balance"]): boolean {
 }
 
 /**
- * Neutralize spreadsheet formula injection (CWE-1236). Account names/codes are user-controlled,
- * and this CSV is opened in Excel/Sheets, which evaluates any cell beginning with = + - @ TAB CR
- * as a formula — even when the value is CSV-quoted (the quotes are stripped as delimiters first).
- * A cell that is a well-formed number (incl. a legitimate negative amount like -123.45) is left
- * intact; anything else with a formula-leading char is prefixed with an apostrophe so the
- * spreadsheet treats it as literal text.
+ * Build one CSV of all three statements. Values are already SQL-derived — we only format.
+ * Every cell is passed through neutralizeCsvFormula (CWE-1236 defense) before quoting, because
+ * account names/codes are user-controlled and this file is opened in Excel/Sheets. See
+ * src/lib/export/csvSafe.ts for why quoting alone is insufficient.
  */
-const FORMULA_LEAD = /^[=+\-@\t\r]/;
-const isNumericCell = (v: string) => /^-?\d+(\.\d+)?$/.test(v);
-const deFormula = (v: string) => (FORMULA_LEAD.test(v) && !isNumericCell(v) ? "'" + v : v);
-
-/** Build one CSV of all three statements. Values are already SQL-derived — we only format. */
 export function statementsToCsv(s: Statements): string {
   const rows: string[] = [];
-  const q = (v: string | number) => `"${deFormula(String(v)).replace(/"/g, '""')}"`;
+  const q = (v: string | number) => `"${neutralizeCsvFormula(String(v)).replace(/"/g, '""')}"`;
   const row = (...cells: (string | number)[]) => rows.push(cells.map(q).join(","));
 
   rows.push("INCOME STATEMENT");

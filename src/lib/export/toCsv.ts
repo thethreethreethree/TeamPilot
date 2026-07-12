@@ -10,7 +10,12 @@
  * Why we don't pull a dependency for this: the surface area is small, the
  * format is stable, and a one-file implementation is easier to audit than a
  * library + lockfile entry.
+ *
+ * SECURITY: RFC-4180 quoting is not enough on its own — a cell that survives quoting can still be
+ * run as a formula when the file is opened (CWE-1236). Every data cell is passed through
+ * neutralizeCsvFormula() before escaping. See src/lib/export/csvSafe.ts.
  */
+import { neutralizeCsvFormula } from "@/lib/export/csvSafe";
 
 export function toCsv(
   rows: Array<Record<string, unknown>>,
@@ -22,7 +27,7 @@ export function toCsv(
   const cols = columns ?? Object.keys(rows[0]!);
   const header = cols.map(escape).join(",");
   const body = rows
-    .map((row) => cols.map((c) => escape(format(row[c]))).join(","))
+    .map((row) => cols.map((c) => escape(neutralizeCsvFormula(format(row[c])))).join(","))
     .join("\r\n");
   return header + "\r\n" + body + "\r\n";
 }
