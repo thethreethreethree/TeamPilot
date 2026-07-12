@@ -134,10 +134,21 @@ alter table fin_reconciliation_matches enable row level security;
 drop policy if exists "fin_bank_accounts - select" on fin_bank_accounts;
 create policy "fin_bank_accounts - select" on fin_bank_accounts
   for select using (company_id = auth_company_id() and fin_can_view());
+-- Split insert/update/delete (not "for all"): the created_by pin belongs on INSERT only. Putting it in
+-- a shared with-check would also gate UPDATE on created_by = auth.uid(), letting ONLY the creator edit
+-- a bank account (a second CFO couldn't) while DELETE stayed open — inconsistent. created_by stays
+-- pinned at insert and frozen after (fin_freeze_creator), so update needs no author check.
 drop policy if exists "fin_bank_accounts - write" on fin_bank_accounts;
-create policy "fin_bank_accounts - write" on fin_bank_accounts
-  for all using (company_id = auth_company_id() and fin_can_configure())
-  with check (company_id = auth_company_id() and fin_can_configure() and created_by = auth.uid());
+drop policy if exists "fin_bank_accounts - insert" on fin_bank_accounts;
+create policy "fin_bank_accounts - insert" on fin_bank_accounts
+  for insert with check (company_id = auth_company_id() and fin_can_configure() and created_by = auth.uid());
+drop policy if exists "fin_bank_accounts - update" on fin_bank_accounts;
+create policy "fin_bank_accounts - update" on fin_bank_accounts
+  for update using (company_id = auth_company_id() and fin_can_configure())
+  with check (company_id = auth_company_id() and fin_can_configure());
+drop policy if exists "fin_bank_accounts - delete" on fin_bank_accounts;
+create policy "fin_bank_accounts - delete" on fin_bank_accounts
+  for delete using (company_id = auth_company_id() and fin_can_configure());
 
 -- Bank transactions: import/manage = enter-level; author pinned.
 drop policy if exists "fin_bank_txn - select" on fin_bank_transactions;
