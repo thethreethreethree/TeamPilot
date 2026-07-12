@@ -255,10 +255,12 @@ function WiredDashboard({ s }: { s: Summary }) {
             <p className="text-xs text-muted">No expenses posted yet.</p>
           ) : (
             <div className="space-y-3">
+              {/* Each expense account links to the statements drill-down (Trial Balance → this
+                  account → its posted GL lines → source doc) — same traceability as the KPI tiles. */}
               {s.expense_breakdown.map((e) => (
-                <div key={e.code}>
+                <a key={e.code} href="/dashboard/finance/statements" className="block group" title={`Trace ${e.name} to its posted transactions`}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-secondary">{e.name}</span>
+                    <span className="text-xs text-secondary group-hover:text-primary transition-colors">{e.name}</span>
                     <span className="text-xs font-mono text-muted">{fmtMoney(e.amount)}</span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-surface-raised overflow-hidden">
@@ -267,7 +269,7 @@ function WiredDashboard({ s }: { s: Summary }) {
                       style={{ width: `${(Math.abs(Number(e.amount)) / maxExpense) * 100}%` }}
                     />
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           )}
