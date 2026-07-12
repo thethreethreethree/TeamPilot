@@ -3,60 +3,17 @@
 import { useEffect, useState, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { Loader2, CheckCircle2, AlertTriangle, Download } from "lucide-react";
+import {
+  type Statements,
+  type StmtLine as Line,
+  statementsToCsv,
+  balanceSheetTiesOut,
+  trialBalances,
+} from "@/lib/finance/statements";
 
-type Line = { code: string; name: string; amount: number };
-type TbRow = { account_id: string; code: string; name: string; type: string; debit: number; credit: number };
 type GlLine = { entry_no: number; entry_date: string; description: string; debit: number; credit: number };
-type Statements = {
-  trial_balance: { rows: TbRow[]; total_debit: number; total_credit: number };
-  income_statement: {
-    revenue: Line[];
-    expenses: Line[];
-    total_revenue: number;
-    total_expenses: number;
-    net_income: number;
-  };
-  balance_sheet: {
-    assets: Line[];
-    liabilities: Line[];
-    equity: Line[];
-    total_assets: number;
-    total_liabilities: number;
-    total_equity: number;
-    net_income: number;
-  };
-};
 
 const m = (n: number) => `$${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const n2 = (n: number) => (Number(n) || 0).toFixed(2);
-
-// Build a single CSV of all three statements. Client-side (no backend); values are already
-// SQL-derived, we only format for display/export here.
-function statementsToCsv(s: Statements): string {
-  const rows: string[] = [];
-  const q = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-  rows.push("INCOME STATEMENT");
-  rows.push("Section,Code,Account,Amount");
-  s.income_statement.revenue.forEach((l) => rows.push(["Revenue", l.code, l.name, n2(l.amount)].map(q).join(",")));
-  rows.push(["", "", "Total revenue", n2(s.income_statement.total_revenue)].map(q).join(","));
-  s.income_statement.expenses.forEach((l) => rows.push(["Expense", l.code, l.name, n2(l.amount)].map(q).join(",")));
-  rows.push(["", "", "Total expenses", n2(s.income_statement.total_expenses)].map(q).join(","));
-  rows.push(["", "", "Net income", n2(s.income_statement.net_income)].map(q).join(","));
-  rows.push("");
-  rows.push("BALANCE SHEET");
-  rows.push("Section,Code,Account,Amount");
-  s.balance_sheet.assets.forEach((l) => rows.push(["Asset", l.code, l.name, n2(l.amount)].map(q).join(",")));
-  rows.push(["", "", "Total assets", n2(s.balance_sheet.total_assets)].map(q).join(","));
-  s.balance_sheet.liabilities.forEach((l) => rows.push(["Liability", l.code, l.name, n2(l.amount)].map(q).join(",")));
-  s.balance_sheet.equity.forEach((l) => rows.push(["Equity", l.code, l.name, n2(l.amount)].map(q).join(",")));
-  rows.push(["", "", "Net income (current period)", n2(s.balance_sheet.net_income)].map(q).join(","));
-  rows.push("");
-  rows.push("TRIAL BALANCE");
-  rows.push("Code,Account,Type,Debit,Credit");
-  s.trial_balance.rows.forEach((r) => rows.push([r.code, r.name, r.type, n2(r.debit), n2(r.credit)].map(q).join(",")));
-  rows.push(["", "Totals", "", n2(s.trial_balance.total_debit), n2(s.trial_balance.total_credit)].map(q).join(","));
-  return rows.join("\r\n");
-}
 
 function downloadCsv(s: Statements) {
   const blob = new Blob([statementsToCsv(s)], { type: "text/csv;charset=utf-8;" });
@@ -150,7 +107,7 @@ function IncomeStatement({ is }: { is: Statements["income_statement"] }) {
 
 function BalanceSheet({ bs }: { bs: Statements["balance_sheet"] }) {
   const liabPlusEquity = Number(bs.total_liabilities) + Number(bs.total_equity) + Number(bs.net_income);
-  const balances = Math.abs(Number(bs.total_assets) - liabPlusEquity) < 0.005;
+  const balances = balanceSheetTiesOut(bs);
   return (
     <Section title="Balance Sheet">
       <table className="w-full text-sm">
@@ -175,7 +132,7 @@ function BalanceSheet({ bs }: { bs: Statements["balance_sheet"] }) {
 }
 
 function TrialBalance({ tb }: { tb: Statements["trial_balance"] }) {
-  const balances = Math.abs(Number(tb.total_debit) - Number(tb.total_credit)) < 0.005;
+  const balances = trialBalances(tb);
   const [open, setOpen] = useState<string | null>(null);
   const [gl, setGl] = useState<Record<string, GlLine[]>>({});
 
