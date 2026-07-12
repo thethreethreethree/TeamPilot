@@ -15,10 +15,12 @@ Sheet, Trial Balance, GL-detail drill-down RPC (0134) at /dashboard/finance/stat
 export. Statements are pure read-only derivations (no data model → the per-phase gate is vacuously
 satisfied; consistent with the aging/dashboard readouts). All three subledgers authz-audited clean.
 
-**Remaining (genuinely gated / needs founder):** Cash Flow Statement + advanced reporting
-(PDF/Excel, custom builder, scheduling); 2D enrichments (dunning, credit notes, POs, recurring,
-spend-limits/mileage/policy — some need values); Phases 3 (banking), 5 (budget/forecast), 7 (tax),
-8 (payroll/assets), 9 (governance) — each ADDS a data model, so each needs a proposal + confirmation.
+**Remaining (genuinely gated / needs founder), as of 2026-07-13:** Cash Flow Statement + advanced
+reporting (PDF/Excel export, custom builder, scheduling); spend-limits/mileage/policy VALUES; the
+Phase-4 remainder (overhead allocation, spend-anomaly, unit economics, break-even, inventory) — deferred
+per the Phase-4 proposal; and Phases **5 (budget/forecast), 7 (tax), 8 (payroll/assets), 9 (governance)**
+— each ADDS a data model → each needs a proposal + confirmation. (Phases 3 + 4-increment-1 are DONE — see
+the top-of-doc state; the historical narrative below predates them.)
 
 ## What was built (migrations 0116–0140 + finance app surface)
 
@@ -60,9 +62,10 @@ spend-limits/mileage/policy — some need values); Phases 3 (banking), 5 (budget
   /expenses/reports(+/[id])
 - UI: /dashboard/finance/{ap, expenses, periods} (functional first-pass, single-line/no-tax)
 
-**APPLY STATE: founder confirmed applied through 0121. Migrations 0122–0140 built this session
-still need applying** (contiguous, dependency-order-verified) before the Phase-2 features, audit
-fixes, AR, statements, and Phase-2D enrichments take effect.
+**APPLY STATE (updated 2026-07-13): founder applied through 0144. Migrations `0145`–`0148` still need
+applying** (Phase 3 banking, duplicate detection, Phase 4 increment 1). The whole 0116–0148 chain is
+dependency-ordered + idempotent. *(This section originally tracked 0122–0140; superseded — see the
+top-of-doc apply state, which is authoritative.)*
 
 ## Governance record (the founder ran a strict per-phase protocol)
 
@@ -83,10 +86,10 @@ fixes, AR, statements, and Phase-2D enrichments take effect.
 5. A messy vendors route → rewritten with getCurrentCompanyId.
 
 ## What NEEDS the founder (open)
-1. **Apply `0122`–`0140` + walk the runbook** (VERIFICATION-RUNBOOK-FULL.md — AP/AR/Expenses/POs/
-   Recurring/Statements). The range is dependency-ordered AND idempotent (re-runnable), both verified
-   2026-07-12. Confirm the dashboard figures move and Books stay Balanced. (Phase-1 SQL scripts PASS;
-   aging + recurring have acceptance scripts to run too.)
+1. **Apply `0145`–`0148` + walk the runbook** (VERIFICATION-RUNBOOK-FULL.md — now Steps 1–12 covering
+   AP/AR/Expenses/POs/Recurring/Statements/CreditNotes/Banking/Profitability). You're through 0144; the
+   whole chain is dependency-ordered + idempotent. Exercise banking (import CSV → auto-match) and
+   profitability (tag lines → margin). Acceptance scripts in docs/financial-system/tests/ (through 0148).
 2. **Credit notes — BUILT (2026-07-13, migration `0143`, UNAPPLIED).** Founder chose contra-revenue
    4900 / against-one-invoice / credit-notes-only. Full stack: `0143` + /api/finance/ar/credit-notes
    (+/[id]/issue) + /dashboard/finance/credit-notes. **Apply `0143`**, then create a draft credit note
@@ -101,4 +104,4 @@ fixes, AR, statements, and Phase-2D enrichments take effect.
 
 ## Key files
 - FEATURE_MANIFEST.md (status of every feature) · docs/financial-system/ (data-model proposals,
-  acceptance tests, runbook) · supabase/migrations/0116–0140 · src/app/dashboard/finance/ + src/app/api/finance/
+  acceptance tests, runbook, PHASE-3/4 proposals) · supabase/migrations/0116–0148 · src/app/dashboard/finance/ + src/app/api/finance/
