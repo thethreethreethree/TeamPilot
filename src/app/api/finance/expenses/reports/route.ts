@@ -16,9 +16,9 @@ export async function GET() {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { data, error } = await sb
-    .from("fin_expense_reports")
-    .select("id, title, status, employee_user_id, submitted_at, approved_at, reimbursed_at")
-    .order("created_at", { ascending: false });
+    .from("fin_expense_report_summary")
+    .select("id, title, status, employee_user_id, submitted_at, approved_at, reimbursed_at, total")
+    .order("submitted_at", { ascending: false, nullsFirst: false });
   if (error) return NextResponse.json({ reports: [] });
   return NextResponse.json({ reports: data });
 }

@@ -12,7 +12,9 @@ type Report = {
   title: string;
   status: string;
   employee_user_id: string;
+  total?: number;
 };
+const money = (n: number) => `$${(Number(n) || 0).toFixed(2)}`;
 
 export default function ExpensesPage() {
   const toast = useToast();
@@ -112,6 +114,7 @@ export default function ExpensesPage() {
               <thead>
                 <tr className="border-b border-default text-muted text-xs uppercase tracking-wider">
                   <th className="text-left pb-2 pr-3">Title</th>
+                  <th className="text-right pb-2 pr-3">Amount</th>
                   <th className="text-left pb-2 pr-3">Status</th>
                   <th className="text-right pb-2">Actions</th>
                 </tr>
@@ -120,6 +123,7 @@ export default function ExpensesPage() {
                 {reports.map((r) => (
                   <tr key={r.id}>
                     <td className="py-2 pr-3 text-primary">{r.title}</td>
+                    <td className="py-2 pr-3 text-right font-mono text-secondary">{money(r.total ?? 0)}</td>
                     <td className="py-2 pr-3">
                       <span className="text-xs px-2 py-0.5 rounded-full bg-surface-raised text-secondary">{r.status}</span>
                     </td>
