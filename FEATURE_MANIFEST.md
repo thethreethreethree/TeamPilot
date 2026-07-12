@@ -108,14 +108,14 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Runway calculation | NOT_STARTED |
 
 ## PHASE 6 — Reporting
-**Core financial statements**
+**Core financial statements**  *(0134 fin_statements — derived, read-only; /dashboard/finance/statements)*
 | Feature | Status |
 |---|---|
-| Profit & Loss (Income Statement) | NOT_STARTED |
-| Balance Sheet | NOT_STARTED |
-| Cash Flow Statement | NOT_STARTED |
-| Trial Balance | NOT_STARTED |
-| General Ledger detail report | NOT_STARTED |
+| Profit & Loss (Income Statement) | BUILT |
+| Balance Sheet | BUILT (ties out to the accounting equation) |
+| Cash Flow Statement | NOT_STARTED (needs cash-movement categorization — later) |
+| Trial Balance | BUILT (+ the fin_trial_balance view from 0121) |
+| General Ledger detail report | BUILT (fin_gl_detail RPC; per-account drill-down — UI drill-in a small add) |
 
 **Management reporting**
 | Feature | Status |
