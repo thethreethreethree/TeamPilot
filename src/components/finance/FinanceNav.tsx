@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/dashboard/finance/pos", label: "POs" },
   { href: "/dashboard/finance/recurring", label: "Recurring" },
   { href: "/dashboard/finance/ar", label: "Receivable" },
+  { href: "/dashboard/finance/credit-notes", label: "Credit Notes" },
   { href: "/dashboard/finance/expenses", label: "Expenses" },
   { href: "/dashboard/finance/periods", label: "Periods" },
   { href: "/dashboard/finance/statements", label: "Statements" },

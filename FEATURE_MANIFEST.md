@@ -46,7 +46,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Payment tracking and application | BUILT (fin_receipts + fin_record_receipt→GL; partial + over-receipt guard + row lock) |
 | Aging reports (30/60/90) | BUILT (0133 fin_ar_aging view + summary RPC + AR-page buckets panel) |
 | Dunning / collections workflow | PARTIAL — collections worklist (overdue invoices) built (/api/finance/ar/collections + AR-page section); automated email reminders = integration follow-up |
-| Credit notes and refunds | DESIGNED — full proposal at docs/financial-system/CREDIT-NOTES-DATA-MODEL.md; awaiting 5 founder decisions (treatment, application model, lines-vs-amount, over-credit, refunds), then migration 0141 + route + UI |
+| Credit notes and refunds | BUILT (credit notes) — 0143 fin_credit_notes + lines + fin_issue_credit_note (Dr Sales Returns 4900 / Cr AR, contra-revenue; SoD creator≠issuer; over-credit guard; created_by pinned+frozen per 0142); fin_invoice_summary + fin_ar_aging subtract issued credits; API /api/finance/ar/credit-notes(+/[id]/issue); UI /dashboard/finance/credit-notes. Founder decisions: contra-revenue 4900, against-one-invoice, credit-notes-only. CASH REFUNDS deferred (founder chose credits-only now) |
 
 **Expense Management**  *(0125)*
 | Feature | Status |
