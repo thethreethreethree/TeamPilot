@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import { useToast } from "@/components/ui/toast";
@@ -25,6 +25,21 @@ export default function ApPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [busy, setBusy] = useState(false);
+  const [openBill, setOpenBill] = useState<string | null>(null);
+  const [billLines, setBillLines] = useState<Record<string, { line_no: number; account_id: string; amount: number; tax_amount: number }[]>>({});
+
+  const acctName = (id: string) => {
+    const a = accounts.find((x) => x.id === id);
+    return a ? `${a.code} ${a.name}` : id.slice(0, 8);
+  };
+  const toggleBill = async (id: string) => {
+    if (openBill === id) return setOpenBill(null);
+    setOpenBill(id);
+    if (!billLines[id]) {
+      const r = await fetch(`/api/finance/ap/bills/${id}`).then((x) => x.json());
+      setBillLines((m) => ({ ...m, [id]: r.lines ?? [] }));
+    }
+  };
 
   const load = useCallback(async () => {
     const [v, a, b] = await Promise.all([
@@ -198,8 +213,11 @@ export default function ApPage() {
               </thead>
               <tbody className="divide-y divide-default">
                 {bills.map((b) => (
-                  <tr key={b.id}>
-                    <td className="py-2 pr-3 text-primary">{b.bill_number}</td>
+                  <Fragment key={b.id}>
+                  <tr>
+                    <td className="py-2 pr-3">
+                      <button onClick={() => toggleBill(b.id)} className="text-primary hover:underline">{b.bill_number}</button>
+                    </td>
                     <td className="py-2 pr-3 font-mono text-muted text-xs">{b.bill_date}</td>
                     <td className="py-2 pr-3 text-right font-mono text-secondary">{money(b.total ?? 0)}</td>
                     <td className="py-2 pr-3 text-right font-mono text-secondary">{money((b.total ?? 0) - (b.paid ?? 0))}</td>
@@ -218,6 +236,30 @@ export default function ApPage() {
                       {b.status === "paid" && <span className="text-xs text-emerald-400">Paid</span>}
                     </td>
                   </tr>
+                  {openBill === b.id && (
+                    <tr>
+                      <td colSpan={6} className="bg-surface/50 px-3 py-2">
+                        {!billLines[b.id] ? (
+                          <span className="text-xs text-muted">Loading…</span>
+                        ) : billLines[b.id].length === 0 ? (
+                          <span className="text-xs text-muted">No lines.</span>
+                        ) : (
+                          <table className="w-full text-xs">
+                            <tbody>
+                              {billLines[b.id].map((l) => (
+                                <tr key={l.line_no}>
+                                  <td className="py-0.5 text-secondary">{acctName(l.account_id)}</td>
+                                  <td className="py-0.5 text-right font-mono text-secondary">{money(l.amount)}</td>
+                                  <td className="py-0.5 text-right font-mono text-muted">tax {money(l.tax_amount)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
