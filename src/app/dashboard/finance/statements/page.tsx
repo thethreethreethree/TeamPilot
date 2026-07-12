@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
-import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, Download } from "lucide-react";
 
 type Line = { code: string; name: string; amount: number };
 type TbRow = { code: string; name: string; type: string; debit: number; credit: number };
@@ -27,6 +27,45 @@ type Statements = {
 };
 
 const m = (n: number) => `$${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const n2 = (n: number) => (Number(n) || 0).toFixed(2);
+
+// Build a single CSV of all three statements. Client-side (no backend); values are already
+// SQL-derived, we only format for display/export here.
+function statementsToCsv(s: Statements): string {
+  const rows: string[] = [];
+  const q = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  rows.push("INCOME STATEMENT");
+  rows.push("Section,Code,Account,Amount");
+  s.income_statement.revenue.forEach((l) => rows.push(["Revenue", l.code, l.name, n2(l.amount)].map(q).join(",")));
+  rows.push(["", "", "Total revenue", n2(s.income_statement.total_revenue)].map(q).join(","));
+  s.income_statement.expenses.forEach((l) => rows.push(["Expense", l.code, l.name, n2(l.amount)].map(q).join(",")));
+  rows.push(["", "", "Total expenses", n2(s.income_statement.total_expenses)].map(q).join(","));
+  rows.push(["", "", "Net income", n2(s.income_statement.net_income)].map(q).join(","));
+  rows.push("");
+  rows.push("BALANCE SHEET");
+  rows.push("Section,Code,Account,Amount");
+  s.balance_sheet.assets.forEach((l) => rows.push(["Asset", l.code, l.name, n2(l.amount)].map(q).join(",")));
+  rows.push(["", "", "Total assets", n2(s.balance_sheet.total_assets)].map(q).join(","));
+  s.balance_sheet.liabilities.forEach((l) => rows.push(["Liability", l.code, l.name, n2(l.amount)].map(q).join(",")));
+  s.balance_sheet.equity.forEach((l) => rows.push(["Equity", l.code, l.name, n2(l.amount)].map(q).join(",")));
+  rows.push(["", "", "Net income (current period)", n2(s.balance_sheet.net_income)].map(q).join(","));
+  rows.push("");
+  rows.push("TRIAL BALANCE");
+  rows.push("Code,Account,Type,Debit,Credit");
+  s.trial_balance.rows.forEach((r) => rows.push([r.code, r.name, r.type, n2(r.debit), n2(r.credit)].map(q).join(",")));
+  rows.push(["", "Totals", "", n2(s.trial_balance.total_debit), n2(s.trial_balance.total_credit)].map(q).join(","));
+  return rows.join("\r\n");
+}
+
+function downloadCsv(s: Statements) {
+  const blob = new Blob([statementsToCsv(s)], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "financial-statements.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function StatementsPage() {
   const [s, setS] = useState<Statements | null>(null);
@@ -52,6 +91,11 @@ export default function StatementsPage() {
         {!loading && !s && <div className="glass-card p-6 text-sm text-muted">No data — initialize finance and post entries.</div>}
         {!loading && s && (
           <>
+            <div className="flex justify-end">
+              <button onClick={() => downloadCsv(s)} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
+                <Download className="w-3.5 h-3.5" /> Export CSV
+              </button>
+            </div>
             <IncomeStatement is={s.income_statement} />
             <BalanceSheet bs={s.balance_sheet} />
             <TrialBalance tb={s.trial_balance} />
