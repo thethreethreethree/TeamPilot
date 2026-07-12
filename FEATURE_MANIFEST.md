@@ -38,15 +38,15 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Recurring expenses (rent, subscriptions, utilities) | NOT_STARTED (Increment 2D) |
 | Approval workflows with role-based spend limits | PARTIAL — bill approval built (fin_approve_bill, approve-capability gated); FLAGGED: role-based spend-LIMIT thresholds need your $ values |
 
-**Accounts Receivable**
+**Accounts Receivable**  *(Option B finance-native; 0131 core + 0132 receipts + API/UI)*
 | Feature | Status |
 |---|---|
-| Customer master records | NOT_STARTED |
-| Invoice generation and delivery | NOT_STARTED |
-| Payment tracking and application | NOT_STARTED |
-| Aging reports (30/60/90) | NOT_STARTED |
-| Dunning / collections workflow | NOT_STARTED |
-| Credit notes and refunds | NOT_STARTED |
+| Customer master records | BUILT (fin_customers + API/UI) |
+| Invoice generation and delivery | BUILT — generation (fin_invoices + fin_issue_invoice→GL, SoD issuer≠creator). Delivery (email/PDF) FLAGGED follow-up |
+| Payment tracking and application | BUILT (fin_receipts + fin_record_receipt→GL; partial + over-receipt guard + row lock) |
+| Aging reports (30/60/90) | NOT_STARTED (2D — derivable from due_date + unpaid) |
+| Dunning / collections workflow | NOT_STARTED (2D) |
+| Credit notes and refunds | NOT_STARTED (2D) |
 
 **Expense Management**  *(0125)*
 | Feature | Status |
