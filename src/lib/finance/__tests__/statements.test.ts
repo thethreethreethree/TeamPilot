@@ -81,3 +81,51 @@ describe("finance statements — CSV export", () => {
     expect(csv.includes("\r\n")).toBe(true);
   });
 });
+
+describe("finance statements — CSV formula-injection defense (CWE-1236)", () => {
+  // A user-controlled account name crafted to run as an Excel/Sheets formula on export+open.
+  const withName = (name: string): Statements => ({
+    ...s,
+    trial_balance: {
+      ...s.trial_balance,
+      rows: [{ account_id: "x", code: "1000", name, type: "asset", debit: 1, credit: 0 }],
+    },
+  });
+
+  it("neutralizes an =formula account name (prefixes an apostrophe)", () => {
+    const csv = statementsToCsv(withName('=HYPERLINK("http://evil","click")'));
+    // The dangerous cell must NOT begin with = after the CSV quote — it must be '=...
+    expect(csv).toContain('"\'=HYPERLINK');
+    expect(csv).not.toContain('"=HYPERLINK');
+  });
+
+  it("neutralizes +, @, and -formula leading chars in text cells", () => {
+    expect(statementsToCsv(withName("+1+1"))).toContain("\"'+1+1\"");
+    expect(statementsToCsv(withName("@SUM(A1)"))).toContain("\"'@SUM(A1)\"");
+    expect(statementsToCsv(withName("-2+3"))).toContain("\"'-2+3\"");
+  });
+
+  it("also neutralizes a formula-leading account CODE", () => {
+    const csv = statementsToCsv({
+      ...s,
+      trial_balance: {
+        ...s.trial_balance,
+        rows: [{ account_id: "x", code: "=1+1", name: "Cash", type: "asset", debit: 1, credit: 0 }],
+      },
+    });
+    expect(csv).toContain('"\'=1+1"');
+  });
+
+  it("leaves legitimate negative amounts intact (not misread as formulas)", () => {
+    // A real credit/contra balance renders as -50.00 and must stay a number, not become '-50.00.
+    const csv = statementsToCsv({
+      ...s,
+      balance_sheet: {
+        ...s.balance_sheet,
+        equity: [{ code: "3900", name: "Drawings", amount: -50 }],
+      },
+    });
+    expect(csv).toContain('"-50.00"');
+    expect(csv).not.toContain("\"'-50.00\"");
+  });
+});
