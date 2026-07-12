@@ -55,8 +55,12 @@ export default function ApPage() {
     } else toast.error("Couldn't add vendor", j?.error ?? "");
   };
 
-  // new bill (single line, minimal)
-  const expenseAccounts = accounts.filter((a) => a.type === "expense" || a.type === "asset");
+  // new bill (single line, minimal). A bill line is normally an expense; capital purchases hit a
+  // fixed-asset account. Exclude Cash / AR / Tax-Receivable (1000/1100/1200) — picking those as a
+  // bill line makes a nonsensical entry. (Prevents a real user error; the API accepts any account.)
+  const expenseAccounts = accounts.filter(
+    (a) => a.type === "expense" || (a.type === "asset" && !["1000", "1100", "1200"].includes(a.code))
+  );
   const [bVendor, setBVendor] = useState("");
   const [bNumber, setBNumber] = useState("");
   const [bDate, setBDate] = useState("");
