@@ -16,7 +16,7 @@
 create or replace function fin_statements()
 returns jsonb language sql stable security invoker set search_path = public as $$
   with b as (
-    select code, name, type, debit_total, credit_total,
+    select account_id, code, name, type, debit_total, credit_total,
            (debit_total - credit_total) as net
     from fin_account_balances
     where company_id = auth_company_id()
@@ -24,7 +24,7 @@ returns jsonb language sql stable security invoker set search_path = public as $
   select jsonb_build_object(
     'trial_balance', jsonb_build_object(
       'rows', (select coalesce(jsonb_agg(jsonb_build_object(
-                 'code', code, 'name', name, 'type', type,
+                 'account_id', account_id, 'code', code, 'name', name, 'type', type,
                  'debit', greatest(net, 0), 'credit', greatest(-net, 0)) order by code), '[]'::jsonb)
                from b where net <> 0),
       'total_debit',  (select coalesce(sum(greatest(net, 0)), 0)  from b),

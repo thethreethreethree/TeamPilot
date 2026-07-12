@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { Loader2, CheckCircle2, AlertTriangle, Download } from "lucide-react";
 
 type Line = { code: string; name: string; amount: number };
-type TbRow = { code: string; name: string; type: string; debit: number; credit: number };
+type TbRow = { account_id: string; code: string; name: string; type: string; debit: number; credit: number };
+type GlLine = { entry_no: number; entry_date: string; description: string; debit: number; credit: number };
 type Statements = {
   trial_balance: { rows: TbRow[]; total_debit: number; total_credit: number };
   income_statement: {
@@ -175,8 +176,24 @@ function BalanceSheet({ bs }: { bs: Statements["balance_sheet"] }) {
 
 function TrialBalance({ tb }: { tb: Statements["trial_balance"] }) {
   const balances = Math.abs(Number(tb.total_debit) - Number(tb.total_credit)) < 0.005;
+  const [open, setOpen] = useState<string | null>(null);
+  const [gl, setGl] = useState<Record<string, GlLine[]>>({});
+
+  const toggle = async (accountId: string) => {
+    if (open === accountId) {
+      setOpen(null);
+      return;
+    }
+    setOpen(accountId);
+    if (!gl[accountId]) {
+      const r = await fetch(`/api/finance/gl?accountId=${accountId}`).then((x) => x.json());
+      setGl((g) => ({ ...g, [accountId]: r.lines ?? [] }));
+    }
+  };
+
   return (
     <Section title="Trial Balance">
+      <p className="text-[11px] text-muted mb-2">Click an account to drill down to its posted transactions.</p>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-xs uppercase tracking-wider text-muted border-b border-default">
@@ -186,13 +203,42 @@ function TrialBalance({ tb }: { tb: Statements["trial_balance"] }) {
           </tr>
         </thead>
         <tbody>
-          {tb.rows.map((r) => (
-            <tr key={r.code}>
-              <td className="py-1 text-secondary"><span className="font-mono text-muted text-xs mr-2">{r.code}</span>{r.name}</td>
-              <td className="py-1 text-right font-mono text-secondary">{r.debit > 0 ? m(r.debit) : ""}</td>
-              <td className="py-1 text-right font-mono text-secondary">{r.credit > 0 ? m(r.credit) : ""}</td>
-            </tr>
-          ))}
+          {tb.rows.map((r) => {
+            const lines = gl[r.account_id];
+            return (
+            <Fragment key={r.account_id}>
+              <tr className="cursor-pointer hover:bg-surface" onClick={() => toggle(r.account_id)}>
+                <td className="py-1 text-secondary"><span className="font-mono text-muted text-xs mr-2">{r.code}</span>{r.name}</td>
+                <td className="py-1 text-right font-mono text-secondary">{r.debit > 0 ? m(r.debit) : ""}</td>
+                <td className="py-1 text-right font-mono text-secondary">{r.credit > 0 ? m(r.credit) : ""}</td>
+              </tr>
+              {open === r.account_id && (
+                <tr>
+                  <td colSpan={3} className="bg-surface/50 px-3 py-2">
+                    {!lines ? (
+                      <span className="text-xs text-muted">Loading…</span>
+                    ) : lines.length === 0 ? (
+                      <span className="text-xs text-muted">No posted transactions.</span>
+                    ) : (
+                      <table className="w-full text-xs">
+                        <tbody>
+                          {lines.map((l, i) => (
+                            <tr key={i}>
+                              <td className="py-0.5 text-muted font-mono">#{l.entry_no} · {l.entry_date}</td>
+                              <td className="py-0.5 text-secondary">{l.description}</td>
+                              <td className="py-0.5 text-right font-mono text-secondary">{l.debit > 0 ? m(l.debit) : ""}</td>
+                              <td className="py-0.5 text-right font-mono text-secondary">{l.credit > 0 ? m(l.credit) : ""}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+            );
+          })}
           <tr className="border-t-2 border-default font-semibold">
             <td className="py-2 text-primary">Totals</td>
             <td className="py-2 text-right font-mono text-primary">{m(tb.total_debit)}</td>
