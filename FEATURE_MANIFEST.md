@@ -46,7 +46,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Payment tracking and application | BUILT (fin_receipts + fin_record_receipt→GL; partial + over-receipt guard + row lock) |
 | Aging reports (30/60/90) | BUILT (0133 fin_ar_aging view + summary RPC + AR-page buckets panel) |
 | Dunning / collections workflow | PARTIAL — collections worklist (overdue invoices) built (/api/finance/ar/collections + AR-page section); automated email reminders = integration follow-up |
-| Credit notes and refunds | NOT_STARTED (2D) |
+| Credit notes and refunds | DESIGNED — full proposal at docs/financial-system/CREDIT-NOTES-DATA-MODEL.md; awaiting 5 founder decisions (treatment, application model, lines-vs-amount, over-credit, refunds), then migration 0141 + route + UI |
 
 **Expense Management**  *(0125)*
 | Feature | Status |
@@ -125,7 +125,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Period-over-period comparison | NOT_STARTED (needs date-ranged statements — derivable, no new data model) |
 | Drill-down from summary to source transaction | BUILT (0134 fin_gl_detail + Trial-Balance click-through on /dashboard/finance/statements) |
 | Scheduled / automated report delivery | NOT_STARTED (advanced Phase 6) |
-| Export (PDF, Excel, CSV) | PARTIAL — CSV built (opens in Excel); PDF/native-xlsx later |
+| Export (PDF, Excel, CSV) | PARTIAL — CSV built (opens in Excel), hardened against formula injection (CWE-1236, csvSafe.ts); PDF/native-xlsx later |
 
 ## PHASE 7 — Tax & Compliance
 | Feature | Status |
@@ -168,15 +168,18 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 
 ---
 
-*Updated as built per section 2.2. **State at 2026-07-12 (migrations 0116–0134):**
+*Updated as built per section 2.2. **State at 2026-07-12 (migrations 0116–0140):**
 **Phase 1** — BUILT + founder-VERIFIED (acceptance scripts PASS).
-**Phase 2** core — AP + AR + Expenses BUILT + operational (backend + API + UIs); enrichments (POs,
-recurring, dunning, credit notes, card-recon, mileage, policy) NOT_STARTED / need values.
-**Phase 6** core — P&L, Balance Sheet, Trial Balance, GL drill-down, CSV export BUILT (derived);
-Cash Flow + custom builder + scheduling + PDF/xlsx NOT_STARTED.
+**Phase 2** core — AP + AR + Expenses BUILT + operational (backend + API + UIs).
+**Phase 2D** enrichments — POs (0139) + recurring bills (0140) + AR/AP aging (0133/0138) + collections
+worklist BUILT; credit notes DESIGNED (proposal, awaiting decisions); dunning PARTIAL (worklist built,
+email = integration); card-recon/mileage/policy NOT_STARTED (need values/integrations).
+**Phase 6** core — P&L, Balance Sheet, Trial Balance, GL drill-down, CSV export (formula-injection
+hardened) BUILT (derived); Cash Flow + custom builder + scheduling + PDF/xlsx NOT_STARTED.
 **Phase 9** — RBAC, SoD, encryption BUILT; approval-delegation, multi-entity, backup/recovery, full
 integration-layer NOT_STARTED.
 **Phase 3** — data-model PROPOSED (docs/financial-system/PHASE-3-DATA-MODEL.md), awaiting confirmation.
 **Phases 4, 5, 7, 8** — NOT_STARTED (each needs a data-model proposal + confirmation).
-Everything Phase-2+ is verified-by-construction + authz-audited clean; apply 0122–0134 to a live DB
+Everything Phase-2+ is verified-by-construction + authz-audited clean (routes + RPCs, two-layer),
+money-rule-audited, CSV-hardened, and the chain is dependency-ordered + idempotent; apply 0122–0140 to a live DB
 + run the acceptance scripts / the full-system runbook to reach TESTED.*
