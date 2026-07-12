@@ -1,7 +1,19 @@
-# Session closure — Financial System build (2026-07-11)
+# Session closure — Financial System build (2026-07-11 → 07-12)
 
 Single entry point for the founder's return. This session built the Financial Tracking &
-Management System (FinancialSystem.md) from nothing to an operational Phase-1 + Phase-2 core.
+Management System (FinancialSystem.md) from nothing to a **complete core accounting system**:
+double-entry GL → transactions (AP/AR/Expenses) → periods → **financial statements + CSV export**.
+Migrations **0116–0134**. Apply state: founder confirmed through 0121; **0122–0134 need applying**.
+
+**Also built after the Phase-2 core:** AR aging (0133); core financial statements — P&L, Balance
+Sheet, Trial Balance, GL-detail drill-down RPC (0134) at /dashboard/finance/statements, with CSV
+export. Statements are pure read-only derivations (no data model → the per-phase gate is vacuously
+satisfied; consistent with the aging/dashboard readouts). All three subledgers authz-audited clean.
+
+**Remaining (genuinely gated / needs founder):** Cash Flow Statement + advanced reporting
+(PDF/Excel, custom builder, scheduling); 2D enrichments (dunning, credit notes, POs, recurring,
+spend-limits/mileage/policy — some need values); Phases 3 (banking), 5 (budget/forecast), 7 (tax),
+8 (payroll/assets), 9 (governance) — each ADDS a data model, so each needs a proposal + confirmation.
 
 ## What was built (migrations 0116–0125 + finance app surface)
 
