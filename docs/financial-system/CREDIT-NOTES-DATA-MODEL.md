@@ -94,7 +94,7 @@ invoice's remaining outstanding** (see decision 4). Draft-lock RLS (editable onl
 
 ## If confirmed
 
-One migration `0141_fin_credit_notes.sql` (tables + `fin_issue_credit_note` + `fin_invoice_summary`
+One migration `0142_fin_credit_notes.sql` (0141 was taken by a team-invite security fix) (tables + `fin_issue_credit_note` + `fin_invoice_summary`
 and `fin_ar_aging` view updates + `fin_source_postings` link + RLS + audit + the `4900` COA seed if
 contra chosen), an `/api/finance/ar/credit-notes` route pair, and the AR-page UI. An acceptance script
 for the balance (credit total = AR reduction) and the outstanding-subtraction ripple.

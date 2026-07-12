@@ -72,6 +72,27 @@ export async function POST(req: NextRequest) {
   const safeRole = isInvitableRole(role) ? role : "Member";
   const normalizedEmail = email.toLowerCase().trim();
 
+  // PRIVILEGE-ESCALATION GATE (audit 2026-07-13): CEO/COO are both invitable AND admin roles
+  // (roles.ts), and accepting such an invite grants company-admin (0114). Neither this route nor the
+  // team_invitations INSERT RLS policy (0008: `with check (company_id = auth_company_id())`) checked
+  // the CALLER's role — so any Member could mint a CEO/COO invitation and escalate a proxy account to
+  // admin. Mirror the DELETE-member gate: assigning an ADMIN role requires the caller to be an admin.
+  // (Non-admins may still invite non-admin roles — Member/Lead.) The RLS backstop ships as migration
+  // 0141 for the direct-client path; this closes the API path immediately.
+  if (isAdminRole(safeRole)) {
+    const { data: me } = await c.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", c.userId)
+      .maybeSingle();
+    if (!isAdminRole(me?.role as string | null | undefined)) {
+      return NextResponse.json(
+        { error: "Only a company admin can invite someone as an admin (CEO/COO)." },
+        { status: 403 }
+      );
+    }
+  }
+
   // Duplicate-prevention #1: an active pending invitation for this
   // email in this company. Two invitations to the same email produce
   // confusing state (two copy-links, two journeys) — reject early with

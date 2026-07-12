@@ -73,3 +73,33 @@ OR an explicit ownership check. The flagged ELO/brain **fabrication** risk is TA
 policies), addressed by the staged `0112`/`0113`, not a route-level hole. This is a SAMPLE (3 of 28),
 not exhaustive; the pattern is consistent enough to raise confidence, but the remaining 25 admin-client
 routes have not each been read. Recorded per the ground-up-audit "on the record" rule.*
+
+---
+
+## Addendum 2026-07-13 — HIGH found + fixed: team-invite privilege escalation
+
+Continuing the ground-up audit into the role/team surface (the classic privilege-escalation surface)
+turned up a **real HIGH**, not a clean sample:
+
+**Finding.** `INVITABLE_ROLES = [CEO, COO, Lead, Member]` and `ADMIN_ROLES = [CEO, COO, admin]`
+(src/lib/roles.ts) — so **CEO/COO are both invitable and admin**, and accepting such an invite grants
+company-admin (0114). BUT neither layer checked the *inviter's* role: `POST /api/team` had no admin
+gate (only auth + company), and the `team_invitations` INSERT RLS policy (0008) was just
+`with check (company_id = auth_company_id())`. **Result: any plain Member could create a CEO/COO
+invitation for their company and escalate a proxy/accomplice account to admin.** The asymmetry that
+exposed it: the DELETE-member path in the same route *does* gate on `isAdminRole`; the POST-invite path
+did not.
+
+**Fix (both layers, mirroring the "can't grant a role above your own" rule).** A non-admin may still
+invite non-admin roles (Member/Lead); assigning an ADMIN role (CEO/COO) now requires the caller to be
+an admin.
+- **App layer** (immediate): `POST /api/team` checks the caller's role when `safeRole` is an admin
+  role → 403 otherwise.
+- **RLS backstop** (`0141_team_invite_admin_role_guard.sql`, UNAPPLIED — closes the direct-Supabase-
+  client path): INSERT `with check` now additionally requires, for `role in (CEO,COO)`, that the caller
+  `exists in profiles with role in (CEO,COO,admin)`. Role is insert-time immutable (0008 trigger), so
+  the check bites exactly where it must. **Apply 0141 to fully close it.** tsc 0; 601 tests pass.
+
+Lesson (matches the earlier sweeps' class): an integrity/authority-critical write whose only guard is
+`company_id = auth_company_id()` trusts every company member equally — fine for peer data, unsafe when
+the row grants authority. Same shape as the 0101–0111 findings, one surface further out.*
