@@ -25,8 +25,13 @@ the single most valuable action outstanding.
 - **All SQL acceptance scripts** (docs/financial-system/tests/*.sql) — I cannot run SQL in this
   environment. They self-report PASS/FAIL via RAISE NOTICE and roll back; **you run them on staging.**
   The aging-bucket (0133/0138) and recurring-date (0140) scripts are new this session; the 0116–0132
-  scripts predate it. I sanity-checked syntax by inspection (and caught two of my own errors — an
-  invalid-hex UUID and a MySQL-ism — before commit), but "inspected" ≠ "executed."
+  scripts predate it. "Inspected" ≠ "executed," and inspection is fallible: a first pass caught two of
+  my own errors (an invalid-hex UUID and a MySQL-ism) before commit, but a LATER sweep (2026-07-13)
+  found **5 already-committed tests** (smoke/0118/0119/0129/0131) carried invalid-hex UUIDs (`p`/`u`)
+  that Postgres rejects at `::uuid` — they would have errored at the SEED step, before any assertion,
+  i.e. never actually run. Fixed (881c8c5) + verified each seeds the parents it references. The honest
+  takeaway: until you run these on staging, treat "green by inspection" with suspicion — this session
+  proved inspection missed a fatal seed error on the first look.
 - **`fin_statements` derivation** has no executable SQL acceptance test — it is `auth_company_id()`-
   gated and `profiles.id` FKs `auth.users`, so testing it needs fragile `auth.users` seeding I can't
   verify headless. Covered instead by pure-helper unit tests (vitest) + live UI (runbook Step 5).
