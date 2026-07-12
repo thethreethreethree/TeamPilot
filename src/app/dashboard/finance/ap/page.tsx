@@ -17,6 +17,7 @@ type Bill = {
   total?: number;
   paid?: number;
 };
+type Aging = { current: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number; total: number };
 const money = (n: number) => `$${(Number(n) || 0).toFixed(2)}`;
 
 export default function ApPage() {
@@ -27,6 +28,7 @@ export default function ApPage() {
   const [busy, setBusy] = useState(false);
   const [openBill, setOpenBill] = useState<string | null>(null);
   const [billLines, setBillLines] = useState<Record<string, { line_no: number; account_id: string; amount: number; tax_amount: number }[]>>({});
+  const [aging, setAging] = useState<Aging | null>(null);
 
   const acctName = (id: string) => {
     const a = accounts.find((x) => x.id === id);
@@ -42,14 +44,16 @@ export default function ApPage() {
   };
 
   const load = useCallback(async () => {
-    const [v, a, b] = await Promise.all([
+    const [v, a, b, g] = await Promise.all([
       fetch("/api/finance/ap/vendors").then((r) => r.json()),
       fetch("/api/finance/accounts").then((r) => r.json()),
       fetch("/api/finance/ap/bills").then((r) => r.json()),
+      fetch("/api/finance/ap/aging").then((r) => r.json()),
     ]);
     setVendors(v.vendors ?? []);
     setAccounts(a.accounts ?? []);
     setBills(b.bills ?? []);
+    setAging(g.aging ?? null);
   }, []);
   useEffect(() => {
     void load();
@@ -140,6 +144,27 @@ export default function ApPage() {
           entry (Dr expense / Cr Accounts Payable); paying posts Dr AP / Cr Cash. Single line + no
           tax here yet — the API supports multi-line + tax; a fuller UI is a follow-up.
         </p>
+
+        {aging && aging.total > 0 && (
+          <section className="glass-card p-5">
+            <h2 className="text-sm font-semibold text-primary mb-3">Aging — what you owe (by due date)</h2>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-center">
+              {[
+                { label: "Current", v: aging.current },
+                { label: "1–30", v: aging.d1_30 },
+                { label: "31–60", v: aging.d31_60 },
+                { label: "61–90", v: aging.d61_90 },
+                { label: "90+", v: aging.d90_plus, warn: true },
+                { label: "Total", v: aging.total, bold: true },
+              ].map((b) => (
+                <div key={b.label} className="rounded-lg bg-surface-raised p-2">
+                  <p className="text-[10px] text-muted uppercase tracking-wider">{b.label}</p>
+                  <p className={`text-sm font-mono ${b.warn && b.v > 0 ? "text-red-400" : b.bold ? "text-primary font-semibold" : "text-secondary"}`}>{money(b.v)}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Vendors */}
         <section className="glass-card p-5">
