@@ -27,28 +27,88 @@ function downloadCsv(s: Statements) {
   URL.revokeObjectURL(url);
 }
 
+type Period = "all" | "month" | "quarter" | "year" | "custom";
+
+// P&L covers [from,to]; the Balance Sheet + Trial Balance are as-of `to`. Empty strings = all-time.
+function rangeFor(period: Period, cFrom: string, cTo: string): { from: string; to: string } {
+  if (period === "all") return { from: "", to: "" };
+  if (period === "custom") return { from: cFrom, to: cTo };
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  if (period === "month") return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) };
+  if (period === "quarter") {
+    const q = Math.floor(m / 3) * 3;
+    return { from: iso(new Date(y, q, 1)), to: iso(new Date(y, q + 3, 0)) };
+  }
+  return { from: iso(new Date(y, 0, 1)), to: iso(new Date(y, 11, 31)) }; // year
+}
+
 export default function StatementsPage() {
   const [s, setS] = useState<Statements | null>(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>("all");
+  const [cFrom, setCFrom] = useState("");
+  const [cTo, setCTo] = useState("");
+  const { from, to } = rangeFor(period, cFrom, cTo);
 
   useEffect(() => {
+    setLoading(true);
     void (async () => {
-      const r = await fetch("/api/finance/statements").then((x) => x.json());
+      const qs = new URLSearchParams();
+      if (from) qs.set("from", from);
+      if (to) qs.set("to", to);
+      const r = await fetch(`/api/finance/statements?${qs.toString()}`).then((x) => x.json());
       setS(r.statements ?? null);
       setLoading(false);
     })();
-  }, []);
+  }, [from, to]);
 
   return (
     <div className="min-h-screen bg-base">
       <TopBar title="Financial Statements" subtitle="Derived from your posted ledger" />
       <FinanceNav />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
+        {/* Period selector (0144). P&L covers the range; Balance Sheet + Trial Balance are as-of the
+            end date. All time = every posted entry (the original behaviour). */}
+        <div className="glass-card p-3 flex flex-wrap items-center gap-2">
+          {([
+            { k: "all", label: "All time" },
+            { k: "month", label: "This month" },
+            { k: "quarter", label: "This quarter" },
+            { k: "year", label: "This year" },
+            { k: "custom", label: "Custom" },
+          ] as { k: Period; label: string }[]).map((opt) => (
+            <button
+              key={opt.k}
+              onClick={() => setPeriod(opt.k)}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                period === opt.k ? "border-brand text-primary bg-brand/10" : "border-default text-muted hover:text-secondary"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+          {period === "custom" && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted">
+              <input type="date" value={cFrom} onChange={(e) => setCFrom(e.target.value)} className="bg-surface rounded px-2 py-1 text-primary border border-default" />
+              <span>→</span>
+              <input type="date" value={cTo} onChange={(e) => setCTo(e.target.value)} className="bg-surface rounded px-2 py-1 text-primary border border-default" />
+            </span>
+          )}
+        </div>
         {!loading && s && (
           <p className="text-[11px] text-muted">
-            Showing <strong>all-time cumulative</strong> figures from all posted entries. Date-ranged
-            period statements (this month, this quarter, period-over-period) are a planned enhancement
-            — labeled here so these aren&apos;t mistaken for a single period.
+            {period === "all" ? (
+              <>Showing <strong>all-time cumulative</strong> figures from every posted entry.</>
+            ) : (
+              <>
+                Income Statement covers <strong>{from || "…"} → {to || "…"}</strong>; the Balance Sheet
+                and Trial Balance are <strong>as of {to || "…"}</strong> (a point-in-time snapshot, so
+                its net income is cumulative-to-date, not the period figure).
+              </>
+            )}
           </p>
         )}
         {loading && (

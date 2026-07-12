@@ -122,7 +122,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 |---|---|
 | Custom report builder | NOT_STARTED (advanced Phase 6) |
 | KPI dashboard (revenue, burn, margin, runway, DSO, etc.) | PARTIAL — finance dashboard shows real derived cash/revenue/expenses/net + trial-balance integrity; burn/runway/DSO need forecasting (Ph5) + AR-days |
-| Period-over-period comparison | NOT_STARTED (needs date-ranged statements — derivable, no new data model) |
+| Period-over-period comparison | PARTIAL — date-ranged statements BUILT (0144: fin_statements(from,to); P&L over range, BS/TB as-of; period selector on /statements). Side-by-side two-period comparison view is the remaining UI step |
 | Drill-down from summary to source transaction | BUILT (0134 fin_gl_detail + Trial-Balance click-through on /dashboard/finance/statements) |
 | Scheduled / automated report delivery | NOT_STARTED (advanced Phase 6) |
 | Export (PDF, Excel, CSV) | PARTIAL — CSV built (opens in Excel), hardened against formula injection (CWE-1236, csvSafe.ts); PDF/native-xlsx later |
