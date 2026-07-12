@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/dashboard/finance", label: "Overview" },
   { href: "/dashboard/finance/ap", label: "Payable" },
+  { href: "/dashboard/finance/pos", label: "POs" },
   { href: "/dashboard/finance/ar", label: "Receivable" },
   { href: "/dashboard/finance/expenses", label: "Expenses" },
   { href: "/dashboard/finance/periods", label: "Periods" },
