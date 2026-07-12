@@ -30,9 +30,15 @@ the single most valuable action outstanding.
 - **`fin_statements` derivation** has no executable SQL acceptance test — it is `auth_company_id()`-
   gated and `profiles.id` FKs `auth.users`, so testing it needs fragile `auth.users` seeding I can't
   verify headless. Covered instead by pure-helper unit tests (vitest) + live UI (runbook Step 5).
-- **The subledger→GL posting amounts** (approve/pay/issue/receipt) — same auth-gating; verified by
-  construction + structural acceptance scripts + the runbook's live click-through, not by SQL test.
-  This is the one section-3 non-negotiable ("test every calculation") standing at PARTIAL.
+- **The subledger→GL posting amounts** (approve/pay/issue/receipt) — verified by construction +
+  structural acceptance scripts + the runbook's live click-through, not by SQL test. Confirmed by
+  reading the code 2026-07-12: the gate is not only the wrappers — the shared primitive
+  `fin_post_system_entry` itself checks `fin_can_enter()` (0122 line 58), so **every** posting path
+  returns "Not authorized" under a service-role session (no `auth.uid()`). Executable SQL testing
+  therefore requires simulating an authenticated finance user (seed `auth.users` + `profiles` + set
+  the JWT `sub` claim) — a staging-only harness, not headless. This is the one section-3
+  non-negotiable ("test every calculation") standing at PARTIAL. The posting *code* is sound on
+  review (base-currency balance check, ≥2-line + open-period guards, reject-and-rollback).
 
 ## 3. Flagged design decisions — need your call (nothing built unbid)
 
