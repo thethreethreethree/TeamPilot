@@ -35,7 +35,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Purchase orders | BUILT (0139 fin_purchase_orders + fin_po_lines + approve/convert-to-bill; API + /dashboard/finance/pos. No GL impact until converted) |
 | Bill / invoice capture and entry (file ingestion / OCR) | BUILT — manual entry (0123 fin_bills + fin_bill_lines + fin_approve_bill→GL). FLAGGED: OCR/file-ingestion recommended as a document-AI INTEGRATION (build-vs-buy), your call |
 | Payment scheduling and execution | PARTIAL (0124 fin_payments + fin_pay_bill: Dr AP/Cr Cash, partial payments, over-pay guard, marks bill paid). FLAGGED: foreign-currency FX-on-payment deferred (rejected, not mis-posted); payment SCHEDULING + actual execution = processor/bank integration |
-| Recurring expenses (rent, subscriptions, utilities) | NOT_STARTED (Increment 2D) |
+| Recurring expenses (rent, subscriptions, utilities) | BUILT (0140 fin_recurring_bills template + generate + batch runner; API + /dashboard/finance/recurring. Auto-generation needs cron wiring) |
 | Approval workflows with role-based spend limits | PARTIAL — bill approval built (fin_approve_bill, approve-capability gated); FLAGGED: role-based spend-LIMIT thresholds need your $ values |
 
 **Accounts Receivable**  *(Option B finance-native; 0131 core + 0132 receipts + API/UI)*
