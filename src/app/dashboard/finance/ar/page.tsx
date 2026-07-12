@@ -20,6 +20,7 @@ type Aging = {
   total: number;
 };
 type Overdue = { invoice_number: string; customer_name: string; outstanding: number; days_overdue: number };
+type InvLine = { revenueAccountId: string; amount: string; taxAmount: string; description: string };
 const money = formatMoney;
 
 export default function ArPage() {
@@ -67,6 +68,7 @@ export default function ArPage() {
   }, [load]);
 
   const revenueAccounts = accounts.filter((a) => a.type === "revenue");
+  // (InvLine declared at module scope below)
   const [cName, setCName] = useState("");
   const addCustomer = async () => {
     if (!cName.trim()) return;
@@ -88,29 +90,36 @@ export default function ArPage() {
   const [iCust, setICust] = useState("");
   const [iNum, setINum] = useState("");
   const [iDate, setIDate] = useState("");
-  const [iAcct, setIAcct] = useState("");
-  const [iAmt, setIAmt] = useState("");
+  const [iLines, setILines] = useState<InvLine[]>([{ revenueAccountId: "", amount: "", taxAmount: "", description: "" }]);
+  const setILine = (i: number, patch: Partial<InvLine>) =>
+    setILines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const addILine = () => setILines((ls) => [...ls, { revenueAccountId: "", amount: "", taxAmount: "", description: "" }]);
+  const rmILine = (i: number) => setILines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls));
+  const iTotal = iLines.reduce((s, l) => s + (Number(l.amount) || 0) + (Number(l.taxAmount) || 0), 0);
   const addInvoice = async () => {
-    if (!iCust || !iNum || !iDate || !iAcct || !iAmt) {
-      toast.error("Fill customer, number, date, account, and amount");
+    const validLines = iLines
+      .filter((l) => l.revenueAccountId && l.amount)
+      .map((l) => ({
+        revenueAccountId: l.revenueAccountId,
+        amount: Number(l.amount),
+        taxAmount: Number(l.taxAmount) || 0,
+        description: l.description || undefined,
+      }));
+    if (!iCust || !iNum || !iDate || validLines.length === 0) {
+      toast.error("Fill customer, number, date, and at least one line (account + amount)");
       return;
     }
     setBusy(true);
     const res = await fetch("/api/finance/ar/invoices", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customerId: iCust,
-        invoiceNumber: iNum,
-        invoiceDate: iDate,
-        lines: [{ revenueAccountId: iAcct, amount: Number(iAmt) }],
-      }),
+      body: JSON.stringify({ customerId: iCust, invoiceNumber: iNum, invoiceDate: iDate, lines: validLines }),
     });
     const j = await res.json();
     setBusy(false);
     if (res.ok) {
       setINum("");
-      setIAmt("");
+      setILines([{ revenueAccountId: "", amount: "", taxAmount: "", description: "" }]);
       toast.success("Draft invoice created");
       void load();
     } else toast.error("Couldn't create invoice", j?.error ?? "");
@@ -220,18 +229,40 @@ export default function ArPage() {
 
         <section className="glass-card p-5">
           <h2 className="text-sm font-semibold text-primary mb-3">New invoice</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
             <select value={iCust} onChange={(e) => setICust(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
               <option value="">Customer…</option>
               {customers.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
             </select>
             <input value={iNum} onChange={(e) => setINum(e.target.value)} placeholder="Invoice #" className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
             <input type="date" value={iDate} onChange={(e) => setIDate(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
-            <select value={iAcct} onChange={(e) => setIAcct(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
-              <option value="">Revenue account…</option>
-              {revenueAccounts.map((a) => (<option key={a.id} value={a.id}>{a.code} {a.name}</option>))}
-            </select>
-            <input value={iAmt} onChange={(e) => setIAmt(e.target.value)} inputMode="decimal" placeholder="Amount" className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+          </div>
+          <div className="space-y-2">
+            <div className="hidden md:grid grid-cols-12 gap-2 text-[10px] uppercase tracking-wider text-muted px-1">
+              <span className="col-span-4">Revenue account</span>
+              <span className="col-span-4">Description</span>
+              <span className="col-span-2 text-right">Amount</span>
+              <span className="col-span-1 text-right">Tax</span>
+              <span className="col-span-1" />
+            </div>
+            {iLines.map((l, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <select value={l.revenueAccountId} onChange={(e) => setILine(i, { revenueAccountId: e.target.value })} className="col-span-12 md:col-span-4 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
+                  <option value="">Revenue account…</option>
+                  {revenueAccounts.map((a) => (<option key={a.id} value={a.id}>{a.code} {a.name}</option>))}
+                </select>
+                <input value={l.description} onChange={(e) => setILine(i, { description: e.target.value })} placeholder="Description" className="col-span-7 md:col-span-4 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+                <input value={l.amount} onChange={(e) => setILine(i, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" className="col-span-3 md:col-span-2 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
+                <input value={l.taxAmount} onChange={(e) => setILine(i, { taxAmount: e.target.value })} inputMode="decimal" placeholder="Tax" className="col-span-2 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
+                <button onClick={() => rmILine(i)} disabled={iLines.length === 1} title="Remove line" className="col-span-12 md:col-span-1 text-xs text-muted hover:text-red-400 disabled:opacity-30 py-1">✕</button>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <button onClick={addILine} className="text-xs text-brand hover:underline inline-flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Add line
+            </button>
+            <span className="text-xs text-muted">Total <span className="font-mono text-secondary">{money(iTotal)}</span></span>
           </div>
           <button onClick={addInvoice} disabled={busy} className="mt-3 inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-brand text-black text-sm font-medium disabled:opacity-60">
             <Plus className="w-4 h-4" /> Create draft invoice

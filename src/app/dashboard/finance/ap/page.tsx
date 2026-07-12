@@ -20,6 +20,7 @@ type Bill = {
   paid?: number;
 };
 type Aging = { current: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number; total: number };
+type BillLine = { accountId: string; amount: string; taxAmount: string; description: string };
 const money = formatMoney;
 
 export default function ApPage() {
@@ -91,29 +92,36 @@ export default function ApPage() {
   const [bVendor, setBVendor] = useState("");
   const [bNumber, setBNumber] = useState("");
   const [bDate, setBDate] = useState("");
-  const [bAccount, setBAccount] = useState("");
-  const [bAmount, setBAmount] = useState("");
+  const [bLines, setBLines] = useState<BillLine[]>([{ accountId: "", amount: "", taxAmount: "", description: "" }]);
+  const setBLine = (i: number, patch: Partial<BillLine>) =>
+    setBLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const addBLine = () => setBLines((ls) => [...ls, { accountId: "", amount: "", taxAmount: "", description: "" }]);
+  const rmBLine = (i: number) => setBLines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls));
+  const bTotal = bLines.reduce((s, l) => s + (Number(l.amount) || 0) + (Number(l.taxAmount) || 0), 0);
   const addBill = async () => {
-    if (!bVendor || !bNumber || !bDate || !bAccount || !bAmount) {
-      toast.error("Fill vendor, number, date, account, and amount");
+    const validLines = bLines
+      .filter((l) => l.accountId && l.amount)
+      .map((l) => ({
+        accountId: l.accountId,
+        amount: Number(l.amount),
+        taxAmount: Number(l.taxAmount) || 0,
+        description: l.description || undefined,
+      }));
+    if (!bVendor || !bNumber || !bDate || validLines.length === 0) {
+      toast.error("Fill vendor, number, date, and at least one line (account + amount)");
       return;
     }
     setBusy(true);
     const res = await fetch("/api/finance/ap/bills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        vendorId: bVendor,
-        billNumber: bNumber,
-        billDate: bDate,
-        lines: [{ accountId: bAccount, amount: Number(bAmount) }],
-      }),
+      body: JSON.stringify({ vendorId: bVendor, billNumber: bNumber, billDate: bDate, lines: validLines }),
     });
     const j = await res.json();
     setBusy(false);
     if (res.ok) {
       setBNumber("");
-      setBAmount("");
+      setBLines([{ accountId: "", amount: "", taxAmount: "", description: "" }]);
       toast.success("Draft bill created");
       void load();
     } else toast.error("Couldn't create bill", j?.error ?? "");
@@ -201,10 +209,10 @@ export default function ApPage() {
           </div>
         </section>
 
-        {/* New bill */}
+        {/* New bill — multi-line + tax (the API/RPC support it; this surfaces it). */}
         <section className="glass-card p-5">
           <h2 className="text-sm font-semibold text-primary mb-3">New bill</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
             <select value={bVendor} onChange={(e) => setBVendor(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
               <option value="">Vendor…</option>
               {vendors.map((v) => (
@@ -213,13 +221,35 @@ export default function ApPage() {
             </select>
             <input value={bNumber} onChange={(e) => setBNumber(e.target.value)} placeholder="Bill #" className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
             <input type="date" value={bDate} onChange={(e) => setBDate(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
-            <select value={bAccount} onChange={(e) => setBAccount(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
-              <option value="">Account…</option>
-              {expenseAccounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.code} {a.name}</option>
-              ))}
-            </select>
-            <input value={bAmount} onChange={(e) => setBAmount(e.target.value)} inputMode="decimal" placeholder="Amount" className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+          </div>
+          <div className="space-y-2">
+            <div className="hidden md:grid grid-cols-12 gap-2 text-[10px] uppercase tracking-wider text-muted px-1">
+              <span className="col-span-4">Account</span>
+              <span className="col-span-4">Description</span>
+              <span className="col-span-2 text-right">Amount</span>
+              <span className="col-span-1 text-right">Tax</span>
+              <span className="col-span-1" />
+            </div>
+            {bLines.map((l, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <select value={l.accountId} onChange={(e) => setBLine(i, { accountId: e.target.value })} className="col-span-12 md:col-span-4 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
+                  <option value="">Account…</option>
+                  {expenseAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>{a.code} {a.name}</option>
+                  ))}
+                </select>
+                <input value={l.description} onChange={(e) => setBLine(i, { description: e.target.value })} placeholder="Description" className="col-span-7 md:col-span-4 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
+                <input value={l.amount} onChange={(e) => setBLine(i, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" className="col-span-3 md:col-span-2 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
+                <input value={l.taxAmount} onChange={(e) => setBLine(i, { taxAmount: e.target.value })} inputMode="decimal" placeholder="Tax" className="col-span-2 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
+                <button onClick={() => rmBLine(i)} disabled={bLines.length === 1} title="Remove line" className="col-span-12 md:col-span-1 text-xs text-muted hover:text-red-400 disabled:opacity-30 py-1">✕</button>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <button onClick={addBLine} className="text-xs text-brand hover:underline inline-flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Add line
+            </button>
+            <span className="text-xs text-muted">Total <span className="font-mono text-secondary">{money(bTotal)}</span></span>
           </div>
           <button onClick={addBill} disabled={busy} className="mt-3 inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-brand text-black text-sm font-medium disabled:opacity-60">
             <Plus className="w-4 h-4" /> Create draft bill

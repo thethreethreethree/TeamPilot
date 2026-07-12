@@ -81,7 +81,8 @@ Balance Sheet **tied out** — i.e., the double-entry spine holds end-to-end thr
 the statements. That's the whole system verified on real data.
 
 ## Known limits (by design, flagged in the audit doc)
-- Bill/invoice UIs are single-line, no-tax (the API + RPCs support multi-line + tax).
+- Bill/invoice UIs are now **multi-line + per-line tax** (2026-07-13) — add/remove lines, a running
+  total; the expense-report UI remains single-item (a later polish).
 - Foreign-currency settlement is rejected (FX-on-payment is a later increment), base-currency works.
 - Expense/AR issue need a second finance user (SoD). Cash Flow, PDF export, and Phases 3/5/7/8/9 are
   not built (each new phase needs a data-model proposal).
