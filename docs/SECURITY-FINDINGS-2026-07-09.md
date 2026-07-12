@@ -173,5 +173,13 @@ gated** (the correct version of what team_invitations was missing).
 | Tenant-key push-out (`company_id` on UPDATE) | CLEAN (every with-check re-asserts company_id) |
 | Capability enforcement (write RPCs) | CLEAN, two-layer (AUDIT-2026-07-12-rpc-capability-enforcement.md) |
 | Service-role client in finance routes | CLEAN (zero — verified) |
-Two real holes found + fixed (0141, 0142, both UNAPPLIED); the rest clean-and-substantiated. Remaining
-to run: cross-tenant SELECT + DELETE-scope on the finance-specific tables.*
+| Cross-tenant SELECT | CLEAN (every SELECT policy company-scoped; every view `security_invoker`) |
+| DELETE-scope / append-only | CLEAN (docs draft-only; posted entries trigger-blocked; payments/receipts/postings default-deny) |
+
+**SWEEP COMPLETE (2026-07-13)** across all classes the 0101–0111 sweeps used. **Two real holes found +
+fixed** — `0141` (HIGH team-invite escalation), `0142` (MED-HIGH subledger SoD-bypass, insert+update);
+**both UNAPPLIED, founder must apply.** Everything else clean-and-substantiated (verified by reading
+policies + triggers, not pattern-matching). Two minor defense-in-depth flags left for the founder (not
+auto-built): a `fin_docs_immutable` trigger for subledger post-approval parity, and an inline
+`status`-check on the `fin_journal_entries` DELETE policy (currently trigger-enforced). The finance
+subsystem's authorization posture is now audited to the same depth as the core product (0101–0111).*
