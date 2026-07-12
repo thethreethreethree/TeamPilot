@@ -4,8 +4,9 @@ Single entry point for the founder's return. This session built the Financial Tr
 Management System (FinancialSystem.md) from nothing to a **complete core accounting system**:
 double-entry GL → transactions (AP/AR/Expenses) → periods → **financial statements + CSV export** →
 Phase-2D (POs, recurring, aging both sides, collections).
-Migrations **0116–0140**. Apply state: founder confirmed through 0121; **0122–0140 need applying**
-(one contiguous range, dependency-order-verified — apply in numeric order).
+Migrations **0116–0143**. Apply state (2026-07-13): founder applied **through 0142** (incl. the
+security fixes 0141 team-invite + 0142 subledger author-pin). **`0143` (credit notes) is the one
+migration still to apply.**
 
 **Also built after the Phase-2 core:** AR aging (0133); core financial statements — P&L, Balance
 Sheet, Trial Balance, GL-detail drill-down RPC (0134) at /dashboard/finance/statements, with CSV
@@ -84,9 +85,10 @@ fixes, AR, statements, and Phase-2D enrichments take effect.
    Recurring/Statements). The range is dependency-ordered AND idempotent (re-runnable), both verified
    2026-07-12. Confirm the dashboard figures move and Books stay Balanced. (Phase-1 SQL scripts PASS;
    aging + recurring have acceptance scripts to run too.)
-2. **Credit notes — DESIGNED, awaiting your call.** Full proposal at CREDIT-NOTES-DATA-MODEL.md;
-   answer its 5 decisions (accounting treatment [recommend contra-revenue 4900], application model,
-   lines-vs-amount, over-credit, cash refunds) and I build migration `0141` + route + UI.
+2. **Credit notes — BUILT (2026-07-13, migration `0143`, UNAPPLIED).** Founder chose contra-revenue
+   4900 / against-one-invoice / credit-notes-only. Full stack: `0143` + /api/finance/ar/credit-notes
+   (+/[id]/issue) + /dashboard/finance/credit-notes. **Apply `0143`**, then create a draft credit note
+   and have a second finance user Issue it (SoD). Cash refunds deferred (your credits-only choice).
 3. **Recurring monthly-drift semantics** (surfaced 2026-07-12, test 0140): a bill due the 31st drifts
    to the 28th permanently after February. Keep calendar +1 month / anchor to day-of-month / last-day-
    of-month? Latter two need an `anchor_day` column.
