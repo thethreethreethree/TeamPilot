@@ -38,6 +38,8 @@ const CreateSchema = z
           description: z.string().max(300).optional(),
           amount: z.number().nonnegative(),
           taxAmount: z.number().nonnegative().optional(),
+          costCenterId: z.string().uuid().optional(),
+          projectId: z.string().uuid().optional(),
         })
       )
       .min(1)
@@ -85,6 +87,8 @@ export async function POST(req: NextRequest) {
     description: l.description ?? null,
     amount: l.amount,
     tax_amount: l.taxAmount ?? 0,
+    cost_center_id: l.costCenterId ?? null,
+    project_id: l.projectId ?? null,
   }));
   const { error: lineErr } = await sb.from("fin_bill_lines").insert(lineRows);
   if (lineErr) {

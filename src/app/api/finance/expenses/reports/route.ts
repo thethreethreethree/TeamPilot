@@ -36,6 +36,8 @@ const CreateSchema = z
           taxAmount: z.number().nonnegative().optional(),
           expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
           receiptUrl: z.string().url().max(1000).optional(),
+          costCenterId: z.string().uuid().optional(),
+          projectId: z.string().uuid().optional(),
         })
       )
       .min(1)
@@ -79,6 +81,8 @@ export async function POST(req: NextRequest) {
     tax_amount: it.taxAmount ?? 0,
     expense_date: it.expenseDate ?? null,
     receipt_url: it.receiptUrl ?? null,
+    cost_center_id: it.costCenterId ?? null,
+    project_id: it.projectId ?? null,
   }));
   const { error: iErr } = await sb.from("fin_expense_items").insert(items);
   if (iErr) {

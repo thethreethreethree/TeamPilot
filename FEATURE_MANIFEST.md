@@ -72,20 +72,20 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 **Cost tracking**
 | Feature | Status |
 |---|---|
-| Cost centers / departments | NOT_STARTED |
-| Project & job costing | NOT_STARTED |
-| Direct vs. indirect cost classification | NOT_STARTED |
+| Cost centers / departments | BUILT (0147 fin_cost_centers, tree via parent_id; create on /profitability; tag lines) |
+| Project & job costing | BUILT (0147 fin_projects + client link + optional budget; tag bill/invoice lines with a project; margin on /profitability) |
+| Direct vs. indirect cost classification | BUILT (0147 fin_accounts.cost_type direct/indirect/none; drives contribution margin) |
 | Cost of Goods Sold (COGS) tracking | NOT_STARTED |
 | Overhead allocation rules | NOT_STARTED |
 
 **Profitability analysis**
 | Feature | Status |
 |---|---|
-| Gross margin — by product/service/client/project/region | NOT_STARTED |
+| Gross margin — by product/service/client/project/region | PARTIAL — margin by PROJECT + COST CENTER built (0148 views + /profitability). Product/region are later dimensions |
 | Net profitability by segment | NOT_STARTED |
-| Contribution margin analysis | NOT_STARTED |
+| Contribution margin analysis | BUILT (0148 revenue − DIRECT cost per dimension) |
 | Unit economics (cost per unit/customer/transaction) | NOT_STARTED |
-| Customer profitability | NOT_STARTED |
+| Customer profitability | BUILT (0148 fin_customer_profitability — rolls project margin up by the project's client link) |
 | Break-even analysis | NOT_STARTED |
 
 **Waste & efficiency**
