@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import { useToast } from "@/components/ui/toast";
@@ -26,6 +26,21 @@ export default function ArPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [aging, setAging] = useState<Aging | null>(null);
   const [busy, setBusy] = useState(false);
+  const [openInv, setOpenInv] = useState<string | null>(null);
+  const [invLines, setInvLines] = useState<Record<string, { line_no: number; revenue_account_id: string; amount: number; tax_amount: number }[]>>({});
+
+  const acctName = (id: string) => {
+    const a = accounts.find((x) => x.id === id);
+    return a ? `${a.code} ${a.name}` : id.slice(0, 8);
+  };
+  const toggleInv = async (id: string) => {
+    if (openInv === id) return setOpenInv(null);
+    setOpenInv(id);
+    if (!invLines[id]) {
+      const r = await fetch(`/api/finance/ar/invoices/${id}`).then((x) => x.json());
+      setInvLines((m) => ({ ...m, [id]: r.lines ?? [] }));
+    }
+  };
 
   const load = useCallback(async () => {
     const [c, a, i, g] = await Promise.all([
@@ -196,9 +211,14 @@ export default function ArPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-default">
-                {invoices.map((inv) => (
-                  <tr key={inv.id}>
-                    <td className="py-2 pr-3 text-primary">{inv.invoice_number}</td>
+                {invoices.map((inv) => {
+                  const il = invLines[inv.id];
+                  return (
+                  <Fragment key={inv.id}>
+                  <tr>
+                    <td className="py-2 pr-3">
+                      <button onClick={() => toggleInv(inv.id)} className="text-primary hover:underline">{inv.invoice_number}</button>
+                    </td>
                     <td className="py-2 pr-3 font-mono text-muted text-xs">{inv.invoice_date}</td>
                     <td className="py-2 pr-3 text-right font-mono text-secondary">{money(inv.total ?? 0)}</td>
                     <td className="py-2 pr-3 text-right font-mono text-secondary">{money((inv.total ?? 0) - (inv.received ?? 0))}</td>
@@ -213,7 +233,32 @@ export default function ArPage() {
                       {inv.status === "paid" && <span className="text-xs text-emerald-400">Paid</span>}
                     </td>
                   </tr>
-                ))}
+                  {openInv === inv.id && (
+                    <tr>
+                      <td colSpan={6} className="bg-surface/50 px-3 py-2">
+                        {!il ? (
+                          <span className="text-xs text-muted">Loading…</span>
+                        ) : il.length === 0 ? (
+                          <span className="text-xs text-muted">No lines.</span>
+                        ) : (
+                          <table className="w-full text-xs">
+                            <tbody>
+                              {il.map((l) => (
+                                <tr key={l.line_no}>
+                                  <td className="py-0.5 text-secondary">{acctName(l.revenue_account_id)}</td>
+                                  <td className="py-0.5 text-right font-mono text-secondary">{money(l.amount)}</td>
+                                  <td className="py-0.5 text-right font-mono text-muted">tax {money(l.tax_amount)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           )}
