@@ -50,3 +50,32 @@ create policy "fin_po - insert" on fin_purchase_orders
 -- Note: fin_vendors/fin_customers also carry created_by, but no SoD or authority depends on it there
 -- (it's informational attribution), so those are left as-is — pinning them is optional hardening, not
 -- a control fix. fin_bill_lines/fin_invoice_lines/fin_po_lines have no author column.
+
+-- ── UPDATE-path freeze (the INSERT pin above is not enough on its own) ──
+-- The draft-UPDATE policies (0128/0131/0139) let ANY fin_can_enter user edit ANY draft and do NOT
+-- freeze created_by — so the SoD bypass reopens: insert a clean draft (created_by = self, passes the
+-- pin), then UPDATE created_by = victim, then self-approve (creator = victim <> approver). The same
+-- hole exists on fin_journal_entries drafts (manual-post SoD: fin_post_entry checks approved_by <>
+-- created_by). fin_expense_reports is already safe (its UPDATE with-check pins employee_user_id =
+-- auth.uid()). Freeze created_by after insert with a trigger, so no update path can re-attribute it.
+create or replace function fin_freeze_created_by()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if OLD.created_by is distinct from NEW.created_by then
+    raise exception 'created_by is immutable (segregation-of-duties author cannot be reassigned)';
+  end if;
+  return NEW;
+end $$;
+
+drop trigger if exists fin_freeze_creator on fin_bills;
+create trigger fin_freeze_creator before update on fin_bills
+  for each row execute function fin_freeze_created_by();
+drop trigger if exists fin_freeze_creator on fin_invoices;
+create trigger fin_freeze_creator before update on fin_invoices
+  for each row execute function fin_freeze_created_by();
+drop trigger if exists fin_freeze_creator on fin_purchase_orders;
+create trigger fin_freeze_creator before update on fin_purchase_orders
+  for each row execute function fin_freeze_created_by();
+drop trigger if exists fin_freeze_creator on fin_journal_entries;
+create trigger fin_freeze_creator before update on fin_journal_entries
+  for each row execute function fin_freeze_created_by();

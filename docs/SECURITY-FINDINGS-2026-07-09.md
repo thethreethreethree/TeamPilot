@@ -127,9 +127,16 @@ NO default and NO RLS pin (INSERT with-check was only `company_id + fin_can_ente
 A direct-client insert can therefore spoof `created_by`. **Impact:** the approval SoD is
 `creator <> approver`; a user holding BOTH enter+approve (controller/CFO) could insert a bill with a
 spoofed creator, then self-approve — the SoD check reads the spoofed creator and passes, defeating
-segregation of duties on GL-posting documents (a spec-required control). **Fix (`0142`, UNAPPLIED):**
-pin `created_by = auth.uid()` in the three INSERT policies + default the columns, mirroring the ledger.
-DEFINER helpers (convert-PO, generate-recurring) run as owner and already set it; API routes already
-send it — so no legit path breaks. `fin_vendors`/`fin_customers` `created_by` is informational (no SoD
-depends on it) → left as optional hardening. Same class, one surface further out; the ledger core was
-hardened, its subledger siblings were missed.*
+segregation of duties on GL-posting documents (a spec-required control). **Fix (`0142`, UNAPPLIED — two parts, both needed):**
+(1) pin `created_by = auth.uid()` in the three INSERT policies + default the columns; (2) an
+immutability trigger `fin_freeze_created_by` freezing `created_by` on UPDATE for `fin_bills`,
+`fin_invoices`, `fin_purchase_orders` AND `fin_journal_entries`. Part (2) is essential: the INSERT pin
+alone is defeated by insert-clean-then-UPDATE-created_by (the draft-UPDATE policies let any
+`fin_can_enter` user edit any draft and did not freeze the author); the same hole existed on
+`fin_journal_entries` drafts (manual-post SoD). `fin_expense_reports` was already safe (its UPDATE
+with-check pins `employee_user_id = auth.uid()`). DEFINER helpers and the approve/post RPCs update
+status/approved_by, never `created_by`, so the freeze doesn't break them; API routes already send
+`created_by = auth.uid()`. `fin_vendors`/`fin_customers` `created_by` is informational (no SoD depends
+on it) → left as optional hardening. Same class, one surface further out; the ledger core was hardened,
+its subledger siblings were missed — and the fix had to cover BOTH insert and update to actually close
+it (caught by continuing the audit past the first patch).*
