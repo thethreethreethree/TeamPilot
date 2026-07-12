@@ -45,13 +45,28 @@ function rangeFor(period: Period, cFrom: string, cTo: string): { from: string; t
   return { from: iso(new Date(y, 0, 1)), to: iso(new Date(y, 11, 31)) }; // year
 }
 
+const isoAdd = (d: string, days: number) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+};
+// The same-length window immediately before [from,to] — for period-over-period (Phase 6).
+function priorRange(from: string, to: string): { from: string; to: string } {
+  if (!from || !to) return { from: "", to: "" };
+  const days = Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000);
+  const pTo = isoAdd(from, -1);
+  return { from: isoAdd(pTo, -days), to: pTo };
+}
+
 export default function StatementsPage() {
   const [s, setS] = useState<Statements | null>(null);
+  const [sPrior, setSPrior] = useState<Statements | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("all");
   const [cFrom, setCFrom] = useState("");
   const [cTo, setCTo] = useState("");
   const { from, to } = rangeFor(period, cFrom, cTo);
+  const prior = priorRange(from, to);
 
   useEffect(() => {
     setLoading(true);
@@ -61,8 +76,17 @@ export default function StatementsPage() {
       if (to) qs.set("to", to);
       const r = await fetch(`/api/finance/statements?${qs.toString()}`).then((x) => x.json());
       setS(r.statements ?? null);
+      // Period-over-period: fetch the prior same-length window when a bounded period is selected.
+      if (prior.from && prior.to) {
+        const pqs = new URLSearchParams({ from: prior.from, to: prior.to });
+        const pr = await fetch(`/api/finance/statements?${pqs.toString()}`).then((x) => x.json());
+        setSPrior(pr.statements ?? null);
+      } else {
+        setSPrior(null);
+      }
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from, to]);
 
   return (
@@ -125,12 +149,64 @@ export default function StatementsPage() {
               </button>
             </div>
             <IncomeStatement is={s.income_statement} />
+            {sPrior && <PeriodComparison cur={s.income_statement} prior={sPrior.income_statement} priorLabel={`${prior.from} → ${prior.to}`} />}
             <BalanceSheet bs={s.balance_sheet} />
             <TrialBalance tb={s.trial_balance} />
           </>
         )}
       </div>
     </div>
+  );
+}
+
+// Phase-6 period-over-period: the current period's P&L totals vs the prior same-length window.
+function PeriodComparison({
+  cur,
+  prior,
+  priorLabel,
+}: {
+  cur: Statements["income_statement"];
+  prior: Statements["income_statement"];
+  priorLabel: string;
+}) {
+  const rows = [
+    { label: "Revenue", now: Number(cur.total_revenue), was: Number(prior.total_revenue), goodUp: true },
+    { label: "Expenses", now: Number(cur.total_expenses), was: Number(prior.total_expenses), goodUp: false },
+    { label: "Net income", now: Number(cur.net_income), was: Number(prior.net_income), goodUp: true },
+  ];
+  const pct = (now: number, was: number) => (was === 0 ? null : ((now - was) / Math.abs(was)) * 100);
+  return (
+    <Section title="Period over period (vs prior period)">
+      <p className="text-[11px] text-muted mb-3">Compared with the prior same-length window: <span className="font-mono">{priorLabel}</span>.</p>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-xs uppercase tracking-wider text-muted border-b border-default">
+            <th className="text-left pb-2">Metric</th>
+            <th className="text-right pb-2">This period</th>
+            <th className="text-right pb-2">Prior</th>
+            <th className="text-right pb-2">Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const delta = r.now - r.was;
+            const p = pct(r.now, r.was);
+            const positive = delta >= 0;
+            const good = positive === r.goodUp;
+            return (
+              <tr key={r.label} className="border-t border-default">
+                <td className="py-1.5 text-secondary">{r.label}</td>
+                <td className="py-1.5 text-right font-mono text-primary">{m(r.now)}</td>
+                <td className="py-1.5 text-right font-mono text-muted">{m(r.was)}</td>
+                <td className={`py-1.5 text-right font-mono ${good ? "text-emerald-400" : "text-red-400"}`}>
+                  {positive ? "+" : ""}{m(delta)}{p === null ? "" : ` (${positive ? "+" : ""}${p.toFixed(0)}%)`}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </Section>
   );
 }
 
