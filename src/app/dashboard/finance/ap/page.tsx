@@ -313,6 +313,9 @@ export default function ApPage() {
 // Pre-fills the outstanding balance so paying-in-full (the common case) is one click; the user can
 // still edit the field down for a partial payment. Saves eyeballing the Outstanding column + retyping.
 function PayButton({ defaultAmount, onPay, disabled }: { defaultAmount: number; onPay: (amount: number) => void; disabled: boolean }) {
+  // toFixed(2) (not Math.floor(defaultAmount*100)/100 — that is float-buggy: 0.29*100 = 28.9999… →
+  // floor 28 → wrong $0.28). For realistic 2-decimal money toFixed is exact; the server's over-pay
+  // guard + Zod still backstop the (rare) 3-4dp round-up case.
   const [amt, setAmt] = useState(defaultAmount > 0 ? defaultAmount.toFixed(2) : "");
   return (
     <span className="inline-flex items-center gap-1">
