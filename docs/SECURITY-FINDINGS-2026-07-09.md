@@ -102,4 +102,18 @@ an admin.
 
 Lesson (matches the earlier sweeps' class): an integrity/authority-critical write whose only guard is
 `company_id = auth_company_id()` trusts every company member equally — fine for peer data, unsafe when
-the row grants authority. Same shape as the 0101–0111 findings, one surface further out.*
+the row grants authority. Same shape as the 0101–0111 findings, one surface further out.
+
+**§1.2 follow-up — is the class widespread? Swept the sibling authority-writes; team-invite was
+ISOLATED.** Checked the other highest-consequence "write that grants authority / changes shared
+config" surfaces:
+- `POST /api/coach/sales-session/team` (sets a member's `sales_coach_role`) — GATED: `if
+  (!ctx.isManager) → 403` (manager = company admin OR sales_coach_role='admin'), company-scoped,
+  strictUpdate rowcount check. CLEAN.
+- `PATCH /api/care/agent/tenant` (customer-facing branding + AI persona) — GATED: `if (!auth.isAdmin)
+  → 403`, company-scoped, plus heavy input sanitization (aiName Unicode strip, widgetLogoUrl excluded
+  as a phishing vector). CLEAN.
+- `profiles.role` self-escalation — already closed by the applied 0090–0092 guard triggers.
+So the authority-write class is generally well-gated; the team-invite route was a specific miss (it
+lacked the admin gate its own sibling DELETE-member path already had), not a systemic pattern. Finding
+bounded, not overstated (§3.4).*
