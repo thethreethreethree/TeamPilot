@@ -49,3 +49,27 @@ The flagged items are ONE class: **an integrity-critical table whose sanctioned 
 - LLM-cost-abuse (rate-limit class): swept 2026-07-09 — every member-triggerable LLM route is rate-limited (`/api/brain/learn` was the last gap, fixed 618bd55); `care/inbound/email` is `CARE_INBOUND_EMAIL_SECRET`-gated (trusted webhook only). No member-facing LLM route is un-bounded. (Residual: the rate-limiter is in-memory per-instance — item 7 robustness; the customer widget is the priority surface.)
 
 *Compiled 2026-07-09 from the session's migrations + audit docs. §3.6 make-learning-visible.*
+
+---
+
+## Addendum 2026-07-12 — non-finance admin-client spot-check (ground-up audit)
+
+A fresh outside-view audit of the `createAdminClient` (service-role, RLS-bypass) write surface
+OUTSIDE finance (finance was separately swept clean — no admin client in any finance route).
+28 non-finance routes use the admin client; sampled the 3 highest-risk **write-by-user-id** paths
+across 3 subsystems for the IDOR/cross-tenant class the earlier sweeps found:
+
+- **`files/[id]` (GET/PATCH/DELETE)** — CLEAN. GET/PATCH go through `getFile`/`classifyFile`, which use
+  the **user-scoped** client (RLS company-scopes the read/update); DELETE uses the admin client but with
+  an **explicit** `isUploader OR (isAdmin AND sameCompany)` check before the write (hardened by the
+  2026-06-26 file audit / 0063). No cross-tenant file read, reclassification, or delete.
+- **`chat/topics/[id]/lock`** — CLEAN. Explicit `topic.created_by === auth.user.id` ownership gate (403
+  otherwise) before the admin update; a user can only lock a topic they created.
+- **`coach/sales-session/attribute`** — CLEAN. Stateless speaker-attribution helper; writes no ELO/
+  session data; its admin client is a company-scoped READ of the caller's own product config.
+
+**Conclusion:** admin-client discipline is sound — every sampled write is gated by an RLS-scoped client
+OR an explicit ownership check. The flagged ELO/brain **fabrication** risk is TABLE-level (member INSERT
+policies), addressed by the staged `0112`/`0113`, not a route-level hole. This is a SAMPLE (3 of 28),
+not exhaustive; the pattern is consistent enough to raise confidence, but the remaining 25 admin-client
+routes have not each been read. Recorded per the ground-up-audit "on the record" rule.*
