@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, CheckCircle2, DollarSign } from "lucide-react";
 
@@ -15,7 +16,7 @@ type Report = {
   employee_user_id: string;
   total?: number;
 };
-const money = (n: number) => `$${(Number(n) || 0).toFixed(2)}`;
+const money = formatMoney;
 
 export default function ExpensesPage() {
   const toast = useToast();

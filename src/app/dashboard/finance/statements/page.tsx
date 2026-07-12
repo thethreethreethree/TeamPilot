@@ -11,10 +11,11 @@ import {
   balanceSheetTiesOut,
   trialBalances,
 } from "@/lib/finance/statements";
+import { formatMoney } from "@/lib/finance/format";
 
 type GlLine = { entry_no: number; entry_date: string; description: string; debit: number; credit: number };
 
-const m = (n: number) => `$${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const m = formatMoney;
 
 function downloadCsv(s: Statements) {
   const blob = new Blob([statementsToCsv(s)], { type: "text/csv;charset=utf-8;" });

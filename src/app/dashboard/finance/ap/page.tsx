@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Loader2, Plus, CheckCircle2, DollarSign } from "lucide-react";
 
@@ -19,7 +20,7 @@ type Bill = {
   paid?: number;
 };
 type Aging = { current: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number; total: number };
-const money = (n: number) => `$${(Number(n) || 0).toFixed(2)}`;
+const money = formatMoney;
 
 export default function ApPage() {
   const toast = useToast();

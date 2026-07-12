@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, DollarSign } from "lucide-react";
 
@@ -19,7 +20,7 @@ type Aging = {
   total: number;
 };
 type Overdue = { invoice_number: string; customer_name: string; outstanding: number; days_overdue: number };
-const money = (n: number) => `$${(Number(n) || 0).toFixed(2)}`;
+const money = formatMoney;
 
 export default function ArPage() {
   const toast = useToast();
