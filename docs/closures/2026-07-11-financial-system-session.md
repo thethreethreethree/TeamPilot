@@ -32,6 +32,16 @@ spend-limits/mileage/policy — some need values); Phases 3 (banking), 5 (budget
 - 0124 AP payments — fin_pay_bill→GL (Dr AP / Cr Cash), partial + over-pay guard
 - 0125 Expenses — reports/items, approve→GL (SoD: not your own) → reimburse→GL
 
+**Phase-2D enrichments + reporting + polish (0133–0140)**
+- 0133 AR aging · 0134 statements (P&L/BS/TB + GL drill-down + CSV) · 0135 bill/invoice summary
+  views · 0136 dashboard AR/AP outstanding · 0137 expense summary · 0138 AP aging · 0139 Purchase
+  Orders (approve/convert-to-bill) · 0140 Recurring bills (template + generate + batch runner).
+- App polish: FinanceNav cross-nav; amounts + drill-downs in AP/AR/Expenses lists; collections
+  worklist (overdue invoices) on AR. New pages: /statements, /pos, /recurring.
+- FLAGGED (need your input, not guessed): credit-notes/refunds (accounting-treatment choice —
+  recommend Dr Sales-Returns-contra / Cr AR), spend-limit $ thresholds, mileage/per-diem rate,
+  expense policy rules, corporate-card feed + OCR (integrations). **Migrations now 0116–0140.**
+
 **Post-build adversarial audit (0126–0129) — 4 genuine issues found + fixed**
 - 0126 fin_init_company seeds an open period (fresh company couldn't post → would break verification)
 - 0127 fin_pay_bill locks the bill row (over-payment race)
