@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
+import FinanceNav from "@/components/finance/FinanceNav";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, CheckCircle2, DollarSign } from "lucide-react";
 
@@ -77,6 +78,7 @@ export default function ExpensesPage() {
   return (
     <div className="min-h-screen bg-base">
       <TopBar title="Expenses" subtitle="Employee expense reports & reimbursement" />
+      <FinanceNav />
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
         <p className="text-xs text-muted">
           Functional first pass. Submitting a report and approving it (by a DIFFERENT finance user —

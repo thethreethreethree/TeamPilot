@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
+import FinanceNav from "@/components/finance/FinanceNav";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Lock, LockOpen, CheckCircle2 } from "lucide-react";
 
@@ -63,6 +64,7 @@ export default function PeriodsPage() {
   return (
     <div className="min-h-screen bg-base">
       <TopBar title="Fiscal Periods" subtitle="Open, close, and lock accounting periods" />
+      <FinanceNav />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
         <p className="text-xs text-muted">
           Entries can only post into an OPEN period. Closing a period freezes it (corrections become

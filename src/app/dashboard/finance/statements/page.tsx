@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
+import FinanceNav from "@/components/finance/FinanceNav";
 import { Loader2, CheckCircle2, AlertTriangle, Download } from "lucide-react";
 import {
   type Statements,
@@ -40,6 +41,7 @@ export default function StatementsPage() {
   return (
     <div className="min-h-screen bg-base">
       <TopBar title="Financial Statements" subtitle="Derived from your posted ledger" />
+      <FinanceNav />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
         {!loading && s && (
           <p className="text-[11px] text-muted">

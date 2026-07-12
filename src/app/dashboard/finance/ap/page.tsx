@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
+import FinanceNav from "@/components/finance/FinanceNav";
 import { useToast } from "@/components/ui/toast";
 import { Loader2, Plus, CheckCircle2, DollarSign } from "lucide-react";
 
@@ -114,6 +115,7 @@ export default function ApPage() {
   return (
     <div className="min-h-screen bg-base">
       <TopBar title="Accounts Payable" subtitle="Vendors, bills, approvals & payments" />
+      <FinanceNav />
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
         <p className="text-xs text-muted">
           Functional first pass. Creating a bill and approving it posts a real double-entry journal

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
+import FinanceNav from "@/components/finance/FinanceNav";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, DollarSign } from "lucide-react";
 
@@ -113,6 +114,7 @@ export default function ArPage() {
   return (
     <div className="min-h-screen bg-base">
       <TopBar title="Accounts Receivable" subtitle="Customers, invoices & receipts" />
+      <FinanceNav />
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
         <p className="text-xs text-muted">
           Issuing an invoice posts Dr Accounts Receivable / Cr Revenue; recording a payment posts Dr

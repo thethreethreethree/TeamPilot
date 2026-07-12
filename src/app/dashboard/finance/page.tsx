@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { LearningHint } from "@/components/learning/LearningHint";
+import FinanceNav from "@/components/finance/FinanceNav";
 import { useToast } from "@/components/ui/toast";
 import {
   TrendingUp,
@@ -83,6 +84,7 @@ export default function FinancePage() {
   return (
     <div className="min-h-screen bg-base">
       <TopBar title="Finance" subtitle={`${companyName} · Double-entry ledger`} />
+      <FinanceNav />
       <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
         {state === null && (
           <div className="glass-card p-8 flex items-center justify-center gap-2 text-muted">
@@ -130,25 +132,6 @@ function WiredDashboard({ s }: { s: Summary }) {
 
   return (
     <>
-      {/* Reachability (AMD-006 L3): the operational subledger surfaces. */}
-      <div className="flex flex-wrap gap-2">
-        <a href="/dashboard/finance/ap" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
-          Accounts Payable →
-        </a>
-        <a href="/dashboard/finance/ar" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
-          Accounts Receivable →
-        </a>
-        <a href="/dashboard/finance/expenses" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
-          Expense Reports →
-        </a>
-        <a href="/dashboard/finance/periods" className="text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
-          Fiscal Periods →
-        </a>
-        <a href="/dashboard/finance/statements" className="text-xs px-3 py-1.5 rounded-lg bg-brand/15 text-brand hover:bg-brand/25 transition-colors">
-          Financial Statements →
-        </a>
-      </div>
-
       {/* Empty ledger — real, but nothing posted yet */}
       {!s.has_data && (
         <div className="glass-card p-4 border-brand/20 text-sm text-secondary">
