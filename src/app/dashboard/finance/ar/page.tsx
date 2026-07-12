@@ -17,6 +17,7 @@ type Aging = {
   d90_plus: number;
   total: number;
 };
+type Overdue = { invoice_number: string; customer_name: string; outstanding: number; days_overdue: number };
 const money = (n: number) => `$${(Number(n) || 0).toFixed(2)}`;
 
 export default function ArPage() {
@@ -25,6 +26,7 @@ export default function ArPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [aging, setAging] = useState<Aging | null>(null);
+  const [overdue, setOverdue] = useState<Overdue[]>([]);
   const [busy, setBusy] = useState(false);
   const [openInv, setOpenInv] = useState<string | null>(null);
   const [invLines, setInvLines] = useState<Record<string, { line_no: number; revenue_account_id: string; amount: number; tax_amount: number }[]>>({});
@@ -43,16 +45,18 @@ export default function ArPage() {
   };
 
   const load = useCallback(async () => {
-    const [c, a, i, g] = await Promise.all([
+    const [c, a, i, g, o] = await Promise.all([
       fetch("/api/finance/ar/customers").then((r) => r.json()),
       fetch("/api/finance/accounts").then((r) => r.json()),
       fetch("/api/finance/ar/invoices").then((r) => r.json()),
       fetch("/api/finance/ar/aging").then((r) => r.json()),
+      fetch("/api/finance/ar/collections").then((r) => r.json()),
     ]);
     setCustomers(c.customers ?? []);
     setAccounts(a.accounts ?? []);
     setInvoices(i.invoices ?? []);
     setAging(g.aging ?? null);
+    setOverdue(o.overdue ?? []);
   }, []);
   useEffect(() => {
     void load();
@@ -155,6 +159,33 @@ export default function ArPage() {
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {overdue.length > 0 && (
+          <section className="glass-card p-5 border-red-500/20">
+            <h2 className="text-sm font-semibold text-primary mb-3">Collections — overdue invoices</h2>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-default text-muted text-xs uppercase tracking-wider">
+                  <th className="text-left pb-2 pr-3">Invoice #</th>
+                  <th className="text-left pb-2 pr-3">Customer</th>
+                  <th className="text-right pb-2 pr-3">Outstanding</th>
+                  <th className="text-right pb-2">Days overdue</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-default">
+                {overdue.map((o) => (
+                  <tr key={o.invoice_number}>
+                    <td className="py-2 pr-3 text-primary">{o.invoice_number}</td>
+                    <td className="py-2 pr-3 text-secondary">{o.customer_name}</td>
+                    <td className="py-2 pr-3 text-right font-mono text-secondary">{money(o.outstanding)}</td>
+                    <td className={`py-2 text-right font-mono ${o.days_overdue > 60 ? "text-red-400" : "text-amber-300"}`}>{o.days_overdue}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[11px] text-muted mt-2">Follow-up worklist. Automated reminders (email) are an integration follow-up.</p>
           </section>
         )}
 
