@@ -212,7 +212,9 @@ export default function ApPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-default">
-                {bills.map((b) => (
+                {bills.map((b) => {
+                  const bl = billLines[b.id];
+                  return (
                   <Fragment key={b.id}>
                   <tr>
                     <td className="py-2 pr-3">
@@ -239,14 +241,14 @@ export default function ApPage() {
                   {openBill === b.id && (
                     <tr>
                       <td colSpan={6} className="bg-surface/50 px-3 py-2">
-                        {!billLines[b.id] ? (
+                        {!bl ? (
                           <span className="text-xs text-muted">Loading…</span>
-                        ) : billLines[b.id].length === 0 ? (
+                        ) : bl.length === 0 ? (
                           <span className="text-xs text-muted">No lines.</span>
                         ) : (
                           <table className="w-full text-xs">
                             <tbody>
-                              {billLines[b.id].map((l) => (
+                              {bl.map((l) => (
                                 <tr key={l.line_no}>
                                   <td className="py-0.5 text-secondary">{acctName(l.account_id)}</td>
                                   <td className="py-0.5 text-right font-mono text-secondary">{money(l.amount)}</td>
@@ -260,7 +262,8 @@ export default function ApPage() {
                     </tr>
                   )}
                   </Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
