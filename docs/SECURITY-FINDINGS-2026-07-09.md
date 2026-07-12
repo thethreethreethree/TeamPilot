@@ -116,4 +116,20 @@ config" surfaces:
 - `profiles.role` self-escalation — already closed by the applied 0090–0092 guard triggers.
 So the authority-write class is generally well-gated; the team-invite route was a specific miss (it
 lacked the admin gate its own sibling DELETE-member path already had), not a systemic pattern. Finding
-bounded, not overstated (§3.4).*
+bounded, not overstated (§3.4).
+
+**2026-07-13 (2) — MED-HIGH found + fixed: author-spoof / SoD bypass on the finance subledger tables
+(migration `0142`, UNAPPLIED).** Ran the author-spoof class (0103–0106: INSERT authorship not pinned)
+against the NEW finance tables, which postdate that sweep. `fin_journal_entries` pins `created_by`
+(RLS `= auth.uid()` + column default, 0118) and `fin_expense_reports` pins `employee_user_id` — but
+the subledger DOCUMENT tables `fin_bills`/`fin_invoices`/`fin_purchase_orders` have `created_by` with
+NO default and NO RLS pin (INSERT with-check was only `company_id + fin_can_enter + status='draft'`).
+A direct-client insert can therefore spoof `created_by`. **Impact:** the approval SoD is
+`creator <> approver`; a user holding BOTH enter+approve (controller/CFO) could insert a bill with a
+spoofed creator, then self-approve — the SoD check reads the spoofed creator and passes, defeating
+segregation of duties on GL-posting documents (a spec-required control). **Fix (`0142`, UNAPPLIED):**
+pin `created_by = auth.uid()` in the three INSERT policies + default the columns, mirroring the ledger.
+DEFINER helpers (convert-PO, generate-recurring) run as owner and already set it; API routes already
+send it — so no legit path breaks. `fin_vendors`/`fin_customers` `created_by` is informational (no SoD
+depends on it) → left as optional hardening. Same class, one surface further out; the ledger core was
+hardened, its subledger siblings were missed.*
