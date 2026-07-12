@@ -120,12 +120,12 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 **Management reporting**
 | Feature | Status |
 |---|---|
-| Custom report builder | NOT_STARTED |
-| KPI dashboard (revenue, burn, margin, runway, DSO, etc.) | NOT_STARTED |
-| Period-over-period comparison | NOT_STARTED |
-| Drill-down from summary to source transaction | NOT_STARTED |
-| Scheduled / automated report delivery | NOT_STARTED |
-| Export (PDF, Excel, CSV) | NOT_STARTED |
+| Custom report builder | NOT_STARTED (advanced Phase 6) |
+| KPI dashboard (revenue, burn, margin, runway, DSO, etc.) | PARTIAL — finance dashboard shows real derived cash/revenue/expenses/net + trial-balance integrity; burn/runway/DSO need forecasting (Ph5) + AR-days |
+| Period-over-period comparison | NOT_STARTED (needs date-ranged statements — derivable, no new data model) |
+| Drill-down from summary to source transaction | BUILT (0134 fin_gl_detail + Trial-Balance click-through on /dashboard/finance/statements) |
+| Scheduled / automated report delivery | NOT_STARTED (advanced Phase 6) |
+| Export (PDF, Excel, CSV) | PARTIAL — CSV built (opens in Excel); PDF/native-xlsx later |
 
 ## PHASE 7 — Tax & Compliance
 | Feature | Status |
@@ -157,21 +157,26 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 ## PHASE 9 — Platform & Governance
 | Feature | Status |
 |---|---|
-| Role-based access control (accountant, controller, CFO, approver, viewer) | NOT_STARTED |
-| Segregation of duties (enter ≠ approve) | NOT_STARTED |
+| Role-based access control (accountant, controller, CFO, approver, viewer) | BUILT (0116 fin_roles 5-role dimension + isAdminRole-style capability helpers + platform admin/CEO/COO→CFO bridge) |
+| Segregation of duties (enter ≠ approve) | BUILT (enforced in fin_post_entry, fin_approve_bill [0130], fin_approve_expense_report — creator/employee ≠ approver at the DB level) |
 | Approval workflows and delegation | NOT_STARTED |
 | Multi-entity support and consolidation | NOT_STARTED |
 | Data import / export and migration tools | NOT_STARTED |
 | Integration layer (bank feeds, Stripe, CRM, payroll, external accounting) | NOT_STARTED |
-| Encryption at rest and in transit | NOT_STARTED |
+| Encryption at rest and in transit | BUILT — Supabase platform encryption at rest + TLS in transit (founder decision #7); column-level encryption flagged only if a named compliance regime requires it |
 | Backup and recovery | NOT_STARTED |
 
 ---
 
-*Updated at each phase boundary per section 2.2. Current phase: **PHASE 1 — all 6 foundation
-features BUILT (migrations 0116–0120, Increments 1–5). NONE are TESTED yet: verified by
-construction only, because Postgres can't run headless. To reach TESTED, apply 0116→0120 on
-staging and run docs/financial-system/tests/0116–0120*.sql (each rolls back; every line should
-read PASS), plus the app-layer assertions (RLS isolation, RPC authority/SoD) once the finance UI
-exists. No Phase-2 work begins until Phase-1 is TESTED — "never build on a ledger that isn't
-trustworthy yet."***
+*Updated as built per section 2.2. **State at 2026-07-12 (migrations 0116–0134):**
+**Phase 1** — BUILT + founder-VERIFIED (acceptance scripts PASS).
+**Phase 2** core — AP + AR + Expenses BUILT + operational (backend + API + UIs); enrichments (POs,
+recurring, dunning, credit notes, card-recon, mileage, policy) NOT_STARTED / need values.
+**Phase 6** core — P&L, Balance Sheet, Trial Balance, GL drill-down, CSV export BUILT (derived);
+Cash Flow + custom builder + scheduling + PDF/xlsx NOT_STARTED.
+**Phase 9** — RBAC, SoD, encryption BUILT; approval-delegation, multi-entity, backup/recovery, full
+integration-layer NOT_STARTED.
+**Phase 3** — data-model PROPOSED (docs/financial-system/PHASE-3-DATA-MODEL.md), awaiting confirmation.
+**Phases 4, 5, 7, 8** — NOT_STARTED (each needs a data-model proposal + confirmation).
+Everything Phase-2+ is verified-by-construction + authz-audited clean; apply 0122–0134 to a live DB
++ run the acceptance scripts / the full-system runbook to reach TESTED.*
