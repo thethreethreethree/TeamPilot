@@ -21,6 +21,7 @@ type Bill = {
 };
 type Aging = { current: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number; total: number };
 type BillLine = { accountId: string; amount: string; taxAmount: string; description: string };
+type Dup = { bill_id: string; vendor_name: string; bill_number: string; bill_date: string; status: string; total: number; other_bill_number: string; other_bill_date: string; other_status: string; days_apart: number };
 const money = formatMoney;
 
 export default function ApPage() {
@@ -32,6 +33,7 @@ export default function ApPage() {
   const [openBill, setOpenBill] = useState<string | null>(null);
   const [billLines, setBillLines] = useState<Record<string, { line_no: number; account_id: string; amount: number; tax_amount: number }[]>>({});
   const [aging, setAging] = useState<Aging | null>(null);
+  const [dups, setDups] = useState<Dup[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   const acctName = (id: string) => {
@@ -48,16 +50,18 @@ export default function ApPage() {
   };
 
   const load = useCallback(async () => {
-    const [v, a, b, g] = await Promise.all([
+    const [v, a, b, g, d] = await Promise.all([
       fetch("/api/finance/ap/vendors").then((r) => r.json()),
       fetch("/api/finance/accounts").then((r) => r.json()),
       fetch("/api/finance/ap/bills").then((r) => r.json()),
       fetch("/api/finance/ap/aging").then((r) => r.json()),
+      fetch("/api/finance/ap/duplicates").then((r) => r.json()),
     ]);
     setVendors(v.vendors ?? []);
     setAccounts(a.accounts ?? []);
     setBills(b.bills ?? []);
     setAging(g.aging ?? null);
+    setDups(d.duplicates ?? []);
     setLoaded(true);
   }, []);
   useEffect(() => {
@@ -159,6 +163,25 @@ export default function ApPage() {
           entry (Dr expense / Cr Accounts Payable); paying posts Dr AP / Cr Cash. Single line + no
           tax here yet — the API supports multi-line + tax; a fuller UI is a follow-up.
         </p>
+
+        {dups.length > 0 && (
+          <section className="glass-card p-5 border-amber-500/30">
+            <h2 className="text-sm font-semibold text-amber-300 mb-1">Possible duplicate bills ({dups.length})</h2>
+            <p className="text-[11px] text-muted mb-3">Same vendor + same amount, within 7 days — the classic double-pay. Review before approving/paying; this is a prompt, not a verdict.</p>
+            <div className="space-y-1.5">
+              {dups.map((d) => (
+                <div key={d.bill_id} className="flex items-center justify-between text-xs">
+                  <span className="text-secondary">
+                    <span className="text-primary">{d.vendor_name}</span> · {money(d.total)} —{" "}
+                    <span className="font-mono">{d.bill_number}</span> ({d.bill_date}, {d.status}) vs{" "}
+                    <span className="font-mono">{d.other_bill_number}</span> ({d.other_bill_date}, {d.other_status})
+                  </span>
+                  <span className="text-muted">{d.days_apart}d apart</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {aging && aging.total > 0 && (
           <section className="glass-card p-5">

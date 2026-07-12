@@ -94,7 +94,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Budget vs. actual variance analysis | NOT_STARTED |
 | Unused / underutilized resource tracking | NOT_STARTED |
 | Spend anomaly detection | NOT_STARTED |
-| Duplicate payment detection | NOT_STARTED |
+| Duplicate payment detection | BUILT (0146 fin_duplicate_bill_candidates view — same vendor + same total, ≤7 days apart; /api/finance/ap/duplicates + a "Possible duplicate bills" review prompt on the AP page. A candidate, not a verdict. Shipped ahead of Phase-4 — no data model / decision needed) |
 | Cost-per-outcome metrics | NOT_STARTED |
 | Inventory waste / shrinkage (if applicable) | NOT_STARTED |
 
