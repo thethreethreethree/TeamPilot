@@ -264,7 +264,11 @@ export default function ApPage() {
                         </button>
                       )}
                       {b.status === "approved" && (
-                        <PayButton onPay={(amt) => act(b.id, "pay", amt)} disabled={busy} />
+                        <PayButton
+                          defaultAmount={Math.max(0, (b.total ?? 0) - (b.paid ?? 0))}
+                          onPay={(amt) => act(b.id, "pay", amt)}
+                          disabled={busy}
+                        />
                       )}
                       {b.status === "paid" && <span className="text-xs text-emerald-400">Paid</span>}
                     </td>
@@ -305,8 +309,10 @@ export default function ApPage() {
   );
 }
 
-function PayButton({ onPay, disabled }: { onPay: (amount: number) => void; disabled: boolean }) {
-  const [amt, setAmt] = useState("");
+// Pre-fills the outstanding balance so paying-in-full (the common case) is one click; the user can
+// still edit the field down for a partial payment. Saves eyeballing the Outstanding column + retyping.
+function PayButton({ defaultAmount, onPay, disabled }: { defaultAmount: number; onPay: (amount: number) => void; disabled: boolean }) {
+  const [amt, setAmt] = useState(defaultAmount > 0 ? defaultAmount.toFixed(2) : "");
   return (
     <span className="inline-flex items-center gap-1">
       <input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="Amt" className="w-16 bg-surface rounded px-1.5 py-1 text-xs text-primary border border-default" />

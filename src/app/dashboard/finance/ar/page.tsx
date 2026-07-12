@@ -272,7 +272,13 @@ export default function ArPage() {
                           <Send className="w-3 h-3" /> Issue
                         </button>
                       )}
-                      {inv.status === "sent" && <ReceiptButton onReceipt={(amt) => act(inv.id, "receipt", amt)} disabled={busy} />}
+                      {inv.status === "sent" && (
+                        <ReceiptButton
+                          defaultAmount={Math.max(0, (inv.total ?? 0) - (inv.received ?? 0))}
+                          onReceipt={(amt) => act(inv.id, "receipt", amt)}
+                          disabled={busy}
+                        />
+                      )}
                       {inv.status === "paid" && <span className="text-xs text-emerald-400">Paid</span>}
                     </td>
                   </tr>
@@ -311,8 +317,10 @@ export default function ArPage() {
   );
 }
 
-function ReceiptButton({ onReceipt, disabled }: { onReceipt: (amount: number) => void; disabled: boolean }) {
-  const [amt, setAmt] = useState("");
+// Pre-fills the outstanding balance so recording a full receipt (the common case) is one click; the
+// user can still edit down for a partial receipt. Mirrors AP's PayButton for consistency.
+function ReceiptButton({ defaultAmount, onReceipt, disabled }: { defaultAmount: number; onReceipt: (amount: number) => void; disabled: boolean }) {
+  const [amt, setAmt] = useState(defaultAmount > 0 ? defaultAmount.toFixed(2) : "");
   return (
     <span className="inline-flex items-center gap-1">
       <input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="Amt" className="w-16 bg-surface rounded px-1.5 py-1 text-xs text-primary border border-default" />
