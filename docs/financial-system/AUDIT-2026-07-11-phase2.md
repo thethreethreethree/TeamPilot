@@ -28,11 +28,26 @@ decision (surfaced, not silently resolved).
 2. **No reversal/correction surface.** `fin_reverse_entry` exists (posts a draft reversal) but has
    no API/UI. Correcting a posted bill/entry isn't yet doable in-app. Follow-up.
 
-3. **Minor (noted, not blocking):** the AP bill account-picker shows asset accounts (a fixed-asset
+3. **Money-as-JSON-number (theoretical, spec-strictness).** Finance API routes validate amounts as
+   `z.number()` — transiently a JS float. For realistic ≤4-decimal amounts within safe-integer range
+   this round-trips exactly (JSON → exact Postgres `numeric`; all money MATH is already in SQL), so
+   it is NOT a live precision bug. But the spec says "never floating point for money" strictly, and
+   an auditor would flag it. Strict fix = accept money as validated decimal STRINGS end-to-end
+   (UI sends the string, API `z.string().regex(...)`, RPC/insert coerces to numeric). Flagged, not
+   done: it's a broad UI+API change for a value range no real company hits. Founder's call on strictness.
+
+4. **Minor (noted, not blocking):** the AP bill account-picker shows asset accounts (a fixed-asset
    purchase is valid, but Cash/AR aren't sensible bill lines); expense-report GL date = approval
    date, not item date; the dashboard "cash on hand" is a name-heuristic (cash/bank) until Phase-3
    bank accounts land; foreign-currency bills need a rate but there's no rate-entry UI yet
    (base-currency works).
+
+## Audit coverage (this session)
+DB-level RLS on all fin_ tables (per-subledger, clean); views/RPCs security_invoker; API layer —
+all 18 finance routes user-scoped + auth-guarded, zero service-role bypass; migration-chain
+dependency order; the balance/immutability/append-only invariants under the system-post path.
+Result: 4 defects fixed (0126–0130), 1 SoD decision resolved (0130), the rest theoretical/marginal
+above. The finance system is authz-sound at every layer.
 
 ## Verified sound (bounds, not gaps)
 - All finance API routes use the user-scoped client → RLS + finance-role gating apply (no
