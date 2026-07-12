@@ -61,11 +61,12 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 ## PHASE 3 — Banking & Reconciliation
 | Feature | Status |
 |---|---|
-| Bank account management (multiple accounts) | NOT_STARTED |
-| Bank feed integration (Plaid or equiv) **or** statement import | NOT_STARTED |
-| Automated transaction matching to ledger | NOT_STARTED |
-| Manual reconciliation interface for unmatched items | NOT_STARTED |
-| Real-time cash position dashboard | NOT_STARTED |
+*Phase 3 BUILT 2026-07-13 (migration 0145, founder-confirmed: CSV-first, one GL cash account per bank, ±3-day match). UI: /dashboard/finance/banking.*
+| Bank account management (multiple accounts) | BUILT (0145 fin_bank_accounts, each linked to its own cash GL account; configure-gated; add/list via /banking) |
+| Bank feed integration (Plaid or equiv) **or** statement import | BUILT — CSV statement import (client-parses date/amount/desc/ref → deduped insert on external_id). Plaid is a later drop-in via the same fin_bank_transactions shape (source='plaid') |
+| Automated transaction matching to ledger | BUILT (0145 fin_auto_match_bank: equal signed amount + ±3-day + single-candidate → links fin_reconciliation_matches, flips status. Acceptance: tests/0145) |
+| Manual reconciliation interface for unmatched items | PARTIAL — unmatched worklist + Ignore + a manual match-to-entry RPC (fin_match_bank_txn) built; the "create the missing GL entry (e.g. bank fee) on the spot" flow is a follow-up |
+| Real-time cash position dashboard | BUILT (fin_bank_positions view: each bank account's linked GL cash balance + unmatched count, on /banking) |
 
 ## PHASE 4 — Cost, Profitability & Waste
 **Cost tracking**
