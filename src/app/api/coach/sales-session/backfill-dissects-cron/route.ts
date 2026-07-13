@@ -25,6 +25,9 @@ import { constantTimeEqual } from "@/lib/api/constantTime";
 // Founder-approved 2026-07-01: 12 per daily run, all companies.
 const CRON_CAP = 12;
 
+// LLM route: longer serverless budget than Vercel's short default (awaits LLM calls via a lib chain).
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {

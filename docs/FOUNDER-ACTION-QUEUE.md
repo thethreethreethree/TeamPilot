@@ -82,7 +82,13 @@ having count(*) > 1;` — and if it returns nothing, add the unique index (I'll 
 say-so). A non-empty result is itself a real finding (an existing double-post to investigate).
 
 ### Non-finance finding — coach/care LLM routes lacked `maxDuration` → **FIXED** (verify live-vs-superseded)
-**Resolved 2026-07-13 — CLASS FULLY CLOSED (21 routes).** Added `export const maxDuration = 60;` to
+**Resolved 2026-07-13 — CLASS DEFINITIVELY CLOSED (24 routes, verified by transitive-import closure).**
+⚠️ **One caveat for you:** the two **backfill** routes (`coach/sales-session/backfill-dissects` +
+`-cron`) process *many* sessions per call, so `maxDuration=60` is a floor, not necessarily enough — a
+large backfill may still exceed 60s. Consider raising them (300s on Vercel Pro) or batching / making
+them a proper background job. The 22 single-request routes are fully covered at 60s.
+
+**(History) — 21-route fix + 3 deeper via transitive closure.** Added `export const maxDuration = 60;` to
 every LLM route that lacked it: **10 direct-import** (coach/analyze, coach/v5/analyze+debrief+followup+
 grade-sent, sales-session/roleplay+after-pitch, care ask-coach+followup, tasks/spawn) + **11 deeper-
 chain** (route→lib→@/lib/claude: sales-session review/why-patterns/dissect/cue/prep/prep-qa/summary-

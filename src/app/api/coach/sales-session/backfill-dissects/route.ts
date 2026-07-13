@@ -36,6 +36,9 @@ async function resolve() {
   };
 }
 
+// LLM route: longer serverless budget than Vercel's short default (awaits LLM calls via a lib chain).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   // Each call fans out up to BATCH (6) LLM dissect calls. Admin-gated below,
   // but a double-fired "Generate missing" button or a client retry loop could
