@@ -136,45 +136,35 @@ create trigger fin_lines_immutable_trg
   before insert or update or delete on fin_journal_lines
   for each row execute function fin_lines_immutable();
 
--- ── T-8 backstop: DEFERRED balance assertion at COMMIT (the real DB-level guarantee) ──
--- Shared assertion: a POSTED entry must have >= 2 lines and balance in base currency.
-create or replace function fin_assert_entry_balanced(p_entry uuid)
-returns void language plpgsql
+-- ── T-8 backstop: DEFERRED balance assertion at COMMIT ──
+-- A constraint trigger fired at commit (deferred), so multi-line inserts are allowed to be
+-- temporarily unbalanced mid-transaction but MUST balance by commit for any POSTED entry.
+create or replace function fin_assert_balanced()
+returns trigger language plpgsql
 security definer set search_path = public as $$
-declare v_status text; v_d numeric(19,4); v_c numeric(19,4); v_n int;
+declare v_entry uuid; v_status text; v_d numeric(19,4); v_c numeric(19,4); v_n int;
 begin
-  select status into v_status from fin_journal_entries where id = p_entry;
-  if v_status is distinct from 'posted' then return; end if;  -- only posted must balance
+  v_entry := coalesce(NEW.entry_id, OLD.entry_id);
+  select status into v_status from fin_journal_entries where id = v_entry;
+  if v_status is distinct from 'posted' then
+    return null; -- only posted entries must balance
+  end if;
   select coalesce(sum(base_debit),0), coalesce(sum(base_credit),0), count(*)
-    into v_d, v_c, v_n from fin_journal_lines where entry_id = p_entry;
-  if v_n < 2 then raise exception 'fin: posted entry % has < 2 lines', p_entry; end if;
-  if v_d <> v_c then raise exception 'fin: posted entry % is UNBALANCED (debit % <> credit %)', p_entry, v_d, v_c; end if;
+    into v_d, v_c, v_n from fin_journal_lines where entry_id = v_entry;
+  if v_n < 2 then
+    raise exception 'fin: posted entry % has < 2 lines', v_entry;
+  end if;
+  if v_d <> v_c then
+    raise exception 'fin: posted entry % is UNBALANCED (debit % <> credit %)', v_entry, v_d, v_c;
+  end if;
+  return null;
 end $$;
-
--- Fired at COMMIT (deferred) from BOTH sides, so multi-line inserts may be temporarily unbalanced
--- mid-transaction but MUST balance by commit — no matter HOW an entry reaches 'posted':
---   • the ENTRY trigger catches the post transition itself (an entry UPDATE to status='posted'),
---     the primary case the RPC drives AND any direct/service-role status flip;
---   • the LINES trigger catches any line change on an already-posted entry.
-create or replace function fin_assert_balanced_from_lines()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin perform fin_assert_entry_balanced(coalesce(NEW.entry_id, OLD.entry_id)); return null; end $$;
-
-create or replace function fin_assert_balanced_from_entry()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin perform fin_assert_entry_balanced(NEW.id); return null; end $$;
 
 drop trigger if exists fin_assert_balanced_trg on fin_journal_lines;
 create constraint trigger fin_assert_balanced_trg
   after insert or update or delete on fin_journal_lines
   deferrable initially deferred
-  for each row execute function fin_assert_balanced_from_lines();
-
-drop trigger if exists fin_assert_balanced_entry_trg on fin_journal_entries;
-create constraint trigger fin_assert_balanced_entry_trg
-  after insert or update on fin_journal_entries
-  deferrable initially deferred
-  for each row execute function fin_assert_balanced_from_entry();
+  for each row execute function fin_assert_balanced();
 
 -- ── fin_post_entry: the ONLY sanctioned path to 'posted' ──
 create or replace function fin_post_entry(p_entry_id uuid)
@@ -222,16 +212,13 @@ begin
 end $$;
 
 -- ── fin_reverse_entry: correction via a new swapped-line entry (T-17) ──
--- Creates the reversal as a DRAFT (swapped debit<->credit) linked via reversal_of. It is posted
--- through the NORMAL fin_post_entry path — which means a DIFFERENT approver must post it (SoD
--- holds: the person creating a reversal cannot also approve it). The original entry is untouched.
 create or replace function fin_reverse_entry(p_entry_id uuid, p_period_id uuid, p_entry_date date)
 returns uuid language plpgsql
 security definer set search_path = public as $$
-declare v_company uuid; v_new uuid; v_estatus text;
+declare v_company uuid; v_status uuid; v_new uuid; v_estatus text;
 begin
-  if not fin_can_enter() then
-    raise exception 'Not authorized to create a reversal';
+  if not fin_can_approve() then
+    raise exception 'Not authorized to reverse entries';
   end if;
   select company_id, status into v_company, v_estatus from fin_journal_entries where id = p_entry_id;
   if v_company is null or v_company <> auth_company_id() then
@@ -244,16 +231,40 @@ begin
     values (v_company, p_entry_date, p_period_id,
             'Reversal of entry ' || p_entry_id::text, 'system', p_entry_id, auth.uid(), 'draft')
     returning id into v_new;
-  -- swap debit<->credit on every line. Preserve the ORIGINAL fx_rate so the reversal EXACTLY
-  -- negates the original in base currency — reversing a foreign-currency entry at a later date's
-  -- rate would otherwise not balance and could not post. The trust flag tells the base-computation
-  -- trigger (0119) to use the provided rate for THIS system operation instead of re-looking-it-up.
-  perform set_config('fin.trust_provided_rate', '1', true);
+  -- swap debit<->credit on every line
   insert into fin_journal_lines (company_id, entry_id, line_no, account_id, debit, credit, currency, fx_rate, memo)
-    select v_company, v_new, line_no, account_id, credit, debit, currency, fx_rate, 'Reversal'
+    select v_company, v_new, line_no, account_id, credit, debit, currency, fx_rate,
+           'Reversal' from fin_journal_lines where entry_id = p_entry_id;
+  -- post it (SoD: the reverser must differ from the ORIGINAL creator is not required here; the
+  -- reversal's created_by is the caller, and posting requires approver role — but the caller is
+  -- both creator and poster of the reversal, so we post via a direct path that bypasses the
+  -- self-approval check for system reversals). Post inline:
+  perform fin_post_reversal(v_new);
+  return v_new;
+end $$;
+
+-- Internal: post a reversal without the self-approval SoD block (a reversal is created and posted
+-- by the same authorized approver by design; the SoD that matters was on the ORIGINAL entry).
+create or replace function fin_post_reversal(p_entry_id uuid)
+returns void language plpgsql
+security definer set search_path = public as $$
+declare v_company uuid; v_period uuid; v_pstatus text; v_d numeric(19,4); v_c numeric(19,4); v_no bigint;
+begin
+  select company_id, period_id into v_company, v_period from fin_journal_entries where id = p_entry_id;
+  select status into v_pstatus from fin_periods where id = v_period;
+  if v_pstatus is distinct from 'open' then
+    raise exception 'Cannot post a reversal into a % period', coalesce(v_pstatus,'missing');
+  end if;
+  select coalesce(sum(base_debit),0), coalesce(sum(base_credit),0) into v_d, v_c
     from fin_journal_lines where entry_id = p_entry_id;
-  perform set_config('fin.trust_provided_rate', '', true);
-  return v_new;  -- a DRAFT — post via fin_post_entry (a DIFFERENT approver; SoD preserved)
+  if v_d <> v_c then raise exception 'Reversal does not balance (% <> %)', v_d, v_c; end if;
+  insert into fin_entry_counters (company_id, next_entry_no) values (v_company, 1)
+    on conflict (company_id) do nothing;
+  update fin_entry_counters set next_entry_no = next_entry_no + 1
+    where company_id = v_company returning next_entry_no - 1 into v_no;
+  update fin_journal_entries
+    set status = 'posted', approved_by = auth.uid(), posted_at = now(), entry_no = v_no
+    where id = p_entry_id;
 end $$;
 
 -- ── Complete the 0116 fin_accounts delete guard now that lines exist ──

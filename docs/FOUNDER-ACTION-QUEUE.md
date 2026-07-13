@@ -504,7 +504,7 @@ leak); (3) it's self-defeating (the attacker loses access to their own file). Im
 into another tenant's file list (nuisance / weak phishing-name vector), not data exfiltration. **Contrast:**
 `chat_topics`/`companies` update policies are safe under the same "no explicit with check" pattern because
 their USING is *purely* `company_id = auth_company_id()`; only `files` has the OR'd non-tenant branch that
-lets company_id float. **Fix WRITTEN — `0154_files_update_company_pin.sql` (UNAPPLIED, needs your apply).** Re-declares
+lets company_id float. **Fix `0154_files_update_company_pin.sql` — ✅ APPLIED 2026-07-13.** Re-declares
 `files_update` with an explicit `with check` pinning the NEW row: `company_id = auth_company_id()` AND the
 uploader/admin condition (re-asserted, because an explicit WITH CHECK *replaces* the implicit one — omitting
 it would newly allow reassigning `uploader_id`). Legit flows unchanged (an uploader editing/soft-deleting
@@ -527,7 +527,7 @@ cross-company `company_id` move now fails.
 > TABLE.company_id …)` whose only OR is a *role* choice, which pins the new row's company.
 > **Net: one policy to fix (`files_update`), read-side sound, no leak.**
 
-### 🔴 MED — care_agent_state lets an agent hijack ANOTHER company's support routing (`0156`, UNAPPLIED)
+### ✅ FIXED (was MED) — care_agent_state support-routing hijack (`0156` APPLIED 2026-07-13)
 **The most serious finding of this sweep — it has an ACTIVE cross-tenant effect, not inert pollution.**
 `care_agent_state - self update` (0095) is `using (agent_id = auth.uid()) with check (agent_id = auth.uid())`
 — it pins the AGENT but not the TENANT, and the table carries `company_id not null`. **No trigger freezes
@@ -546,7 +546,7 @@ agent who can never answer, while their real agents see them as taken — the su
 into a black hole. **Reachability:** needs an agent account + the victim's company UUID (not exposed) → an
 insider at any customer company, not an anonymous attacker. **Severity: MEDIUM** (availability/integrity
 across a tenant boundary, no exfiltration).
-**Fix `0156_care_agent_state_tenant_pin.sql` (UNAPPLIED)** — defence in depth, matching this codebase's own
+**Fix `0156_care_agent_state_tenant_pin.sql` — ✅ APPLIED 2026-07-13.** — defence in depth, matching this codebase's own
 pattern for this exact shape (0068 freezes chat_messages.company_id by trigger; 0090 freezes
 profiles.role/company_id): (1) the self-update WITH CHECK now pins `company_id = auth_company_id()`;
 (2) a trigger FREEZES company_id + agent_id on update — strictly stronger than RLS because it also binds
@@ -555,7 +555,7 @@ the sibling admin-update policy was already tenant-scoped and is unchanged.
 Smoke-test after applying: (1) an agent can still go online/offline + change capacity; (2) an admin can still
 adjust an agent in their own company; (3) `set company_id = '<other company>'` now FAILS.
 
-### after_pitch_summaries INSERT doesn't pin the tenant (LOW) — fix written: `0155` (UNAPPLIED)
+### ✅ FIXED (was LOW) — after_pitch_summaries INSERT tenant pin (`0155` APPLIED 2026-07-13)
 The INSERT-side analogue of the files_update trap. The policy (0080:137) is `for insert with check
 (agent_id = auth.uid())` — it pins the AGENT (the stated intent: "a manager cannot mint someone else's
 private summary") but pins **neither `company_id` nor `session_id`**, and the table *does* carry
@@ -569,7 +569,7 @@ only one where the tenant itself can be forged.
 NOT company-scoped — so a row forged with `company_id = X` is **invisible to company X**. No content
 injection into their UI, no read-escape, no exfiltration. Needs the target UUID. Real harm is **data
 pollution / measurement integrity**: a foreign-tagged row that any company-level aggregate would miscount.
-**Fix `0155_after_pitch_insert_tenant_pin.sql` (UNAPPLIED):** pins agent + `company_id = auth_company_id()`
+**Fix `0155_after_pitch_insert_tenant_pin.sql` — ✅ APPLIED 2026-07-13.** pins agent + `company_id = auth_company_id()`
 + the parent session (caller's own, in caller's company). Idempotent, no data change, legit flow unchanged.
 Smoke-test after applying: a rep can still generate their own summary for their own session; a foreign
 `company_id` or a non-owned `session_id` now fails.
