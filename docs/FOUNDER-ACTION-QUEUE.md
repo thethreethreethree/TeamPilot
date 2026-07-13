@@ -140,6 +140,16 @@ the fn with: `select … for update` on the original, and `if exists (select 1 f
 where reversal_of = p_entry_id and status <> 'void') then raise 'Entry already has a reversal'`. Double-
 reversal is always wrong accounting, so this is an unambiguous guard, not a design choice.
 
+### Non-finance (minor, defense-in-depth) — 2 authenticated LLM routes lack rate-limiting
+`care/agent/conversations/[id]/messages` (POST → triggers an LLM grade per message) has **no
+rateLimit**, while its sibling `care/agent/…/co-pilot` *does*, with the explicit rationale "per-agent
+cap so a stuck retry can't spin cost." Same discipline, one sibling missed it. Also `dissect/topics/[id]`
+(GET, imports the dissect/LLM chain) — verify whether the GET actually generates via LLM (if it only
+reads cached data, no throttle needed). Both are **authenticated** (agent/user), so abuse is
+attributable and company-paid — this is defense-in-depth against a buggy client / retry loop, not an
+attacker vector. **Recommend** adding `rateLimit(...)` matching the co-pilot pattern; I flagged rather
+than fixed because the limit values (max/window) are usage-specific judgment calls in your subsystem.
+
 ### Optional polish (low priority, your call)
 - **WCAG-AA input labels** — the finance entry forms (~29 inputs across ap/ar/banking/budgets/tax/
   credit-notes/profitability) use `placeholder` as the field label. Inputs are still *named* (the
