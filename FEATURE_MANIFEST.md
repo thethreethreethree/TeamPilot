@@ -122,11 +122,11 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Feature | Status |
 |---|---|
 | Custom report builder | NOT_STARTED (advanced Phase 6) |
-| KPI dashboard (revenue, burn, margin, runway, DSO, etc.) | PARTIAL — finance dashboard shows real derived cash/revenue/expenses/net + trial-balance integrity; burn/runway/DSO need forecasting (Ph5) + AR-days |
+| KPI dashboard (revenue, burn, margin, runway, DSO, etc.) | BUILT (0165 fin_kpis: burn, runway, DSO, gross+net margin, cash, AR — trailing 12 months. EVERY RATIO RETURNS NULL rather than a plausible-looking number when its denominator is absent: runway=0 would say 'out of money today' when the truth is 'not burning'; DSO=0 would say 'customers pay instantly'; a margin without COGS would report ~100% and look like triumph. gross_margin_pct is NULL until a COGS account exists (COGS lands with inventory, last) and net_margin_pct is exposed alongside it, clearly named — two honest numbers beat one confident wrong one. The UI states the REASON a ratio is missing rather than rendering a dash the user reads as a bug. API /api/finance/kpis + KpiStrip on /dashboard/finance. Acceptance tests/0165 — awaiting live-DB run to reach TESTED) |
 | Period-over-period comparison | BUILT — date-ranged statements (0144) + a "Period over period" P&L card on /statements comparing the selected period vs the prior same-length window (revenue/expenses/net income Δ + %). UI-only, reuses fin_statements(from,to) |
 | Drill-down from summary to source transaction | BUILT (0134 fin_gl_detail + Trial-Balance click-through on /dashboard/finance/statements) |
 | Scheduled / automated report delivery | NOT_STARTED (advanced Phase 6) |
-| Export (PDF, Excel, CSV) | PARTIAL — CSV built (opens in Excel), hardened against formula injection (CWE-1236, csvSafe.ts); PDF/native-xlsx later |
+| Export (PDF, Excel, CSV) | BUILT (CSV built + formula-injection hardened (csvSafe). PDF via the browser's own print pipeline + a print stylesheet — deliberately NOT a server-rendered PDF: no headless browser on serverless, and a PDF library would re-implement the layout a SECOND time, giving the same figures two renderings and two places to disagree. The print CSS preserves the 'statement is incomplete' warning colours — printing it as invisible grey would produce a clean-looking statement over an unexplained gap, in a file someone forwards to a bank. EXCEL: CSV opens in Excel and that is what ships; a true .xlsx needs a new dependency — FLAGGED for founder decision, not silently added or silently skipped) |
 
 ## PHASE 7 — Tax & Compliance
 | Feature | Status |
