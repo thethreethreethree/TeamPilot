@@ -91,8 +91,9 @@ mid-generation in production. **Precise affected list** (routes that import an L
 `coach/sales-session/[id]/after-pitch`, `coach/sales-session/roleplay`, `coach/sales-session/attribute`,
 `care/agent/conversations/[id]/ask-coach` (+ `/followup`), plus `llm/ping` and `tasks/spawn`. The coach
 v5 + ask-coach + sales-session generation routes are the real ones (they await LLM content generation).
-Likely-safe/verify: `llm/ping` (probably a fast connectivity check — may not need it) and `attribute`
-(memory notes it's a lightweight helper). **Fix** (trivial, zero-risk, matches the existing 24-route
+`tasks/spawn` is also real (calls `spawnTask` from @/lib/claude, a blocking LLM call). Lowest-priority /
+skip: `llm/ping` (round-trips to the provider but it's a minimal connectivity ping — likely fast) and
+`attribute` (memory notes it's a lightweight helper). **Fix** (trivial, zero-risk, matches the existing 24-route
 pattern): add `export const maxDuration = 60;` to each that blocks on an LLM call. I did NOT auto-edit
 them — it's your subsystem and I don't know which are live vs superseded (v1 vs v5); you know which. The
 class was "swept 2026-07-09" per a code comment, so these were added/missed after. **Confirmed (checked
