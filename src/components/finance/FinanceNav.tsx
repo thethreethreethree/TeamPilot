@@ -16,11 +16,13 @@ const LINKS = [
   { href: "/dashboard/finance/credit-notes", label: "Credit Notes" },
   { href: "/dashboard/finance/expenses", label: "Expenses" },
   { href: "/dashboard/finance/banking", label: "Banking" },
+  { href: "/dashboard/finance/cards", label: "Cards" },
   { href: "/dashboard/finance/profitability", label: "Profit" },
   { href: "/dashboard/finance/budgets", label: "Budget" },
   { href: "/dashboard/finance/tax", label: "Tax" },
   { href: "/dashboard/finance/periods", label: "Periods" },
   { href: "/dashboard/finance/statements", label: "Statements" },
+  { href: "/dashboard/finance/controls", label: "Controls" },
 ];
 
 export default function FinanceNav() {
