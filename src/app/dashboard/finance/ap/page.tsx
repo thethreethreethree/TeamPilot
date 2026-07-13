@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
-import { formatMoney } from "@/lib/finance/format";
+import { formatMoney, computeLineTax } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Loader2, Plus, CheckCircle2, DollarSign } from "lucide-react";
 
@@ -121,7 +121,7 @@ export default function ApPage() {
       const m = { ...l, ...patch };
       if (m.taxCodeId) {
         const rate = taxCodes.find((t) => t.id === m.taxCodeId)?.rate_pct ?? 0;
-        m.taxAmount = (((Number(m.amount) || 0) * Number(rate)) / 100).toFixed(2);
+        m.taxAmount = computeLineTax(m.amount, rate);
       }
       return m;
     }));
