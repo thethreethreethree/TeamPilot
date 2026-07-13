@@ -20,8 +20,9 @@ type Aging = {
   total: number;
 };
 type Overdue = { invoice_number: string; customer_name: string; outstanding: number; days_overdue: number };
-type InvLine = { revenueAccountId: string; amount: string; taxAmount: string; description: string; costCenterId: string; projectId: string };
+type InvLine = { revenueAccountId: string; amount: string; taxAmount: string; description: string; costCenterId: string; projectId: string; taxCodeId: string };
 type Dim = { id: string; code: string; name: string };
+type TaxCode = { id: string; code: string; name: string; rate_pct: number; direction: string };
 const money = formatMoney;
 
 export default function ArPage() {
@@ -30,6 +31,7 @@ export default function ArPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [costCenters, setCostCenters] = useState<Dim[]>([]);
   const [projects, setProjects] = useState<Dim[]>([]);
+  const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [aging, setAging] = useState<Aging | null>(null);
@@ -52,13 +54,14 @@ export default function ArPage() {
   };
 
   const load = useCallback(async () => {
-    const [c, a, i, g, o, dim] = await Promise.all([
+    const [c, a, i, g, o, dim, tx] = await Promise.all([
       fetch("/api/finance/ar/customers").then((r) => r.json()),
       fetch("/api/finance/accounts").then((r) => r.json()),
       fetch("/api/finance/ar/invoices").then((r) => r.json()),
       fetch("/api/finance/ar/aging").then((r) => r.json()),
       fetch("/api/finance/ar/collections").then((r) => r.json()),
       fetch("/api/finance/dimensions").then((r) => r.json()),
+      fetch("/api/finance/tax-codes").then((r) => r.json()),
     ]);
     setCustomers(c.customers ?? []);
     setAccounts(a.accounts ?? []);
@@ -68,6 +71,7 @@ export default function ArPage() {
     setOverdue(o.overdue ?? []);
     setCostCenters(dim.costCenters ?? []);
     setProjects(dim.projects ?? []);
+    setTaxCodes((tx.taxCodes ?? []).filter((t: TaxCode) => t.direction === "output"));
   }, []);
   useEffect(() => {
     void load();
@@ -96,10 +100,20 @@ export default function ArPage() {
   const [iCust, setICust] = useState("");
   const [iNum, setINum] = useState("");
   const [iDate, setIDate] = useState("");
-  const [iLines, setILines] = useState<InvLine[]>([{ revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
+  const [iLines, setILines] = useState<InvLine[]>([{ revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
   const setILine = (i: number, patch: Partial<InvLine>) =>
     setILines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
-  const addILine = () => setILines((ls) => [...ls, { revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
+  const setILineTaxed = (i: number, patch: Partial<InvLine>) =>
+    setILines((ls) => ls.map((l, j) => {
+      if (j !== i) return l;
+      const m = { ...l, ...patch };
+      if (m.taxCodeId) {
+        const rate = taxCodes.find((t) => t.id === m.taxCodeId)?.rate_pct ?? 0;
+        m.taxAmount = (((Number(m.amount) || 0) * Number(rate)) / 100).toFixed(2);
+      }
+      return m;
+    }));
+  const addILine = () => setILines((ls) => [...ls, { revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
   const rmILine = (i: number) => setILines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls));
   const iTotal = iLines.reduce((s, l) => s + (Number(l.amount) || 0) + (Number(l.taxAmount) || 0), 0);
   const addInvoice = async () => {
@@ -112,6 +126,7 @@ export default function ArPage() {
         description: l.description || undefined,
         costCenterId: l.costCenterId || undefined,
         projectId: l.projectId || undefined,
+        taxCodeId: l.taxCodeId || undefined,
       }));
     if (!iCust || !iNum || !iDate || validLines.length === 0) {
       toast.error("Fill customer, number, date, and at least one line (account + amount)");
@@ -127,7 +142,7 @@ export default function ArPage() {
     setBusy(false);
     if (res.ok) {
       setINum("");
-      setILines([{ revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
+      setILines([{ revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
       toast.success("Draft invoice created");
       void load();
     } else toast.error("Couldn't create invoice", j?.error ?? "");
@@ -260,19 +275,29 @@ export default function ArPage() {
                   {revenueAccounts.map((a) => (<option key={a.id} value={a.id}>{a.code} {a.name}</option>))}
                 </select>
                 <input value={l.description} onChange={(e) => setILine(i, { description: e.target.value })} placeholder="Description" className="col-span-7 md:col-span-4 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
-                <input value={l.amount} onChange={(e) => setILine(i, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" className="col-span-3 md:col-span-2 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
+                <input value={l.amount} onChange={(e) => setILineTaxed(i, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" className="col-span-3 md:col-span-2 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <input value={l.taxAmount} onChange={(e) => setILine(i, { taxAmount: e.target.value })} inputMode="decimal" placeholder="Tax" className="col-span-2 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <button onClick={() => rmILine(i)} disabled={iLines.length === 1} title="Remove line" className="col-span-12 md:col-span-1 text-xs text-muted hover:text-red-400 disabled:opacity-30 py-1">✕</button>
-                {(costCenters.length > 0 || projects.length > 0) && (
+                {(costCenters.length > 0 || projects.length > 0 || taxCodes.length > 0) && (
                   <div className="col-span-12 flex flex-wrap gap-2 pl-1">
-                    <select value={l.costCenterId} onChange={(e) => setILine(i, { costCenterId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
-                      <option value="">Cost center…</option>
-                      {costCenters.map((c) => (<option key={c.id} value={c.id}>{c.code} {c.name}</option>))}
-                    </select>
-                    <select value={l.projectId} onChange={(e) => setILine(i, { projectId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
-                      <option value="">Project…</option>
-                      {projects.map((p) => (<option key={p.id} value={p.id}>{p.code} {p.name}</option>))}
-                    </select>
+                    {costCenters.length > 0 && (
+                      <select value={l.costCenterId} onChange={(e) => setILine(i, { costCenterId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
+                        <option value="">Cost center…</option>
+                        {costCenters.map((c) => (<option key={c.id} value={c.id}>{c.code} {c.name}</option>))}
+                      </select>
+                    )}
+                    {projects.length > 0 && (
+                      <select value={l.projectId} onChange={(e) => setILine(i, { projectId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
+                        <option value="">Project…</option>
+                        {projects.map((p) => (<option key={p.id} value={p.id}>{p.code} {p.name}</option>))}
+                      </select>
+                    )}
+                    {taxCodes.length > 0 && (
+                      <select value={l.taxCodeId} onChange={(e) => setILineTaxed(i, { taxCodeId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
+                        <option value="">Tax code…</option>
+                        {taxCodes.map((t) => (<option key={t.id} value={t.id}>{t.code} ({t.rate_pct}%)</option>))}
+                      </select>
+                    )}
                   </div>
                 )}
               </div>

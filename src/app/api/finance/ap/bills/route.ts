@@ -40,6 +40,7 @@ const CreateSchema = z
           taxAmount: z.number().nonnegative().optional(),
           costCenterId: z.string().uuid().optional(),
           projectId: z.string().uuid().optional(),
+          taxCodeId: z.string().uuid().optional(),
         })
       )
       .min(1)
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
     tax_amount: l.taxAmount ?? 0,
     cost_center_id: l.costCenterId ?? null,
     project_id: l.projectId ?? null,
+    tax_code_id: l.taxCodeId ?? null,
   }));
   const { error: lineErr } = await sb.from("fin_bill_lines").insert(lineRows);
   if (lineErr) {

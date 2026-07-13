@@ -132,7 +132,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Feature | Status |
 |---|---|
 | Tax code configuration (VAT/GST/sales tax by jurisdiction) | BUILT (0150 fin_tax_codes — rate × jurisdiction × direction; /dashboard/finance/tax) |
-| Tax calculation on transactions | PARTIAL — tax posts to 2100/1200 already; 0150 adds nullable tax_code_id on bill/invoice lines. Auto-calc line picker (compute tax from the code's rate) is a fast follow |
+| Tax calculation on transactions | BUILT — tax posts to 2100/1200; bill/invoice line editors have a tax-code picker (input codes on bills, output on invoices) that auto-computes tax_amount = amount × rate (overridable). tax_code_id stored on the line for jurisdiction reporting |
 | Tax liability tracking | BUILT (0150 fin_tax_report — output − input tax by jurisdiction/period from source lines; on /tax) |
 | Tax filing reports | BUILT (fin_tax_report by period + jurisdiction; the filing figure) |
 | Contractor / 1099 (or local equiv) reporting | NOT_STARTED — deferred (jurisdiction-specific; founder to flag if needed) |
