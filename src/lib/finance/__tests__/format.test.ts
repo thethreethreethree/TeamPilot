@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatMoney, computeLineTax } from "@/lib/finance/format";
+import { formatMoney, computeLineTax, parseMoneyInput } from "@/lib/finance/format";
 
 describe("formatMoney", () => {
   it("always shows exactly two decimals", () => {
@@ -22,6 +22,25 @@ describe("formatMoney", () => {
     expect(formatMoney(undefined)).toBe("$0.00");
     expect(formatMoney(NaN)).toBe("$0.00");
     expect(formatMoney(0)).toBe("$0.00");
+  });
+});
+
+describe("parseMoneyInput (finance form amount fields)", () => {
+  it("accepts formatted input the raw Number() choked on", () => {
+    // The inputs are inputMode=decimal TEXT fields, so these were all NaN before → failed submits.
+    expect(parseMoneyInput("1,234.56")).toBe(1234.56); // thousands comma
+    expect(parseMoneyInput("$1,234.56")).toBe(1234.56); // currency symbol + comma
+    expect(parseMoneyInput(" 100 ")).toBe(100); // stray whitespace (e.g. paste)
+    expect(parseMoneyInput("-42.50")).toBe(-42.5); // leading minus preserved
+    expect(parseMoneyInput("12.")).toBe(12); // mid-typing partial
+    expect(parseMoneyInput("99.99")).toBe(99.99); // already-plain still works
+    expect(parseMoneyInput(250)).toBe(250); // a number passes through
+  });
+
+  it("returns NaN for non-amounts so callers guard/default (never a phantom 0 or NaN submit)", () => {
+    for (const bad of ["", "  ", "-", ".", "abc", "1.2.3", "$", null, undefined, NaN]) {
+      expect(Number.isFinite(parseMoneyInput(bad as string))).toBe(false);
+    }
   });
 });
 

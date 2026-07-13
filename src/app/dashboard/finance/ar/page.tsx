@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
-import { formatMoney, computeLineTax } from "@/lib/finance/format";
+import { formatMoney, computeLineTax, parseMoneyInput } from "@/lib/finance/format";
 import { todayIso } from "@/lib/finance/dateRange";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, DollarSign } from "lucide-react";
@@ -121,14 +121,14 @@ export default function ArPage() {
     }));
   const addILine = () => setILines((ls) => [...ls, { revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
   const rmILine = (i: number) => setILines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls));
-  const iTotal = iLines.reduce((s, l) => s + (Number(l.amount) || 0) + (Number(l.taxAmount) || 0), 0);
+  const iTotal = iLines.reduce((s, l) => s + (parseMoneyInput(l.amount) || 0) + (parseMoneyInput(l.taxAmount) || 0), 0);
   const addInvoice = async () => {
     const validLines = iLines
       .filter((l) => l.revenueAccountId && l.amount)
       .map((l) => ({
         revenueAccountId: l.revenueAccountId,
-        amount: Number(l.amount),
-        taxAmount: Number(l.taxAmount) || 0,
+        amount: parseMoneyInput(l.amount),
+        taxAmount: parseMoneyInput(l.taxAmount) || 0,
         description: l.description || undefined,
         costCenterId: l.costCenterId || undefined,
         projectId: l.projectId || undefined,

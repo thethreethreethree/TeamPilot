@@ -7,6 +7,7 @@ import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { useToast } from "@/components/ui/toast";
 import { Plus, CheckCircle2, FileOutput } from "lucide-react";
 import { todayIso } from "@/lib/finance/dateRange";
+import { parseMoneyInput } from "@/lib/finance/format";
 
 type Vendor = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
@@ -58,7 +59,7 @@ export default function PosPage() {
     const res = await fetch("/api/finance/ap/pos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vendorId: vendor, poNumber: num, orderDate: date, lines: [{ accountId: account, amount: Number(amount) }] }),
+      body: JSON.stringify({ vendorId: vendor, poNumber: num, orderDate: date, lines: [{ accountId: account, amount: parseMoneyInput(amount) }] }),
     });
     const j = await res.json();
     setBusy(false);

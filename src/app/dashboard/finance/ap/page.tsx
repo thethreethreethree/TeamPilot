@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
-import { formatMoney, computeLineTax } from "@/lib/finance/format";
+import { formatMoney, computeLineTax, parseMoneyInput } from "@/lib/finance/format";
 import { todayIso } from "@/lib/finance/dateRange";
 import { useToast } from "@/components/ui/toast";
 import { Plus, CheckCircle2, DollarSign } from "lucide-react";
@@ -128,14 +128,14 @@ export default function ApPage() {
     }));
   const addBLine = () => setBLines((ls) => [...ls, { accountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
   const rmBLine = (i: number) => setBLines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls));
-  const bTotal = bLines.reduce((s, l) => s + (Number(l.amount) || 0) + (Number(l.taxAmount) || 0), 0);
+  const bTotal = bLines.reduce((s, l) => s + (parseMoneyInput(l.amount) || 0) + (parseMoneyInput(l.taxAmount) || 0), 0);
   const addBill = async () => {
     const validLines = bLines
       .filter((l) => l.accountId && l.amount)
       .map((l) => ({
         accountId: l.accountId,
-        amount: Number(l.amount),
-        taxAmount: Number(l.taxAmount) || 0,
+        amount: parseMoneyInput(l.amount),
+        taxAmount: parseMoneyInput(l.taxAmount) || 0,
         description: l.description || undefined,
         costCenterId: l.costCenterId || undefined,
         projectId: l.projectId || undefined,

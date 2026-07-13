@@ -23,6 +23,24 @@ export function formatMoney(n: number | null | undefined): string {
  * the selected code's rate: tax = amount × rate%. Returns a 2-decimal string (matching the line field's
  * shape); a non-finite amount or rate yields "0.00". The user can override the result afterward.
  */
+/**
+ * Parse a user-typed amount from a finance form field into a number. The finance inputs are
+ * inputMode="decimal" TEXT fields (inputMode only hints the mobile keyboard — it doesn't restrict
+ * typing), so a user can enter "$1,234.56" or "1,234.56", and a bare Number() of that is NaN → the
+ * submit sends null and the API rejects, or the live total silently zeroes the line. This strips a
+ * currency symbol, thousands commas, and whitespace, then Number()s the rest; a leading "-" (the
+ * normal way to type a negative) is preserved. Returns NaN when there's no parsable number so callers
+ * can guard or default (`parseMoneyInput(x) || 0`). NOTE: unlike bankCsv.parseAmount this does NOT
+ * accept parenthesized / trailing-minus negatives — those are bank-export notations, not form input.
+ */
+export function parseMoneyInput(raw: string | number | null | undefined): number {
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : NaN;
+  const s = (raw ?? "").replace(/[$,\s]/g, "");
+  if (s === "" || s === "-" || s === "." || s === "-.") return NaN;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
 export function computeLineTax(
   amount: number | string | null | undefined,
   ratePct: number | null | undefined,

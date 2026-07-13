@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
-import { formatMoney } from "@/lib/finance/format";
+import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, CheckCircle2, DollarSign } from "lucide-react";
 
@@ -57,15 +57,15 @@ export default function ExpensesPage() {
     setItems((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const addItem = () => setItems((xs) => [...xs, { accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
   const rmItem = (i: number) => setItems((xs) => (xs.length > 1 ? xs.filter((_, j) => j !== i) : xs));
-  const itemsTotal = items.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.taxAmount) || 0), 0);
+  const itemsTotal = items.reduce((s, x) => s + (parseMoneyInput(x.amount) || 0) + (parseMoneyInput(x.taxAmount) || 0), 0);
 
   const create = async () => {
     const valid = items
       .filter((x) => x.accountId && x.amount)
       .map((x) => ({
         accountId: x.accountId,
-        amount: Number(x.amount),
-        taxAmount: Number(x.taxAmount) || 0,
+        amount: parseMoneyInput(x.amount),
+        taxAmount: parseMoneyInput(x.taxAmount) || 0,
         category: x.category || undefined,
         description: x.description || undefined,
         costCenterId: x.costCenterId || undefined,

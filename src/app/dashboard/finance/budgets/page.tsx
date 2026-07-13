@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
-import { formatMoney } from "@/lib/finance/format";
+import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, TrendingDown } from "lucide-react";
 
@@ -80,7 +80,7 @@ export default function BudgetsPage() {
     setBusy(true);
     const res = await fetch(`/api/finance/budgets/${sel}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accountId: lAcct, costCenterId: lCc || undefined, periodIndex: Number(lQ), amount: Number(lAmt) }),
+      body: JSON.stringify({ accountId: lAcct, costCenterId: lCc || undefined, periodIndex: Number(lQ), amount: parseMoneyInput(lAmt) }),
     });
     const j = await res.json();
     setBusy(false);

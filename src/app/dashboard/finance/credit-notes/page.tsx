@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
-import { formatMoney } from "@/lib/finance/format";
+import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, CheckCircle2 } from "lucide-react";
 
@@ -78,7 +78,7 @@ export default function CreditNotesPage() {
         creditNumber: cNum,
         creditDate: cDate,
         reason: cReason || undefined,
-        lines: [{ amount: Number(cAmount), description: cReason || undefined }],
+        lines: [{ amount: parseMoneyInput(cAmount), description: cReason || undefined }],
       }),
     });
     const j = await res.json();

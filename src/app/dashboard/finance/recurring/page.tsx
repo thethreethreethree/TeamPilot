@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
-import { formatMoney } from "@/lib/finance/format";
+import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Play, Power } from "lucide-react";
 
@@ -69,7 +69,7 @@ export default function RecurringPage() {
     const res = await fetch("/api/finance/ap/recurring", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vendorId: vendor, description: desc, accountId: account, amount: Number(amount), frequency: freq, nextDate }),
+      body: JSON.stringify({ vendorId: vendor, description: desc, accountId: account, amount: parseMoneyInput(amount), frequency: freq, nextDate }),
     });
     const j = await res.json();
     setBusy(false);
