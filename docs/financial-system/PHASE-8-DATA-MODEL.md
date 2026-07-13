@@ -13,9 +13,16 @@ itself and a bad use of this system. Instead:
 
 - **`fin_payroll_runs`** — a posted summary per pay period from your provider (Gusto/Deel/etc. or a
   manual entry): `period_start/end`, `pay_date`, gross_wages, employer_taxes, benefits, net_paid,
-  withholdings. `fin_post_payroll_run` posts the standard entry: **Dr Salary Expense + Dr Payroll-Tax
-  Expense + Dr Benefits Expense / Cr Cash (net) + Cr Payroll-Tax Payable + Cr Benefits Payable**.
+  withholdings. `fin_post_payroll_run` posts the standard entry: **Dr Salary Expense (gross) + Dr
+  Payroll-Tax Expense (employer) + Dr Benefits Expense / Cr Cash (net) + Cr Payroll-Tax Payable
+  (employer taxes + employee withholdings) + Cr Benefits Payable**.
   Employee compensation tracking = the sum of runs per employee (a nullable `employee_ref`).
+
+  > **Balance rule the build MUST honor (caught in proposal review):** `gross = net + withholdings`, so
+  > the Payroll-Tax Payable credit must carry **employer taxes *plus* employee withholdings** (or split
+  > withholdings into their own `Withholdings Payable`). Crediting only employer taxes leaves the entry
+  > unbalanced by the withholdings amount — the posting primitive would (correctly) reject it. The
+  > posting fn computes the payable-credit from the run fields so debits = credits by construction.
 - **Payroll tax liabilities** = the Payroll-Tax Payable account balance (already how the ledger works).
 
 So Part A is a **posting endpoint + a small entry form / CSV import**, not a payroll system.
@@ -35,6 +42,18 @@ So Part A is a **posting endpoint + a small entry form / CSV import**, not a pay
 
 Net book value per asset = cost − accumulated depreciation (derived). A register view lists assets
 with cost, accumulated dep, NBV, and monthly dep.
+
+> **Correctness rules the build MUST honor (caught in proposal review):**
+> - **Salvage floor** — depreciation stops once accumulated depreciation reaches `cost − salvage`
+>   (i.e., after `useful_life_months`); a run must never drive NBV below salvage. The last period's
+>   amount is clamped to the remaining depreciable base, not a full monthly slice.
+> - **Active-only** — `fin_run_depreciation('all', …)` depreciates only `status = 'active'` assets;
+>   disposed assets are skipped (they were closed out at disposal).
+> - **Gain/loss = `proceeds − NBV`** where `NBV = cost − accumulated_dep` at the disposal date: a
+>   positive difference credits Gain on Disposal, a negative one debits Loss. The entry balances by
+>   construction (Dr Cash + Dr Accum Dep + [Dr Loss] = Cr Fixed Asset + [Cr Gain]).
+> - **Open period** — depreciation and disposal post through `fin_post_system_entry`, so the target
+>   period must be open (inherited; closed periods are rejected as everywhere else).
 
 ## Decisions I need before building
 
