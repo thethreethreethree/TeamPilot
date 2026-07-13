@@ -75,6 +75,15 @@ this first — `select source_type, source_id, kind, count(*) from fin_source_po
 having count(*) > 1;` — and if it returns nothing, add the unique index (I'll write the migration on your
 say-so). A non-empty result is itself a real finding (an existing double-post to investigate).
 
+### Latent — fix before exposing `fin_reverse_entry` (no UI/route calls it yet)
+`fin_reverse_entry` (0118) guards only that the original is `posted` — it does **not** check whether a
+reversal already exists, nor lock the row. So the same entry could be reversed twice (two drafts → both
+posted → **over-reversal**, ledger corrupted). It's currently unreachable (nothing calls it), so it's a
+landmine that activates the day a "reverse entry" button ships. When you build that UI, first re-create
+the fn with: `select … for update` on the original, and `if exists (select 1 from fin_journal_entries
+where reversal_of = p_entry_id and status <> 'void') then raise 'Entry already has a reversal'`. Double-
+reversal is always wrong accounting, so this is an unambiguous guard, not a design choice.
+
 ### Optional polish (low priority, your call)
 - **WCAG-AA input labels** — the finance entry forms (~29 inputs across ap/ar/banking/budgets/tax/
   credit-notes/profitability) use `placeholder` as the field label. Inputs are still *named* (the
