@@ -29,9 +29,10 @@ Real, built, static-verified fixes awaiting one **live staging cycle** before pr
 > **No RLS change to the 7 is needed.** The one remaining §3.5 event-fabrication vector is the
 > `coach.dissect_generated` events-INSERT-policy residual → item 4 below.
 
-## 2. FINANCE — apply `0145`–`0151` + walk the runbook
+## 2. FINANCE — apply `0145`–`0152` + walk the runbook
 Built, dependency-ordered, idempotent, chain contiguous (no gaps/dups). Carries the sweep fixes
-(`0145` bank-match 1:1, `0150`/`0151` year-end-close RE-3000 + net=0). Walk
+(`0145` bank-match 1:1, `0150`/`0151` year-end-close RE-3000 + net=0, **`0152` credit-note invoice
+row-lock** — prevents a concurrent over-credit race). Walk
 `docs/financial-system/VERIFICATION-RUNBOOK-FULL.md` Steps 1–15. You're through `0144`.
 
 ## 3. FINANCE DECISION — tax-report credit-note netting
