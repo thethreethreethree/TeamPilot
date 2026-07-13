@@ -52,6 +52,7 @@ export default function StatementsPage() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("all");
   const [cFrom, setCFrom] = useState("");
+  const [cf, setCf] = useState<CashFlow | null>(null);
   const [cTo, setCTo] = useState("");
   const { from, to } = rangeFor(period, cFrom, cTo);
   const prior = priorRange(from, to);
@@ -63,6 +64,10 @@ export default function StatementsPage() {
       if (from) qs.set("from", from);
       if (to) qs.set("to", to);
       const r = await fetch(`/api/finance/statements?${qs.toString()}`).then((x) => x.json());
+      fetch(`/api/finance/statements/cash-flow`)
+        .then((x) => x.json())
+        .then((j) => setCf(j.error ? null : j))
+        .catch(() => setCf(null));
       setS(r.statements ?? null);
       // Period-over-period: fetch the prior same-length window when a bounded period is selected.
       if (prior.from && prior.to) {
@@ -139,6 +144,7 @@ export default function StatementsPage() {
             <IncomeStatement is={s.income_statement} />
             {sPrior && <PeriodComparison cur={s.income_statement} prior={sPrior.income_statement} priorLabel={`${prior.from} → ${prior.to}`} />}
             <BalanceSheet bs={s.balance_sheet} />
+            {cf && <CashFlowStatement cf={cf} />}
             <TrialBalance tb={s.trial_balance} />
           </>
         )}
@@ -342,5 +348,67 @@ function TrialBalance({ tb }: { tb: Statements["trial_balance"] }) {
         {balances ? "Debits = Credits." : "Debits ≠ Credits — data-integrity alarm."}
       </div>
     </Section>
+  );
+}
+
+/**
+ * Cash Flow Statement (0164) — where the money actually came from and went.
+ *
+ * The unclassified row is rendered LOUDLY and on purpose. It would look tidier to fold it into
+ * Operating, and the net change would tie out exactly the same — which is precisely why it must not be
+ * done. A company funded by an owner's injection would then appear to be generating cash from trading,
+ * and every balance check in this system would agree with the lie. So when money is unattributed, this
+ * component says the statement is INCOMPLETE rather than presenting a clean set of sections over a gap.
+ */
+type CashFlow = {
+  sections: { section: string; netAmount: number }[];
+  netChange: number;
+  hasUnclassified: boolean;
+  unclassifiedAmount: number;
+};
+
+const CF_LABEL: Record<string, string> = {
+  operating: "Operating — money from running the business",
+  investing: "Investing — money spent on, or from, what the business runs on",
+  financing: "Financing — money from owners and lenders",
+  unclassified: "Unclassified — not yet attributable",
+};
+
+function CashFlowStatement({ cf }: { cf: CashFlow }) {
+  return (
+    <div className="glass-card p-6">
+      <h2 className="text-sm font-semibold text-primary mb-1">Cash Flow Statement</h2>
+      <p className="text-xs text-muted mb-4">
+        Derived from actual movements through your bank accounts. Transfers between your own accounts are
+        excluded — they move money without changing what the company has.
+      </p>
+
+      {cf.hasUnclassified && (
+        <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-300">
+          <strong>This statement is incomplete.</strong> {m(cf.unclassifiedAmount)} of cash movement is
+          not yet attributable to a category, so the sections below cannot be read as a full description of
+          how the company generates money. Classify the accounts involved (set their subtype) and this
+          resolves itself.
+        </div>
+      )}
+
+      <table className="w-full text-sm">
+        <tbody>
+          {cf.sections.map((sec) => (
+            <tr
+              key={sec.section}
+              className={`border-b border-default/50 ${sec.section === "unclassified" && sec.netAmount !== 0 ? "text-amber-300" : ""}`}
+            >
+              <td className="py-2 pr-3 text-secondary">{CF_LABEL[sec.section] ?? sec.section}</td>
+              <td className="py-2 text-right font-mono tabular-nums">{m(sec.netAmount)}</td>
+            </tr>
+          ))}
+          <tr className="font-semibold">
+            <td className="py-2 pr-3 text-primary">Net change in cash</td>
+            <td className="py-2 text-right font-mono tabular-nums text-primary">{m(cf.netChange)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   );
 }
