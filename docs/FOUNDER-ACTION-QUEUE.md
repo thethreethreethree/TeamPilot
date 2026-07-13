@@ -527,6 +527,29 @@ cross-company `company_id` move now fails.
 > TABLE.company_id …)` whose only OR is a *role* choice, which pins the new row's company.
 > **Net: one policy to fix (`files_update`), read-side sound, no leak.**
 
+### after_pitch_summaries INSERT doesn't pin the tenant (LOW) — fix written: `0155` (UNAPPLIED)
+The INSERT-side analogue of the files_update trap. The policy (0080:137) is `for insert with check
+(agent_id = auth.uid())` — it pins the AGENT (the stated intent: "a manager cannot mint someone else's
+private summary") but pins **neither `company_id` nor `session_id`**, and the table *does* carry
+`company_id uuid not null`. So a caller can insert a row stamped with **another company's id** (agent_id is
+still themselves, so the check passes), or hang a summary off a session they don't own.
+**Root:** `0082_coaching_insert_owner_scope` hardened the INSERT check for `coaching_cues` +
+`coaching_transcript_segments` (requiring the parent session be the caller's) but **did not reach
+after_pitch_summaries** — which is the only table in this group that also has a `company_id`, so it's the
+only one where the tenant itself can be forged.
+**Why LOW (not inflated):** the SELECT policy is **owner-only** — `using (agent_id = auth.uid())` (0080:131),
+NOT company-scoped — so a row forged with `company_id = X` is **invisible to company X**. No content
+injection into their UI, no read-escape, no exfiltration. Needs the target UUID. Real harm is **data
+pollution / measurement integrity**: a foreign-tagged row that any company-level aggregate would miscount.
+**Fix `0155_after_pitch_insert_tenant_pin.sql` (UNAPPLIED):** pins agent + `company_id = auth_company_id()`
++ the parent session (caller's own, in caller's company). Idempotent, no data change, legit flow unchanged.
+Smoke-test after applying: a rep can still generate their own summary for their own session; a foreign
+`company_id` or a non-owned `session_id` now fails.
+**Note:** the `rls:audit` tenant-pin detector (84ba723) does NOT catch this class — it covers the *implicit*
+WITH CHECK trap; this is an *explicit* check that simply omits the tenant. Extending it is a candidate, but
+it would flag legitimately-unpinned policies (profiles, companies, the vendor-global CRM tables) that need
+allowlisting first — see the note below rather than assuming CI covers this shape.
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
