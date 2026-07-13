@@ -329,6 +329,27 @@ added) is softer than the numbers suggest. If cost-abuse on the LLM routes is a 
 limiter with Redis/Upstash (a drop-in swap behind the same `rateLimit()` signature); otherwise know the
 caps are best-effort per-instance. Surfaced because it changes how to read every rate limit in the app.
 
+### §3.2 integrity — the understanding gate can be gamed by directly inserting signals (design call)
+The constitution says signals are DERIVED from events and §3.2 is "structural — the schema itself must
+prevent half-understood problems." But: the `signals` RLS is `for all … with check (company_id =
+auth_company_id())`, and the derivation functions (0005/0012/0014) are `security invoker` — so they insert
+signals *as the calling user*, which means authenticated users **have** the INSERT permission on `signals`.
+Consequence: a user can `supabase.from('signals').insert({company_id: own, kind, source, payload})`
+**directly via the client API**, bypassing the event→derivation path — fabricating 3 signals with 2 distinct
+`source` values, linking them to a draft problem, and satisfying the gate (3/2/80) with **manufactured
+evidence**. The gate enforces signal COUNT + distinct-SOURCES, but can't distinguish a genuinely-derived
+signal from a directly-inserted one.
+**Severity: LOW + self-scoped** — it's not cross-tenant and not privilege escalation (the fake signals are
+in the user's OWN company); it's a user defeating their OWN team's diagnosis-quality discipline (§0
+"understanding must be earned" can't be fully forced on someone determined to fake it). But it means the
+"§3.2 is structural" guarantee is softer than stated — the schema enforces quantity, not authenticity.
+**Fix (design call, touches the core-thesis path — hence flagged not built):** make the derivation
+functions `security definer` (they'd insert signals as owner) and **REVOKE insert on `signals` from
+authenticated** (keep select). Then signals can ONLY be created by the genuine event→derivation path;
+direct fabrication is blocked, and the gate becomes truly structural. Confirm signals are meant to be
+derivation-only (the constitutional intent) vs. allowing manual user-entered signals as a feature — if the
+latter, this is by-design and no action is needed.
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
