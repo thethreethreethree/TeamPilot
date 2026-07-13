@@ -4,13 +4,13 @@ Single entry point for the founder's return. This session built the Financial Tr
 Management System (FinancialSystem.md) from nothing to a **complete core accounting system**:
 double-entry GL → transactions (AP/AR/Expenses) → periods → **financial statements + CSV export** →
 Phase-2D (POs, recurring, aging both sides, collections).
-Migrations **0116–0149**. Apply state (2026-07-13): founder applied **through 0144**. **Still to apply:
-`0145`–`0149`** — Phase 3 Banking (0145), duplicate detection (0146), Phase 4 increment 1 (0147/0148
-cost/profit dimensions + profitability), Phase 5 increment 1 (0149 budgeting + variance + runway).
-Phases 1, 2, 2D, **3**, Phase-6 reporting core, **Phase 4 inc-1**, and **Phase 5 inc-1** are BUILT.
-Deferred per proposals: Phase-4 remainder (overhead/anomaly/inventory), Phase-5 remainder (rolling
-forecasts, cash-flow projection, scenario modeling). Remaining phases: 7 (tax), 8 (payroll/assets),
-9 (governance) — each needs a proposal.
+Migrations **0116–0151**. Apply state (2026-07-13): founder applied **through 0144**. **Still to apply:
+`0145`–`0151`** — Phase 3 Banking (0145), duplicate detection (0146), Phase 4 inc-1 (0147/0148), Phase
+5 inc-1 (0149 budgeting/variance/runway), **Phase 7 (0150 tax codes + liability report, 0151 year-end
+close)**. Phases 1, 2, 2D, **3**, Phase-6 reporting core, **Phase 4 inc-1**, **Phase 5 inc-1**, and
+**Phase 7** are BUILT. Phase 9 mostly built (RBAC/SoD/encryption). Deferred per proposals: Phase-4
+remainder, Phase-5 forecasts/scenario, tax 1099. Remaining: Phase 8 (proposed), Phase-9 gaps
+(delegation/multi-entity/integrations — proposed). Tax auto-calc line picker = a fast follow.
 
 **Also built after the Phase-2 core:** AR aging (0133); core financial statements — P&L, Balance
 Sheet, Trial Balance, GL-detail drill-down RPC (0134) at /dashboard/finance/statements, with CSV
