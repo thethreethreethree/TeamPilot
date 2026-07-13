@@ -14,6 +14,9 @@ import { generatePrep } from "@/lib/coach/v5/salesPrep";
  * request). RLS-gated via getSession. Control-exempt (Sales Coach is exempt
  * from month-1 control) is handled inside dissectCoachV5.
  */
+// LLM route: longer serverless budget than Vercel's short default (awaits an LLM call via a lib helper).
+export const maxDuration = 60;
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }

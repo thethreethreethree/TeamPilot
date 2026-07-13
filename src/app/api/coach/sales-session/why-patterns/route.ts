@@ -31,6 +31,9 @@ async function resolve() {
   return { ok: true as const, agentId: auth.user.id, companyId };
 }
 
+// LLM route: longer serverless budget than Vercel's short default (awaits an LLM call via a lib helper).
+export const maxDuration = 60;
+
 export async function GET() {
   const ctx = await resolve();
   if (!ctx.ok) {

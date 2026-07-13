@@ -42,6 +42,9 @@ const BodySchema = z.union([
   }),
 ]);
 
+// LLM route: longer serverless budget than Vercel's short default (awaits an LLM call via a lib helper).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
     id: "coach-sales-review",

@@ -45,6 +45,9 @@ async function readLatestWhy(sessionId: string) {
   };
 }
 
+// LLM route: longer serverless budget than Vercel's short default (awaits an LLM call via a lib helper).
+export const maxDuration = 60;
+
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }

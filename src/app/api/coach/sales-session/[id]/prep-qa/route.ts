@@ -19,6 +19,9 @@ const BodySchema = z.object({
   question: z.string().trim().min(2).max(1000),
 });
 
+// LLM route: longer serverless budget than Vercel's short default (awaits an LLM call via a lib helper).
+export const maxDuration = 60;
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
