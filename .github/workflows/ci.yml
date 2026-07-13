@@ -32,6 +32,17 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The project's own `check` script gates on these two static audits, but CI was skipping
+      # them. Both are pure static analysis (rls:audit parses supabase/migrations/*.sql; theme:audit
+      # scans src) — no DB, no secrets, CI-safe. rls:audit is the important one: it makes the
+      # RLS-policy-per-operation gap (the DELETE-silently-affects-0-rows class) impossible to ship,
+      # so a new table missing a write policy fails the PR instead of shipping a silent auth hole.
+      - name: RLS policy audit
+        run: npm run rls:audit
+
+      - name: Theme-leak audit
+        run: npm run theme:audit
+
       - name: Test
         run: npm run test
 
