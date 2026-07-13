@@ -160,7 +160,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 |---|---|
 | Role-based access control (accountant, controller, CFO, approver, viewer) | BUILT (0116 fin_roles 5-role dimension + isAdminRole-style capability helpers + platform admin/CEO/COO→CFO bridge) |
 | Segregation of duties (enter ≠ approve) | BUILT (enforced in fin_post_entry, fin_approve_bill [0130], fin_approve_expense_report — creator/employee ≠ approver at the DB level) |
-| Approval workflows and delegation | NOT_STARTED |
+| Approval workflows and delegation | BUILT (0168 fin_approval_delegations — a controller lends approval authority for a fixed window instead of lending their login, which is what actually happens today and makes every approval in that window a lie the ledger records perfectly. THE WRITE GATE IS THE FEATURE (§A23): RLS INSERT requires delegator_id = auth.uid(), so a member cannot mint "the CFO delegates to me"; a CHECK forbids self-delegation; the RPC requires the delegator to actually HOLD authority (else two viewers delegate to each other and manufacture an approver from nothing); fin_approval_limit_for caps borrowed authority at the LENDER's ceiling; there is no UPDATE path, so a lapsed window cannot be silently extended. fin_can_approve() re-checks the delegator's role AT USE TIME — a delegation is a pointer to someone's authority, never a snapshot, so demoting a compromised controller kills the borrowed authority with it. Segregation of duties is NOT delegated: the SoD checks compare against auth.uid() = the delegate, so a stand-in still cannot approve what they entered. API /api/finance/delegations (accepts NO delegator field — the absence is the security model) + UI on /dashboard/finance/controls. Acceptance tests/0168 is written as SIX ATTACKS that must all fail, not as arithmetic — this is the one feature whose failure mode is not a wrong number but a wrong PERSON holding authority with an audit trail that endorses them. Awaiting live-DB run to reach TESTED) |
 | Multi-entity support and consolidation | NOT_STARTED |
 | Data import / export and migration tools | NOT_STARTED |
 | Integration layer (bank feeds, Stripe, CRM, payroll, external accounting) | NOT_STARTED |
@@ -184,9 +184,13 @@ flow projection, scenario modeling.
 **Phase 6** core — P&L, Balance Sheet, Trial Balance, GL drill-down, period-over-period, CSV export
 (formula-injection hardened) BUILT; Cash Flow + custom builder + scheduling + PDF/xlsx NOT_STARTED.
 **Phase 7** — BUILT (0150 tax codes/calc/liability/filing report + 0151 year-end close→RE 3000). Deferred: 1099.
-**Phase 8** — PROPOSED (docs/financial-system/PHASE-8-DATA-MODEL.md, reviewed build-ready), awaiting confirmation.
-**Phase 9** — RBAC, SoD, encryption, backup (Supabase) BUILT; approval-delegation + opening-balance
-import PROPOSED (PHASE-9-DATA-MODEL.md, reviewed build-ready); multi-entity + full integration-layer deferred.
+**Phase 8** — BUILT (0166 fixed-asset register + depreciation with a salvage clamp and one run per
+asset per period; 0167 payroll as a LEDGER-SIDE integration — we record what the provider computed and
+refuse to derive a missing figure, because gross = net + withholdings is an identity, and a mismatch is a
+misread column, not a gap to fill). Contractor/1099 remains NOT_STARTED.
+**Phase 9** — RBAC, SoD, encryption, backup (Supabase) BUILT; approval-delegation BUILT (0168);
+opening-balance import PROPOSED (PHASE-9-DATA-MODEL.md, confirmed, not yet built); multi-entity + full
+integration-layer deferred.
 Everything Phase-2+ is verified-by-construction; hardened this session across EIGHT audit angles (money-
 logic, API routes, UI load-errors, UI mutation-errors, cross-migration account codes, view isolation,
 table RLS, DEFINER tenant-safety) with 7 defects fixed — see docs/closures/2026-07-11-financial-system-session.md. One open
