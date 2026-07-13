@@ -398,6 +398,20 @@ actually generated at draft time (keyed to the conversation/draft), and read THA
 instead of trusting the client's echo. Otherwise accept that "Co-Pilot output" is agent-attestable and the
 impact stays self-scoped. Same root as the grader injection; noted together so the fix addresses both.
 
+### Test-coverage gap — the CORE-THESIS CHAIN has no CI regression guard (MED)
+The events→signals→problems→resolutions chain — the central mechanism the whole constitution rests on —
+is **not exercised by CI**. There IS a good integration test (`src/lib/data/__tests__/chain.integration.test.ts`:
+chat_pin→`chat.pinned`→`pinned_evidence` signal; overdue task→`task.overran_due_date`→`task_slipped`;
+`close_durability='held'`→`resolution_held`; `'unknown'`→no-signal honest-empty). But it's `describe.skipIf`-
+gated on `EXECOS_INTEGRATION_TEST=1` + live Supabase creds (correct — integration needs a DB), and
+`.github/workflows/ci.yml` runs only `typecheck` + `lint` + `npm run test` (the UNIT suite, which SKIPS the
+chain test). Nothing runs `npm run test:chain` (package.json:16). So the 631 passing tests cover pure logic
+but **not** the chain — a regression (a trigger stops firing, `derive_signals`/understanding-gate breaks,
+the pin→signal or durability→signal path breaks) would pass CI silently. Not a live bug; a coverage gap on
+the most important code in the product. **Fix:** add a CI job that spins up an ephemeral Postgres (or a
+throwaway Supabase test project), sets `EXECOS_INTEGRATION_TEST=1` + the creds, and runs `npm run test:chain`
+— so chain regressions are caught. The test is already written; it just needs to be RUN in CI.
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
