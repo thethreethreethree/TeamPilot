@@ -140,6 +140,34 @@ the fn with: `select … for update` on the original, and `if exists (select 1 f
 where reversal_of = p_entry_id and status <> 'void') then raise 'Entry already has a reversal'`. Double-
 reversal is always wrong accounting, so this is an unambiguous guard, not a design choice.
 
+### Latent — FX per-line rounding drift rejects legitimate multi-line foreign-currency entries (fix before enabling multi-currency)
+**What:** Base amounts are computed per line as `round(face × fx_rate, 4)` (0118/0119), and the balance
+assertion `fin_assert_entry_balanced` (0118) enforces `sum(base_debit) = sum(base_credit)`. For a
+**multi-line** entry in a **non-base currency** (so `fx_rate ≠ 1`), the sum of independently-rounded legs
+need not equal the rounded total — the classic *sum-of-rounded ≠ rounded-of-sum* problem. Concrete repro:
+base=USD, a foreign invoice/bill at `fx_rate = 1.11111111`, lines `33.33 + 33.33 + 33.34` (= 100.00 face,
+perfectly balanced) → `base_debit` legs `37.0333 + 37.0333 + 37.0444 = 111.1110` but the single
+`base_credit` leg `round(100 × 1.11111111, 4) = 111.1111`. **111.1110 ≠ 111.1111 → the assertion raises
+`UNBALANCED` and rejects the entry**, even though it's correct in transaction currency.
+**Where it bites:** `fin_issue_invoice` (0131) and `fin_approve_bill` (0122/0130) both thread the
+document's `currency` onto the posted lines (`'currency', v_ccy`), so a foreign multi-line document with a
+configured `fin_exchange_rates` rate hits this at issue/approve time.
+**Severity — LATENT + SAFE-FAILING (not a fire):** (1) No UI surfaces a currency picker on the
+invoice/bill editors — only a *direct API call* passing a non-base `currency` can reach it. (2) It also
+needs a configured exchange rate (`fin_get_rate` returns null → the base-compute trigger *raises* first if
+none exists). (3) Crucially it **rejects, never corrupts** — the ledger can't silently imbalance; the
+assertion is doing its job. So this is a "before you enable multi-currency, know this" item, not active
+data risk. Note the inconsistency it reveals: foreign-currency *settlement* is already rejected (deferred),
+but foreign *issue/approve* is not — so today you could (via API) post a foreign invoice you can never settle.
+**Fix options (your call — it's an accounting-policy choice, so I flagged rather than picked):**
+(a) *Minimal/consistent now:* reject non-base `currency` at issue/approve too, matching the already-deferred
+settlement, until the FX increment lands. (b) *Proper, when you build FX:* post an **FX rounding-adjustment
+line** to a "Currency rounding gain/loss" account so the base legs tie exactly. (c) *Alternative:* allocate
+the rounded base with a **largest-remainder** method so the parts sum to the rounded total. Recommend (a)
+now + (b) when multi-currency ships. Found by tracing the never-float-for-money rounding discipline into the
+authoritative SQL layer (§1.7 ground-up + §3 cardinal rule); it's the base-currency twin of the
+[[computeLineTax]] half-cent fix, but in the ledger core rather than a prefill.
+
 ### Non-finance (minor, defense-in-depth) — rate-limit omission NOW FIXED
 ~~`care/agent/conversations/[id]/messages` has no rateLimit while its siblings do.~~ **FIXED**
 (commit below). On reading, this wasn't a judgment call after all: the 2026-07-06 audit (A13/A21)
