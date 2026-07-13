@@ -45,4 +45,18 @@ describe("computeLineTax (bill/invoice line tax auto-calc)", () => {
     expect(computeLineTax("abc", 20)).toBe("0.00");
     expect(computeLineTax(undefined, undefined)).toBe("0.00");
   });
+
+  it("rounds the half-cent UP, not down (float-safe, not toFixed-quirky)", () => {
+    // The old (a*r/100).toFixed(2) rounded these a cent LIGHT because the float
+    // representation of the true .xx5 value lands just below (e.g. 1.005 → 1.00499…).
+    // The founder's non-negotiable is never-float-for-money, so a tax prefill shown a
+    // cent short is a real integrity bug. These lock the correct half-up behavior.
+    expect(computeLineTax(100.5, 1)).toBe("1.01"); // 1.005 — was "1.00"
+    expect(computeLineTax(100.4, 1.25)).toBe("1.26"); // 1.255 — was "1.25"
+    expect(computeLineTax(123, 0.5)).toBe("0.62"); // 0.615 — was "0.61"
+    // Controls that were already correct must stay correct:
+    expect(computeLineTax(10.1, 5)).toBe("0.51"); // 0.505
+    expect(computeLineTax(200, 8.25)).toBe("16.50");
+    expect(computeLineTax(99.99, 10)).toBe("10.00");
+  });
 });

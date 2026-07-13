@@ -29,5 +29,16 @@ export function computeLineTax(
 ): string {
   const a = Number(amount);
   const r = Number(ratePct);
-  return (((Number.isFinite(a) ? a : 0) * (Number.isFinite(r) ? r : 0)) / 100).toFixed(2);
+  const safeA = Number.isFinite(a) ? a : 0;
+  const safeR = Number.isFinite(r) ? r : 0;
+  // Round to integer cents BEFORE formatting. Computing (a*r/100).toFixed(2) lets
+  // toFixed round a half-cent that float misrepresents: $100.50 @ 1% is truly 1.005
+  // but 1.00499… in float, so toFixed yields "1.00" — a cent light (confirmed for
+  // several amount×rate combos). a*r is already the tax IN CENTS (dollars × percent-
+  // points), so Math.round on it rounds the half-cent half-up correctly, then /100
+  // returns dollars. Even though this is an editable prefill, a money figure shown
+  // (and, if accepted, stored) a cent short is exactly the §3 never-float-for-money
+  // failure — the authoritative SQL still owns the posting, but the prefill must be
+  // right. (Amount/rate are non-negative on a real tax line.)
+  return (Math.round(safeA * safeR) / 100).toFixed(2);
 }
