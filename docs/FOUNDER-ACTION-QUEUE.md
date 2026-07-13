@@ -277,6 +277,17 @@ behavior turning on, your call to make deliberately (§3.3). Add it when you wan
 > Confirm the project is on Pro if hourly durability matters, else the effective cadence is daily. (My
 > suggested task-overrun schedule above is daily, so it's fine on either tier.)
 
+### Minor functional gap — the variance-alert threshold is defined but never applied
+`0149` added `fin_settings.variance_alert_pct` (a configurable budget-variance alert threshold, your
+default 10%) — but a grep confirms it's **read nowhere** in the code (no TS/SQL consumer). So the budget
+page's over/under-budget indicator can't be honoring it: every overage flags the same regardless of size,
+instead of alerting only past your ±10% threshold. Not a bug (the variance amounts + red/green still
+work), but the tunable you built does nothing yet. When you want threshold-based alerting, wire
+`variance_alert_pct` into the over-budget test — e.g. flag when `abs(actual − budget) > budget *
+variance_alert_pct/100` (guard `budget = 0`, matching the divide-by-zero discipline the rest of the
+finance UI already follows). Found during a divide-by-zero sweep (which otherwise came up clean: runway,
+margin %, period-over-period, and dashboard bars all guard their zero denominators).
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
