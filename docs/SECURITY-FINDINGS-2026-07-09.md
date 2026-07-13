@@ -183,3 +183,18 @@ policies + triggers, not pattern-matching). Two minor defense-in-depth flags lef
 auto-built): a `fin_docs_immutable` trigger for subledger post-approval parity, and an inline
 `status`-check on the `fin_journal_entries` DELETE policy (currently trigger-enforced). The finance
 subsystem's authorization posture is now audited to the same depth as the core product (0101–0111).*
+
+## Addendum 2026-07-13 (5) — new phase tables (0145/0147/0149) pass the authz-class sweep
+
+Verified the Phase-3 (banking), Phase-4 (cost dimensions), Phase-5 (budgeting) tables against the same
+classes the finance sweep used — all CLEAN, built with the patterns from the start:
+- **Author-spoof:** `created_by` pinned on INSERT (`= auth.uid()`) AND frozen on UPDATE
+  (`fin_freeze_creator`) on every table that has an author (bank_accounts, bank_transactions,
+  cost_centers, projects, budgets). Tables without an author (budget_lines) or append-only
+  (reconciliation_matches — no update/delete policy) need none.
+- **Tenant-key push-out:** every `with check` across 0145/0147/0149 re-asserts
+  `company_id = auth_company_id()`. No row can be pushed to another tenant.
+- **Cross-tenant SELECT:** every select policy is company-scoped; the new views are `security_invoker`.
+- **Capability:** every write policy carries a `fin_can_*` gate (configure for bank accounts, enter for
+  transactions / dimensions / budgets).
+Same authz depth as the core finance subsystem, verified before the founder applies 0145-0149.
