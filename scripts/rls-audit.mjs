@@ -451,6 +451,48 @@ const DROP_TABLE_RE = /drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?(\w+)/gi;
 const CREATE_TABLE_RE =
   /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(\w+)\s*\(/gi;
 
+// ─── Tenant-pin check: the implicit WITH CHECK trap (found 2026-07-13, fixed by 0154) ──
+//
+// Postgres reuses an UPDATE/ALL policy's USING expression as its WITH CHECK when no explicit
+// `with check` is given. That is SAFE when USING pins the tenant (`company_id = auth_company_id()`),
+// because the NEW row must satisfy it too. It is NOT safe when USING has a TOP-LEVEL `or` whose
+// branch doesn't mention the tenant — e.g. the real bug in files_update (0057):
+//
+//     using ( uploader_id = auth.uid() or exists(<admin in same company>) )
+//
+// The uploader branch is satisfied regardless of company_id, so the implicit check let an uploader
+// UPDATE their own file's company_id into ANOTHER tenant. A top-level `or` is the tell: it means at
+// least one branch can pass without pinning the row's company.
+//
+// Note the depth test: an `or` NESTED inside an exists(...) (the CARE/coaching policies' role-choice,
+// `is_support_agent or role in (...)`) is fine — the surrounding exists() still pins the company. Only
+// a depth-0 `or` breaks the pin. That distinction is why this check has zero false positives here.
+const POLICY_BODY_RE =
+  /create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)\s+for\s+(update|all)\b([\s\S]*?);/gi;
+
+// Policies intentionally exempt from the tenant-pin rule. Same discipline as ALLOWLIST: a concrete
+// reason, never "we think it's fine". Empty today — every update/all policy either pins the tenant or
+// declares an explicit WITH CHECK.
+const TENANT_PIN_EXEMPT = new Map([]);
+
+// True if `using` contains an ` or ` at paren-depth 0 (a top-level disjunction).
+function hasTopLevelOr(using) {
+  let depth = 0;
+  const s = using.toLowerCase();
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === "(") depth++;
+    else if (c === ")") depth--;
+    else if (depth === 0 && s.startsWith(" or ", i)) return true;
+  }
+  return false;
+}
+
+// policyKey (name@table) → last-seen definition. Migrations are applied in order, so the LAST
+// create-policy for a given name wins (drop-and-recreate is the fix idiom); evaluating an earlier,
+// superseded definition would flag a bug that a later migration already fixed.
+const latestPolicy = new Map();
+
 // Recognize the dynamic policy-creation idiom used in 0001:
 //
 //   do $$ declare t text;
@@ -512,6 +554,25 @@ for (const f of files) {
     ensure(m[1]).created = true;
   }
   CREATE_TABLE_RE.lastIndex = 0;
+
+  while ((m = POLICY_BODY_RE.exec(sql))) {
+    const [, rawName, tbl, op, body] = m;
+    const name = rawName.replace(/"/g, "");
+    latestPolicy.set(`${name}@${tbl}`, { table: tbl, op, body, file: f });
+  }
+  POLICY_BODY_RE.lastIndex = 0;
+}
+
+// ─── Tenant-pin findings (implicit-WITH-CHECK trap) ───────────────────
+const tenantPinFindings = [];
+for (const [key, p] of latestPolicy) {
+  if (/with\s+check/i.test(p.body)) continue; // explicit check → the author declared the new-row rule
+  const um = p.body.match(/using\s*\(([\s\S]*)\)\s*$/i);
+  if (!um) continue;
+  const using = um[1].replace(/\s+/g, " ").trim();
+  if (!hasTopLevelOr(using)) continue; // USING pins the tenant for every branch
+  if (TENANT_PIN_EXEMPT.has(key)) continue;
+  tenantPinFindings.push({ key, table: p.table, op: p.op, file: p.file });
 }
 
 // ─── Find gaps ────────────────────────────────────────────────────────
@@ -545,6 +606,7 @@ const rlsTables = [...tables.values()].filter(
 console.log(`  RLS-enabled tables:    ${rlsTables.length}`);
 console.log(`  Allowlisted omissions: ${ALLOWLIST.size}`);
 console.log(`  Tables without RLS:    ${noRlsFindings.length}`);
+console.log(`  Tenant-pin risks:      ${tenantPinFindings.length}`);
 console.log(`  Missing policies:      ${findings.length}`);
 
 if (VERBOSE) {
@@ -578,13 +640,33 @@ if (noRlsFindings.length > 0) {
   );
 }
 
-if (findings.length === 0 && noRlsFindings.length === 0) {
-  console.log("\n✓ Every table has RLS enabled and every operation is covered or documented.");
+if (tenantPinFindings.length > 0) {
+  console.log(
+    "\n  ⚠ UPDATE/ALL policies whose implicit WITH CHECK may not pin the tenant:"
+  );
+  for (const t of tenantPinFindings) {
+    console.log(`    ${t.key}  (for ${t.op}, ${t.file})`);
+  }
+  console.log(
+    "\n  These have NO explicit `with check`, so Postgres reuses USING as the new-row check —\n" +
+      "  but USING has a TOP-LEVEL `or` whose branch can pass without pinning company_id. A caller\n" +
+      "  can UPDATE a row they own and move it into ANOTHER tenant (this is the real files_update\n" +
+      "  bug, fixed by 0154). Add an explicit `with check (company_id = auth_company_id() and <...>)`\n" +
+      "  — re-asserting the USING condition, since an explicit check REPLACES the implicit one —\n" +
+      "  or add the policy to TENANT_PIN_EXEMPT with a documented reason."
+  );
+}
+
+if (findings.length === 0 && noRlsFindings.length === 0 && tenantPinFindings.length === 0) {
+  console.log(
+    "\n✓ Every table has RLS enabled, every operation is covered or documented, and every\n" +
+      "  update/all policy pins the tenant on write."
+  );
   process.exit(0);
 }
 
-if (noRlsFindings.length > 0 && findings.length === 0) {
-  console.log("\n✗ RLS not enabled on one or more tables (see above).");
+if (findings.length === 0) {
+  console.log("\n✗ RLS gaps found (see above).");
   process.exit(1);
 }
 

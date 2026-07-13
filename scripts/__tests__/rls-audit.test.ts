@@ -101,3 +101,80 @@ describe("rls-audit.mjs (the tenant-isolation CI gate)", () => {
     expect(code).toBe(0);
   });
 });
+
+/**
+ * The implicit-WITH-CHECK trap (the real files_update bug, fixed by 0154).
+ *
+ * Postgres reuses an UPDATE policy's USING as its WITH CHECK when none is given. That's safe when
+ * USING pins the tenant, but NOT when USING has a TOP-LEVEL `or` whose branch skips company_id —
+ * the caller can then UPDATE a row they own into another tenant. These lock the detector: it must
+ * FIRE on that shape, stay quiet on the safe shapes, and respect latest-definition-wins.
+ */
+describe("rls-audit tenant-pin check (implicit WITH CHECK trap)", () => {
+  const table = (t: string) =>
+    `create table if not exists ${t} ( id uuid, company_id uuid, uploader_id uuid );\n` +
+    `alter table ${t} enable row level security;\n` +
+    `create policy "${t} - sel" on ${t} for select using ( company_id = auth_company_id() );\n` +
+    `create policy "${t} - ins" on ${t} for insert with check ( company_id = auth_company_id() );\n` +
+    `create policy "${t} - del" on ${t} for delete using ( company_id = auth_company_id() );\n`;
+
+  it("FIRES on a top-level OR with no explicit WITH CHECK (the files_update shape)", () => {
+    const { code, out } = runAudit({
+      "0001_leaky.sql":
+        table("doc") +
+        `create policy doc_update on doc for update using (\n` +
+        `  uploader_id = auth.uid()\n` +
+        `  or exists ( select 1 from profiles where id = auth.uid() and company_id = doc.company_id )\n` +
+        `);\n`,
+    });
+    expect(code).toBe(1);
+    expect(out).toMatch(/tenant-pin|pin the tenant/i);
+    expect(out).toMatch(/doc_update/);
+  });
+
+  it("stays QUIET when the OR is nested inside exists() (the CARE/coaching role-choice shape)", () => {
+    // The surrounding exists() still pins company_id, so the implicit check is safe. This is the
+    // distinction that keeps the check at zero false positives on the real migrations.
+    const { code, out } = runAudit({
+      "0001_safe.sql":
+        table("conv") +
+        `create policy conv_update on conv for update using (\n` +
+        `  exists ( select 1 from profiles p where p.id = auth.uid()\n` +
+        `    and p.company_id = conv.company_id and ( p.is_support_agent or p.role in ('CEO','admin') ) )\n` +
+        `);\n`,
+    });
+    expect(code).toBe(0);
+    expect(out).toMatch(/pins the tenant on write/i);
+  });
+
+  it("stays QUIET when an explicit WITH CHECK is declared (author stated the new-row rule)", () => {
+    const { code } = runAudit({
+      "0001_explicit.sql":
+        table("doc2") +
+        `create policy doc2_update on doc2 for update using (\n` +
+        `  uploader_id = auth.uid() or company_id = auth_company_id()\n` +
+        `) with check ( company_id = auth_company_id() );\n`,
+    });
+    expect(code).toBe(0);
+  });
+
+  it("honors latest-definition-wins: a later migration that adds WITH CHECK clears the finding", () => {
+    // Exactly the 0057 -> 0154 sequence. Evaluating the superseded definition would report a bug
+    // that a later migration already fixed.
+    const { code } = runAudit({
+      "0057_bug.sql":
+        table("doc3") +
+        `create policy doc3_update on doc3 for update using (\n` +
+        `  uploader_id = auth.uid()\n` +
+        `  or exists ( select 1 from profiles where id = auth.uid() and company_id = doc3.company_id )\n` +
+        `);\n`,
+      "0154_fix.sql":
+        `drop policy if exists doc3_update on doc3;\n` +
+        `create policy doc3_update on doc3 for update using (\n` +
+        `  uploader_id = auth.uid()\n` +
+        `  or exists ( select 1 from profiles where id = auth.uid() and company_id = doc3.company_id )\n` +
+        `) with check ( company_id = auth_company_id() and uploader_id = auth.uid() );\n`,
+    });
+    expect(code).toBe(0);
+  });
+});
