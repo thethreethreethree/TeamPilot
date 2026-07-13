@@ -42,6 +42,12 @@ serializes concurrent read-guard-post functions so nothing double-posts, double-
 credit notes exist (a live amber warning is up meanwhile). 3 attribution options + **recommendation A**
 (proportional to the linked invoice's jurisdictions). One-read decision.
 
+## 3b. FINANCE DECISION — recurring-bill monthly date drift
+`docs/financial-system/RECURRING-DRIFT-DECISION.md`. Monthly templates use `next_date + 1 month`, so a
+"31st" bill drifts to the 28th permanently after a February. 3 options + **recommendation A** (anchor to
+day-of-month via an `anchor_day` column, clamped to month length — recovers instead of drifting). Low
+severity, one-read decision.
+
 ## 4. SECURITY REVIEW — two deliberately-held items (your judgment)
 Both have ready text; both withheld from autonomous action on purpose (§5/§2/§A17):
 - **`events` INSERT-policy residual** (`coach.dissect_generated`) — ready SQL in
