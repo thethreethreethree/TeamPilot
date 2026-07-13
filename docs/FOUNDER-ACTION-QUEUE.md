@@ -47,11 +47,19 @@ is internally consistent on its own — you can apply `0145–0153` now against 
 then-different-approver) reversal behavior; this edit only takes effect if you commit it. It's an isolated
 decision, not a prerequisite.
 
-**Recommendation:** decide if this is your intended reversal redesign. If yes — finish + review it (esp.
-the SoD-bypass and the FX-reversal balance) and commit it as its own migration/change with a rationale;
-don't leave a core-ledger edit uncommitted where it can be lost or swept into an unrelated commit. If no —
-`git checkout -- supabase/migrations/0118_fin_ledger.sql` restores the committed version. I left the file
-exactly as found.
+**CRUCIAL — editing 0118 in place is a NO-OP on your live DB.** You're applied through `0144`, so `0118`
+already ran. Postgres won't re-run an applied migration, so even if you commit this edit, your existing
+database keeps the OLD reversal behavior — the redesign would only affect a *fresh* apply-from-scratch.
+To change reversal behavior on your REAL database, it must be a **new forward migration** (`0154+`) that
+`create or replace`s the functions / drops+recreates the triggers. So the in-place 0118 edit as-is can't
+do what it looks like it does. This is itself a reason to not just "commit it."
+
+**Recommendation:** decide if this is your intended reversal redesign. If YES — don't commit the 0118
+in-place edit; instead lift its logic into a new migration `0154_fin_reversal_redesign.sql` (review the
+SoD-bypass + FX-reversal balance first), then `git checkout -- supabase/migrations/0118_fin_ledger.sql`
+to restore 0118 to its applied state. If NO — just `git checkout -- supabase/migrations/0118_fin_ledger.sql`.
+Either path ends with 0118 restored; the difference is whether the redesign lives on in a forward
+migration. I left the file exactly as found.
 
 ## 1. SECURITY — stage + apply `0112` and `0113` (HIGH / MED)
 Real, built, static-verified fixes awaiting one **live staging cycle** before promote:
