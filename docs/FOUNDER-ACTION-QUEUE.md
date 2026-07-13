@@ -306,15 +306,16 @@ coverage: the meeting-duration metric is **dormant** until you build meeting tra
 emitter (mirror `0109`'s pattern). Decide if/when that feature is on the roadmap; until then, know the
 metric is unpopulated.
 
-### Minor — public care endpoint returns internal error detail to the customer (info-disclosure)
-`POST /api/care/conversations` (the PUBLIC, unauthenticated widget open-a-conversation route) returns
-`detail: \`${err.name}: ${err.message}\`` in its 500 body. On a DB error that message can carry internal
-detail (table/constraint names, etc.) to an anonymous customer. Low severity + it was deliberate debug
-instrumentation (the "Jeff bug" non-2xx audit), and the `console.error` on the line just above ALREADY
-logs the same detail server-side — so the customer-facing `detail` can be dropped to a generic
-"Couldn't open a conversation." without losing any debugging signal. Verified by reading; the other
-public care routes (widget/bootstrap, messages GET via serializeMessage) return explicit whitelist shapes
-and don't leak. Fix when convenient: keep the server log, return the generic message to the client.
+### Minor — public care endpoints return internal error detail to the customer (info-disclosure)
+**TWO** public care POST routes return `detail: \`${err.name}: ${err.message}\`` in their 500 bodies:
+`POST /api/care/conversations` (unauthenticated widget open-a-conversation, line 172) **and**
+`POST /api/care/conversations/[id]/messages` (session-token customer message-send, line 306). On a DB
+error that message can carry internal detail (table/constraint names) to an anonymous/customer caller.
+Both are the SAME deliberate "Jeff bug" non-2xx debug instrumentation, and both already `console.error`
+the same detail server-side one line above — so the customer-facing `detail` can be dropped to the
+generic `error` string with zero debugging loss. Low severity. Verified by a sweep of the public care
+surface; the read paths (widget/bootstrap, messages GET via serializeMessage) return explicit whitelist
+shapes and don't leak. Fix when convenient: keep both server logs, drop `detail` from both client responses.
 
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
