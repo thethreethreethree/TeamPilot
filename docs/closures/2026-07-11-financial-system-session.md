@@ -155,6 +155,10 @@ service-role** (`createAdminClient`/service_role absent everywhere), every route
 user-scoped `createClient` so RLS + the `fin_can_*` DEFINER checks enforce authorization at the DB
 layer (the correct two-layer model). The routes added this session (bank/*, budgets/*, profitability,
 runway, tax-codes, tax-report, close-year, dimensions, credit-notes/*) all conform. No exposure found.
+**View-isolation audit (clean):** every finance view sets `security_invoker = true` inline (0121–0149);
+the older cross-subsystem views were retrofitted via `alter view` in `0052` (+ chat re-set in `0076`),
+so no view bypasses RLS → no cross-tenant leak. **Account-code audit (clean after the 3900→3000 fix):**
+every code a function resolves-and-raises-on is seeded by `fin_init_company`; 4900 self-heals.
 
 **UI robustness (2026-07-13, `acd8044`):** all 11 finance pages' `load()` now handle fetch failure
 (try/catch → toast) instead of silently blanking — AMD-006 layer-4 gap, fixed across every page.
