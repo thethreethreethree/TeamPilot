@@ -22,6 +22,37 @@ export function toIso(s: string): string {
   return `${y}-${mm}-${dd}`;
 }
 
+/**
+ * Parse a bank-CSV amount cell to a signed number. Strips a leading currency symbol and thousands
+ * commas, then handles the two universal accounting notations for a NEGATIVE that a bare Number()
+ * rejects: parentheses — "(100.00)" → -100 — and a trailing minus — "100.00-" → -100. Many US banks,
+ * QuickBooks, and Excel accounting exports write withdrawals this way; without this they fail Number()
+ * and every withdrawal on such a file is skipped, so only deposits import and the account can never
+ * reconcile. Parentheses = negative is an unambiguous convention (not a guess), so parsing it is
+ * correct, not lenient. A genuinely unreadable cell ("abc", "(abc)", "") still returns NaN → the
+ * caller skips+counts it, preserving the §3.4 "partial import is visible, not silent" contract.
+ */
+export function parseAmount(raw: string): number {
+  let s = (raw ?? "").trim().replace(/[$,]/g, "");
+  let negate = false;
+  const paren = s.match(/^\((.*)\)$/);
+  if (paren) {
+    negate = true;
+    s = paren[1]!.trim();
+  } else if (s.endsWith("-")) {
+    // Trailing-minus notation (e.g. mainframe/European exports): "100.00-".
+    negate = true;
+    s = s.slice(0, -1).trim();
+  }
+  // Guard the empty/symbol-only cell: Number("") is 0 in JS, which would import a blank amount as a
+  // phantom $0 transaction instead of skipping it. An amount with no digits is unreadable → NaN → the
+  // caller skips+counts it (a blank on a financial file is surfaced, not silently turned into $0).
+  if (s === "") return NaN;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return NaN;
+  return negate ? -n : n;
+}
+
 export type BankCsvResult = { rows: BankCsvRow[]; skipped: number };
 
 export function parseCsv(text: string): BankCsvResult {
@@ -58,10 +89,11 @@ export function parseCsv(text: string): BankCsvResult {
     const cols = splitLine(lines[r]!);
     const rawDate = (cols[iDate] ?? "").slice(0, 10);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : toIso(rawDate);
-    const amount = Number((cols[iAmt] ?? "").replace(/[$,]/g, ""));
-    // A data line we can't read (unparseable date, or a non-numeric amount like a parenthesized
-    // "(50.00)") is COUNTED, not silently dropped — the caller surfaces the count so a partial import
-    // is visible on a financial file, not mistaken for complete.
+    const amount = parseAmount(cols[iAmt] ?? "");
+    // A data line we can't read (unparseable date, or a genuinely non-numeric amount like "abc" or
+    // "(abc)") is COUNTED, not silently dropped — the caller surfaces the count so a partial import
+    // is visible on a financial file, not mistaken for complete. (Parenthesized/trailing-minus
+    // negatives are now parsed by parseAmount, so real withdrawals no longer land here.)
     if (!date || !Number.isFinite(amount)) { skipped++; continue; }
     rows.push({
       txnDate: date,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCsv, toIso } from "@/lib/finance/bankCsv";
+import { parseCsv, toIso, parseAmount } from "@/lib/finance/bankCsv";
 
 describe("parseCsv (bank statement import)", () => {
   it("keeps commas inside quoted fields — the data-integrity case", () => {
@@ -25,6 +25,26 @@ describe("parseCsv (bank statement import)", () => {
     const { rows } = parseCsv(csv);
     expect(rows[0]!.amount).toBe(-42);
     expect(rows[0]!.description).toBe('say "hi" to payee');
+  });
+
+  it("parses parenthesized + trailing-minus withdrawals (accounting/Excel/QuickBooks exports)", () => {
+    // Before parseAmount, "(100.00)" failed Number() and got SKIPPED — so a file whose withdrawals
+    // are all parenthesized imported only its deposits and could never reconcile. These now parse.
+    const csv =
+      'Date,Amount\n2026-07-03,"(100.00)"\n2026-07-04,"($1,234.56)"\n2026-07-05,250.00-\n2026-07-06,75.00';
+    const { rows, skipped } = parseCsv(csv);
+    expect(rows.map((r) => r.amount)).toEqual([-100, -1234.56, -250, 75]);
+    expect(skipped).toBe(0); // none skipped — all four are legitimate signed amounts
+  });
+
+  it("parseAmount: genuine garbage still returns NaN (so the caller skips+counts it, no false zero)", () => {
+    // The negative notations must not swallow unreadable cells into a misleading 0 or wrong sign.
+    expect(Number.isFinite(parseAmount("abc"))).toBe(false);
+    expect(Number.isFinite(parseAmount("(abc)"))).toBe(false);
+    expect(Number.isFinite(parseAmount(""))).toBe(false);
+    // and the ordinary cases stay intact:
+    expect(parseAmount("$1,234.56")).toBe(1234.56);
+    expect(parseAmount("-42.00")).toBe(-42);
   });
 
   it("maps columns by header name variants and coerces MM/DD/YYYY dates", () => {
