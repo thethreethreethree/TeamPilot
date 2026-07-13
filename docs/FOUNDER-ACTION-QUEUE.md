@@ -429,6 +429,15 @@ core-thesis chain AND the finance ledger — has no CI regression guard; the 631
 applies the migrations, then runs `test:chain` + the `.test.sql` acceptance files (psql `-f`). Then a
 change that breaks a trigger, a posting fn, the balance assertion, or the derivation is caught by CI
 instead of shipping. Both test suites are already written — the gap is purely that CI doesn't run them.
+> **Known coverage boundary (checked 2026-07-13):** the `.test.sql` suite is substantial — asserts the
+> balance invariant (19/23 files), settlement over-limits (13), SoD (8) — but does NOT test **concurrency**
+> (`for update` → 0 files). The settlement *guards* are tested (a single over-payment is rejected), but the
+> *row-lock discipline* that makes them race-safe (0127/0132/0152/0153 — none has a dedicated test file) is
+> not, because a TOCTOU race needs two concurrent sessions that single-session `psql -f` can't reproduce.
+> So wiring the DB-test CI job protects the guards but NOT the locks: a `for update` dropped in a refactor
+> would pass every acceptance test. If you want lock-regression coverage, it needs a separate concurrency
+> harness (two connections / pgbench), not another `.test.sql`. Not urgent — the locks are correct today
+> (verified by reading 0127/0132/0152/0153); this is about what the future CI job will and won't catch.
 
 ### Next 16 `middleware` → `proxy` deprecation (LOW — you or a smoke-tested branch, not me blind)
 `next build` emits one warning: `The "middleware" file convention is deprecated. Please use "proxy" instead.`
