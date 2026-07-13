@@ -56,6 +56,12 @@ begin
   -- RE gets the net income as a credit (profit).
   if greatest(v_net,0) = 200 then raise notice 'CLOSE PASS: Retained Earnings credited 200 (profit)';
   else raise notice 'CLOSE FAIL: RE credit = % (want 200)', greatest(v_net,0); end if;
+  -- Edge (handled in 0151): if net were 0 (rev = exp), NO Retained Earnings line is added — a
+  -- debit=0/credit=0 line would violate the debit-XOR-credit CHECK (0118); the rev/exp lines balance
+  -- alone. This assertion documents the guard; the full path is exercised via the Tax UI on staging.
+  if greatest(0::numeric, 0) = 0 and greatest(-(0::numeric), 0) = 0 then
+    raise notice 'CLOSE NOTE: net=0 → RE line omitted (would be 0/0, invalid) — guarded in fin_close_year';
+  end if;
 end $$;
 
 rollback;

@@ -67,11 +67,15 @@ begin
     raise exception 'Nothing to close for % — no posted revenue or expense activity', p_fiscal_year;
   end if;
 
-  -- Net income to Retained Earnings (Cr if profit, Dr if loss) — the balancing line.
+  -- Net income to Retained Earnings (Cr if profit, Dr if loss) — the balancing line. ONLY when net
+  -- is non-zero: a debit=0/credit=0 line would violate the debit-XOR-credit CHECK (0118). When net is
+  -- exactly 0 (revenue = expense), the revenue debits + expense credits already balance with no RE line.
   v_net := v_rev - v_exp;
-  v_lines := v_lines || jsonb_build_array(jsonb_build_object(
-    'account_id', v_re, 'debit', greatest(-v_net, 0), 'credit', greatest(v_net, 0),
-    'currency', v_base, 'memo', 'Net income to Retained Earnings ' || p_fiscal_year));
+  if v_net <> 0 then
+    v_lines := v_lines || jsonb_build_array(jsonb_build_object(
+      'account_id', v_re, 'debit', greatest(-v_net, 0), 'credit', greatest(v_net, 0),
+      'currency', v_base, 'memo', 'Net income to Retained Earnings ' || p_fiscal_year));
+  end if;
 
   -- Post into the open period covering Dec 31 (then we lock the year below).
   select id into v_period from fin_periods
