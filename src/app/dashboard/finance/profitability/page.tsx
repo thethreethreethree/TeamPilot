@@ -100,7 +100,7 @@ export default function ProfitabilityPage() {
               <div className="flex gap-2">
                 <input value={ccCode} onChange={(e) => setCcCode(e.target.value)} placeholder="Code" className="w-24 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
                 <input value={ccName} onChange={(e) => setCcName(e.target.value)} placeholder="Name (e.g. Engineering)" className="flex-1 bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default" />
-                <button onClick={() => ccCode && ccName && createDim({ kind: "cost_center", code: ccCode, name: ccName }, () => { setCcCode(""); setCcName(""); })} disabled={busy} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-brand text-black text-sm font-medium disabled:opacity-60"><Plus className="w-4 h-4" /></button>
+                <button aria-label="Add cost center" title="Add cost center" onClick={() => ccCode && ccName && createDim({ kind: "cost_center", code: ccCode, name: ccName }, () => { setCcCode(""); setCcName(""); })} disabled={busy} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-brand text-black text-sm font-medium disabled:opacity-60"><Plus className="w-4 h-4" /></button>
               </div>
             </div>
             <div>
@@ -112,7 +112,7 @@ export default function ProfitabilityPage() {
                   <option value="">Client…</option>
                   {customers.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
                 </select>
-                <button onClick={() => pCode && pName && createDim({ kind: "project", code: pCode, name: pName, customerId: pCust || undefined }, () => { setPCode(""); setPName(""); setPCust(""); })} disabled={busy} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-brand text-black text-sm font-medium disabled:opacity-60"><Plus className="w-4 h-4" /></button>
+                <button aria-label="Add project" title="Add project" onClick={() => pCode && pName && createDim({ kind: "project", code: pCode, name: pName, customerId: pCust || undefined }, () => { setPCode(""); setPName(""); setPCust(""); })} disabled={busy} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-brand text-black text-sm font-medium disabled:opacity-60"><Plus className="w-4 h-4" /></button>
               </div>
             </div>
           </div>
