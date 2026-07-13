@@ -82,10 +82,13 @@ having count(*) > 1;` — and if it returns nothing, add the unique index (I'll 
 say-so). A non-empty result is itself a real finding (an existing double-post to investigate).
 
 ### Non-finance finding — coach/care LLM routes lacked `maxDuration` → **FIXED** (verify live-vs-superseded)
-**Resolved 2026-07-13:** added `export const maxDuration = 60;` to the 10 confirmed-blocking LLM routes
-(coach/analyze, coach/v5/analyze+debrief+followup+grade-sent, sales-session/roleplay+after-pitch, care
-ask-coach+followup, tasks/spawn) — matching the existing 24-route convention. tsc 0, ESLint 0, suite
-green. Zero-risk config (only raises the timeout ceiling; no-op on any superseded route). Skipped the 2
+**Resolved 2026-07-13 — CLASS FULLY CLOSED (21 routes).** Added `export const maxDuration = 60;` to
+every LLM route that lacked it: **10 direct-import** (coach/analyze, coach/v5/analyze+debrief+followup+
+grade-sent, sales-session/roleplay+after-pitch, care ask-coach+followup, tasks/spawn) + **11 deeper-
+chain** (route→lib→@/lib/claude: sales-session review/why-patterns/dissect/cue/prep/prep-qa/summary-
+scores/why, dissect analyze+topics, care agent messages). So no LLM route — direct OR via a helper —
+can be killed at Vercel's default. Matches the existing 24-route convention. tsc 0, ESLint 0, suite
+green, `next build` compiles. Zero-risk config (only raises the timeout ceiling; no-op on any superseded route). Skipped the 2
 non-blocking ones (`llm/ping`, `attribute`). **One thing for you to check:** if any of the 10 is a
 superseded v1 route, the export is harmless there — but confirm coach/analyze (v1?) vs coach/v5/analyze
 is the live one and delete the dead route if so. Original finding detail retained below.
