@@ -285,7 +285,12 @@ instead of alerting only past your ±10% threshold. Not a bug (the variance amou
 work), but the tunable you built does nothing yet. When you want threshold-based alerting, wire
 `variance_alert_pct` into the over-budget test — e.g. flag when `abs(actual − budget) > budget *
 variance_alert_pct/100` (guard `budget = 0`, matching the divide-by-zero discipline the rest of the
-finance UI already follows). Found during a divide-by-zero sweep (which otherwise came up clean: runway,
+finance UI already follows). **Why I flagged rather than wired it:** the current indicator (`budgets/page.tsx`
+line 174) is a pure sign check (`bad = expense-over / revenue-under`), and the page doesn't fetch the
+setting — so wiring the threshold needs (a) a new settings fetch and (b) a UX decision on how a
+*sub-threshold* overage should render (today any overage is red; gating by the threshold would turn a small
+overage green, which may read wrong — you may want a third amber/neutral state). That UX call is yours, so I
+left it. This is a design choice, not a mechanical apply. Found during a divide-by-zero sweep (which otherwise came up clean: runway,
 margin %, period-over-period, and dashboard bars all guard their zero denominators).
 
 ### Also on the record (no action needed — context)
