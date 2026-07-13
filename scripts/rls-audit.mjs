@@ -371,6 +371,9 @@ const ALLOWLIST = new Map([
   ["fin_entry_counters.update", "The next-entry-no is claimed only by the DEFINER posting functions — a client update would corrupt gap-free sequential numbering."],
   ["fin_entry_counters.delete", "§3.1 the counter is permanent per-company machinery — deleting it would reset/duplicate entry numbers."],
 
+  // Approval delegation (0168) — a privilege-granting row; revocation is deliberately RPC-only.
+  ["fin_approval_delegations.update", "There is intentionally NO update path. A delegation is revoked through fin_revoke_delegation (which checks that the caller is the delegator, or a controller/CFO) — it is never edited. An UPDATE policy would let someone silently EXTEND a delegation's window, quietly restoring approval authority that was supposed to have lapsed, with an audit trail that shows nothing happened. Revoke-and-reissue is the honest path and leaves both events on the record."],
+
   // Posted depreciation slices (0166) — history, not a worklist row.
   ["fin_depreciation_entries.insert", "Written ONLY by the DEFINER RPC fin_run_depreciation (0166), which locks the asset, clamps the slice to the remaining depreciable base (so net book value can never fall below salvage), and posts the balanced Dr Depreciation / Cr Accumulated entry. A direct client insert would bypass the salvage clamp and the (asset, period) unique — the two things that stop the books claiming an asset is worth less than scrap, or depreciating it twice."],
   ["fin_depreciation_entries.update", "§3.1 append-only — a `do instead nothing` RULE blocks UPDATE (rules bind service-role and direct SQL too). A posted depreciation slice is history; it is corrected by a reversing entry, never by editing the record of what was posted."],
