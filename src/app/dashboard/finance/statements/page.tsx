@@ -12,6 +12,7 @@ import {
   trialBalances,
 } from "@/lib/finance/statements";
 import { formatMoney } from "@/lib/finance/format";
+import { priorRange } from "@/lib/finance/dateRange";
 
 type GlLine = { entry_no: number; entry_date: string; description: string; debit: number; credit: number };
 
@@ -43,19 +44,6 @@ function rangeFor(period: Period, cFrom: string, cTo: string): { from: string; t
     return { from: iso(new Date(y, q, 1)), to: iso(new Date(y, q + 3, 0)) };
   }
   return { from: iso(new Date(y, 0, 1)), to: iso(new Date(y, 11, 31)) }; // year
-}
-
-const isoAdd = (d: string, days: number) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + days);
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
-};
-// The same-length window immediately before [from,to] — for period-over-period (Phase 6).
-function priorRange(from: string, to: string): { from: string; to: string } {
-  if (!from || !to) return { from: "", to: "" };
-  const days = Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000);
-  const pTo = isoAdd(from, -1);
-  return { from: isoAdd(pTo, -days), to: pTo };
 }
 
 export default function StatementsPage() {
