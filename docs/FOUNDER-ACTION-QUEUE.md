@@ -257,6 +257,20 @@ gated). **Net: the maxDuration class is now genuinely complete — every in-path
   would harden it if you want strict AA. Left un-churned deliberately. (The one real a11y *defect* — two
   nameless icon-only buttons — was fixed, commit `17a4970`.)
 
+### Dormant feature — the task-overrun sweep is BUILT but not SCHEDULED (one-line fix)
+The `task_slipped` emitter (`0109`) + its cron entry point (`/api/diagnosis/task-overrun-sweep-cron`, GET,
+`CRON_SECRET` Bearer auth — identical pattern to the durability cron) are built and ready, but
+`vercel.json` does **not** declare a cron for it (it only schedules `durability-sweep-cron` +
+`backfill-dissects-cron`). So the sweep can never fire — the core diagnosis product stays blind to missed
+deadlines. To activate, add to `vercel.json`'s `crons` array:
+```json
+{ "path": "/api/diagnosis/task-overrun-sweep-cron", "schedule": "0 5 * * *" }
+```
+(daily 5am, offset from the others). **I did NOT add this myself** because `CRON_SECRET` is *shared* with the
+already-scheduled durability cron — so if that secret is set, the next deploy after adding this entry would
+immediately start emitting `task.overran_due_date` events into the diagnosis pipeline. That's a real product
+behavior turning on, your call to make deliberately (§3.3). Add it when you want deadline-slip diagnosis live.
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
