@@ -8,6 +8,11 @@ Steps 1–5 are the core double-entry proof (AP → AR → statements). Steps 6�
 enrichments (Expenses, Purchase Orders, Recurring bills). Aging + collections are checked inline.
 
 ## Step 1 — apply migrations
+> **Prerequisite: Postgres 15+.** The migrations use `security_invoker` views and `NULLS NOT DISTINCT`
+> (0149) — both PG15+. Supabase provides this by default, and your DB is already confirmed 15+ (you
+> applied `0121`, a `security_invoker` view, which would fail on PG14). No PG16-only features are used,
+> so 15 is the floor. Only relevant if you ever apply to a *fresh* / different database.
+
 Apply **0122 → 0151** in numeric order (on a fresh DB, apply 0116 → 0151). Covers Phase 2, the audit
 fixes, AR, statements + date-ranged statements, all Phase-2D features, credit notes (0143), the
 security fixes (0141/0142), **Phase 3 Banking (0145)**, duplicate detection (0146), **Phase 4 cost/
