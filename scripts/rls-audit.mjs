@@ -468,12 +468,60 @@ const CREATE_TABLE_RE =
 // `is_support_agent or role in (...)`) is fine — the surrounding exists() still pins the company. Only
 // a depth-0 `or` breaks the pin. That distinction is why this check has zero false positives here.
 const POLICY_BODY_RE =
-  /create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)\s+for\s+(update|all)\b([\s\S]*?);/gi;
+  /create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)\s+for\s+(insert|update|all)\b([\s\S]*?);/gi;
 
-// Policies intentionally exempt from the tenant-pin rule. Same discipline as ALLOWLIST: a concrete
-// reason, never "we think it's fine". Empty today — every update/all policy either pins the tenant or
-// declares an explicit WITH CHECK.
-const TENANT_PIN_EXEMPT = new Map([]);
+// ─── Write-pin check #2: an EXPLICIT check that forgets the tenant (found 2026-07-13, fixed by 0155) ──
+//
+// The check above catches a MISSING with-check. This one catches a PRESENT one that doesn't pin the
+// tenant. after_pitch_summaries (0080) declared:
+//
+//     for insert with check ( agent_id = auth.uid() );
+//
+// …on a table that carries `company_id uuid not null`. The agent is pinned, the TENANT is not — so a
+// caller could insert a row stamped with another company's id. Rule: if a table HAS a company_id column,
+// its insert/all policy must constrain company_id somewhere in the policy body.
+// Extract each create-table body with a paren-DEPTH scan rather than a regex. Two reasons a regex
+// fails here, both caught by the tests: (1) column definitions contain nested parens — numeric(19,4),
+// check (status in (...)) — so a non-greedy `\(([\s\S]*?)\)` truncates at the first ')'; (2) anchoring
+// the close to `\n)` silently misses a SINGLE-LINE create table, which would let such a table evade
+// the company_id detection entirely (a real hole: the check would never fire for it).
+const CREATE_TABLE_OPEN_RE =
+  /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(\w+)\s*\(/gi;
+function eachCreateTableBody(sql, cb) {
+  let m;
+  while ((m = CREATE_TABLE_OPEN_RE.exec(sql))) {
+    const name = m[1];
+    let i = CREATE_TABLE_OPEN_RE.lastIndex;
+    let depth = 1;
+    while (i < sql.length && depth > 0) {
+      const c = sql[i];
+      if (c === "(") depth++;
+      else if (c === ")") depth--;
+      i++;
+    }
+    cb(name, sql.slice(CREATE_TABLE_OPEN_RE.lastIndex, i - 1));
+  }
+  CREATE_TABLE_OPEN_RE.lastIndex = 0;
+}
+const tablesWithCompanyId = new Set();
+
+// Policies intentionally exempt from the write-pin rules. Same discipline as ALLOWLIST: a concrete,
+// VERIFIED reason, never "we think it's fine". Each below was traced to the mechanism that makes the
+// missing company_id pin harmless.
+const TENANT_PIN_EXEMPT = new Map([
+  [
+    "own profile - insert@profiles",
+    "profiles.id is the auth.users PK — you can only insert YOUR OWN row, and it already exists (handle_new_user creates it with company_id NULL), so a second insert violates the PK. company_id is set only by the DEFINER onboarding/invite flows and frozen against self-change by the 0090 trigger.",
+  ],
+  [
+    "notification_subscriptions_insert_own@notification_subscriptions",
+    "company_id here is inert metadata: push delivery targets by USER, not company — sender.ts selects `.in('user_id', userIds)` (src/lib/notifications/sender.ts:103), never by company_id. A forged company_id cannot route another company's notifications to anyone. The legit route sets it from server-side getCurrentCompanyId().",
+  ],
+  [
+    "crm_accounts_insert@crm_accounts",
+    "Vendor-global back-office table (0049): scoping dimension is is_vendor_super_admin(), not the tenant. company_id names the CUSTOMER company the vendor manages — a vendor super-admin creating an account for any company is the feature, and no one else can write it at all.",
+  ],
+]);
 
 // True if `using` contains an ` or ` at paren-depth 0 (a top-level disjunction).
 function hasTopLevelOr(using) {
@@ -561,18 +609,36 @@ for (const f of files) {
     latestPolicy.set(`${name}@${tbl}`, { table: tbl, op, body, file: f });
   }
   POLICY_BODY_RE.lastIndex = 0;
+
+  eachCreateTableBody(sql, (name, body) => {
+    if (/\bcompany_id\b/i.test(body)) tablesWithCompanyId.add(name);
+  });
 }
 
-// ─── Tenant-pin findings (implicit-WITH-CHECK trap) ───────────────────
+// ─── Tenant-pin findings ──────────────────────────────────────────────
+// Two distinct traps, both letting a caller write a row into ANOTHER tenant:
+//   (a) implicit  — no `with check`, and USING has a top-level `or` that skips the tenant (files_update).
+//   (b) explicit  — a `with check` that simply never constrains company_id (after_pitch_summaries).
 const tenantPinFindings = [];
 for (const [key, p] of latestPolicy) {
-  if (/with\s+check/i.test(p.body)) continue; // explicit check → the author declared the new-row rule
-  const um = p.body.match(/using\s*\(([\s\S]*)\)\s*$/i);
-  if (!um) continue;
-  const using = um[1].replace(/\s+/g, " ").trim();
-  if (!hasTopLevelOr(using)) continue; // USING pins the tenant for every branch
   if (TENANT_PIN_EXEMPT.has(key)) continue;
-  tenantPinFindings.push({ key, table: p.table, op: p.op, file: p.file });
+  const hasCheck = /with\s+check/i.test(p.body);
+
+  // (a) update/all with NO explicit check → Postgres reuses USING; a top-level `or` breaks the pin.
+  if (!hasCheck && (p.op === "update" || p.op === "all")) {
+    const um = p.body.match(/using\s*\(([\s\S]*)\)\s*$/i);
+    if (um && hasTopLevelOr(um[1].replace(/\s+/g, " ").trim())) {
+      tenantPinFindings.push({ key, op: p.op, file: p.file, kind: "implicit check (top-level OR)" });
+      continue;
+    }
+  }
+
+  // (b) insert/all on a company_id-bearing table whose policy never constrains company_id.
+  if ((p.op === "insert" || p.op === "all") && tablesWithCompanyId.has(p.table)) {
+    if (!/\bcompany_id\b/i.test(p.body)) {
+      tenantPinFindings.push({ key, op: p.op, file: p.file, kind: "check never pins company_id" });
+    }
+  }
 }
 
 // ─── Find gaps ────────────────────────────────────────────────────────
@@ -645,7 +711,7 @@ if (tenantPinFindings.length > 0) {
     "\n  ⚠ UPDATE/ALL policies whose implicit WITH CHECK may not pin the tenant:"
   );
   for (const t of tenantPinFindings) {
-    console.log(`    ${t.key}  (for ${t.op}, ${t.file})`);
+    console.log(`    ${t.key}  (for ${t.op}, ${t.file}) — ${t.kind}`);
   }
   console.log(
     "\n  These have NO explicit `with check`, so Postgres reuses USING as the new-row check —\n" +

@@ -158,6 +158,53 @@ describe("rls-audit tenant-pin check (implicit WITH CHECK trap)", () => {
     expect(code).toBe(0);
   });
 
+  it("FIRES when an EXPLICIT with check never pins company_id (the after_pitch_summaries shape)", () => {
+    // The table HAS company_id, and the check pins only the agent — so a caller can insert a row
+    // stamped with another company's id. Distinct from the implicit trap: the check EXISTS, it just
+    // forgets the tenant. This is the class 0155 fixed.
+    const { code, out } = runAudit({
+      "0001_unpinned.sql":
+        `create table if not exists summary ( id uuid, company_id uuid, agent_id uuid );\n` +
+        `alter table summary enable row level security;\n` +
+        `create policy "summary - sel" on summary for select using ( company_id = auth_company_id() );\n` +
+        `create policy "summary - upd" on summary for update using ( company_id = auth_company_id() );\n` +
+        `create policy "summary - del" on summary for delete using ( company_id = auth_company_id() );\n` +
+        `create policy "summary - ins" on summary for insert with check ( agent_id = auth.uid() );\n`,
+    });
+    expect(code).toBe(1);
+    expect(out).toMatch(/company_id|tenant/i);
+    expect(out).toMatch(/summary - ins/);
+  });
+
+  it("stays QUIET when the insert check DOES pin company_id", () => {
+    const { code } = runAudit({
+      "0001_pinned.sql":
+        `create table if not exists summary2 ( id uuid, company_id uuid, agent_id uuid );\n` +
+        `alter table summary2 enable row level security;\n` +
+        `create policy "summary2 - sel" on summary2 for select using ( company_id = auth_company_id() );\n` +
+        `create policy "summary2 - upd" on summary2 for update using ( company_id = auth_company_id() );\n` +
+        `create policy "summary2 - del" on summary2 for delete using ( company_id = auth_company_id() );\n` +
+        `create policy "summary2 - ins" on summary2 for insert\n` +
+        `  with check ( agent_id = auth.uid() and company_id = auth_company_id() );\n`,
+    });
+    expect(code).toBe(0);
+  });
+
+  it("stays QUIET for a table with NO company_id column (nothing to pin — e.g. the file-join tables)", () => {
+    // file_departments et al. are pure link tables; they carry no tenant column, so the rule
+    // must not fire on them (they inherit scoping from the company-gated parent).
+    const { code } = runAudit({
+      "0001_link.sql":
+        `create table if not exists link_tbl ( file_id uuid, tag text );\n` +
+        `alter table link_tbl enable row level security;\n` +
+        `create policy "link - sel" on link_tbl for select using ( exists (select 1 from files) );\n` +
+        `create policy "link - ins" on link_tbl for insert with check ( exists (select 1 from files) );\n` +
+        `create policy "link - upd" on link_tbl for update using ( exists (select 1 from files) );\n` +
+        `create policy "link - del" on link_tbl for delete using ( exists (select 1 from files) );\n`,
+    });
+    expect(code).toBe(0);
+  });
+
   it("honors latest-definition-wins: a later migration that adds WITH CHECK clears the finding", () => {
     // Exactly the 0057 -> 0154 sequence. Evaluating the superseded definition would report a bug
     // that a later migration already fixed.
