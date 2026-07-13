@@ -64,6 +64,17 @@ need them.
 
 ---
 
+### Recommended hardening (structural backstop for the double-post class)
+The row locks (0147/0152/0153) fix the active concurrency bugs. A **unique index on
+`fin_source_postings (source_type, source_id, kind)`** would make double-posting *structurally*
+impossible — a safety net if a future posting fn ever forgets the lock (§3.2). It's safe by design:
+`issue` is one-per-document, and `payment` uses the payment record's own id as `source_id` (unique per
+payment), so there are no legitimate collisions. **Not added to the apply batch on purpose**: if any
+*pre-lock* duplicate already exists in your data, the index creation fails and would halt the apply. Run
+this first — `select source_type, source_id, kind, count(*) from fin_source_postings group by 1,2,3
+having count(*) > 1;` — and if it returns nothing, add the unique index (I'll write the migration on your
+say-so). A non-empty result is itself a real finding (an existing double-post to investigate).
+
 ### Optional polish (low priority, your call)
 - **WCAG-AA input labels** — the finance entry forms (~29 inputs across ap/ar/banking/budgets/tax/
   credit-notes/profitability) use `placeholder` as the field label. Inputs are still *named* (the
