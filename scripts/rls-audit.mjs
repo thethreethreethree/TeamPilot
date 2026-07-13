@@ -47,7 +47,10 @@ import { join } from "node:path";
 
 const VERBOSE = process.argv.includes("--verbose");
 
-const MIGRATIONS_DIR = "supabase/migrations";
+// Default is the real migrations dir; RLS_AUDIT_DIR lets the regression test point the same
+// analysis at a fixture directory without duplicating the logic. Backward-compatible: unset
+// in every real run (CI, `npm run rls:audit`), so production behavior is unchanged.
+const MIGRATIONS_DIR = process.env.RLS_AUDIT_DIR || "supabase/migrations";
 const OPS = ["select", "insert", "update", "delete"];
 
 // ─── Intentional omissions allowlist ──────────────────────────────────
