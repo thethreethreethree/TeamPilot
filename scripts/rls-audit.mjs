@@ -371,6 +371,11 @@ const ALLOWLIST = new Map([
   ["fin_entry_counters.update", "The next-entry-no is claimed only by the DEFINER posting functions — a client update would corrupt gap-free sequential numbering."],
   ["fin_entry_counters.delete", "§3.1 the counter is permanent per-company machinery — deleting it would reset/duplicate entry numbers."],
 
+  // Dunning / collections chase history (0159) — evidence, not a worklist row.
+  ["fin_dunning_events.insert", "Written ONLY by the DEFINER RPC fin_record_dunning_action (0159) — no direct client insert path, so the recorded actor cannot be forged. A chase record is a claim about the outside world ('we sent this notice on this date'); it must be minted through the controlled path."],
+  ["fin_dunning_events.update", "§3.1 append-only — a `do instead nothing` RULE blocks UPDATE (rules bind service-role and direct SQL too, unlike RLS). An editable chase record is not evidence: collections disputes are exactly the case where the history must be trustworthy."],
+  ["fin_dunning_events.delete", "§3.1 append-only — `do instead nothing` RULE blocks DELETE. The chase trail is permanent record; a deleted reminder is indistinguishable from one never sent."],
+
   // Finance audit trail (0120) — an audit log you can write/edit/delete is not an audit log.
   ["fin_audit_log.insert", "§3.1 finance audit trail (0120): written by triggers/DEFINER only — no client insert path; a direct policy would let actors forge audit entries."],
   ["fin_audit_log.update", "§3.1 finance audit trail is immutable — an editable audit log is worthless as evidence."],
