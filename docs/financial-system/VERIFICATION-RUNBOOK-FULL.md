@@ -103,17 +103,37 @@ On the **Payable** page, if two bills share the **same vendor + same total withi
 **"Possible duplicate bills"** prompt lists the pair — review before approving/paying (a candidate,
 not a verdict).
 
+## Step 13 — Cost & Profitability (0147/0148 — Phase 4)
+1. **Finance → Profit** → create a **cost center** (e.g. `ENG` Engineering) and a **project** (e.g.
+   `P1` Acme rollout, optionally linked to a customer).
+2. On **Receivable**, create an invoice; on each line the **Cost center / Project** pickers now appear —
+   tag a revenue line to `P1`. On **Payable**, create a bill and tag an expense line to `P1`. Approve/
+   issue both (second user, SoD).
+3. Back on **Profit**: the **project** row shows revenue (from the invoice) − cost (from the bill) =
+   margin, with margin %. Contribution margin uses accounts marked `cost_type = direct`. Customer
+   profitability rolls the project up by its client link.
+
+## Step 14 — Budgeting, variance & runway (0149 — Phase 5)
+1. **Finance → Budget** → the **Runway** card shows cash ÷ 3-month avg burn (∞ if profitable).
+2. Create a budget (name + year) → add a line: an **expense account**, a **cost center**, **Q1**, an
+   amount. Post an actual expense dated in Q1 (via an approved bill tagged to that cost center).
+3. The variance table shows **budget vs actual** for Q1; over-budget expense (or under-budget revenue)
+   shows **red**. A Q2 actual won't affect the Q1 line (quarter-scoped).
+
 ## What "pass" means
 Every posted transaction moved the statements, the Trial Balance stayed **debits = credits**, and the
 Balance Sheet **tied out** — i.e., the double-entry spine holds end-to-end through the subledgers to
-the statements. That's the whole system verified on real data.
+the statements. Dimension tags flow to profitability; budget lines compare to the same posted actuals.
+That's the whole system verified on real data.
 
 ## Known limits (by design, flagged in the audit doc)
 - Bill / invoice / **expense** entry are all **multi-line + per-line tax/category** (2026-07-13).
 - Foreign-currency settlement is rejected (FX-on-payment is a later increment), base-currency works.
 - Expense/AR issue + credit-note issue need a second finance user (SoD).
-- Cash Flow Statement + PDF export not built. **Phase 3 (Banking) IS built** (Step 11). Phases
-  4 (proposed) / 5 / 7 / 8 / 9 pending — each new phase needs a data-model proposal + confirmation.
+- Cash Flow Statement + PDF export not built. **Phases 3 (Banking), 4-inc1 (Cost/Profit), 5-inc1
+  (Budget/variance/runway) ARE built** (Steps 11, 13, 14). Deferred: Phase-4 overhead/anomaly/
+  inventory, Phase-5 forecasts/scenario. Phases 7 (tax) / 8 (payroll/assets) / 9 (governance) pending
+  — each needs a data-model proposal + confirmation.
 
 *If any step doesn't behave as above, tell me which step + what you saw and I diagnose from the
 named behavior — the honest-error discipline, not a guess.*
