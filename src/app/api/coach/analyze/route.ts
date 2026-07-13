@@ -56,6 +56,9 @@ const ALLOWED_PATTERN_IDS = new Set<CoachLlmHit["pattern_id"]>([
   "coach-aggressive-language",
 ]);
 
+// LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
     id: "coach-analyze",

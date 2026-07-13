@@ -130,6 +130,9 @@ function parseReview(text: string): RoleplayReview {
   };
 }
 
+// LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   // Each turn + the review is an LLM call; cap per-user so a held Enter can't
   // spin unbounded cost. Mirrors the 27 sibling coach routes (audit F1, A13).

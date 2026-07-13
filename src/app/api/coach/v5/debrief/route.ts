@@ -43,6 +43,9 @@ const BodySchema = z.object({
  * already-closed conversation so the debrief the user saw at close
  * time is shown again. Returns { debrief: null } if none was stored.
  */
+// LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const surface = req.nextUrl.searchParams.get("surface");
   const conversationId = req.nextUrl.searchParams.get("conversationId");

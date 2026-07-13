@@ -81,7 +81,16 @@ this first — `select source_type, source_id, kind, count(*) from fin_source_po
 having count(*) > 1;` — and if it returns nothing, add the unique index (I'll write the migration on your
 say-so). A non-empty result is itself a real finding (an existing double-post to investigate).
 
-### Non-finance finding (confirmed) — coach LLM routes may lack `maxDuration` (production timeout)
+### Non-finance finding — coach/care LLM routes lacked `maxDuration` → **FIXED** (verify live-vs-superseded)
+**Resolved 2026-07-13:** added `export const maxDuration = 60;` to the 10 confirmed-blocking LLM routes
+(coach/analyze, coach/v5/analyze+debrief+followup+grade-sent, sales-session/roleplay+after-pitch, care
+ask-coach+followup, tasks/spawn) — matching the existing 24-route convention. tsc 0, ESLint 0, suite
+green. Zero-risk config (only raises the timeout ceiling; no-op on any superseded route). Skipped the 2
+non-blocking ones (`llm/ping`, `attribute`). **One thing for you to check:** if any of the 10 is a
+superseded v1 route, the export is harmless there — but confirm coach/analyze (v1?) vs coach/v5/analyze
+is the live one and delete the dead route if so. Original finding detail retained below.
+
+<details><summary>Original finding (for the record)</summary>
 App-wide sweep (the guard pushed me beyond finance) found a real gap in the **coach** subsystem:
 `coach/analyze` `await`s an LLM call (`proposeCoachPatterns`, line 81) but has **no** `export const
 maxDuration`, and there's **no global** maxDuration (checked vercel.json + next.config) — while **24
@@ -100,6 +109,7 @@ class was "swept 2026-07-09" per a code comment, so these were added/missed afte
 2026-07-13): none of these stream** — they all `await` the LLM call and return JSON, so there's no
 streaming exception; every blocking one genuinely needs the export. The only open question per route is
 live-vs-superseded, which you can answer instantly.
+</details>
 
 ### Known VERY-low-severity concurrency edge (mostly closed by a trigger; residual accepted)
 `fin_post_system_entry` checks `period.status = 'open'` then inserts without locking the period. Good

@@ -122,6 +122,9 @@ function validateFollowUpResponse(parsed: unknown): CoachFollowUpResponse | null
   return out;
 }
 
+// LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   // Slightly higher rate limit than analyze because follow-ups are the
   // expected mode of use — a single analyze call can produce 3-5

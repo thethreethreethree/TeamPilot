@@ -73,6 +73,9 @@ function forViewer(summary: unknown, isOwner: boolean): unknown {
   return summary;
 }
 
+// LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
+export const maxDuration = 60;
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }

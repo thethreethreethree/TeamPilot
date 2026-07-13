@@ -99,6 +99,9 @@ function validateGraderResponse(parsed: unknown): GradeResponse | null {
   return response;
 }
 
+// LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
     id: "coach-v5-grade-sent",
