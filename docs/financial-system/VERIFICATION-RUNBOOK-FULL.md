@@ -100,6 +100,13 @@ Two properties are verified so the apply is low-risk:
 ## Step 11 — Banking & Reconciliation (0145 — Phase 3)
 1. **Finance → Banking** → add a bank account, linking it to a **cash GL account** (e.g. 1000 Cash).
 2. **Import CSV** — a statement with a header row (date, amount, description). Deposits are +, withdrawals −.
+   The parser is format-tolerant (hardened 2026-07-13, `src/lib/finance/bankCsv.ts`, unit-tested): it accepts
+   **either** one signed *Amount*/*Value* column **or** separate *Debit*/*Credit* (or *Withdrawal*/*Deposit*)
+   columns; amounts may carry a `$` and thousands commas, and negatives as `-100`, `(100.00)`, or `100.00-`;
+   dates accept ISO or `MM/DD/YYYY`/`DD/MM/YYYY` (day-first is auto-detected when the day is >12). A row it
+   genuinely can't read (bad date, non-numeric amount, both debit+credit blank) is **skipped and counted** —
+   the UI warns "*N rows couldn't be read*" **before** importing, so a partial import is never mistaken for
+   complete. To exercise it, try a file with Debit/Credit columns and one with a `(50.00)` withdrawal.
 3. **Auto-match** → bank lines that equal a posted cash entry within **±3 days** flip to *matched*
    (a fin_reconciliation_match links them); the rest stay *unmatched* in the worklist. **Ignore**
    dismisses a non-ledger line. The account tile shows its GL cash balance + unmatched count.
