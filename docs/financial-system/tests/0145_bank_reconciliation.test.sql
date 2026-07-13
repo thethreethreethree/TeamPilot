@@ -56,8 +56,28 @@ do $$ begin
   else raise notice 'MATCH FAIL: +100 @ 07-18 → % (want 1)', pg_temp.cand_count(100,'2026-07-18'); end if;
 end $$;
 
+-- 1:1 invariant (the fix committed 2026-07-13): once a GL entry is matched to one bank line, it drops
+-- out of the candidate set — so NEITHER auto-match NOR the manual fin_match_bank_txn (now guarded) can
+-- reconcile it against a SECOND bank line. Seed a match for entry e1, then re-check its candidacy.
+insert into fin_bank_accounts (id, company_id, name, currency, gl_account_id)
+  values ('00000000-0000-0000-0000-0000000000ba','00000000-0000-0000-0000-0000000000c1','Checking','USD',
+          (select id from fin_accounts where company_id='00000000-0000-0000-0000-0000000000c1' and code='1000'))
+  on conflict (id) do nothing;
+insert into fin_bank_transactions (id, company_id, bank_account_id, txn_date, amount, description, status)
+  values ('00000000-0000-0000-0000-0000000000b1','00000000-0000-0000-0000-0000000000c1','00000000-0000-0000-0000-0000000000ba','2026-07-16',100,'deposit','matched')
+  on conflict (id) do nothing;
+insert into fin_reconciliation_matches (company_id, bank_transaction_id, entry_id)
+  values ('00000000-0000-0000-0000-0000000000c1','00000000-0000-0000-0000-0000000000b1','00000000-0000-0000-0000-0000000000e1')
+  on conflict do nothing;
+do $$ begin
+  -- Before the match it was 1 candidate (proved above); now that e1 is reconciled it must be 0.
+  if pg_temp.cand_count(100, '2026-07-16') = 0 then raise notice '1:1 PASS: a matched entry is excluded from candidates → it cannot be reconciled to a second bank line (auto or manual)';
+  else raise notice '1:1 FAIL: matched entry still a candidate → % (want 0)', pg_temp.cand_count(100,'2026-07-16'); end if;
+end $$;
+
 rollback;
 
 -- APP-LAYER (auth-gated): fin_auto_match_bank loops unmatched lines, inserts fin_reconciliation_matches
--- + flips status when exactly 1 candidate; fin_match_bank_txn does a manual link. Drive via the Banking
--- UI: import a CSV, Auto-match, confirm matched/unmatched counts + that a matched entry can't re-match.
+-- + flips status when exactly 1 candidate; fin_match_bank_txn does a manual link — now rejecting an entry
+-- that is already reconciled (the 1:1 guard added 2026-07-13). Drive via the Banking UI: import a CSV,
+-- Auto-match, confirm matched/unmatched counts + that a matched entry can't re-match on either path.
