@@ -35,6 +35,13 @@ where not exists (select 1 from fin_accounts a where a.company_id = s.company_id
 -- ── Tax filing report: output tax (issued invoices) − input tax (approved bills) over [from,to],
 --    grouped by the code's jurisdiction. Derived from the SOURCE lines' tax_amount (so it needs no GL
 --    tax tagging); lines with no tax code fall under 'Unassigned'. security_invoker → tenant-safe. ──
+-- KNOWN LIMITATION (flagged 2026-07-13, awaiting a founder decision): output_tax is GROSS — it does
+-- not subtract the output tax reversed by ISSUED credit notes (which Dr Taxes Payable 2100). So for a
+-- period containing credited invoices this overstates the liability (the GL 2100 balance IS correct;
+-- only this report is un-netted). Netting is deferred because credit-note lines carry no tax_code_id,
+-- hence no jurisdiction — attributing a credit's tax to a jurisdiction (linked invoice's? proportional?
+-- Unassigned?) is a design decision, not a mechanical fix. The Tax page shows a matching warning so no
+-- one files from a wrong number unknowingly. Do NOT silently guess the attribution here.
 create or replace function fin_tax_report(p_from date default null, p_to date default null)
 returns jsonb language sql stable security invoker set search_path = public as $$
   with out_tax as (

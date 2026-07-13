@@ -100,6 +100,12 @@ export default function TaxPage() {
               <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-surface rounded px-2 py-1 text-primary border border-default" />
             </span>
           </div>
+          <p className="text-xs text-amber-500/90 mb-3">
+            Output tax here is gross — it does <strong>not</strong> yet net out tax reversed by issued
+            credit notes. If you&apos;ve credited invoices in this period, this figure overstates the tax
+            owed (the ledger&apos;s Taxes Payable is correct; this report isn&apos;t netted yet). Netting
+            is pending a decision on how to attribute a credit note&apos;s tax to a jurisdiction.
+          </p>
           {!report || report.rows.length === 0 ? (
             <p className="text-xs text-muted">No tax in this period. Output tax comes from issued invoices, input tax from approved bills.</p>
           ) : (
