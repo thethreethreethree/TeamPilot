@@ -443,6 +443,19 @@ browser session). Swapping the auth path blind, while you can't confirm auth sti
 login break to retire a harmless warning. **Path:** you rename + smoke-test the login/redirect flows, or I do
 it in a branch you verify before merge. Do it before the Next version that *removes* `middleware` (not 16).
 
+### Repo hygiene — the authoritative finance spec is UNTRACKED (LOW, your call — one command)
+`FinancialSystem.md` (the 264-line authoritative build spec — the feature list every finance migration
+was built against) sits **untracked** at the repo root. **9 committed files reference it** — this queue,
+`FEATURE_MANIFEST.md`, the closures, and the `docs/financial-system/` audits — so every one of those
+references currently dangles at a file that isn't in version control. On a fresh clone (or a disk loss)
+the governing spec for the whole finance build is **gone**, and those 9 references resolve to nothing.
+It is **not** deliberately excluded for IP reasons: `ThinkerThinker.md` and `CLAUDE.md` — the *more*
+sensitive governing docs — are already tracked, and no `.gitignore` rule excludes it. Reads as an
+oversight. **I did NOT commit it myself** because it's your authored spec doc and committing pushes it to
+the GitHub remote (outward-facing, history-persistent) — your call, not mine to make while you're away.
+**Recommendation:** `git add FinancialSystem.md` and commit — resolves the 9 dangling refs and protects
+the spec from loss. If instead you keep it local on purpose, the dangling references are a known tradeoff.
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
