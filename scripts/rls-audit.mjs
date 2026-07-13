@@ -468,7 +468,7 @@ const CREATE_TABLE_RE =
 // `is_support_agent or role in (...)`) is fine — the surrounding exists() still pins the company. Only
 // a depth-0 `or` breaks the pin. That distinction is why this check has zero false positives here.
 const POLICY_BODY_RE =
-  /create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)\s+for\s+(insert|update|delete|all)\b([\s\S]*?);/gi;
+  /create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)\s+for\s+(select|insert|update|delete|all)\b([\s\S]*?);/gi;
 
 // ─── Write-pin check #2: an EXPLICIT check that forgets the tenant (found 2026-07-13, fixed by 0155) ──
 //
@@ -536,6 +536,10 @@ const TENANT_PIN_EXEMPT = new Map([
   [
     "crm_accounts_insert@crm_accounts",
     "Vendor-global back-office table (0049): scoping dimension is is_vendor_super_admin(), not the tenant. company_id names the CUSTOMER company the vendor manages — a vendor super-admin creating an account for any company is the feature, and no one else can write it at all.",
+  ],
+  [
+    "crm_accounts_select@crm_accounts",
+    "Vendor-global back-office table (0049): reads are gated on is_vendor_super_admin(), which IS the authorization boundary here — the vendor manages every customer company, so the tenant is deliberately not the scoping dimension. No customer user can read this table at all (the 2026-07-07 CRITICAL fix, 3b150b8, is exactly this gate). Not a cross-tenant read: there is no tenant to cross into.",
   ],
   [
     "crm_accounts_update@crm_accounts",
@@ -662,6 +666,25 @@ for (const [key, p] of latestPolicy) {
   if (p.op !== "select" && tablesWithCompanyId.has(p.table)) {
     if (!/\bcompany_id\b/i.test(p.body)) {
       tenantPinFindings.push({ key, op: p.op, file: p.file, kind: "policy never pins company_id" });
+    }
+  }
+
+  // (c) READ side — the highest-severity class: a SELECT policy on a company_id-bearing table that pins
+  // NEITHER the tenant NOR an identity is a cross-tenant read (straight exfiltration). An IDENTITY pin
+  // (`… = auth.uid()`) is accepted as safe because your identity belongs to exactly one company, so
+  // "your own rows" is a strict SUBSET of "your company's rows" — narrower than a tenant pin, never
+  // wider. That is why profiles / notification_subscriptions / dissect_topics / after_pitch_summaries
+  // are sound despite never naming company_id (and why the 0155 forged row was invisible to its victim).
+  if (p.op === "select" && tablesWithCompanyId.has(p.table)) {
+    const pinsTenant = /\bcompany_id\b/i.test(p.body);
+    const pinsIdentity = /auth\.uid\(\)/i.test(p.body);
+    if (!pinsTenant && !pinsIdentity) {
+      tenantPinFindings.push({
+        key,
+        op: p.op,
+        file: p.file,
+        kind: "SELECT pins neither the tenant nor an identity — cross-tenant READ",
+      });
     }
   }
 }

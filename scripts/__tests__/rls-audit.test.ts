@@ -205,6 +205,40 @@ describe("rls-audit tenant-pin check (implicit WITH CHECK trap)", () => {
     expect(code).toBe(0);
   });
 
+  it("FIRES on a SELECT that pins neither the tenant nor an identity (cross-tenant READ)", () => {
+    // The highest-severity class: straight exfiltration. This test exists because the rule was
+    // initially DEAD CODE — the policy regex didn't capture `for select`, so the check could never
+    // run and the audit reported a reassuring green. A check that cannot fire is worse than none.
+    const { code, out } = runAudit({
+      "0001_leak.sql":
+        `create table if not exists secrets ( id uuid, company_id uuid, owner_id uuid );\n` +
+        `alter table secrets enable row level security;\n` +
+        `create policy "secrets - sel" on secrets for select using ( is_some_role() );\n` +
+        `create policy "secrets - ins" on secrets for insert with check ( company_id = auth_company_id() );\n` +
+        `create policy "secrets - upd" on secrets for update using ( company_id = auth_company_id() );\n` +
+        `create policy "secrets - del" on secrets for delete using ( company_id = auth_company_id() );\n`,
+    });
+    expect(code).toBe(1);
+    expect(out).toMatch(/cross-tenant READ/i);
+    expect(out).toMatch(/secrets - sel/);
+  });
+
+  it("accepts an IDENTITY-pinned SELECT (strictly narrower than a tenant pin)", () => {
+    // `owner_id = auth.uid()` names no company_id, yet is SAFE: your identity belongs to exactly one
+    // company, so "your own rows" is a strict subset of "your company's rows". This is why profiles /
+    // dissect_topics / after_pitch_summaries are sound without naming the tenant.
+    const { code } = runAudit({
+      "0001_own.sql":
+        `create table if not exists notes ( id uuid, company_id uuid, owner_id uuid );\n` +
+        `alter table notes enable row level security;\n` +
+        `create policy "notes - sel" on notes for select using ( owner_id = auth.uid() );\n` +
+        `create policy "notes - ins" on notes for insert with check ( company_id = auth_company_id() );\n` +
+        `create policy "notes - upd" on notes for update using ( company_id = auth_company_id() );\n` +
+        `create policy "notes - del" on notes for delete using ( company_id = auth_company_id() );\n`,
+    });
+    expect(code).toBe(0);
+  });
+
   it("honors latest-definition-wins: a later migration that adds WITH CHECK clears the finding", () => {
     // Exactly the 0057 -> 0154 sequence. Evaluating the superseded definition would report a bug
     // that a later migration already fixed.
