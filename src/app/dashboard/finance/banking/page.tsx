@@ -5,6 +5,7 @@ import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney } from "@/lib/finance/format";
+import { parseCsv } from "@/lib/finance/bankCsv";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Upload, Wand2, Landmark } from "lucide-react";
 
@@ -26,58 +27,6 @@ type Txn = {
   status: string;
 };
 const money = formatMoney;
-
-// Minimal CSV parse: header row maps columns by name (date/amount/description/id|reference). Handles
-// simple double-quoted fields. Returns rows the import API accepts.
-function parseCsv(text: string): { txnDate: string; amount: number; description?: string; externalId?: string }[] {
-  const lines = text.replace(/\r/g, "").split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const splitLine = (l: string) => {
-    const out: string[] = [];
-    let cur = "", q = false;
-    for (let i = 0; i < l.length; i++) {
-      const c = l[i];
-      if (q) {
-        if (c === '"' && l[i + 1] === '"') { cur += '"'; i++; }
-        else if (c === '"') q = false;
-        else cur += c;
-      } else if (c === '"') q = true;
-      else if (c === ",") { out.push(cur); cur = ""; }
-      else cur += c;
-    }
-    out.push(cur);
-    return out.map((s) => s.trim());
-  };
-  const header = splitLine(lines[0]!).map((h) => h.toLowerCase());
-  const iDate = header.findIndex((h) => h.includes("date"));
-  const iAmt = header.findIndex((h) => h.includes("amount") || h.includes("value"));
-  const iDesc = header.findIndex((h) => h.includes("desc") || h.includes("memo") || h.includes("payee") || h.includes("narrative"));
-  const iId = header.findIndex((h) => h === "id" || h.includes("reference") || h.includes("ref") || h.includes("transaction id"));
-  const rows: { txnDate: string; amount: number; description?: string; externalId?: string }[] = [];
-  for (let r = 1; r < lines.length; r++) {
-    const cols = splitLine(lines[r]!);
-    const rawDate = (cols[iDate] ?? "").slice(0, 10);
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : toIso(rawDate);
-    const amount = Number((cols[iAmt] ?? "").replace(/[$,]/g, ""));
-    if (!date || !Number.isFinite(amount)) continue;
-    rows.push({
-      txnDate: date,
-      amount,
-      description: iDesc >= 0 ? cols[iDesc] || undefined : undefined,
-      externalId: iId >= 0 ? cols[iId] || undefined : undefined,
-    });
-  }
-  return rows;
-}
-// Accept MM/DD/YYYY or DD/MM/YYYY-ish → ISO (best-effort; ambiguous locales fall back to as-typed).
-function toIso(s: string): string {
-  const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (!m) return "";
-  const [, a, b, y] = m;
-  const mm = String(a).padStart(2, "0");
-  const dd = String(b).padStart(2, "0");
-  return `${y}-${mm}-${dd}`;
-}
 
 export default function BankingPage() {
   const toast = useToast();
