@@ -4,11 +4,13 @@ Single entry point for the founder's return. This session built the Financial Tr
 Management System (FinancialSystem.md) from nothing to a **complete core accounting system**:
 double-entry GL → transactions (AP/AR/Expenses) → periods → **financial statements + CSV export** →
 Phase-2D (POs, recurring, aging both sides, collections).
-Migrations **0116–0148**. Apply state (2026-07-13): founder applied **through 0144**. **Still to apply:
-`0145` (Phase 3 Banking), `0146` (duplicate-payment detection), `0147` + `0148` (Phase 4 increment 1 —
-cost/profit dimensions + profitability).** Phases 1, 2, 2D, 3, Phase-6 reporting core, and **Phase 4
-increment 1** are now BUILT (Phase 4 remainder — overhead allocation, anomaly, inventory — deferred per
-the proposal). Expense-item dimension tagging now BUILT too (all 3 document types tag).
+Migrations **0116–0149**. Apply state (2026-07-13): founder applied **through 0144**. **Still to apply:
+`0145`–`0149`** — Phase 3 Banking (0145), duplicate detection (0146), Phase 4 increment 1 (0147/0148
+cost/profit dimensions + profitability), Phase 5 increment 1 (0149 budgeting + variance + runway).
+Phases 1, 2, 2D, **3**, Phase-6 reporting core, **Phase 4 inc-1**, and **Phase 5 inc-1** are BUILT.
+Deferred per proposals: Phase-4 remainder (overhead/anomaly/inventory), Phase-5 remainder (rolling
+forecasts, cash-flow projection, scenario modeling). Remaining phases: 7 (tax), 8 (payroll/assets),
+9 (governance) — each needs a proposal.
 
 **Also built after the Phase-2 core:** AR aging (0133); core financial statements — P&L, Balance
 Sheet, Trial Balance, GL-detail drill-down RPC (0134) at /dashboard/finance/statements, with CSV
