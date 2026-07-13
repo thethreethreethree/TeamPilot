@@ -357,6 +357,18 @@ tables but **missed `signals`**. So this isn't a novel design question so much a
 sweep: apply the same `for all`→`for select` + DEFINER-write pattern to `signals` (and flip its 3 derivation
 fns to `security definer`). Worth doing in the same staging cycle as `0112`/`0113` (queue item 1), since it's
 the same fix pattern and the same "system-derived data was RLS-writable" root cause.
+**SECOND path — the fix must ALSO revoke `derive_signals_for_event`.** On tracing further: there is NO
+trigger on `events`, so a directly-fabricated *event* is inert (it doesn't auto-derive a signal) — and
+events being user-insertable is BY DESIGN (the app emits events via the user's RLS client at 10+ sites), so
+events themselves need no locking. BUT `derive_signals_for_event(uuid)` is `security invoker` and is **not
+revoked** from authenticated → PostgREST likely exposes it via `rpc`. So a user could fabricate an event
+(RLS-allowed) of a signal-source kind, then `supabase.rpc('derive_signals_for_event', {p_event_id})` to
+materialize a signal from it — a second route to the same gate-gaming. So the COMPLETE fix is: (1) signals
+`for all`→`for select` + derivation fns → `security definer` (path 1), AND (2) `revoke execute on
+derive_signals_for_event from authenticated, anon` (path 2) — the derivation should only ever run inside
+the trusted emit triggers, never be caller-invokable. Verify PostgREST actually exposes it first
+(depends on your default function grants); if your setup revokes execute-on-public-fns by default, path 2
+is already closed and only path 1 remains.
 
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
