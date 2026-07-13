@@ -77,6 +77,32 @@ describe("parseCsv (bank statement import)", () => {
     expect(skipped).toBe(0);
   });
 
+  it("handles SEPARATE Debit/Credit columns (a very common format that used to import NOTHING)", () => {
+    // No single "amount" column → the old parser found iAmt=-1 and skipped every row (total failure).
+    // Now: signed = credit(in) − debit(out); blank column = 0.
+    const csv =
+      "Date,Description,Debit,Credit\n2026-07-01,Payroll,,2500.00\n2026-07-02,Rent,1800.00,\n2026-07-03,Refund,,50.00";
+    const { rows, skipped } = parseCsv(csv);
+    expect(rows.map((r) => r.amount)).toEqual([2500, -1800, 50]);
+    expect(skipped).toBe(0);
+  });
+
+  it("handles Withdrawal/Deposit column naming + 'Debit Amount'/'Credit Amount' (both contain 'amount')", () => {
+    // "Debit Amount"/"Credit Amount" both match includes("amount"); two-column mode must still win so
+    // the debit-amount column isn't mistaken for the signed total.
+    const csv1 = "Date,Withdrawal,Deposit\n2026-07-01,100.00,\n2026-07-02,,300.00";
+    expect(parseCsv(csv1).rows.map((r) => r.amount)).toEqual([-100, 300]);
+    const csv2 = 'Date,"Debit Amount","Credit Amount"\n2026-07-01,"1,200.00",\n2026-07-02,,"3,400.00"';
+    expect(parseCsv(csv2).rows.map((r) => r.amount)).toEqual([-1200, 3400]);
+  });
+
+  it("two-column: a row with BOTH debit+credit blank is skipped+counted (not a phantom 0)", () => {
+    const csv = "Date,Debit,Credit\n2026-07-01,,\n2026-07-02,,75.00";
+    const { rows, skipped } = parseCsv(csv);
+    expect(rows.map((r) => r.amount)).toEqual([75]);
+    expect(skipped).toBe(1);
+  });
+
   it("skips unreadable rows AND reports the skipped count (no silent data loss)", () => {
     const csv = "Date,Amount\n2026-07-05,100\nnot-a-date,50\n2026-07-06,abc\n2026-07-07,200";
     const { rows, skipped } = parseCsv(csv);

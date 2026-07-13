@@ -102,6 +102,15 @@ export function parseCsv(text: string): BankCsvResult {
   const header = splitLine(lines[0]!).map((h) => h.toLowerCase());
   const iDate = header.findIndex((h) => h.includes("date"));
   const iAmt = header.findIndex((h) => h.includes("amount") || h.includes("value"));
+  // Many banks export SEPARATE Debit/Credit (or Withdrawal/Deposit) columns instead of one signed
+  // Amount. Without handling them, such a file finds no amount column (iAmt = -1) and EVERY row is
+  // skipped — a silent total-import failure on a very common format. Detect the pair.
+  const iDebit = header.findIndex((h) => h.includes("debit") || h.includes("withdrawal"));
+  const iCredit = header.findIndex((h) => h.includes("credit") || h.includes("deposit"));
+  // Use two-column mode when both a debit AND a credit column exist (even if one also contains
+  // "amount", e.g. "Debit Amount"/"Credit Amount"), or when there's no single amount column but at
+  // least one of debit/credit is present.
+  const twoCol = (iDebit >= 0 && iCredit >= 0) || (iAmt < 0 && (iDebit >= 0 || iCredit >= 0));
   const iDesc = header.findIndex((h) => h.includes("desc") || h.includes("memo") || h.includes("payee") || h.includes("narrative"));
   const iId = header.findIndex((h) => h === "id" || h.includes("reference") || h.includes("ref") || h.includes("transaction id"));
   const rows: BankCsvRow[] = [];
@@ -110,11 +119,24 @@ export function parseCsv(text: string): BankCsvResult {
     const cols = splitLine(lines[r]!);
     const rawDate = (cols[iDate] ?? "").slice(0, 10);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : toIso(rawDate);
-    const amount = parseAmount(cols[iAmt] ?? "");
+    let amount: number;
+    if (twoCol) {
+      // Signed amount = money IN (credit/deposit) − money OUT (debit/withdrawal). Magnitudes, so a
+      // stray sign in either column can't flip the result. Both blank/unreadable → NaN → row skips.
+      const cRaw = iCredit >= 0 ? parseAmount(cols[iCredit] ?? "") : NaN;
+      const dRaw = iDebit >= 0 ? parseAmount(cols[iDebit] ?? "") : NaN;
+      amount =
+        !Number.isFinite(cRaw) && !Number.isFinite(dRaw)
+          ? NaN
+          : (Number.isFinite(cRaw) ? Math.abs(cRaw) : 0) - (Number.isFinite(dRaw) ? Math.abs(dRaw) : 0);
+    } else {
+      amount = parseAmount(cols[iAmt] ?? "");
+    }
     // A data line we can't read (unparseable date, or a genuinely non-numeric amount like "abc" or
-    // "(abc)") is COUNTED, not silently dropped — the caller surfaces the count so a partial import
-    // is visible on a financial file, not mistaken for complete. (Parenthesized/trailing-minus
-    // negatives are now parsed by parseAmount, so real withdrawals no longer land here.)
+    // "(abc)", or both debit+credit blank) is COUNTED, not silently dropped — the caller surfaces the
+    // count so a partial import is visible on a financial file, not mistaken for complete.
+    // (Parenthesized/trailing-minus negatives are parsed by parseAmount, so real withdrawals don't
+    // land here; separate Debit/Credit columns are handled above.)
     if (!date || !Number.isFinite(amount)) { skipped++; continue; }
     rows.push({
       txnDate: date,
