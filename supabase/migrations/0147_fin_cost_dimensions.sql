@@ -118,7 +118,7 @@ begin
   if not fin_can_approve() then raise exception 'Not authorized to approve bills'; end if;
   select company_id, status, currency, bill_date, vendor_id, created_by
     into v_company, v_status, v_ccy, v_date, v_vendor, v_creator
-    from fin_bills where id = p_bill_id;
+    from fin_bills where id = p_bill_id for update;   -- lock: serialize concurrent approvals (no double-post)
   if v_company is null or v_company <> auth_company_id() then raise exception 'Bill not found in your company'; end if;
   if v_status <> 'draft' then raise exception 'Only a draft bill can be approved (current: %)', v_status; end if;
   if v_creator = auth.uid() then raise exception 'Segregation of duties: you cannot approve a bill you created'; end if;
@@ -169,7 +169,7 @@ begin
   if not fin_can_approve() then raise exception 'Not authorized to issue invoices'; end if;
   select company_id, status, currency, invoice_date, created_by
     into v_company, v_status, v_ccy, v_date, v_creator
-    from fin_invoices where id = p_invoice_id;
+    from fin_invoices where id = p_invoice_id for update;   -- lock: serialize concurrent issues (no double-post)
   if v_company is null or v_company <> auth_company_id() then raise exception 'Invoice not found in your company'; end if;
   if v_status <> 'draft' then raise exception 'Only a draft invoice can be issued (current: %)', v_status; end if;
   if v_creator = auth.uid() then raise exception 'Segregation of duties: you cannot issue an invoice you created'; end if;
@@ -218,7 +218,7 @@ declare
 begin
   if not fin_can_approve() then raise exception 'Not authorized to approve expense reports'; end if;
   select company_id, status, employee_user_id into v_company, v_status, v_emp
-    from fin_expense_reports where id = p_report_id;
+    from fin_expense_reports where id = p_report_id for update;   -- lock: serialize concurrent approvals (no double-post)
   if v_company is null or v_company <> auth_company_id() then raise exception 'Report not found in your company'; end if;
   if v_status <> 'submitted' then raise exception 'Only a submitted report can be approved (current: %)', v_status; end if;
   if v_emp = auth.uid() then raise exception 'Segregation of duties: you cannot approve your own expense report'; end if;

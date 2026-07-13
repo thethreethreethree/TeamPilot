@@ -31,8 +31,9 @@ Real, built, static-verified fixes awaiting one **live staging cycle** before pr
 
 ## 2. FINANCE — apply `0145`–`0152` + walk the runbook
 Built, dependency-ordered, idempotent, chain contiguous (no gaps/dups). Carries the sweep fixes
-(`0145` bank-match 1:1, `0150`/`0151` year-end-close RE-3000 + net=0, **`0152` credit-note invoice
-row-lock** — prevents a concurrent over-credit race). Walk
+(`0145` bank-match 1:1, `0150`/`0151` year-end-close RE-3000 + net=0, and a **row-lock sweep** that
+serializes concurrent approvals so nothing double-posts or over-credits: `0147` adds `for update` to
+approve-bill / issue-invoice / approve-expense, `0152` to issue-credit-note — matching pay/receipt). Walk
 `docs/financial-system/VERIFICATION-RUNBOOK-FULL.md` Steps 1–15. You're through `0144`.
 
 ## 3. FINANCE DECISION — tax-report credit-note netting
