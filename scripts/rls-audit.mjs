@@ -468,7 +468,7 @@ const CREATE_TABLE_RE =
 // `is_support_agent or role in (...)`) is fine — the surrounding exists() still pins the company. Only
 // a depth-0 `or` breaks the pin. That distinction is why this check has zero false positives here.
 const POLICY_BODY_RE =
-  /create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)\s+for\s+(insert|update|all)\b([\s\S]*?);/gi;
+  /create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)\s+for\s+(insert|update|delete|all)\b([\s\S]*?);/gi;
 
 // ─── Write-pin check #2: an EXPLICIT check that forgets the tenant (found 2026-07-13, fixed by 0155) ──
 //
@@ -517,9 +517,29 @@ const TENANT_PIN_EXEMPT = new Map([
     "notification_subscriptions_insert_own@notification_subscriptions",
     "company_id here is inert metadata: push delivery targets by USER, not company — sender.ts selects `.in('user_id', userIds)` (src/lib/notifications/sender.ts:103), never by company_id. A forged company_id cannot route another company's notifications to anyone. The legit route sets it from server-side getCurrentCompanyId().",
   ],
+  // ── Trigger-frozen tenants ────────────────────────────────────────────
+  // NOTE: this audit reads RLS only — it cannot see TRIGGERS. A trigger that freezes company_id is
+  // strictly STRONGER than an RLS with-check (it also binds service-role, which RLS does not), so these
+  // are safe. They must be exempted WITH the trigger named, never waved through.
+  [
+    "own profile - update@profiles",
+    "company_id/role are frozen by the 0090 guard trigger (end-user writes cannot change them; DEFINER onboarding/invite flows and service_role pass). The RLS `using (id = auth.uid())` limits you to your own row; the trigger — which this RLS-only audit cannot see — pins the tenant.",
+  ],
+  [
+    "chat_messages - update own recent@chat_messages",
+    "0068 installs a guard trigger that raises if NEW.company_id / topic_id / author_id differ from OLD — 'only body is editable, history kept'. So the 30-minute self-edit cannot move a message between tenants; the trigger (invisible to this RLS-only audit) freezes company_id.",
+  ],
+  [
+    "notification_subscriptions_delete_own@notification_subscriptions",
+    "`using (user_id = auth.uid())` pins something STRICTER than the tenant: you may delete only YOUR OWN subscription rows — never your company's, let alone another company's. A company_id pin would be weaker, not stronger.",
+  ],
   [
     "crm_accounts_insert@crm_accounts",
     "Vendor-global back-office table (0049): scoping dimension is is_vendor_super_admin(), not the tenant. company_id names the CUSTOMER company the vendor manages — a vendor super-admin creating an account for any company is the feature, and no one else can write it at all.",
+  ],
+  [
+    "crm_accounts_update@crm_accounts",
+    "Same as crm_accounts_insert: vendor-global table gated on is_vendor_super_admin(). The tenant is not the scoping dimension — managing any customer company's account IS the vendor's job, and no customer user can write this table at all.",
   ],
 ]);
 
@@ -633,10 +653,15 @@ for (const [key, p] of latestPolicy) {
     }
   }
 
-  // (b) insert/all on a company_id-bearing table whose policy never constrains company_id.
-  if ((p.op === "insert" || p.op === "all") && tablesWithCompanyId.has(p.table)) {
+  // (b) A WRITE policy (insert/update/delete/all) on a company_id-bearing table whose body never
+  // constrains company_id. Covers the explicit-check trap (after_pitch_summaries: pinned the agent,
+  // forgot the tenant) and — most consequentially — DELETE, where an unpinned USING would let a caller
+  // destroy ANOTHER company's rows. A policy that pins something STRICTER than the tenant (e.g.
+  // `user_id = auth.uid()`, which limits you to your own rows) is safe and belongs in TENANT_PIN_EXEMPT
+  // with that reasoning, not silently.
+  if (p.op !== "select" && tablesWithCompanyId.has(p.table)) {
     if (!/\bcompany_id\b/i.test(p.body)) {
-      tenantPinFindings.push({ key, op: p.op, file: p.file, kind: "check never pins company_id" });
+      tenantPinFindings.push({ key, op: p.op, file: p.file, kind: "policy never pins company_id" });
     }
   }
 }
