@@ -32,7 +32,7 @@ const CreateSchema = z
           accountId: z.string().uuid(),
           description: z.string().max(300).optional(),
           category: z.string().max(80).optional(),
-          amount: z.number().nonnegative(),
+          amount: z.number().positive(),
           taxAmount: z.number().nonnegative().optional(),
           expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
           receiptUrl: z.string().url().max(1000).optional(),

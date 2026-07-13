@@ -34,7 +34,7 @@ const CreateSchema = z
       .array(
         z.object({
           description: z.string().max(300).optional(),
-          amount: z.number().nonnegative(),
+          amount: z.number().positive(),
           taxAmount: z.number().nonnegative().optional(),
         })
       )

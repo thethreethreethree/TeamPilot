@@ -36,7 +36,7 @@ const CreateSchema = z
         z.object({
           accountId: z.string().uuid(),
           description: z.string().max(300).optional(),
-          amount: z.number().nonnegative(),
+          amount: z.number().positive(),
           taxAmount: z.number().nonnegative().optional(),
           costCenterId: z.string().uuid().optional(),
           projectId: z.string().uuid().optional(),
