@@ -13,11 +13,11 @@ enrichments (Expenses, Purchase Orders, Recurring bills). Aging + collections ar
 > applied `0121`, a `security_invoker` view, which would fail on PG14). No PG16-only features are used,
 > so 15 is the floor. Only relevant if you ever apply to a *fresh* / different database.
 
-Apply **0122 → 0152** in numeric order (on a fresh DB, apply 0116 → 0152). Covers Phase 2, the audit
+Apply **0122 → 0153** in numeric order (on a fresh DB, apply 0116 → 0153). Covers Phase 2, the audit
 fixes, AR, statements + date-ranged statements, all Phase-2D features, credit notes (0143), the
 security fixes (0141/0142), **Phase 3 Banking (0145)**, duplicate detection (0146), **Phase 4 cost/
 profitability (0147/0148)**, **Phase 5 budgeting (0149)**, and **Phase 7 tax + year-end close
-(0150/0151)**. *(As of 2026-07-13 the founder has applied through 0144; `0145`–`0152` are outstanding.)*
+(0150/0151)**. *(As of 2026-07-13 the founder has applied through 0144; `0145`–`0153` are outstanding.)*
 Two properties are verified so the apply is low-risk:
 - **Dependency order** — every object is defined before its consumers (no forward references).
 - **Idempotent / re-runnable** — tables + indexes use `if not exists`; policies and triggers are
