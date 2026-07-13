@@ -150,9 +150,9 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 **Assets**
 | Feature | Status |
 |---|---|
-| Fixed asset register | NOT_STARTED |
-| Depreciation schedules with automated entries | NOT_STARTED |
-| Asset disposal handling | NOT_STARTED |
+| Fixed asset register | BUILT (0166 fin_fixed_assets + fin_asset_register view; cost, salvage, useful life, NBV and REMAINING DEPRECIABLE BASE — NBV alone cannot distinguish 'at salvage, must stop' from 'years left', and that difference decides whether the next run is correct or a false asset valuation. API /api/finance/assets + UI /dashboard/finance/assets. Acceptance tests/0166 — awaiting live-DB run to reach TESTED) |
+| Depreciation schedules with automated entries | BUILT (0166 fin_run_depreciation: straight-line, Dr 6500 Depreciation Expense / Cr 1900 Accumulated Depreciation, posted via fin_post_system_entry so it inherits the open-period gate and balance assertion. TWO GUARDS, both against failures that BALANCE PERFECTLY: (1) the final slice is CLAMPED to the remaining depreciable base, so net book value can never fall below salvage — a full final slice overshoots and claims the asset is worth less than scrap, and the error is invisible until the asset's LAST month; (2) (asset_id, period_id) is UNIQUE and the RPC returns the existing entry rather than posting again, so a retried monthly job cannot double-post the expense. Posted slices are append-only. API /api/finance/assets + UI /dashboard/finance/assets. Acceptance tests/0166 — awaiting live-DB run to reach TESTED) |
+| Asset disposal handling | BUILT (0166 fin_dispose_asset: posts ALL FOUR legs — Dr Cash (proceeds) + Dr Accumulated Depreciation / Cr Fixed Asset (at cost) + Cr/Dr Gain-or-Loss. Omitting the accumulated-depreciation reversal is the classic error: the entry still balances and leaves a phantom contra-asset on the balance sheet forever. Acceptance tests/0166 — awaiting live-DB run to reach TESTED) |
 | Inventory management & valuation (if applicable) | NOT_STARTED |
 
 ## PHASE 9 — Platform & Governance
