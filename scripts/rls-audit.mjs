@@ -351,6 +351,61 @@ const ALLOWLIST = new Map([
     "files.delete",
     "§3.1 soft-delete via deprecated_at — 0056 files_preserve_immutable; a file asset is never hard-deleted.",
   ],
+
+  // ─── Finance ledger/subledger/config (0116–0153) — §3.1 append-only + DEFINER-write ───
+  // These tables carry NO direct insert/update/delete RLS policy BY DESIGN. Every write goes
+  // through a SECURITY DEFINER posting/settlement/close function (fin_post_system_entry and the
+  // AP/AR/expense/banking/year-close RPCs), which runs as table owner and BYPASSES RLS. The
+  // client is deliberately given a SELECT-only surface: a direct write policy on the ledger would
+  // BREAK the controlled-write model (you must post through the guarded function — you can never
+  // insert a raw journal/payment/receipt row, or edit a posted one, from the client).
+  // Verified 2026-07-13 (ground-up audit): no src/ code inserts/updates/deletes any of these
+  // tables directly; all mutations are RPC → DEFINER. Config tables use a status/is_active
+  // lifecycle, never hard-delete, so historical postings keep resolving their dimension.
+
+  // Gap-free entry-numbering counter (0118) — internal machinery of the posting functions.
+  ["fin_entry_counters.insert", "Incremented atomically inside the DEFINER posting functions (0118/0122) — no client write path; a direct policy would let a client skip/reuse entry numbers, breaking gap-free numbering."],
+  ["fin_entry_counters.update", "The next-entry-no is claimed only by the DEFINER posting functions — a client update would corrupt gap-free sequential numbering."],
+  ["fin_entry_counters.delete", "§3.1 the counter is permanent per-company machinery — deleting it would reset/duplicate entry numbers."],
+
+  // Finance audit trail (0120) — an audit log you can write/edit/delete is not an audit log.
+  ["fin_audit_log.insert", "§3.1 finance audit trail (0120): written by triggers/DEFINER only — no client insert path; a direct policy would let actors forge audit entries."],
+  ["fin_audit_log.update", "§3.1 finance audit trail is immutable — an editable audit log is worthless as evidence."],
+  ["fin_audit_log.delete", "§3.1 finance audit trail is permanent record — never deleted."],
+
+  // Subledger→GL posting link (0122) — the traceability from a bill/invoice to its journal entry.
+  ["fin_source_postings.insert", "Written only by the DEFINER posting functions (0122) — no client insert; the link IS the source→GL traceability."],
+  ["fin_source_postings.update", "§3.1 immutable — the source→GL posting link is permanent evidence of what posted where."],
+  ["fin_source_postings.delete", "§3.1 immutable — deleting a posting link would sever a journal entry from its source document."],
+
+  // AP payments (0124) — recorded via the DEFINER pay-bill function through over-pay/lock guards.
+  ["fin_payments.insert", "AP payments are recorded via the DEFINER pay-bill RPC (0124) — never a direct client insert; settlement must pass the over-payment + 0127 lock guards."],
+  ["fin_payments.update", "§3.1 append-only — a payment is corrected by a reversing entry, never edited."],
+  ["fin_payments.delete", "§3.1 append-only — a payment is never deleted; correct via reversal."],
+
+  // AR receipts (0132) — recorded via the DEFINER receive-payment function through settlement guards.
+  ["fin_receipts.insert", "AR receipts are recorded via the DEFINER receive-payment RPC (0132) — never a direct client insert; settlement passes the over-receive + 0132 lock guards."],
+  ["fin_receipts.update", "§3.1 append-only — a receipt is corrected by reversal, never edited."],
+  ["fin_receipts.delete", "§3.1 append-only — a receipt is never deleted; correct via reversal."],
+
+  // Bank-reconciliation matches (0145) — created by the DEFINER match RPC.
+  ["fin_reconciliation_matches.insert", "Created by the DEFINER bank-match RPC (0145) — no direct client insert."],
+  ["fin_reconciliation_matches.update", "§3.1 append-only — a match is undone by the txn status, not by editing the match record."],
+  ["fin_reconciliation_matches.delete", "§3.1 append-only — the reconciliation trail is permanent."],
+
+  // Year-end close (0151) — performed atomically by the DEFINER fin_year_end_close function.
+  ["fin_year_closes.insert", "Performed by the DEFINER fin_year_end_close RPC (0151) — never a direct client insert; the close runs the Dr-revenue/Cr-expense/RE roll-up atomically."],
+  ["fin_year_closes.update", "§3.1 a closed year is immutable — reopening is a new event, never an edit of the close record."],
+  ["fin_year_closes.delete", "§3.1 a year-end close is permanent record — never deleted."],
+
+  // Status-lifecycle documents — never deleted; rejected/reconciled via status (data-as-asset).
+  ["fin_expense_reports.delete", "§1.1 data-as-asset. Status lifecycle (0125): draft→submitted→approved→reimbursed / rejected — a report is rejected via status, never deleted."],
+  ["fin_bank_transactions.delete", "Status lifecycle (0145): unmatched→matched — an imported transaction is reconciled via status, never deleted; the bank record is permanent."],
+
+  // Config/dimension tables — deactivate/close, never hard-delete, so historical postings resolve.
+  ["fin_cost_centers.delete", "Deactivate model (0147): is_active=false, never hard-delete — historical postings must keep resolving their cost center."],
+  ["fin_projects.delete", "Lifecycle model (0147): status active→closed, never hard-delete — historical postings + project profitability must keep resolving the project."],
+  ["fin_tax_codes.delete", "Deactivate model (0150): is_active=false, never hard-delete — posted transactions must keep resolving the tax code that applied."],
 ]);
 
 // ─── Parse migrations ─────────────────────────────────────────────────
