@@ -114,7 +114,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 |---|---|
 | Profit & Loss (Income Statement) | BUILT |
 | Balance Sheet | BUILT (ties out to the accounting equation) |
-| Cash Flow Statement | NOT_STARTED (needs cash-movement categorization — later) |
+| Cash Flow Statement | BUILT (0164 fin_cash_flow + fin_cash_flow_summary + fin_cash_accounts; DIRECT method from actual cash-account movements, classified by the counter-account. Cash-to-cash transfers EXCLUDED (they inflate inflow+outflow while nothing real happens); multi-line entries split PROPORTIONALLY. Unattributable movement surfaces as 'unclassified' rather than being absorbed into Operating — the net change ties out either way, so a misclassified section is invisible to every balance check. API /api/finance/statements/cash-flow + rendered on /dashboard/finance/statements. Investing is empty until the Phase-8 asset register exists (an unbuilt feature, not a company that buys nothing). Acceptance tests/0164 — awaiting live-DB run to reach TESTED) |
 | Trial Balance | BUILT (+ the fin_trial_balance view from 0121) |
 | General Ledger detail report | BUILT (fin_gl_detail RPC; per-account drill-down — UI drill-in a small add) |
 
