@@ -107,3 +107,42 @@ top-of-doc apply state, which is authoritative.)*
 ## Key files
 - FEATURE_MANIFEST.md (status of every feature) · docs/financial-system/ (data-model proposals,
   acceptance tests, runbook, PHASE-3/4 proposals) · supabase/migrations/0116–0148 · src/app/dashboard/finance/ + src/app/api/finance/
+
+---
+
+## 2026-07-13 — post-build edge-case review sweep (supersedes the apply/open lists above)
+
+After the full build, I swept the money-critical + newest functions for edge cases. The recurring
+defect shape: **an invariant enforced on one path but silently absent on its twin.** Three real bugs
+found + fixed, one §3.4 accuracy gap flagged (needs a decision), two functions confirmed clean.
+
+**Fixed (all ship in the still-unapplied migrations or in routes — apply queue unchanged, `0145`–`0151`):**
+1. `e7ccea8` — **year-end close**, net income exactly 0 → the Retained-Earnings line was `debit 0 /
+   credit 0`, which violates the ledger's `(debit>0) <> (credit>0)` CHECK → close would fail. Fix:
+   omit the RE line when net = 0 (the P&L lines already balance). In `0151`.
+2. `795b62e` — **zero-amount document lines** (bill/invoice/expense/credit-note) → a `0/0` P&L line →
+   same constraint violation → approve/issue fails cryptically. Fix: require line amount **> 0** at
+   input (routes; live on deploy, no migration).
+3. `b23b032` — **manual bank-match** (`fin_match_bank_txn`) lacked the 1:1 entry↔bank-line guard that
+   `fin_auto_match_bank` has → one GL entry reconcilable against two bank lines (rec state wrong; GL
+   untouched). Fix: mirror the exclusion in the manual path. In `0145`.
+
+**Flagged — NEEDS A DECISION (not silently fixed, per §3.3):**
+4. `7cced29` — **`fin_tax_report` is not netted for credit-note reversals.** output_tax is the gross
+   sum of invoice-line tax; it never subtracts the output tax that issued credit notes reverse (Dr
+   2100). A period with credited invoices **overstates the tax owed** (the GL 2100 balance is correct;
+   only this report is un-netted). Netting is not mechanical — **credit-note lines carry no
+   `tax_code_id`, hence no jurisdiction.** Decision needed: attribute a credit note's tax to (a) its
+   linked invoice's jurisdiction, (b) proportionally across the invoice's tax codes, or (c) an
+   "Unassigned" bucket? A visible amber warning is live on the Tax page + a code note in `0150` so no
+   one files a wrong number meanwhile. **This is the top new open item.**
+
+**Confirmed clean (reported sound, not dressed up as findings — §3.4):** `fin_issue_credit_note`
+(over-credit guard correct, tax reversal consistent with the invoice's 2100 output-tax leg);
+`fin_post_system_entry` + `fin_approve_bill` + `fin_issue_invoice` dimension threading (cost_center_id/
+project_id flow source line → jsonb → journal line → profitability GROUP BY, control lines NULL).
+
+**Current apply queue (authoritative):** founder is through `0144`; **`0145`–`0151` outstanding**
+(`0145`/`0150`/`0151` now carry the sweep fixes). Runbook is Steps 1–15 (adds Banking, Profitability,
+Budget, Tax + year-end close). Then confirm **Phase 8** (payroll/assets, proposed) and the **Phase-9
+gaps** (delegation/multi-entity/integrations, proposed). New decision #4 above rides alongside these.
