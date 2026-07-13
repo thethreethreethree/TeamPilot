@@ -6,7 +6,7 @@ import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
-import { ShieldCheck, Plus, Gauge, Ban } from "lucide-react";
+import { ShieldCheck, Plus, Gauge, Ban, UserCheck } from "lucide-react";
 
 /**
  * Finance controls — the ceilings the company sets on its own spending.
@@ -35,6 +35,16 @@ type Policy = {
 };
 type MileageRate = { id: string; effective_from: string; rate_per_unit: number; unit: string; currency: string };
 type PerDiemRate = { id: string; effective_from: string; jurisdiction: string; daily_rate: number; currency: string };
+type Delegation = {
+  id: string;
+  delegator_id: string;
+  delegate_id: string;
+  starts_on: string;
+  ends_on: string;
+  reason: string | null;
+  revoked_at: string | null;
+};
+type Member = { id: string; full_name: string | null };
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -58,16 +68,26 @@ export default function FinanceControlsPage() {
   const [dRate, setDRate] = useState("");
   const [dJurisdiction, setDJurisdiction] = useState("default");
 
+  // delegation
+  const [delegations, setDelegations] = useState<Delegation[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [gTo, setGTo] = useState("");
+  const [gFrom, setGFrom] = useState(today());
+  const [gUntil, setGUntil] = useState("");
+  const [gReason, setGReason] = useState("");
+
   const load = useCallback(async () => {
-    const [r, p, rt] = await Promise.all([
+    const [r, p, rt, dg, tm] = await Promise.all([
       fetch("/api/finance/roles").then((x) => x.json()),
       fetch("/api/finance/expense-policies").then((x) => x.json()),
       fetch("/api/finance/rates").then((x) => x.json()),
+      fetch("/api/finance/delegations").then((x) => x.json()),
+      fetch("/api/team").then((x) => x.json()),
     ]);
     // A failed read must NOT render as "nothing is configured" — that reads as an unpoliced company and
     // invites a controller to add a duplicate control. Say we could not load it.
-    if (r.error || p.error || rt.error) {
-      setLoadError(r.error || p.error || rt.error);
+    if (r.error || p.error || rt.error || dg.error) {
+      setLoadError(r.error || p.error || rt.error || dg.error);
       setReady(true);
       return;
     }
@@ -76,6 +96,8 @@ export default function FinanceControlsPage() {
     setPolicies(p.policies ?? []);
     setMileage(rt.mileage ?? []);
     setPerDiem(rt.perDiem ?? []);
+    setDelegations(dg.delegations ?? []);
+    setMembers(tm.members ?? []);
     setReady(true);
   }, []);
 
@@ -134,7 +156,56 @@ export default function FinanceControlsPage() {
     load();
   }
 
+  /**
+   * Delegation. Note what this form does NOT ask: who the authority comes FROM.
+   *
+   * You can only ever delegate your own. The API accepts no delegator field and RLS rejects any row where
+   * delegator_id <> auth.uid() — so there is nothing for this form to ask, and asking would imply a choice
+   * that does not exist. The absent field is the security model, visible in the interface.
+   */
+  async function delegate() {
+    if (!gTo) return toast.error("Choose who covers for you.");
+    if (!gUntil) return toast.error("A delegation needs an end date", "Authority that never lapses isn't cover — it's a second set of keys.");
+    if (gUntil < gFrom) return toast.error("The end date can't be before the start date.");
+    const res = await fetch("/api/finance/delegations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "delegate",
+        delegateId: gTo,
+        startsOn: gFrom,
+        endsOn: gUntil,
+        reason: gReason.trim() || undefined,
+      }),
+    });
+    const j = await res.json();
+    // The database's refusal is the honest one ("you cannot delegate authority you do not have"). Show it.
+    if (!res.ok) return toast.error(j.error ?? "Could not delegate.");
+    setGTo("");
+    setGUntil("");
+    setGReason("");
+    toast.success("Cover arranged", "They can approve in your name, up to your limit, until the end date — and no longer.");
+    load();
+  }
+
+  async function revoke(id: string) {
+    const res = await fetch("/api/finance/delegations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "revoke", id }),
+    });
+    const j = await res.json();
+    if (!res.ok) return toast.error(j.error ?? "Could not revoke.");
+    toast.success("Revoked", "Their borrowed authority ended immediately.");
+    load();
+  }
+
   if (ready === false) return <FinanceNotSetUp feature="Finance controls" />;
+
+  const nameOf = (id: string) => members.find((m) => m.id === id)?.full_name ?? `${id.slice(0, 8)}…`;
+  const t = today();
+  const isLive = (d: Delegation) => !d.revoked_at && d.starts_on <= t && d.ends_on >= t;
+  const liveCount = delegations.filter(isLive).length;
 
   const unlimitedApprovers = roles.filter(
     (r) => (r.role === "approver" || r.role === "controller" || r.role === "cfo") && r.approval_limit == null,
@@ -202,6 +273,146 @@ export default function FinanceControlsPage() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* ── Delegation ───────────────────────────────────────────── */}
+        {/* This sits directly under approval limits because it is the same authority, lent out. Anyone
+            reading "who can approve how much" must see, in the same glance, who is currently approving in
+            someone else's name — otherwise the limits table above is an incomplete answer to the question
+            it appears to answer. */}
+        <section>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <UserCheck size={18} /> Cover while you&apos;re away
+          </h2>
+          <p className="mt-1 text-sm text-neutral-600">
+            Going on leave? Lend your approval authority to a colleague for a fixed window, instead of
+            lending them your login. The approval is then recorded as <em>theirs</em>, made under authority
+            delegated by you — which is the truth, and keeps the audit trail honest.
+          </p>
+
+          {liveCount > 0 && (
+            <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <strong>{liveCount}</strong> {liveCount === 1 ? "person is" : "people are"} currently approving
+              under someone else&apos;s authority. That is normal during leave — but it means the limits above
+              are not the whole picture today.
+            </div>
+          )}
+
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="text-xs text-neutral-600">
+              Who covers for you
+              <select
+                value={gTo}
+                onChange={(e) => setGTo(e.target.value)}
+                className="mt-1 block w-44 rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+              >
+                <option value="">Choose a colleague…</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.full_name ?? m.id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-neutral-600">
+              From
+              <input
+                type="date"
+                value={gFrom}
+                onChange={(e) => setGFrom(e.target.value)}
+                className="mt-1 block rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="text-xs text-neutral-600">
+              Until
+              <input
+                type="date"
+                value={gUntil}
+                onChange={(e) => setGUntil(e.target.value)}
+                className="mt-1 block rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="text-xs text-neutral-600">
+              Reason
+              <input
+                value={gReason}
+                onChange={(e) => setGReason(e.target.value)}
+                placeholder="Annual leave"
+                className="mt-1 block w-36 rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <button
+              onClick={delegate}
+              className="inline-flex items-center gap-1 rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white"
+            >
+              <Plus size={14} /> Delegate
+            </button>
+          </div>
+
+          {/* There is no "delegate FROM" field, and its absence is deliberate — see the note on delegate(). */}
+          <p className="mt-2 text-xs text-neutral-500">
+            You can only lend authority you hold yourself, and never more than your own limit. Segregation of
+            duties still applies: your stand-in cannot approve a bill they entered.
+          </p>
+
+          <div className="mt-3 overflow-x-auto rounded-lg border border-neutral-200">
+            <table className="w-full text-sm">
+              <thead className="bg-neutral-50 text-left text-neutral-600">
+                <tr>
+                  <th className="px-3 py-2">From</th>
+                  <th className="px-3 py-2">Acting</th>
+                  <th className="px-3 py-2">Window</th>
+                  <th className="px-3 py-2">Reason</th>
+                  <th className="px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {delegations.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-neutral-500">
+                      Nobody has delegated approval authority.
+                    </td>
+                  </tr>
+                )}
+                {delegations.map((d) => {
+                  const live = isLive(d);
+                  return (
+                    <tr key={d.id} className="border-t border-neutral-100">
+                      <td className="px-3 py-2">{nameOf(d.delegator_id)}</td>
+                      <td className="px-3 py-2 font-medium">{nameOf(d.delegate_id)}</td>
+                      <td className="px-3 py-2 tabular-nums text-neutral-600">
+                        {d.starts_on} → {d.ends_on}{" "}
+                        {/* Lapsed and revoked are different facts and are never collapsed into one word.
+                            "Ended" means it ran its course; "revoked" means someone took it back early. */}
+                        {d.revoked_at ? (
+                          <span className="ml-1 rounded-full bg-neutral-200 px-2 py-0.5 text-xs">Revoked</span>
+                        ) : live ? (
+                          <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
+                            Live now
+                          </span>
+                        ) : (
+                          <span className="ml-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+                            {d.starts_on > t ? "Scheduled" : "Ended"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-neutral-600">{d.reason ?? "—"}</td>
+                      <td className="px-3 py-2 text-right">
+                        {!d.revoked_at && d.ends_on >= t && (
+                          <button
+                            onClick={() => revoke(d.id)}
+                            className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-neutral-50"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
