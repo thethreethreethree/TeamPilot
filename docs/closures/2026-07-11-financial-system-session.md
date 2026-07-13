@@ -258,3 +258,35 @@ Method note: caught grep false-negatives twice (RLS whitespace alignment; camelC
 and false-positives twice (care token-scoping looked like IDOR; health/settings LLM-config refs) —
 verified each by reading before flagging (§3.4 both directions). One real finding (coach maxDuration);
 everything else app-wide is sound.
+
+## 2026-07-13 (continuation, autonomous under the A23 guard) — fixes shipped + a core-ledger discovery
+
+⚠️ **READ FIRST — item 0 in FOUNDER-ACTION-QUEUE.md:** a deploy-readiness `git status` found
+`0118_fin_ledger.sql` **modified but UNCOMMITTED** — a reversal-SoD/FX/balance-trigger redesign not in
+my edit record (your WIP or a stray edit). I left it **untouched** (surface, don't overtake). It does NOT
+block the apply queue (verified: no committed migration references its new fns), and — key — since you're
+applied through `0144`, editing `0118` in place is a **no-op on your live DB**; the redesign would need a
+new forward migration `0154+`. Full characterization + keep-or-revert steps are in the queue item 0.
+
+**Real fixes shipped this continuation (all tested, committed, pushed):**
+- **maxDuration class CLOSED** (the prior "flagged" item, now fixed + verified): swept all API routes via
+  transitive-import closure + a rateLimit↔maxDuration cross-check. Real catch: **`upload-recording` awaits
+  an in-path full-recording TRANSCRIPTION with no budget → times out for any real recording** (set 300).
+  Also `attribute`/`realtime-token`. Reverted 2 over-flags (dissect topic CRUD). No route on `edge`.
+- **`care/agent/…/messages` rate-limit** wired (ratified 2026-07-06 policy omission).
+- **Money-rounding: `computeLineTax` rounded the half-cent DOWN** (toFixed float quirk) → fixed to
+  integer-cent rounding; §1.2 class-checked (only JS float×rate site). **FX per-line rounding drift in the
+  ledger core FLAGGED** (latent/safe-failing — rejects, never corrupts; FOUNDER-ACTION-QUEUE latent section).
+- **Bank CSV import hardened**: parenthesized/trailing-minus withdrawals now parse (were skipped →
+  reconcile-breaking); European day-first dates no longer import as invalid month-25 (whole-import failure);
+  blank amount no longer a phantom $0. **Finance form amount fields** now accept `$`/comma-formatted money
+  across all 7 pages (`parseMoneyInput`) — a bare `Number()` used to NaN them. Date entry verified safe
+  (`type=date`).
+- **Tests hardened**: tie-out one-cent boundary + trialBalances symmetry; **628 vitest** green, tsc 0, ESLint 0 (whole src).
+
+**Verified sound this continuation (read-earned, not rubber-stamped; scary regex results traced to
+formatting artifacts, not flagged):** all 6 core-thesis controls (§3.1 append-only across 11 tables via
+service-role-proof rules/triggers; §3.2 gate w/ meaningful 3/2/80 thresholds; §3.3 guide-don't-overtake at
+the input contract; §3.4 guidance suppression; §3.5 measures consequence not agreement; finance ledger
+immutability). Committed migration chain apply-safe (no dangling `fin_*` fn refs). Finance tenant isolation:
+**34/34 tables RLS-enabled + 34/34 have a company-scoped select policy**. Full continuation log: the commit history from `391b6a4` onward, and FOUNDER-ACTION-QUEUE.md (item 0 first).
