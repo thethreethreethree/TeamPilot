@@ -7,6 +7,15 @@
  * pass in any TZ). Pure, no `now`/DOM.
  */
 
+// Today's date as ISO (YYYY-MM-DD) in the user's LOCAL timezone. Use this for default transaction
+// dates instead of `new Date().toISOString().slice(0,10)`, which is UTC — for an evening user in a
+// negative-offset zone (the Americas) UTC-today is local-TOMORROW, so the default date runs a day
+// ahead and, at a month-end evening, misfiles the transaction into the next period.
+export function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 // Add `days` to an ISO (YYYY-MM-DD) date, returning ISO. Timezone-safe: builds a LOCAL date from the
 // parts (not `new Date(str)`, which would parse as UTC and shift the day in negative-offset zones).
 export function isoAdd(d: string, days: number): string {

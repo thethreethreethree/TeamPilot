@@ -5,6 +5,7 @@ import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, computeLineTax } from "@/lib/finance/format";
+import { todayIso } from "@/lib/finance/dateRange";
 import { useToast } from "@/components/ui/toast";
 import { Loader2, Plus, CheckCircle2, DollarSign } from "lucide-react";
 
@@ -168,7 +169,7 @@ export default function ApPage() {
       headers: { "Content-Type": "application/json" },
       body:
         action === "pay"
-          ? JSON.stringify({ amount, paymentDate: new Date().toISOString().slice(0, 10) })
+          ? JSON.stringify({ amount, paymentDate: todayIso() })
           : undefined,
     });
     const j = await res.json();

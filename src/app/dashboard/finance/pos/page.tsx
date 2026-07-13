@@ -6,6 +6,7 @@ import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { useToast } from "@/components/ui/toast";
 import { Plus, CheckCircle2, FileOutput } from "lucide-react";
+import { todayIso } from "@/lib/finance/dateRange";
 
 type Vendor = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
@@ -73,7 +74,7 @@ export default function PosPage() {
     setBusy(true);
     const body =
       action === "convert"
-        ? { action, billNumber: `BILL-${po.po_number}`, billDate: new Date().toISOString().slice(0, 10) }
+        ? { action, billNumber: `BILL-${po.po_number}`, billDate: todayIso() }
         : { action };
     const res = await fetch(`/api/finance/ap/pos/${po.id}`, {
       method: "POST",

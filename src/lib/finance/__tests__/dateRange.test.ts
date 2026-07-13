@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { isoAdd, priorRange } from "@/lib/finance/dateRange";
+import { isoAdd, priorRange, todayIso } from "@/lib/finance/dateRange";
+
+describe("todayIso", () => {
+  it("returns LOCAL today as YYYY-MM-DD (not UTC-today)", () => {
+    const r = todayIso();
+    expect(r).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // Must match the local date components — a UTC-based impl (toISOString) would diverge from these
+    // for an evening user in a negative-offset zone. This guards against reverting to that.
+    const d = new Date();
+    const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    expect(r).toBe(local);
+  });
+});
 
 describe("isoAdd (timezone-safe)", () => {
   it("adding 0 round-trips to the same date — the timezone-bug regression guard", () => {

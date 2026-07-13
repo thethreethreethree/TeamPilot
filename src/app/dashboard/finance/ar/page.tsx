@@ -5,6 +5,7 @@ import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, computeLineTax } from "@/lib/finance/format";
+import { todayIso } from "@/lib/finance/dateRange";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, DollarSign } from "lucide-react";
 
@@ -160,7 +161,7 @@ export default function ArPage() {
       headers: { "Content-Type": "application/json" },
       body:
         action === "receipt"
-          ? JSON.stringify({ amount, receiptDate: new Date().toISOString().slice(0, 10) })
+          ? JSON.stringify({ amount, receiptDate: todayIso() })
           : undefined,
     });
     const j = await res.json();
