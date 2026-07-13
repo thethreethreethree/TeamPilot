@@ -126,6 +126,13 @@ found + fixed, one §3.4 accuracy gap flagged (needs a decision), two functions 
 3. `b23b032` — **manual bank-match** (`fin_match_bank_txn`) lacked the 1:1 entry↔bank-line guard that
    `fin_auto_match_bank` has → one GL entry reconcilable against two bank lines (rec state wrong; GL
    untouched). Fix: mirror the exclusion in the manual path. In `0145`.
+4. `a0e4b7a` — **year-end close targeted a phantom Retained Earnings 3900** (only a one-time 0150
+   backfill), while `fin_init_company` seeds RE as `3000`. Any company initialized AFTER the migrations
+   applied would have no 3900 → close fails "Retained Earnings (3900) missing" despite being
+   initialized; backfilled companies got duplicate "Retained Earnings" accounts. Found by a
+   cross-migration account-code audit (referenced-vs-seeded codes) — invisible to per-function review
+   because the mismatch is BETWEEN init and the close. Fix: close targets 3000; 3900 seed dropped. In
+   `0150`/`0151`.
 
 **Flagged — NEEDS A DECISION (not silently fixed, per §3.3):**
 4. `7cced29` — **`fin_tax_report` is not netted for credit-note reversals.** output_tax is the gross
