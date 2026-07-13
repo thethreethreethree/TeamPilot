@@ -94,8 +94,11 @@ v5 + ask-coach + sales-session generation routes are the real ones (they await L
 Likely-safe/verify: `llm/ping` (probably a fast connectivity check — may not need it) and `attribute`
 (memory notes it's a lightweight helper). **Fix** (trivial, zero-risk, matches the existing 24-route
 pattern): add `export const maxDuration = 60;` to each that blocks on an LLM call. I did NOT auto-edit
-them — it's your subsystem and I don't know which are live vs superseded (v1 vs v5) or streaming; you
-know which. The class was "swept 2026-07-09" per a code comment, so these were added/missed after.
+them — it's your subsystem and I don't know which are live vs superseded (v1 vs v5); you know which. The
+class was "swept 2026-07-09" per a code comment, so these were added/missed after. **Confirmed (checked
+2026-07-13): none of these stream** — they all `await` the LLM call and return JSON, so there's no
+streaming exception; every blocking one genuinely needs the export. The only open question per route is
+live-vs-superseded, which you can answer instantly.
 
 ### Known VERY-low-severity concurrency edge (mostly closed by a trigger; residual accepted)
 `fin_post_system_entry` checks `period.status = 'open'` then inserts without locking the period. Good
