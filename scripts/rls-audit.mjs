@@ -422,10 +422,16 @@ function ensure(name) {
       rlsEnabled: false,
       policies: new Set(),
       droppedTable: false,
+      created: false,
     });
   }
   return tables.get(name);
 }
+
+// Tables that are INTENTIONALLY created without RLS (must be justified, same discipline
+// as ALLOWLIST). Empty today: every table carries tenant isolation. A stateless/global
+// reference table with no tenant data would go here WITH a reason — never silently.
+const RLS_EXEMPT = new Map([]);
 
 const RLS_ENABLE_RE = /alter\s+table\s+(?:public\.)?(\w+)\s+enable\s+row\s+level\s+security/gi;
 // Policy names may be double-quoted ("files - select") OR a bare identifier
@@ -435,6 +441,12 @@ const RLS_ENABLE_RE = /alter\s+table\s+(?:public\.)?(\w+)\s+enable\s+row\s+level
 const POLICY_RE =
   /create\s+policy\s+(?:"[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)\s+for\s+(select|insert|update|delete|all)\b/gi;
 const DROP_TABLE_RE = /drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?(\w+)/gi;
+// Real CREATE TABLE — requires the opening `(` after the name so a PROSE mention inside a
+// SQL comment (e.g. "-- `create table if not exists` above …") can't be mistaken for a real
+// table. Used to catch tables created but never `enable row level security` — invisible to
+// the per-operation policy check below, and the most severe case (no tenant isolation at all).
+const CREATE_TABLE_RE =
+  /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(\w+)\s*\(/gi;
 
 // Recognize the dynamic policy-creation idiom used in 0001:
 //
@@ -492,14 +504,26 @@ for (const f of files) {
     ensure(m[1]).droppedTable = true;
   }
   DROP_TABLE_RE.lastIndex = 0;
+
+  while ((m = CREATE_TABLE_RE.exec(sql))) {
+    ensure(m[1]).created = true;
+  }
+  CREATE_TABLE_RE.lastIndex = 0;
 }
 
 // ─── Find gaps ────────────────────────────────────────────────────────
 
 const findings = [];
+const noRlsFindings = [];
 for (const [name, t] of tables) {
   if (t.droppedTable) continue;
-  if (!t.rlsEnabled) continue;
+  if (!t.rlsEnabled) {
+    // Created but never `enable row level security` → NO tenant isolation at all. More severe
+    // than a missing per-operation policy. Only flag genuinely-created tables (the map also holds
+    // phantom entries from FK/policy references to system tables), and honor RLS_EXEMPT.
+    if (t.created && !RLS_EXEMPT.has(name)) noRlsFindings.push(name);
+    continue;
+  }
   for (const op of OPS) {
     if (t.policies.has(op)) continue;
     const key = `${name}.${op}`;
@@ -517,6 +541,7 @@ const rlsTables = [...tables.values()].filter(
 );
 console.log(`  RLS-enabled tables:    ${rlsTables.length}`);
 console.log(`  Allowlisted omissions: ${ALLOWLIST.size}`);
+console.log(`  Tables without RLS:    ${noRlsFindings.length}`);
 console.log(`  Missing policies:      ${findings.length}`);
 
 if (VERBOSE) {
@@ -536,9 +561,28 @@ if (VERBOSE) {
   }
 }
 
-if (findings.length === 0) {
-  console.log("\n✓ Every RLS-enabled table is covered or documented.");
+if (noRlsFindings.length > 0) {
+  console.log(
+    "\n  ⚠ Tables CREATED but never `enable row level security` (NO tenant isolation):"
+  );
+  for (const name of noRlsFindings.sort()) {
+    console.log(`    ${name}`);
+  }
+  console.log(
+    "\n  Each is fully exposed to any authenticated caller. Add\n" +
+      "  `alter table <name> enable row level security;` + policies in a migration,\n" +
+      "  or add it to RLS_EXEMPT in this script with a documented reason."
+  );
+}
+
+if (findings.length === 0 && noRlsFindings.length === 0) {
+  console.log("\n✓ Every table has RLS enabled and every operation is covered or documented.");
   process.exit(0);
+}
+
+if (noRlsFindings.length > 0 && findings.length === 0) {
+  console.log("\n✗ RLS not enabled on one or more tables (see above).");
+  process.exit(1);
 }
 
 console.log("\n  Missing operations (must add a policy or allowlist):");
