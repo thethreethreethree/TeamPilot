@@ -91,7 +91,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 **Waste & efficiency**
 | Feature | Status |
 |---|---|
-| Budget vs. actual variance analysis | NOT_STARTED |
+| Budget vs. actual variance analysis | BUILT (0149 fin_budget_variance — the same variance engine as Phase 5's "budget vs actual tracking"; budget vs posted actuals by account × cost-center × quarter, direction-colored, threshold in fin_settings.variance_alert_pct) |
 | Unused / underutilized resource tracking | NOT_STARTED |
 | Spend anomaly detection | NOT_STARTED |
 | Duplicate payment detection | BUILT (0146 fin_duplicate_bill_candidates view — same vendor + same total, ≤7 days apart; /api/finance/ap/duplicates + a "Possible duplicate bills" review prompt on the AP page. A candidate, not a verdict. Shipped ahead of Phase-4 — no data model / decision needed) |
@@ -169,18 +169,26 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 
 ---
 
-*Updated as built per section 2.2. **State at 2026-07-12 (migrations 0116–0140):**
+*Updated as built per section 2.2. **State at 2026-07-13 (migrations 0116–0151):**
 **Phase 1** — BUILT + founder-VERIFIED (acceptance scripts PASS).
-**Phase 2** core — AP + AR + Expenses BUILT + operational (backend + API + UIs).
+**Phase 2** core — AP + AR (Option B) + Expenses BUILT + operational (backend + API + UIs).
 **Phase 2D** enrichments — POs (0139) + recurring bills (0140) + AR/AP aging (0133/0138) + collections
-worklist BUILT; credit notes DESIGNED (proposal, awaiting decisions); dunning PARTIAL (worklist built,
-email = integration); card-recon/mileage/policy NOT_STARTED (need values/integrations).
-**Phase 6** core — P&L, Balance Sheet, Trial Balance, GL drill-down, CSV export (formula-injection
-hardened) BUILT (derived); Cash Flow + custom builder + scheduling + PDF/xlsx NOT_STARTED.
-**Phase 9** — RBAC, SoD, encryption BUILT; approval-delegation, multi-entity, backup/recovery, full
-integration-layer NOT_STARTED.
-**Phase 3** — data-model PROPOSED (docs/financial-system/PHASE-3-DATA-MODEL.md), awaiting confirmation.
-**Phases 4, 5, 7, 8** — NOT_STARTED (each needs a data-model proposal + confirmation).
-Everything Phase-2+ is verified-by-construction + authz-audited clean (routes + RPCs, two-layer),
-money-rule-audited, CSV-hardened, and the chain is dependency-ordered + idempotent; apply 0122–0140 to a live DB
-+ run the acceptance scripts / the full-system runbook to reach TESTED.*
+worklist + credit notes (0143) BUILT; dunning PARTIAL (worklist built, email = integration);
+card-recon/mileage/policy NOT_STARTED (need values/integrations).
+**Phase 3** — BUILT (0145 banking/import/auto-match/reconcile + 0146 duplicate detection).
+**Phase 4** increment 1 — BUILT (0147 cost centers/projects/direct-indirect + 0148 project/cost-center/
+customer profitability + contribution margin). Deferred: COGS, overhead alloc, unit economics,
+break-even, net-by-segment, region/product margin, anomaly/idle/cost-per-outcome/inventory waste.
+**Phase 5** increment 1 — BUILT (0149 budget + variance + runway). Deferred: rolling forecasts, cash-
+flow projection, scenario modeling.
+**Phase 6** core — P&L, Balance Sheet, Trial Balance, GL drill-down, period-over-period, CSV export
+(formula-injection hardened) BUILT; Cash Flow + custom builder + scheduling + PDF/xlsx NOT_STARTED.
+**Phase 7** — BUILT (0150 tax codes/calc/liability/filing report + 0151 year-end close→RE 3000). Deferred: 1099.
+**Phase 8** — PROPOSED (docs/financial-system/PHASE-8-DATA-MODEL.md, reviewed build-ready), awaiting confirmation.
+**Phase 9** — RBAC, SoD, encryption, backup (Supabase) BUILT; approval-delegation + opening-balance
+import PROPOSED (PHASE-9-DATA-MODEL.md, reviewed build-ready); multi-entity + full integration-layer deferred.
+Everything Phase-2+ is verified-by-construction; hardened this session across SIX audit angles (money-
+logic, API routes, UI loads+mutations, cross-migration account codes, view isolation, table RLS, DEFINER
+tenant-safety) with 7 defects fixed — see docs/closures/2026-07-11-financial-system-session.md. One open
+FINANCE decision: tax-report credit-note netting (TAX-CREDIT-NOTE-NETTING-DECISION.md). Apply 0122–0151 to
+a live DB + run the acceptance scripts / VERIFICATION-RUNBOOK-FULL.md (Steps 1–15) to reach TESTED.*
