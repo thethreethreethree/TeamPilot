@@ -430,6 +430,19 @@ applies the migrations, then runs `test:chain` + the `.test.sql` acceptance file
 change that breaks a trigger, a posting fn, the balance assertion, or the derivation is caught by CI
 instead of shipping. Both test suites are already written — the gap is purely that CI doesn't run them.
 
+### Next 16 `middleware` → `proxy` deprecation (LOW — you or a smoke-tested branch, not me blind)
+`next build` emits one warning: `The "middleware" file convention is deprecated. Please use "proxy" instead.`
+`src/middleware.ts` is the **auth linchpin** — it refreshes the Supabase session on every request and does
+all route protection (`/dashboard`+`/onboarding` → `/login`; authed → away from login; sales-coach bounce).
+The migration is basically `src/middleware.ts` → `src/proxy.ts` and `export function middleware` →
+`export function proxy` (matcher/config export unchanged). **Non-urgent**: it's a deprecation *warning*, the
+old convention still works in Next 16, zero functional impact today. **I did NOT do it unilaterally** because
+it's the one file every authenticated request flows through and the fix is runtime-unverifiable headless —
+`next build` compiling proves nothing about whether login/redirect/session-refresh still *work* (needs a live
+browser session). Swapping the auth path blind, while you can't confirm auth still works, risks a silent
+login break to retire a harmless warning. **Path:** you rename + smoke-test the login/redirect flows, or I do
+it in a branch you verify before merge. Do it before the Next version that *removes* `middleware` (not 16).
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
