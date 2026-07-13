@@ -399,6 +399,14 @@ instead of trusting the client's echo. Otherwise accept that "Co-Pilot output" i
 impact stays self-scoped. Same root as the grader injection; noted together so the fix addresses both.
 
 ### Test-coverage gap — the CORE-THESIS CHAIN has no CI regression guard (MED)
+> **Adjacent gap CLOSED this session (`ac1f1b1`):** CI ran `typecheck`+`lint`+`test` but never `next build`,
+> so App-Router boundary violations / bad `dynamic()` imports / build-time eval failures — which tsc AND
+> eslint both pass — went green in CI and only broke at the Vercel deploy. Added a `build` step. Verified
+> CI-safe first by running `next build` with all Supabase env UNSET (full route table built, no crash — the
+> client factories fall back to `""` and dynamic routes render on demand, so no live DB is needed at build
+> time; it cannot produce spurious red builds). This is a DIFFERENT gap from the DB-test one below — the
+> DB-test gap (chain + finance `.test.sql`) remains open because it genuinely needs founder infra (below).
+
 The events→signals→problems→resolutions chain — the central mechanism the whole constitution rests on —
 is **not exercised by CI**. There IS a good integration test (`src/lib/data/__tests__/chain.integration.test.ts`:
 chat_pin→`chat.pinned`→`pinned_evidence` signal; overdue task→`task.overran_due_date`→`task_slipped`;
