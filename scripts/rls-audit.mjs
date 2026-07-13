@@ -69,6 +69,18 @@ const ALLOWLIST = new Map([
   // the parent company is removed is handled by FK cascades, which
   // bypass policy checks at the SQL-level (Postgres routes cascades
   // through table owner).
+  // 0172 scheduled-report delivery log. The ABSENCE of these three policies is the control, not an
+  // oversight — which is exactly the kind of deliberate gap this allowlist exists to distinguish from a
+  // careless one.
+  //   insert: only the DEFINER RPC (fin_record_report_delivery) writes here. A client that could insert
+  //           could forge a 'sent' for a delivery that never happened.
+  //   update/delete: append-only via `do instead nothing` RULES, which bind the SERVICE ROLE too — so the
+  //           delivery worker cannot erase a failure it caused. A delivery that silently stops is worse
+  //           than one that never existed: the recipient believes no news is good news.
+  ["fin_report_deliveries.insert", "0172 write path is the DEFINER RPC only; a client insert could forge a 'sent'."],
+  ["fin_report_deliveries.update", "0172 append-only (RULE) — a run either happened or it did not."],
+  ["fin_report_deliveries.delete", "0172 append-only (RULE) — the worker must not erase a failure it caused."],
+
   ["events.update", "§3.1 events are immutable historical record."],
   ["events.delete", "§3.1 events are immutable; cascades via FK only."],
   ["signals.update", "§3.1 signals are immutable derived facts."],
