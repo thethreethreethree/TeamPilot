@@ -34,9 +34,9 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Vendor / supplier master records | BUILT (0123 fin_vendors; acceptance tests/0123_ap_core.test.sql — awaiting live-DB run) |
 | Purchase orders | BUILT (0139 fin_purchase_orders + fin_po_lines + approve/convert-to-bill; API + /dashboard/finance/pos. No GL impact until converted) |
 | Bill / invoice capture and entry (file ingestion / OCR) | BUILT — manual entry (0123 fin_bills + fin_bill_lines + fin_approve_bill→GL). FLAGGED: OCR/file-ingestion recommended as a document-AI INTEGRATION (build-vs-buy), your call |
-| Payment scheduling and execution | PARTIAL (0124 fin_payments + fin_pay_bill: Dr AP/Cr Cash, partial payments, over-pay guard, marks bill paid). FLAGGED: foreign-currency FX-on-payment deferred (rejected, not mis-posted); payment SCHEDULING + actual execution = processor/bank integration |
+| Payment scheduling and execution | BUILT (0124 pay path + 0158 fin_payment_schedules + fin_payments_due view + schedule/execute/cancel RPCs; aggregate over-schedule guard + row lock; execution delegates to the existing fin_pay_bill so there is ONE posting path; rails are external per spec 2.1. API /api/finance/ap/schedules + UI /dashboard/finance/schedules. Acceptance tests/0158-0160 — awaiting live-DB run to reach TESTED) |
 | Recurring expenses (rent, subscriptions, utilities) | BUILT (0140 fin_recurring_bills template + generate + batch runner; API + /dashboard/finance/recurring. Auto-generation needs cron wiring) |
-| Approval workflows with role-based spend limits | PARTIAL — bill approval built (fin_approve_bill, approve-capability gated); FLAGGED: role-based spend-LIMIT thresholds need your $ values |
+| Approval workflows with role-based spend limits | BUILT (0157 fin_roles.approval_limit + BEFORE-UPDATE triggers on bills AND expense reports; gross total, numeric(19,4), DB-enforced. A23-verified: an approver lacks fin_can_configure() so cannot raise their own ceiling. API /api/finance/roles + UI /dashboard/finance/controls. Acceptance tests/0157 — awaiting live-DB run to reach TESTED) |
 
 **Accounts Receivable**  *(Option B finance-native; 0131 core + 0132 receipts + API/UI)*
 | Feature | Status |
@@ -45,7 +45,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Invoice generation and delivery | BUILT — generation (fin_invoices + fin_issue_invoice→GL, SoD issuer≠creator). Delivery (email/PDF) FLAGGED follow-up |
 | Payment tracking and application | BUILT (fin_receipts + fin_record_receipt→GL; partial + over-receipt guard + row lock) |
 | Aging reports (30/60/90) | BUILT (0133 fin_ar_aging view + summary RPC + AR-page buckets panel) |
-| Dunning / collections workflow | PARTIAL — collections worklist (overdue invoices) built (/api/finance/ar/collections + AR-page section); automated email reminders = integration follow-up |
+| Dunning / collections workflow | BUILT (0159 fin_dunning_policies ladder + fin_dunning_events APPEND-ONLY via do-instead-nothing rules + fin_dunning_worklist showing stage_due vs stage_actioned — the gap IS the backlog. Records, does not send. API /api/finance/ar/dunning + UI /dashboard/finance/collections. Acceptance tests/0158-0160 — awaiting live-DB run to reach TESTED) |
 | Credit notes and refunds | BUILT (credit notes) — 0143 fin_credit_notes + lines + fin_issue_credit_note (Dr Sales Returns 4900 / Cr AR, contra-revenue; SoD creator≠issuer; over-credit guard; created_by pinned+frozen per 0142); fin_invoice_summary + fin_ar_aging subtract issued credits; API /api/finance/ar/credit-notes(+/[id]/issue); UI /dashboard/finance/credit-notes. Founder decisions: contra-revenue 4900, against-one-invoice, credit-notes-only. CASH REFUNDS deferred (founder chose credits-only now) |
 
 **Expense Management**  *(0125)*
@@ -54,9 +54,9 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Employee expense submission (receipt capture) | BUILT (fin_expense_reports + fin_expense_items, receipt_url field; submission open to any company member — FLAGGED access-model decision) |
 | Expense categorization | BUILT (category field per item) |
 | Reimbursement workflow and approvals | BUILT (fin_approve_expense_report→GL with employee≠approver SoD; fin_reimburse_expense_report→GL) |
-| Corporate card transaction reconciliation | NOT_STARTED (Increment 2D) |
-| Mileage / per-diem handling | NOT_STARTED (Increment 2D) |
-| Policy enforcement (limits, disallowed categories) | NOT_STARTED (Increment 2D) |
+| Corporate card transaction reconciliation | BUILT (0160 fin_corporate_cards + fin_card_transactions + fin_card_matches; mirrors the 0145 bank-recon precedent. Auto-match refuses to guess between two candidate claims — a false match silently defeats the unsubstantiated-spend control. Reuses the hardened parseCsv. API /api/finance/cards/* + UI /dashboard/finance/cards. Acceptance tests/0158-0160 — awaiting live-DB run to reach TESTED) |
+| Mileage / per-diem handling | BUILT (0161 effective-dated fin_mileage_rates + fin_per_diem_rates; expense items gain kind+quantity. Amount is DERIVED BY TRIGGER — round(rate*qty,4) — never client-supplied; rates are configure-level so a claimant cannot value their own claim. API /api/finance/rates + UI /dashboard/finance/controls. Acceptance tests/0161 — awaiting live-DB run to reach TESTED) |
+| Policy enforcement (limits, disallowed categories) | BUILT (0162 fin_expense_policies enforced by a DB trigger on the expense line — a policy in the UI only would be a false guarantee. Checked on the GROSS line so tax cannot push a claim past its cap. Fires AFTER 0161's derivation so mileage is policed on the derived amount. API /api/finance/expense-policies + UI /dashboard/finance/controls. Acceptance tests/0162 — awaiting live-DB run to reach TESTED) |
 
 ## PHASE 3 — Banking & Reconciliation
 | Feature | Status |
@@ -65,7 +65,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Bank account management (multiple accounts) | BUILT (0145 fin_bank_accounts, each linked to its own cash GL account; configure-gated; add/list via /banking) |
 | Bank feed integration (Plaid or equiv) **or** statement import | BUILT — CSV statement import (client-parses date/amount/desc/ref → deduped insert on external_id). Plaid is a later drop-in via the same fin_bank_transactions shape (source='plaid') |
 | Automated transaction matching to ledger | BUILT (0145 fin_auto_match_bank: equal signed amount + ±3-day + single-candidate → links fin_reconciliation_matches, flips status. Acceptance: tests/0145) |
-| Manual reconciliation interface for unmatched items | PARTIAL — unmatched worklist + Ignore + a manual match-to-entry RPC (fin_match_bank_txn) built; the "create the missing GL entry (e.g. bank fee) on the spot" flow is a follow-up |
+| Manual reconciliation interface for unmatched items | BUILT (0163 fin_reconcile_create_entry creates+posts+matches the missing entry for a bank line nobody recorded (fee/interest/FX). Direction DERIVED from the line's sign — a backwards entry still BALANCES so no downstream check would catch a fee booked as income; the UI offers no way to express a direction. Posts via fin_post_system_entry. API + banking-page affordance. Acceptance tests/0163 — awaiting live-DB run to reach TESTED) |
 | Real-time cash position dashboard | BUILT (fin_bank_positions view: each bank account's linked GL cash balance + unmatched count, on /banking) |
 
 ## PHASE 4 — Cost, Profitability & Waste
