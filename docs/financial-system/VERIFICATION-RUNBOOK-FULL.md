@@ -129,7 +129,7 @@ not a verdict).
 3. Back on **Tax** → the **liability report** (pick a date range) shows output − input tax by
    jurisdiction; net = what you owe/reclaim.
 4. **Year-end close** → enter a year with posted P&L, **Close year** → confirm it posts closing entries
-   (revenue/expense → Retained Earnings 3900) and **locks** the year's periods; the P&L zeros out for a
+   (revenue/expense → Retained Earnings 3000) and **locks** the year's periods; the P&L zeros out for a
    fresh year. **Reopen** reverses it and unlocks.
 
 ## What "pass" means

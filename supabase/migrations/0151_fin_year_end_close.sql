@@ -1,7 +1,8 @@
 -- 0151 — Financial System, PHASE 7 (part 2): year-end close (founder-confirmed: build it now).
 --
 -- Posts the standard closing entry: zero every revenue + expense account for the fiscal year into
--- Retained Earnings (3900), then lock the year's periods. Real double-entry, balanced by construction
+-- Retained Earnings (code 3000, seeded by fin_init_company), then lock the year's periods. Real
+-- double-entry, balanced by construction
 -- (Dr revenue balances + Cr expense balances + RE = net income). Reversible via fin_reopen_year.
 -- Idempotent (guarded against double-close). Also cleans up the ranged-Balance-Sheet caveat: after
 -- close, prior-year P&L lives in Retained Earnings, so an as-of balance sheet reads correctly.
@@ -36,8 +37,8 @@ begin
 
   v_date := make_date(p_fiscal_year, 12, 31);
   select base_currency into v_base from fin_settings where company_id = v_company;
-  v_re := fin_account_by_code(v_company, '3900');
-  if v_re is null then raise exception 'Retained Earnings (3900) missing — initialize finance'; end if;
+  v_re := fin_account_by_code(v_company, '3000');
+  if v_re is null then raise exception 'Retained Earnings (3000) missing — initialize finance'; end if;
 
   -- Per-account P&L balances for the year, as closing lines (Dr revenue balance / Cr expense balance).
   select coalesce(jsonb_agg(l.line), '[]'::jsonb),

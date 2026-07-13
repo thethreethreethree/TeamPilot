@@ -32,7 +32,7 @@ new is invented — Phase 7 makes the existing tax handling *driven by codes* an
 ## Year-end close (the notable new *process*)
 
 **`fin_close_year(fiscal_year)`** posts the standard **closing entries**: zero out the revenue and
-expense accounts into **Retained Earnings (an equity account, seed 3900)** for the year, and lock the
+expense accounts into **Retained Earnings (an equity account, seed 3000)** for the year, and lock the
 year's periods. This is real double-entry (Dr each revenue / Cr Retained Earnings; Cr each expense /
 Dr Retained Earnings), fully reversible via a re-open. **Bonus:** it also cleans up the date-ranged
 Balance Sheet nuance flagged in 0144 — after close, prior-year P&L lives in Retained Earnings, so an
@@ -47,7 +47,7 @@ as-of balance sheet reads correctly without the "cumulative net income" caveat.
 3. **1099 / contractor reporting** — needed now? It's US-specific (annual payments to flagged
    vendors). Recommend **defer** unless you file 1099s — say the word if you do.
 4. **Year-end close** — build the closing-entry process now [recommended — it's real accounting and
-   fixes the ranged-BS caveat], or defer? Needs a Retained Earnings account (seed 3900).
+   fixes the ranged-BS caveat], or defer? Needs a Retained Earnings account (seed 3000).
 5. **First-increment scope** — recommend: tax codes + auto-calc + liability/filing report + year-end
    close. **Defer:** 1099 reporting (jurisdiction-specific).
 
@@ -64,6 +64,6 @@ as-of balance sheet reads correctly without the "cumulative net income" caveat.
 ## If confirmed
 
 Likely two migrations: `0150` (fin_tax_codes + `tax_code_id` on line tables + fin_tax_liability view +
-seed Retained Earnings 3900) and `0151` (fin_close_year + reopen), plus the tax-code picker in the
+seed Retained Earnings 3000) and `0151` (fin_close_year + reopen), plus the tax-code picker in the
 line editors, a Tax report page, and a Close-year action — with acceptance tests for the liability
 math and the closing-entry balance. 1099 = a later increment.

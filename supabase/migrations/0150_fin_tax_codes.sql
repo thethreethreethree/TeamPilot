@@ -26,11 +26,11 @@ create index if not exists fin_tax_codes_company_idx on fin_tax_codes (company_i
 alter table fin_bill_lines    add column if not exists tax_code_id uuid references fin_tax_codes(id) on delete set null;
 alter table fin_invoice_lines add column if not exists tax_code_id uuid references fin_tax_codes(id) on delete set null;
 
--- Retained Earnings — the year-end close target (0151). Seed + backfill for initialized companies.
-insert into fin_accounts (company_id, code, name, type, normal_balance, is_system)
-select s.company_id, '3900', 'Retained Earnings', 'equity', 'credit', true
-from fin_settings s
-where not exists (select 1 from fin_accounts a where a.company_id = s.company_id and a.code = '3900');
+-- (Year-end close targets the Retained Earnings account seeded by fin_init_company as code 3000 —
+-- see 0151. An earlier revision seeded a SECOND "Retained Earnings" as 3900 here, which (a) duplicated
+-- the account name and (b) was a one-time backfill absent from fin_init_company, so any company
+-- initialized AFTER this migration applied would have no 3900 and year-end close would fail. Both fixed
+-- by pointing the close at the existing 3000; no 3900 seed is needed.)
 
 -- ── Tax filing report: output tax (issued invoices) − input tax (approved bills) over [from,to],
 --    grouped by the code's jurisdiction. Derived from the SOURCE lines' tax_amount (so it needs no GL

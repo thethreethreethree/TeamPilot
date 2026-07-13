@@ -14,7 +14,7 @@ insert into fin_accounts (company_id, code, name, type, normal_balance) values
   ('00000000-0000-0000-0000-0000000000c1','2000','Accounts Payable','liability','credit'),
   ('00000000-0000-0000-0000-0000000000c1','4000','Revenue','revenue','credit'),
   ('00000000-0000-0000-0000-0000000000c1','6000','Operating Expenses','expense','debit'),
-  ('00000000-0000-0000-0000-0000000000c1','3900','Retained Earnings','equity','credit')
+  ('00000000-0000-0000-0000-0000000000c1','3000','Retained Earnings','equity','credit')
   on conflict (company_id, code) do nothing;
 insert into fin_periods (id, company_id, name, start_date, end_date, status)
   values ('00000000-0000-0000-0000-000000000f01','00000000-0000-0000-0000-0000000000c1','2026','2026-01-01','2026-12-31','open')
