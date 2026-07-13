@@ -81,6 +81,19 @@ this first — `select source_type, source_id, kind, count(*) from fin_source_po
 having count(*) > 1;` — and if it returns nothing, add the unique index (I'll write the migration on your
 say-so). A non-empty result is itself a real finding (an existing double-post to investigate).
 
+### Non-finance finding (confirmed) — coach LLM routes may lack `maxDuration` (production timeout)
+App-wide sweep (the guard pushed me beyond finance) found a real gap in the **coach** subsystem:
+`coach/analyze` `await`s an LLM call (`proposeCoachPatterns`, line 81) but has **no** `export const
+maxDuration`, and there's **no global** maxDuration (checked vercel.json + next.config) — while **24
+other routes set it**. An LLM call exceeds Vercel's ~10–15s default, so the route can be killed
+mid-generation in production. `coach/v5/analyze` looks the same (awaits an LLM call, no maxDuration);
+other `coach/*` generation routes (debrief/followup/roleplay/why/after-pitch/cue/…) likely too — I
+couldn't confirm each (some call the LLM via a lib helper, invisible to a route-file grep). **Fix**
+(trivial, zero-risk, matches the existing 24-route pattern): add `export const maxDuration = 60;` to each
+coach route that blocks on an LLM call. I did NOT auto-edit them — it's your subsystem and I don't know
+which are live vs superseded (v1 vs v5) or streaming. You know which; the fix is one line each. The
+class was "swept 2026-07-09" per a code comment, so these were likely added/missed after.
+
 ### Known VERY-low-severity concurrency edge (mostly closed by a trigger; residual accepted)
 `fin_post_system_entry` checks `period.status = 'open'` then inserts without locking the period. Good
 news, on re-examination: the `fin_entries_immutable` trigger (0118) **re-checks the period status on
