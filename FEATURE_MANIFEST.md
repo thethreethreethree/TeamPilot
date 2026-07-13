@@ -135,7 +135,7 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 | Tax calculation on transactions | BUILT — tax posts to 2100/1200; bill/invoice line editors have a tax-code picker (input codes on bills, output on invoices) that auto-computes tax_amount = amount × rate (overridable). tax_code_id stored on the line for jurisdiction reporting |
 | Tax liability tracking | BUILT (0150 fin_tax_report — output − input tax by jurisdiction/period from source lines; on /tax) |
 | Tax filing reports | BUILT (fin_tax_report by period + jurisdiction; the filing figure) |
-| Contractor / 1099 (or local equiv) reporting | NOT_STARTED — deferred (jurisdiction-specific; founder to flag if needed) |
+| Contractor / 1099 (or local equiv) reporting | BUILT (0170 fin_vendors.is_1099/tax_classification + fin_1099_payments + fin_1099_worksheet + fin_1099_readiness; API /api/finance/contractors + UI /dashboard/finance/contractors). THE RULE: a 1099 reports CASH ACTUALLY PAID in the CALENDAR year, never bills accrued — our ledger is accrual-based, so a bill dated 20-Dec paid 5-Jan is a December expense and a January payment, and belongs on NEXT year's form. Summing bills instead would be wrong every January in a way that balances, ties to the GL, and MATCHES THE P&L EXACTLY — nothing internal would catch it; the contractor would, holding a bank statement that disagrees. This is the only figure in the system a THIRD PARTY audits us against. Amount is taken from the ledger's server-computed base_credit on the cash line (not fin_payments.amount, which is denominated in its own currency — summing USD+EUR would print a meaningless total on a tax form); only POSTED payments count; eligibility is DECLARED, never inferred; sub-threshold contractors stay VISIBLE so a filer can spot someone missing; fin_1099_readiness returns BLOCKERS in words (a missing TIN discovered in January, when the contractor has moved on, is how this really fails). No new table — a LENS on existing data, not a second copy that would drift. Acceptance tests/0170 — awaiting live-DB run to reach TESTED |
 | Year-end close process | BUILT (0151 fin_close_year: posts closing entries revenue/expense → Retained Earnings 3000 [the account fin_init_company seeds] + locks the year; fin_reopen_year reverses + unlocks. Also fixes the ranged-BS caveat. Acceptance: tests/0150-0151) |
 
 ## PHASE 8 — Payroll & Assets
@@ -183,11 +183,12 @@ break-even, net-by-segment, region/product margin, anomaly/idle/cost-per-outcome
 flow projection, scenario modeling.
 **Phase 6** core — P&L, Balance Sheet, Trial Balance, GL drill-down, period-over-period, CSV export
 (formula-injection hardened) BUILT; Cash Flow + custom builder + scheduling + PDF/xlsx NOT_STARTED.
-**Phase 7** — BUILT (0150 tax codes/calc/liability/filing report + 0151 year-end close→RE 3000). Deferred: 1099.
+**Phase 7** — BUILT (0150 tax codes/calc/liability/filing report + 0151 year-end close→RE 3000 + 0170
+contractor/1099 on a CASH basis). Phase 7 is now complete.
 **Phase 8** — BUILT (0166 fixed-asset register + depreciation with a salvage clamp and one run per
 asset per period; 0167 payroll as a LEDGER-SIDE integration — we record what the provider computed and
 refuse to derive a missing figure, because gross = net + withholdings is an identity, and a mismatch is a
-misread column, not a gap to fill). Contractor/1099 remains NOT_STARTED.
+misread column, not a gap to fill).
 **Phase 9** — RBAC, SoD, encryption, backup (Supabase) BUILT; approval-delegation BUILT (0168);
 opening-balance import BUILT (0169); multi-entity + full
 integration-layer deferred.
