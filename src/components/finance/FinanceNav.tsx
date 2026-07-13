@@ -28,6 +28,7 @@ const LINKS = [
   { href: "/dashboard/finance/statements", label: "Statements" },
   { href: "/dashboard/finance/controls", label: "Controls" },
   { href: "/dashboard/finance/opening-balances", label: "Opening balances" },
+  { href: "/dashboard/finance/contractors", label: "Contractors" },
 ];
 
 export default function FinanceNav() {
