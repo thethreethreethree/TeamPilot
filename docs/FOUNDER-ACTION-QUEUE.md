@@ -13,6 +13,39 @@ is a blocker I can clear autonomously — each needs your judgment, a live envir
 
 ---
 
+## 0. ⚠️ UNCOMMITTED working-tree change to `0118_fin_ledger.sql` — YOUR CALL (I did not make it, left it untouched)
+**Found during a deploy-readiness check: `git status` shows `0118_fin_ledger.sql` MODIFIED but not
+committed.** It was NOT modified at this session's start (initial status was clean but for
+`FinancialSystem.md`), and it isn't in my session's edit record — so it's either your own in-progress
+work or a stray edit. It touches the **core ledger**, so I neither committed nor reverted it; you decide.
+
+What the uncommitted diff does (vs the committed version):
+1. **Consolidates the balance assertion** — `fin_assert_entry_balanced(uuid)` + its two wrapper trigger
+   fns → one `fin_assert_balanced()` trigger fn. Functionally similar BUT:
+2. **Removes the entry-side balance trigger** (`fin_assert_balanced_entry_trg` on `fin_journal_entries`),
+   leaving ONLY the lines trigger. The committed version's comment said the entry trigger exists to catch
+   "the post transition itself (an entry UPDATE to status='posted')… AND any direct/service-role status
+   flip." **Concern:** a status→'posted' flip that touches no line would no longer re-assert balance.
+   (Mitigated in practice because `fin_post_entry` does its own balance check — but the belt-and-suspenders
+   backstop is weakened.)
+3. **Redesigns `fin_reverse_entry` SoD**: committed version creates the reversal as a DRAFT that a
+   DIFFERENT approver must post (SoD holds — reverser ≠ approver). The uncommitted version **auto-posts
+   the reversal inline** via a new `fin_post_reversal()` that **bypasses the self-approval check** (its
+   own comment: "the SoD that matters was on the ORIGINAL entry"). This is a real policy change — is a
+   reversal a one-person or two-person action? Your call, but it must be deliberate + committed, not
+   left loose.
+4. **Drops the FX trust-flag** (`set_config('fin.trust_provided_rate',…)`) that made a reversal preserve
+   the original `fx_rate` for exact base-currency negation. Without it the 0119 base-compute trigger
+   re-looks-up the rate, so a **foreign-currency reversal at a later date could fail the new balance
+   check** — the deleted comment warned this was load-bearing. (Latent: FX is deferred anyway — ties to
+   the FX per-line-rounding flag below.) Also changes reversal authz `fin_can_enter`→`fin_can_approve`.
+
+**Recommendation:** decide if this is your intended reversal redesign. If yes — finish + review it (esp.
+the SoD-bypass and the FX-reversal balance) and commit it as its own migration/change with a rationale;
+don't leave a core-ledger edit uncommitted where it can be lost or swept into an unrelated commit. If no —
+`git checkout -- supabase/migrations/0118_fin_ledger.sql` restores the committed version. I left the file
+exactly as found.
+
 ## 1. SECURITY — stage + apply `0112` and `0113` (HIGH / MED)
 Real, built, static-verified fixes awaiting one **live staging cycle** before promote:
 - **`0112`** (HIGH) — `company_brain.system_prompt_addendum` was member-writable → company-wide prompt
