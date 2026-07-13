@@ -155,6 +155,12 @@ service-role** (`createAdminClient`/service_role absent everywhere), every route
 user-scoped `createClient` so RLS + the `fin_can_*` DEFINER checks enforce authorization at the DB
 layer (the correct two-layer model). The routes added this session (bank/*, budgets/*, profitability,
 runway, tax-codes, tax-report, close-year, dimensions, credit-notes/*) all conform. No exposure found.
+**Table-RLS audit (clean):** all 34 `fin_` tables have `enable row level security` + company-scoped
+policies; DEFINER-written tables (receipts, payments, source_postings, entry_counters, audit_log,
+reconciliation_matches, year_closes) are correctly SELECT-only (`company_id = auth_company_id()`, no
+`using (true)`), with writes only through SECURITY DEFINER fns. Full isolation model verified airtight:
+tables (RLS+scoped) → views (security_invoker) → routes (auth-gated, user-scoped) → writes (DEFINER +
+capability + SoD).
 **View-isolation audit (clean):** every finance view sets `security_invoker = true` inline (0121–0149);
 the older cross-subsystem views were retrofitted via `alter view` in `0052` (+ chat re-set in `0076`),
 so no view bypasses RLS → no cross-tenant leak. **Account-code audit (clean after the 3900→3000 fix):**
