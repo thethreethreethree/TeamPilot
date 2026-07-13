@@ -491,6 +491,22 @@ of them is your call). **Recommended pattern if you want it:** `const { error } 
 central `emitEvent()` helper with this built in would fix all 13 in one place (helpers already exist for
 asset/mention events; the generic chain inserts bypass them).
 
+### files.update — an uploader can move a file's row to another company (LOW write-side isolation)
+`files_update` (0057) is `for update using ( uploader_id = auth.uid() OR exists(admin in same company) )`
+with **no explicit `with check`**. Postgres then uses USING as the WITH CHECK on the NEW row — and the
+`uploader_id = auth.uid()` branch passes *regardless of company_id*. So an uploader can do a direct-PostgREST
+`update files set company_id = <other-company-uuid> where id = <their file>` and it's allowed; nothing
+freezes `files.company_id` (the 0056 triggers only recompute classification, unlike the 0090 profiles guard).
+**Why LOW, not HIGH:** (1) needs the target company's UUID, which isn't normally exposed; (2) it moves the
+row's *metadata* only — the storage object stays under the original company's path and downloads are
+IDOR-scoped separately, so the target sees a dangling entry, NOT the file content (no read-escape, no content
+leak); (3) it's self-defeating (the attacker loses access to their own file). Impact is phantom-row injection
+into another tenant's file list (nuisance / weak phishing-name vector), not data exfiltration. **Contrast:**
+`chat_topics`/`companies` update policies are safe under the same "no explicit with check" pattern because
+their USING is *purely* `company_id = auth_company_id()`; only `files` has the OR'd non-tenant branch that
+lets company_id float. **Fix (one migration):** add `with check (company_id = auth_company_id())` to
+`files_update` (or a company_id-freeze trigger). Touches production file auth — your review before applying.
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
