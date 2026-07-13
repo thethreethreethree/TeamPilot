@@ -31,11 +31,18 @@
 -- — it removes only the direct-PostgREST member-insert vector (the fabrication). Reads
 -- (SELECT policies) and the service-role writes are untouched.
 --
--- NOT covered here (still flagged, genuinely harder): coach.dissect_generated events are
--- emitted USER-scoped (dissect route uses createClient), so the events INSERT policy can't
--- distinguish legit emission from fabrication of the same kind — that one needs the emission
--- moved to a service/DEFINER path first (the events-fabrication residual of 0103). Left for
--- the founder's design call, same as the brain-events remediation framing.
+-- NOT covered here (flagged, held for the founder's review): the ELO also consumes
+-- coach.dissect_generated events, and the 0103 events INSERT policy constrains actor + company_id
+-- but NOT kind — so a direct PostgREST insert of a fabricated dissect event could inflate the
+-- actor's own ELO. CORRECTION (traced 2026-07-13, supersedes the earlier "emitted user-scoped"
+-- framing below): the legit dissect EMISSION is SERVICE-ROLE (salesDissect.ts:101 createAdminClient;
+-- the dissect route's createClient is only an auth-read — the two were conflated). Because the legit
+-- path bypasses RLS, the fix is READY + safe-by-construction: exclude that one kind from the member
+-- events INSERT policy (`and kind <> 'coach.dissect_generated'`), blocking fabrication without
+-- breaking the service-role emission. Ready SQL: docs/AUDIT-2026-07-09-brain-injection.md. Held from
+-- autonomous staging ONLY because it edits the events INSERT policy — the §3.1 chain's most critical,
+-- where an error breaks ALL event inserts — so a MED fix there is a founder-review call, not a hard
+-- problem. (The 7 other user-scoped coach.* kinds were traced 2026-07-13 and feed NO score — clean.)
 --
 -- FUTURE NOTE: if a user-client session-create is ever added (e.g. a browser "start session"
 -- writing via the anon key + user JWT), re-add an owner-scoped INSERT policy for the SHELL

@@ -16,8 +16,11 @@ Real, built, static-verified fixes awaiting one **live staging cycle** before pr
 - **`0113`** (MED) — members could fabricate their own ELO inputs (`after_pitch_summaries`,
   `coaching_sessions`, transcript/cues) → self-inflate §3.5 score. Fix removes the member INSERT
   policies (all legit inserts are service-role — safe by construction).
-> An event-scoring trace is running now to confirm whether any *other* user-scoped `coach.*` event
-> feeds a score (would be the same class). Result folded in when done.
+> Event-scoring trace DONE (2026-07-13): the 7 user-scoped `coach.*` kinds (review/after-pitch/
+> decision/analyze/debrief/grade-sent/observe) feed **NO score** — the ELO reads only service-role
+> sources (`coach.dissect_generated` events + the `after_pitch_summaries`/`coaching_sessions` tables).
+> **No RLS change to the 7 is needed.** The one remaining §3.5 event-fabrication vector is the
+> `coach.dissect_generated` events-INSERT-policy residual → item 4 below.
 
 ## 2. FINANCE — apply `0145`–`0151` + walk the runbook
 Built, dependency-ordered, idempotent, chain contiguous (no gaps/dups). Carries the sweep fixes
