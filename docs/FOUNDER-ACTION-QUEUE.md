@@ -40,6 +40,13 @@ What the uncommitted diff does (vs the committed version):
    check** — the deleted comment warned this was load-bearing. (Latent: FX is deferred anyway — ties to
    the FX per-line-rounding flag below.) Also changes reversal authz `fin_can_enter`→`fin_can_approve`.
 
+**NOT blocking the apply queue (verified):** no COMMITTED migration references the uncommitted new names
+(`fin_post_reversal`, `fin_assert_balanced`), the committed `0118` (HEAD) does not define them, and no
+later migration calls the balance-assertion fns outside `0118` at all. So the committed chain `0116–0153`
+is internally consistent on its own — you can apply `0145–0153` now against the committed (safe, draft-
+then-different-approver) reversal behavior; this edit only takes effect if you commit it. It's an isolated
+decision, not a prerequisite.
+
 **Recommendation:** decide if this is your intended reversal redesign. If yes — finish + review it (esp.
 the SoD-bypass and the FX-reversal balance) and commit it as its own migration/change with a rationale;
 don't leave a core-ledger edit uncommitted where it can be lost or swept into an unrelated commit. If no —
