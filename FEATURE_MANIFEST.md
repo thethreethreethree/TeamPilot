@@ -187,8 +187,8 @@ flow projection, scenario modeling.
 **Phase 8** — PROPOSED (docs/financial-system/PHASE-8-DATA-MODEL.md, reviewed build-ready), awaiting confirmation.
 **Phase 9** — RBAC, SoD, encryption, backup (Supabase) BUILT; approval-delegation + opening-balance
 import PROPOSED (PHASE-9-DATA-MODEL.md, reviewed build-ready); multi-entity + full integration-layer deferred.
-Everything Phase-2+ is verified-by-construction; hardened this session across SIX audit angles (money-
-logic, API routes, UI loads+mutations, cross-migration account codes, view isolation, table RLS, DEFINER
-tenant-safety) with 7 defects fixed — see docs/closures/2026-07-11-financial-system-session.md. One open
+Everything Phase-2+ is verified-by-construction; hardened this session across EIGHT audit angles (money-
+logic, API routes, UI load-errors, UI mutation-errors, cross-migration account codes, view isolation,
+table RLS, DEFINER tenant-safety) with 7 defects fixed — see docs/closures/2026-07-11-financial-system-session.md. One open
 FINANCE decision: tax-report credit-note netting (TAX-CREDIT-NOTE-NETTING-DECISION.md). Apply 0122–0151 to
 a live DB + run the acceptance scripts / VERIFICATION-RUNBOOK-FULL.md (Steps 1–15) to reach TESTED.*
