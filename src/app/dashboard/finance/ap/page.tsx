@@ -7,7 +7,7 @@ import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, computeLineTax } from "@/lib/finance/format";
 import { todayIso } from "@/lib/finance/dateRange";
 import { useToast } from "@/components/ui/toast";
-import { Loader2, Plus, CheckCircle2, DollarSign } from "lucide-react";
+import { Plus, CheckCircle2, DollarSign } from "lucide-react";
 
 type Vendor = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };

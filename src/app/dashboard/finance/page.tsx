@@ -7,7 +7,6 @@ import { LearningHint } from "@/components/learning/LearningHint";
 import FinanceNav from "@/components/finance/FinanceNav";
 import { useToast } from "@/components/ui/toast";
 import {
-  TrendingUp,
   TrendingDown,
   CheckCircle2,
   AlertTriangle,
