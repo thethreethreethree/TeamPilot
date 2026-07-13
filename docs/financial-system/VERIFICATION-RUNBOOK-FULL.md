@@ -8,11 +8,12 @@ Steps 1–5 are the core double-entry proof (AP → AR → statements). Steps 6�
 enrichments (Expenses, Purchase Orders, Recurring bills). Aging + collections are checked inline.
 
 ## Step 1 — apply migrations
-Apply **0122 → 0146** in numeric order (on a fresh DB, apply 0116 → 0146). Covers Phase 2, the audit
+Apply **0122 → 0151** in numeric order (on a fresh DB, apply 0116 → 0151). Covers Phase 2, the audit
 fixes, AR, statements + date-ranged statements, all Phase-2D features, credit notes (0143), the
-security fixes (0141/0142), **Phase 3 Banking (0145)**, and duplicate detection (0146). *(As of
-2026-07-13 the founder has applied through 0144; `0145` + `0146` are the outstanding two.)* Two
-properties are verified so the apply is low-risk:
+security fixes (0141/0142), **Phase 3 Banking (0145)**, duplicate detection (0146), **Phase 4 cost/
+profitability (0147/0148)**, **Phase 5 budgeting (0149)**, and **Phase 7 tax + year-end close
+(0150/0151)**. *(As of 2026-07-13 the founder has applied through 0144; `0145`–`0151` are outstanding.)*
+Two properties are verified so the apply is low-risk:
 - **Dependency order** — every object is defined before its consumers (no forward references).
 - **Idempotent / re-runnable** — tables + indexes use `if not exists`; policies and triggers are
   `drop … if exists` before create; functions/views are `create or replace`; the three top-level
@@ -120,20 +121,32 @@ not a verdict).
 3. The variance table shows **budget vs actual** for Q1; over-budget expense (or under-budget revenue)
    shows **red**. A Q2 actual won't affect the Q1 line (quarter-scoped).
 
+## Step 15 — Tax & year-end close (0150/0151 — Phase 7)
+1. **Finance → Tax** → add a tax code (e.g. `VAT20`, 20%, direction **Sales/output** for invoices; add
+   a **Purchases/input** one for bills).
+2. On **Receivable**, a new invoice line now has a **Tax code** picker — pick `VAT20` → tax auto-fills
+   (amount × 20%, overridable). Issue the invoice. Same on **Payable** with an input code.
+3. Back on **Tax** → the **liability report** (pick a date range) shows output − input tax by
+   jurisdiction; net = what you owe/reclaim.
+4. **Year-end close** → enter a year with posted P&L, **Close year** → confirm it posts closing entries
+   (revenue/expense → Retained Earnings 3900) and **locks** the year's periods; the P&L zeros out for a
+   fresh year. **Reopen** reverses it and unlocks.
+
 ## What "pass" means
 Every posted transaction moved the statements, the Trial Balance stayed **debits = credits**, and the
 Balance Sheet **tied out** — i.e., the double-entry spine holds end-to-end through the subledgers to
-the statements. Dimension tags flow to profitability; budget lines compare to the same posted actuals.
-That's the whole system verified on real data.
+the statements. Dimension tags flow to profitability; budget lines compare to the same posted actuals;
+tax flows to the liability report; year-end close moves P&L into Retained Earnings. Verified on real data.
 
 ## Known limits (by design, flagged in the audit doc)
 - Bill / invoice / **expense** entry are all **multi-line + per-line tax/category** (2026-07-13).
 - Foreign-currency settlement is rejected (FX-on-payment is a later increment), base-currency works.
 - Expense/AR issue + credit-note issue need a second finance user (SoD).
 - Cash Flow Statement + PDF export not built. **Phases 3 (Banking), 4-inc1 (Cost/Profit), 5-inc1
-  (Budget/variance/runway) ARE built** (Steps 11, 13, 14). Deferred: Phase-4 overhead/anomaly/
-  inventory, Phase-5 forecasts/scenario. Phases 7 (tax) / 8 (payroll/assets) / 9 (governance) pending
-  — each needs a data-model proposal + confirmation.
+  (Budget/variance/runway), 7 (Tax + year-end close) ARE built** (Steps 11, 13, 14, 15). Deferred:
+  Phase-4 overhead/anomaly/inventory, Phase-5 forecasts/scenario, tax 1099. **Phase 9 mostly built**
+  (RBAC/SoD/encryption/backup). **Phase 8 (payroll/assets)** proposed; Phase-9 gaps (delegation/multi-
+  entity/integrations) proposed — each needs confirmation.
 
 *If any step doesn't behave as above, tell me which step + what you saw and I diagnose from the
 named behavior — the honest-error discipline, not a guess.*
