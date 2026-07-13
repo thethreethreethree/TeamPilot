@@ -25,14 +25,19 @@ export default function TaxPage() {
   const [to, setTo] = useState(`${year}-12-31`);
 
   const load = useCallback(async () => {
-    const [ac, tc] = await Promise.all([
-      fetch("/api/finance/accounts").then((r) => r.json()),
-      fetch("/api/finance/tax-codes").then((r) => r.json()),
-    ]);
-    setAccountsCount((ac.accounts ?? []).length);
-    setCodes(tc.taxCodes ?? []);
-    setLoaded(true);
-  }, []);
+    try {
+      const [ac, tc] = await Promise.all([
+        fetch("/api/finance/accounts").then((r) => r.json()),
+        fetch("/api/finance/tax-codes").then((r) => r.json()),
+      ]);
+      setAccountsCount((ac.accounts ?? []).length);
+      setCodes(tc.taxCodes ?? []);
+    } catch {
+      toast.error("Couldn't load tax data", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => { void load(); }, [load]);
 
   const loadReport = useCallback(async () => {

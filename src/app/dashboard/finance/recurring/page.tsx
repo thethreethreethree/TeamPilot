@@ -31,16 +31,21 @@ export default function RecurringPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [v, a, t] = await Promise.all([
-      fetch("/api/finance/ap/vendors").then((r) => r.json()),
-      fetch("/api/finance/accounts").then((r) => r.json()),
-      fetch("/api/finance/ap/recurring").then((r) => r.json()),
-    ]);
-    setVendors(v.vendors ?? []);
-    setAccounts(a.accounts ?? []);
-    setLoaded(true);
-    setTemplates(t.templates ?? []);
-  }, []);
+    try {
+      const [v, a, t] = await Promise.all([
+        fetch("/api/finance/ap/vendors").then((r) => r.json()),
+        fetch("/api/finance/accounts").then((r) => r.json()),
+        fetch("/api/finance/ap/recurring").then((r) => r.json()),
+      ]);
+      setVendors(v.vendors ?? []);
+      setAccounts(a.accounts ?? []);
+      setTemplates(t.templates ?? []);
+    } catch {
+      toast.error("Couldn't load recurring bills", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => {
     void load();
   }, [load]);

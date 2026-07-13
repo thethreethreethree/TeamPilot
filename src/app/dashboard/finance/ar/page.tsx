@@ -54,25 +54,30 @@ export default function ArPage() {
   };
 
   const load = useCallback(async () => {
-    const [c, a, i, g, o, dim, tx] = await Promise.all([
-      fetch("/api/finance/ar/customers").then((r) => r.json()),
-      fetch("/api/finance/accounts").then((r) => r.json()),
-      fetch("/api/finance/ar/invoices").then((r) => r.json()),
-      fetch("/api/finance/ar/aging").then((r) => r.json()),
-      fetch("/api/finance/ar/collections").then((r) => r.json()),
-      fetch("/api/finance/dimensions").then((r) => r.json()),
-      fetch("/api/finance/tax-codes").then((r) => r.json()),
-    ]);
-    setCustomers(c.customers ?? []);
-    setAccounts(a.accounts ?? []);
-    setLoaded(true);
-    setInvoices(i.invoices ?? []);
-    setAging(g.aging ?? null);
-    setOverdue(o.overdue ?? []);
-    setCostCenters(dim.costCenters ?? []);
-    setProjects(dim.projects ?? []);
-    setTaxCodes((tx.taxCodes ?? []).filter((t: TaxCode) => t.direction === "output"));
-  }, []);
+    try {
+      const [c, a, i, g, o, dim, tx] = await Promise.all([
+        fetch("/api/finance/ar/customers").then((r) => r.json()),
+        fetch("/api/finance/accounts").then((r) => r.json()),
+        fetch("/api/finance/ar/invoices").then((r) => r.json()),
+        fetch("/api/finance/ar/aging").then((r) => r.json()),
+        fetch("/api/finance/ar/collections").then((r) => r.json()),
+        fetch("/api/finance/dimensions").then((r) => r.json()),
+        fetch("/api/finance/tax-codes").then((r) => r.json()),
+      ]);
+      setCustomers(c.customers ?? []);
+      setAccounts(a.accounts ?? []);
+      setInvoices(i.invoices ?? []);
+      setAging(g.aging ?? null);
+      setOverdue(o.overdue ?? []);
+      setCostCenters(dim.costCenters ?? []);
+      setProjects(dim.projects ?? []);
+      setTaxCodes((tx.taxCodes ?? []).filter((t: TaxCode) => t.direction === "output"));
+    } catch {
+      toast.error("Couldn't load receivables", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => {
     void load();
   }, [load]);

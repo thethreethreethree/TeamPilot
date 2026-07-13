@@ -30,17 +30,22 @@ export default function ExpensesPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [a, r, dim] = await Promise.all([
-      fetch("/api/finance/accounts").then((x) => x.json()),
-      fetch("/api/finance/expenses/reports").then((x) => x.json()),
-      fetch("/api/finance/dimensions").then((x) => x.json()),
-    ]);
-    setAccounts(a.accounts ?? []);
-    setLoaded(true);
-    setReports(r.reports ?? []);
-    setCostCenters(dim.costCenters ?? []);
-    setProjects(dim.projects ?? []);
-  }, []);
+    try {
+      const [a, r, dim] = await Promise.all([
+        fetch("/api/finance/accounts").then((x) => x.json()),
+        fetch("/api/finance/expenses/reports").then((x) => x.json()),
+        fetch("/api/finance/dimensions").then((x) => x.json()),
+      ]);
+      setAccounts(a.accounts ?? []);
+      setReports(r.reports ?? []);
+      setCostCenters(dim.costCenters ?? []);
+      setProjects(dim.projects ?? []);
+    } catch {
+      toast.error("Couldn't load expenses", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => {
     void load();
   }, [load]);

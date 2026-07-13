@@ -14,9 +14,13 @@ export default function PeriodsPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const r = await fetch("/api/finance/periods").then((x) => x.json());
-    setPeriods(r.periods ?? []);
-  }, []);
+    try {
+      const r = await fetch("/api/finance/periods").then((x) => x.json());
+      setPeriods(r.periods ?? []);
+    } catch {
+      toast.error("Couldn't load periods", "Check your connection and refresh.");
+    }
+  }, [toast]);
   useEffect(() => {
     void load();
   }, [load]);

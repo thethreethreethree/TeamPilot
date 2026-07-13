@@ -28,18 +28,23 @@ export default function BudgetsPage() {
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
-    const [a, dim, b, rw] = await Promise.all([
-      fetch("/api/finance/accounts").then((r) => r.json()),
-      fetch("/api/finance/dimensions").then((r) => r.json()),
-      fetch("/api/finance/budgets").then((r) => r.json()),
-      fetch("/api/finance/runway").then((r) => r.json()),
-    ]);
-    setAccounts(a.accounts ?? []);
-    setCostCenters(dim.costCenters ?? []);
-    setBudgets(b.budgets ?? []);
-    setRunway(rw.runway ?? null);
-    setLoaded(true);
-  }, []);
+    try {
+      const [a, dim, b, rw] = await Promise.all([
+        fetch("/api/finance/accounts").then((r) => r.json()),
+        fetch("/api/finance/dimensions").then((r) => r.json()),
+        fetch("/api/finance/budgets").then((r) => r.json()),
+        fetch("/api/finance/runway").then((r) => r.json()),
+      ]);
+      setAccounts(a.accounts ?? []);
+      setCostCenters(dim.costCenters ?? []);
+      setBudgets(b.budgets ?? []);
+      setRunway(rw.runway ?? null);
+    } catch {
+      toast.error("Couldn't load budgets", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => { void load(); }, [load]);
 
   const loadLines = useCallback(async (id: string) => {

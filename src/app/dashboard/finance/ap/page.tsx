@@ -55,25 +55,30 @@ export default function ApPage() {
   };
 
   const load = useCallback(async () => {
-    const [v, a, b, g, d, dim, tx] = await Promise.all([
-      fetch("/api/finance/ap/vendors").then((r) => r.json()),
-      fetch("/api/finance/accounts").then((r) => r.json()),
-      fetch("/api/finance/ap/bills").then((r) => r.json()),
-      fetch("/api/finance/ap/aging").then((r) => r.json()),
-      fetch("/api/finance/ap/duplicates").then((r) => r.json()),
-      fetch("/api/finance/dimensions").then((r) => r.json()),
-      fetch("/api/finance/tax-codes").then((r) => r.json()),
-    ]);
-    setVendors(v.vendors ?? []);
-    setAccounts(a.accounts ?? []);
-    setBills(b.bills ?? []);
-    setAging(g.aging ?? null);
-    setDups(d.duplicates ?? []);
-    setCostCenters(dim.costCenters ?? []);
-    setProjects(dim.projects ?? []);
-    setTaxCodes((tx.taxCodes ?? []).filter((t: TaxCode) => t.direction === "input"));
-    setLoaded(true);
-  }, []);
+    try {
+      const [v, a, b, g, d, dim, tx] = await Promise.all([
+        fetch("/api/finance/ap/vendors").then((r) => r.json()),
+        fetch("/api/finance/accounts").then((r) => r.json()),
+        fetch("/api/finance/ap/bills").then((r) => r.json()),
+        fetch("/api/finance/ap/aging").then((r) => r.json()),
+        fetch("/api/finance/ap/duplicates").then((r) => r.json()),
+        fetch("/api/finance/dimensions").then((r) => r.json()),
+        fetch("/api/finance/tax-codes").then((r) => r.json()),
+      ]);
+      setVendors(v.vendors ?? []);
+      setAccounts(a.accounts ?? []);
+      setBills(b.bills ?? []);
+      setAging(g.aging ?? null);
+      setDups(d.duplicates ?? []);
+      setCostCenters(dim.costCenters ?? []);
+      setProjects(dim.projects ?? []);
+      setTaxCodes((tx.taxCodes ?? []).filter((t: TaxCode) => t.direction === "input"));
+    } catch {
+      toast.error("Couldn't load payables", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => {
     void load();
   }, [load]);

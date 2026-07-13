@@ -20,16 +20,21 @@ export default function PosPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [v, a, p] = await Promise.all([
-      fetch("/api/finance/ap/vendors").then((r) => r.json()),
-      fetch("/api/finance/accounts").then((r) => r.json()),
-      fetch("/api/finance/ap/pos").then((r) => r.json()),
-    ]);
-    setVendors(v.vendors ?? []);
-    setAccounts(a.accounts ?? []);
-    setLoaded(true);
-    setPos(p.pos ?? []);
-  }, []);
+    try {
+      const [v, a, p] = await Promise.all([
+        fetch("/api/finance/ap/vendors").then((r) => r.json()),
+        fetch("/api/finance/accounts").then((r) => r.json()),
+        fetch("/api/finance/ap/pos").then((r) => r.json()),
+      ]);
+      setVendors(v.vendors ?? []);
+      setAccounts(a.accounts ?? []);
+      setPos(p.pos ?? []);
+    } catch {
+      toast.error("Couldn't load purchase orders", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => {
     void load();
   }, [load]);

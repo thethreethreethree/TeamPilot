@@ -30,18 +30,23 @@ export default function ProfitabilityPage() {
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
-    const [ac, prof, cu] = await Promise.all([
-      fetch("/api/finance/accounts").then((r) => r.json()),
-      fetch("/api/finance/profitability").then((r) => r.json()),
-      fetch("/api/finance/ar/customers").then((r) => r.json()),
-    ]);
-    setAccountsCount((ac.accounts ?? []).length);
-    setProjects(prof.projects ?? []);
-    setCostCenters(prof.costCenters ?? []);
-    setCustProfit(prof.customers ?? []);
-    setCustomers(cu.customers ?? []);
-    setLoaded(true);
-  }, []);
+    try {
+      const [ac, prof, cu] = await Promise.all([
+        fetch("/api/finance/accounts").then((r) => r.json()),
+        fetch("/api/finance/profitability").then((r) => r.json()),
+        fetch("/api/finance/ar/customers").then((r) => r.json()),
+      ]);
+      setAccountsCount((ac.accounts ?? []).length);
+      setProjects(prof.projects ?? []);
+      setCostCenters(prof.costCenters ?? []);
+      setCustProfit(prof.customers ?? []);
+      setCustomers(cu.customers ?? []);
+    } catch {
+      toast.error("Couldn't load profitability", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => {
     void load();
   }, [load]);

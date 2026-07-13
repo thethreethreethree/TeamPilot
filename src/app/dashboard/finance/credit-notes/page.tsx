@@ -32,18 +32,23 @@ export default function CreditNotesPage() {
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
-    const [cu, inv, cn, ac] = await Promise.all([
-      fetch("/api/finance/ar/customers").then((r) => r.json()),
-      fetch("/api/finance/ar/invoices").then((r) => r.json()),
-      fetch("/api/finance/ar/credit-notes").then((r) => r.json()),
-      fetch("/api/finance/accounts").then((r) => r.json()),
-    ]);
-    setCustomers(cu.customers ?? []);
-    setInvoices(inv.invoices ?? []);
-    setNotes(cn.creditNotes ?? []);
-    setAccountsCount((ac.accounts ?? []).length);
-    setLoaded(true);
-  }, []);
+    try {
+      const [cu, inv, cn, ac] = await Promise.all([
+        fetch("/api/finance/ar/customers").then((r) => r.json()),
+        fetch("/api/finance/ar/invoices").then((r) => r.json()),
+        fetch("/api/finance/ar/credit-notes").then((r) => r.json()),
+        fetch("/api/finance/accounts").then((r) => r.json()),
+      ]);
+      setCustomers(cu.customers ?? []);
+      setInvoices(inv.invoices ?? []);
+      setNotes(cn.creditNotes ?? []);
+      setAccountsCount((ac.accounts ?? []).length);
+    } catch {
+      toast.error("Couldn't load credit notes", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => {
     void load();
   }, [load]);

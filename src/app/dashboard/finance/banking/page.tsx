@@ -89,14 +89,19 @@ export default function BankingPage() {
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
-    const [a, b] = await Promise.all([
-      fetch("/api/finance/accounts").then((r) => r.json()),
-      fetch("/api/finance/bank/accounts").then((r) => r.json()),
-    ]);
-    setAccounts(a.accounts ?? []);
-    setBanks(b.accounts ?? []);
-    setLoaded(true);
-  }, []);
+    try {
+      const [a, b] = await Promise.all([
+        fetch("/api/finance/accounts").then((r) => r.json()),
+        fetch("/api/finance/bank/accounts").then((r) => r.json()),
+      ]);
+      setAccounts(a.accounts ?? []);
+      setBanks(b.accounts ?? []);
+    } catch {
+      toast.error("Couldn't load banking", "Check your connection and refresh.");
+    } finally {
+      setLoaded(true);
+    }
+  }, [toast]);
   useEffect(() => {
     void load();
   }, [load]);
