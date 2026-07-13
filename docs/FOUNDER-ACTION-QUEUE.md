@@ -1,5 +1,12 @@
 # Founder action queue — as of 2026-07-13
 
+> **Build status: deploy-ready.** All four gates green as of 2026-07-13 — `tsc --noEmit` 0 errors,
+> ESLint (`src`) 0 problems (fixed 2 unused-import errors that could fail `next build`), 617 vitest
+> pass, `next build` compiles. The migrations still need applying (below); the app code ships clean.
+> One artifact left untracked in git: **`FinancialSystem.md`** (the spec) — tell me if you want it
+> committed to the repo or intentionally kept out (it references the IP docs, so I didn't add it blind).
+
+
 One prioritized page for everything awaiting your call after the autonomous Financial-System
 session. Ordered by severity/impact. Each item names its artifact + my recommendation. Nothing here
 is a blocker I can clear autonomously — each needs your judgment, a live environment, or an apply.
