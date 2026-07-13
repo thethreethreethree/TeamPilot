@@ -504,19 +504,28 @@ leak); (3) it's self-defeating (the attacker loses access to their own file). Im
 into another tenant's file list (nuisance / weak phishing-name vector), not data exfiltration. **Contrast:**
 `chat_topics`/`companies` update policies are safe under the same "no explicit with check" pattern because
 their USING is *purely* `company_id = auth_company_id()`; only `files` has the OR'd non-tenant branch that
-lets company_id float. **Fix (one migration):** add `with check (company_id = auth_company_id())` to
-`files_update` (or a company_id-freeze trigger). Touches production file auth — your review before applying.
-> **Sweep completed 2026-07-13 (all 30 no-explicit-with-check update/all policies classified):** the unsafe
-> shape is a *top-level* OR whose branch doesn't pin company_id. It is confined to the **0057 files
-> subsystem**: `files.update` (clear company_id float, above) PLUS 5 file-join tables — `file_departments`,
-> `file_tasks`, `file_tags`, `file_access_grants`, `file_classification_suggestions` — which all inherit
-> `files.uploader_id = auth.uid() OR same-company-admin`. Fix these as ONE group (the join tables key off
-> `file_id` and may lack a company_id column, so their exact impact differs from files.update — confirm
-> per-table when fixing). **Cleared as SAFE (false positives from the OR heuristic):** support_conversations,
-> support_tags, support_conversation_tags, support_canned_responses, support_durability_checks,
-> coaching_sessions — each is a company-scoped `exists (profiles … company_id = TABLE.company_id …)` whose
-> only OR is a *role* choice (is_support_agent/admin, or agent/admin), which pins the new row's company. So
-> the write-side gap is bounded to the files subsystem; CARE + coaching are sound.
+lets company_id float. **Fix WRITTEN — `0154_files_update_company_pin.sql` (UNAPPLIED, needs your apply).** Re-declares
+`files_update` with an explicit `with check` pinning the NEW row: `company_id = auth_company_id()` AND the
+uploader/admin condition (re-asserted, because an explicit WITH CHECK *replaces* the implicit one — omitting
+it would newly allow reassigning `uploader_id`). Legit flows unchanged (an uploader editing/soft-deleting
+their own file leaves company_id untouched). Idempotent, no data change, touches only that one policy.
+**I could not verify it against a live DB (no DB access)** — after applying, smoke-test: (1) uploader can
+still edit + soft-delete their own file; (2) a CEO/COO/admin can still edit a file in their company; (3) a
+cross-company `company_id` move now fails.
+> **Sweep completed 2026-07-13 (all 30 no-explicit-with-check update/all policies classified). The gap is
+> `files.update` ALONE.** I initially grouped the 5 file-join tables into this finding — that was an
+> OVER-CLAIM, now retracted after reading their schemas: `file_departments` / `file_tasks` / `file_tags` /
+> `file_access_grants` / `file_classification_suggestions` have **no `company_id` column at all** (pure
+> `file_id`+X link tables), so the company_id float physically cannot apply to them. Their only oddity —
+> you can link your file to a foreign department/task/profile — is **inert**, because `files_select` (0057:35)
+> leads with a hard AND-ed gate: `company_id in (select company_id from profiles where id = auth.uid())`
+> *"Cross-tenant gate first — never see another company's files regardless of access_role."* So a
+> cross-company `file_access_grants` row grants nothing (the grantee still fails the company gate) — **there
+> is NO cross-tenant read leak** anywhere in the files subsystem. **Also cleared as SAFE (OR-heuristic false
+> positives):** support_conversations, support_tags, support_conversation_tags, support_canned_responses,
+> support_durability_checks, coaching_sessions — each is a company-scoped `exists (profiles … company_id =
+> TABLE.company_id …)` whose only OR is a *role* choice, which pins the new row's company.
+> **Net: one policy to fix (`files_update`), read-side sound, no leak.**
 
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
