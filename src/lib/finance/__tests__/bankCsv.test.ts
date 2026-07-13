@@ -45,6 +45,15 @@ describe("parseCsv (bank statement import)", () => {
     expect(rows.map((r) => r.amount)).toEqual([100, 200]);
   });
 
+  it("strips a leading UTF-8 BOM (Excel export) so a first-column exact-match header still maps", () => {
+    // U+FEFF is the BOM Excel prepends. With "ID" as the first column, an un-stripped BOM makes
+    // header[0] = "id", which fails the exact `h === "id"` check → externalId silently dropped.
+    // Build the BOM via fromCharCode so no invisible character lives in the source.
+    const csv = String.fromCharCode(0xfeff) + "ID,Date,Amount\nTX-9,2026-07-08,10.00";
+    const rows = parseCsv(csv);
+    expect(rows[0]).toEqual({ txnDate: "2026-07-08", amount: 10, description: undefined, externalId: "TX-9" });
+  });
+
   it("returns [] for empty or header-only input", () => {
     expect(parseCsv("")).toEqual([]);
     expect(parseCsv("Date,Amount")).toEqual([]); // header only, no data rows

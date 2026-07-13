@@ -23,7 +23,11 @@ export function toIso(s: string): string {
 }
 
 export function parseCsv(text: string): BankCsvRow[] {
-  const lines = text.replace(/\r/g, "").split("\n").filter((l) => l.trim());
+  // Strip a leading UTF-8 BOM (U+FEFF) — Excel prepends it to CSV exports. Left in, it corrupts the
+  // first header cell: includes()-matched columns still work, but an exact-match column (id === "id")
+  // fails, silently dropping the dedup externalId. charCodeAt avoids embedding an invisible BOM char.
+  const clean = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+  const lines = clean.replace(/\r/g, "").split("\n").filter((l) => l.trim());
   if (lines.length < 2) return [];
   const splitLine = (l: string) => {
     const out: string[] = [];
