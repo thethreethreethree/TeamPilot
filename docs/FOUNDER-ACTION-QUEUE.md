@@ -468,6 +468,20 @@ entire app. I tried the clean fix (a package.json `overrides` forcing Next's pos
 destabilizing the tree for a non-exploitable advisory, so I reverted (tree clean). **Real fix:** a Next.js
 patch release that bumps its bundled postcss — upstream, low priority. Tracked here so it isn't re-discovered.
 
+### §3.1 event inserts are fire-and-forget with no error logging (LOW observability — your call)
+13 API-route sites do `await supabase.from("events").insert({...})` after the primary operation, and
+**none capture `{ error }` or log on failure** (chat/topic-decisions, coach/*, resolutions:128, etc.).
+In normal operation these succeed (valid actor, company-scoped RLS, valid payload), so this is NOT a live
+bug — but if an RLS/schema regression or DB hiccup ever breaks the insert, the request still returns 200
+and a §3.1 source-of-truth event is **silently dropped with no diagnostic trail** — precisely the incident
+case where you'd want one (and the [diagnostic-logging-first] discipline this repo already follows). The
+primary record (the chat message, the decision/resolution row) always survives; only the derived event is
+lost. **Deliberately not swept** (13 sites, a cross-cutting fire-and-forget pattern you chose — changing all
+of them is your call). **Recommended pattern if you want it:** `const { error } = await ...insert(...); if
+(error) console.error("[events] <kind> insert failed", error);` — log, don't fail the user's request. A
+central `emitEvent()` helper with this built in would fix all 13 in one place (helpers already exist for
+asset/mention events; the generic chain inserts bypass them).
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
