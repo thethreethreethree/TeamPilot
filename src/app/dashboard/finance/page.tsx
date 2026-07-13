@@ -5,6 +5,7 @@ import TopBar from "@/components/layout/TopBar";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { LearningHint } from "@/components/learning/LearningHint";
 import FinanceNav from "@/components/finance/FinanceNav";
+import KpiStrip from "@/components/finance/KpiStrip";
 import { useToast } from "@/components/ui/toast";
 import {
   TrendingDown,
@@ -92,6 +93,11 @@ export default function FinancePage() {
             <Loader2 className="w-4 h-4 animate-spin" /> Loading your ledger…
           </div>
         )}
+
+        {/* KPI strip (0165): burn, runway, DSO, margin. Every ratio can legitimately be missing, and each
+            missing one states its REASON rather than rendering a 0 — "0 months runway" would say the
+            company is out of money today, when the truth is that it isn't burning at all. */}
+        {state?.available && <KpiStrip />}
 
         {/* NOT INITIALIZED — honest state (no mock numbers). The ledger is built + applied; this
             company just hasn't set up its books yet. */}
