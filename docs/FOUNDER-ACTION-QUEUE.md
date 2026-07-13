@@ -271,6 +271,12 @@ already-scheduled durability cron — so if that secret is set, the next deploy 
 immediately start emitting `task.overran_due_date` events into the diagnosis pipeline. That's a real product
 behavior turning on, your call to make deliberately (§3.3). Add it when you want deadline-slip diagnosis live.
 
+> **Vercel plan gotcha (verify):** Hobby-tier crons run **at most once per day**. The existing
+> `durability-sweep-cron` is declared **hourly** (`"0 * * * *"`) — that cadence needs **Pro**; on Hobby it
+> silently degrades to daily, so §3.5 durability checks would surface up to ~24h late instead of hourly.
+> Confirm the project is on Pro if hourly durability matters, else the effective cadence is daily. (My
+> suggested task-overrun schedule above is daily, so it's fine on either tier.)
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
