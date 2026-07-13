@@ -100,7 +100,9 @@ export default function BankingPage() {
     }
     if (skipped > 0) {
       // Surface parse-step data loss BEFORE importing — on a financial file, silently dropping rows
-      // (unreadable date/amount, e.g. a parenthesized "(50.00)") must not look like a complete import.
+      // (a genuinely unreadable date or a non-numeric amount, e.g. "abc" or a blank amount cell) must
+      // not look like a complete import. (Parenthesized/trailing-minus negatives DO parse now — see
+      // parseAmount in bankCsv.ts — so a skip here means the cell truly can't be read.)
       toast.warn(`${skipped} row${skipped === 1 ? "" : "s"} couldn't be read`, "Check the date/amount format on those lines — they were not imported.");
     }
     setBusy(true);
