@@ -81,6 +81,15 @@ this first — `select source_type, source_id, kind, count(*) from fin_source_po
 having count(*) > 1;` — and if it returns nothing, add the unique index (I'll write the migration on your
 say-so). A non-empty result is itself a real finding (an existing double-post to investigate).
 
+### Known low-severity concurrency edge (deliberately not fixed — trade-off is yours)
+`fin_post_system_entry` checks `period.status = 'open'` then inserts, without locking the period row. A
+post that races a **year-end close/lock of the same period** could land in a just-locked period (the
+closed year's P&L then off by that one entry). Very low frequency (close is a rare admin action; the
+overlap window is tiny) and low severity (one entry, correctable by reopen→repost). I did **not** fix it
+because the fix — `select … for share` on the period inside every post — adds lock contention to the
+hottest path (every posting) to close a rare edge. If you'd rather have strict correctness over that
+throughput, add the `for share`; otherwise it's an accepted, documented edge.
+
 ### Latent — fix before exposing `fin_reverse_entry` (no UI/route calls it yet)
 `fin_reverse_entry` (0118) guards only that the original is `posted` — it does **not** check whether a
 reversal already exists, nor lock the row. So the same entry could be reversed twice (two drafts → both
