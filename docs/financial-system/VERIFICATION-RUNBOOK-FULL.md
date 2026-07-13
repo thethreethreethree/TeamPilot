@@ -137,6 +137,19 @@ not a verdict).
    (revenue/expense → Retained Earnings 3000) and **locks** the year's periods; the P&L zeros out for a
    fresh year. **Reopen** reverses it and unlocks.
 
+## Step 16 — Concurrency locks (optional, but the only way to confirm the 0147/0152/0153 fixes)
+The row-lock fixes prevent double-posting under **concurrent** action — which the single-session
+acceptance scripts can't exercise. To confirm one by hand: open the same draft in **two browser tabs**
+(or fire two API calls back-to-back) and trigger the action in both as fast as possible:
+- **Approve the same draft bill** twice (two tabs) → exactly ONE posts; the second returns *"Only a
+  draft bill can be approved"* (not two GL entries). Same for issue-invoice, approve-expense.
+- **Reimburse the same report** twice → one cash-out; the second errors (no double payment).
+- **Issue two credit notes** that each fit the outstanding but together exceed it, concurrently → the
+  second hits the over-credit guard (no over-credit).
+Before the locks these could both succeed under a race; after (0147/0152/0153) the second always blocks
+then fails the status/over-credit check. If you ever see a double-post, that's the signal to apply the
+`fin_source_postings` unique-index backstop (see FOUNDER-ACTION-QUEUE.md → Recommended hardening).
+
 ## What "pass" means
 Every posted transaction moved the statements, the Trial Balance stayed **debits = credits**, and the
 Balance Sheet **tied out** — i.e., the double-entry spine holds end-to-end through the subledgers to
