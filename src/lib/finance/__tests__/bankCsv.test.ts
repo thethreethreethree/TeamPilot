@@ -57,6 +57,26 @@ describe("parseCsv (bank statement import)", () => {
     });
   });
 
+  it("disambiguates DD/MM vs MM/DD by the >12 signal (European withdrawals no longer become invalid dates)", () => {
+    // The old parser took the first field as the month always, so a day-first "25/12/2026" became
+    // "2026-25-12" (month 25) — an invalid date that got imported then rejected by the DB. Now: a
+    // field >12 must be the day. Both <=12 stays MM/DD (documented default); both >12 is unreadable.
+    expect(toIso("25/12/2026")).toBe("2026-12-25"); // day-first (unambiguous) → Dec 25
+    expect(toIso("13/07/2026")).toBe("2026-07-13"); // day-first → Jul 13
+    expect(toIso("07/13/2026")).toBe("2026-07-13"); // month-first (unambiguous) → Jul 13
+    expect(toIso("07/04/2026")).toBe("2026-07-04"); // ambiguous → MM/DD default (unchanged)
+    expect(toIso("13/25/2026")).toBe(""); // both >12 → not a real date → skipped
+    expect(toIso("00/05/2026")).toBe(""); // month 0 → out of range → skipped, not imported
+  });
+
+  it("a day-first invalid date is SKIPPED, not imported as a broken date", () => {
+    // End-to-end: the row with the European-format date must not enter with a month-25 string.
+    const csv = "Date,Amount\n25/12/2026,-40.00\n2026-07-06,200";
+    const { rows, skipped } = parseCsv(csv);
+    expect(rows.map((r) => r.txnDate)).toEqual(["2026-12-25", "2026-07-06"]);
+    expect(skipped).toBe(0);
+  });
+
   it("skips unreadable rows AND reports the skipped count (no silent data loss)", () => {
     const csv = "Date,Amount\n2026-07-05,100\nnot-a-date,50\n2026-07-06,abc\n2026-07-07,200";
     const { rows, skipped } = parseCsv(csv);

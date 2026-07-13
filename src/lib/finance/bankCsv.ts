@@ -12,14 +12,35 @@
  */
 export type BankCsvRow = { txnDate: string; amount: number; description?: string; externalId?: string };
 
-// Accept MM/DD/YYYY or DD/MM/YYYY-ish → ISO (best-effort; ambiguous locales fall back to as-typed).
+// Accept MM/DD/YYYY or DD/MM/YYYY → ISO. Disambiguates US vs European order with the ">12 can't be a
+// month" signal: a field over 12 must be the day, so the other is the month. When BOTH fields are <=12
+// the order is genuinely ambiguous (e.g. 07/04) → default to MM/DD, the documented assumption. Returns
+// "" for anything it can't turn into a REAL date — no match, both fields >12, or an out-of-range
+// month/day — so the caller skips+counts it. This is the fix for the old version, which blindly took
+// the first field as the month and thus imported "25/12/2026" as "2026-25-12" (month 25 — an invalid
+// date that Postgres' date column would reject, failing the whole import).
 export function toIso(s: string): string {
   const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (!m) return "";
-  const [, a, b, y] = m;
-  const mm = String(a).padStart(2, "0");
-  const dd = String(b).padStart(2, "0");
-  return `${y}-${mm}-${dd}`;
+  const [, aStr, bStr, y] = m;
+  const a = Number(aStr);
+  const b = Number(bStr);
+  let month: number;
+  let day: number;
+  if (a > 12 && b > 12) return ""; // e.g. 13/25 — not a real date under either order
+  if (a > 12) {
+    month = b;
+    day = a;
+  } else if (b > 12) {
+    month = a;
+    day = b;
+  } else {
+    // Both <=12 — genuinely ambiguous; keep the documented MM/DD default.
+    month = a;
+    day = b;
+  }
+  if (month < 1 || month > 12 || day < 1 || day > 31) return "";
+  return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 /**
