@@ -33,6 +33,8 @@ export default function BankingPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [txns, setTxns] = useState<Txn[]>([]);
+  // per-unmatched-line: which account the clerk says this money was FOR (never a direction)
+  const [entryAcct, setEntryAcct] = useState<Record<string, string>>({});
   const [sel, setSel] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -66,6 +68,10 @@ export default function BankingPage() {
 
   // Cash-like GL accounts to link (asset type; the 1000-range).
   const cashAccounts = accounts.filter((a) => a.type === "asset");
+  // The counter-side may be any account EXCEPT the bank's own cash account — Dr Cash / Cr Cash balances
+  // perfectly and means nothing, which would silently "explain" the line while leaving the books wrong.
+  const selBank = banks.find((b) => b.id === sel);
+  const entryAccounts = accounts.filter((a) => a.id !== selBank?.gl_account_id);
 
   const [nName, setNName] = useState("");
   const [nInst, setNInst] = useState("");
@@ -130,6 +136,49 @@ export default function BankingPage() {
       void load();
       void loadTxns(bankId);
     } else toast.error("Auto-match failed", j?.error ?? "");
+  };
+
+  /**
+   * Create the missing ledger entry for a bank line nobody recorded (a fee, interest, an FX charge).
+   *
+   * Before this existed, an unexplained bank line had exactly one disposal: Ignore. And ignoring is the
+   * dangerous one — the row leaves the worklist while the ledger stays wrong, so cash disagrees with the
+   * bank by that amount permanently and the reconciliation reports itself finished. A worklist you can
+   * empty by hiding rows is not a control.
+   *
+   * The clerk picks ONE account — what the money was FOR. They are never asked for a direction, and the
+   * UI deliberately gives them no way to express one: the database derives Dr/Cr from the bank line's
+   * sign. A reconciliation entry posted backwards still BALANCES, so no downstream check would ever
+   * catch a fee booked as income.
+   */
+  const createEntry = async (txnId: string, bankId: string) => {
+    const accountId = entryAcct[txnId];
+    if (!accountId) {
+      toast.error("Pick what this was for", "Choose the account this money belongs to.");
+      return;
+    }
+    setBusy(true);
+    const res = await fetch(`/api/finance/bank/transactions/${txnId}/create-entry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountId }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      // The database's message names the real obstacle ("no OPEN period covers that date"). Replacing it
+      // with our own wording would throw away the only fact the clerk can act on.
+      toast.error("Couldn't create the entry", j.error ?? undefined);
+      return;
+    }
+    toast.success("Entry posted and matched", "The bank line is now explained by a real ledger entry.");
+    setEntryAcct((m) => {
+      const next = { ...m };
+      delete next[txnId];
+      return next;
+    });
+    void load();
+    void loadTxns(bankId);
   };
 
   const ignore = async (txnId: string, bankId: string) => {
@@ -253,7 +302,28 @@ export default function BankingPage() {
                       </td>
                       <td className="py-2 text-right">
                         {t.status === "unmatched" && (
-                          <button onClick={() => ignore(t.id, sel)} disabled={busy} className="text-xs text-muted hover:text-secondary disabled:opacity-60">Ignore</button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* What was this FOR? The clerk chooses the account; the DB derives Dr/Cr from
+                                the line's sign. There is deliberately no way here to pick a direction. */}
+                            <select
+                              value={entryAcct[t.id] ?? ""}
+                              onChange={(e) => setEntryAcct((m) => ({ ...m, [t.id]: e.target.value }))}
+                              className="text-xs bg-surface-raised border border-default rounded-md px-1.5 py-1 max-w-[11rem]"
+                            >
+                              <option value="">What was this for?</option>
+                              {entryAccounts.map((a) => (
+                                <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => createEntry(t.id, sel)}
+                              disabled={busy}
+                              className="text-xs px-2 py-1 rounded-md bg-brand/20 text-brand disabled:opacity-60"
+                            >
+                              Create entry
+                            </button>
+                            <button onClick={() => ignore(t.id, sel)} disabled={busy} className="text-xs text-muted hover:text-secondary disabled:opacity-60">Ignore</button>
+                          </div>
                         )}
                       </td>
                     </tr>
