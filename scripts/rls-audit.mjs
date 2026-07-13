@@ -371,6 +371,10 @@ const ALLOWLIST = new Map([
   ["fin_entry_counters.update", "The next-entry-no is claimed only by the DEFINER posting functions — a client update would corrupt gap-free sequential numbering."],
   ["fin_entry_counters.delete", "§3.1 the counter is permanent per-company machinery — deleting it would reset/duplicate entry numbers."],
 
+  // Corporate-card reconciliation matches (0160) — mirrors fin_reconciliation_matches (0145).
+  ["fin_card_matches.insert", "Created ONLY by the DEFINER RPCs fin_auto_match_card / fin_match_card_txn (0160), which lock the card line, verify BOTH the card txn and the expense item belong to the caller's company, and enforce the one-match-per-charge + one-match-per-claim uniques. A direct client insert would bypass those checks and could substantiate a charge with another company's claim, or reimburse one claim against two charges."],
+  ["fin_card_matches.update", "A match is not edited — it is deleted and re-made through the RPC, so the matched_by/matched_at attribution stays true. Mirrors fin_reconciliation_matches (0145), which is the deciding precedent for this whole surface (§A28)."],
+
   // Dunning / collections chase history (0159) — evidence, not a worklist row.
   ["fin_dunning_events.insert", "Written ONLY by the DEFINER RPC fin_record_dunning_action (0159) — no direct client insert path, so the recorded actor cannot be forged. A chase record is a claim about the outside world ('we sent this notice on this date'); it must be minted through the controlled path."],
   ["fin_dunning_events.update", "§3.1 append-only — a `do instead nothing` RULE blocks UPDATE (rules bind service-role and direct SQL too, unlike RLS). An editable chase record is not evidence: collections disputes are exactly the case where the history must be trustworthy."],
