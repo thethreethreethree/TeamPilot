@@ -24,6 +24,18 @@ So RBAC, SoD, encryption, backup are **DONE**. Phase 9's remaining work is the i
 1. **Approval delegation** — let an approver delegate their authority (e.g. while on leave) to another
    for a date range. Small: a `fin_approval_delegations` table (from_user, to_user, from/to dates) that
    `fin_can_approve()` consults. Build now? **Recommend yes** — it's small and real.
+
+   > **Governance rules the build MUST honor (caught in proposal review) — a delegation feature is a
+   > classic SoD-bypass vector:**
+   > - **Delegation never relaxes SoD.** SoD is checked against the *acting* user (`auth.uid()` at
+   >   approve time), and `approved_by` records the actor, NOT the delegator. So a delegate still cannot
+   >   approve a document they created, and delegation can never manufacture a creator = approver path.
+   > - **Not transitive** — a delegate cannot re-delegate; only the direct `to_user` gains the
+   >   capability, and only within the date window. No chains.
+   > - **Grants the specific capability, not a role upgrade** — delegation confers `fin_can_approve`
+   >   only; it never elevates the delegate to controller/CFO capabilities.
+   > - **Scoped + revocable** — bounded by from/to dates; append-only with a revoked flag (don't delete,
+   >   per section 3.1), so the delegation history is auditable.
 2. **Multi-entity support & consolidation** — multiple legal entities under one account, with
    consolidated statements (eliminating inter-company). This is a **large** structural change (every
    fin_ table is currently single-company-per-tenant; multi-entity adds an entity dimension +
@@ -35,6 +47,13 @@ So RBAC, SoD, encryption, backup are **DONE**. Phase 9's remaining work is the i
 4. **Generic import / migration tools** — CSV/JSON import for opening balances + historical data (to
    migrate off a prior system). Useful at onboarding. Build now? Recommend a **trial-balance import**
    (opening balances) as the highest-value first piece.
+
+   > **Correctness rule the build MUST honor (caught in proposal review):** the opening entry posts
+   > each account's balance with the contra to an **Opening Balance Equity** account, so it balances by
+   > construction. Opening Balance Equity's residual then *surfaces* any imbalance in the source trial
+   > balance — it is NOT silently plugged (a silent plug would fabricate a balanced position that isn't
+   > real, violating section 3.4). A materially non-zero OBE after import is flagged to the user to
+   > reconcile. Post as-of the migration date into an open period, before other activity.
 
 ## Decisions I need
 
