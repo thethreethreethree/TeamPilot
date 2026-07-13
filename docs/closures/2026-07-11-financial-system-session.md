@@ -231,3 +231,30 @@ already-reversed guard before shipping a reverse button).
 **Current apply queue (authoritative, supersedes "0145–0151" above):** founder is through `0144`;
 **`0145`–`0153` outstanding.** Runbook Step 1 + the action queue reflect the range. App code ships
 green (tsc 0, ESLint 0, 619 vitest, `next build` compiles).
+
+---
+
+## 2026-07-13 (late) — app-wide audit (broadened beyond finance under the build guard)
+
+Applied the discipline-consistency methodology (that found the finance row-locks) to the WHOLE app:
+- **Tenant isolation — SOUND app-wide:** all 97 tables have RLS enabled (verified past a grep
+  whitespace false-negative); NO `using(true)`/`with check(true)` policy exists (case-insensitive);
+  all 17 views set `security_invoker`. A member of company A cannot read/write company B via any
+  table/view.
+- **Service-role routes (27 non-finance) — SOUND on the sample:** the worst-looking-by-grep (files,
+  care agent+customer messages) all enforce tenant scoping (auth.companyId + explicit company-match, or
+  session-token for customer-facing) — two show prior F1/F7 audit fixes. Grep is unreliable here
+  (domain auth helpers + camelCase), so an exhaustive per-route read is the only way to fully close it;
+  the high-risk sample is clean.
+- **Concurrency (DB DEFINER fns) — finance-specific:** no non-finance DEFINER fn has the read-guard-
+  post-side-effect pattern; `accept_invitation` is race-safe via `on conflict(id)` idempotency.
+- **Config: rate-limiting SOUND** (84 routes, coach LLM routes throttled); **`maxDuration` — ONE REAL
+  GAP:** ~10 coach/care LLM-generation routes import an LLM lib + `await` a generation call but lack
+  `export const maxDuration` (no global config either) → can time out at Vercel's default. Precise
+  12-route list + one-line fix in FOUNDER-ACTION-QUEUE.md. Rate-limited, so it's a reliability gap not
+  a cost/DoS one. Class was "swept 2026-07-09" per a comment — these were added/missed after.
+
+Method note: caught grep false-negatives twice (RLS whitespace alignment; camelCase `auth.companyId`)
+and false-positives twice (care token-scoping looked like IDOR; health/settings LLM-config refs) —
+verified each by reading before flagging (§3.4 both directions). One real finding (coach maxDuration);
+everything else app-wide is sound.
