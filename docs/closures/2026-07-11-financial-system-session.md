@@ -4,8 +4,8 @@ Single entry point for the founder's return. This session built the Financial Tr
 Management System (FinancialSystem.md) from nothing to a **complete core accounting system**:
 double-entry GL → transactions (AP/AR/Expenses) → periods → **financial statements + CSV export** →
 Phase-2D (POs, recurring, aging both sides, collections).
-Migrations **0116–0151**. Apply state (2026-07-13): founder applied **through 0144**. **Still to apply:
-`0145`–`0151`** — Phase 3 Banking (0145), duplicate detection (0146), Phase 4 inc-1 (0147/0148), Phase
+Migrations **0116–0153**. Apply state (2026-07-13): founder applied **through 0144**. **Still to apply (see the 2026-07-13 late-session section at the bottom for the concurrency/robustness additions):
+`0145`–`0153`** — Phase 3 Banking (0145), duplicate detection (0146), Phase 4 inc-1 (0147/0148), Phase
 5 inc-1 (0149 budgeting/variance/runway), **Phase 7 (0150 tax codes + liability report, 0151 year-end
 close)**. Phases 1, 2, 2D, **3**, Phase-6 reporting core, **Phase 4 inc-1**, **Phase 5 inc-1**, and
 **Phase 7** are BUILT. Phase 9 mostly built (RBAC/SoD/encryption). Deferred per proposals: Phase-4
