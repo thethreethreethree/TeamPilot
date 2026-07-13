@@ -349,6 +349,14 @@ authenticated** (keep select). Then signals can ONLY be created by the genuine e
 direct fabrication is blocked, and the gate becomes truly structural. Confirm signals are meant to be
 derivation-only (the constitutional intent) vs. allowing manual user-entered signals as a feature — if the
 latter, this is by-design and no action is needed.
+**This is the SAME class `0112`/`0113` already fixed — and the fix is the proven `0112` pattern.** `0112`
+(`brain_writes_definer_restrict_rls`) changed `company_brain` + `brain_evolution_events` from `for all`
+(user-writable) to **`for select`** + DEFINER writes; `0113` did the same for ELO inputs (member-fabrication).
+The `signals` table is an un-fixed instance of that exact class — the `0112` sweep patched the brain/ELO
+tables but **missed `signals`**. So this isn't a novel design question so much as completing the `0112`
+sweep: apply the same `for all`→`for select` + DEFINER-write pattern to `signals` (and flip its 3 derivation
+fns to `security definer`). Worth doing in the same staging cycle as `0112`/`0113` (queue item 1), since it's
+the same fix pattern and the same "system-derived data was RLS-writable" root cause.
 
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
