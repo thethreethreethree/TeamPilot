@@ -93,10 +93,15 @@ export default function BankingPage() {
 
   const onFile = async (bankId: string, file: File) => {
     const text = await file.text();
-    const rows = parseCsv(text);
+    const { rows, skipped } = parseCsv(text);
     if (rows.length === 0) {
       toast.error("No rows parsed", "Expected a CSV with date + amount columns (and a header row).");
       return;
+    }
+    if (skipped > 0) {
+      // Surface parse-step data loss BEFORE importing — on a financial file, silently dropping rows
+      // (unreadable date/amount, e.g. a parenthesized "(50.00)") must not look like a complete import.
+      toast.warn(`${skipped} row${skipped === 1 ? "" : "s"} couldn't be read`, "Check the date/amount format on those lines — they were not imported.");
     }
     setBusy(true);
     const res = await fetch(`/api/finance/bank/accounts/${bankId}/import`, {

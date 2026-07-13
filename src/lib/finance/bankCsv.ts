@@ -22,13 +22,15 @@ export function toIso(s: string): string {
   return `${y}-${mm}-${dd}`;
 }
 
-export function parseCsv(text: string): BankCsvRow[] {
+export type BankCsvResult = { rows: BankCsvRow[]; skipped: number };
+
+export function parseCsv(text: string): BankCsvResult {
   // Strip a leading UTF-8 BOM (U+FEFF) — Excel prepends it to CSV exports. Left in, it corrupts the
   // first header cell: includes()-matched columns still work, but an exact-match column (id === "id")
   // fails, silently dropping the dedup externalId. charCodeAt avoids embedding an invisible BOM char.
   const clean = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
   const lines = clean.replace(/\r/g, "").split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return [];
+  if (lines.length < 2) return { rows: [], skipped: 0 };
   const splitLine = (l: string) => {
     const out: string[] = [];
     let cur = "", q = false;
@@ -51,12 +53,16 @@ export function parseCsv(text: string): BankCsvRow[] {
   const iDesc = header.findIndex((h) => h.includes("desc") || h.includes("memo") || h.includes("payee") || h.includes("narrative"));
   const iId = header.findIndex((h) => h === "id" || h.includes("reference") || h.includes("ref") || h.includes("transaction id"));
   const rows: BankCsvRow[] = [];
+  let skipped = 0;
   for (let r = 1; r < lines.length; r++) {
     const cols = splitLine(lines[r]!);
     const rawDate = (cols[iDate] ?? "").slice(0, 10);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : toIso(rawDate);
     const amount = Number((cols[iAmt] ?? "").replace(/[$,]/g, ""));
-    if (!date || !Number.isFinite(amount)) continue;
+    // A data line we can't read (unparseable date, or a non-numeric amount like a parenthesized
+    // "(50.00)") is COUNTED, not silently dropped — the caller surfaces the count so a partial import
+    // is visible on a financial file, not mistaken for complete.
+    if (!date || !Number.isFinite(amount)) { skipped++; continue; }
     rows.push({
       txnDate: date,
       amount,
@@ -64,5 +70,5 @@ export function parseCsv(text: string): BankCsvRow[] {
       externalId: iId >= 0 ? cols[iId] || undefined : undefined,
     });
   }
-  return rows;
+  return { rows, skipped };
 }
