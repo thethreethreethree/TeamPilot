@@ -34,3 +34,11 @@ jobs:
 
       - name: Test
         run: npm run test
+
+      # `next build` catches deploy-breaking errors that typecheck + lint pass but Vercel would
+      # fail on: App-Router server/client boundary violations, bad dynamic() imports, and
+      # build-time module-evaluation failures. Verified CI-safe with no Supabase secrets — the
+      # client factories fall back to "" (src/lib/supabase/config.ts) and dynamic routes render
+      # on demand, so the build needs no live DB. Without this step those errors reach production.
+      - name: Build
+        run: npm run build
