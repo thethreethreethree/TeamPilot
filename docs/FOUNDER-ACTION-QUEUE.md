@@ -153,8 +153,26 @@ rate — even several agents behind one office NAT — while staying far below a
 the route — the value is the one tunable, and it's a one-line change with an explanatory comment.
 (Also corrected: I'd initially over-listed `dissect/topics[/id]` as LLM routes — they're topic CRUD,
 GET reads via `getDissectTopic`/`listDissectTopics`, POST saves; I removed the maxDuration I'd wrongly
-added there. The `maxDuration` audit is now verified accurate: 22 genuine slow-external-call routes
-carry it, 2 CRUD false-positives reverted, and no route is on `edge` runtime — all correct.)
+added there. No route is on `edge` runtime — correct.)
+
+**Completeness sweep (rateLimit↔maxDuration cross-check) — found + fixed 3 gaps the forward sweep
+missed.** After wiring the messages rate-limit I cross-checked the two disciplines against each other
+(any cost-bearing route should have BOTH). That surfaced three in-path AI-call routes with `rateLimit`
+but no `maxDuration` — genuine misses (all commit below, all verified by reading, not assumed):
+- **`coach/sales-session/[id]/upload-recording`** — the significant one. It awaits an in-path BATCH
+  TRANSCRIPTION of a full call recording; on Vercel's ~10-15s default it would time out for **any real
+  recording**. Set to `maxDuration = 300` (transcription is materially longer than a completion).
+  **Founder note:** effective ceiling is plan-dependent (Hobby clamps to 60, Pro honors 300); if long
+  recordings still time out, that's the tier, and the fix is a background job, not more seconds.
+- **`coach/sales-session/attribute`** — a direct `@/lib/claude` importer (in-path `classifyTurnSpeaker`);
+  a premature timeout would return a 500 and break its §3.4 "returns null, loop never breaks" guarantee.
+- **`coach/sales-session/realtime-token`** — awaits an external ElevenLabs token mint; modest 60 ceiling.
+Verified NOT gaps (correctly no maxDuration — they import read-helpers/constants from AI-lib modules,
+not LLM calls): `corpus`, `elo`, `list`, `settings`, `strategy-library`, `voice`, `me/coach-memory`,
+`dissect/topics`. And two absences that are correct-by-design: `care/inbound/email` (a secret-
+authenticated single-source provider webhook — per-IP rate-limiting would throttle ALL inbound customer
+mail; protected by `constantTimeEqual` secret + MessageID dedup) and `backfill-dissects-cron` (CRON_SECRET-
+gated). **Net: the maxDuration class is now genuinely complete — every in-path AI-call route carries it.**
 
 ### Optional polish (low priority, your call)
 - **WCAG-AA input labels** — the finance entry forms (~29 inputs across ap/ar/banking/budgets/tax/

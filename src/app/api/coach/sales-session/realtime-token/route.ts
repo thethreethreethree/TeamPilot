@@ -15,6 +15,11 @@ import { mintRealtimeSttToken } from "@/lib/care/voice/elevenlabs";
  *
  * UNTESTED against the live ElevenLabs token API.
  */
+// Awaits an in-path external ElevenLabs call (mintRealtimeSttToken). A modest ceiling
+// over Vercel's short default so a provider latency spike returns the graceful 502
+// below rather than an opaque platform timeout. Fast call, so 60 is ample.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
     id: "sales-realtime-token",

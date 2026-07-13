@@ -45,6 +45,15 @@ function label(s: "agent" | "customer" | "unknown" | undefined): string {
       : "unknown";
 }
 
+// Longer serverless budget than Vercel's short default: this awaits an in-path LLM
+// call (classifyTurnSpeaker) below. Without the ceiling, a model latency spike could
+// trip Vercel's default timeout and return a 500 — which would BREAK this route's
+// §3.4 guarantee that "on ANY failure it returns null, the loop never breaks" (the
+// caller relies on the graceful {speaker:null}, not a 500). A direct @/lib/claude
+// importer the earlier maxDuration sweep missed; found by the rateLimit↔maxDuration
+// cross-check (§1.2 — the whole class).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
     id: "sales-coach-attribute",

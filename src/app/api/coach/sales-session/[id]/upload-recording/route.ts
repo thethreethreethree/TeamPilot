@@ -30,6 +30,16 @@ import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
  * UNTESTED: the live ElevenLabs diarization call (needs a real key +
  * recording).
  */
+// This route awaits an in-path BATCH TRANSCRIPTION of a full call recording
+// (transcribeWithDiarization below) — materially longer than an LLM completion, so
+// it gets the longest budget rather than the 60 used on generation routes. Diarizing
+// a multi-minute recording can take well past a minute; on Vercel's ~10-15s default
+// this route would time out for ANY real recording (the earlier maxDuration sweep
+// missed it). NOTE (founder): the effective ceiling is plan-dependent — Hobby clamps
+// to 60s, Pro honors up to 300s. If long recordings still time out, that's the plan
+// tier, not the code; the alternative is moving transcription to a background job.
+export const maxDuration = 300;
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
