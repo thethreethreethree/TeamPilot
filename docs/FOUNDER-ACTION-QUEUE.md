@@ -506,6 +506,17 @@ into another tenant's file list (nuisance / weak phishing-name vector), not data
 their USING is *purely* `company_id = auth_company_id()`; only `files` has the OR'd non-tenant branch that
 lets company_id float. **Fix (one migration):** add `with check (company_id = auth_company_id())` to
 `files_update` (or a company_id-freeze trigger). Touches production file auth — your review before applying.
+> **Sweep completed 2026-07-13 (all 30 no-explicit-with-check update/all policies classified):** the unsafe
+> shape is a *top-level* OR whose branch doesn't pin company_id. It is confined to the **0057 files
+> subsystem**: `files.update` (clear company_id float, above) PLUS 5 file-join tables — `file_departments`,
+> `file_tasks`, `file_tags`, `file_access_grants`, `file_classification_suggestions` — which all inherit
+> `files.uploader_id = auth.uid() OR same-company-admin`. Fix these as ONE group (the join tables key off
+> `file_id` and may lack a company_id column, so their exact impact differs from files.update — confirm
+> per-table when fixing). **Cleared as SAFE (false positives from the OR heuristic):** support_conversations,
+> support_tags, support_conversation_tags, support_canned_responses, support_durability_checks,
+> coaching_sessions — each is a company-scoped `exists (profiles … company_id = TABLE.company_id …)` whose
+> only OR is a *role* choice (is_support_agent/admin, or agent/admin), which pins the new row's company. So
+> the write-side gap is bounded to the files subsystem; CARE + coaching are sound.
 
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
