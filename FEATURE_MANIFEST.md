@@ -131,12 +131,12 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 ## PHASE 7 — Tax & Compliance
 | Feature | Status |
 |---|---|
-| Tax code configuration (VAT/GST/sales tax by jurisdiction) | NOT_STARTED |
-| Tax calculation on transactions | NOT_STARTED |
-| Tax liability tracking | NOT_STARTED |
-| Tax filing reports | NOT_STARTED |
-| Contractor / 1099 (or local equiv) reporting | NOT_STARTED |
-| Year-end close process | NOT_STARTED |
+| Tax code configuration (VAT/GST/sales tax by jurisdiction) | BUILT (0150 fin_tax_codes — rate × jurisdiction × direction; /dashboard/finance/tax) |
+| Tax calculation on transactions | PARTIAL — tax posts to 2100/1200 already; 0150 adds nullable tax_code_id on bill/invoice lines. Auto-calc line picker (compute tax from the code's rate) is a fast follow |
+| Tax liability tracking | BUILT (0150 fin_tax_report — output − input tax by jurisdiction/period from source lines; on /tax) |
+| Tax filing reports | BUILT (fin_tax_report by period + jurisdiction; the filing figure) |
+| Contractor / 1099 (or local equiv) reporting | NOT_STARTED — deferred (jurisdiction-specific; founder to flag if needed) |
+| Year-end close process | BUILT (0151 fin_close_year: posts closing entries revenue/expense → Retained Earnings 3900 + locks the year; fin_reopen_year reverses + unlocks. Also fixes the ranged-BS caveat. Acceptance: tests/0150-0151) |
 
 ## PHASE 8 — Payroll & Assets
 **Payroll** *(integration likely preferred — recommend at build time)*
