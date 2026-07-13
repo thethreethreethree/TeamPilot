@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/dashboard/finance/recurring", label: "Recurring" },
   { href: "/dashboard/finance/ar", label: "Receivable" },
   { href: "/dashboard/finance/credit-notes", label: "Credit Notes" },
+  { href: "/dashboard/finance/collections", label: "Collections" },
   { href: "/dashboard/finance/expenses", label: "Expenses" },
   { href: "/dashboard/finance/banking", label: "Banking" },
   { href: "/dashboard/finance/cards", label: "Cards" },
