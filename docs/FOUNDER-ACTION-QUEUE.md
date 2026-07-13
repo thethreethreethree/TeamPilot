@@ -293,6 +293,19 @@ overage green, which may read wrong — you may want a third amber/neutral state
 left it. This is a design choice, not a mechanical apply. Found during a divide-by-zero sweep (which otherwise came up clean: runway,
 margin %, period-over-period, and dashboard bars all guard their zero denominators).
 
+### §3.5 hard metric "meeting duration" has no data path — registered signal, no feature (roadmap, not a bug)
+`signal_sources` registers `meeting.overran → meeting_overran` (`0005`, with a "coordination cost"
+description) and the derive-signals path handles it — but there is **no emitter and no meetings feature**
+anywhere (the `src` "meeting" hits are incidental copy/labels; no meetings table/route/UI; the emission
+grep is empty). So one of the constitution's two §3.5 **hard metrics** ("meeting duration") produces zero
+signals today. This is the same registered-but-dead shape as `task_slipped` — but a step earlier: that one
+had a built tasks feature merely missing its emitter (fixed by `0109`), whereas meeting-tracking isn't
+built at all. **Not a defect** (a signal source registered ahead of its feature is reasonable
+forward-planning), and no code action is implied — flagged only so a registered source isn't mistaken for
+coverage: the meeting-duration metric is **dormant** until you build meeting tracking + a `meeting.overran`
+emitter (mirror `0109`'s pattern). Decide if/when that feature is on the roadmap; until then, know the
+metric is unpopulated.
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
