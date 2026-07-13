@@ -3,7 +3,7 @@
 import { useEffect, useState, Fragment } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import { Loader2, CheckCircle2, AlertTriangle, Download } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, Download, Printer } from "lucide-react";
 import {
   type Statements,
   type StmtLine as Line,
@@ -139,6 +139,13 @@ export default function StatementsPage() {
             <div className="flex justify-end">
               <button onClick={() => downloadCsv(s)} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
                 <Download className="w-3.5 h-3.5" /> Export CSV
+              </button>
+              {/* PDF via the browser's own print pipeline. Deliberately NOT a server-rendered PDF: there is
+                  no headless browser on serverless, and pulling in a PDF library to re-implement layout we
+                  already have in HTML would give a SECOND rendering of the same numbers — two places for
+                  the statement to disagree with itself. The print stylesheet below is the single source. */}
+              <button onClick={() => window.print()} className="no-print inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-surface-raised text-secondary hover:text-primary transition-colors">
+                <Printer className="w-3.5 h-3.5" /> Print / Save as PDF
               </button>
             </div>
             <IncomeStatement is={s.income_statement} />

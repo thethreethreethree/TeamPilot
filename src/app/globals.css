@@ -475,3 +475,57 @@ html {
   outline: none;
   box-shadow: 0 0 0 2px rgb(250 204 21 / 0.5);
 }
+
+/* ─── Print: financial statements as a PDF (Phase 6 "Export (PDF, …)") ───────────────────────────
+ *
+ * The PDF is produced by the BROWSER's own print pipeline, not by a server-side renderer. That is a
+ * deliberate choice, not a shortcut: there is no headless browser on serverless, and adding a PDF
+ * library would mean re-implementing the statement layout a SECOND time — giving the same figures two
+ * independent renderings, and therefore two places for them to disagree. A statement that prints a
+ * different number than the screen shows is worse than no PDF at all. This stylesheet keeps ONE source
+ * of truth: what you see is literally what is printed.
+ *
+ * Rules below: strip the app chrome (nav, buttons, backgrounds), force legible black-on-white, keep each
+ * statement whole rather than split across a page break, and preserve the warning colours — an
+ * "incomplete statement" banner that prints as invisible grey would defeat the entire point of showing it.
+ */
+@media print {
+  @page { size: A4 portrait; margin: 14mm; }
+
+  /* App chrome has no business on a financial document. */
+  nav, header, aside, .no-print, [data-print="hide"] { display: none !important; }
+
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* The dark-glass surfaces are unreadable on paper. Flatten them, keep the structure. */
+  .glass-card {
+    background: #fff !important;
+    border: 1px solid #d4d4d8 !important;
+    box-shadow: none !important;
+    /* A Balance Sheet split across two pages is a Balance Sheet nobody trusts. */
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 8mm;
+  }
+
+  .glass-card h2 { color: #000 !important; }
+  .text-primary, .text-secondary, .text-muted { color: #000 !important; }
+  .text-muted { color: #52525b !important; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td, th { color: #000 !important; }
+
+  /* The "this statement is incomplete" banner MUST survive printing. If it prints as invisible grey,
+     the PDF becomes a clean-looking statement over an unexplained gap — precisely the lie the on-screen
+     banner exists to prevent, now committed to a file someone will forward to a bank. */
+  .border-amber-500\/40 { border-color: #b45309 !important; }
+  .bg-amber-500\/10    { background: #fef3c7 !important; }
+  .text-amber-300      { color: #92400e !important; }
+  .text-emerald-400    { color: #065f46 !important; }
+  .text-red-400        { color: #991b1b !important; }
+}
