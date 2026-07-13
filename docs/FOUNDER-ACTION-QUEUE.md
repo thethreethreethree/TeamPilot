@@ -411,6 +411,16 @@ the pin→signal or durability→signal path breaks) would pass CI silently. Not
 the most important code in the product. **Fix:** add a CI job that spins up an ephemeral Postgres (or a
 throwaway Supabase test project), sets `EXECOS_INTEGRATION_TEST=1` + the creds, and runs `npm run test:chain`
 — so chain regressions are caught. The test is already written; it just needs to be RUN in CI.
+**Broader (same class): finance DB-level tests are ALSO not CI-run.** The finance acceptance suite in
+`docs/financial-system/tests/*.test.sql` (0116_foundation, 0118_ledger, 0123_ap_core, … — verifying the
+balance assertion, double-entry, subledger posting/clearing at the DB level) are **`.test.sql`** files, so
+`vitest` doesn't pick them up (`npm run test` = `vitest run`, `.test.ts` only). They're run manually against
+a live DB, so CI never exercises them. Net: the DB-level behavior of BOTH most-critical subsystems — the
+core-thesis chain AND the finance ledger — has no CI regression guard; the 631 CI tests are all pure-logic
+(helpers/sanitizers/calculations). **One fix covers both:** a CI job that spins up an ephemeral Postgres,
+applies the migrations, then runs `test:chain` + the `.test.sql` acceptance files (psql `-f`). Then a
+change that breaks a trigger, a posting fn, the balance assertion, or the derivation is caught by CI
+instead of shipping. Both test suites are already written — the gap is purely that CI doesn't run them.
 
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
