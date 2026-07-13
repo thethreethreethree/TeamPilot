@@ -456,6 +456,18 @@ the GitHub remote (outward-facing, history-persistent) — your call, not mine t
 **Recommendation:** `git add FinancialSystem.md` and commit — resolves the 9 dangling refs and protects
 the spec from loss. If instead you keep it local on purpose, the dangling references are a known tradeoff.
 
+### Dependency advisory — postcss < 8.5.10 in Next's bundle (LOW, not exploitable here; do NOT `audit fix --force`)
+`npm audit` flags **postcss < 8.5.10** (moderate, GHSA-qx2v-qp2m-jg93 — XSS via unescaped `</style>` in CSS
+*stringify* output). **Not practically exploitable in this app:** it's ONLY Next 16's internally-bundled
+`postcss@8.4.31`; the app's own pipeline (Tailwind/autoprefixer/direct dep) already runs the patched
+`postcss@8.5.15`. postcss is a **build-time** tool processing *your own* stylesheets — the XSS vector needs
+postcss stringifying *attacker-controlled* CSS at runtime, which never happens here.
+**⚠ Do NOT run `npm audit fix --force`** — its "fix" downgrades **next 16 → 9.3.3**, which would break the
+entire app. I tried the clean fix (a package.json `overrides` forcing Next's postcss up to 8.5.15, incl. the
+`$postcss` reference form) — npm does **not** cleanly reach Next's vendored copy, and forcing it harder risks
+destabilizing the tree for a non-exploitable advisory, so I reverted (tree clean). **Real fix:** a Next.js
+patch release that bumps its bundled postcss — upstream, low priority. Tracked here so it isn't re-discovered.
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
