@@ -579,8 +579,18 @@ it would flag legitimately-unpinned policies (profiles, companies, the vendor-gl
 allowlisting first — see the note below rather than assuming CI covers this shape.
 
 ### Also on the record (no action needed — context)
-- **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
-  `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
-  `docs/SECURITY-FINDINGS-2026-07-09.md`.
+- **⚠ CONTRADICTION IN THIS FILE — resolve before trusting either statement (flagged 2026-07-13).**
+  This line has long said *"older security batch `0101`–`0111` still UNAPPLIED"*, but **line ~50 of this
+  same file says "You're applied through `0144`"** — and `0101`–`0111` sit INSIDE that range, so they
+  cannot both be true. The session record supports "applied": you applied `0094`–`0115` on 2026-07-10,
+  then `0116`–`0144` (finance) on 2026-07-13 — which necessarily covers `0101`–`0111`. So this
+  "UNAPPLIED" note is very probably **stale**, written before the 2026-07-10 apply and never updated.
+  **This is dangerous in BOTH directions** — if stale it sends you chasing phantom HIGH holes; if it's
+  actually correct then "applied through 0144" is wrong and real author-spoof/tenant-key holes are LIVE.
+  **I did not silently "correct" it** (no DB access — asserting "applied" would manufacture false
+  confidence about security fixes). **Settle it with one query:**
+  `select version from supabase_migrations.schema_migrations order by version desc limit 12;`
+  Then delete whichever statement is false. Prioritized index: `docs/SECURITY-FINDINGS-2026-07-09.md`.
+- `0141`/`0142` (invite-escalation, subledger SoD) — status per the same check (they're ≤ `0144`).
 - **Dormant crons** awaiting operator wiring: §3.5 durability sweep, task-overrun sweep (code ready).
 - Full session detail: `docs/closures/2026-07-11-financial-system-session.md`.
