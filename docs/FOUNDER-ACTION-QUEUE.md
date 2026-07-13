@@ -140,16 +140,21 @@ the fn with: `select … for update` on the original, and `if exists (select 1 f
 where reversal_of = p_entry_id and status <> 'void') then raise 'Entry already has a reversal'`. Double-
 reversal is always wrong accounting, so this is an unambiguous guard, not a design choice.
 
-### Non-finance (minor, defense-in-depth) — 2 authenticated LLM routes lack rate-limiting
-`care/agent/conversations/[id]/messages` (POST → triggers an LLM grade per message) has **no
-rateLimit**, while its sibling `care/agent/…/co-pilot` *does*, with the explicit rationale "per-agent
-cap so a stuck retry can't spin cost." Same discipline, one sibling missed it. (Corrected: I initially
-also listed `dissect/topics[/id]` here, but on reading they're topic CRUD — GET reads via
-`getDissectTopic`/`listDissectTopics`, POST saves — NOT LLM calls, so no throttle/maxDuration needed;
-I removed the maxDuration I'd over-added to them.) `care/agent/messages` is authenticated, so abuse is
-attributable and company-paid — this is defense-in-depth against a buggy client / retry loop, not an
-attacker vector. **Recommend** adding `rateLimit(...)` matching the co-pilot pattern; I flagged rather
-than fixed because the limit values (max/window) are usage-specific judgment calls in your subsystem.
+### Non-finance (minor, defense-in-depth) — rate-limit omission NOW FIXED
+~~`care/agent/conversations/[id]/messages` has no rateLimit while its siblings do.~~ **FIXED**
+(commit below). On reading, this wasn't a judgment call after all: the 2026-07-06 audit (A13/A21)
+**already ratified** that "these must all rate-limit," and this route was the lone sibling that
+skipped it — a regression from a decided policy, not a new decision. So I wired it, matching the
+sibling pattern, with `max: 40/min` per client key. I chose 40 (vs co-pilot's 20) deliberately and
+documented the reasoning in-code: this is the customer-facing SEND path (posts the reply + triggers
+the LLM grade + the outbound email), so the cap must sit **above** any legitimate support team's send
+rate — even several agents behind one office NAT — while staying far below a runaway retry loop.
+40/min/IP does that. **Your only action** (optional): if a real team ever hits the 429, bump `max` in
+the route — the value is the one tunable, and it's a one-line change with an explanatory comment.
+(Also corrected: I'd initially over-listed `dissect/topics[/id]` as LLM routes — they're topic CRUD,
+GET reads via `getDissectTopic`/`listDissectTopics`, POST saves; I removed the maxDuration I'd wrongly
+added there. The `maxDuration` audit is now verified accurate: 22 genuine slow-external-call routes
+carry it, 2 CRUD false-positives reverted, and no route is on `edge` runtime — all correct.)
 
 ### Optional polish (low priority, your call)
 - **WCAG-AA input labels** — the finance entry forms (~29 inputs across ap/ar/banking/budgets/tax/

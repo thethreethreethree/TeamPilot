@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { gradeCareAgentReply } from "@/lib/care/grader";
 import { dispatchOutboundEmailReply } from "@/lib/care/email/outbound";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * POST /api/care/agent/conversations/[id]/messages
@@ -31,13 +32,31 @@ const Body = z.object({
   aiReasoning: z.string().max(4000).optional(),
 });
 
-// LLM route: longer serverless budget than Vercel's short default (awaits an LLM call via a lib helper).
+// Longer serverless budget than Vercel's short default. The LLM grade + outbound
+// email dispatch run in after() (post-response) — Vercel bounds after() work by
+// maxDuration, so without this the async grade/send could be frozen mid-flight.
 export const maxDuration = 60;
 
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Rate-limit — the ratified policy from the 2026-07-06 audit (A13/A21: "27 coach
+  // routes + these must all rate-limit") applies here too: this route posts a
+  // message AND triggers a metered LLM grade + an outbound customer email. Every
+  // sibling (co-pilot/formulate/summarize/ask-coach) already caps; this one was the
+  // lone omission. Value: 40/min per client key sits well above any legitimate
+  // support team's send rate (even several agents behind one office NAT) yet far
+  // below a runaway retry loop — so it stops cost-spin without ever blocking a real
+  // agent's reply to a customer. Keyed per-IP like all siblings (see rateLimit.ts;
+  // swap for Redis if the deploy scales horizontally). Tune here if a team hits it.
+  const limited = rateLimit(req, {
+    id: "care-agent-messages",
+    windowMs: 60_000,
+    max: 40,
+  });
+  if (limited) return limited;
+
   const { id } = await context.params;
   const auth = await requireCareAgent();
   if (!auth.ok) {
