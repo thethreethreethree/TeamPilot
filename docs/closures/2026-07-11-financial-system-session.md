@@ -152,6 +152,16 @@ runway, tax-codes, tax-report, close-year, dimensions, credit-notes/*) all confo
 **UI robustness (2026-07-13, `acd8044`):** all 11 finance pages' `load()` now handle fetch failure
 (try/catch → toast) instead of silently blanking — AMD-006 layer-4 gap, fixed across every page.
 
+**Decision-ready artifacts (all reviewed for latent bugs this session):**
+- `docs/financial-system/TAX-CREDIT-NOTE-NETTING-DECISION.md` — the tax-netting call, 3 options +
+  recommendation (A: proportional to the linked invoice's jurisdictions).
+- `docs/financial-system/PHASE-8-DATA-MODEL.md` — Payroll (post, don't build) + Assets (register +
+  depreciation + disposal). Proposal-reviewed: fixed a payroll-entry balance bug + pinned depreciation
+  salvage-floor / active-only / gain=proceeds−NBV rules.
+- `docs/financial-system/PHASE-9-DATA-MODEL.md` — delegation + opening-balance import. Proposal-
+  reviewed: pinned the delegation SoD-bypass rules (actor-checked, non-transitive, no role upgrade) +
+  honest-import rule (Opening Balance Equity surfaces imbalance, never silent-plugs).
+
 **Current apply queue (authoritative):** founder is through `0144`; **`0145`–`0151` outstanding**
 (`0145`/`0150`/`0151` now carry the sweep fixes). Runbook is Steps 1–15 (adds Banking, Profitability,
 Budget, Tax + year-end close). Then confirm **Phase 8** (payroll/assets, proposed) and the **Phase-9
