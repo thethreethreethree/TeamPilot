@@ -142,10 +142,10 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 **Payroll** *(integration likely preferred — recommend at build time)*
 | Feature | Status |
 |---|---|
-| Payroll expense posting to ledger | NOT_STARTED |
-| Employee compensation tracking | NOT_STARTED |
-| Benefits and employer contributions | NOT_STARTED |
-| Payroll tax liabilities | NOT_STARTED |
+| Payroll expense posting to ledger | BUILT (0167 fin_payroll_runs + fin_post_payroll_run. INTEGRATED, not rebuilt (founder decision): the provider computes gross-to-net, we record and post. Dr 6000 Salary Expense (gross) + Dr 6100 Employer Tax Expense / Cr 2300 Net Pay Payable + Cr 2400 Withholdings Payable + Cr 2500 Employer Tax Payable, via fin_post_system_entry. Row-locked + unique(provider, external_id) so a re-fired webhook cannot post a second month of salary — which would balance perfectly. API /api/finance/payroll + UI /dashboard/finance/payroll. Acceptance tests/0167 — awaiting live-DB run to reach TESTED) |
+| Employee compensation tracking | BUILT (0167 fin_payroll_runs holds each pay period as the provider computed it — gross, net, withholdings, employer tax, benefits, headcount, cost centre — with the identity gross = net + withholdings enforced as a CHECK. The API REFUSES to derive a missing figure: a mismatch means a column was misread on import, and filling it in would post a balanced, WRONG entry nothing downstream would catch. Per-employee detail stays with the provider by design. Acceptance tests/0167 — awaiting live-DB run to reach TESTED) |
+| Benefits and employer contributions | BUILT (0167: employer tax + employer-paid benefits post ON TOP of gross to 6100/2500, never inside it. Folding them into gross still balances and still ties out — but makes the true cost of an employee indistinguishable from their salary, silently corrupting every unit-economics and cost-per-project figure downstream, in the direction that flatters the business. Asserted in tests/0167 (B) — awaiting live-DB run to reach TESTED) |
+| Payroll tax liabilities | BUILT (0167: withholdings owed on the employee's behalf land in 2400 Withholdings Payable; the company's own contribution lands in 2500 Employer Tax Payable — two distinct liabilities, because they are owed for different reasons and settled separately. Both are real balances on the Balance Sheet until paid. Acceptance tests/0167 — awaiting live-DB run to reach TESTED) |
 
 **Assets**
 | Feature | Status |
