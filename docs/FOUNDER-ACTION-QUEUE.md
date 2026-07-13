@@ -317,6 +317,18 @@ generic `error` string with zero debugging loss. Low severity. Verified by a swe
 surface; the read paths (widget/bootstrap, messages GET via serializeMessage) return explicit whitelist
 shapes and don't leak. Fix when convenient: keep both server logs, drop `detail` from both client responses.
 
+### Production posture — rate limiting is in-memory (per-instance), weak on Vercel serverless
+`src/lib/api/rateLimit.ts` stores counters in a per-process `Map` (its own comment: "single-instance…
+swap for Redis for horizontally-scaled"). You deploy to Vercel serverless (multi-instance, stateless,
+cold-starts), and **85 routes** rely on this limiter — so in production the configured caps are
+effectively **per-instance**: a "40/min" is "40/min per warm instance," requests spread across instances
+each counting independently, and cold starts reset the map. The effective limit *rises* under load (more
+instances spin up), which is exactly when you'd want it to hold. Not a bug (documented + fine at low
+traffic), but the cost/DoS protection on the metered LLM routes (care/coach/chat, and the messages cap I
+added) is softer than the numbers suggest. If cost-abuse on the LLM routes is a real concern, back the
+limiter with Redis/Upstash (a drop-in swap behind the same `rateLimit()` signature); otherwise know the
+caps are best-effort per-instance. Surfaced because it changes how to read every rate limit in the app.
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
