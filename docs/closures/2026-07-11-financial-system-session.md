@@ -88,6 +88,13 @@ top-of-doc apply state, which is authoritative.)*
 5. A messy vendors route → rewritten with getCurrentCompanyId.
 
 ## What NEEDS the founder (open)
+> ⚠️ **SUPERSEDED — this is a mid-session (0148-era) snapshot.** For the authoritative current open
+> items, read the **2026-07-13 late-session section at the bottom of this doc** and
+> **`docs/FOUNDER-ACTION-QUEUE.md`** (the prioritized menu): apply queue is now `0145`–`0153`, runbook is
+> Steps 1–16, credit notes / Phase 3 / Phase 4-inc1 / Phase 5-inc1 / Phase 7 are BUILT, and every open
+> decision (tax-netting, recurring-drift, Phase 8, Phase 9) has a decision-ready doc. The list below is
+> kept for the historical record only.
+
 1. **Apply `0145`–`0148` + walk the runbook** (VERIFICATION-RUNBOOK-FULL.md — now Steps 1–12 covering
    AP/AR/Expenses/POs/Recurring/Statements/CreditNotes/Banking/Profitability). You're through 0144; the
    whole chain is dependency-ordered + idempotent. Exercise banking (import CSV → auto-match) and
