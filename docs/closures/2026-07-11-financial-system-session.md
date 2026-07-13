@@ -183,3 +183,44 @@ every code a function resolves-and-raises-on is seeded by `fin_init_company`; 49
 (`0145`/`0150`/`0151` now carry the sweep fixes). Runbook is Steps 1–15 (adds Banking, Profitability,
 Budget, Tax + year-end close). Then confirm **Phase 8** (payroll/assets, proposed) and the **Phase-9
 gaps** (delegation/multi-entity/integrations, proposed). New decision #4 above rides alongside these.
+
+---
+
+## 2026-07-13 (late session) — concurrency + import-robustness sweep (updates the apply queue to 0145–0153)
+
+Continued forming genuine defect hypotheses. The most productive vein was **concurrency (row locks)**:
+a §1.2 sweep of "every read-guard-post function must `SELECT … FOR UPDATE` its document" (which
+`fin_pay_bill`/`fin_record_receipt` already did) found **six** functions missing it — all invisible
+under single-user testing, all real under concurrent load:
+
+- `0147` — `fin_approve_bill` / `fin_issue_invoice` / `fin_approve_expense_report` (edited in place,
+  unapplied): concurrent approval of one draft → **double-post** (double expense/revenue). `fin_source_
+  postings` has no unique constraint to catch it.
+- `0152` — `fin_issue_credit_note` (new migration; 0143 applied): concurrent issue → **over-credit**.
+- `0153` — `fin_reimburse_expense_report` (**double payment**) + `fin_convert_po_to_bill` (**duplicate
+  bill**) (new migration; 0125/0139 applied).
+
+Row-lock discipline is now uniform across the whole finance write surface. Other late finds:
+- **Import robustness** (`14d4263`, `a5c1ecd`, `114fd5c`): extracted + tested the bank CSV parser;
+  fixed a **UTF-8 BOM** bug (Excel exports broke first-column exact-match → dropped dedup id) and
+  **silent row-drop** (unreadable lines vanished; now `parseCsv` returns `{rows, skipped}` and the UI
+  warns) — both real data-integrity gaps on financial import.
+- **Timezone** (`c66a091`, `5032f17`): `isoAdd` parsed date-only strings as UTC → period-over-period
+  window off a day in the Americas; and pay/receive/PO-bill defaults used UTC-today (→ next-day, month-
+  end misfiling). Fixed + tested under multiple TZs.
+- **Deploy gates**: fixed 2 unused-import lint errors that could fail `next build`; verified `next
+  build` compiles, PG15+ prerequisite met, 0145–0153 idempotent + gap-free.
+- **Verified clean** (genuine hypotheses, no defect): XSS (`dangerouslySetInnerHTML` — finance has none;
+  2 app-wide uses are static), API input-validation (every mutating route Zod-parses its body),
+  CWE-1236 CSV-export (only `statementsToCsv`, neutralized + tested), dead-code/wiring (all unreferenced
+  fns are triggers/helpers or documented deferrals), manual amount-entry (fails safe, conventional).
+
+**Flagged (not auto-applied), in `docs/FOUNDER-ACTION-QUEUE.md`:** (a) a `fin_source_postings
+(source_type, source_id, kind)` unique-index **structural backstop** for the double-post class — safe by
+design but could halt the apply if a pre-lock duplicate exists, so gated on a dup-check query; (b) a
+**latent double-reversal** gap in `fin_reverse_entry` (currently unreachable — no UI/route — fix the
+already-reversed guard before shipping a reverse button).
+
+**Current apply queue (authoritative, supersedes "0145–0151" above):** founder is through `0144`;
+**`0145`–`0153` outstanding.** Runbook Step 1 + the action queue reflect the range. App code ships
+green (tsc 0, ESLint 0, 619 vitest, `next build` compiles).
