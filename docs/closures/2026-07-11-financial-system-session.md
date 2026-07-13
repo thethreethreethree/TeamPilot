@@ -142,6 +142,16 @@ found + fixed, one §3.4 accuracy gap flagged (needs a decision), two functions 
 `fin_post_system_entry` + `fin_approve_bill` + `fin_issue_invoice` dimension threading (cost_center_id/
 project_id flow source line → jsonb → journal line → profitability GROUP BY, control lines NULL).
 
+**API-route security verification (2026-07-13, clean):** all 42 finance routes audited — **zero use
+service-role** (`createAdminClient`/service_role absent everywhere), every route enforces
+`if (!auth.user) return 401` per handler, write routes also gate `supabaseEnabled`, all use the
+user-scoped `createClient` so RLS + the `fin_can_*` DEFINER checks enforce authorization at the DB
+layer (the correct two-layer model). The routes added this session (bank/*, budgets/*, profitability,
+runway, tax-codes, tax-report, close-year, dimensions, credit-notes/*) all conform. No exposure found.
+
+**UI robustness (2026-07-13, `acd8044`):** all 11 finance pages' `load()` now handle fetch failure
+(try/catch → toast) instead of silently blanking — AMD-006 layer-4 gap, fixed across every page.
+
 **Current apply queue (authoritative):** founder is through `0144`; **`0145`–`0151` outstanding**
 (`0145`/`0150`/`0151` now carry the sweep fixes). Runbook is Steps 1–15 (adds Banking, Profitability,
 Budget, Tax + year-end close). Then confirm **Phase 8** (payroll/assets, proposed) and the **Phase-9
