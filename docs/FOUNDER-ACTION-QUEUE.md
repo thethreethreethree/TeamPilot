@@ -54,6 +54,13 @@ need them.
 
 ---
 
+### Optional polish (low priority, your call)
+- **WCAG-AA input labels** — the finance entry forms (~29 inputs across ap/ar/banking/budgets/tax/
+  credit-notes/profitability) use `placeholder` as the field label. Inputs are still *named* (the
+  placeholder is the accname fallback), so this is AA-polish, not a defect — persistent `aria-label`s
+  would harden it if you want strict AA. Left un-churned deliberately. (The one real a11y *defect* — two
+  nameless icon-only buttons — was fixed, commit `17a4970`.)
+
 ### Also on the record (no action needed — context)
 - **Older security batch `0101`–`0111`** still UNAPPLIED (author-spoof / tenant-key / cascade fixes);
   `0141`/`0142` (invite-escalation, subledger SoD) UNAPPLIED. Prioritized index:
