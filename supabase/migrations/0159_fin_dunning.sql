@@ -84,7 +84,15 @@ with outstanding as (
           where cn.invoice_id = i.id and cn.status = 'issued')
       as outstanding
   from fin_invoices i
-  where i.status in ('issued','partly_paid','overdue')
+  -- fin_invoices.status is check (status in ('draft','sent','paid','void')) — VERIFIED against 0131,
+  -- not assumed. 'sent' is the issued-and-not-yet-fully-settled state: fin_record_receipt (0132) only
+  -- flips an invoice to 'paid' once cumulative receipts cover the total, so a PARTLY-paid invoice is
+  -- still 'sent'. Filtering on 'sent' therefore covers issued + partly-paid, and the outstanding > 0
+  -- predicate below excludes anything actually settled.
+  -- (An earlier draft of this view filtered on 'issued'/'partly_paid'/'overdue' — values that do not
+  --  exist in the check constraint — which would have matched ZERO rows and shipped a permanently
+  --  empty collections worklist. Caught by reading the constraint instead of trusting the vocabulary.)
+  where i.status = 'sent'
 )
 select
   o.id as invoice_id, o.company_id, o.invoice_number, o.customer_id, c.name as customer_name,
