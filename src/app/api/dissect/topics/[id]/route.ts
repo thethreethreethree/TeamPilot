@@ -8,9 +8,6 @@ import { getDissectTopic } from "@/lib/data/dissect";
  * Owner-private: getDissectTopic uses the RLS user client, so a topic that isn't
  * the caller's own returns null → 404. No cross-user read.
  */
-// LLM route: longer serverless budget than Vercel's short default (awaits LLM calls via a lib chain).
-export const maxDuration = 60;
-
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }

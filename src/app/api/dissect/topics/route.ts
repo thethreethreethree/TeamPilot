@@ -16,9 +16,6 @@ import { MAX_SOURCE_CHARS } from "@/lib/dissect/engine";
  * UNSAVED thread is discarded, and that never reaches the server).
  */
 
-// LLM route: longer serverless budget than Vercel's short default (awaits an LLM call via a lib helper).
-export const maxDuration = 60;
-
 export async function GET() {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();

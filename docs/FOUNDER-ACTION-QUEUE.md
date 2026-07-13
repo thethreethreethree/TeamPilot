@@ -143,9 +143,10 @@ reversal is always wrong accounting, so this is an unambiguous guard, not a desi
 ### Non-finance (minor, defense-in-depth) — 2 authenticated LLM routes lack rate-limiting
 `care/agent/conversations/[id]/messages` (POST → triggers an LLM grade per message) has **no
 rateLimit**, while its sibling `care/agent/…/co-pilot` *does*, with the explicit rationale "per-agent
-cap so a stuck retry can't spin cost." Same discipline, one sibling missed it. Also `dissect/topics/[id]`
-(GET, imports the dissect/LLM chain) — verify whether the GET actually generates via LLM (if it only
-reads cached data, no throttle needed). Both are **authenticated** (agent/user), so abuse is
+cap so a stuck retry can't spin cost." Same discipline, one sibling missed it. (Corrected: I initially
+also listed `dissect/topics[/id]` here, but on reading they're topic CRUD — GET reads via
+`getDissectTopic`/`listDissectTopics`, POST saves — NOT LLM calls, so no throttle/maxDuration needed;
+I removed the maxDuration I'd over-added to them.) `care/agent/messages` is authenticated, so abuse is
 attributable and company-paid — this is defense-in-depth against a buggy client / retry loop, not an
 attacker vector. **Recommend** adding `rateLimit(...)` matching the co-pilot pattern; I flagged rather
 than fixed because the limit values (max/window) are usage-specific judgment calls in your subsystem.
