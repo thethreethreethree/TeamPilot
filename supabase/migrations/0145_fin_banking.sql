@@ -110,6 +110,12 @@ begin
   if v_status = 'matched' then raise exception 'That bank line is already matched'; end if;
   select company_id into v_ecompany from fin_journal_entries where id = p_entry_id and status = 'posted';
   if v_ecompany is null or v_ecompany <> auth_company_id() then raise exception 'Entry not found (or not posted) in your company'; end if;
+  -- 1:1 invariant: reconciliation is one bank line ↔ one GL entry. Auto-match already excludes
+  -- already-matched entries; the manual path must too, or one entry could be reconciled against two
+  -- bank lines (corrupting the unmatched count + rec state, though not the GL itself).
+  if exists (select 1 from fin_reconciliation_matches where entry_id = p_entry_id) then
+    raise exception 'That ledger entry is already reconciled to another bank line';
+  end if;
   insert into fin_reconciliation_matches (company_id, bank_transaction_id, entry_id)
     values (v_company, p_txn_id, p_entry_id);
   update fin_bank_transactions set status = 'matched' where id = p_txn_id;
