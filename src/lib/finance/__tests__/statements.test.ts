@@ -54,6 +54,24 @@ describe("finance statements — integrity checks", () => {
     expect(balanceSheetTiesOut({ ...s.balance_sheet, total_assets: 150.004 })).toBe(true);
     expect(balanceSheetTiesOut({ ...s.balance_sheet, total_assets: 150.02 })).toBe(false);
   });
+
+  it("flags exactly one cent of imbalance — the smallest REAL error (not float noise)", () => {
+    // The 0.005 epsilon exists to absorb float artifacts, NOT to forgive a one-cent
+    // accounting error. One cent is the smallest imbalance that can't be rounding —
+    // it must ALWAYS be flagged, on both the balance sheet and the trial balance.
+    // This locks that threshold: sub-cent passes (float noise), one full cent fails.
+    expect(balanceSheetTiesOut({ ...s.balance_sheet, total_assets: 150.01 })).toBe(false);
+    expect(balanceSheetTiesOut({ ...s.balance_sheet, total_assets: 149.99 })).toBe(false);
+    expect(trialBalances({ ...s.trial_balance, total_credit: 250.01 })).toBe(false);
+    expect(trialBalances({ ...s.trial_balance, total_debit: 249.99 })).toBe(false);
+  });
+
+  it("trial balance tolerates sub-cent float artifacts (symmetry with the balance sheet)", () => {
+    // A JSON round-trip of SQL numeric(19,4) can land at e.g. 250.0000000003; that must
+    // not read as an imbalance. trialBalances had no sub-cent test before — this adds it.
+    expect(trialBalances({ ...s.trial_balance, total_credit: 250.004 })).toBe(true);
+    expect(trialBalances({ ...s.trial_balance, total_debit: 249.997 })).toBe(true);
+  });
 });
 
 describe("finance statements — CSV export", () => {
