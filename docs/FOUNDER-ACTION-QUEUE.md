@@ -13,7 +13,65 @@ is a blocker I can clear autonomously — each needs your judgment, a live envir
 
 ---
 
-## 0. ⚠️ UNCOMMITTED working-tree change to `0118_fin_ledger.sql` — YOUR CALL (I did not make it, left it untouched)
+## 0-A. 🔴 SECURITY — I shipped a cross-tenant read in 19 views. Fixed. **Read this before applying anything.**
+
+**Severity: HIGH (cross-tenant data read). NOT EXPLOITED — nothing to remediate on your live DB.**
+Every affected migration is **unapplied** (you are at `0156`; the bug lived in `0158`–`0173`). No live
+database has ever had these views. Fixed in `ac3bd9b`, before you apply.
+
+**What it was.** A Postgres view runs with the privileges of its **owner** unless declared
+`with (security_invoker = true)`. Migrations run as the owner — so a view without that option reads its
+base tables **without applying the querying user's RLS policies**. Any authenticated user selecting from
+it reads **every company's rows**.
+
+`fin_1099_worksheet` would have exposed **every tenant's contractor names, taxpayer IDs and payment
+totals** to any authenticated user of any company.
+
+**Why nothing caught it.** `rls:audit` was **green the whole time — correctly, by its own logic**: every
+underlying *table* is properly protected. The hole was in the **lens**, not the data. The audit had no
+concept of a view.
+
+**And this codebase had already learned it.** `0052_views_security_invoker.sql` exists for exactly this
+reason; `0060` repeats it; every finance view through `0150` sets the option. The lesson was learned,
+written into a migration — **and never encoded in a check.** So I re-broke it nineteen times in one
+session while the gate reported green.
+
+> *A lesson that lives only in a past migration is a lesson the next author re-learns the hard way.*
+
+**What I changed** (the fix that matters is #2, not #1):
+1. All 19 views now declare `security_invoker = true`.
+2. **`rls:audit` now checks views** — the class is structurally unable to return. 5 regression tests lock it.
+3. The checker tracks each view's state **across migrations, in order** (last statement wins), because my
+   first version raised **6 false positives** on migrations that repair a view with a later `ALTER`. An
+   audit that cries wolf on correct code is one people learn to skip, and the one real leak then rides in
+   behind six fake ones.
+
+**Your action:** none, beyond applying `0157`–`0173` as normal. This entry exists so you know the fix is
+*in* the batch you're about to apply, and why.
+
+**Worth your judgment:** this is the second time this exact bug has been introduced in this codebase. The
+first fix (`0052`) was a migration; this one is a migration **plus a gate**. If you want, I can sweep for
+other "learned once, never encoded" invariants — that's a genuine §1.7 audit thread and I suspect this
+isn't the only one.
+
+---
+
+## 0. ⚠️ `0118_fin_ledger.sql` — I COMMITTED YOUR UNCOMMITTED WORK BY MISTAKE. Your call.
+
+**Update (2026-07-14):** this file was modified in your working tree when my session began. A `git add -A`
+of mine (commit `dd85b4f`) **swept it into a commit under my message**, along with `FinancialSystem.md`
+(previously untracked) and a scratch file of mine (since removed + gitignored).
+
+Nothing is lost — it is all in git. But **99 lines of your in-progress ledger work are now committed and
+attributed to my commit, unreviewed.** I did **not** revert it: unpicking a pushed commit would be a
+*second* unreviewed change to your tree on top of the first.
+
+**Your call:** keep it, or tell me and I'll revert `0118` to its pre-`dd85b4f` state so you can commit it
+yourself. The lesson on my side is narrow and already applied: stage the files I wrote, never `-A`.
+
+---
+
+## 0-B. (superseded — original text below, kept for the record)
 **Found during a deploy-readiness check: `git status` shows `0118_fin_ledger.sql` MODIFIED but not
 committed.** It was NOT modified at this session's start (initial status was clean but for
 `FinancialSystem.md`), and it isn't in my session's edit record — so it's either your own in-progress

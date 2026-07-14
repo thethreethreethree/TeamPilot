@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { Plus } from "lucide-react";
 
 type Customer = { id: string; name: string };
-type ProjRow = { project_id: string; code: string; name: string; status: string; budget: number | null; revenue: number; direct_cost: number; total_cost: number };
+type ProjRow = { project_id: string; code: string; name: string; status: string; budget: number | null; revenue: number; direct_cost: number; total_cost: number; allocated_overhead: number | null; loaded_margin: number | null };
 type CcRow = { cost_center_id: string; code: string; name: string; revenue: number; direct_cost: number; total_cost: number };
 type CuRow = { customer_id: string; name: string; revenue: number; total_cost: number };
 const money = formatMoney;
@@ -24,6 +24,7 @@ export default function ProfitabilityPage() {
   const [accountsCount, setAccountsCount] = useState<number | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [projects, setProjects] = useState<ProjRow[]>([]);
+  const [unallocated, setUnallocated] = useState(0);
   const [costCenters, setCostCenters] = useState<CcRow[]>([]);
   const [custProfit, setCustProfit] = useState<CuRow[]>([]);
   const [busy, setBusy] = useState(false);
@@ -38,6 +39,7 @@ export default function ProfitabilityPage() {
       ]);
       setAccountsCount((ac.accounts ?? []).length);
       setProjects(prof.projects ?? []);
+      setUnallocated(Number(prof.unallocatedOverhead ?? 0));
       setCostCenters(prof.costCenters ?? []);
       setCustProfit(prof.customers ?? []);
       setCustomers(cu.customers ?? []);
@@ -123,6 +125,73 @@ export default function ProfitabilityPage() {
           empty="No projects yet — create one above, then tag invoice/bill lines with it."
           rows={projects.map((p) => ({ key: p.project_id, label: `${p.code} ${p.name}`, revenue: p.revenue, direct: p.direct_cost, total: p.total_cost, note: p.status }))}
         />
+
+        {/* FULLY-LOADED MARGIN (0173).
+            The table above shows margin on DIRECT cost, which systematically FLATTERS every project —
+            because no project pays the rent. A founder reading only direct margin is being quietly told
+            that every project is more profitable than it is, and will happily repeat a project that in
+            truth lost money once its share of overhead is counted. So the loaded figure sits directly
+            beneath the direct one, and the difference between them is the whole point. */}
+        <section className="rounded-xl border border-default bg-surface p-4">
+          <h2 className="text-sm font-medium text-primary">Profitability by project — after overhead</h2>
+          <p className="mt-1 text-xs text-secondary">
+            The table above counts only <strong>direct</strong> cost. No project pays the rent — so every
+            margin there looks better than it is. Below, each project carries its share of overhead,
+            allocated by its share of direct cost. This is the number to decide with.
+          </p>
+
+          {/* Overhead nobody could absorb is NAMED, not folded in. Folding it into the projects would
+              improve every margin on this page and nothing downstream would disagree. */}
+          {unallocated > 0.005 && (
+            <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+              <strong>{formatMoney(unallocated)}</strong> of overhead could not be allocated to any project
+              — it fell in months with no direct project cost to divide it by. It is <strong>not</strong>
+              included in the margins below, and we have <strong>not</strong> spread it across your projects
+              to make the sums come out. It is real money that no project is currently carrying.
+            </div>
+          )}
+
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-secondary">
+                  <th className="text-left pb-2 pr-3">Project</th>
+                  <th className="text-right pb-2 pr-3">Revenue</th>
+                  <th className="text-right pb-2 pr-3">Direct cost</th>
+                  <th className="text-right pb-2 pr-3">Overhead absorbed</th>
+                  <th className="text-right pb-2">Margin after overhead</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.length === 0 && (
+                  <tr><td colSpan={5} className="py-6 text-center text-xs text-secondary">No projects yet.</td></tr>
+                )}
+                {projects.map((p) => (
+                  <tr key={p.project_id} className="border-t border-default">
+                    <td className="py-1.5 pr-3 text-primary">{p.code} {p.name}</td>
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-primary">{formatMoney(p.revenue)}</td>
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-secondary">{formatMoney(p.direct_cost)}</td>
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-secondary">
+                      {p.allocated_overhead == null ? "—" : formatMoney(p.allocated_overhead)}
+                    </td>
+                    <td className="py-1.5 text-right tabular-nums font-medium text-primary">
+                      {/* NULL, never the direct margin. Showing the direct margin here — under a heading
+                          that says "after overhead" — would report a project as profitable at the exact
+                          moment we could not work out what it cost. */}
+                      {p.loaded_margin == null ? (
+                        <span className="text-xs font-normal text-secondary" title="Overhead could not be allocated for at least one month, so we cannot state this project's true margin.">
+                          Not yet knowable
+                        </span>
+                      ) : (
+                        formatMoney(p.loaded_margin)
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
         <MarginTable
           title="Profitability by cost center"
           empty="No cost centers yet."
