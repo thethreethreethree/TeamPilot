@@ -28,6 +28,7 @@ const LINKS = [
   { href: "/dashboard/finance/forecast", label: "Forecast" },
   { href: "/dashboard/finance/tax", label: "Tax" },
   { href: "/dashboard/finance/periods", label: "Periods" },
+  { href: "/dashboard/finance/integrity", label: "Integrity" },
   { href: "/dashboard/finance/statements", label: "Statements" },
   { href: "/dashboard/finance/reports", label: "Reports" },
   { href: "/dashboard/finance/anomalies", label: "Anomalies" },
