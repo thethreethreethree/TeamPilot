@@ -27,6 +27,7 @@ const LINKS = [
   { href: "/dashboard/finance/periods", label: "Periods" },
   { href: "/dashboard/finance/statements", label: "Statements" },
   { href: "/dashboard/finance/reports", label: "Reports" },
+  { href: "/dashboard/finance/anomalies", label: "Anomalies" },
   { href: "/dashboard/finance/controls", label: "Controls" },
   { href: "/dashboard/finance/opening-balances", label: "Opening balances" },
   { href: "/dashboard/finance/contractors", label: "Contractors" },
