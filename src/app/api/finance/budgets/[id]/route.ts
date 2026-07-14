@@ -17,7 +17,10 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { data } = await sb
     .from("fin_budget_variance")
-    .select("budget_line_id, account_id, code, account_name, type, cost_center_id, period_index, budget, actual")
+    // 0182: is_alert is DIRECTION-AWARE (an expense breaches by going OVER, a revenue line by coming in
+    // UNDER) and variance_pct is NULL against a zero budget — a percentage of nothing is undefined, and a 0
+    // would classify a line that spent £40,000 against a £0 budget as perfectly on-plan.
+    .select("budget_line_id, account_id, code, account_name, type, cost_center_id, period_index, budget, actual, variance_pct, is_alert, alert_threshold_pct")
     .eq("budget_id", id)
     .order("code");
   return NextResponse.json({ lines: data ?? [] });

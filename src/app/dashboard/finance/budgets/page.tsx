@@ -11,7 +11,7 @@ import { Plus, TrendingDown } from "lucide-react";
 type Account = { id: string; code: string; name: string; type: string };
 type Dim = { id: string; code: string; name: string };
 type Budget = { id: string; name: string; fiscal_year: number; granularity: string; status: string };
-type VarRow = { budget_line_id: string; code: string; account_name: string; type: string; cost_center_id: string | null; period_index: number; budget: number; actual: number };
+type VarRow = { budget_line_id: string; code: string; account_name: string; type: string; cost_center_id: string | null; period_index: number; budget: number; actual: number; variance_pct: number | null; is_alert: boolean | null; alert_threshold_pct: number | null };
 type Runway = { cash_on_hand: number; monthly_burn: number; runway_months: number | null };
 const money = formatMoney;
 const Q = ["Year", "Q1", "Q2", "Q3", "Q4"];
@@ -136,7 +136,32 @@ export default function BudgetsPage() {
         {/* Selected budget: add line + variance */}
         {sel && (
           <section className="glass-card p-5">
-            <h2 className="text-sm font-semibold text-primary mb-3">Budget lines &amp; variance</h2>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-primary">Budget lines &amp; variance</h2>
+              {/* The threshold existed as a settings column since 0149 and did NOTHING — nothing wrote it and
+                  nothing read it. Dead config is worse than an absent feature: it IMPLIES a working control. */}
+              <label className="text-xs text-muted">
+                Flag when off plan by more than{" "}
+                <input
+                  defaultValue={String(lines[0]?.alert_threshold_pct ?? 10)}
+                  onBlur={async (e) => {
+                    const pct = Number(e.target.value);
+                    if (!Number.isFinite(pct) || pct < 0 || pct > 100) return;
+                    const res = await fetch("/api/finance/budgets", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ varianceAlertPct: pct }),
+                    });
+                    // Reload the LINES, not the budget list — is_alert is computed per line by the view, so
+                    // refreshing the wrong query would leave the badges showing the old threshold.
+                    if (res.ok && sel) void loadLines(sel);
+                  }}
+                  inputMode="decimal"
+                  className="w-12 rounded border border-default bg-surface px-1 py-0.5 text-center text-xs text-primary"
+                />{" "}
+                %
+              </label>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
               <select value={lAcct} onChange={(e) => setLAcct(e.target.value)} className="bg-surface rounded-lg px-2 py-2 text-sm text-primary border border-default">
                 <option value="">Account…</option>
@@ -165,6 +190,7 @@ export default function BudgetsPage() {
                     <th className="text-right pb-2 pr-3">Budget</th>
                     <th className="text-right pb-2 pr-3">Actual</th>
                     <th className="text-right pb-2">Variance</th>
+                    <th className="text-right pb-2 pl-3">Alert</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-default">
@@ -180,6 +206,25 @@ export default function BudgetsPage() {
                         <td className="py-2 pr-3 text-right font-mono text-secondary">{money(r.budget)}</td>
                         <td className="py-2 pr-3 text-right font-mono text-secondary">{money(r.actual)}</td>
                         <td className={`py-2 text-right font-mono ${bad ? "text-red-400" : "text-emerald-400"}`}>{v >= 0 ? "+" : ""}{money(v)}</td>
+                        {/* 0182 — the THRESHOLD breach, not merely the direction. A line can be over budget
+                            by £3 and that is not news. is_alert is direction-aware: an expense breaches by
+                            going OVER, a revenue line by coming in UNDER. An alert that fired on a month the
+                            company BEAT its sales target is one people stop reading. */}
+                        <td className="py-2 pl-3 text-right">
+                          {r.is_alert ? (
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800">
+                              {r.variance_pct != null ? `${Math.abs(Number(r.variance_pct)).toFixed(0)}% off` : "Off plan"}
+                            </span>
+                          ) : r.budget === 0 ? (
+                            // A percentage of a zero budget is UNDEFINED, not 0. Rendering "0% off" here would
+                            // classify a line that spent £40,000 against no budget as perfectly on plan.
+                            <span className="text-xs text-muted" title="No budget was set for this line, so there is no percentage to be off by.">
+                              No budget
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted">—</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
