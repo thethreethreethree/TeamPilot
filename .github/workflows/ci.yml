@@ -44,6 +44,16 @@ jobs:
       - name: Theme-leak audit
         run: npm run theme:audit
 
+      # Invariant audit — the class of bug this codebase has ALREADY shipped once and fixed only in
+      # prose. On 2026-07-14 a cross-tenant view leak recurred 19 times because the fix (0052) lived in
+      # a migration and never in a check, and rls:audit reported green throughout. A lesson recorded
+      # only in a doc survives exactly as long as someone remembers to read the doc. This gate holds the
+      # two that were still unguarded: every CSV export routes through csvSafe (CWE-1236 formula
+      # injection), and no finance route uses the service-role client (which bypasses RLS entirely —
+      # how the CRM vendor hole happened).
+      - name: Invariant audit
+        run: npm run invariant:audit
+
       - name: Test
         run: npm run test
 
