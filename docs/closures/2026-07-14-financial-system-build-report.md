@@ -1,6 +1,6 @@
 # Financial System — honest build report
 
-**Session:** 2026-07-14 · **Migrations `0157`–`0180`** · **54% → 96%** (81 of 84 features BUILT)
+**Session:** 2026-07-14 · **Migrations `0157`–`0182`** · **54% → 96%** (81 of 84 features BUILT)
 
 This report is written to the terms the founder set:
 
@@ -56,6 +56,8 @@ database. **Nothing here is TESTED.** Only you can change that.
 | `0178_fin_integrity_check.sql` | 7 post-restore assertions; **an unverified restore is not a recovery** |
 | `0179_fin_cost_per_outcome.sql` | Cost per **durable** resolution; money spent on fixes that **came back** |
 | `0180_fin_inventory.sql` | Inventory + COGS + shrinkage. Weighted average, perpetual (founder-confirmed) |
+| `0181_fin_invoice_cogs_link.sql` | **Revenue and its cost now post together, or neither posts** |
+| `0182_fin_variance_alerts.sql` | Makes `variance_alert_pct` real — it was dead config that flagged nothing |
 
 ### Acceptance SQL (18 files, `docs/financial-system/tests/`)
 `0157` · `0158-0160` · `0161` · `0162` · `0163` · `0164` · `0165` · `0166` · `0167` · `0168` · `0169` ·
@@ -136,6 +138,33 @@ nineteen times while the gate reported green.
 The fix that matters is not the 19 views. It's that **`rls:audit` now checks views**, and
 **`invariant-audit.mjs` now guards the other two "learned once, never encoded" rules** I found by sweeping.
 
+### 🟠 SEVEN features were BUILT and INVISIBLE — one blind spot, seven times
+
+This is the finding I would most want a reviewer to see, because it is about **how I work**, not about a bug.
+
+I shipped features whose **schema was correct, whose views were correct, whose pages were correct** — and
+which **could never have worked**, because nothing in the product could write the column they depended on.
+**I had already reported three of them as `BUILT`.**
+
+| What | What it actually meant |
+|---|---|
+| Controls page | No nav entry. Unreachable. |
+| `0181` invoice→stock link | No picker. **COGS could never fire.** |
+| `0179` `problem_id` | No write path anywhere. **Cost-per-outcome would read "0% tagged" forever.** |
+| `0159` dunning ladder | Could record a chase, never *create* the ladder. **Collections sat empty, looking healthy.** |
+| **`cost_type`** | **Severe.** Defaults to `'none'`, nothing could set it → **break-even treats every cost as fixed and prints a plausible, wrong number**; overhead allocates to nobody; project margins show zero direct cost. **Three analytics features degraded to confident nonsense by one unreachable column.** |
+| `fin_exchange_rates` | The confirmed parameter was "manual FX" — **and there was no way to enter a rate at all.** |
+| `variance_alert_pct` | Dead config since `0149`: nothing wrote it, **nothing read it either.** A settings column that *implies* a working control and flags nothing. |
+
+**And the last one lands hardest:** I wrote a gate to catch *"a column nothing writes"* — and then shipped
+`0182` with **a column nothing reads.** The blind spot is the seam, and it runs in both directions.
+
+**All seven are fixed**, and `invariant:audit` now **fails CI** on the class.
+
+**The honest reading: that is not seven accidents. It is one blind spot, seven times.** I audit the database
+carefully and trust the seam between the database and the screen. The only durable fix was to stop trusting
+myself and write the gate.
+
 ### Other errors, all caught before shipping
 - **`0159` filtered on invoice statuses that don't exist** — the collections list would have been
   permanently empty *and looked healthy*
@@ -178,11 +207,11 @@ Honestly: **all of it, in the sense that none of it has run.** But specifically 
    than flattering), but it may be **stricter than useful** in practice. Watch it.
 3. **`fin_inventory_check` reconciliation.** It sums *all* movements against `qty_on_hand`. If a future
    migration adds a movement kind that doesn't change quantity, this will report a false discrepancy.
-4. **The 0180 sell path posts COGS only.** The revenue side is the invoice's own entry. **Nothing currently
-   forces a caller to do both.** That is the single biggest gap in the inventory work — if someone invoices
-   without calling `fin_sell_inventory`, the 100% gross margin bug is back. **Flagged, not fixed:** wiring
-   COGS into `fin_issue_invoice` needs a line-level item link, which is a data-model change I would want you
-   to confirm first (§2.2.3).
+4. ~~**The 0180 sell path posts COGS only.**~~ **FIXED in `0181`** (founder-confirmed): revenue and its cost
+   now post in the same transaction, or neither posts. An invoice for stock you don't have fails entirely.
+   **New known gap in its place:** a **credit note does not return stock to inventory**. Correct for a
+   services credit note; wrong for a returned physical good. Whether a credit note implies a physical return
+   is a business decision, so it is flagged, not assumed.
 5. **Trigger ordering in 0161→0162** depends on alphabetical trigger names. Verified by reading; **not
    verified by running.**
 
@@ -190,8 +219,8 @@ Honestly: **all of it, in the sense that none of it has run.** But specifically 
 
 ## 7. WHAT TO DO NEXT
 
-1. **Apply `0157`–`0180`** to staging. (The security fix is in this batch.)
-2. **Run the 18 acceptance files.** That is the only path from `BUILT` to `TESTED`.
+1. **Apply `0157`–`0182`** to staging. (The security fix is in this batch.)
+2. **Run the 19 acceptance files.** That is the only path from `BUILT` to `TESTED`.
 3. **Rule on three decisions:** scenario modelling, multi-entity, integrations.
 4. **Decide on `0118`** — keep my accidental commit, or let me revert it.
 5. **Wire the delivery cron** if you want scheduled reports.
