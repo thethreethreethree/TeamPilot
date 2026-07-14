@@ -6,7 +6,7 @@ import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
-import { ShieldCheck, Plus, Gauge, Ban, UserCheck } from "lucide-react";
+import { ShieldCheck, Plus, Gauge, Ban, UserCheck, Split } from "lucide-react";
 
 /**
  * Finance controls — the ceilings the company sets on its own spending.
@@ -45,6 +45,8 @@ type Delegation = {
   revoked_at: string | null;
 };
 type Member = { id: string; full_name: string | null };
+type Account = { id: string; code: string; name: string; type: string; cost_type: string };
+type Fx = { id: string; from_currency: string; to_currency: string; rate: number; as_of_date: string };
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -71,18 +73,30 @@ export default function FinanceControlsPage() {
   // delegation
   const [delegations, setDelegations] = useState<Delegation[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  // The direct/indirect split. It defaults to 'none', and until someone sets it, break-even treats EVERY
+  // cost as fixed and overhead can be allocated to nobody. Three analytics features depend on this one
+  // column, and it had no way in.
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  // Manual FX (the founder's confirmed parameter). Until this form existed there was NO way to enter a
+  // rate at all — a foreign-currency invoice would convert at whatever the fallback is, silently, and every
+  // base-currency figure derived from it would be wrong by the size of the FX move. The books would balance.
+  const [fx, setFx] = useState<Fx[]>([]);
+  const [fxFrom, setFxFrom] = useState("");
+  const [fxTo, setFxTo] = useState("");
+  const [fxRate, setFxRate] = useState("");
   const [gTo, setGTo] = useState("");
   const [gFrom, setGFrom] = useState(today());
   const [gUntil, setGUntil] = useState("");
   const [gReason, setGReason] = useState("");
 
   const load = useCallback(async () => {
-    const [r, p, rt, dg, tm] = await Promise.all([
+    const [r, p, rt, dg, tm, ac] = await Promise.all([
       fetch("/api/finance/roles").then((x) => x.json()),
       fetch("/api/finance/expense-policies").then((x) => x.json()),
       fetch("/api/finance/rates").then((x) => x.json()),
       fetch("/api/finance/delegations").then((x) => x.json()),
       fetch("/api/team").then((x) => x.json()),
+      fetch("/api/finance/accounts").then((x) => x.json()),
     ]);
     // A failed read must NOT render as "nothing is configured" — that reads as an unpoliced company and
     // invites a controller to add a duplicate control. Say we could not load it.
@@ -96,8 +110,10 @@ export default function FinanceControlsPage() {
     setPolicies(p.policies ?? []);
     setMileage(rt.mileage ?? []);
     setPerDiem(rt.perDiem ?? []);
+    setFx(rt.fx ?? []);
     setDelegations(dg.delegations ?? []);
     setMembers(tm.members ?? []);
+    setAccounts((ac.accounts ?? []).filter((a: Account) => a.type === "expense"));
     setReady(true);
   }, []);
 
@@ -418,6 +434,80 @@ export default function FinanceControlsPage() {
           </div>
         </section>
 
+        {/* ── Direct vs fixed costs ────────────────────────────────── */}
+        {/* This section exists because three features silently depended on a column nobody could set.
+            Until an account is marked "direct", break-even treats every cost as FIXED — and prints a
+            plausible, wrong number rather than failing. Overhead can be allocated to nobody, and every
+            project's "fully loaded" margin reads "not yet knowable". */}
+        <section>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Split size={18} /> Which costs rise with the work?
+          </h2>
+          <p className="mt-1 text-sm text-neutral-600">
+            A <strong>direct</strong> cost grows with each extra job you take on — materials, contractor
+            time, cost of goods. A <strong>fixed</strong> cost does not — rent, salaries, software. This one
+            distinction decides your break-even point and how overhead is shared across projects, so it is
+            worth ten minutes.
+          </p>
+
+          {accounts.filter((a) => a.cost_type === "direct").length === 0 && accounts.length > 0 && (
+            <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <strong>Nothing is marked as a direct cost yet.</strong> Until something is, we treat{" "}
+              <em>every</em> cost as fixed — which makes your break-even point look far better than it is,
+              and leaves overhead unallocatable across your projects. Both figures are currently
+              misleading, and they will not look it.
+            </div>
+          )}
+
+          <div className="mt-3 overflow-x-auto rounded-lg border border-neutral-200">
+            <table className="w-full text-sm">
+              <thead className="bg-neutral-50 text-left text-neutral-600">
+                <tr>
+                  <th className="px-3 py-2">Expense account</th>
+                  <th className="px-3 py-2">Rises with the work?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.length === 0 && (
+                  <tr>
+                    <td colSpan={2} className="px-3 py-6 text-center text-neutral-500">
+                      No expense accounts yet.
+                    </td>
+                  </tr>
+                )}
+                {accounts.map((a) => (
+                  <tr key={a.id} className="border-t border-neutral-100">
+                    <td className="px-3 py-2">
+                      <span className="font-mono text-xs text-neutral-500">{a.code}</span> {a.name}
+                    </td>
+                    <td className="px-3 py-2">
+                      <select
+                        value={a.cost_type}
+                        onChange={async (e) => {
+                          const res = await fetch("/api/finance/accounts", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ accountId: a.id, costType: e.target.value }),
+                          });
+                          const j = await res.json();
+                          if (!res.ok) return toast.error(j.error ?? "Could not update the account.");
+                          toast.success("Updated", "Break-even and overhead sharing will re-compute.");
+                          load();
+                        }}
+                        className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
+                      >
+                        <option value="none">Not classified</option>
+                        <option value="direct">Direct — rises with the work</option>
+                        <option value="indirect">Fixed — stays the same</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         {/* ── Expense policy ───────────────────────────────────────── */}
         <section>
           <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -552,6 +642,57 @@ export default function FinanceControlsPage() {
                   <li key={m.id} className="tabular-nums">
                     {formatMoney(m.rate_per_unit)} / {m.unit}{" "}
                     <span className="text-neutral-500">from {m.effective_from}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* EXCHANGE RATES. Effective-dated like every other rate here: entering a rate today does NOT
+                revalue yesterday's invoice. Re-pricing history because the pound moved would rewrite what a
+                transaction was worth on the day it actually happened. */}
+            <div className="sm:col-span-2">
+              <div className="text-xs font-medium text-neutral-700">Exchange rates</div>
+              {fx.length === 0 && (
+                <p className="mt-1 text-xs text-amber-800">
+                  No exchange rate is set. If you invoice or are billed in another currency,{" "}
+                  <strong>we cannot convert it</strong> — and we will not guess a rate, because a guessed
+                  rate produces books that balance perfectly and are wrong by however much the currency moved.
+                </p>
+              )}
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <input value={fxFrom} onChange={(e) => setFxFrom(e.target.value.toUpperCase())} maxLength={3} placeholder="EUR"
+                  className="w-16 rounded-md border border-neutral-300 px-2 py-1.5 text-sm uppercase" />
+                <span className="pb-2 text-xs text-neutral-500">to</span>
+                <input value={fxTo} onChange={(e) => setFxTo(e.target.value.toUpperCase())} maxLength={3} placeholder="GBP"
+                  className="w-16 rounded-md border border-neutral-300 px-2 py-1.5 text-sm uppercase" />
+                <input value={fxRate} onChange={(e) => setFxRate(e.target.value)} inputMode="decimal" placeholder="0.8540"
+                  className="w-24 rounded-md border border-neutral-300 px-2 py-1.5 text-sm" />
+                <button
+                  onClick={async () => {
+                    const r = parseMoneyInput(fxRate);
+                    if (fxFrom.length !== 3 || fxTo.length !== 3) return toast.error("Use 3-letter currency codes.");
+                    if (!Number.isFinite(r) || r <= 0) return toast.error("Enter a rate.");
+                    const res = await fetch("/api/finance/rates", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ kind: "fx", fromCurrency: fxFrom, toCurrency: fxTo, rate: r, asOfDate: today() }),
+                    });
+                    const j = await res.json();
+                    if (!res.ok) return toast.error(j.error ?? "Could not save the rate.");
+                    setFxRate("");
+                    toast.success("Rate saved", "It applies from today. Earlier transactions keep their own rate.");
+                    load();
+                  }}
+                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white"
+                >
+                  Set
+                </button>
+              </div>
+              <ul className="mt-2 flex flex-wrap gap-3 text-sm text-neutral-700">
+                {fx.slice(0, 8).map((r) => (
+                  <li key={r.id} className="tabular-nums">
+                    1 {r.from_currency} = {Number(r.rate).toFixed(4)} {r.to_currency}{" "}
+                    <span className="text-neutral-500">from {r.as_of_date}</span>
                   </li>
                 ))}
               </ul>

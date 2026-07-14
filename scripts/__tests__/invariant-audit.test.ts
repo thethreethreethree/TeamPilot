@@ -49,3 +49,38 @@ describe("invariant-audit.mjs", () => {
     }
   });
 });
+
+/**
+ * REACHABILITY — the blind spot that produced four separate "BUILT but nonexistent" features in one
+ * session: the Controls page with no nav entry, the invoice→stock link with no picker, problem_id with no
+ * write path anywhere, and a collections ladder nobody could create.
+ *
+ * In every case the schema was right, the views were right, the page was right — and the feature did not
+ * exist. A feature complete in the database and invisible in the product is not built.
+ *
+ * The seam between schema and surface is where this author is careless, so it gets a gate rather than a
+ * resolution to be more careful.
+ */
+describe("invariant-audit.mjs — reachability", () => {
+  it("the RPC-only allowlist explains why each table is unreachable from src/", () => {
+    const block = SCRIPT.slice(SCRIPT.indexOf("const RPC_ONLY_TABLES"), SCRIPT.indexOf("const ADD_COL_RE"));
+    const entries = [...block.matchAll(/\["(fin_\w+)",\s*"([^"]{20,})"\]/g)];
+    expect(entries.length).toBeGreaterThanOrEqual(8);
+    // A bare path list would be a disabled check: it records that someone silenced the audit, not why it
+    // was safe to.
+    for (const [, table, reason] of entries) {
+      expect(reason.length, `${table} has no substantive reason`).toBeGreaterThan(20);
+    }
+  });
+
+  it("bookkeeping columns are exempt — naming them in src/ would itself be the bug", () => {
+    // created_by / company_id are set by DB defaults and frozen by triggers (§A23). An app that wrote them
+    // could forge an author or move a row between tenants, so their absence from src/ is CORRECT.
+    expect(SCRIPT).toMatch(/created_at\|updated_at\|created_by\|company_id/);
+  });
+
+  it("the whole tree currently passes reachability", () => {
+    const out = execFileSync("node", ["scripts/invariant-audit.mjs"], { encoding: "utf8" });
+    expect(out).toContain("Violations:           0");
+  });
+});

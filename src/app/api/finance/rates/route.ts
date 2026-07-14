@@ -29,12 +29,12 @@ import { readBody } from "@/lib/api/validate";
  */
 
 export async function GET() {
-  if (!supabaseEnabled) return NextResponse.json({ mileage: [], perDiem: [] });
+  if (!supabaseEnabled) return NextResponse.json({ mileage: [], perDiem: [], fx: [] });
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const [mileage, perDiem] = await Promise.all([
+  const [mileage, perDiem, fx] = await Promise.all([
     sb
       .from("fin_mileage_rates")
       .select("id, effective_from, rate_per_unit, unit, currency, note")
@@ -43,6 +43,11 @@ export async function GET() {
       .from("fin_per_diem_rates")
       .select("id, effective_from, jurisdiction, daily_rate, currency, note")
       .order("effective_from", { ascending: false }),
+    sb
+      .from("fin_exchange_rates")
+      .select("id, from_currency, to_currency, rate, as_of_date")
+      .order("as_of_date", { ascending: false })
+      .limit(50),
   ]);
 
   // Distinguish a real failure from an honestly-empty list: returning [] on an error would tell the
@@ -52,7 +57,7 @@ export async function GET() {
     return NextResponse.json({ error: "Could not load rates." }, { status: 500 });
   }
 
-  return NextResponse.json({ mileage: mileage.data ?? [], perDiem: perDiem.data ?? [] });
+  return NextResponse.json({ mileage: mileage.data ?? [], perDiem: perDiem.data ?? [], fx: fx.error ? [] : (fx.data ?? []) });
 }
 
 const MileageSchema = z
@@ -77,7 +82,26 @@ const PerDiemSchema = z
   })
   .strict();
 
-const CreateSchema = z.discriminatedUnion("kind", [MileageSchema, PerDiemSchema]);
+/**
+ * EXCHANGE RATES (0119). The founder's confirmed build parameter was "manual FX now, API-ready" — and
+ * until this route existed, there was NO WAY TO ENTER A RATE AT ALL. A foreign-currency invoice would have
+ * been converted at whatever fin_get_rate falls back to, silently, and every base-currency figure derived
+ * from it would have been wrong by the size of the FX move. The books would still balance.
+ */
+const FxSchema = z
+  .object({
+    kind: z.literal("fx"),
+    fromCurrency: z.string().length(3),
+    toCurrency: z.string().length(3),
+    rate: z.number().positive(),
+    asOfDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  })
+  .strict()
+  .refine((v) => v.fromCurrency.toUpperCase() !== v.toCurrency.toUpperCase(), {
+    message: "A currency cannot have an exchange rate against itself.",
+  });
+
+const CreateSchema = z.discriminatedUnion("kind", [MileageSchema, PerDiemSchema, FxSchema]);
 
 export async function POST(req: NextRequest) {
   if (!supabaseEnabled) return NextResponse.json({ error: "Live mode required." }, { status: 400 });
@@ -89,6 +113,20 @@ export async function POST(req: NextRequest) {
 
   const b = await readBody(req, CreateSchema);
   if (b instanceof NextResponse) return b;
+
+  if (b.kind === "fx") {
+    // Effective-dated, like every other rate here: a rate entered today does not revalue yesterday's
+    // invoice. Re-pricing history because the pound moved would rewrite what a transaction was worth on
+    // the day it happened.
+    const { error } = await sb.from("fin_exchange_rates").insert({
+      from_currency: b.fromCurrency.toUpperCase(),
+      to_currency: b.toCurrency.toUpperCase(),
+      rate: b.rate,
+      as_of_date: b.asOfDate,
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 403 });
+    return NextResponse.json({ ok: true });
+  }
 
   if (b.kind === "mileage") {
     const { data, error } = await sb
