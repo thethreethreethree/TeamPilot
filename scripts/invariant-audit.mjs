@@ -167,10 +167,30 @@ const RPC_ONLY_TABLES = new Map([
   ["fin_receipts", "0132 written only by fin_record_receipt (row-locked, over-receipt guarded)."],
   ["fin_reconciliation_matches", "0145 written only by the bank-match RPCs."],
   ["fin_opening_lines", "0169 written through the opening-balances route, which names the batch not the line table."],
+
+  // ── NON-FINANCE: the core §3.1 chain and its controls ──
+  //
+  // problem_thresholds is the SHARPEST true negative this gate has produced, and it is worth stating why
+  // rather than merely silencing it.
+  //
+  // It is seeded with defaults (0002) and read by the Understanding-Gate trigger ITSELF — the constitutional
+  // control (§3.2) that stops a half-understood problem from reaching a human. It is unreachable from the
+  // app ON PURPOSE. An app-editable threshold would let someone LOWER THE EVIDENCE BAR for surfacing a
+  // problem, which is not a settings change: it is disabling the one structural gate the product exists to
+  // enforce. Its absence from src/ is the control working.
+  //
+  // This is the distinction the allowlist exists to make: "nothing writes it" is a BUG when the feature
+  // needs a human to set it, and a CONTROL when a human must never be able to.
+  ["problem_thresholds", "§3.2 Understanding-Gate thresholds: DB-seeded, trigger-read. App-editable thresholds would let someone lower the evidence bar for surfacing a problem — disabling the core structural gate. Unreachable BY DESIGN."],
+  ["events", "§3.1 append-only historical record; the app inserts via the emit helpers, which name the helper not the table."],
 ]);
 
-const ADD_COL_RE = /alter\s+table\s+(fin_\w+)\s+add\s+column\s+if\s+not\s+exists\s+(\w+)/gi;
-const CREATE_TBL_RE = /create\s+table\s+if\s+not\s+exists\s+(fin_\w+)/gi;
+// NOT limited to fin_*. A31's own lesson is "ask what part of this you find boring, and put the gate
+// there" — and the core product (events, signals, problems, resolutions, care, coach) had NEVER been
+// checked for reachability at all. It came back clean but for one deliberate exception, and a gate that
+// only guards the domain you happened to be working in is a gate that will miss the next domain.
+const ADD_COL_RE = /alter\s+table\s+(\w+)\s+add\s+column\s+if\s+not\s+exists\s+(\w+)/gi;
+const CREATE_TBL_RE = /create\s+table\s+if\s+not\s+exists\s+(\w+)/gi;
 
 const srcBlob = FILES.map((f) => f.sql).join("\n");
 const camel = (s) => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());

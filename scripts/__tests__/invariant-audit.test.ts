@@ -79,6 +79,24 @@ describe("invariant-audit.mjs — reachability", () => {
     expect(SCRIPT).toMatch(/created_at\|updated_at\|created_by\|company_id/);
   });
 
+  // The gate must cover the WHOLE codebase, not the domain its author happened to be working in. A gate
+  // scoped to fin_* would have been a gate that misses the next domain — which is the same shape of
+  // blind spot it exists to catch.
+  it("checks EVERY table, not just finance ones", () => {
+    // Read the real regex source rather than a hand-escaped copy — a test asserting against a string I
+    // typed out is a test of my typing, not of the gate. A gate scoped to fin_* would miss the next
+    // domain, which is the same shape of blind spot it exists to catch.
+    const createRe = SCRIPT.match(/const CREATE_TBL_RE = (\/.*?\/)[a-z]*;/)?.[1] ?? "";
+    expect(createRe.length).toBeGreaterThan(0);
+    expect(createRe.includes("fin_")).toBe(false);
+  });
+
+  // The sharpest true negative the gate produced, and the distinction the allowlist exists to make:
+  // "nothing writes it" is a BUG when a human must set it, and a CONTROL when a human must never be able to.
+  it("problem_thresholds is allowlisted as unreachable BY DESIGN, with the constitutional reason", () => {
+    expect(SCRIPT).toMatch(/problem_thresholds[\s\S]{0,400}lower the evidence bar/);
+  });
+
   it("the whole tree currently passes reachability", () => {
     const out = execFileSync("node", ["scripts/invariant-audit.mjs"], { encoding: "utf8" });
     expect(out).toContain("Violations:           0");
