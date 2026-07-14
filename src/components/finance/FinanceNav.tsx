@@ -22,6 +22,7 @@ const LINKS = [
   { href: "/dashboard/finance/payroll", label: "Payroll" },
   { href: "/dashboard/finance/assets", label: "Assets" },
   { href: "/dashboard/finance/profitability", label: "Profit" },
+  { href: "/dashboard/finance/unit-economics", label: "Unit economics" },
   { href: "/dashboard/finance/budgets", label: "Budget" },
   { href: "/dashboard/finance/forecast", label: "Forecast" },
   { href: "/dashboard/finance/tax", label: "Tax" },
