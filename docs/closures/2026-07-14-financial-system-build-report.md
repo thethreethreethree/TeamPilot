@@ -16,8 +16,8 @@ This report is written to the terms the founder set:
 **Nothing in this report has touched a live database.**
 
 No trigger has fired. No RPC has been called. No route has served a request. No page has rendered in a
-browser. **24 migrations are unapplied.** Every "it does X" below means *the code says X and the code
-compiles* — nothing more.
+browser. **26 migrations are unapplied** (`0157`–`0182`). Every "it does X" below means *the code says X and
+the code compiles* — nothing more.
 
 `BUILT` means the code and its acceptance script exist. `TESTED` means someone ran them against a real
 database. **Nothing here is TESTED.** Only you can change that.
@@ -28,7 +28,10 @@ database. **Nothing here is TESTED.** Only you can change that.
 
 ## 1. WHAT WAS BUILT, FILE BY FILE
 
-### Migrations (24)
+### Migrations (29 added this session; `0157`–`0182` are the unapplied finance batch)
+
+*Three more (`0154`–`0156`) were security pins built earlier in the session and are already applied.*
+
 
 | File | What it does |
 |---|---|
@@ -59,19 +62,23 @@ database. **Nothing here is TESTED.** Only you can change that.
 | `0181_fin_invoice_cogs_link.sql` | **Revenue and its cost now post together, or neither posts** |
 | `0182_fin_variance_alerts.sql` | Makes `variance_alert_pct` real — it was dead config that flagged nothing |
 
-### Acceptance SQL (18 files, `docs/financial-system/tests/`)
+### Acceptance SQL (21 files, `docs/financial-system/tests/`)
 `0157` · `0158-0160` · `0161` · `0162` · `0163` · `0164` · `0165` · `0166` · `0167` · `0168` · `0169` ·
-`0170` · `0171` · `0172` · `0173` · `0174` · `0175` · `0176` · `0177` · `0180`
+`0170` · `0171` · `0172` · `0173` · `0174` · `0175` · `0176` · `0177` · `0180` · `0181`
 
-**None have been run.** They are written to be run by you, against staging, with `0116`–`0180` applied.
+**None have been run.** They are written to be run by you, against staging, with `0116`–`0182` applied.
 
-### API routes (20)
+*(Counts in this section are derived from `git diff --diff-filter=A`, not from memory. My first draft said
+"24 migrations, 18 acceptance files, 20 routes, 16 surfaces" — three of those four were wrong. In a report
+whose entire purpose is not over-claiming, the counts have to come from the tree.)*
+
+### API routes (26 added)
 `/api/finance/` — `rates` · `expense-policies` · `roles` · `cards`(+`import`,`automatch`) · `ap/schedules` ·
 `ar/dunning` · `bank/transactions/[id]/create-entry` · `statements/cash-flow` · `kpis` · `assets` ·
 `payroll` · `delegations` · `opening-balances` · `contractors` · `reports`(+`schedules`,`deliver-cron`) ·
 `anomalies` · `forecast` · `unit-economics` · `segments` · `cost-per-outcome` · `integrity` · `inventory`
 
-### UI surfaces (16)
+### UI surfaces (16 added)
 `controls` · `cards` · `collections` · `schedules` · `assets` · `payroll` · `opening-balances` ·
 `contractors` · `reports` · `anomalies` · `forecast` · `unit-economics` · `segments` ·
 `cost-per-outcome` · `integrity` · `inventory` — all wired into `FinanceNav`, plus `KpiStrip` and the
@@ -79,8 +86,13 @@ cash-flow section on `/statements`.
 
 ### Tooling (the part I'd defend hardest)
 - `scripts/rls-audit.mjs` — **now detects views that bypass RLS** (+5 regression tests)
-- `scripts/invariant-audit.mjs` — **new**: CSV-export safety + no-service-role-in-finance (+4 tests)
+- `scripts/invariant-audit.mjs` — **new**, three invariants this codebase had already paid for and recorded
+  only in prose: CSV-export safety (CWE-1236), no service-role in a finance route, and **reachability** —
+  a finance column with no write path now **fails CI** (+7 tests)
 - Both wired into `npm run check` **and CI**
+
+**This is the part I would keep if I had to throw the rest away.** Every feature above is a thing the system
+does. These are the things it *can no longer silently stop doing*.
 
 ---
 
