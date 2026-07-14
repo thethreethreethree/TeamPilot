@@ -242,6 +242,76 @@ for (const f of migs) {
   CREATE_TBL_RE.lastIndex = 0;
 }
 
+// ═══ INVARIANT 4 — a SECURITY DEFINER function taking a TENANT PARAMETER must not be client-callable ══
+//
+// LEARNED: 2026-07-14, by asking what `rls:audit` CANNOT SEE (§A30: a green gate is a statement about the
+// gate's vocabulary, never about the system). It checks tables. It now checks views. IT HAS NO CONCEPT OF A
+// FUNCTION — and a SECURITY DEFINER function bypasses RLS entirely, by design.
+//
+// PostgREST exposes every public function as an RPC endpoint. So a DEFINER function that accepts a company
+// id as a PARAMETER, rather than deriving it from auth_company_id(), can be called by any authenticated
+// user with SOMEBODY ELSE'S company id. The sweep found nine — two of which INSERT into another company's
+// chart of accounts.
+//
+// AND IT IS §A30 CONFIRMING ITSELF: 0122 already knew. It ends with a `revoke execute ... from
+// authenticated, anon` on fin_post_system_entry, because someone understood exactly this danger. They fixed
+// the one in front of them, wrote it in SQL — and nothing encoded the rule. The next NINE helpers with the
+// same shape were written without it, including two of mine, in the same session in which I was writing an
+// essay about this precise failure mode.
+//
+// The rule: such a function must either be REVOKEd from authenticated+anon, or guard its parameter against
+// auth_company_id(). Revoking is preferred — it removes the attack surface rather than defending it, and a
+// guard is a rule the tenth author will forget.
+// matchAll, not exec-in-a-while: a /g regex carries `lastIndex` between calls, so a matcher shared across
+// 183 files is a stateful trap — and I fell straight into it, shipping a check that silently matched nothing
+// while reporting green. That is the exact bug this whole audit exists to catch, committed inside the audit
+// itself. matchAll is stateless.
+const DEFINER_RE =
+  /create\s+or\s+replace\s+function\s+(\w+)\s*\(([^)]*)\)([\s\S]{0,400}?)\$\$([\s\S]*?)\$\$/gi;
+
+const definerFns = new Map();   // name -> { guarded, file }
+for (const f of migs) {
+  const sql = readFileSync(join(MIG_DIR, f), "utf8");
+  for (const mm of sql.matchAll(DEFINER_RE)) {
+    const name = mm[1], params = mm[2], head = mm[3], body = mm[4];
+    if (!/security\s+definer/i.test(head)) continue;
+    // The parameter must be an actual TENANT ID — a company UUID. My first version matched `p_co` (which
+    // hits `p_code`) and `p_company` (which hits `p_company_name`, a text label), and flagged two pre-auth
+    // onboarding functions that are correctly client-callable. A gate that cries wolf on correct code is one
+    // people learn to skip, and then the real violation rides in behind the noise (§A25). So: name AND type.
+    if (!/(^|[\s,(])(p_company|p_company_id|company_id)[\s]+uuid([\s,)]|$)/i.test(params)) continue;
+    definerFns.set(name.toLowerCase(), {
+      // Does the body constrain the caller to their OWN company? Then the parameter cannot be abused.
+      guarded: /auth_company_id\(\)/.test(body),
+      file: f,
+    });
+  }
+}
+
+// A later migration may revoke it. Last statement wins, so this is collected across the whole history.
+const revoked = new Set();
+for (const f of migs) {
+  const sql = readFileSync(join(MIG_DIR, f), "utf8");
+  for (const m of sql.matchAll(/revoke\s+execute\s+on\s+function\s+(\w+)/gi)) {
+    revoked.add(m[1].toLowerCase());
+  }
+}
+
+for (const [name, info] of definerFns) {
+  if (info.guarded) continue;                       // constrains p_company against the caller's own company
+  if (revoked.has(name.toLowerCase())) continue;    // not reachable from a client at all
+  findings.push({
+    rule: "A SECURITY DEFINER function taking a tenant parameter must not be client-callable",
+    file: `${MIG_DIR}/${info.file}`,
+    why:
+      `${name}() is SECURITY DEFINER, takes the company as a PARAMETER, and never checks it against ` +
+      "auth_company_id(). PostgREST exposes it as an RPC endpoint, so any authenticated user can call it " +
+      "with ANOTHER TENANT'S company id — and a DEFINER function bypasses RLS by design. " +
+      "Fix: `revoke execute on function ...(sig) from authenticated, anon;` — preferred, because it " +
+      "removes the attack surface rather than defending it. Or guard p_company against auth_company_id().",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);

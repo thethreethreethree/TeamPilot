@@ -102,3 +102,38 @@ describe("invariant-audit.mjs — reachability", () => {
     expect(out).toContain("Violations:           0");
   });
 });
+
+/**
+ * SECURITY DEFINER functions taking a TENANT PARAMETER.
+ *
+ * Found by asking what rls:audit CANNOT see (§A30: a green gate is a statement about the gate's vocabulary,
+ * never about the system). It checks tables and views. It has no concept of a FUNCTION — and a DEFINER
+ * function bypasses RLS entirely, by design. PostgREST exposes every public function as an RPC endpoint, so
+ * one taking p_company can be called by any authenticated user with SOMEBODY ELSE'S company id.
+ *
+ * §A30 confirming itself: 0122 already knew, and revoked fin_post_system_entry. Nothing encoded the rule, so
+ * nine later helpers were written without it — two of them mine, in the same session I spent writing about
+ * this exact failure mode.
+ */
+describe("invariant-audit.mjs — SECURITY DEFINER tenant parameters", () => {
+  it("matches a company UUID parameter, and NOT p_code or p_company_name", () => {
+    // My first predicate matched `p_co` (which hits p_code) and `p_company` (which hits p_company_name — a
+    // text label, not a tenant id), and flagged two pre-auth onboarding functions that are CORRECTLY
+    // client-callable. A gate that cries wolf on correct code is one people learn to skip, and then the real
+    // violation rides in behind the noise (§A25). The predicate now requires the NAME *and* the TYPE.
+    const re = /(^|[\s,(])(p_company|p_company_id|company_id)[\s]+uuid([\s,)]|$)/i;
+    expect(re.test("p_company uuid")).toBe(true);
+    expect(re.test("p_company     uuid,   p_entry_date  date")).toBe(true);
+    expect(re.test("p_code text, p_full_name text")).toBe(false);        // accept_invitation
+    expect(re.test("p_company_name text, p_industry text")).toBe(false); // complete_company_onboarding
+  });
+
+  it("uses matchAll, not a stateful exec loop", () => {
+    // The first version used `while ((m = RE.exec(sql)))` with a /g regex shared across 183 files. It
+    // silently matched NOTHING while reporting green — a check that checks nothing, committed inside the
+    // audit whose entire purpose is catching exactly that. matchAll is stateless.
+    const block = SCRIPT.slice(SCRIPT.indexOf("const DEFINER_RE"), SCRIPT.indexOf("const revoked"));
+    expect(block).toContain("matchAll");
+    expect(block).not.toContain(".exec(");
+  });
+});
