@@ -40,6 +40,9 @@ const CreateSchema = z
           taxAmount: z.number().nonnegative().optional(),
           costCenterId: z.string().uuid().optional(),
           projectId: z.string().uuid().optional(),
+          // 0179: which PROBLEM was this money spent on? The ledger cannot infer it, so a human says so —
+          // and without this, cost-per-outcome has no data and can never have any.
+          problemId: z.string().uuid().optional(),
           taxCodeId: z.string().uuid().optional(),
         })
       )
@@ -90,6 +93,7 @@ export async function POST(req: NextRequest) {
     tax_amount: l.taxAmount ?? 0,
     cost_center_id: l.costCenterId ?? null,
     project_id: l.projectId ?? null,
+    problem_id: l.problemId ?? null,
     tax_code_id: l.taxCodeId ?? null,
   }));
   const { error: lineErr } = await sb.from("fin_bill_lines").insert(lineRows);

@@ -38,6 +38,9 @@ const CreateSchema = z
           receiptUrl: z.string().url().max(1000).optional(),
           costCenterId: z.string().uuid().optional(),
           projectId: z.string().uuid().optional(),
+          // 0179: the problem this was spent on. Optional — untagged spend is REPORTED as untagged, never
+          // spread across problems to make cost-per-outcome look more precise than it is.
+          problemId: z.string().uuid().optional(),
         })
       )
       .min(1)
@@ -83,6 +86,7 @@ export async function POST(req: NextRequest) {
     receipt_url: it.receiptUrl ?? null,
     cost_center_id: it.costCenterId ?? null,
     project_id: it.projectId ?? null,
+    problem_id: it.problemId ?? null,
   }));
   const { error: iErr } = await sb.from("fin_expense_items").insert(items);
   if (iErr) {

@@ -6,19 +6,39 @@ import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
 
 /**
- * GET  /api/finance/dimensions — cost centers + projects (the tags for cost/profit slicing).
+ * GET  /api/finance/dimensions — cost centers + projects + open problems (the tags for cost slicing).
  * POST /api/finance/dimensions — create one: { kind: "cost_center" | "project", code, name, ... }.
+ *
+ * PROBLEMS ARE A COST DIMENSION (0179). Tagging a bill line or an expense with the problem it was spent on
+ * is the ONLY way cost-per-outcome can ever have data — the ledger cannot infer which problem a payment was
+ * addressing, and inventing that attribution would be a fabricated number wearing a KPI's name.
+ *
+ * Only problems still IN PLAY are offered (draft/surfaceable/surfaced). You cannot spend money fixing a
+ * problem that is already resolved or dismissed, and offering them would invite backdating cost onto a
+ * closed outcome — which is precisely how a cost-per-outcome figure gets quietly improved.
  */
 export async function GET() {
-  if (!supabaseEnabled) return NextResponse.json({ costCenters: [], projects: [] });
+  if (!supabaseEnabled) return NextResponse.json({ costCenters: [], projects: [], problems: [] });
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  const [cc, pr] = await Promise.all([
+  const [cc, pr, pb] = await Promise.all([
     sb.from("fin_cost_centers").select("id, code, name, parent_id, is_active").order("code"),
     sb.from("fin_projects").select("id, code, name, customer_id, status, budget").order("code"),
+    sb
+      .from("problems")
+      .select("id, title, status")
+      .in("status", ["draft", "surfaceable", "surfaced"])
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
-  return NextResponse.json({ costCenters: cc.data ?? [], projects: pr.data ?? [] });
+  return NextResponse.json({
+    costCenters: cc.data ?? [],
+    projects: pr.data ?? [],
+    // Empty on error rather than 500 — a missing problem list must not break bill entry. The consequence
+    // is a missing TAG, not a missing bill, and blocking the whole page would be the worse failure.
+    problems: pb.error ? [] : (pb.data ?? []),
+  });
 }
 
 const Body = z.discriminatedUnion("kind", [

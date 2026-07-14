@@ -21,7 +21,8 @@ type Bill = {
   paid?: number;
 };
 type Aging = { current: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number; total: number };
-type BillLine = { accountId: string; amount: string; taxAmount: string; description: string; costCenterId: string; projectId: string; taxCodeId: string };
+type BillLine = { accountId: string; amount: string; taxAmount: string; description: string; costCenterId: string; projectId: string; taxCodeId: string; problemId: string };
+type ProblemDim = { id: string; title: string };
 type Dim = { id: string; code: string; name: string };
 type TaxCode = { id: string; code: string; name: string; rate_pct: number; direction: string };
 type Dup = { bill_id: string; vendor_name: string; bill_number: string; bill_date: string; status: string; total: number; other_bill_number: string; other_bill_date: string; other_status: string; days_apart: number };
@@ -39,6 +40,9 @@ export default function ApPage() {
   const [dups, setDups] = useState<Dup[]>([]);
   const [costCenters, setCostCenters] = useState<Dim[]>([]);
   const [projects, setProjects] = useState<Dim[]>([]);
+  // 0179: the problem this money was spent on. Without this picker the dimension is unreachable and
+  // cost-per-outcome can never have data — a feature complete in the database and invisible in the product.
+  const [problems, setProblems] = useState<ProblemDim[]>([]);
   const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -73,6 +77,7 @@ export default function ApPage() {
       setDups(d.duplicates ?? []);
       setCostCenters(dim.costCenters ?? []);
       setProjects(dim.projects ?? []);
+      setProblems(dim.problems ?? []);
       setTaxCodes((tx.taxCodes ?? []).filter((t: TaxCode) => t.direction === "input"));
     } catch {
       toast.error("Couldn't load payables", "Check your connection and refresh.");
@@ -112,7 +117,7 @@ export default function ApPage() {
   const [bVendor, setBVendor] = useState("");
   const [bNumber, setBNumber] = useState("");
   const [bDate, setBDate] = useState("");
-  const [bLines, setBLines] = useState<BillLine[]>([{ accountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
+  const [bLines, setBLines] = useState<BillLine[]>([{ accountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "", problemId: "" }]);
   const setBLine = (i: number, patch: Partial<BillLine>) =>
     setBLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   // Applies the patch, then auto-computes tax from the selected tax code's rate (overridable after).
@@ -126,7 +131,7 @@ export default function ApPage() {
       }
       return m;
     }));
-  const addBLine = () => setBLines((ls) => [...ls, { accountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
+  const addBLine = () => setBLines((ls) => [...ls, { accountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "", problemId: "" }]);
   const rmBLine = (i: number) => setBLines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls));
   const bTotal = bLines.reduce((s, l) => s + (parseMoneyInput(l.amount) || 0) + (parseMoneyInput(l.taxAmount) || 0), 0);
   const addBill = async () => {
@@ -139,6 +144,7 @@ export default function ApPage() {
         description: l.description || undefined,
         costCenterId: l.costCenterId || undefined,
         projectId: l.projectId || undefined,
+        problemId: l.problemId || undefined,
         taxCodeId: l.taxCodeId || undefined,
       }));
     if (!bVendor || !bNumber || !bDate || validLines.length === 0) {
@@ -155,7 +161,7 @@ export default function ApPage() {
     setBusy(false);
     if (res.ok) {
       setBNumber("");
-      setBLines([{ accountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
+      setBLines([{ accountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "", problemId: "" }]);
       toast.success("Draft bill created");
       void load();
     } else toast.error("Couldn't create bill", j?.error ?? "");
@@ -295,7 +301,7 @@ export default function ApPage() {
                 <input value={l.amount} onChange={(e) => setBLineTaxed(i, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" className="col-span-3 md:col-span-2 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <input value={l.taxAmount} onChange={(e) => setBLine(i, { taxAmount: e.target.value })} inputMode="decimal" placeholder="Tax" className="col-span-2 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <button onClick={() => rmBLine(i)} disabled={bLines.length === 1} title="Remove line" className="col-span-12 md:col-span-1 text-xs text-muted hover:text-red-400 disabled:opacity-30 py-1">✕</button>
-                {(costCenters.length > 0 || projects.length > 0 || taxCodes.length > 0) && (
+                {(costCenters.length > 0 || projects.length > 0 || taxCodes.length > 0 || problems.length > 0) && (
                   <div className="col-span-12 flex flex-wrap gap-2 pl-1">
                     {costCenters.length > 0 && (
                       <select value={l.costCenterId} onChange={(e) => setBLine(i, { costCenterId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
@@ -307,6 +313,16 @@ export default function ApPage() {
                       <select value={l.projectId} onChange={(e) => setBLine(i, { projectId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
                         <option value="">Project…</option>
                         {projects.map((p) => (<option key={p.id} value={p.id}>{p.code} {p.name}</option>))}
+                      </select>
+                    )}
+                    {/* 0179 — WHAT PROBLEM DID THIS MONEY GO ON? The ledger cannot infer it, and inventing
+                        the attribution would be a fabricated number wearing a KPI's name. So a human says
+                        so, or the spend stays untagged and is REPORTED as untagged — never spread across
+                        problems to make cost-per-outcome look precise. */}
+                    {problems.length > 0 && (
+                      <select value={l.problemId} onChange={(e) => setBLine(i, { problemId: e.target.value })} title="Which problem was this spent on?" className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
+                        <option value="">Problem…</option>
+                        {problems.map((p) => (<option key={p.id} value={p.id}>{p.title.slice(0, 48)}</option>))}
                       </select>
                     )}
                     {taxCodes.length > 0 && (

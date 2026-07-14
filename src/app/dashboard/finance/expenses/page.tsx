@@ -16,7 +16,8 @@ type Report = {
   employee_user_id: string;
   total?: number;
 };
-type ExpItem = { accountId: string; category: string; amount: string; taxAmount: string; description: string; costCenterId: string; projectId: string };
+type ExpItem = { accountId: string; category: string; amount: string; taxAmount: string; description: string; costCenterId: string; projectId: string; problemId: string };
+type ProblemDim = { id: string; title: string };
 type Dim = { id: string; code: string; name: string };
 const money = formatMoney;
 
@@ -25,6 +26,8 @@ export default function ExpensesPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [costCenters, setCostCenters] = useState<Dim[]>([]);
   const [projects, setProjects] = useState<Dim[]>([]);
+  // 0179: the problem this money was spent on. Without this picker the dimension is unreachable.
+  const [problems, setProblems] = useState<ProblemDim[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [busy, setBusy] = useState(false);
@@ -40,6 +43,7 @@ export default function ExpensesPage() {
       setReports(r.reports ?? []);
       setCostCenters(dim.costCenters ?? []);
       setProjects(dim.projects ?? []);
+      setProblems(dim.problems ?? []);
     } catch {
       toast.error("Couldn't load expenses", "Check your connection and refresh.");
     } finally {
@@ -52,10 +56,10 @@ export default function ExpensesPage() {
 
   const expenseAccounts = accounts.filter((a) => a.type === "expense");
   const [title, setTitle] = useState("");
-  const [items, setItems] = useState<ExpItem[]>([{ accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
+  const [items, setItems] = useState<ExpItem[]>([{ accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", problemId: "" }]);
   const setItem = (i: number, patch: Partial<ExpItem>) =>
     setItems((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-  const addItem = () => setItems((xs) => [...xs, { accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
+  const addItem = () => setItems((xs) => [...xs, { accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", problemId: "" }]);
   const rmItem = (i: number) => setItems((xs) => (xs.length > 1 ? xs.filter((_, j) => j !== i) : xs));
   const itemsTotal = items.reduce((s, x) => s + (parseMoneyInput(x.amount) || 0) + (parseMoneyInput(x.taxAmount) || 0), 0);
 
@@ -70,6 +74,7 @@ export default function ExpensesPage() {
         description: x.description || undefined,
         costCenterId: x.costCenterId || undefined,
         projectId: x.projectId || undefined,
+        problemId: x.problemId || undefined,
       }));
     if (!title || valid.length === 0) {
       toast.error("Fill a title and at least one item (account + amount)");
@@ -85,7 +90,7 @@ export default function ExpensesPage() {
     setBusy(false);
     if (res.ok) {
       setTitle("");
-      setItems([{ accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "" }]);
+      setItems([{ accountId: "", category: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", problemId: "" }]);
       toast.success("Draft report created");
       void load();
     } else toast.error("Couldn't create report", j?.error ?? "");
@@ -151,7 +156,7 @@ export default function ExpensesPage() {
                 <input value={x.amount} onChange={(e) => setItem(i, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" className="col-span-6 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <input value={x.taxAmount} onChange={(e) => setItem(i, { taxAmount: e.target.value })} inputMode="decimal" placeholder="Tax" className="col-span-4 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <button onClick={() => rmItem(i)} disabled={items.length === 1} title="Remove item" className="col-span-2 md:col-span-1 text-xs text-muted hover:text-red-400 disabled:opacity-30 py-1">✕</button>
-                {(costCenters.length > 0 || projects.length > 0) && (
+                {(costCenters.length > 0 || projects.length > 0 || problems.length > 0) && (
                   <div className="col-span-12 flex flex-wrap gap-2 pl-1">
                     <select value={x.costCenterId} onChange={(e) => setItem(i, { costCenterId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
                       <option value="">Cost center…</option>
@@ -161,6 +166,14 @@ export default function ExpensesPage() {
                       <option value="">Project…</option>
                       {projects.map((p) => (<option key={p.id} value={p.id}>{p.code} {p.name}</option>))}
                     </select>
+                    {/* 0179 — which problem was this spent on? Optional. Untagged spend is REPORTED as
+                        untagged, never spread across problems to make cost-per-outcome look precise. */}
+                    {problems.length > 0 && (
+                      <select value={x.problemId} onChange={(e) => setItem(i, { problemId: e.target.value })} title="Which problem was this spent on?" className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
+                        <option value="">Problem…</option>
+                        {problems.map((p) => (<option key={p.id} value={p.id}>{p.title.slice(0, 48)}</option>))}
+                      </select>
+                    )}
                   </div>
                 )}
               </div>
