@@ -77,6 +77,18 @@ const ALLOWLIST = new Map([
   //   update/delete: append-only via `do instead nothing` RULES, which bind the SERVICE ROLE too — so the
   //           delivery worker cannot erase a failure it caused. A delivery that silently stops is worse
   //           than one that never existed: the recipient believes no news is good news.
+  // 0180 inventory. Each absence is a control, not an oversight.
+  //   items.delete: an item with movement history is the ONLY record of what was received and sold. Deleting
+  //     it would erase the audit trail of stock that physically existed — deactivate (is_active) instead.
+  //   movements.*: written by the DEFINER RPCs only, and append-only via RULES (which bind the service role
+  //     too). A client that could INSERT could forge a receipt and manufacture inventory value out of
+  //     nothing; one that could UPDATE or DELETE could erase a theft. The movement log IS the inventory's
+  //     audit trail — a system that can rewrite it can hide a shortfall.
+  ["fin_inventory_items.delete", "0180 an item with movements is the record of stock that existed; deactivate, never delete."],
+  ["fin_inventory_movements.insert", "0180 DEFINER RPCs only — a client insert could forge a receipt and manufacture inventory value."],
+  ["fin_inventory_movements.update", "0180 append-only (RULE) — a rewritable movement log can hide a theft."],
+  ["fin_inventory_movements.delete", "0180 append-only (RULE) — deleting a movement erases the evidence of a shortfall."],
+
   ["fin_report_deliveries.insert", "0172 write path is the DEFINER RPC only; a client insert could forge a 'sent'."],
   ["fin_report_deliveries.update", "0172 append-only (RULE) — a run either happened or it did not."],
   ["fin_report_deliveries.delete", "0172 append-only (RULE) — the worker must not erase a failure it caused."],
