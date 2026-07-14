@@ -21,7 +21,8 @@ type Aging = {
   total: number;
 };
 type Overdue = { invoice_number: string; customer_name: string; outstanding: number; days_overdue: number };
-type InvLine = { revenueAccountId: string; amount: string; taxAmount: string; description: string; costCenterId: string; projectId: string; taxCodeId: string };
+type InvLine = { revenueAccountId: string; amount: string; taxAmount: string; description: string; costCenterId: string; projectId: string; taxCodeId: string; itemId: string; qty: string };
+type StockItem = { id: string; sku: string; name: string; qty_on_hand: number };
 type Dim = { id: string; code: string; name: string };
 type TaxCode = { id: string; code: string; name: string; rate_pct: number; direction: string };
 const money = formatMoney;
@@ -32,6 +33,8 @@ export default function ArPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [costCenters, setCostCenters] = useState<Dim[]>([]);
   const [projects, setProjects] = useState<Dim[]>([]);
+  // 0181: stock items, so an invoice line can name what it sold and COGS posts with the revenue.
+  const [stock, setStock] = useState<StockItem[]>([]);
   const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -56,7 +59,7 @@ export default function ArPage() {
 
   const load = useCallback(async () => {
     try {
-      const [c, a, i, g, o, dim, tx] = await Promise.all([
+      const [c, a, i, g, o, dim, tx, inv] = await Promise.all([
         fetch("/api/finance/ar/customers").then((r) => r.json()),
         fetch("/api/finance/accounts").then((r) => r.json()),
         fetch("/api/finance/ar/invoices").then((r) => r.json()),
@@ -64,6 +67,7 @@ export default function ArPage() {
         fetch("/api/finance/ar/collections").then((r) => r.json()),
         fetch("/api/finance/dimensions").then((r) => r.json()),
         fetch("/api/finance/tax-codes").then((r) => r.json()),
+        fetch("/api/finance/inventory").then((r) => r.json()),
       ]);
       setCustomers(c.customers ?? []);
       setAccounts(a.accounts ?? []);
@@ -73,6 +77,7 @@ export default function ArPage() {
       setCostCenters(dim.costCenters ?? []);
       setProjects(dim.projects ?? []);
       setTaxCodes((tx.taxCodes ?? []).filter((t: TaxCode) => t.direction === "output"));
+      setStock((inv.items ?? []).filter((it: StockItem & { is_active: boolean }) => it.is_active));
     } catch {
       toast.error("Couldn't load receivables", "Check your connection and refresh.");
     } finally {
@@ -106,7 +111,7 @@ export default function ArPage() {
   const [iCust, setICust] = useState("");
   const [iNum, setINum] = useState("");
   const [iDate, setIDate] = useState("");
-  const [iLines, setILines] = useState<InvLine[]>([{ revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
+  const [iLines, setILines] = useState<InvLine[]>([{ revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "", itemId: "", qty: "" }]);
   const setILine = (i: number, patch: Partial<InvLine>) =>
     setILines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const setILineTaxed = (i: number, patch: Partial<InvLine>) =>
@@ -119,7 +124,7 @@ export default function ArPage() {
       }
       return m;
     }));
-  const addILine = () => setILines((ls) => [...ls, { revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
+  const addILine = () => setILines((ls) => [...ls, { revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "", itemId: "", qty: "" }]);
   const rmILine = (i: number) => setILines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls));
   const iTotal = iLines.reduce((s, l) => s + (parseMoneyInput(l.amount) || 0) + (parseMoneyInput(l.taxAmount) || 0), 0);
   const addInvoice = async () => {
@@ -132,6 +137,8 @@ export default function ArPage() {
         description: l.description || undefined,
         costCenterId: l.costCenterId || undefined,
         projectId: l.projectId || undefined,
+        itemId: l.itemId || undefined,
+        qty: l.itemId ? (parseMoneyInput(l.qty) || undefined) : undefined,
         taxCodeId: l.taxCodeId || undefined,
       }));
     if (!iCust || !iNum || !iDate || validLines.length === 0) {
@@ -148,7 +155,7 @@ export default function ArPage() {
     setBusy(false);
     if (res.ok) {
       setINum("");
-      setILines([{ revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "" }]);
+      setILines([{ revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "", itemId: "", qty: "" }]);
       toast.success("Draft invoice created");
       void load();
     } else toast.error("Couldn't create invoice", j?.error ?? "");
@@ -284,7 +291,7 @@ export default function ArPage() {
                 <input value={l.amount} onChange={(e) => setILineTaxed(i, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" className="col-span-3 md:col-span-2 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <input value={l.taxAmount} onChange={(e) => setILine(i, { taxAmount: e.target.value })} inputMode="decimal" placeholder="Tax" className="col-span-2 md:col-span-1 bg-surface rounded-lg px-2 py-2 text-sm text-right text-primary border border-default" />
                 <button onClick={() => rmILine(i)} disabled={iLines.length === 1} title="Remove line" className="col-span-12 md:col-span-1 text-xs text-muted hover:text-red-400 disabled:opacity-30 py-1">✕</button>
-                {(costCenters.length > 0 || projects.length > 0 || taxCodes.length > 0) && (
+                {(costCenters.length > 0 || projects.length > 0 || taxCodes.length > 0 || stock.length > 0) && (
                   <div className="col-span-12 flex flex-wrap gap-2 pl-1">
                     {costCenters.length > 0 && (
                       <select value={l.costCenterId} onChange={(e) => setILine(i, { costCenterId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
@@ -297,6 +304,22 @@ export default function ArPage() {
                         <option value="">Project…</option>
                         {projects.map((p) => (<option key={p.id} value={p.id}>{p.code} {p.name}</option>))}
                       </select>
+                    )}
+                    {/* 0181 — selling stock. Naming the item here is what makes COGS post alongside the
+                        revenue when the invoice is issued. Leave it blank for a services line and nothing
+                        changes. If the stock isn't there, the whole invoice is refused rather than posting
+                        revenue with no cost — a 100% gross margin that would balance perfectly. */}
+                    {stock.length > 0 && (
+                      <>
+                        <select value={l.itemId} onChange={(e) => setILine(i, { itemId: e.target.value, qty: e.target.value ? l.qty : "" })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">
+                          <option value="">Not stock…</option>
+                          {stock.map((it) => (<option key={it.id} value={it.id}>{it.sku} ({it.qty_on_hand} left)</option>))}
+                        </select>
+                        {l.itemId && (
+                          <input value={l.qty} onChange={(e) => setILine(i, { qty: e.target.value })} inputMode="decimal" placeholder="units"
+                            className="w-16 text-xs bg-surface rounded px-2 py-1 text-primary border border-default" />
+                        )}
+                      </>
                     )}
                     {taxCodes.length > 0 && (
                       <select value={l.taxCodeId} onChange={(e) => setILineTaxed(i, { taxCodeId: e.target.value })} className="text-xs bg-surface rounded px-2 py-1 text-muted border border-default">

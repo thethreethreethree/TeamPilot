@@ -35,8 +35,19 @@ const CreateSchema = z
           costCenterId: z.string().uuid().optional(),
           projectId: z.string().uuid().optional(),
           taxCodeId: z.string().uuid().optional(),
+          // 0181: if this line sells physical stock, name the item and the quantity. Issuing the invoice
+          // then posts COGS for it in the same transaction as the revenue — they cannot be separated by an
+          // act of forgetfulness. A line with no itemId is a services line and behaves exactly as before.
+          itemId: z.string().uuid().optional(),
+          qty: z.number().positive().optional(),
         })
       )
+      // A line that names an item MUST state a quantity. Without it the DB would cost the sale at zero —
+      // a COGS entry that posts, for 0.00, and looks entirely legitimate. The CHECK in 0181 enforces this
+      // too; this is the earlier, friendlier refusal.
+      .refine((ls) => ls.every((l) => !l.itemId || (l.qty ?? 0) > 0), {
+        message: "A line selling stock must say how many units.",
+      })
       .min(1)
       .max(200),
   })
@@ -81,6 +92,8 @@ export async function POST(req: NextRequest) {
     cost_center_id: l.costCenterId ?? null,
     project_id: l.projectId ?? null,
     tax_code_id: l.taxCodeId ?? null,
+    item_id: l.itemId ?? null,
+    qty: l.qty ?? null,
   }));
   const { error: lineErr } = await sb.from("fin_invoice_lines").insert(lines);
   if (lineErr) {
