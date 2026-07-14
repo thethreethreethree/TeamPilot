@@ -1,15 +1,34 @@
-# Founder action queue — as of 2026-07-13
+# Founder action queue — as of 2026-07-14
 
-> **Build status: deploy-ready.** All four gates green as of 2026-07-13 — `tsc --noEmit` 0 errors,
-> ESLint (`src`) 0 problems (fixed 2 unused-import errors that could fail `next build`), 617 vitest
-> pass, `next build` compiles. The migrations still need applying (below); the app code ships clean.
-> One artifact left untracked in git: **`FinancialSystem.md`** (the spec) — tell me if you want it
-> committed to the repo or intentionally kept out (it references the IP docs, so I didn't add it blind).
+> **THE ONE THING TO DO:** apply migrations **`0157`–`0182`** to staging, then run the **19 acceptance
+> files** in `docs/financial-system/tests/`. That is the only path from `BUILT` to `TESTED`, and I cannot
+> walk it — nothing I built this session has touched a live database. No trigger has fired, no route has
+> served a request, no page has rendered.
+>
+> **The batch contains a security fix** (§0-A below). Read that entry first.
+>
+> All gates green: `tsc` 0 · ESLint 0 · theme 0 leaks · `rls:audit` clean (now including views) ·
+> `invariant:audit` 0 violations · 669 vitest.
 
+---
 
-One prioritized page for everything awaiting your call after the autonomous Financial-System
-session. Ordered by severity/impact. Each item names its artifact + my recommendation. Nothing here
-is a blocker I can clear autonomously — each needs your judgment, a live environment, or an apply.
+## THREE DECISIONS ONLY YOU CAN MAKE
+
+The Financial System is **81 of 84 features BUILT (96%)**. The three that remain are **not blocked on code**:
+
+1. **Scenario modelling** — I recommend building it *after* the cash forecast is in real use. A scenario
+   tool with nothing solid to overlay is a spreadsheet with extra steps.
+2. **Multi-entity consolidation** — a large structural change, and only worth it if you actually operate
+   more than one legal entity. Do you?
+3. **Integration layer** (Stripe / Plaid / QuickBooks) — which one first, if any? A business call.
+
+**Also awaiting you:**
+- **`.xlsx` export** — needs a new dependency. CSV works today.
+- **The scheduled-report cron is dormant** — needs `CRON_SECRET` + a `vercel.json` entry.
+- **Credit notes do not return stock to inventory** (found while writing `tests/0181`). Correct for a
+  services credit note; **wrong for a returned physical good** — the revenue reverses but the goods stay
+  expensed. Whether a credit note implies a physical return is a *business* decision (a refund for a damaged
+  item the customer keeps is not a return), so I did not assume either way.
 
 ---
 
@@ -46,13 +65,40 @@ session while the gate reported green.
    audit that cries wolf on correct code is one people learn to skip, and the one real leak then rides in
    behind six fake ones.
 
-**Your action:** none, beyond applying `0157`–`0173` as normal. This entry exists so you know the fix is
+**Your action:** none, beyond applying `0157`–`0182` as normal. This entry exists so you know the fix is
 *in* the batch you're about to apply, and why.
 
 **Worth your judgment:** this is the second time this exact bug has been introduced in this codebase. The
 first fix (`0052`) was a migration; this one is a migration **plus a gate**. If you want, I can sweep for
 other "learned once, never encoded" invariants — that's a genuine §1.7 audit thread and I suspect this
 isn't the only one.
+
+---
+
+## 0-C. 🟠 SEVEN features were BUILT and INVISIBLE. Found, fixed, and now gated.
+
+**No action needed — this is a disclosure, not a request.** But you should know what it says about my work.
+
+I built features whose schema was correct, whose views were correct, whose pages were correct — **and which
+could never have worked**, because nothing in the product could write the column they depended on. I had
+already reported three of them as `BUILT`.
+
+| What | What it actually meant |
+|---|---|
+| **Controls page** | No nav entry. Unreachable. |
+| **`0181` invoice→stock link** | No picker. **COGS could never fire.** |
+| **`0179` `problem_id`** | No write path anywhere. **Cost-per-outcome would read "0% tagged" forever.** |
+| **`0159` dunning ladder** | Could record a chase, never *create* the ladder. **Collections sat empty, looking healthy.** |
+| **`cost_type`** | **Severe.** Defaults to `'none'`, nothing could set it → **break-even treats every cost as fixed and prints a plausible, wrong number**; overhead allocates to nobody; project margins show zero direct cost. |
+| **`fin_exchange_rates`** | Your confirmed parameter was "manual FX" — **and there was no way to enter a rate at all.** |
+| **`variance_alert_pct`** | Dead config since `0149`: nothing wrote it, **nothing read it either.** A settings column that *implies* a working control and flags nothing. |
+
+**All seven are fixed.** More importantly: **`invariant:audit` now fails CI** if a finance column has no
+write path, or a table is unreachable without a documented reason.
+
+**The honest reading:** that is not seven accidents. It is **one blind spot, seven times** — I audit the
+database carefully and trust the seam between the database and the screen. The only durable fix was to stop
+trusting myself and write the gate.
 
 ---
 
