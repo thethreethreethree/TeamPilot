@@ -51,7 +51,7 @@
 
 -- Which accounts ARE cash? Not a guess: the ones a bank account is actually linked to, plus the system
 -- cash account (1000) seeded by fin_init_company. Anything else is a counter-account, by definition.
-create or replace view fin_cash_accounts as
+create or replace view fin_cash_accounts with (security_invoker = true) as
 select distinct a.id, a.company_id, a.code, a.name
 from fin_accounts a
 where a.type = 'asset'
@@ -60,7 +60,7 @@ where a.type = 'asset'
      or a.code = '1000'
   );
 
-create or replace view fin_cash_flow as
+create or replace view fin_cash_flow with (security_invoker = true) as
 with cash_lines as (
   -- Every posted line that MOVED cash. The signed amount in base currency: a debit to cash is money in,
   -- a credit to cash is money out.
@@ -146,7 +146,7 @@ from weighted w
 where w.amount is not null;
 
 -- The statement itself: one row per section per period, plus the net change in cash.
-create or replace view fin_cash_flow_summary as
+create or replace view fin_cash_flow_summary with (security_invoker = true) as
 select
   company_id,
   period_id,

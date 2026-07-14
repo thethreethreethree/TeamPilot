@@ -72,7 +72,7 @@ create or replace rule fin_dunning_events_no_delete as
 -- ─── The collections worklist ─────────────────────────────────────────
 -- Reuses the outstanding computation the AR side already defines (invoice total − receipts − credits),
 -- so the number a clerk chases is the SAME number the ledger reports. One definition, not two (§A13).
-create or replace view fin_dunning_worklist as
+create or replace view fin_dunning_worklist with (security_invoker = true) as
 with outstanding as (
   select
     i.id, i.company_id, i.invoice_number, i.customer_id, i.due_date, i.currency, i.status,

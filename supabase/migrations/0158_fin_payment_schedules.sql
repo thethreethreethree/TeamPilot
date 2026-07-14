@@ -58,7 +58,7 @@ create index if not exists fin_pay_sched_bill_idx
   on fin_payment_schedules (bill_id);
 
 -- ─── The AP clerk's worklist: what is due, and is it still owed? ──────
-create or replace view fin_payments_due as
+create or replace view fin_payments_due with (security_invoker = true) as
 select
   s.id, s.company_id, s.bill_id, s.scheduled_date, s.amount, s.status, s.cash_code, s.note,
   b.bill_number, b.vendor_id, v.name as vendor_name, b.currency,

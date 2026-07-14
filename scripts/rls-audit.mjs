@@ -610,10 +610,59 @@ const latestPolicy = new Map();
 const DO_FOREACH_RE =
   /foreach\s+\w+\s+in\s+array\s+array\[([^\]]+)\][\s\S]*?execute\s+format\(\s*'\s*create\s+policy\s+"[^"]+"\s+on\s+%1\$s\s+for\s+(select|insert|update|delete|all)/gi;
 
+/**
+ * VIEWS THAT BYPASS RLS.
+ *
+ * A Postgres view runs with the privileges of its OWNER unless it is declared
+ * `with (security_invoker = true)`. Migrations run as the table owner — so a view created without that
+ * option reads its base tables WITHOUT applying the querying user's RLS policies.
+ *
+ * That is not a hardening nicety. It is a CROSS-TENANT READ: any authenticated user selecting from such a
+ * view sees every company's rows, while `rls:audit` reports green, because every underlying TABLE is
+ * correctly protected. The hole is in the lens, not the data.
+ *
+ * The project already learned this once — migration 0052_views_security_invoker.sql exists for exactly this
+ * reason, and every finance view through 0150 sets the option. It was learned, codified in a migration, and
+ * then NOT ENCODED IN A CHECK — so I broke it again in 16 views in a single session, and the audit stayed
+ * green the entire time.
+ *
+ * A lesson that lives only in a past migration is a lesson the next author will re-learn the hard way.
+ * This check is that lesson, made structural.
+ */
+const VIEW_RE = /create\s+(?:or\s+replace\s+)?view\s+(?:public\.)?(\w+)([\s\S]{0,120}?)\bas\b/gi;
+// `alter view X set (security_invoker = true)` is the OTHER way to make a view safe, and the codebase uses
+// it heavily (0052, 0060, 0071, 0076 all recreate a view and then ALTER it on a later line). A checker that
+// only looked at the CREATE statement would flag all four as leaks.
+//
+// That false-positive matters more than it sounds. An audit that cries wolf on migrations that are
+// correctly written is an audit people learn to skip — and the one real leak then rides in behind six fake
+// ones. (§A25: a false match is worse than a miss.) So: track each view's state across migrations IN ORDER,
+// last statement wins.
+const VIEW_ALTER_RE =
+  /alter\s+view\s+(?:public\.)?(\w+)\s+set\s*\(\s*security_invoker\s*=\s*true\s*\)/gi;
+
+/** view name → { safe: boolean, file: string } — the state after the most recent statement touching it. */
+const viewState = new Map();
+
 for (const f of files) {
   const sql = readFileSync(join(MIGRATIONS_DIR, f), "utf8").toLowerCase();
 
   let m;
+  while ((m = VIEW_RE.exec(sql))) {
+    const [, viewName, between] = m;
+    viewState.set(viewName, {
+      safe: /security_invoker\s*=\s*true/.test(between),
+      file: f,
+    });
+  }
+  VIEW_RE.lastIndex = 0;
+
+  // An ALTER later in the SAME file (or any later migration) repairs a view created without the option.
+  while ((m = VIEW_ALTER_RE.exec(sql))) {
+    viewState.set(m[1], { safe: true, file: f });
+  }
+  VIEW_ALTER_RE.lastIndex = 0;
+
   while ((m = RLS_ENABLE_RE.exec(sql))) {
     ensure(m[1]).rlsEnabled = true;
   }
@@ -751,6 +800,13 @@ console.log(`  Allowlisted omissions: ${ALLOWLIST.size}`);
 console.log(`  Tables without RLS:    ${noRlsFindings.length}`);
 console.log(`  Tenant-pin risks:      ${tenantPinFindings.length}`);
 console.log(`  Missing policies:      ${findings.length}`);
+// Resolved after every migration has been read, so a view repaired by a LATER migration is not flagged.
+// (Within a single file, an ALTER is treated as winning over a CREATE — which is how 0071/0076 are written.)
+const leakyViews = [...viewState.entries()]
+  .filter(([, v]) => !v.safe)
+  .map(([view, v]) => ({ view, file: v.file }));
+
+console.log(`  RLS-bypassing views:   ${leakyViews.length}`);
 
 if (VERBOSE) {
   console.log("\n  Per-table policy coverage:");
@@ -800,10 +856,29 @@ if (tenantPinFindings.length > 0) {
   );
 }
 
-if (findings.length === 0 && noRlsFindings.length === 0 && tenantPinFindings.length === 0) {
+if (leakyViews.length > 0) {
+  console.log("\n✗ VIEWS THAT BYPASS RLS (missing `with (security_invoker = true)`):\n");
+  for (const v of leakyViews) {
+    console.log(`    ${v.view.padEnd(34)} ${v.file}`);
+  }
   console.log(
-    "\n✓ Every table has RLS enabled, every operation is covered or documented, and every\n" +
-      "  update/all policy pins the tenant on write."
+    "\n  A view without security_invoker runs as its OWNER, so the querying user's RLS policies are\n" +
+      "  NOT applied to its base tables. Any authenticated user selecting from it reads EVERY company's\n" +
+      "  rows — a cross-tenant leak this audit would otherwise report as GREEN, because the underlying\n" +
+      "  tables ARE protected. The hole is in the lens, not the data.\n" +
+      "  See 0052_views_security_invoker.sql — the project learned this once already."
+  );
+}
+
+if (
+  findings.length === 0 &&
+  noRlsFindings.length === 0 &&
+  tenantPinFindings.length === 0 &&
+  leakyViews.length === 0
+) {
+  console.log(
+    "\n✓ Every table has RLS enabled, every operation is covered or documented, every update/all\n" +
+      "  policy pins the tenant on write, and every view runs as the invoker."
   );
   process.exit(0);
 }

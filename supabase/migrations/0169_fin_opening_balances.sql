@@ -87,7 +87,7 @@ create index if not exists fin_opening_lines_batch_idx on fin_opening_lines (bat
 
 -- ─── What the user must look at before posting ────────────────────────
 -- THE RESIDUAL IS THE POINT OF THIS VIEW. It is computed, named, and shown — never absorbed.
-create or replace view fin_opening_summary as
+create or replace view fin_opening_summary with (security_invoker = true) as
   select b.id            as batch_id,
          b.company_id,
          b.as_of,
@@ -188,7 +188,7 @@ end $$;
 -- Read from the LEDGER, not from the batch: the user may have since posted a correcting entry to clear
 -- OBE, and this must reflect that. The question is "does Opening Balance Equity still carry a balance?",
 -- not "was the import imbalanced?" — those stop being the same question the moment someone fixes it.
-create or replace view fin_opening_imbalance as
+create or replace view fin_opening_imbalance with (security_invoker = true) as
   select a.company_id,
          coalesce(sum(l.credit) - sum(l.debit), 0) as obe_balance
     from fin_accounts a

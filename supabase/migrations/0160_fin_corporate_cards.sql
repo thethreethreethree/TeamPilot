@@ -165,7 +165,7 @@ begin
 end $$;
 
 -- ─── The control this feature exists for: unsubstantiated card spend ──
-create or replace view fin_card_positions as
+create or replace view fin_card_positions with (security_invoker = true) as
 select
   c.id as card_id, c.company_id, c.label, c.last4, c.provider, c.currency, c.is_active,
   c.holder_id,

@@ -24,7 +24,7 @@
 -- Idempotent (create or replace). No new tables — a lens over posted lines.
 -- NOT VERIFIED against a live database. BUILT, not TESTED.
 
-create or replace view fin_kpis as
+create or replace view fin_kpis with (security_invoker = true) as
 with base as (
   select
     c.id as company_id,

@@ -43,7 +43,7 @@ alter table fin_vendors add column if not exists tax_classification text;   -- '
 
 -- ─── What we actually paid each contractor, in cash, in base currency ─
 -- Reads the LEDGER for the amount, the PAYMENT for the date, and the VENDOR for eligibility.
-create or replace view fin_1099_payments as
+create or replace view fin_1099_payments with (security_invoker = true) as
   select p.company_id,
          p.vendor_id,
          v.name                                   as vendor_name,
@@ -68,7 +68,7 @@ create or replace view fin_1099_payments as
 -- ─── The filing worksheet ─────────────────────────────────────────────
 -- One row per contractor per tax year, with the reporting threshold applied — and, crucially, the
 -- BELOW-THRESHOLD contractors still visible.
-create or replace view fin_1099_worksheet as
+create or replace view fin_1099_worksheet with (security_invoker = true) as
   select company_id,
          vendor_id,
          vendor_name,

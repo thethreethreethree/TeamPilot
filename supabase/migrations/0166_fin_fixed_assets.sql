@@ -97,7 +97,7 @@ create or replace rule fin_depr_no_update as on update to fin_depreciation_entri
 create or replace rule fin_depr_no_delete as on delete to fin_depreciation_entries do instead nothing;
 
 -- ─── Net book value (derived, never stored) ───────────────────────────────────
-create or replace view fin_asset_register as
+create or replace view fin_asset_register with (security_invoker = true) as
 select
   a.id, a.company_id, a.name, a.acquired_date, a.cost, a.salvage_value,
   a.useful_life_months, a.method, a.status, a.disposed_date,

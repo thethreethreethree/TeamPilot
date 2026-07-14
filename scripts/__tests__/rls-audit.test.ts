@@ -259,3 +259,82 @@ describe("rls-audit tenant-pin check (implicit WITH CHECK trap)", () => {
     expect(code).toBe(0);
   });
 });
+
+/**
+ * VIEWS THAT BYPASS RLS.
+ *
+ * A Postgres view runs as its OWNER unless declared `with (security_invoker = true)`. Migrations run as
+ * the owner — so a view without that option reads its base tables WITHOUT applying the querying user's RLS
+ * policies. Any authenticated user selecting from it sees every company's rows.
+ *
+ * This is the leak the audit itself could not see: every underlying TABLE is correctly protected, so the
+ * audit reported GREEN while the lens over those tables was wide open.
+ *
+ * The project had already learned this once (0052_views_security_invoker.sql) and codified it in a
+ * migration — but never in a CHECK. So it was re-broken in sixteen views in a single session, and nothing
+ * caught it. A lesson that lives only in a past migration is a lesson the next author re-learns the hard
+ * way. These tests are that lesson made structural.
+ */
+describe("rls-audit.mjs — views that bypass RLS", () => {
+  it("FAILS on a view created without security_invoker", () => {
+    const { code, out } = runAudit({
+      "0001_v.sql":
+        "create table t (id uuid, company_id uuid);\n" +
+        tenantPolicies("t") +
+        "create or replace view t_summary as select company_id, count(*) from t group by company_id;\n",
+    });
+    expect(code).toBe(1);
+    expect(out).toContain("t_summary");
+    expect(out).toContain("BYPASS RLS");
+  });
+
+  it("PASSES a view declared with security_invoker inline", () => {
+    const { code } = runAudit({
+      "0001_v.sql":
+        "create table t (id uuid, company_id uuid);\n" +
+        tenantPolicies("t") +
+        "create or replace view t_summary with (security_invoker = true) as select company_id from t;\n",
+    });
+    expect(code).toBe(0);
+  });
+
+  // The false-positive guard. 0052/0060/0071/0076 all create a view and then repair it with a separate
+  // ALTER on a later line. A checker that only read the CREATE would flag all four — and an audit that
+  // cries wolf on correct migrations is one people learn to skip, so the ONE real leak then rides in
+  // behind six fake ones. (§A25: a false match is worse than a miss.)
+  it("PASSES a view repaired by a later ALTER in the same migration", () => {
+    const { code } = runAudit({
+      "0001_v.sql":
+        "create table t (id uuid, company_id uuid);\n" +
+        tenantPolicies("t") +
+        "create view t_summary as select company_id from t;\n" +
+        "alter view t_summary set (security_invoker = true);\n",
+    });
+    expect(code).toBe(0);
+  });
+
+  it("PASSES a view repaired by a LATER migration (the 0048 → 0052 remediation shape)", () => {
+    const { code } = runAudit({
+      "0001_v.sql":
+        "create table t (id uuid, company_id uuid);\n" +
+        tenantPolicies("t") +
+        "create or replace view t_summary as select company_id from t;\n",
+      "0002_fix.sql": "alter view public.t_summary set (security_invoker = true);\n",
+    });
+    expect(code).toBe(0);
+  });
+
+  // Last statement wins: a view repaired once and then RECREATED without the option is leaking again.
+  // This is the regression that 0071/0076 would have introduced had they not re-ALTERed.
+  it("FAILS when a repaired view is later recreated without the option", () => {
+    const { code, out } = runAudit({
+      "0001_v.sql":
+        "create table t (id uuid, company_id uuid);\n" +
+        tenantPolicies("t") +
+        "create view t_summary with (security_invoker = true) as select company_id from t;\n",
+      "0003_regress.sql": "create or replace view t_summary as select company_id from t;\n",
+    });
+    expect(code).toBe(1);
+    expect(out).toContain("t_summary");
+  });
+});

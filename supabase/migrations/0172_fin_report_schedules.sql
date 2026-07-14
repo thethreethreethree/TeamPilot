@@ -78,7 +78,7 @@ create or replace rule fin_report_deliv_no_delete as
 -- A schedule whose recipient has left the company, or lost finance access, simply stops appearing as due.
 -- The worker cannot send what it is not told about, so a bug in the worker cannot leak the ledger to a
 -- former employee: the database never hands it the address.
-create or replace view fin_report_schedules_due as
+create or replace view fin_report_schedules_due with (security_invoker = true) as
   select s.id            as schedule_id,
          s.company_id,
          s.report_id,
@@ -130,7 +130,7 @@ begin
 end $$;
 
 -- ─── Deliveries that FAILED, so a silent stop cannot hide ─────────────
-create or replace view fin_report_delivery_failures as
+create or replace view fin_report_delivery_failures with (security_invoker = true) as
   select d.company_id, d.schedule_id, r.name as report_name, s.recipient_id,
          d.ran_at, d.status, d.detail
     from fin_report_deliveries d
