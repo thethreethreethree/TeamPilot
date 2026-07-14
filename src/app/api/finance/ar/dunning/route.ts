@@ -29,22 +29,30 @@ import { readBody } from "@/lib/api/validate";
  */
 
 export async function GET() {
-  if (!supabaseEnabled) return NextResponse.json({ worklist: [] });
+  if (!supabaseEnabled) return NextResponse.json({ worklist: [], policies: [] });
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const { data, error } = await sb
-    .from("fin_dunning_worklist")
-    .select(
-      "invoice_id, invoice_number, customer_id, customer_name, due_date, currency, outstanding, days_overdue, stage_due, stage_actioned, last_action_at",
-    )
-    .order("days_overdue", { ascending: false });
+  const [wl, pol] = await Promise.all([
+    sb
+      .from("fin_dunning_worklist")
+      .select(
+        "invoice_id, invoice_number, customer_id, customer_name, due_date, currency, outstanding, days_overdue, stage_due, stage_actioned, last_action_at",
+      )
+      .order("days_overdue", { ascending: false }),
+    // THE LADDER. Without it, stage_due is always null and the worklist is inert — an empty collections
+    // page that looks perfectly healthy. The page must be able to tell the user THAT is why it is empty.
+    sb
+      .from("fin_dunning_policies")
+      .select("id, stage, days_overdue, label, channel, is_active")
+      .order("days_overdue"),
+  ]);
 
   // An empty collections list is a claim that nobody owes us anything late. If the read actually failed,
   // that claim is false and dangerously reassuring — so it is surfaced as an error, never as [].
-  if (error) return NextResponse.json({ error: "Could not load the collections worklist." }, { status: 500 });
-  return NextResponse.json({ worklist: data ?? [] });
+  if (wl.error) return NextResponse.json({ error: "Could not load the collections worklist." }, { status: 500 });
+  return NextResponse.json({ worklist: wl.data ?? [], policies: pol.error ? [] : (pol.data ?? []) });
 }
 
 const RecordSchema = z
@@ -55,6 +63,55 @@ const RecordSchema = z
     note: z.string().max(500).optional(),
   })
   .strict();
+
+/**
+ * The ESCALATION LADDER itself (0159).
+ *
+ * Without a ladder there is nothing to chase: fin_dunning_worklist derives `stage_due` from these rows, so
+ * a company with no policies has an empty collections list FOREVER — and it looks perfectly healthy, which
+ * is the worst way for a feature to fail. Nothing is seeded on the user's behalf either: a chase ladder is
+ * a decision about how you speak to your customers, and inventing one would put words in your mouth.
+ */
+const PolicySchema = z
+  .object({
+    action: z.literal("policy"),
+    stage: z.number().int().min(1).max(10),
+    daysOverdue: z.number().int().min(0).max(365),
+    label: z.string().min(1).max(80),
+    channel: z.enum(["email", "phone", "letter", "other"]).default("email"),
+  })
+  .strict();
+
+export async function PUT(req: NextRequest) {
+  if (!supabaseEnabled) return NextResponse.json({ error: "Live mode required." }, { status: 400 });
+  const sb = await createClient();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  const b = await readBody(req, PolicySchema);
+  if (b instanceof NextResponse) return b;
+
+  // RLS decides who may configure the ladder (controller/CFO). We do not re-check it here — a second,
+  // weaker copy of an authz rule is how the two drift apart.
+  const { error } = await sb.from("fin_dunning_policies").insert({
+    stage: b.stage,
+    days_overdue: b.daysOverdue,
+    label: b.label.trim(),
+    channel: b.channel,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 403 });
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(req: NextRequest) {
+  if (!supabaseEnabled) return NextResponse.json({ error: "Live mode required." }, { status: 400 });
+  const sb = await createClient();
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing id." }, { status: 400 });
+  const { error } = await sb.from("fin_dunning_policies").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 403 });
+  return NextResponse.json({ ok: true });
+}
 
 export async function POST(req: NextRequest) {
   if (!supabaseEnabled) return NextResponse.json({ error: "Live mode required." }, { status: 400 });

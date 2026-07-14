@@ -27,6 +27,7 @@ import { PhoneCall, Mail, AlertTriangle } from "lucide-react";
  * honesty is preserved where it costs something.
  */
 
+type Policy = { id: string; stage: number; days_overdue: number; label: string; channel: string; is_active: boolean };
 type Row = {
   invoice_id: string;
   invoice_number: string | null;
@@ -44,6 +45,13 @@ export default function CollectionsPage() {
   const toast = useToast();
   const [ready, setReady] = useState<boolean | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  // THE LADDER. Without a policy, stage_due is always null and this page is INERT — an empty collections
+  // list that looks perfectly healthy. That is the worst way for a feature to fail, so the page has to be
+  // able to say "nothing is being chased because you haven't told us how to chase."
+  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [pStage, setPStage] = useState("1");
+  const [pDays, setPDays] = useState("7");
+  const [pLabel, setPLabel] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -58,6 +66,7 @@ export default function CollectionsPage() {
     }
     setLoadError(null);
     setRows(j.worklist ?? []);
+    setPolicies(j.policies ?? []);
     setReady(true);
   }, []);
 
@@ -103,6 +112,89 @@ export default function CollectionsPage() {
             nobody owing you anything.
           </div>
         )}
+
+        {/* THE HONEST EMPTY STATE. An empty collections list with no ladder does not mean "nobody is late"
+            — it means NOTHING IS BEING CHASED, and the page says which. A page that stayed silent here
+            would look healthy while the company quietly stopped collecting its own money. */}
+        {!loadError && policies.length === 0 && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <div className="font-semibold">Nothing is being chased.</div>
+            <p className="mt-1">
+              You haven&apos;t set an escalation ladder, so no invoice is ever marked as due for a chase — no
+              matter how late it gets. This page will stay empty and look healthy.{" "}
+              <strong>We haven&apos;t invented a ladder for you</strong>: how you speak to a customer who owes
+              you money is your decision, not ours. Set the first step below.
+            </p>
+          </div>
+        )}
+
+        <section className="rounded-lg border border-neutral-200 p-4">
+          <div className="text-sm font-medium">Escalation ladder</div>
+          <p className="mt-1 text-xs text-neutral-500">
+            What should happen, and how many days after the due date. An invoice reaches a stage when it
+            passes that many days overdue — and stays on the list until someone records that they acted.
+          </p>
+          <ul className="mt-3 space-y-1">
+            {policies.map((p) => (
+              <li key={p.id} className="flex items-center justify-between text-sm">
+                <span>
+                  <strong>Step {p.stage}</strong> · {p.label}{" "}
+                  <span className="text-neutral-500">
+                    — {p.days_overdue} days overdue, by {p.channel}
+                  </span>
+                </span>
+                <button
+                  onClick={async () => {
+                    const res = await fetch(`/api/finance/ar/dunning?id=${p.id}`, { method: "DELETE" });
+                    if (!res.ok) return toast.error("Could not remove that step.");
+                    load();
+                  }}
+                  className="text-xs text-neutral-400 hover:text-red-600"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="text-xs text-neutral-600">
+              Step
+              <input value={pStage} onChange={(e) => setPStage(e.target.value)} inputMode="numeric"
+                className="mt-1 block w-14 rounded-md border border-neutral-300 px-2 py-1.5 text-sm" />
+            </label>
+            <label className="text-xs text-neutral-600">
+              Days overdue
+              <input value={pDays} onChange={(e) => setPDays(e.target.value)} inputMode="numeric"
+                className="mt-1 block w-20 rounded-md border border-neutral-300 px-2 py-1.5 text-sm" />
+            </label>
+            <label className="text-xs text-neutral-600">
+              What happens
+              <input value={pLabel} onChange={(e) => setPLabel(e.target.value)} placeholder="Gentle reminder"
+                className="mt-1 block w-48 rounded-md border border-neutral-300 px-2 py-1.5 text-sm" />
+            </label>
+            <button
+              onClick={async () => {
+                const stage = Number(pStage), days = Number(pDays);
+                if (!Number.isInteger(stage) || stage < 1) return toast.error("Step must be 1 or more.");
+                if (!Number.isInteger(days) || days < 0) return toast.error("Days overdue must be 0 or more.");
+                if (!pLabel.trim()) return toast.error("Say what happens at this step.");
+                const res = await fetch("/api/finance/ar/dunning", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "policy", stage, daysOverdue: days, label: pLabel.trim() }),
+                });
+                const j = await res.json();
+                if (!res.ok) return toast.error(j.error ?? "Could not add that step.");
+                setPLabel("");
+                toast.success("Step added", "Invoices past this point are now flagged for a chase.");
+                load();
+              }}
+              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white"
+            >
+              Add step
+            </button>
+          </div>
+        </section>
 
         <section className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-lg border border-neutral-200 p-4">
