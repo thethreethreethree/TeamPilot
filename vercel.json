@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/diagnosis/task-overrun-sweep-cron",
-      "schedule": "0 5 * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }
