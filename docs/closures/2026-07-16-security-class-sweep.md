@@ -161,6 +161,14 @@ AP has no vendor-credit feature so total − paid is right. Baseline lesson: whe
 derived amount (credit notes → AR), grep EVERY consumer of the base view — one was applied+live-wrong, one was
 an unapplied migration that wouldn't even apply.
 
+**Class COMPLETE (AP side swept, all clean):** fin_ap_aging (0138), fin_payments_due (0158), and the dashboard
+ap_outstanding all compute `total − payments` with NO credited term — correct, because there is no vendor
+credit-note feature. fin_dunning_worklist (0159) is exemplary: it subtracts credit notes AND its own comments
+show the author already caught the phantom-status class in an earlier draft ("values that do not exist"). So
+the later finance migrations had learned the lesson; the gap was isolated to the earlier dashboard (0136) and
+one careless unapplied view (0175). Every AR/AP outstanding consumer is now verified correct (5 already-right,
+2 fixed).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
