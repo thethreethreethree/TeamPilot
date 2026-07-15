@@ -1221,6 +1221,21 @@ trigger a push, read the logged `statusCode`. No code fix pending. This is fresh
 static verification removed "is it a code bug?" from the founder's uncertainty — it's config, and the code
 self-diagnoses the exact config fault.
 
+## 72. Inventory WEIGHTED-AVERAGE cost reference test (0180) — BUILT, CI-runnable, closes part of the CI gap
+The new-engineer-landmine lens surfaced the CI-coverage gap (chain + finance DB logic not CI-tested, queue
+662-689). Most of it needs a live DB (correctly a founder staging decision) — BUT the subtle pure-ALGORITHM
+parts are CI-testable via the reference-test pattern (recurrenceAnchor/depreciation/breakEven). Inventory
+weighted-average cost (0180) was a strong untested candidate: perpetual WAC is classically subtle. Built
+`inventoryWac.test.ts` (8 cases) mirroring both rules: RECEIVE `new_avg = round((qty·avg + rq·cost)/(qty+rq),4)`;
+SELL `COGS = round(qty·avg,4)`, avg UNCHANGED (the WAC invariant vs FIFO/LIFO). Pins: first-receipt=cost,
+canonical 100@1+100@2→200@1.50, sale-doesn't-move-avg, later-receipt-doesn't-retro-change-prior-COGS (perpetual
+not periodic), rounding (16/13→1.2308), oversell refusal, non-positive refusal, mixed-sequence avg-only-moves-on-
+receipt invariant. All 8 pass; 86 finance tests (was 78); tsc/lint clean via the suite. This is the RIGHT slice
+of the CI gap to close headlessly: the WAC calc now has a CI regression guard, while the DB-level posting/balance/
+concurrency behavior remains the founder's staging-CI decision (unchanged). A32 in practice: I did NOT ship the
+un-testable GitHub Actions YAML (class 71's decision), and DID ship the fully-verifiable reference test — build
+what you can verify, decline what you can't.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
