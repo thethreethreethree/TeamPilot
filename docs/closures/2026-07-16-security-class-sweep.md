@@ -67,7 +67,13 @@ the route (so the guard was simultaneously dead-for-UI and broken-for-API). **Fi
 mirrors UI" is structural; 6 tests lock it (incl. the To Do → In Progress regression). Behavior change flagged:
 the route no longer accepts → 'Cancelled' (never should have; no UI/enum/label for it; no consumer used it).
 
-## 8. FLAGGED (not fixed — needs a founder UX decision): the "Blocked needs a reason" guarantee is bypassable
+## 8. PARTIALLY FIXED (create half) + FLAGGED (transition half needs a UX decision): "Blocked needs a reason"
+> UPDATE (later same session, `1f75685`): the CREATE half is now FIXED. I was too conservative flagging the
+> whole thing as UX-coupled — the POST-create path is not. POST /api/tasks now 400s a status='Blocked' create
+> with an empty blocker_reason; the board's create modal already has the field, so no UX decision was needed,
+> and this closes what the flag itself called "the biggest gap — the primary flow." 4 tests. The DETAIL-PAGE
+> TRANSITION half remains flagged below (genuinely UX-coupled: that surface has no reason field).
+
 Same "validation only on the path the UI doesn't use" class as #7, but here it makes the product state a
 FALSE guarantee (§3.4 honesty-is-the-moat), so it's flagged prominently rather than silently patched.
 

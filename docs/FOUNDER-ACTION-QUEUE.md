@@ -23,8 +23,10 @@
 > **NEW DECISIONS FOR YOU (each decision-ready):**
 > - **Credit-note TAX attribution** — the tax report's output tax is gross (doesn't net credit-note tax);
 >   pick the jurisdiction rule (leaning *proportional*) → netting becomes mechanical. (Code refuses to guess.)
-> - **`blocker_reason` when Blocked** — the "a Blocked task must have a reason" guarantee is bypassable on the
->   main create path; the fix needs a UX call (modal vs inline field) + a DB trigger.
+> - **`blocker_reason` when Blocked** — the CREATE-path half is now FIXED (`1f75685`: POST 400s a Blocked
+>   create with no reason; board modal already has the field). REMAINING (your UX call): the DETAIL-PAGE
+>   transition to Blocked has no reason field — decide how to collect it (small modal vs inline field), then
+>   a DB trigger for defense-in-depth. Narrower than before; only the transition surface is left.
 > - **`Cancelled` as a first-class task status** — currently a source-of-truth split (transition map admits it;
 >   labels/enum omit it). Promote it, or remove it from the server transition map?
 > - **Profitability dimension attribution** — credit-note reversals aren't project/cost-center tagged, so a
