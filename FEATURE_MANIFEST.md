@@ -176,11 +176,16 @@ NOT_STARTED until their full scope (delegation, etc.) is built, but the authorit
 worklist + credit notes (0143) BUILT; dunning PARTIAL (worklist built, email = integration);
 card-recon/mileage/policy NOT_STARTED (need values/integrations).
 **Phase 3** — BUILT (0145 banking/import/auto-match/reconcile + 0146 duplicate detection).
-**Phase 4** increment 1 — BUILT (0147 cost centers/projects/direct-indirect + 0148 project/cost-center/
-customer profitability + contribution margin). Deferred: COGS, overhead alloc, unit economics,
-break-even, net-by-segment, region/product margin, anomaly/idle/cost-per-outcome/inventory waste.
-**Phase 5** increment 1 — BUILT (0149 budget + variance + runway). Deferred: rolling forecasts, cash-
-flow projection, scenario modeling.
+**Phase 4** — BUILT (0147 cost centers/projects/direct-indirect + 0148 project/cost-center/customer
+profitability + contribution margin; 0173 overhead allocation → /profitability loaded margin; 0174 spend
+anomalies → /anomalies; 0176 unit economics + break-even → /unit-economics; 0177 net-by-segment + idle
+resources → /segments; 0179 cost-per-outcome → /cost-per-outcome; 0180 COGS + inventory waste/shrinkage →
+/inventory). Remaining: gross margin by PRODUCT/REGION (PARTIAL — project + cost-centre dimensions built;
+product/region are later dimensions). Every listed feature has a live page — verified by §A31 view-reachability
+sweep 2026-07-15.
+**Phase 5** — BUILT (0149 budget + variance + runway; 0175 rolling forecast + cash-flow projection →
+/forecast, committed-obligations-only, extrapolation deliberately rejected). Remaining: scenario modeling
+(NOT_STARTED — needs assumptions, Phase-5 increment 2).
 **Phase 6** core — P&L, Balance Sheet, Trial Balance, GL drill-down, period-over-period, CSV export
 (formula-injection hardened) BUILT; Cash Flow + custom builder + scheduling + PDF/xlsx NOT_STARTED.
 **Phase 7** — BUILT (0150 tax codes/calc/liability/filing report + 0151 year-end close→RE 3000 + 0170
