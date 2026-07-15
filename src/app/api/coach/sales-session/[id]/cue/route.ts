@@ -8,8 +8,15 @@ import {
   getSession,
   getSessionTranscript,
   appendCue,
+  getAgentCoachStart,
 } from "@/lib/data/salesCoach";
 import { generateLiveCue } from "@/lib/coach/v5/liveCue";
+import { getExperienceMode } from "@/lib/experience/mode";
+
+// Spec 4.3a: the AI LISTENS for a rep's first days on the coach, then starts
+// advising. Observe honestly before intervening — §3.4's month-1 control at the
+// per-rep scale.
+const OBSERVE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 
 /**
  * Live Sales Coach — generate a live cue for a session (Phase B brain).
@@ -92,6 +99,40 @@ export async function POST(
       { error: "Session not found or not accessible." },
       { status: 404 }
     );
+  }
+
+  // ── 3-day silent-observe (spec 4.3a), Standard only ──────────────────────
+  // For a rep's first 3 days on the coach, the AI listens: the call is still
+  // recorded and reviewed (the after-pitch), but no PROACTIVE in-ear cue fires —
+  // advice starts on day 4. A FORCED on-demand cue ("coach me now") is still
+  // honored, because the rep explicitly asked (§3.3 rep-controlled); only the
+  // AI's own auto-cues wait. Expert is unaffected — immediate cues, as today.
+  // [FLAGGED to founder: "listens for 3 days" is read as "no PROACTIVE advice,
+  //  but the rep can still pull help on demand". If you want the window to also
+  //  silence on-demand requests, drop the `!body.force` guard.]
+  if (!body.force) {
+    const mode = await getExperienceMode(supabase, auth.user.id);
+    if (mode === "standard") {
+      const startedAt = await getAgentCoachStart(session.agentId);
+      const ageMs = startedAt ? Date.now() - Date.parse(startedAt) : NaN;
+      if (Number.isFinite(ageMs) && ageMs < OBSERVE_WINDOW_MS) {
+        return NextResponse.json({
+          cue: {
+            shouldCue: false,
+            mode: body.mode,
+            cue: "",
+            phase: "unknown",
+            trigger: "none",
+            importance: "low",
+          },
+          cueId: null,
+          observing: true,
+          observeUntil: new Date(
+            Date.parse(startedAt as string) + OBSERVE_WINDOW_MS
+          ).toISOString(),
+        });
+      }
+    }
   }
 
   // Prefer the inline live transcript (S1b, low-latency); else read the

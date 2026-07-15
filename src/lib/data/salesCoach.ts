@@ -648,6 +648,22 @@ export async function getRecentAfterPitchSummariesAdmin(
   }));
 }
 
+/** When this agent FIRST started using the coach — the earliest session's
+ *  started_at (ISO), or null if they have none yet. Anchors the 3-day silent-
+ *  observe window (spec 4.3a: the AI listens for 3 days, then starts advising).
+ *  Service-role: the cue route authorizes the session before using this. */
+export async function getAgentCoachStart(agentId: string): Promise<string | null> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("coaching_sessions")
+    .select("started_at")
+    .eq("agent_id", agentId)
+    .order("started_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return (data?.started_at as string | null) ?? null;
+}
+
 /** An agent's sessions, most recent first (RLS-scoped). */
 export async function listAgentSessions(
   agentId: string,
