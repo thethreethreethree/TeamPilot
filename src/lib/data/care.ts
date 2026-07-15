@@ -360,16 +360,40 @@ export async function markConversationHandedOff(
  * Returns:
  *   - hasActivity: true if the tenant has ANY support
  *     conversation ever (gates whether to show the section)
- *   - openCount: status in (new, open, assigned, waiting)
+ *   - openCount: not resolved/closed — i.e. status in
+ *     (open, in_conversation, awaiting_customer)
  *   - needsGuidanceCount: supervisor_guidance_requested_at
  *     IS NOT NULL AND status != 'closed'
- *   - awaitingFirstReplyCount: status='new' (untouched
- *     inbound — the most time-sensitive subset)
+ *   - awaitingFirstReplyCount: status='open' (AI is first
+ *     responder, no human agent has claimed it yet — the most
+ *     time-sensitive subset)
  *
  * Uses head:true count queries — cheap. Returns null on any
  * error so the page can omit the section instead of showing
  * misleading zeros.
  */
+/**
+ * Conversation statuses that count as OPEN (not resolved/closed) — the single
+ * source for "open conversation". These are the REAL statuses from the 0034 enum
+ * (open / in_conversation / awaiting_customer / resolved / closed) and match the
+ * 0035 view. This exists because openCount previously filtered on
+ * ["new","open","assigned","waiting"] — three of which are NOT valid statuses, so
+ * the count silently collapsed to just 'open' (dropping every agent-engaged
+ * conversation). Semantics: 'open' = AI first responder, no agent yet;
+ * 'in_conversation' = agent actively replying; 'awaiting_customer' = agent
+ * replied, waiting on the customer.
+ */
+export const OPEN_CONVERSATION_STATUSES = [
+  "open",
+  "in_conversation",
+  "awaiting_customer",
+];
+
+/** The AI-first-responder state — a conversation no human agent has claimed yet;
+ *  this is what "awaiting first (agent) reply" means (was mis-filtered as the
+ *  non-existent 'new', so the count was permanently 0). */
+export const AWAITING_FIRST_REPLY_STATUS = "open";
+
 export type CareCommandStats = {
   hasActivity: boolean;
   openCount: number;
@@ -406,7 +430,7 @@ export async function fetchCareCommandStats(): Promise<CareCommandStats | null> 
     const openProbe = await sb
       .from("support_conversations")
       .select("id", { count: "exact", head: true })
-      .in("status", ["new", "open", "assigned", "waiting"]);
+      .in("status", OPEN_CONVERSATION_STATUSES);
     const guidanceProbe = await sb
       .from("support_conversations")
       .select("id", { count: "exact", head: true })
@@ -415,7 +439,7 @@ export async function fetchCareCommandStats(): Promise<CareCommandStats | null> 
     const newProbe = await sb
       .from("support_conversations")
       .select("id", { count: "exact", head: true })
-      .eq("status", "new");
+      .eq("status", AWAITING_FIRST_REPLY_STATUS);
     // §3.5 durability checks scheduled 7+ days ago that the
     // agent hasn't reviewed yet (checked_at IS NULL).
     const durabilityProbe = await sb

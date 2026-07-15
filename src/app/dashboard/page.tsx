@@ -342,7 +342,7 @@ export default function CommandDashboard() {
             <LearningHint
               category="C.A.R.E"
               title="Open conversations"
-              whatItIs="Count of customer conversations that aren't yet resolved or closed — status is new, open, assigned, or waiting. Includes every channel: web widget, email, voice."
+              whatItIs="Count of customer conversations that aren't yet resolved or closed — status is open (AI first responder), in_conversation (agent replying), or awaiting_customer. Includes every channel: web widget, email, voice."
               why="Customer support is the most-time-sensitive surface in the company. A growing open conversation count means demand is outpacing the team's resolution rate. The number sits on the Command Center because support state is operational — the founder's daily decisions should include it, not require navigating to a separate module."
               how="Click to open the C.A.R.E inbox. A rising number across days, without a corresponding rise in resolved count, is the first signal of support being underwatered. Pair this with Awaiting first reply (next tile) to see whether the slowness is at intake or at resolution."
               principle="Hubs that don't surface support state make support invisible to leadership until it's a crisis. ELOSTATE refuses to let that happen."
@@ -359,9 +359,9 @@ export default function CommandDashboard() {
             <LearningHint
               category="C.A.R.E"
               title="Awaiting first reply"
-              whatItIs="Subset of open conversations where status is 'new' — meaning a customer messaged in and no agent has touched it yet. This is the most time-sensitive number in C.A.R.E."
-              why="First-reply time is the dominant predictor of customer satisfaction in support. A conversation that sits in 'new' for hours is silently spending the team's reputation. Highlighted amber when count is above zero specifically because zero is the right state at the end of every working hour."
-              how="Click to open the inbox filtered to status='new'. If this number is above zero during business hours, the operating decision is: who claims it now? Routing through the assignment dropdown beats hoping someone picks it up."
+              whatItIs="Subset of open conversations where status is 'open' — the AI is first responder and no human agent has claimed it yet. This is the most time-sensitive number in C.A.R.E."
+              why="First-reply time is the dominant predictor of customer satisfaction in support. A conversation that sits in 'open' (unclaimed by an agent) for hours is silently spending the team's reputation. Highlighted amber when count is above zero specifically because zero is the right state at the end of every working hour."
+              how="Click to open the inbox filtered to unclaimed conversations. If this number is above zero during business hours, the operating decision is: who claims it now? Routing through the assignment dropdown beats hoping someone picks it up."
               principle="Time-to-first-reply is the support equivalent of meeting time — once spent, you don't get it back. The team's discipline shows in whether this number returns to zero each day."
             >
               <ChainStat
