@@ -10,6 +10,7 @@
   ],
   "rules": {
     "react/no-unescaped-entities": "off",
+    "react/no-danger": "error",
     "@typescript-eslint/no-unused-vars": [
       "error",
       {

@@ -1104,6 +1104,20 @@ the remaining OWASP items (IDOR → covered by auth_company_id RLS + the 28-rout
 Zod-validated bodies + parameterized SQL; mass-assignment → the privileged-column guards 0090/0093) were already
 covered by the earlier classes. Security perimeter now verified from BOTH the insider and outside-view stances.
 
+## 63. GATED fix #18's class — `react/no-danger` ESLint rule (A30 via A33: the tool-native chokepoint)
+Fix #18 removed one purposeless `dangerouslySetInnerHTML` sink. A30 says a fix isn't complete until the class is
+gated; A33 says gate at the layer where the invariant is precise and structural. For "no raw-HTML injection,"
+that layer is not a custom invariant-audit check — it's ESLint's OWN `react/no-danger` rule (precise: a literal
+JSX-attribute match; currently-clean: after fix #18 only one use remains). Enabled `"react/no-danger": "error"`
+in `.eslintrc.json`, and justified the single legitimate use — `layout.tsx`'s pre-paint theme script
+(hardcoded module constant, zero user input) — with an inline `eslint-disable-next-line react/no-danger` + a
+REASON (per A30's allowlist-with-reason discipline: an exception records WHY it's safe, not just that it was
+silenced). `npm run check` runs `lint`, so this has CI teeth: the NEXT `dangerouslySetInnerHTML` fails the build
+unless a developer consciously justifies it. eslint exits 0 (the one use is disabled, no others exist).
+This is the A33 lesson applied cleanly, in contrast to classes 50/52 where I DECLINED a gate: there, the pattern
+was imprecise (semantic/call-graph); here it is a literal string match with a natural tool-native home. The XSS
+footgun can no longer be re-introduced silently — the class is closed at the gate, not just the instance.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to

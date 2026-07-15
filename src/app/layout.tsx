@@ -129,6 +129,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Resolves theme before paint — see NO_FLASH_THEME_SCRIPT comment. */}
+        {/* eslint-disable-next-line react/no-danger -- NO_FLASH_THEME_SCRIPT is a hardcoded module constant with zero user input; an inline pre-paint script is the only way to resolve theme before first render. */}
         <Script
           id="execos-no-flash-theme"
           strategy="beforeInteractive"
