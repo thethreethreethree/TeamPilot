@@ -8,6 +8,7 @@ import type { SalesContext } from "@/lib/data/salesCoach";
 import { SessionRecordingUpload } from "./SessionRecordingUpload";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 
 /**
  * LiveCoachingPanel — Live Sales Coach S1b surface.
@@ -53,6 +54,11 @@ export function LiveCoachingPanel({
     stop,
     requestCue,
   } = useLiveCoaching(sessionId, context);
+
+  // Experience dial. Standard collapses the two-mode toggle to one (spec p4.3:
+  // "leave just 1 button") — door-to-door reps want a single light-touch nudge,
+  // not a mode decision mid-call. Expert keeps both modes, unchanged.
+  const { isStandard } = useExperienceMode();
 
   // F1: the cue plays to the agent's default output — the code can't
   // guarantee the customer won't hear it. So gate Start on the agent
@@ -186,9 +192,10 @@ export function LiveCoachingPanel({
         </LearningHint>
       </div>
 
-      {/* Mode toggle */}
+      {/* Mode toggle. Standard shows one mode only (spec p4.3), so the "Mode:"
+          label is dropped too — a label for a single fixed choice is noise. */}
       <div className="flex items-center gap-2 mt-3">
-        <span className="text-[11px] text-muted">Mode:</span>
+        {!isStandard && <span className="text-[11px] text-muted">Mode:</span>}
         <LearningHint
           as="inline-block"
           category="Sales Coach · Live coaching"
@@ -210,6 +217,9 @@ export function LiveCoachingPanel({
           Suggestion
         </button>
         </LearningHint>
+        {/* "Guide my response" — Expert only (spec p4.3 collapses the modes to one
+            for Standard). Expert keeps the heavier-touch second mode, unchanged. */}
+        {!isStandard && (
         <LearningHint
           as="inline-block"
           category="Sales Coach · Live coaching"
@@ -231,6 +241,7 @@ export function LiveCoachingPanel({
           Guide my response
         </button>
         </LearningHint>
+        )}
         {live && (
           <div className="ml-auto flex items-center gap-3">
             {/* "I'm speaking" toggle (founder 2026-07-03) — locks the current
@@ -558,7 +569,10 @@ export function LiveCoachingPanel({
         </div>
         </LearningHint>
       )}
-      {(live || turns.length > 0) && (
+      {/* Mechanism explainer — Expert only (spec p4.4 strips live-coaching
+          wordiness for Standard; how diarization works isn't something a rep
+          needs mid-call). */}
+      {!isStandard && (live || turns.length > 0) && (
         <p className="text-[10px] text-muted mt-1.5">
           Speaker labels lead with what&apos;s said (content), then use your
           voice and loudness — a dim &ldquo;…&rdquo; means the content check is
