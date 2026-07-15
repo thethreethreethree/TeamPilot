@@ -958,6 +958,23 @@ founder's biggest action is COMPLETE. (What a live `supabase db push` on the fou
 this static trace: runtime constraint violations against real DATA — e.g. a NOT-NULL backfill on existing rows.
 Those are data-dependent and unknowable from source; the founder's dev-apply is the right place for them.)
 
+## 56. NOT-NULL-no-default ADD COLUMN across the whole queue — CLEAN (tightens class 55's boundary)
+Class 55 punted "runtime constraint checks against real data" wholesale to the founder's dev DB. Part of that is
+actually STATIC: an `add column ... not null` with NO default fails on ANY table that already has rows — a
+schema-structural failure independent of what the data contains, detectable from source. Scanned the entire
+apply queue (0114/0115 + 0157-0182 + 0184/0185/0186):
+- Exactly ONE NOT-NULL add in the whole queue — 0170 `fin_vendors.is_1099 boolean not null DEFAULT false`. Has
+  a default → safe on existing rows.
+- 0186 `anchor_day int` is NULLABLE (`check (anchor_day is null or between 1 and 31)`), so its ADD succeeds
+  before the backfill populates it. Every other added column (0161/0179/0181, etc.) is nullable.
+- No NOT-NULL-no-default add anywhere → no structural NOT-NULL apply failure.
+So the STATICALLY-detectable apply-failure surface of the whole queue is now fully clean across all three
+classes: object forward-refs (54), column forward-refs (55), NOT-NULL-structural (56). The residual left for the
+founder's dev push is precisely and only DATA-CONTENT-dependent constraint violations — an existing row that
+happens to violate a new CHECK, a duplicate that trips a new UNIQUE, an orphan that fails a new FK. Those are
+unknowable from source by definition. The static apply-safety verification is COMPLETE and its boundary is now
+drawn exactly, not hand-waved.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
