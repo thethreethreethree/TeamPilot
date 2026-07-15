@@ -669,6 +669,22 @@ queue as a cosmetic decision (allow stub vs. absorb into final scheduled slice).
 §5 — surfaced at its true (small) severity, not inflated. This is the productive kind of "test finds
 behavior the reader would miss," the opposite of the class-40 over-statement I corrected in class 41.
 
+## 43. BREAK-EVEN refusal reference test (0176) — VERIFY-CLEAN, regression protection added
+Added `src/lib/finance/__tests__/breakEvenRefusal.test.ts` (7 cases) mirroring `fin_break_even`'s
+break_even_revenue + reason logic. The correctness-critical behavior is THE REFUSAL: break-even =
+fixed_cost ÷ contribution-ratio, but when contribution margin is ZERO or NEGATIVE the formula would still
+divide and hand back a *negative* break-even that reads as a small achievable target — when the truth is
+"no volume breaks even; every sale grows the loss." The view returns NULL there. **Result: CLEAN — the SQL
+refuses exactly as designed** (negative contribution → NULL, zero contribution → NULL not infinity, zero
+revenue → NULL ratio + NULL break-even). Unlike depreciation (class 42), this reference test found no
+behavior gap; its value is the locked invariant `break_even IS NULL ⇔ reason IS NOT NULL` (refusal always
+carries words; a number never does) against a future "simplify the CASE" regression. One TEST bug caught +
+fixed in-session (`expect(null).not.toBeLessThan(0)` throws — redundant with the toBeNull above; removed);
+no algorithm change. Finance reference tests now: recurrence, depreciation, break-even (78 finance tests).
+The reference-test sweep of subtle DEFINER math is at a sensible boundary — depreciation found a LOW
+cosmetic behavior, break-even is clean; the remaining calc surfaces (FX, cash-flow) are lower-risk
+(fewer sign/rounding traps) and can get tests if a specific doubt arises, not speculatively (§A24).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
