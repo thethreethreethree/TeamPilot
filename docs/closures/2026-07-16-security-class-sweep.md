@@ -746,6 +746,29 @@ session — a completely different domain from the finance/nav checks, hitting t
 anti-pattern at the moat, sound on substance AND surface AND provenance AND design. Contrast with the
 classes-44/45 nav grind (artifacts): this is where audit attention actually belonged.
 
+## 47. §3.6 "MAKE LEARNING VISIBLE" — the vanity-metric trap — VERIFY-CLEAN, real evidence not theater
+Companion to class 46: §3.5 asks "is effectiveness measured by consequence?"; §3.6 asks "is the *learning-is-
+happening* evidence REAL, or a persuasive-but-empty progress display?" ("a value curve nobody can see is a flat
+line" — but a FAKED curve is the dishonesty the whole project exists to prevent). Audited
+`LearningVisibleSection.tsx` + `api/brain/learning-summary/route.ts`:
+- **Real aggregation, not fabrication** — reads the actual `events` table (coach-suggestion events by heuristic,
+  decision.opened/decided, cumulative pattern count) + `chat_topics` durability, all company-scoped,
+  time-windowed (last-28 + last-7-vs-prior-7 for a genuine period comparison). NO Math.random, NO hardcoded
+  numbers, NO generic "AI is learning…" filler.
+- **Genuine readiness threshold, not N=1 theater** — `accumulating = chainTotalAllTime < 30`: the surface
+  explicitly says "not enough accumulated yet" until ≥30 real chain events exist, "instead of showing tiny
+  numbers as if they were signal." A brand-new team sees an honest empty state, not fake progress.
+- **Fail-closed on read error (§3.4 honest-error-state, ref 2026-07-09 audit)** — if ANY chain read fails, returns
+  `ready:false` rather than rendering zeros, which would make the panel LIE ("the team did nothing") on a
+  transient DB hiccup. Never render an error as inactivity.
+- **Honest surface** — consequence-only framing ("counts the chain accumulated, NOT verdicts"; "durability is
+  the consequence measure, NOT acceptance/click-through"; "vanity metrics make AI tools feel smart while
+  changing nothing").
+**Both moat-honesty pillars now verified this session: §3.5 effectiveness (46) + §3.6 learning-visible (47).**
+The product's "honesty is the moat" thesis is implemented honestly at the two surfaces most tempting to fake —
+the effectiveness verdict and the progress display. This is the audit attention that pays; recorded as the
+high-value pair that closes the §3-thesis surface review.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
