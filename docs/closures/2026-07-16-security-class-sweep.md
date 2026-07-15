@@ -1,5 +1,28 @@
 # Security audit — four-class sweep (2026-07-16)
 
+> ## ⬆️ EXECUTIVE SUMMARY (navigational — added at session end; the numbered classes below are the record)
+> This began as a 4-class security sweep and became a **whole-session comprehensive audit** (28 classes).
+>
+> **16 REAL FIXES** (all tested where testable; migrations UNAPPLIED unless noted):
+> - *Tasks:* transition-guard drift (#7, live), "Open tasks" overcount (live), `0184` false task_slipped
+>   (Cancelled), 3× team-check Cancelled (live), domain-list dedup (live), blocker_reason CREATE enforcement
+>   (server+client, live).
+> - *C.A.R.E:* command-stats phantom statuses (live), resolution-rate transient-status (live).
+> - *Finance:* dashboard AR (`0185`) + cash-forecast (`0175`) credit-note omission.
+> - *Security:* session-rename authz (live), timing-unsafe secret (live), push recipient (live), recording-upload
+>   executable-via-spoofed-MIME (#15, live), + the notify-message recipient bug.
+>
+> **1 STRUCTURAL GATE BUILT:** invariant-audit INVARIANT 5 (every upload route must validate) — fix #15 can't recur.
+>
+> **VERIFIED SOUND** (the important negatives): the ENTIRE §3 constitutional core (§3.1 derivation, §3.2 gate,
+> §3.3 guide-don't-overtake, §3.4 control-gate fail-closed + leadership-audited override, §3.5 durability/
+> cost-per-outcome); all 13 finance calc surfaces; every service-role route (28) tenant-scoped; the 0183
+> DEFINER-revoke complete; both account-join halves (0114/0115). ~10 false-findings refuted before reporting.
+>
+> **YOUR QUEUE** (see FOUNDER-ACTION-QUEUE.md): APPLY `0114`·`0115`·`0184`·`0185`·finance `0157-0182`·security
+> `0141`/`0142`. DECIDE 7 items (tax attribution · blocker_reason *transition*-surface UX · Cancelled-first-class
+> · profitability dims · signal backstop · bootstrap DoS · CRM control-month). CONFIG: `CRON_SECRET`·VAPID·runbook.
+
 Recorded per §1.7.4 (audits immutable + comparable). This session swept four attack-surface classes across the
 API. Two yielded real fixes; two verified clean. Every "clean" was earned by inspecting the candidates (§1.7.3),
 not asserted. A future security pass should compare against this baseline.
