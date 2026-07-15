@@ -545,6 +545,9 @@ drift. In the founder queue. (This is the one LIVE bug found late that isn't alr
 > documented RPC_ONLY_COLUMNS exemption — anchor_day is derived/DEFINER-managed, no UI control). Lesson: check
 > the suite result THEN commit, never chain them.
 
+## 30. C.A.R.E conversation ROUTING (routeNewConversation) VERIFIED — tenant-scoped, no cross-tenant assign
+routeNewConversation: agent selection filters .eq("company_id", conversation.companyId) + status=online + channel eligibility; the load count (least-loaded balancing) is likewise company-scoped (OPEN_CONVERSATION_STATUSES). So a conversation can NEVER be auto-assigned to another company's agent (a routing bug there = cross-tenant data exposure). Graceful "unrouted" when no eligible agent. Unit-tested (care.routeNewConversation.test.ts). Both hypotheses (cross-tenant, capacity) handled. Security-relevant clean, complements the service-role sweep (21) + widget audit (19).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
