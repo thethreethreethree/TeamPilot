@@ -28,13 +28,20 @@ export async function GET() {
   // layer. RLS on support_conversations also enforces it.
   const { data: convs } = await auth.sb
     .from("support_conversations")
-    .select("status, first_message_at, first_response_at")
+    .select("status, resolved_at, first_message_at, first_response_at")
     .eq("company_id", auth.companyId)
     .gte("created_at", since)
     .limit(5000);
 
   const all = convs ?? [];
-  const resolved = all.filter((c) => c.status === "resolved").length;
+  // Resolution rate must count conversations that were EVER resolved, not those
+  // whose CURRENT status is 'resolved'. Archiving a resolved conversation sets
+  // status='closed' (overwriting 'resolved'), but resolved_at persists (the 0034
+  // trigger stamps it on resolve and never clears it, and a never-resolved
+  // conversation — e.g. archived spam — keeps resolved_at null). Counting
+  // status==='resolved' made the rate DROP as a team archived resolved work — a
+  // §3.4/§3.5 perverse signal. resolved_at IS NOT NULL is the honest measure.
+  const resolved = all.filter((c) => c.resolved_at !== null).length;
 
   // First-response minutes for each conversation where we have it
   const frtMinutes: number[] = [];
