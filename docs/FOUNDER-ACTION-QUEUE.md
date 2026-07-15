@@ -6,6 +6,15 @@
 > verified & tested where testable; ~11 verified-clean; ~9 false-findings refuted before reporting.** Full
 > trail: `docs/closures/2026-07-16-security-class-sweep.md`. New founder-actionable items on top of the batch below:
 >
+> **🔴 TOP PRIORITY — CONFIRM `0090` IS APPLIED (possible LIVE cross-tenant hole):** `0090` freezes
+> profiles.role/company_id/etc. against direct authenticated writes. WITHOUT it, a user could
+> `PATCH /rest/v1/profiles {company_id: <any-tenant>}` and — since auth_company_id() trusts that value — gain
+> full cross-tenant read/write (or vendor super-admin). Its own text says "the hole is open until then." You
+> applied 0094-0115; `0090` is BEFORE that range, so I can't confirm it's applied. **Run
+> `select 1 from pg_trigger where tgname='profiles_guard_privileged'` (or check the profiles triggers) — if
+> absent, APPLY `0090` immediately + its coupled care-agent-settings service-role change.** Fix exists and is
+> exemplary; only its application is unverified.
+>
 > **APPLY (2 new migrations, after the `0157–0182` batch):**
 > - **`0184`** — task-overrun sweep now excludes CANCELLED tasks (was emitting false `task_slipped` signals).
 > - **`0185`** — finance dashboard `ar_outstanding` now nets issued credit notes (was overstating AR; didn't

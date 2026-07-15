@@ -603,6 +603,24 @@ across the schema is a trusted, unforgeable check. The single most important sec
 sound. Spoofability hypothesis handled. This is the FOUNDATION under all of classes 19/21/30/31/38 — they are
 only as good as auth_company_id(), and it is correct.
 
+## 40. 🔴 CRITICAL (fix exists, APPLICATION UNVERIFIED) — profiles privileged-column self-write → cross-tenant
+Independently re-derived from the class-39 linchpin: auth_company_id() reads profiles.company_id, so it is only
+unforgeable if a user cannot CHANGE their own company_id. The base profiles UPDATE policy (0001:110) is
+`for update using (id = auth.uid())` with NO WITH CHECK → Postgres leaves the new row's columns unconstrained,
+so `PATCH /rest/v1/profiles?id=eq.<self> { "role":"admin", "company_id":"<any-tenant>" }` would succeed:
+auth_company_id() then trusts the self-set value → FULL CROSS-TENANT read/write (or company_id := vendor tenant
+→ vendor super-admin). Highest severity.
+**This was ALREADY FOUND (2026-07-07 audit) and FIXED — migration `0090` — a BEFORE UPDATE trigger
+guard_profile_privileged_columns() freezing role/company_id/sales_coach_role/is_support_agent against direct
+authenticated/anon writes (DEFINER/service-role pass through). Exemplary fix (trigger to see OLD vs NEW,
+fail-safe block-list).** BUT `0090`'s own text says "Founder must APPLY this migration; the hole is open until
+then," and the memory records the founder applying 0094-0115 — `0090` is BEFORE that range, so its application
+status is UNVERIFIED. ⚠️ IF 0090 IS UNAPPLIED, THIS IS A LIVE CRITICAL CROSS-TENANT ESCALATION. The app itself
+never writes profiles.company_id via the user client (grep-confirmed), so the exploit is a direct crafted
+PostgREST call, not reachable through the UI — but RLS is the boundary, and it is open without 0090. FOUNDER
+MUST CONFIRM 0090 (+ its coupled care-agent-settings service-role change) is applied. This is the single most
+important item surfaced this session. In the founder queue, top priority.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
