@@ -465,6 +465,16 @@ merely claimed.
 The constitutional discipline the product's honesty CLAIM rests on is actually ENFORCED in code at every §3
 clause. A bug in any of these would matter more than any metric; none found (one latent backstop, flagged).
 
+## 28. ACCOUNT-JOIN (accept_invitation email-match, 0114) — LOGIC VERIFIED CORRECT (unapplied)
+The crown-jewel account-join path. 0114 fixes F1 (HIGH, 2026-07-10): the original accept_invitation looked up
+the invite by CODE and attached the caller at the invite's role with NO email comparison — so a shared code
+could be redeemed by anyone who saw it, incl. a CEO/COO→admin invite. 0114 adds: fetch the caller's email from
+auth.users (DEFINER-readable) and reject unless `lower(trim(caller)) is distinct from lower(trim(invite.email))`
+is false — EXACT, case-insensitive, null-safe, FAIL-CLOSED (null caller email → rejected). Only the invited
+email can accept. Logic verified correct. UNAPPLIED — staging-gated (founder must apply + run the staging test:
+invite X, accept as X = ok, accept as Y = rejected). Pairs with 0141 (invite-privilege-escalation, also applied-
+gated) — the two halves of invite security. Both in the founder queue.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
