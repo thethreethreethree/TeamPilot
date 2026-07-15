@@ -572,6 +572,16 @@ measurement, filled later by 0100) is permitted. The exact right split: history'
 measured outcome is recordable. Together with class 35 (events immutable), the §3.1→§3.5 DATA is tamper-proof
 end-to-end. Hypothesis (edit reasoning to justify a bad call) is impossible.
 
+## 37. DOUBLE-ENTRY BALANCE (fin_assert_balanced, 0118) VERIFIED — deferred constraint trigger, no bypass
+The core ledger invariant. fin_assert_balanced raises if a POSTED entry has sum(base_debit) <> sum(base_credit),
+or < 2 lines; drafts may be unbalanced while building. Crucially it is a CONSTRAINT TRIGGER (deferred to commit)
+— a multi-line entry is transiently unbalanced mid-insert (after line 1, before line 2), and a naive per-row
+trigger would falsely reject it; the deferred check validates the FINAL total. Being a trigger on
+fin_journal_lines, it binds EVERY writer (API, DEFINER posting fns, direct SQL, service-role) — so no path can
+commit an unbalanced posted entry. The ledger cannot hold a debit≠credit entry. Hypothesis (unbalanced entry
+slips through) impossible. This + period-lock (34) + posting-immutability + author-pin (33) + the balanced-by-
+construction postings (payroll/year-end/depreciation/credit-note) = the double-entry integrity is airtight.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
