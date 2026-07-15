@@ -101,9 +101,12 @@ export default function SalesCoachHome() {
   }, [load]);
 
   const start = async () => {
-    // Every session must be titled before it can begin (founder 2026-07-01):
-    // an untitled session creates initial ambiguity in the history.
-    const label = clientLabel.trim();
+    // Spec 1b: Standard no longer forces a title up front — a door-to-door rep
+    // shouldn't have to name a call before it happens; they name it AFTER, once
+    // they know what it was ("angry customer"). Empty in Standard → a neutral
+    // placeholder they rename on the post-call screen. Expert still requires a
+    // title (its history workflow leans on it), unchanged.
+    const label = clientLabel.trim() || (isStandard ? "New session" : "");
     if (!label) {
       setError("Give the session a client / campaign title before starting.");
       return;
@@ -251,7 +254,7 @@ export default function SalesCoachHome() {
               <CaptureInput
                 value={clientLabel}
                 onChange={setClientLabel}
-                placeholder="Client / campaign (required)"
+                placeholder={isStandard ? "Name it later (optional)" : "Client / campaign (required)"}
               />
               {error && <p className="text-[11px] text-amber-300">{error}</p>}
               <DeckButton
@@ -336,7 +339,7 @@ export default function SalesCoachHome() {
               type="text"
               value={clientLabel}
               onChange={(e) => setClientLabel(e.target.value)}
-              placeholder="Client / campaign (required)"
+              placeholder={isStandard ? "Name it later (optional)" : "Client / campaign (required)"}
               className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
             />
           </LearningHint>
@@ -352,7 +355,7 @@ export default function SalesCoachHome() {
             <DeckButton
               pending={starting}
               onClick={() => void start()}
-              disabled={!clientLabel.trim()}
+              disabled={!isStandard && !clientLabel.trim()}
               icon={<Mic className="w-4 h-4" aria-hidden />}
               className="w-full"
             >

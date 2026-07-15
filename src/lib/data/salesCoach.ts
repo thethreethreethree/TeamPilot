@@ -169,6 +169,30 @@ export async function createSession(args: {
 
 /** Forward-only status transition. Returns the updated row, or null on
  *  failure (the trigger stamps ended_at). */
+/** Rename a session's client/campaign label (spec 1b: name it AFTER recording,
+ *  once the rep knows what the call actually was). Service-role write; the PATCH
+ *  route authorizes via an RLS-scoped getSession before calling this. */
+export async function renameSession(
+  sessionId: string,
+  clientLabel: string
+): Promise<SalesSession | null> {
+  const sb = createServiceRoleClient();
+  const { data, error } = await sb
+    .from("coaching_sessions")
+    .update({ client_label: clientLabel })
+    .eq("id", sessionId)
+    .select("*")
+    .single();
+  if (error || !data) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesCoach.renameSession] failed session=${sessionId}: ${error?.message ?? "no row"}`
+    );
+    return null;
+  }
+  return mapSession(data);
+}
+
 export async function setSessionStatus(args: {
   sessionId: string;
   status: Exclude<SalesSessionStatus, "active">;

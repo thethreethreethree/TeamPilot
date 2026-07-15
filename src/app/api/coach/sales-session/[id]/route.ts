@@ -6,6 +6,7 @@ import {
   getSession,
   getSessionTranscript,
   setSessionStatus,
+  renameSession,
 } from "@/lib/data/salesCoach";
 
 /**
@@ -37,10 +38,18 @@ export async function GET(
   return NextResponse.json({ session, transcript });
 }
 
-const PatchSchema = z.object({
-  status: z.enum(["ended", "reviewed"]),
-  audioAssetUrl: z.string().url().max(2000).optional(),
-});
+// A PATCH is EITHER a forward-only status change OR a rename (spec 1b: name the
+// session after recording). status is now optional so a pure rename doesn't have
+// to fake a transition; the refine guarantees at least one real change.
+const PatchSchema = z
+  .object({
+    status: z.enum(["ended", "reviewed"]).optional(),
+    audioAssetUrl: z.string().url().max(2000).optional(),
+    clientLabel: z.string().trim().min(1).max(120).optional(),
+  })
+  .refine((b) => b.status !== undefined || b.clientLabel !== undefined, {
+    message: "Nothing to update — provide a status or a new label.",
+  });
 
 export async function PATCH(
   req: NextRequest,
@@ -65,16 +74,29 @@ export async function PATCH(
     );
   }
 
-  const updated = await setSessionStatus({
-    sessionId: id,
-    status: body.status,
-    audioAssetUrl: body.audioAssetUrl,
-  });
-  if (!updated) {
-    return NextResponse.json(
-      { error: "Couldn't update the session." },
-      { status: 500 }
-    );
+  // Rename first (spec 1b), then any status change — so a single PATCH that both
+  // renames and ends works, and a pure rename never touches the lifecycle.
+  let updated = existing;
+  if (body.clientLabel !== undefined) {
+    const renamed = await renameSession(id, body.clientLabel);
+    if (!renamed) {
+      return NextResponse.json({ error: "Couldn't rename the session." }, { status: 500 });
+    }
+    updated = renamed;
+  }
+  if (body.status !== undefined) {
+    const transitioned = await setSessionStatus({
+      sessionId: id,
+      status: body.status,
+      audioAssetUrl: body.audioAssetUrl,
+    });
+    if (!transitioned) {
+      return NextResponse.json(
+        { error: "Couldn't update the session." },
+        { status: 500 }
+      );
+    }
+    updated = transitioned;
   }
   return NextResponse.json({ session: updated });
 }
