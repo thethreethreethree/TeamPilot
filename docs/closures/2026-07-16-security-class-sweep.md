@@ -116,6 +116,20 @@ the route doesn't currently use; that's a reason to WIRE the schema, not evidenc
      looks live is a landmine — a future dev may "rely" on it.
 Recommended sequence: (2)+(3) client collection → (1) migration → apply together; (4) as its own cleanup.
 
+## 9. FRESH-SURFACE (§1.7) — C.A.R.E Command Center metrics filtered on non-existent statuses — 1 FIX
+Pivoted to a surface untouched this session (C.A.R.E read-path) and applied the sharpest lens from the task
+work: a status-set metric drifting from its stated meaning. `fetchCareCommandStats` (care.ts) filtered
+`openCount` on `["new","open","assigned","waiting"]` and `awaitingFirstReplyCount` on `status='new'` — but the
+0034 enum is `open/in_conversation/awaiting_customer/resolved/closed`. 'new'/'assigned'/'waiting' DON'T EXIST,
+so `openCount` collapsed to just 'open' (dropping every agent-engaged conversation — the count fell as an agent
+claimed one, backwards) and `awaitingFirstReplyCount` was PERMANENTLY 0 (the dashboard's "most time-sensitive
+number", dead, amber highlight never firing). **Fixed `10d769b`** → OPEN_CONVERSATION_STATUSES +
+AWAITING_FIRST_REPLY_STATUS single-source; both probes + the doc comment + the two dashboard help strings
+corrected; 5 regression tests. Verified isolated: no migration adds the phantom statuses, and every other
+C.A.R.E site already used the correct vocabulary — the bug was localized to this one stats fn (written
+separately against an assumed model). Baseline lesson: a metric's status filter must be checked against the
+actual CHECK-constraint enum, not the prose — prose and query here were wrong TOGETHER.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
