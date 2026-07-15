@@ -42,7 +42,8 @@
 > - **DECIDE 8:** tax attribution · blocker_reason *transition*-surface UX · Cancelled-first-class · profitability
 >   dims · signal backstop · bootstrap DoS · CRM control-month · **depreciation rounding-stub (LOW, cosmetic —
 >   absorb residual into final scheduled slice vs. accept a trailing sub-cent period)**.
-> - **CONFIG:** `CRON_SECRET`·VAPID·runbook.
+> - **CONFIG:** `CRON_SECRET`·VAPID·runbook·**confirm Supabase Auth rate limits** (dashboard — brute-force
+>   protection is delegated to GoTrue and on-by-default; just confirm the values are sane, class 60).
 
 Recorded per §1.7.4 (audits immutable + comparable). This session swept four attack-surface classes across the
 API. Two yielded real fixes; two verified clean. Every "clean" was earned by inspecting the candidates (§1.7.3),
@@ -1038,6 +1039,27 @@ founder. Net: BOTH parts of the signal backstop are verified sound; the only res
 redundant rule, which the index would correctly reject at migrate time. The founder decision is now
 "greenlight the build" (design verified end-to-end), not "go check your data first." Two corrections deep — the
 confident "cheap" (58) AND the over-cautious "unknowable" (58's residual) — both walked to ground (59).
+
+## 60. OUTSIDE-VIEW completeness pass (§1.3 adversary lens) — auth brute-force surface — VERIFY-CLEAN
+Rather than re-drill covered ground under the guard, ran the §1.3 four-persona post-build discipline over the
+SESSION's own security work, asking the adversary persona: "what attack surface did the sweep skip?" It surfaced
+one the session never touched — AUTH brute-force / credential-stuffing (I'd checked LLM-route + widget-bootstrap
+rate limiting, never login). Checked it:
+- **No custom auth route exists.** login/signup/password-recovery all call the Supabase client DIRECTLY
+  (`supabase.auth.signInWithPassword` / `signUp` / `updateUser` in the page components). The app never receives
+  the password; the browser talks to Supabase GoTrue.
+- **So brute-force protection is DELEGATED to Supabase GoTrue**, which ships built-in per-IP rate limits on all
+  auth endpoints (sign-in, sign-up, OTP, password-reset, token-refresh). The dangerous path — a CUSTOM login
+  route with no rate limit — does not exist here; the app correctly does not roll its own auth. Verify-clean.
+- **Honest residual = CONFIG, not code:** the STRENGTH of those limits is a Supabase-dashboard setting (like
+  VAPID / CRON_SECRET). Added to the founder queue's CONFIG line: confirm Supabase Auth rate limits are at
+  sensible values. Inherited-on-by-default, so this is a confirmation, not a gap.
+Method note: the value here was the STANCE, not new grep — the adversary persona named a surface my
+finding-by-finding sweep hadn't, and it resolved clean. §1.3 outside-view earns its place as a post-build step
+precisely by asking "what did the insider not think to check?" (Personas new-engineer/CFO/new-user added nothing
+this session — the finance money-correctness, reachability, and doc-trustworthiness were already covered by
+classes 42-56.) This is a genuine completeness confirmation, not a manufactured finding (§A24) — it closes a
+named surface, and names its residual as config.
 
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
