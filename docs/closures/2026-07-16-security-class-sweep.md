@@ -224,6 +224,24 @@ forces fin_issue_invoice to post COGS-or-nothing (an inventory sale can't fabric
 §1.5 holistic). The credit-note-doesn't-return-stock interaction is already flagged in FOUNDER-ACTION-QUEUE as a
 business decision. Exemplary. Confirms the pattern is universal: every LATER finance migration is carefully built.
 
+## 15. SALES COACH scoring VERIFIED SOUND — incl. the ORIGINAL founder complaint, fixed end-to-end
+Audited the last un-swept computation surface (sales coach ELO + skill scoring). All clean:
+- **salesElo.ts:** standard chess-ELO (expected = 1/(1+10^((opp−r)/400)), K=24, clamp [100,3000]); game =
+  0.5·outcome + 0.5·performance; meanScore01 correctly EXCLUDES computed categories (talk_ratio) so a balanced
+  50/50 doesn't distort the rating down. Carries prior audit findings A/B/A4; one degradation mode (DB error →
+  outcomes dropped) is documented + loud-logged. Correct.
+- **The founder's actual complaint** ("Talk/Listen 100/0" yet "no single fix stood out") — traced end-to-end
+  and CONFIRMED FIXED: computeTalkRatio sets flagged+focusSuggestion="Leave more room to listen" for repShare≥75
+  (non-caveat); deriveFocus promotes a flagged score over the null narrative, so a 100/0 call now surfaces the
+  listen fix as the Focus, never "nothing stood out". The custW===0 caveat path shows "—" and refuses to flag a
+  capture gap as a rep behavior (§3.4). Every link correct.
+
+## FINAL audit scope (this session)
+Computation surfaces audited: tasks · C.A.R.E (command stats/SLA/analytics) · finance (AR/AP/dunning/profitability/
+tax/budget/runway/bank/inventory) · CRM (no aggregate-metric surface) · sales coach (ELO/scoring/focus). Real
+bugs found+fixed on tasks/C.A.R.E/finance-earlier-migrations; everything else verified clean or founder-gated
+limitation. The audit is exhaustive across metric/computation surfaces. Bottleneck = founder application.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
