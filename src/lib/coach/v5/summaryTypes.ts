@@ -73,6 +73,28 @@ export type ScoreCategory = {
   rationale: string;
   citation: string | null;
   computed: boolean;
+  /**
+   * A computed observation sitting in a GROWTH band (e.g. talk-ratio ≥75%,
+   * question-rate ≤15%). It is a concrete, evidenced fix — so the After-Pitch
+   * assembler may promote it to the single Next Door Focus. Added 2026-07-15
+   * (founder-confirmed) to stop the Focus contradicting a flagged score: the
+   * summary must never say "keep doing what worked" while this is true.
+   * Optional — absent means "not a flagged growth signal".
+   */
+  flagged?: boolean;
+  /**
+   * The imperative one-liner to carry into the next door when THIS category
+   * becomes the Focus (e.g. "Leave more room to listen"). Present only when
+   * `flagged` is true. The rationale supplies the "why".
+   */
+  focusSuggestion?: string;
+  /**
+   * This is a DATA-CAPTURE CAVEAT, not a measurement — e.g. the customer side
+   * of the call was never transcribed, so a 100/0 talk ratio would report a gap
+   * as if it were behaviour (§3.4). When true, the surface renders it as a muted
+   * note, never a score, and it is never `flagged`. Added 2026-07-15.
+   */
+  caveat?: boolean;
 };
 
 /**

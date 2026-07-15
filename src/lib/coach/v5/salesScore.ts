@@ -77,12 +77,18 @@ export function computeQuestionRate(
   if (repTurns.length === 0) return null;
   const asked = repTurns.filter((s) => isQuestion(s.text)).length;
   const pct = Math.round((asked / repTurns.length) * 100);
+  // `flagged` = a growth band the Next Door Focus may promote to THE fix. Only
+  // the too-few end is a growth signal; question-heavy is a strength, not a fix.
   let read: string;
-  if (pct <= 15)
+  let flagged = false;
+  let focusSuggestion: string | undefined;
+  if (pct <= 15) {
     read = "Few questions — discovery leans on the customer opening up; ask more to learn their real need.";
-  else if (pct >= 55)
+    flagged = true;
+    focusSuggestion = "Ask more discovery questions";
+  } else if (pct >= 55) {
     read = "Question-heavy — strong discovery; make sure you also land your value.";
-  else read = "A healthy amount of discovery questioning.";
+  } else read = "A healthy amount of discovery questioning.";
   return {
     key: "question_rate",
     label: LABELS.question_rate,
@@ -91,12 +97,15 @@ export function computeQuestionRate(
     rationale: read,
     citation: null,
     computed: true,
+    flagged,
+    focusSuggestion,
   };
 }
 
 /** Deterministic talk ratio (hard data). Returns rep vs customer share as
- *  whole-number percents that sum to 100, plus a plain-language read. */
-function computeTalkRatio(
+ *  whole-number percents that sum to 100, plus a plain-language read. Exported
+ *  for test — the caveat + flagged invariants are constitutional (§3.4). */
+export function computeTalkRatio(
   segments: TranscriptSegment[]
 ): ScoreCategory | null {
   let repW = 0;
@@ -107,13 +116,42 @@ function computeTalkRatio(
   }
   const total = repW + custW;
   if (total === 0) return null;
+
+  // F2 (§3.4): if the customer side carries NO transcribed words but the rep
+  // does, this is almost certainly a CAPTURE GAP — a one-sided recording — not a
+  // rep who literally never let the customer speak. Reporting "100 / 0 — you
+  // talked too much" would coach on an artifact, presenting a data gap as a
+  // measurement. So we return an honest caveat, never a verdict, and never a
+  // flagged growth signal (a caveat must not become the Next Door Focus).
+  if (custW === 0) {
+    return {
+      key: "talk_ratio",
+      label: LABELS.talk_ratio,
+      score: 0,
+      display: "—",
+      rationale:
+        "We couldn't hear the customer's side on this one, so there's no talk/listen read to give. Check that both sides of the call are being captured.",
+      citation: null,
+      computed: true,
+      caveat: true,
+      flagged: false,
+    };
+  }
+
   const repShare = Math.round((repW / total) * 100);
   const custShare = 100 - repShare;
   // A read, not a verdict: door-to-door skews rep-heavy; ~40-60% rep talk is
   // a healthy two-way conversation. This is a plain observation (A11).
+  // `flagged` = the rep-dominant growth band the Next Door Focus may promote.
+  // The customer-carried end is a strength, not a fix — so it is never flagged.
   let read: string;
-  if (repShare >= 75) read = "You did most of the talking — leave more room to listen.";
-  else if (repShare <= 35) read = "The customer carried it — strong listening.";
+  let flagged = false;
+  let focusSuggestion: string | undefined;
+  if (repShare >= 75) {
+    read = "You did most of the talking — leave more room to listen.";
+    flagged = true;
+    focusSuggestion = "Leave more room to listen";
+  } else if (repShare <= 35) read = "The customer carried it — strong listening.";
   else read = "A balanced two-way conversation.";
   return {
     key: "talk_ratio",
@@ -123,6 +161,8 @@ function computeTalkRatio(
     rationale: read,
     citation: null,
     computed: true,
+    flagged,
+    focusSuggestion,
   };
 }
 

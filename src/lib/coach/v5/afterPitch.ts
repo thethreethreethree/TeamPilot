@@ -66,6 +66,29 @@ const EMPTY: AfterPitchSummary = {
   focus: null,
 };
 
+/**
+ * Reconcile the single Next Door Focus across the score engine and the narrative
+ * engine (founder-confirmed 2026-07-15: hard score wins in extremes).
+ *
+ * A flagged computed score is a concrete, evidenced, deterministic fix — so if
+ * one is present it becomes the Focus, ahead of the LLM narrative. The scores are
+ * already in rubric order (talk_ratio before question_rate), so the more
+ * fundamental behaviour wins when several are flagged. A caveat category is never
+ * flagged, so a capture gap can never be surfaced as the fix. Only when NO score
+ * is flagged does the narrative's top growth area carry the Focus — and only then
+ * can the Focus legitimately be null ("nothing stood out").
+ */
+export function deriveFocus(
+  scores: ScoreCategory[],
+  topGrowth: { opportunity: string; nextStep: string } | undefined
+): NextDoorFocus {
+  const flagged = scores.find((c) => c.flagged && c.focusSuggestion);
+  if (flagged) {
+    return { focus: flagged.focusSuggestion as string, why: flagged.rationale };
+  }
+  return topGrowth ? { focus: topGrowth.opportunity, why: topGrowth.nextStep } : null;
+}
+
 function mmss(deltaMs: number): string {
   const total = Math.max(0, Math.round(deltaMs / 1000));
   const m = Math.floor(total / 60);
@@ -134,12 +157,23 @@ export async function generateAfterPitchSummary(args: {
       cueLoop.length > 0;
     if (!hasSignal) return EMPTY;
 
-    // The ONE Next Door Focus — the review's top growth area (A16: the same
-    // verdict the narrative already made, surfaced as the single next fix).
-    const top = narrative.growthAreas[0];
-    const focus: NextDoorFocus = top
-      ? { focus: top.opportunity, why: top.nextStep }
-      : null;
+    // The ONE Next Door Focus. Reconciled across TWO engines, not one.
+    //
+    // The bug this replaces (founder-caught 2026-07-15): the Focus was
+    // `narrative.growthAreas[0]` ALONE. On a thin transcript the LLM review
+    // returns no growth areas, so the Focus went null and the card printed
+    // "keep doing what worked" — while the COMPUTED talk-ratio was sitting at
+    // 100/0 with "leave more room to listen". Two panels, two engines, no
+    // cross-check: the summary contradicted its own hard data (§3.4/§3.5).
+    //
+    // Reconciliation rule (founder-confirmed): a HARD SCORE WINS IN EXTREMES. A
+    // flagged computed score (talk-ratio ≥75, question-rate ≤15) is deterministic
+    // and undeniable, so it takes the Focus; the LLM narrative is the default
+    // otherwise. A caveat category (customer side not captured) is never flagged,
+    // so a data gap can never become the fix. The invariant: the Focus is never
+    // null while any computed score is flagged — "keep doing what worked" and a
+    // flagged red number can no longer appear on the same screen.
+    const focus: NextDoorFocus = deriveFocus(scores, narrative.growthAreas[0]);
 
     return { hasSignal: true, narrative, moments, scores, cueLoop, focus };
   } catch {
