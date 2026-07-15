@@ -42,6 +42,8 @@ export function LiveCoachingPanel({
     cueSummary,
     phase,
     confidence,
+    observing,
+    observeUntil,
     autoCoach,
     setAutoCoach,
     agentSpeaking,
@@ -241,6 +243,22 @@ export function LiveCoachingPanel({
           Guide my response
         </button>
         </LearningHint>
+        )}
+        {/* Spec 4.3a — the 3-day observe window, made visible (§3.6). Without this,
+            a first-days rep taps Start, hears nothing, and thinks it's broken. The
+            coach IS working — recording + reviewing — it just isn't advising yet. */}
+        {live && observing && (
+          <div className="mt-3 rounded-lg border border-brand/30 bg-brand/[0.06] p-3 flex items-start gap-2">
+            <Radio className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
+            <p className="text-xs text-secondary leading-relaxed">
+              The coach is learning your style — it&apos;s <strong>listening this call, not coaching yet</strong>.
+              Your call is still recorded and reviewed afterward. Live cues switch on after your first few days
+              {observeUntil
+                ? ` (${new Date(observeUntil).toLocaleDateString(undefined, { month: "short", day: "numeric" })})`
+                : ""}
+              . You can still tap for help any time.
+            </p>
+          </div>
         )}
         {live && (
           <div className="ml-auto flex items-center gap-3">

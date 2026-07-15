@@ -289,6 +289,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const [phase, setPhase] = useState<string | null>(null);
   // Build 4 — the current signal-based confidence read (§3.6), or null.
   const [confidence, setConfidence] = useState<ConfidenceRead | null>(null);
+  // Spec 4.3a — the 3-day silent-observe window. When the cue route reports it,
+  // the coach is LISTENING, not broken; the panel says so (§3.6 make-it-visible),
+  // so a first-days rep never reads the intentional silence as a bug.
+  const [observing, setObserving] = useState(false);
+  const [observeUntil, setObserveUntil] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -508,6 +513,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
         }
         const llmEndedAt = performance.now();
         const data = await res.json();
+        // 3-day observe (spec 4.3a): the route silenced a PROACTIVE cue because
+        // this rep is still in their listening window. Surface it, don't hide it.
+        if (data?.observing) {
+          setObserving(true);
+          if (typeof data.observeUntil === "string") setObserveUntil(data.observeUntil);
+        }
         const c = data?.cue ?? {};
         // Capture the coach's read of the moment (§3.6 make it visible),
         // even when it stays silent, and remember the phase so the stall
@@ -1351,6 +1362,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     cueSummary,
     phase,
     confidence,
+    observing,
+    observeUntil,
     autoCoach,
     setAutoCoach,
     mode,
