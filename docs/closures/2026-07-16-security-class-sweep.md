@@ -481,6 +481,13 @@ email can accept. Logic verified correct. UNAPPLIED — staging-gated (founder m
 invite X, accept as X = ok, accept as Y = rejected). Pairs with 0141 (invite-privilege-escalation, also applied-
 gated) — the two halves of invite security. Both in the founder queue.
 
+**member.joined emission (0115) also verified correct (unapplied):** the §3.1 join event. Fires on INSERT
+(active+company) OR UPDATE to now-active+company-set AND (OLD.status<>'active' OR OLD.company_id IS NULL). My
+double-emit hypothesis is guarded — a subsequent update to an already-joined member (OLD active + company
+not-null) fails the predicate, no re-fire; and the fix captures the real bug (an already-active orphan attached
+NULL→set previously emitted nothing, so the join was never recorded on the chain). Exactly-one on the join
+moment. Both account-join halves (0114 email-match + 0115 join-event) are logic-sound; both staging-gated.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
