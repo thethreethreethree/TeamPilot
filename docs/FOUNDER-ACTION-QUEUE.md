@@ -845,5 +845,8 @@ allowlisting first — see the note below rather than assuming CI covers this sh
   `select version from supabase_migrations.schema_migrations order by version desc limit 12;`
   Then delete whichever statement is false. Prioritized index: `docs/SECURITY-FINDINGS-2026-07-09.md`.
 - `0141`/`0142` (invite-escalation, subledger SoD) — status per the same check (they're ≤ `0144`).
-- **Dormant crons** awaiting operator wiring: §3.5 durability sweep, task-overrun sweep (code ready).
+- **Dormant crons** — both the §3.5 durability sweep AND the task-overrun sweep are code-wired AND scheduled in
+  `vercel.json`; they await only `CRON_SECRET` (one env var activates both). NOT awaiting code/vercel wiring —
+  corrected 2026-07-16, see class 70. (The finance `deliver-cron` is the only one still needing a `vercel.json`
+  entry, and only after `0172` applies.)
 - Full session detail: `docs/closures/2026-07-11-financial-system-session.md`.
