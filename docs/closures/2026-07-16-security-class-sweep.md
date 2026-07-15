@@ -277,6 +277,14 @@ resolutions_emit_durability_review (0100): fires `after update of durability`, g
 reopened→problem_recurrence ("honest recurrence"), partial→partial_resolution; 'unknown' earns NO signal;
 sourced at problem:${problem_id}. §3.5 "consequence not agreement" done right. Sound.
 
+### CHAT event source (0012 + 0015) VERIFIED SOUND — completes the chain audit across ALL THREE sources
+The §3.1 chain has three event sources; all now audited: TASKS (0006 + overrun 0109/0184 + transition guard),
+CHAT (0012 emitters + 0015 durability review), RESOLUTIONS (0005 + 0100 durability). The chat durability
+emitter (0015 chat_topics_emit_durability_review) is structurally IDENTICAL to the verified 0100: null-safe
+`is distinct from` guard, emits chat.topic_durability_reviewed carrying the durability (close-time durability is
+null by design, so the REVIEW event carries it — documented), derives in-txn, held/reopened/partial predicates.
+Sound. Every event source feeding the chain is verified correct.
+
 ### CORE-THESIS CHAIN (§3.1→§3.5) — fully audited this session, all sound:
 events (emitters) → **signals** (derive_signals_for_event: sound + idempotent-by-construction, class 16 latent
 backstop flag) → **§3.2 gate** (check_understanding_gate: sound, class 17, mitigates 16 via distinct-sources) →
