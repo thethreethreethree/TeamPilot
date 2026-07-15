@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -27,6 +27,7 @@ import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { LiveCoachingPanel } from "@/components/sales-coach/LiveCoachingPanel";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import {
   OUTCOME_LABELS,
   OUTCOME_ORDER,
@@ -73,6 +74,13 @@ type Review = {
 export default function SessionDetail() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const router = useRouter();
+  // Experience dial. Standard = the founder's simplified flow (spec 2026-07-15):
+  // when the recording ends, the After-Pitch Summary IS the post-call screen — it
+  // "comes up" with a single Start Next Door, nothing else. Expert keeps today's
+  // full post-call surface (Prep / Generate review / outcome / why / transcript…),
+  // untouched.
+  const { isStandard } = useExperienceMode();
   const [session, setSession] = useState<Session | null>(null);
   const [transcript, setTranscript] = useState<Segment[]>([]);
   const [review, setReview] = useState<Review | null>(null);
@@ -156,6 +164,15 @@ export default function SessionDetail() {
       });
       if (res.ok) {
         setSession((await res.json()).session);
+        // BIGGEST PRIORITY (spec 2026-07-15): in Standard, the moment the recording
+        // ends the After-Pitch Summary "comes up" — it is the post-call screen, with
+        // a single Start Next Door. We route straight to it rather than dropping the
+        // rep into the dense session page. The session page still holds the summary +
+        // timeline for reliving later; this is about the immediate post-door moment,
+        // where words kill momentum (AMD-006 L3). Expert stays on the full page.
+        if (isStandard) {
+          router.push(`/dashboard/sales-coach/${id}/after-pitch`);
+        }
       } else {
         // §3.4 / 558ce56 class: a failed end-session must be visible (the sibling
         // handlers here already setError; this one was the outlier). Otherwise the
