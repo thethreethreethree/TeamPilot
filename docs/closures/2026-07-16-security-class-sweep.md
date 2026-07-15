@@ -169,6 +169,22 @@ the later finance migrations had learned the lesson; the gap was isolated to the
 one careless unapplied view (0175). Every AR/AP outstanding consumer is now verified correct (5 already-right,
 2 fixed).
 
+## 12. FRESH-SURFACE (§1.7) — profitability views VERIFIED SOUND + 1 subtle FLAG (not fixed)
+Audited fin_project/cost_center/customer_profitability (0148). Structurally correct: posted-only, revenue =
+credit−debit on type='revenue', cost = debit−credit on type='expense', direct vs total via cost_type='direct'.
+Account 4900 (Sales Returns) is correctly typed 'revenue', so a credit note's Dr 4900 acts as contra-revenue
+and reduces revenue where tagged. Documented limitations (stated in the migration, not bugs): customer
+profitability counts only project-tagged revenue; untagged activity is absent from the slices.
+
+FLAGGED (subtle, founder-domain — a GL posting change, not fixed unilaterally): the credit-note posting
+(0143:115) writes the 4900 line with NO project_id/cost_center_id, while invoice revenue lines CAN be
+dimension-tagged. So in fin_project_profitability a project-tagged invoice's revenue is counted but its
+credit-note reversal is untagged and absent → project/cost-center profitability OVERSTATES when a tagged
+invoice is credited. Asymmetric attribution (tagged in, untagged out), not just "untagged absent". Recommended
+fix: thread the invoice's dimensions onto the 4900 posting line(s) in fin_issue_credit_note. Narrow scenario
+(credit note AND project-tagged invoice); GL/AR figures are unaffected (they're correct). Founder's call —
+touches the double-entry posting path.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
