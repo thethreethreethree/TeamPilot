@@ -13,6 +13,16 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
+
+type SkillRow = {
+  key: string;
+  label: string;
+  score: number | null;
+  sampleSize: number;
+  read: string;
+  breakdown: string;
+};
 
 /**
  * Sales Coach → Analytics (Phase 2).
@@ -64,6 +74,29 @@ export default function SalesCoachAnalyticsPage() {
   const [teamDegraded, setTeamDegraded] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Standard (spec p3): Analytics is "all about the user" — six per-skill /10
+  // scores + short AI breakdowns, no ELO number, no team aggregate. Expert keeps
+  // today's full analytics. We fetch the skill scores only in Standard.
+  const { isStandard } = useExperienceMode();
+  const [skills, setSkills] = useState<SkillRow[] | null>(null);
+  const [skillSessions, setSkillSessions] = useState(0);
+
+  useEffect(() => {
+    if (!isStandard) return;
+    let cancelled = false;
+    void fetch("/api/coach/sales-session/skills")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d) return;
+        setSkills(d.skills ?? []);
+        setSkillSessions(d.sampleSessions ?? 0);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isStandard]);
+
   const load = useCallback(async () => {
     try {
       const [ownRes, teamRes] = await Promise.all([
@@ -114,9 +147,16 @@ export default function SalesCoachAnalyticsPage() {
     <>
       <TopBar title="Analytics" subtitle="Your coaching over time" />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-6 bg-base">
+        {/* STANDARD (spec p3): six per-skill /10 scores + short AI breakdowns —
+            the rep's own mirror for "learning from their day". Replaces the ELO
+            number (removed below for Standard) so focus shifts to tone, questions,
+            etc. — the things a rep can actually work on — not one opaque rating. */}
+        {isStandard && <SkillScores skills={skills} sampleSessions={skillSessions} />}
+
         {/* Your OWN Sales Effectivity Rating (§A10 — the rep sees what the System
-            reads about them). Self-framed as you-vs-the-standard, not a rank. */}
-        <AgentEloBadge self />
+            reads about them). Self-framed as you-vs-the-standard, not a rank.
+            Expert only: spec p3 removes the ELO number from Standard. */}
+        {!isStandard && <AgentEloBadge self />}
         <LearningHint
           as="block"
           category="Sales Coach · Analytics"
@@ -145,9 +185,10 @@ export default function SalesCoachAnalyticsPage() {
           </div>
         ) : (
           <>
-            {/* TEAM aggregate — managers only. Anonymized: counts + an
-                unnamed trend, never a per-agent breakdown (§A18/§A10). */}
-            {teamDegraded && (
+            {/* TEAM aggregate — managers only, Expert only. Spec p3 makes the
+                Standard Analytics page all about the user, so the team view is
+                removed there even for a manager (they still have it in Expert). */}
+            {!isStandard && teamDegraded && (
               <section className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
                 <p className="text-xs text-amber-300">
                   Couldn&apos;t load team analytics right now — this is an
@@ -155,7 +196,7 @@ export default function SalesCoachAnalyticsPage() {
                 </p>
               </section>
             )}
-            {team && (
+            {!isStandard && team && (
               <LearningHint
                 as="block"
                 category="Sales Coach · Analytics"
@@ -380,5 +421,84 @@ function Cell({
       <p className="text-2xl font-bold text-primary mb-0.5">{value}</p>
       <p className="text-[10px] text-muted">{sub}</p>
     </div>
+  );
+}
+
+/**
+ * Standard Analytics (spec p3): six per-skill /10 scores + a short AI breakdown
+ * each. The point of the /10-per-skill view (over one ELO number) is that it tells
+ * a rep WHICH skill to work — tone, questions, closing — not just "you're a 6".
+ *
+ * §3.4 throughout: a skill we couldn't score yet shows "—" and an honest "not
+ * enough sessions yet", never 0 (0 reads as "you're terrible at this"). A low score
+ * is coloured as the thing to work on, never hidden.
+ */
+function SkillScores({
+  skills,
+  sampleSessions,
+}: {
+  skills: SkillRow[] | null;
+  sampleSessions: number;
+}) {
+  if (skills === null) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-muted py-8 justify-center">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+        Reading your recent calls…
+      </div>
+    );
+  }
+  if (skills.length === 0) {
+    return (
+      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 text-center">
+        <p className="text-xs text-muted">
+          No scored calls yet. Run a session and your skills will show up here —
+          one score per skill, so you know exactly what to work on next.
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold text-primary">Your skills</h2>
+        <p className="text-[11px] text-muted">
+          Across your last {sampleSessions} scored{" "}
+          {sampleSessions === 1 ? "call" : "calls"} — your own mirror, not a ranking.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        {skills.map((s) => {
+          const scored = s.score !== null;
+          // Low scores are the point — colour them so the eye lands on what to work
+          // on. Null (unmeasured) is neutral grey, never red.
+          const tone = !scored
+            ? "text-muted"
+            : s.score! >= 8
+              ? "text-emerald-300"
+              : s.score! >= 5
+                ? "text-brand"
+                : "text-amber-300";
+          return (
+            <div
+              key={s.key}
+              className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 flex flex-col"
+            >
+              <div className="flex items-baseline justify-between">
+                <p className="text-[10px] uppercase tracking-widest font-bold text-muted">
+                  {s.label}
+                </p>
+                <p className={`text-lg font-bold tabular-nums ${tone}`}>
+                  {scored ? `${s.score}/10` : "—"}
+                </p>
+              </div>
+              <p className="mt-1 text-[11px] leading-snug text-secondary">
+                {s.breakdown}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
