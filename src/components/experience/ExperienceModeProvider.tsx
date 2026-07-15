@@ -45,13 +45,23 @@ const ExperienceModeContext = createContext<ExperienceModeContextValue | null>(
 
 export function ExperienceModeProvider({
   children,
+  initialMode,
 }: {
   children: React.ReactNode;
+  /** The mode read SERVER-SIDE in the layout, so the first client paint already
+   *  matches the user's real mode (no Expert flicker, no hydration mismatch —
+   *  audit F1 fix). Omitted → 'standard', the never-over-serve default, and the
+   *  background fetch still reconciles. */
+  initialMode?: ExperienceMode;
 }) {
-  // Default 'standard' before the server read resolves — never over-serve
-  // complexity to a user whose preference we haven't loaded yet.
-  const [mode, setModeState] = useState<ExperienceMode>("standard");
-  const [loaded, setLoaded] = useState(false);
+  // Start from the server-read mode when we have it — SSR and hydration then agree
+  // on the same first paint. Falls back to 'standard' (never over-serve complexity
+  // to a user whose preference we haven't loaded).
+  const [mode, setModeState] = useState<ExperienceMode>(initialMode ?? "standard");
+  // If the server already told us the mode, we are effectively loaded from frame 1;
+  // the fetch below still runs to reconcile a mid-session change, but nothing gates
+  // on a flicker window anymore.
+  const [loaded, setLoaded] = useState(initialMode !== undefined);
 
   useEffect(() => {
     let cancelled = false;

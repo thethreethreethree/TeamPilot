@@ -4,6 +4,7 @@ import CommandPalette from "@/components/layout/CommandPalette";
 import { ToastProvider } from "@/components/ui/toast";
 import { LearningModeProvider } from "@/components/learning/LearningModeProvider";
 import { ExperienceModeProvider } from "@/components/experience/ExperienceModeProvider";
+import type { ExperienceMode } from "@/lib/experience/mode";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import { AskJeffPanel } from "@/components/learning/AskJeffPanel";
 import { redirect } from "next/navigation";
@@ -50,6 +51,14 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Read the experience dial SERVER-SIDE so the first paint already matches the
+  // user's mode (audit F1 fix): the client provider previously defaulted to
+  // 'standard' until a /api/me fetch resolved, so an Expert user's first render
+  // flickered the simplified UI before correcting. Passing it as initialMode means
+  // SSR and hydration both start from the real mode — no flicker, no hydration
+  // mismatch, and "Expert exactly as-is" holds from the very first frame. Read from
+  // the SAME profile query that already gates onboarding — no extra round-trip.
+  let initialMode: ExperienceMode = "standard";
   if (supabaseEnabled) {
     const supabase = await createClient();
     const {
@@ -65,18 +74,21 @@ export default async function DashboardLayout({
     // (just signed up, no company yet). Redirect them through the flow.
     const { data: profile } = await supabase
       .from("profiles")
-      .select("company_id")
+      .select("company_id, experience_mode")
       .eq("id", user.id)
       .maybeSingle();
     if (!profile?.company_id) {
       redirect("/onboarding");
     }
+    // Fail-safe to 'standard' (the never-over-serve default) if the column is
+    // null/unreadable — mirrors getExperienceMode's posture exactly.
+    initialMode = profile?.experience_mode === "expert" ? "expert" : "standard";
   }
 
   return (
     <ToastProvider>
       <LearningModeProvider>
-       <ExperienceModeProvider>
+       <ExperienceModeProvider initialMode={initialMode}>
         <div className="flex min-h-screen bg-base overflow-x-hidden">
           {/* Skip-to-content link for keyboard / screen-reader users.
               Hidden by default; appears in the top-left when focused
