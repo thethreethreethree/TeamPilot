@@ -338,6 +338,20 @@ EXECUTABLE_EXTENSIONS subset checked in the recording route — blocks executabl
 lock it. TS fix, already-live on deploy. Lesson: "validator wired everywhere?" is a §A26 class worth sweeping —
 the customer route's own comment ("tested but never wired into this PUBLIC route") hinted the wiring was uneven.
 
+## 21. SERVICE-ROLE tenant-scoping — FULL sweep (all 28 admin-client routes), CLEAN
+Extends class 3 (which spot-checked ~4) to the COMPLETE enumeration: every route using createAdminClient /
+createServiceRoleClient (28) was flagged for an auth/tenant gate; none came back ungated. Spot-verified the two
+most suspicious: the lowest-gated `chat/topics/[id]/lock` (admin client bypasses RLS, but authz is
+`topic.created_by !== auth.user.id → 403` — creator-only, tenant-safe by construction) and the highest-risk
+bulk op `admin/files/storage-sweep` (getCurrentAuthContext → isAdmin → admin query explicitly filtered
+`company_id = auth.companyId`, documented). No ungated admin-client route exists — the cross-tenant-leak class
+(the worst severity; the class the CRM vendor-authz bug fell into) is sound across the whole API.
+
+### Systematic-sweep lesson (this session, twice-proven)
+The §A26 "is X wired/gated EVERYWHERE?" sweep beats spot-checking on careful codebases: the upload-validator
+sweep found a REAL gap (recording route, fix #15) where 4/5 routes were wired; the service-role sweep confirmed
+clean across all 28. Enumerate the whole class, don't sample it.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
