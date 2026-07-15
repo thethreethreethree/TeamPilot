@@ -1083,6 +1083,27 @@ Adversary-lens tally (classes 60-61): auth brute-force (clean, Supabase-delegate
 hadn't; 2 clean, 1 yielded a real defense-in-depth fix. This is §1.3 doing exactly its job — and fix #18 is a
 genuine catch (a purposeless raw-HTML sink), not a manufactured one.
 
+## 62. Adversary lens cont'd — OPEN REDIRECT + CSRF — both VERIFY-CLEAN (closes the OWASP sweep)
+Two more surfaces the finding-by-finding sweep never addressed:
+- **Open redirect — clean.** All post-auth `router.push` targets are HARDCODED internal paths (`/dashboard`,
+  `/onboarding`, `/dashboard/sales-coach`). The one dynamic helper, `buildDestination(base)`, always takes a
+  hardcoded base and only APPENDS the user-controlled `intent` param as a QUERY STRING to it
+  (`/dashboard?intent=X`) — `intent` is never the redirect target. `intent=https://evil.com` → still navigates
+  to the internal `/dashboard?intent=…`. User controls a query value, never host or path. The recover flow's
+  `redirect_to` is the SUPABASE-dashboard allowlist, not app-controlled.
+- **CSRF — clean.** Auth is cookie-based via `@supabase/ssr` ^0.10.3. `server.ts` passes cookie `options`
+  straight through to `cookieStore.set` WITHOUT overriding them → inherits the library's `SameSite=Lax` default.
+  Lax = the session cookie is NOT sent on cross-site POST/PATCH/DELETE, the CSRF defense for state-changing
+  routes. The app relies on the safe framework default rather than weakening it to `SameSite=None`. Correct
+  posture for a Supabase-SSR Next.js app.
+**OWASP adversary sweep COMPLETE (classes 60-62):** auth brute-force (clean, GoTrue-delegated + config note) ·
+stored XSS (clean + fix #18 footgun removed) · SSRF (clean) · open redirect (clean) · CSRF (clean, SameSite=Lax).
+Five surfaces the insider finding-by-finding sweep had not explicitly addressed — the §1.3 outside-view stance
+surfaced all five and closed them (4 clean + 1 real fix). This is the productive boundary of the adversary lens:
+the remaining OWASP items (IDOR → covered by auth_company_id RLS + the 28-route service-role audit; injection →
+Zod-validated bodies + parameterized SQL; mass-assignment → the privileged-column guards 0090/0093) were already
+covered by the earlier classes. Security perimeter now verified from BOTH the insider and outside-view stances.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
