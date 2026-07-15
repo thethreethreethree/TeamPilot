@@ -78,6 +78,18 @@ export async function PATCH(
   // renames and ends works, and a pure rename never touches the lifecycle.
   let updated = existing;
   if (body.clientLabel !== undefined) {
+    // AUTHZ (audit 2026-07-15): getSession is company-scoped (a member sees any
+    // session in their company), which is the right bar for a status transition a
+    // manager may make — but NOT for a rename. Renaming is "name YOUR call", so a
+    // rename must be OWNER-ONLY, or any company member could relabel a colleague's
+    // session via a direct API call (the UI already only offers it to the owner;
+    // this closes the same gap at the API, where the UI guard can't reach).
+    if (existing.agentId !== auth.user.id) {
+      return NextResponse.json(
+        { error: "Only the session's owner can rename it." },
+        { status: 403 }
+      );
+    }
     const renamed = await renameSession(id, body.clientLabel);
     if (!renamed) {
       return NextResponse.json({ error: "Couldn't rename the session." }, { status: 500 });
