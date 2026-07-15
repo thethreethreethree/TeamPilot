@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { sendPushToUsers, type PushPayload } from "@/lib/notifications/sender";
+import { deriveNotifyRecipients } from "@/lib/notifications/recipients";
 
 /**
  * POST /api/notifications/notify-message
@@ -102,15 +103,11 @@ export async function POST(req: NextRequest) {
       .in("role", ["admin", "member"]),
   ]);
 
-  const engaged = new Set<string>();
-  for (const r of recentAuthors ?? []) {
-    if (r.author_id) engaged.add(r.author_id as string);
-  }
-  for (const p of parts ?? []) {
-    if (p.user_id) engaged.add(p.user_id as string);
-  }
-
-  const recipientIds = Array.from(engaged).filter((id) => id !== auth.user!.id);
+  const recipientIds = deriveNotifyRecipients({
+    authorIds: (recentAuthors ?? []).map((r) => r.author_id as string | null),
+    participantIds: (parts ?? []).map((p) => p.user_id as string | null),
+    senderId: auth.user!.id,
+  });
 
   if (recipientIds.length === 0) {
     return NextResponse.json({ notified: 0 });
