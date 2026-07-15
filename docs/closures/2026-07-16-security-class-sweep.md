@@ -433,6 +433,11 @@ The gate: `guidanceEnabled = manualEnabled || (unlockAt && new Date(unlockAt) <=
 honest baseline rather than silently enabling guidance. That is §3.4 + §5 (the builder-under-pressure default
 must be "suppressed," never "enabled") encoded in a pure, unit-tested function (controlGate.test.ts). A bug here
 — failing OPEN — would violate the core thesis; it fails closed. Exemplary. The constitutional moat holds.
+**And the OVERRIDE path is equally sound (verified end-to-end):** POST /api/brain/unlock is leadership-gated
+(`!ctx.isAdmin → 403` — documented CRITICAL fix C1, where any member could previously override §3.4), requires
+a ≥20-char reason, and unlockControlGate records that reason to brain_evolution_events (§7.5 retrospective).
+So §3.4 cannot be SILENTLY bypassed: the default fails closed, and the only way to open early is a leadership
+action, on the record, subject to review. The honesty moat is sound at BOTH the default and the override.
 
 FLAGGED (minor, vendor-tooling — NOT a §3.4 violation): the CRM `control_month_completed` activity-event type
 is DEFINED (0049:230) and UI-LABELED (crm/[id]/page.tsx:55) but NEVER EMITTED (dead event, task_slipped class),
