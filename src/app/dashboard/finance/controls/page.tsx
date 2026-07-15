@@ -72,6 +72,9 @@ export default function FinanceControlsPage() {
 
   // delegation
   const [delegations, setDelegations] = useState<Delegation[]>([]);
+  // True when the delegations read failed (e.g. migration 0168 not applied yet) — the
+  // section is hidden rather than shown as a misleading empty state (§A14).
+  const [dgUnavailable, setDgUnavailable] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   // The direct/indirect split. It defaults to 'none', and until someone sets it, break-even treats EVERY
   // cost as fixed and overhead can be allocated to nobody. Three analytics features depend on this one
@@ -100,8 +103,13 @@ export default function FinanceControlsPage() {
     ]);
     // A failed read must NOT render as "nothing is configured" — that reads as an unpoliced company and
     // invites a controller to add a duplicate control. Say we could not load it.
-    if (r.error || p.error || rt.error || dg.error) {
-      setLoadError(r.error || p.error || rt.error || dg.error);
+    //
+    // Delegations (migration 0168) is deliberately NOT in this fatal gate: it is a newer feature that may be
+    // unmigrated even when the core controls (roles / policy / rates) are applied. Coupling it here would
+    // blank the WHOLE page — hiding the working approval-limit, policy and rate sections — the moment 0168
+    // lags behind. §A14 + the migration-coupling lesson: a newer feature's read must not hide the core.
+    if (r.error || p.error || rt.error) {
+      setLoadError(r.error || p.error || rt.error);
       setReady(true);
       return;
     }
@@ -111,7 +119,10 @@ export default function FinanceControlsPage() {
     setMileage(rt.mileage ?? []);
     setPerDiem(rt.perDiem ?? []);
     setFx(rt.fx ?? []);
-    setDelegations(dg.delegations ?? []);
+    // §A14 live-error vs live-empty: if delegations errored (table missing / 0168 unapplied) we HIDE the
+    // section rather than show "nobody has delegated" — the latter falsely implies the feature is live+empty.
+    setDgUnavailable(Boolean(dg.error));
+    setDelegations(dg.error ? [] : (dg.delegations ?? []));
     setMembers(tm.members ?? []);
     setAccounts((ac.accounts ?? []).filter((a: Account) => a.type === "expense"));
     setReady(true);
@@ -299,6 +310,9 @@ export default function FinanceControlsPage() {
             reading "who can approve how much" must see, in the same glance, who is currently approving in
             someone else's name — otherwise the limits table above is an incomplete answer to the question
             it appears to answer. */}
+        {/* Hidden entirely when delegations is unavailable (0168 unmigrated) — §A14: an unreadable
+            feature must not masquerade as a configured-but-empty one. */}
+        {!dgUnavailable && (
         <section>
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <UserCheck size={18} /> Cover while you&apos;re away
@@ -433,6 +447,7 @@ export default function FinanceControlsPage() {
             </table>
           </div>
         </section>
+        )}
 
         {/* ── Direct vs fixed costs ────────────────────────────────── */}
         {/* This section exists because three features silently depended on a column nobody could set.
