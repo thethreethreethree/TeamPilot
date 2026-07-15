@@ -3,6 +3,8 @@ import {
   validateUploadCandidate,
   AGENT_MAX_BYTES,
   CUSTOMER_MAX_BYTES,
+  EXECUTABLE_EXTENSIONS,
+  BLOCKED_EXTENSIONS,
 } from "../assets";
 
 /**
@@ -126,5 +128,29 @@ describe("validateUploadCandidate", () => {
     expect(
       validateUploadCandidate({ sizeBytes: 100, mimeType: "text/plain", uploadedVia: agent })
     ).toEqual({ ok: true });
+  });
+});
+
+/**
+ * EXECUTABLE_EXTENSIONS is the dangerous-executable subset used by the recording
+ * upload route (which can't use validateUploadCandidate — that rejects .webm/.mp4).
+ * Its whole purpose: block executables WHILE allowing media. Lock both directions so
+ * a future edit can't (a) drop an executable or (b) accidentally add a media ext.
+ */
+describe("EXECUTABLE_EXTENSIONS (recording-upload defense-in-depth)", () => {
+  it("blocks the dangerous executables", () => {
+    for (const ext of [".exe", ".dll", ".msi", ".bat", ".cmd", ".com", ".scr", ".sh", ".app"]) {
+      expect(EXECUTABLE_EXTENSIONS).toContain(ext);
+    }
+  });
+
+  it("does NOT contain media extensions (recordings are legitimately .webm/.mp4)", () => {
+    for (const ext of [".webm", ".mp4", ".mov", ".m4v", ".mkv"]) {
+      expect(EXECUTABLE_EXTENSIONS).not.toContain(ext);
+    }
+  });
+
+  it("is a strict subset of BLOCKED_EXTENSIONS (no divergent executable)", () => {
+    for (const ext of EXECUTABLE_EXTENSIONS) expect(BLOCKED_EXTENSIONS).toContain(ext);
   });
 });
