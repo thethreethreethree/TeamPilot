@@ -325,8 +325,18 @@ validateUploadCandidate + buildStoragePath (src/lib/storage/assets.ts), the cust
   component, and the extension is sanitized to plain alphanumeric (author documented the exact "evil.x/../secret"
   attack and mitigated it — defense-in-depth even if the backend treats keys literally).
 - **Scope:** session-token → conversation, rate-limited, closed→410.
-Author had already security-audited this (F2 refs); found sound. With class 3 (file ACCESS) + class 19 (widget),
-the entire customer file-handling + public surface is verified — no DoS, spoof, traversal, or cross-tenant vector.
+Author had already security-audited this (F2 refs); the validator itself is sound. With class 3 (file ACCESS) +
+class 19 (widget), the customer file-handling + public surface is verified.
+
+**BUT the §A26 sweep of ALL upload routes found 1 REAL GAP + FIXED it (`0964c64`):** every upload route wires
+validateUploadCandidate EXCEPT coach/sales-session/upload-recording, which rolls its own inline validation —
+because the shared validator's BLOCKED_EXTENSIONS rejects .webm/.mp4 (legitimate recording formats). Its MIME
+check (startsWith audio/|video/) is browser-spoofable, so an executable uploaded as Content-Type audio/webm
+passed with NO extension check. Low severity (authenticated agent route; stored as an opaque {uuid} asset served
+as audio, not executed), but it's the exact class BLOCKED_EXTENSIONS exists for. Fixed: new shared
+EXECUTABLE_EXTENSIONS subset checked in the recording route — blocks executables while allowing media; 3 tests
+lock it. TS fix, already-live on deploy. Lesson: "validator wired everywhere?" is a §A26 class worth sweeping —
+the customer route's own comment ("tested but never wired into this PUBLIC route") hinted the wiring was uneven.
 
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
