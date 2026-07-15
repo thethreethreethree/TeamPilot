@@ -851,6 +851,27 @@ mechanical check rather than manufacture one to satisfy build pressure (§5, §A
 the team to ignore it — worse than no gate. If a future refactor ever consolidates these base policies, classes
 40/41 + the trigger comments are the guardrail.
 
+## 51. C.A.R.E performance grader (§3.5 analog for the care product) — VERIFY-CLEAN, hypothesis refuted
+The coach-readout (46) is the ELOSTATE-product effectiveness surface; C.A.R.E has its own agent grader
+(`care/grader.ts`), un-audited this session. Hypothesis: does it grade agents by CONSEQUENCE or commit the §3.5
+grading-own-homework sin (agreement / the model's opinion of itself)? Refuted — the architecture mirrors 46:
+- **The grade can't be self-inflated** — `validateCounts` sanitizes the model's self-report into trustworthy
+  countables (positives→0/1, risks→non-negative ints, malformed→null); `deriveGrade` computes the grade FROM
+  those countables, "never the model's opinion" (its own §3.5 comment). Positives = acknowledged/answered/
+  next_step; risks = unsupported_absolutes/fabricated_specifics(hallucination)/empty_filler. Any risk or <2
+  positives → needs_guidance; 3/0 → productive. The model cannot grade itself "productive" by asserting it.
+- **It's the MECHANISM measure, used correctly as per-reply feedback** — `messages/route.ts` stores
+  `coach_grade` on the individual message. NOT aggregated into a headline "agent effectiveness" verdict, so it
+  isn't the mechanism-masquerading-as-result trap.
+- **CONSEQUENCE is measured SEPARATELY and honestly** — `care/agent/analytics` computes `resolutionRate` from
+  `resolved_at IS NOT NULL` (the durable event, NOT current status), its comment naming it: "Counting [current
+  status] would be a §3.4/§3.5 perverse signal. resolved_at IS NOT NULL is the honest measure." (This is the
+  resolution-rate fix shipped earlier THIS session.)
+So C.A.R.E splits it exactly as §3.5's causal order demands: reply-quality per-reply for COACHING (mechanism),
+resolution durability in aggregate for EFFECTIVENESS (consequence). **Both products' moat metrics now verified
+§3.5-sound: ELOSTATE coach-readout (46) + C.A.R.E grader/analytics (51).** The grading-own-homework prohibition
+holds across the whole product, not just the surface I first checked.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
