@@ -44,9 +44,11 @@
 >   no NOT-NULL-no-default hazard — it applies cleanly in numeric order onto the current schema. The ONLY residual
 >   is data-content constraint violations (an existing row tripping a new CHECK/UNIQUE/FK), which only your dev
 >   `supabase db push` can surface. Apply with confidence; if one fails, it'll be a data issue, not a broken migration.
-> - **DECIDE 8:** tax attribution · blocker_reason *transition*-surface UX · Cancelled-first-class · profitability
->   dims · signal backstop · bootstrap DoS · CRM control-month · **depreciation rounding-stub (LOW, cosmetic —
->   absorb residual into final scheduled slice vs. accept a trailing sub-cent period)**.
+> - **DECIDE 10** (each has a reasoned recommendation in FOUNDER-ACTION-QUEUE.md): tax attribution · blocker_reason
+>   *transition*-surface UX · Cancelled-first-class · profitability dims · signal backstop (design verified,
+>   greenlight-ready) · bootstrap DoS · CRM control-month · depreciation rounding-stub (LOW) · **LLM chokepoint
+>   rate-limit (LOW, no current gap)** · **postcss dependency advisory (LOW, non-exploitable — do NOT run
+>   `npm audit fix --force`)**.
 > - **CONFIG:** `CRON_SECRET`·VAPID·runbook·**confirm Supabase Auth rate limits** (dashboard — brute-force
 >   protection is delegated to GoTrue and on-by-default; just confirm the values are sane, class 60).
 
