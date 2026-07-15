@@ -621,6 +621,36 @@ PostgREST call, not reachable through the UI — but RLS is the boundary, and it
 MUST CONFIRM 0090 (+ its coupled care-agent-settings service-role change) is applied. This is the single most
 important item surfaced this session. In the founder queue, top priority.
 
+## 41. §A26 BOUNDARY SWEEP of the class-40 pattern — + an honest severity CORRECTION of class 40
+Class 40 is a *class* ("self-scoped UPDATE policy — `using (... = auth.uid())` with no `with check` — leaves a
+privileged column self-writable"), not a one-off, so §A26 requires sweeping its boundary. Enumerated every
+self-scoped write policy in the schema:
+- **profiles** (0001:111) — the class-40 hole → guarded by trigger **`0090`** (`profiles_guard_privileged`).
+- **chat_participants** (0010:192) — update policy gates only on topic-in-same-company (no `user_id=auth.uid()`,
+  no `with check`); the table has a `role` column (admin/member/observer) that IS consumed for authz
+  (topic-decision locking at chat/topic-decisions/route.ts:91; RLS 0033). So a member could `PATCH` their own
+  participant row to `role='admin'` (self-promote) or set another user's `left_at` (kick from a private topic).
+  **Already found + fixed — migration `0093`** (`chat_participants_guard_privilege`, BEFORE trigger:
+  "role may only be changed by a topic admin"). Same guard pattern as 0090.
+- **care_agent_state** (0042:152) — hardened by `with check` (0095) + tenant-pin (0156). ✓
+- **fin_expense_reports** (0125) — has a status-guarded `with check`. ✓
+- **files** (0154) — company-pin `with check` (0154). ✓
+- The many `for update using (company_id = auth_company_id())` policies with no explicit `with check` are SAFE:
+  Postgres defaults `with check` to the `using` expression, so company_id is pinned to the caller's tenant.
+  profiles was unique precisely because its `using (id = auth.uid())` said nothing about company_id.
+
+**Conclusion — the class is CLOSED in migrations, by two triggers: `0090` (profiles) + `0093` (chat_participants).**
+
+**CORRECTION of class 40's severity (§5 honesty / §A24 don't-manufacture-severity):** class 40 called this
+"a LIVE CRITICAL … the single most important item," reasoning that `0090` is below the applied `0094-0115`
+range. That over-stated it. **Supabase applies pending migrations strictly in numeric order — it cannot apply
+`0094` while `0090`–`0093` are pending.** Applying through `0115` therefore necessarily applied `0090`–`0093`
+first. Realistic status: **applied.** The correct action is a one-query confirmation, not an alarm:
+`select tgname from pg_trigger where tgname in ('profiles_guard_privileged','chat_participants_guard_privilege');`
+(expect 2 rows). Only a hand-applied out-of-order history could leave a gap. Founder queue updated to reflect
+this (🟠 confirm, not 🔴 live-hole). The finding remains worth surfacing — the fixes' *existence* is what makes
+the base-policy holes moot — but the honest severity is "confirm the ordering held," not "critical live hole."
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to

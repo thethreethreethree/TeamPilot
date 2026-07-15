@@ -6,14 +6,23 @@
 > verified & tested where testable; ~11 verified-clean; ~9 false-findings refuted before reporting.** Full
 > trail: `docs/closures/2026-07-16-security-class-sweep.md`. New founder-actionable items on top of the batch below:
 >
-> **🔴 TOP PRIORITY — CONFIRM `0090` IS APPLIED (possible LIVE cross-tenant hole):** `0090` freezes
-> profiles.role/company_id/etc. against direct authenticated writes. WITHOUT it, a user could
-> `PATCH /rest/v1/profiles {company_id: <any-tenant>}` and — since auth_company_id() trusts that value — gain
-> full cross-tenant read/write (or vendor super-admin). Its own text says "the hole is open until then." You
-> applied 0094-0115; `0090` is BEFORE that range, so I can't confirm it's applied. **Run
-> `select 1 from pg_trigger where tgname='profiles_guard_privileged'` (or check the profiles triggers) — if
-> absent, APPLY `0090` immediately + its coupled care-agent-settings service-role change.** Fix exists and is
-> exemplary; only its application is unverified.
+> **🟠 CONFIRM the privileged-column guards are applied (1 query — almost certainly already are):** Two
+> BEFORE-UPDATE triggers freeze self-writable privileged columns that RLS base policies (`using` clauses
+> without a `with check`) leave open:
+> - **`0090` → `profiles_guard_privileged`** — freezes profiles.role/company_id/sales_coach_role/is_support_agent.
+>   Without it, a crafted `PATCH /rest/v1/profiles {company_id: <any-tenant>}` would let a user re-tenant
+>   themselves (auth_company_id() trusts that value) → full cross-tenant access, or vendor super-admin.
+> - **`0093` → `chat_participants_guard_privilege`** — freezes chat_participants.role. Without it a member could
+>   self-promote to topic `admin` (which gates topic-decision locking) via a direct PATCH.
+>
+> **Realistic status: applied.** Supabase applies pending migrations strictly in numeric order — it *cannot*
+> apply `0094` while `0090`–`0093` are pending. You applied through `0115`, so `0090`–`0093` were necessarily
+> applied first. This is a confirmation, not an alarm — my earlier "possible LIVE hole" framing over-stated it.
+> **One query settles both:**
+> `select tgname from pg_trigger where tgname in ('profiles_guard_privileged','chat_participants_guard_privilege');`
+> Expect 2 rows. If either is missing (only possible via hand-applied out-of-order migrations), apply that
+> migration + `0090`'s coupled care-agent-settings service-role change. The fixes are exemplary; only their
+> application state was ever in question, and the ordering model says it's fine.
 >
 > **APPLY (2 new migrations, after the `0157–0182` batch):**
 > - **`0184`** — task-overrun sweep now excludes CANCELLED tasks (was emitting false `task_slipped` signals).
