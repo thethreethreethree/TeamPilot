@@ -130,6 +130,21 @@ C.A.R.E site already used the correct vocabulary — the bug was localized to th
 separately against an assumed model). Baseline lesson: a metric's status filter must be checked against the
 actual CHECK-constraint enum, not the prose — prose and query here were wrong TOGETHER.
 
+## 10. FRESH-SURFACE (§1.7) — C.A.R.E "Resolution rate" undercounted archived-resolved conversations — 1 FIX
+Continued into the C.A.R.E SLA/analytics readouts. `fetchSlaWithDurabilityReadout` — VERIFIED CLEAN (FRT math
+correct; outcome domain held/reopened/inconclusive matches 0036 exactly; no phantom statuses). But the agent
+analytics "Resolution rate" (resolved / total) counted its numerator as `status === 'resolved'`. Archiving a
+resolved conversation sets status='closed' (overwrites 'resolved'), while `resolved_at` persists (0034 trigger
+stamps on resolve, never clears). So a resolved-then-archived conversation left the numerator but stayed in the
+denominator — the rate FELL the more a team archived resolved work (§3.4/§3.5 perverse signal on a hard metric).
+**Fixed `25558ea`** → count `resolved_at !== null` (ever-resolved); byStatus distribution still keys off current
+status (correct). 3 tests. Same class as the "Open tasks" overcount: count the PERSISTENT field, not the
+transient status. Baseline lesson: a RATE metric's numerator must key off the durable event (resolved_at,
+completed timestamp), never a mutable status that a later lifecycle step overwrites.
+
+Fresh-surface audit tally (C.A.R.E read-path): 2 real fixes (command stats phantom-status #9, resolution-rate
+#10), 1 verified-clean (SLA readout). Honest §1.7 outcome — flags AND solid findings both on record.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
