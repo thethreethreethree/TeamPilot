@@ -548,6 +548,9 @@ drift. In the founder queue. (This is the one LIVE bug found late that isn't alr
 ## 30. C.A.R.E conversation ROUTING (routeNewConversation) VERIFIED — tenant-scoped, no cross-tenant assign
 routeNewConversation: agent selection filters .eq("company_id", conversation.companyId) + status=online + channel eligibility; the load count (least-loaded balancing) is likewise company-scoped (OPEN_CONVERSATION_STATUSES). So a conversation can NEVER be auto-assigned to another company's agent (a routing bug there = cross-tenant data exposure). Graceful "unrouted" when no eligible agent. Unit-tested (care.routeNewConversation.test.ts). Both hypotheses (cross-tenant, capacity) handled. Security-relevant clean, complements the service-role sweep (21) + widget audit (19).
 
+## 31. C.A.R.E email INBOUND threading (care/inbound/email) VERIFIED — standard + tenant-safe
+Exemplary: (1) tenant resolved from the To: address's UNIQUE inbound_email_local_part (not spoofable subject/sender); unknown/inactive tenant → ignored 200 (no retry loop). (2) customer keyed on company_id+email (same email at different tenants = different rows). (3) threading matches In-Reply-To/References headers (RFC-5322 globally-unique message-ids) against external_thread_id — NOT subject/sender, so no cross-thread collision. (4) external_message_id dedup makes webhook retries idempotent. (5) concurrent-first-email race re-selects the customer (no orphan). No cross-thread/cross-tenant leak. Weak-match-key hypothesis handled.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
