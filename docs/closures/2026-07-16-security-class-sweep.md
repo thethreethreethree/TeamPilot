@@ -185,6 +185,24 @@ fix: thread the invoice's dimensions onto the 4900 posting line(s) in fin_issue_
 (credit note AND project-tagged invoice); GL/AR figures are unaffected (they're correct). Founder's call —
 touches the double-entry posting path.
 
+## 13. FRESH-SURFACE (§1.7) — tax report VERIFIED CORRECT (known, founder-gated limitation, handled well)
+fin_tax_report (0150): output tax (issued invoices) − input tax (approved bills) by jurisdiction. Correct.
+The credit-note gap (output_tax is gross, doesn't subtract tax reversed by issued credit notes) is NOT a bug —
+it is KNOWN, documented in-migration (0150:38-44), user-warned (the Tax page shows a matching banner so no one
+files a wrong number), and DELIBERATELY deferred as a founder decision: credit-note lines carry no tax_code_id
+→ no jurisdiction, so attributing the reversed tax (linked invoice's jurisdiction? proportional? Unassigned?)
+is a design choice the code refuses to guess ("Do NOT silently guess the attribution here"). Exemplary §3.3.
+CONCRETE FOUNDER DECISION SURFACED (decision-ready per the financial-system memo: leaning 'proportional'):
+pick the credit-note tax attribution rule, then output_tax netting becomes a mechanical follow-up.
+
+## Audit boundary reached (honest §1.7 close)
+Findings this run got progressively subtler: #1-3 hard bugs → #9 (C.A.R.E command stats) + #10 (resolution
+rate) + #11 (AR credit notes) real → #12 subtle flag → #13 known-and-handled limitation. The later finance
+migrations (0150 tax, 0159 dunning) are carefully self-documenting; the real bugs clustered in earlier/middle
+work (0136 dashboard, 0175 forecast) that predated that discipline. This is the signal that the metric-integrity
+audit has reached its productive boundary — further drilling now returns verified-clean or founder-gated
+limitations, not fixes. The bottleneck is founder application of the queued fixes/decisions, not more audit.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
