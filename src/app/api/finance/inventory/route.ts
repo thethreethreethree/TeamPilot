@@ -22,10 +22,15 @@ export async function GET() {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const [items, check, shrink, periods] = await Promise.all([
+  const [items, check, shrink, missingCogs, periods] = await Promise.all([
     sb.from("fin_inventory_items").select("id, sku, name, qty_on_hand, avg_cost, is_active").order("sku"),
     sb.from("fin_inventory_check").select("item_id, sku, discrepancy, stated_value"),
     sb.from("fin_inventory_shrinkage").select("month, write_offs, units_lost, value_lost").order("month", { ascending: false }).limit(12),
+    // 0181's backstop view. It SHOULD always be empty — an invoice that sold stock but never costed it is
+    // carrying a 100% gross margin, and every profitability page in the product is reading that lie. The
+    // view exists to catch anything issued before 0181, or through any path that bypassed fin_issue_invoice.
+    // Before this it was queried by nothing: a safety net that was never hung. Now it is (§A31).
+    sb.from("fin_invoices_missing_cogs").select("invoice_id, invoice_number, invoice_date, stock_lines"),
     sb.from("fin_periods").select("id, status").eq("status", "open").limit(1),
   ]);
 
@@ -37,6 +42,8 @@ export async function GET() {
     // something wrote to the item directly, bypassing the RPCs — the movements are what actually happened.
     discrepancies: (check.data ?? []).filter((c) => Math.abs(Number(c.discrepancy ?? 0)) > 0.0001),
     shrinkage: shrink.data ?? [],
+    // Invoices that sold stock without posting its cost. Empty is the healthy state; any row is a margin lie.
+    missingCogs: missingCogs.data ?? [],
     openPeriodId: periods.data?.[0]?.id ?? null,
   });
 }

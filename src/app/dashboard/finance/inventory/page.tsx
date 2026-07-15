@@ -37,6 +37,7 @@ type Item = {
 };
 type Disc = { item_id: string; sku: string; discrepancy: number; stated_value: number };
 type Shrink = { month: string; write_offs: number; units_lost: number; value_lost: number };
+type MissingCogs = { invoice_id: string; invoice_number: string; invoice_date: string; stock_lines: number };
 
 export default function InventoryPage() {
   const toast = useToast();
@@ -44,6 +45,7 @@ export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [discrepancies, setDiscrepancies] = useState<Disc[]>([]);
   const [shrinkage, setShrinkage] = useState<Shrink[]>([]);
+  const [missingCogs, setMissingCogs] = useState<MissingCogs[]>([]);
   const [periodId, setPeriodId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,6 +67,7 @@ export default function InventoryPage() {
     setItems(j.items ?? []);
     setDiscrepancies(j.discrepancies ?? []);
     setShrinkage(j.shrinkage ?? []);
+    setMissingCogs(j.missingCogs ?? []);
     setPeriodId(j.openPeriodId ?? null);
     setReady(true);
   }, []);
@@ -146,6 +149,38 @@ export default function InventoryPage() {
                   {discrepancies.map((d) => (
                     <li key={d.item_id}>
                       {d.sku}: out by {d.discrepancy}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 0181's backstop, now visible. An invoice that sold stock but never posted its cost carries a
+            100% gross margin, and every profitability/break-even/unit-economics page in the product reads
+            that lie while the trial balance ties out to the penny. Empty is the healthy state — this whole
+            block is invisible then. Any row means the number is already wrong somewhere downstream. */}
+        {missingCogs.length > 0 && (
+          <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+              <div>
+                <div className="font-semibold">
+                  {missingCogs.length} {missingCogs.length === 1 ? "invoice" : "invoices"} sold stock without
+                  recording what it cost.
+                </div>
+                <p className="mt-1">
+                  These are reporting a <strong>100% gross margin</strong> on those sales — every
+                  profitability and break-even figure that reads them is overstated. It usually means the
+                  invoice was issued before cost-tracking was enabled, or through a path that skipped it.
+                  Re-issuing or adjusting them restores the true margin.
+                </p>
+                <ul className="mt-1 list-disc pl-4">
+                  {missingCogs.map((m) => (
+                    <li key={m.invoice_id}>
+                      {m.invoice_number} ({m.invoice_date}) — {m.stock_lines}{" "}
+                      {m.stock_lines === 1 ? "stock line" : "stock lines"}
                     </li>
                   ))}
                 </ul>
