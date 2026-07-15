@@ -979,6 +979,26 @@ happens to violate a new CHECK, a duplicate that trips a new UNIQUE, an orphan t
 unknowable from source by definition. The static apply-safety verification is COMPLETE and its boundary is now
 drawn exactly, not hand-waved.
 
+## 57. The data-content residual (class 56) — diagnosed, and it's essentially NIL for this batch
+Considered building a data-content PRE-FLIGHT script (founder runs it against the dev DB before applying, so a
+mid-batch failure becomes a clean pre-check). §2 diagnose-before-building: is it needed? A data-content
+violation needs a constraint on EXISTING data. New nullable columns can't be violated (existing rows are NULL →
+satisfy a nullable FK). Scanned the batch for constraints on EXISTING columns (`set not null` / `add constraint
+check|unique` / `create unique index`). Exactly ONE: 0161 `alter column kind set not null` on the existing
+`fin_expense_items`. Traced its lifecycle:
+  (1) add `kind text` nullable → (2) `update fin_expense_items set kind='receipt' where kind is null` —
+  UNCONDITIONAL backfill of every existing row → (3) CHECK `kind in (receipt,mileage,per_diem)` (satisfied,
+  all backfilled = receipt) → (4) quantity/kind CHECK (satisfied: receipt ⇒ quantity null, and quantity is a
+  just-added nullable col) → (5) `set not null` (succeeds — step 2 left no NULL).
+The one constraint-on-existing-data backfills itself completely before enforcing. So the batch's data-content
+violation risk is ESSENTIALLY NIL, and the pre-flight script would address a risk that's already handled —
+DECLINED to build it (don't build what isn't needed, §5/§2, same discipline as class 50's declined gate).
+**This closes apply-safety to its true floor:** object forward-refs (54), column forward-refs (55),
+NOT-NULL-structural (56), and now the sole constraint-on-existing-data (57) — ALL verified clean. The batch
+applies cleanly onto the current schema AND its one existing-data constraint is self-backfilling. The residual
+genuinely unknowable-from-source is now near-empty for THIS queue (it would only reappear if the founder's real
+data somehow held a NULL `kind` the unconditional `where kind is null` update couldn't reach — impossible).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
