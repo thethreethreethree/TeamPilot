@@ -1198,6 +1198,9 @@ add `{ "path": "/api/finance/reports/deliver-cron", "schedule": "0 5 * * *" }` A
 A33/§2 in practice — I did NOT build the tempting thing (the cron entry) because diagnosing first showed it would
 create an erroring cron; the honest output is the correct sequence, not premature motion. The 3 live crons + the
 1 correctly-sequenced dormant one are now precisely documented for the founder's post-apply step.
+**§A26 boundary swept:** enumerated ALL `*-cron` routes (4) vs `vercel.json` entries (3) — `deliver-cron` is the
+ONLY dormant one; no other cron route is unscheduled. The cron-wiring surface is fully accounted for: everything
+is either live-once-`CRON_SECRET`-set or the one correctly-sequenced-post-`0172` entry. No hidden dormant task.
 
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
