@@ -368,6 +368,18 @@ Swept every API route for rateLimit. Findings:
   wrong-origin tracking the founder wants. The threshold is a founder call. Confidentiality/integrity is
   unaffected (bootstrap returns only safe fields, class 19) — this is availability/cost only.
 
+## 23. 0182 variance-alerts VERIFIED SOUND (realistic cases) + 1 negligible latent note
+fin_budget_variance (0182): makes the previously-DEAD variance_alert_pct real (dead config that implied a
+working control — good catch, author's own "reachability gate"). Direction-aware alerting is correct and
+well-reasoned: expense → alert on OVERspend, revenue → alert on UNDERshoot, deliberately avoiding
+abs(variance)>threshold (which would fire on BEATING a sales target — §A25 alert-fatigue). variance_pct NULL
+when budget=0 (correct — % of nothing is undefined, not 0). Realistic cases (revenue/expense budgets) correct.
+NEGLIGIBLE latent note (not a live bug): the is_alert expense/else branch computes actual as debit−credit
+uniformly, while the `actual` COLUMN is type-aware (credit−debit for revenue/liability/equity). So a
+LIABILITY/EQUITY budget line would mis-compute in is_alert — but budgets are realistically revenue/expense
+only, so it's a dead edge case. If liability/equity budgeting is ever added, mirror the actual column's
+type-awareness in is_alert. Severity ~nil.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
