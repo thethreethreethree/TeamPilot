@@ -1262,6 +1262,20 @@ one-off probe — it found a constitutional-critical untested pure fn the ad-hoc
 pinned on BOTH sides this session: the control-GATE (`evaluateControlGate`, class 49, fail-closed) AND the
 control-PHASE resolver (class 73).** The moat's month-1 lock is test-protected end to end.
 
+## 74. §3.3 ASK-FIRST schema now CI-pinned (DialogueDecisionSchema) — found by the constitutional-constant lens
+New systematic lens (after coverage-scan → cycle-phase): constitutional CONSTANTS encoded in JS — are they
+test-pinned so a silent weakening is caught? Checked the §3.3 ask-first enforcement: `DialogueDecisionSchema`
+(situation + userDiagnosis + userProposal, each `.min(20)`) — verified sound at the API level in class 48, but
+NOT test-pinned (validate.test.ts tested only the generic `readBody`). A future edit lowering `.min(20)` to
+`.min(1)` or `.optional()` would silently gut "guide-don't-overtake" (the System could respond before the human
+articulates their own read) and pass CI. Added 5 cases to `validate.test.ts` pinning the contract: accepts when
+all three ≥20; REJECTS a short/missing userDiagnosis or userProposal; pins the exact 20-char floor (20 passes,
+19 fails). Plus 2 cases for `RippleTraceSchema` (diagnosis `.min(40)` before a candidate action). All pass.
+**§3.3 (ask-first) now joins §3.4 (cycle-phase, class 73; control-gate, class 49) as CI-pinned constitutional
+enforcement.** The pattern holds: a NEW systematic lens (constitutional-constant) found a genuine untested
+enforcement the ad-hoc probes missed. The moat's structural interrupts are increasingly protected in CI, not
+just prose — the strongest form of §A30 (gate the lesson) for the thesis core.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
