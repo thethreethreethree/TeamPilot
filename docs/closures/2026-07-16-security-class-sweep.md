@@ -257,6 +257,20 @@ core integrity risk. A clean backstop is non-trivial: `signals` carries no `even
 legitimately non-unique (a task blocked twice = two real task_blocked signals), so dedup needs an `event_id`
 column first — a schema decision, founder-domain. No fix applied (no live bug; the fix is a schema call).
 
+## 17. §3.2 UNDERSTANDING GATE trigger VERIFIED SOUND (+ downgrades the class-16 flag)
+Audited check_understanding_gate (0002) — the single most constitutionally-important trigger (structural refusal
+to surface a half-understood problem). Correct at every point: fires on draft→non-draft AND direct
+INSERT-as-surfaced (can't sneak a problem in already-surfaced); dismiss bypasses correctly; threshold lookup by
+kind → '*' fallback; signal_count = distinct signals (the (problem_id,signal_id) PK prevents double-links),
+source_count = count(distinct source); STRICT `<` comparisons = correct "needs ≥ N" with NO off-by-one; diagnosis
+min-length enforced; surfaced_at stamped. Sound.
+
+**Downgrades class 16:** even IF signals were duplicated (the latent derive-idempotency risk), duplicates share
+the same `source`, so `count(distinct source)` is UNAFFECTED — `min_distinct_sources` is a built-in partial
+mitigation: a problem still cannot surface without genuinely distinct evidence. The class-16 backstop remains
+worth adding (signal_count could still inflate), but the §3.2 gate is NOT wide open to it — lower severity than
+first stated.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
