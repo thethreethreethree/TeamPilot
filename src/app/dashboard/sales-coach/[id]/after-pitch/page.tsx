@@ -214,7 +214,12 @@ export default function AfterPitchPage() {
       const [sRes, apRes, sumRes] = await Promise.all([
         fetch(`/api/coach/sales-session/${id}`).catch(() => null),
         fetch(`/api/coach/sales-session/${id}/after-pitch`).catch(() => null),
-        fetch(`/api/coach/sales-session/${id}/summarize`).catch(() => null),
+        // "What happened" is only rendered on the EXPERT branch; Standard never
+        // shows it, so don't pay for the round-trip there (audit cycle 1, AMD-006
+        // L1 — don't do work the surface won't use).
+        isStandard
+          ? Promise.resolve(null)
+          : fetch(`/api/coach/sales-session/${id}/summarize`).catch(() => null),
       ]);
       if (sRes && sRes.ok) setSession((await sRes.json()).session);
       if (sumRes && sumRes.ok)
@@ -234,7 +239,7 @@ export default function AfterPitchPage() {
     } catch {
       setLoading(false);
     }
-  }, [id, generate]);
+  }, [id, generate, isStandard]);
 
   useEffect(() => {
     void load();
