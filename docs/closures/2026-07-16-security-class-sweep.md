@@ -592,6 +592,17 @@ session, so a user can read ONLY their own company's rows, by ANY path. Cross-te
 With the service-role sweep (21), widget audit (19), routing (30), and email threading (31), tenant isolation
 is verified across EVERY access path — RLS reads+writes, service-role routes, and the public surfaces.
 
+## 39. auth_company_id() — the TENANT-ISOLATION LINCHPIN — VERIFIED un-spoofable
+Every tenant-isolation guarantee (classes 19/21/30/31/38, all 88 files) rests on this one function. Definition
+(0001:86-91): `select company_id from profiles where id = auth.uid()`. It resolves the caller's company from
+their PROFILE ROW, keyed by auth.uid() — the user id derived from the cryptographically-VERIFIED session JWT,
+NOT a client-supplied claim or parameter. A user cannot forge auth.uid(); company_id is set by the email-matched
+onboarding/invite-accept path (0114, class 28). security definer reads ONLY the caller's own profile, so it
+leaks nothing and returns nothing but the caller's own company. Therefore `company_id = auth_company_id()`
+across the schema is a trusted, unforgeable check. The single most important security function in the codebase;
+sound. Spoofability hypothesis handled. This is the FOUNDATION under all of classes 19/21/30/31/38 — they are
+only as good as auth_company_id(), and it is correct.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
