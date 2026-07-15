@@ -829,6 +829,28 @@ counts, §3.3 schema ask-first, §3.4 fail-closed control-gate, §3.5 equal-N du
 readiness).** The §3 constitutional core — the product's entire thesis-defense — is comprehensively sound by
 enforcement evidence, not prose, and the one memory-only claim is now re-earned by reading (§0.1 satisfied).
 
+## 50. Considered a mechanical gate for the self-write class (40/41) — DECLINED, with reasoning (§5)
+The §1.6 instinct after finding a class is to make it mechanical (as INVARIANT 5 did for uploads). Measured
+whether the self-scoped-update-without-WITH-CHECK class (40/41) admits a precise gate. It does NOT, and building
+a noisy one would be the §5 "less honest for a faster result under pressure" failure. Reasoning on the record:
+- The pattern is ~7 distinct self-scoped UPDATE policies; most already carry a `with check` or a guard trigger
+  (profiles→0090, care_agent_state→0095/0156, files→0154, fin_expenses→0125, chat_participants→0093,
+  notification_subscriptions→0029/0107).
+- A PRECISE gate must distinguish a DANGEROUS self-scoped update (`using (id = auth.uid())` pins the row but
+  leaves a PRIVILEGED column — role/company_id — writable) from a SAFE one (where `with check` defaults to
+  `using` and pins everything that matters). That "is there a privileged column on this table" judgment is NOT
+  statically determinable from the SQL. So:
+  - BROAD gate (flag every self-scoped update lacking an explicit `with check`) → fires on legitimately-safe
+    policies → false-positive noise, below the precision bar the other invariants hold.
+  - NARROW gate (assert the 0090/0093 triggers exist in the migration set) → near-trivially true given
+    append-only migrations, and cannot detect the real risk (a FUTURE `DROP`).
+- INVARIANT 5 earned its place because the upload pattern was UNAMBIGUOUS. This one isn't. The lesson is instead
+  carried by (a) the two guard triggers themselves, (b) the baseline note below, (c) classes 40/41's record.
+DECISION: no gate built. The discipline demonstrated: after measuring, decline to ship a persuasive-but-noisy
+mechanical check rather than manufacture one to satisfy build pressure (§5, §A24). A gate that cries wolf trains
+the team to ignore it — worse than no gate. If a future refactor ever consolidates these base policies, classes
+40/41 + the trigger comments are the guardrail.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
