@@ -89,12 +89,21 @@
 >   construction today, but `signals` has no unique constraint, so a future re-derive path (backfill/retry)
 >   would double signals + inflate the §3.2 gate count. A clean backstop needs an `event_id` column on
 >   `signals` (they carry none; (kind,source) is legitimately non-unique). Add it now, or accept the risk?
->   **My rec: ADD it — cheap insurance on the one load-bearing invariant.** This is the exception to my usual
->   "don't build what isn't needed": normally a hypothetical risk waits, but §3.2 (the Understanding Gate) is
->   THE structural bottleneck the whole thesis rests on, and a doubled signal count silently inflating it is a
->   quiet corruption of the product's core claim. `event_id` + a unique index is small, safe, and closes the
->   door before any re-derive path can be written. Low urgency, high leverage. (Lean add — the invariant's
->   importance justifies pre-emption here.)
+>   **My rec: ADD IN TWO PARTS — and I corrected my own first take here (§5).** I initially wrote "add
+>   event_id + a unique index, cheap insurance." Designing it precisely showed that conflates a cheap part and a
+>   careful part:
+>   - **Part 1 (cheap, do it): the `event_id` column + thread it through `derive_signals_for_event`.** Nullable
+>     column (existing signals can't backfill — they carry no event link), and the derive function ALREADY has
+>     `p_event_id` in scope (0014), so storing it is behavior-preserving. This is the genuinely cheap piece and
+>     it's the prerequisite for any future backstop.
+>   - **Part 2 (careful, DON'T do blind): the partial unique index `(event_id, kind, source)`.** The live derive
+>     (0014) inserts ONE signal per matching `signal_sources` rule, so this index is only safe if no two enabled
+>     rules for the same event_kind produce the same (signal_kind, source_template). If a redundant rule exists,
+>     the index turns benign config redundancy into a HARD derivation failure — breaking the §3.1→§3.2 chain for
+>     that event. That's a data question about your `signal_sources` I can't see headlessly. Confirm "no
+>     redundant rules" (a one-line query) BEFORE adding the index, or make it a monitoring check instead of a
+>     hard constraint. §3.2 importance still justifies Part 1 pre-emptively; Part 2 needs the data check first.
+>   (Corrected lean: do Part 1 now; gate Part 2 on a redundancy check. My original "cheap" undersold Part 2.)
 > - **Recurring-bill month-end DRIFT** (minor, LIVE, 0140 applied) — a monthly/quarterly/annual bill anchored
 >   to day 29/30/31 drifts to day 28 after February and never recovers (`next_date + interval '1 month'` clamps
 >   Jan 31→Feb 28→Mar 28). Your recorded "recurring-drift = anchor-day" decision was NEVER implemented. Minor

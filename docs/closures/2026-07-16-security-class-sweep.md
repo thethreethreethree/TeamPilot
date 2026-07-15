@@ -999,6 +999,27 @@ applies cleanly onto the current schema AND its one existing-data constraint is 
 genuinely unknowable-from-source is now near-empty for THIS queue (it would only reappear if the founder's real
 data somehow held a NULL `kind` the unconditional `where kind is null` update couldn't reach — impossible).
 
+## 58. Verifying my OWN recommendation corrected it — the signal backstop is two parts, not "cheap insurance"
+After adding recommendations to the 9 decisions (class-57 era), §3.3/§4/§5 obliged me to verify the one I
+recommended building ("signal backstop → ADD, cheap insurance") before the founder acts on it. Designing the
+migration precisely refuted the "cheap" framing — it's the §5 confident-answer-that-arrived-too-quickly:
+- **Part 1 — `event_id` column + thread through `derive_signals_for_event`** — genuinely cheap: nullable column
+  (existing signals carry no event link to backfill), and the live derive (0014) already has `p_event_id` in
+  scope, so storing it is behavior-preserving.
+- **Part 2 — partial unique index `(event_id, kind, source)`** — NOT cheap. The live derive inserts one signal
+  PER matching `signal_sources` rule (outer loop over rules where event_kind matches). So the index is only safe
+  if no two enabled rules for one event_kind emit the same (signal_kind, source_template). If a redundant rule
+  exists, the index converts benign config redundancy into a HARD derivation failure — breaking the §3.1→§3.2
+  chain for that event. That's a question about the founder's `signal_sources` DATA, unknowable from source.
+Corrected the founder-queue recommendation: do Part 1 now (cheap, behavior-preserving, enables the backstop);
+gate Part 2 on a "no redundant rules" data check, or implement it as monitoring rather than a hard constraint.
+**This is the value of verifying your own advice before it's acted on** — same discipline as the class-41 0090
+severity correction, one level up: the recommendation, not just a finding, was over-confident, and designing the
+HOW (§3.3 "offer the how, not just the why") is what exposed it. I did NOT build either part (Part 1 is
+low-risk but still touches the load-bearing derive function, and it pre-empts a fresh open decision — §3.3 says
+guide, the founder greenlights, THEN I build carefully; contrast the recurring-drift build, which had a RECORDED
+prior decision). The correction strengthens the advice without overtaking the call.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
