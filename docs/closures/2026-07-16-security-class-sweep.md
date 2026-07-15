@@ -213,6 +213,11 @@ limitations, not fixes. The bottleneck is founder application of the queued fixe
   already-matched GL entries (`not exists`, re-checked each loop iteration → no double-match even in one run),
   matches only on exactly-one candidate, idempotent; manual path holds the same 1:1 invariant.
 
+- **fin_run_depreciation (0166):** correct — salvage clamp `least(monthly, (cost−salvage)−accum)` (book value
+  never drops below salvage), double-post guard ((asset,period) unique + skip-existing + row lock), numeric not
+  float, active-only + open-period + post-acquisition guards, Dr 6500/Cr 1900 via the balance-asserted path.
+  My hypothesis (over-depreciation past salvage) was exactly what the author anticipated and clamped.
+
 Eleven verify-clean/known-limitation results now stand alongside the ~14 fixes. Confirmed pattern: real bugs
 lived in the EARLIER/middle migrations (transition guard, C.A.R.E command stats, 0136 dashboard, 0175 forecast);
 the LATER finance work (0149/0150/0159 + 0145 algo) is consistently careful and correct. The metric-integrity +
