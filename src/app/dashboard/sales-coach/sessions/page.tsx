@@ -35,6 +35,7 @@ import {
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { StartSessionPanel } from "@/components/sales-coach/StartSessionPanel";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 
 /**
  * Sales Coach → Sessions (Phase 1). The full, filterable session history.
@@ -100,6 +101,11 @@ function duration(start: string, end: string | null): string {
 }
 
 export default function SalesCoachSessionsPage() {
+  // Spec p2 (founder-confirmed 2026-07-15): the Sessions tab is browse-only in
+  // Standard — growth opportunities, where-sessions-stand, search, history. The
+  // "Start a coaching session" card is removed here; starting a session lives on
+  // Home. Expert keeps the start panel on this tab, unchanged.
+  const { isStandard } = useExperienceMode();
   const [sessions, setSessions] = useState<Row[] | null>(null);
   const [isManager, setIsManager] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -261,10 +267,9 @@ export default function SalesCoachSessionsPage() {
     <>
       <TopBar title="Sessions" subtitle="Your coaching history" />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-4 bg-base">
-        {/* Start a session — the "Live AI Coach & Sessions" card routes here,
-            so the front door to START a session lives at the top, above the
-            history it produces (founder 2026-07-04). §A21 shared panel. */}
-        <StartSessionPanel />
+        {/* Start a session — Expert only. Spec p2: Standard's Sessions tab is
+            browse-only (start lives on Home); Expert keeps the front door here. */}
+        {!isStandard && <StartSessionPanel />}
         {/* ── Coaching insights (moved from Home 2026-07-04) ──────────── */}
         {/* Cue reliance — the training wheels (§3.5). Desktop-only; removed
             from the mobile app per founder 2026-07-04 (§2, mobile scope). */}
