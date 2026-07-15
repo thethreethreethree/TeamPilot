@@ -557,6 +557,9 @@ tasks_spawn_source_xor: check(linked_decision_id is null OR linked_chat_topic_id
 ## 33. SEPARATION-OF-DUTIES (self-approval fraud) VERIFIED across finance approvals
 The anti-self-approval class is sound everywhere: fin_approve_expense_report (0125:94 "cannot approve your own expense report", v_emp = auth.uid() → raise); fin_approve_bill (0130:25 "cannot approve a bill you created" — itself a resolved audit flag where one person could create AND self-approve); fin_subledger_author_pin (0142) pins created_by = auth.uid() in the RLS with-check so authorship cannot be SPOOFED to route around the SoD check. All gated by fin_can_approve + submitted-only + company-scope + open-period. Self-approval fraud vector closed at every approval gate. Hypothesis (approve-your-own) handled.
 
+## 34. PERIOD-LOCK + posting immutability (0118) VERIFIED — TRIGGER-enforced, no bypass
+Stronger than hypothesized: the open-period gate is a TRIGGER on the journal tables (0118:93-107), not a check inside the posting fn. Any insert/update/delete touching a period whose status is closed/locked raises "fin: period is % — post corrections into an open period". Because it is a trigger it binds EVERY writer — the API, all DEFINER posting fns, direct SQL, service-role — so there is NO posting path that can bypass the lock (my hypothesis was "does one path skip the check"; a trigger makes that impossible). Posted entries/lines are also immutable (T-14). Closed books are truly sealed. Financial-integrity control sound.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
