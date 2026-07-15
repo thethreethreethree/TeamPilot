@@ -511,19 +511,18 @@ gated). **Net: the maxDuration class is now genuinely complete — every in-path
   would harden it if you want strict AA. Left un-churned deliberately. (The one real a11y *defect* — two
   nameless icon-only buttons — was fixed, commit `17a4970`.)
 
-### Dormant feature — the task-overrun sweep is BUILT but not SCHEDULED (one-line fix)
-The `task_slipped` emitter (`0109`) + its cron entry point (`/api/diagnosis/task-overrun-sweep-cron`, GET,
-`CRON_SECRET` Bearer auth — identical pattern to the durability cron) are built and ready, but
-`vercel.json` does **not** declare a cron for it (it only schedules `durability-sweep-cron` +
-`backfill-dissects-cron`). So the sweep can never fire — the core diagnosis product stays blind to missed
-deadlines. To activate, add to `vercel.json`'s `crons` array:
-```json
-{ "path": "/api/diagnosis/task-overrun-sweep-cron", "schedule": "0 5 * * *" }
-```
-(daily 5am, offset from the others). **I did NOT add this myself** because `CRON_SECRET` is *shared* with the
-already-scheduled durability cron — so if that secret is set, the next deploy after adding this entry would
-immediately start emitting `task.overran_due_date` events into the diagnosis pipeline. That's a real product
-behavior turning on, your call to make deliberately (§3.3). Add it when you want deadline-slip diagnosis live.
+### Dormant feature — the task-overrun sweep is BUILT + SCHEDULED, awaits only `CRON_SECRET`
+> **CORRECTED 2026-07-16 (class 70):** this section previously said the task-overrun cron was "not scheduled —
+> add the vercel.json entry yourself." That is now STALE. Verified against the live `vercel.json`: the entry
+> **IS present** (`{ "path": "/api/diagnosis/task-overrun-sweep-cron", "schedule": "0 6 * * *" }`, added `8bebaf5`).
+The `task_slipped` emitter (`0109`, APPLIED) + its cron (`/api/diagnosis/task-overrun-sweep-cron`, GET, shared
+`CRON_SECRET`) are built, applied, AND scheduled. So it is **live the moment you set `CRON_SECRET`** — no extra
+wiring. **Consequence to make deliberately (§3.3/§3.5):** `CRON_SECRET` is one env var that activates TWO dormant
+constitutional measurements at once — the §3.5 **durability sweep** (held/reopened → the moat metric) AND the
+**task-overrun sweep** (emits the previously-dead `task_slipped` signal — the product's blindness to missed
+deadlines). Both are inert until `CRON_SECRET` is set; setting it turns both on at the next deploy. If you want
+to stage them separately, remove one cron entry from `vercel.json` before deploying. (The finance `deliver-cron`
+is the ONLY cron still needing a vercel.json entry — and only AFTER `0172` applies; see the sequencing note above.)
 
 > **Vercel plan gotcha (verify):** Hobby-tier crons run **at most once per day**. The existing
 > `durability-sweep-cron` is declared **hourly** (`"0 * * * *"`) — that cadence needs **Pro**; on Hobby it
