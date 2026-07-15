@@ -46,6 +46,18 @@ export const BLOCKED_EXTENSIONS = [
   ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2",
 ];
 
+/**
+ * The DANGEROUS-EXECUTABLE subset of BLOCKED_EXTENSIONS. For routes that must
+ * accept media (audio/video call recordings are legitimately .webm/.mp4, which
+ * BLOCKED_EXTENSIONS blocks) but must still refuse an executable disguised with a
+ * spoofed audio/video Content-Type. Blocking these while allowing media is the
+ * right cut for the recording-upload path, which can't use validateUploadCandidate
+ * (that would reject .webm). Kept as a named subset so it can't drift.
+ */
+export const EXECUTABLE_EXTENSIONS = [
+  ".exe", ".dll", ".msi", ".bat", ".cmd", ".com", ".scr", ".sh", ".app",
+];
+
 /** Allow list for agent dashboard uploads. */
 export const AGENT_ALLOWED_MIME_PREFIXES = [
   "image/",

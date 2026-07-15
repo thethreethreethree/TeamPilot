@@ -10,6 +10,7 @@ import {
   uploadAssetBytes,
   AGENT_MAX_BYTES,
   ASSETS_BUCKET,
+  EXECUTABLE_EXTENSIONS,
 } from "@/lib/storage/assets";
 import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
 
@@ -93,6 +94,18 @@ export async function POST(
   if (!mimeType.startsWith("audio/") && !mimeType.startsWith("video/")) {
     return NextResponse.json(
       { error: "Please upload an audio (or video) recording." },
+      { status: 400 }
+    );
+  }
+  // Defense-in-depth: this route can't use validateUploadCandidate (its
+  // BLOCKED_EXTENSIONS list rejects .webm/.mp4, which are legitimate recording
+  // formats). But the browser-supplied MIME above is spoofable — an executable
+  // uploaded as Content-Type: audio/webm would pass the prefix check. Refuse a
+  // dangerous executable EXTENSION regardless, while still allowing media exts.
+  const lowerName = (file.name || "").toLowerCase();
+  if (EXECUTABLE_EXTENSIONS.some((ext) => lowerName.endsWith(ext))) {
+    return NextResponse.json(
+      { error: "That file type isn't allowed." },
       { status: 400 }
     );
   }
