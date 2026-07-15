@@ -40,7 +40,10 @@
 >   Jan 31→Feb 28→Mar 28). Your recorded "recurring-drift = anchor-day" decision was NEVER implemented. Minor
 >   (a draft generates a couple days early; amount/vendor correct). Fix = add anchor_day column + clamp logic;
 >   I did NOT ship it blind (schema + date math I can't test here — a subtle clamp bug could be worse). Give the
->   go-ahead and I'll build + carefully test it, or you apply anchor-day.
+>   go-ahead and I'll build + carefully test it, or you apply anchor-day. **UPDATE: now BUILT (`0186`,
+>   UNAPPLIED) — anchor_day column + re-anchored advance, algorithm verified by a JS reference test (7 cases
+>   incl. the decisive re-anchor). Apply `0186` + staging-test; backfill anchors already-drifted rows to their
+>   current day (original unrecoverable), drift stops forward.**
 > - **CRM control-month tracking** (minor, vendor-tooling — NOT a §3.4 product issue; the product's §3.4
 >   gate in brain/ is sound + fail-closed) — the CRM `control_month_completed` event is defined + UI-labeled
 >   but never emitted, and nothing auto-advances a customer past control_month at its 30-day mark. A vendor

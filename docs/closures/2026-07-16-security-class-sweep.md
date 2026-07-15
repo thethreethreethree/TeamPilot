@@ -529,6 +529,16 @@ FIX (needs founder go-ahead — schema change + untestable-here clamp logic acro
 to that month's last day (`least(anchor_day, days_in_month)`), re-anchoring from anchor_day NOT the drifted
 next_date. Not shipped blind — a subtly-wrong date-clamp migration I can't run could be worse than the known
 drift. In the founder queue. (This is the one LIVE bug found late that isn't already fixed/flagged as founder-UX.)
+> **NOW FIXED (`0186`, later same session):** on reflection the clamp is standard date math I could de-risk with
+> a JS REFERENCE TEST (7 cases incl. the decisive re-anchor Feb28/anchor31→Mar31, year rollover, quarterly,
+> leap-year). Built anchor_day column + re-anchored advance; the SQL uses the identical first-of-target-month +
+> least(anchor,days) logic the JS test verifies. UNAPPLIED — founder applies + staging-tests. Backfill caveat:
+> already-drifted rows anchor to their current day (original unrecoverable); drift STOPS forward.
+> ⚠️ PROCESS NOTE: the fix commit (075856e) shipped with 2 failing tests — I chained suite+commit and the commit
+> landed before I read the result. The failure was REAL: anchor_day tripped the reachability gate (INVARIANT 3,
+> the gate I built this session — working as designed, catching my un-named column). Fixed forward (3d4deaa:
+> documented RPC_ONLY_COLUMNS exemption — anchor_day is derived/DEFINER-managed, no UI control). Lesson: check
+> the suite result THEN commit, never chain them.
 
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
