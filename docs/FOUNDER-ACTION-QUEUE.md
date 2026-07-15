@@ -40,31 +40,61 @@
 >
 > **NEW DECISIONS FOR YOU (each decision-ready):**
 > - **Credit-note TAX attribution** — the tax report's output tax is gross (doesn't net credit-note tax);
->   pick the jurisdiction rule (leaning *proportional*) → netting becomes mechanical. (Code refuses to guess.)
+>   pick the jurisdiction rule → netting becomes mechanical. (Code refuses to guess.) **My rec: PROPORTIONAL** —
+>   a credit note reverses a slice of the original invoice, so the tax it reverses should mirror the original
+>   invoice's tax composition proportionally. That's what most VAT/GST regimes expect and what an auditor
+>   reconciles a credit note against. Caveat that this is genuinely jurisdictional — if your tax advisor names a
+>   different rule for your regime, that overrides me; the point is the code needs ONE rule stated, and
+>   proportional is the safe default. (Lean, with explicit deference to your jurisdiction's advisor.)
 > - **`blocker_reason` when Blocked** — the CREATE-path half is now FIXED (`1f75685`: POST 400s a Blocked
 >   create with no reason; board modal already has the field). REMAINING (your UX call): the DETAIL-PAGE
 >   transition to Blocked has no reason field — decide how to collect it (small modal vs inline field), then
->   a DB trigger for defense-in-depth. Narrower than before; only the transition surface is left.
+>   a DB trigger for defense-in-depth. Narrower than before; only the transition surface is left. **My rec:
+>   INLINE field** that appears the moment "Blocked" is selected (no modal). It keeps the user in flow (§1.5.1
+>   layer 3 — a modal is an extra interrupt for a one-line reason), mirrors the board create-path that already
+>   works, and the DB trigger backs it either way so the collection UI is pure UX. (Clear lower-friction path;
+>   still your call on the exact widget.)
 > - **`Cancelled` as a first-class task status** — currently a source-of-truth split (transition map admits it;
->   labels/enum omit it). Promote it, or remove it from the server transition map?
+>   labels/enum omit it). Promote it, or remove it from the server transition map? **My rec: PROMOTE** (add to
+>   the enum + labels). It's already reachable via PATCH and the transition map admits it, so tasks CAN be
+>   Cancelled today — removing it from the map would strand any already-cancelled task with no label. Promoting
+>   makes the data model match the reality that already exists; removing fights it. (Firm — the safe direction.)
 > - **Profitability dimension attribution** — credit-note reversals aren't project/cost-center tagged, so a
 >   tagged invoice's credit overstates project profitability (GL/AR unaffected). Thread dimensions, or accept?
+>   **My rec: ACCEPT for now, thread later.** GL and AR are correct — only the analytical by-dimension
+>   profitability view is slightly overstated, and only for tagged invoices that get credit-noted. Threading
+>   dimensions through the credit-note reversal path is real work that isn't justified until someone actually
+>   makes a decision off dimension-level profit. Revisit when that report drives an action. (Defer — cost/benefit.)
 > - **Depreciation rounding stub** (LOW, cosmetic — money is correct) — a new reference test for `fin_run_depreciation`
 >   (0166) surfaced this: when `(cost-salvage)/life` rounds DOWN, the residual posts as a trailing sub-cent slice
 >   in period *life+1* (e.g. a 37th depreciation entry on a 36-month asset). The TOTAL is always exact and NBV
 >   never dips below salvage (8-shape invariant test proves it) — purely presentational. Absorb the residual into
 >   the final scheduled slice (conventional "plug", keeps it to `life` periods), or accept the stub? No urgency.
+>   **My rec: ACCEPT the stub.** The money is exact and the floor holds; the only artifact is a sub-cent extra
+>   period. "Absorb into the final scheduled slice" means adding a special-case last-period branch to a currently
+>   correct, tested function — new complexity and regression surface for a cosmetic gain. Not worth touching
+>   working depreciation math. (Firm — don't risk correct code for cosmetics.)
 > - **LLM chokepoint rate-limit** (LOW, defense-in-depth — NO current gap) — verified every LLM-invoking route is
 >   already throttled (user routes: `rateLimit`; inbound-email: per-sender `ai_suppressed_flood`). But "every
 >   route throttles" can't be mechanically gated (an LLM call sits N hops deep via wrappers, needs call-graph
 >   analysis). The structural guarantee: add a per-company rate-limit at the single `call()` chokepoint in
 >   `src/lib/claude.ts` — then no route CAN make an unthrottled LLM call, by construction. Slightly changes
 >   behavior (a per-company LLM ceiling atop existing throttles), so it's your call. Build it, or accept the
->   current per-route coverage? No urgency (current coverage is complete).
+>   current per-route coverage? No urgency (current coverage is complete). **My rec: ACCEPT now, build the
+>   chokepoint when you add LLM routes often.** Coverage is complete and verified today; the chokepoint guards a
+>   FUTURE unthrottled route, and it changes behavior (a per-company ceiling that could clip a legitimate burst).
+>   Don't add a behavior change for a gap that doesn't exist yet — but keep the idea on file, because it's the
+>   only construction-proof answer once route count grows. (Defer, documented.)
 > - **§3.1 signal idempotency backstop** (latent, low-urgency) — signal derivation is idempotent by
 >   construction today, but `signals` has no unique constraint, so a future re-derive path (backfill/retry)
 >   would double signals + inflate the §3.2 gate count. A clean backstop needs an `event_id` column on
 >   `signals` (they carry none; (kind,source) is legitimately non-unique). Add it now, or accept the risk?
+>   **My rec: ADD it — cheap insurance on the one load-bearing invariant.** This is the exception to my usual
+>   "don't build what isn't needed": normally a hypothetical risk waits, but §3.2 (the Understanding Gate) is
+>   THE structural bottleneck the whole thesis rests on, and a doubled signal count silently inflating it is a
+>   quiet corruption of the product's core claim. `event_id` + a unique index is small, safe, and closes the
+>   door before any re-derive path can be written. Low urgency, high leverage. (Lean add — the invariant's
+>   importance justifies pre-emption here.)
 > - **Recurring-bill month-end DRIFT** (minor, LIVE, 0140 applied) — a monthly/quarterly/annual bill anchored
 >   to day 29/30/31 drifts to day 28 after February and never recovers (`next_date + interval '1 month'` clamps
 >   Jan 31→Feb 28→Mar 28). Your recorded "recurring-drift = anchor-day" decision was NEVER implemented. Minor
@@ -78,12 +108,21 @@
 >   gate in brain/ is sound + fail-closed) — the CRM `control_month_completed` event is defined + UI-labeled
 >   but never emitted, and nothing auto-advances a customer past control_month at its 30-day mark. A vendor
 >   sees accounts stuck in control_month and advances by hand. Add an auto-advance (emit control_month_completed
->   + set stage='activated' when the window ends), or accept manual. Low priority.
+>   + set stage='activated' when the window ends), or accept manual. Low priority. **My rec: AUTO-ADVANCE.**
+>   Control-month end is objective (30 days from signup) — there's no judgment for a human to add, so manual
+>   advancement is pure toil and a source of "forgot to advance" drift. A dated auto-emit is safe precisely
+>   because the trigger is a fixed date, not a subjective call. Pair it with the same cron you'll wire for the
+>   durability sweep. (Firm — automate the objective, keep humans for judgment.)
 > - **Widget bootstrap DoS/log-spam** (moderate, availability only) — `/api/care/widget/bootstrap` is public,
 >   un-rate-limited, and writes an unbounded `care_widget_load_events` row per call. Sibling public routes are
 >   rate-limited; bootstrap isn't (rate-limiting it risks breaking legit high-volume embeds on shared IPs).
 >   Options: a generous per-IP limit, throttle/sample the LOAD-EVENT write only (keeps the widget loading but
->   loses tracking precision), or accept. No confidentiality/integrity impact.
+>   loses tracking precision), or accept. No confidentiality/integrity impact. **My rec: throttle the LOAD-EVENT
+>   WRITE, not the bootstrap response.** The availability concern is the unbounded row-per-call write, not the
+>   bootstrap read — so cap/sample the `care_widget_load_events` insert (e.g. one row per IP per N minutes) while
+>   the widget always loads. This removes the DoS/log-spam amplification without risking a legit high-volume
+>   embed on a shared IP (the exact failure a blanket per-IP limit courts). You lose sub-minute load-tracking
+>   precision, which isn't a metric anyone decides on. (Firm — throttle the unbounded write, never the load.)
 
 > **THE ONE THING TO DO:** apply migrations **`0157`–`0182`** to staging, then run the **19 acceptance
 > files** in `docs/financial-system/tests/`. That is the only path from `BUILT` to `TESTED`, and I cannot
