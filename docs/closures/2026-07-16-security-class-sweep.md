@@ -1061,6 +1061,28 @@ this session — the finance money-correctness, reachability, and doc-trustworth
 classes 42-56.) This is a genuine completeness confirmation, not a manufactured finding (§A24) — it closes a
 named surface, and names its residual as config.
 
+## 61. Adversary lens cont'd — STORED XSS (fix #18) + SSRF (clean) — the two surfaces the sweep skipped
+Continued the §1.3 adversary pass over the two sharpest OWASP surfaces the finding-by-finding sweep never
+touched: stored XSS and SSRF.
+- **Stored XSS — verify-clean TODAY, and removed a purposeless SINK (fix #18).** Two `dangerouslySetInnerHTML`
+  in the codebase: `layout.tsx` (static NO_FLASH_THEME_SCRIPT — safe) and `my-growth/page.tsx`'s `Section`
+  component rendering its `title` prop as raw HTML. All 6 call sites pass STATIC literals → no XSS today. But
+  the sink was UNNECESSARY: JSX decodes the `&rsquo;` entities in the double-quoted attribute value BEFORE the
+  prop arrives, so `title` is already the decoded string — proven by `subtitle` (same component, also has
+  `&rsquo;` in its literals) rendering fine via plain `{subtitle}`. The `dangerouslySetInnerHTML` produced
+  output identical to `{title}` while leaving a stored-XSS sink a future dynamic caller (`title={principle.name}`
+  from the DB/LLM) could walk into unaware — an A31-style seam: a raw-HTML sink behind a plain `title: string`
+  prop. Replaced with `{title}` (identical render, sink gone). tsc+eslint clean. Defense-in-depth: the footgun
+  can no longer be loaded.
+- **SSRF — verify-clean.** Every server-side `fetch` targets a HARDCODED/configured endpoint: `POSTMARK_API`,
+  ElevenLabs TTS/STT (voiceId is a path segment under the fixed host, can't override it), LLM provider URLs in
+  `retry.ts` (configured, not user-supplied). No route fetches a user-supplied URL. The rest are client-side
+  fetches of internal `/api/` paths (not SSRF).
+Adversary-lens tally (classes 60-61): auth brute-force (clean, Supabase-delegated + config note), stored XSS
+(clean + 1 footgun removed), SSRF (clean). The outside-view stance surfaced 3 named surfaces the insider sweep
+hadn't; 2 clean, 1 yielded a real defense-in-depth fix. This is §1.3 doing exactly its job — and fix #18 is a
+genuine catch (a purposeless raw-HTML sink), not a manufactured one.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to

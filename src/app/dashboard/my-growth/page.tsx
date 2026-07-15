@@ -314,10 +314,7 @@ function Section({
     <div className="glass-card p-5">
       <div className="flex items-center gap-2 mb-1">
         <Icon className="w-4 h-4 text-brand" aria-hidden />
-        <h2
-          className="text-sm font-semibold text-primary"
-          dangerouslySetInnerHTML={{ __html: title }}
-        />
+        <h2 className="text-sm font-semibold text-primary">{title}</h2>
       </div>
       {subtitle && (
         <p className="text-[11px] text-muted leading-relaxed mb-4">
