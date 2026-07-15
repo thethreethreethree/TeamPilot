@@ -551,6 +551,9 @@ routeNewConversation: agent selection filters .eq("company_id", conversation.com
 ## 31. C.A.R.E email INBOUND threading (care/inbound/email) VERIFIED — standard + tenant-safe
 Exemplary: (1) tenant resolved from the To: address's UNIQUE inbound_email_local_part (not spoofable subject/sender); unknown/inactive tenant → ignored 200 (no retry loop). (2) customer keyed on company_id+email (same email at different tenants = different rows). (3) threading matches In-Reply-To/References headers (RFC-5322 globally-unique message-ids) against external_thread_id — NOT subject/sender, so no cross-thread collision. (4) external_message_id dedup makes webhook retries idempotent. (5) concurrent-first-email race re-selects the customer (no orphan). No cross-thread/cross-tenant leak. Weak-match-key hypothesis handled.
 
+## 32. Decision→task SPAWN linkage (0030) VERIFIED — xor correct; company-scoping inert-negligible
+tasks_spawn_source_xor: check(linked_decision_id is null OR linked_chat_topic_id is null) — rejects only the both-set case, correctly allowing decision XOR chat OR neither. on-delete-set-null (unlink, not cascade-delete). Double-link hypothesis handled. NEGLIGIBLE note (verify-before-flag kept it proportionate, NOT flagged): the POST route doesn't validate linkedDecisionId is in the caller's company, but it is INERT — FK requires existence, RLS makes a foreign decision unreadable (the link is dangling+useless), the UUID is unguessable, and the UI picker only shows own-company decisions. Non-exploitable; a company-match check would be belt-and-suspenders defense-in-depth, not a fix.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
