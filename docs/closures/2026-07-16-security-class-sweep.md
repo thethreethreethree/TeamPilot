@@ -1,12 +1,14 @@
 # Security audit — four-class sweep (2026-07-16)
 
 > ## ⬆️ EXECUTIVE SUMMARY (navigational — kept current through session end; the numbered classes below are the record)
-> This began as a 4-class security sweep and became a **whole-session comprehensive audit (48 classes)**. The
-> FINANCE audit is 100% complete (every calc + reconciliation surface, now with reference tests for the subtle
-> ones); the entire §3 constitutional core is verified sound BY ENFORCEMENT (not just prose); the security
-> perimeter + tenant isolation are systematically swept to their linchpin.
+> This began as a 4-class security sweep and became a **whole-session comprehensive audit (64 classes)**. The
+> FINANCE audit is 100% complete (every calc + reconciliation surface, with reference tests for the subtle ones);
+> the entire §3 constitutional core is verified sound BY ENFORCEMENT (not just prose); the security perimeter is
+> **double-verified — insider finding-by-finding AND §1.3 outside-view adversary sweep (6 OWASP surfaces)**; the
+> entire apply queue is verified APPLY-SAFE (classes 53-57); and 2 durable reasoning insights (A32, A33) were
+> captured to the IP store.
 >
-> **17 REAL FIXES** (all tested where testable; migrations UNAPPLIED unless noted):
+> **18 REAL FIXES** (all tested where testable; migrations UNAPPLIED unless noted):
 > - *Tasks:* transition-guard drift (#7, live), "Open tasks" overcount (live), `0184` false task_slipped
 >   (Cancelled), 3× team-check Cancelled (live), domain-list dedup (live), blocker_reason CREATE enforcement
 >   (server+client, live).
@@ -14,9 +16,12 @@
 > - *Finance:* dashboard AR (`0185`) + cash-forecast (`0175`) credit-note omission; recurring-bill month-end
 >   DRIFT (`0186`, anchor-day, algorithm-test-verified — the founder's decided fix, finally built).
 > - *Security:* session-rename authz (live), timing-unsafe secret (live), push recipient (live), recording-upload
->   executable-via-spoofed-MIME (#15, live), + the notify-message recipient bug.
+>   executable-via-spoofed-MIME (#15, live), the notify-message recipient bug, + **#18 stored-XSS footgun removed
+>   (my-growth `dangerouslySetInnerHTML` purposeless sink → plain `{title}`, live)**.
 >
-> **1 STRUCTURAL GATE BUILT:** invariant-audit INVARIANT 5 (every upload route must validate) — fix #15 can't recur.
+> **2 STRUCTURAL GATES BUILT:** invariant-audit INVARIANT 5 (every upload route must validate — fix #15 can't
+> recur) + **ESLint `react/no-danger`** (no new `dangerouslySetInnerHTML` without a justified disable — fix #18's
+> class can't recur). Both live in `npm run check`; full pipeline GREEN (805 tests · 0 lint · 0 invariant violations).
 >
 > **VERIFIED SOUND** (the important negatives): the ENTIRE §3 constitutional core, checked by *enforcement
 > evidence* not comments — §3.1 events-immutability (rewrite-rule), §3.2 gate (distinct-signal/source counts),
