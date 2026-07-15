@@ -378,7 +378,10 @@ export default function SessionDetail() {
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Step 3 — pre-knock prep: prepare BEFORE the conversation. */}
+              {/* Step 3 — pre-knock prep. Expert only: spec p4 removes "Prep me"
+                  from Standard's live screen (it is content before the call the
+                  founder judged as clutter for door-to-door reps). */}
+              {!isStandard && (
               <LearningHint
                 as="inline-block"
                 category="Sales Coach · Session"
@@ -396,6 +399,7 @@ export default function SessionDetail() {
                   {prep ? "Re-prep" : "Prep me"}
                 </LoadingButton>
               </LearningHint>
+              )}
               {session?.status === "active" && (
                 <LearningHint
                   as="inline-block"
@@ -416,6 +420,10 @@ export default function SessionDetail() {
                   </LoadingButton>
                 </LearningHint>
               )}
+              {/* Generate growth review — Expert only (spec p4). In Standard the
+                  review is produced as part of the After-Pitch that comes up when
+                  the recording ends, so a separate button is redundant clutter. */}
+              {!isStandard && (
               <LearningHint
                 as="inline-block"
                 category="Sales Coach · Review"
@@ -434,6 +442,7 @@ export default function SessionDetail() {
                   {review ? "Regenerate growth review" : "Generate growth review"}
                 </LoadingButton>
               </LearningHint>
+              )}
               {/* After Pitch Summary — the rep's private "between doors" debrief
                   (timeline + private scores + one focus + Start Next Door). L3
                   composition: reachable from the session the moment there's a
@@ -846,6 +855,14 @@ export default function SessionDetail() {
               onRecordingSaved={() => void load()}
             />
 
+            {/* Upload / Coach tools / raw Transcript — Expert only. Spec p4/p5
+                remove "Upload the call recording" ("door-to-door people won't use
+                this") and p7 removes the raw transcript + coach tools from Standard.
+                The conversation summary + timeline (kept at the top of this page) are
+                what a Standard rep or manager relives the call from — not the raw
+                transcript wall. */}
+            {!isStandard && (
+              <>
             {/* S1a — upload a recording → diarize → one-tap label */}
             <SessionRecordingUpload sessionId={id} onLabeled={() => void load()} />
 
@@ -885,6 +902,8 @@ export default function SessionDetail() {
                 </div>
               )}
             </section>
+              </>
+            )}
           </>
         )}
       </div>
