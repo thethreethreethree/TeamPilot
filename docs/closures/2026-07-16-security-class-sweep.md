@@ -203,6 +203,21 @@ work (0136 dashboard, 0175 forecast) that predated that discipline. This is the 
 audit has reached its productive boundary — further drilling now returns verified-clean or founder-gated
 limitations, not fixes. The bottleneck is founder application of the queued fixes/decisions, not more audit.
 
+## 14. FRESH-SURFACE (§1.7) — budget/runway (0149) + bank reconciliation (0145) VERIFIED CLEAN
+- **fin_runway (0149):** correct — burn = (expense − revenue)/3mo (right sign), runway = case when burn>0 then
+  cash/burn else null (∞ when profitable) — div-by-zero guarded, no negative-runway nonsense.
+- **fin_budget_variance (0149):** correct — actual matched account × cost-center × quarter, NULL-SAFE on
+  cost_center (`is not distinct from`, so company-wide/untagged budget lines match untagged actuals — the exact
+  null-equality trap AVOIDED), natural-direction per account type.
+- **fin_auto_match_bank (0145):** correct — signed-amount match (deposit→debit / withdrawal→credit), excludes
+  already-matched GL entries (`not exists`, re-checked each loop iteration → no double-match even in one run),
+  matches only on exactly-one candidate, idempotent; manual path holds the same 1:1 invariant.
+
+Eleven verify-clean/known-limitation results now stand alongside the ~14 fixes. Confirmed pattern: real bugs
+lived in the EARLIER/middle migrations (transition guard, C.A.R.E command stats, 0136 dashboard, 0175 forecast);
+the LATER finance work (0149/0150/0159 + 0145 algo) is consistently careful and correct. The metric-integrity +
+algorithmic audit of the finance/C.A.R.E read-paths is COMPLETE to its productive boundary.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
