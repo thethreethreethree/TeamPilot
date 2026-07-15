@@ -49,6 +49,11 @@
 >   labels/enum omit it). Promote it, or remove it from the server transition map?
 > - **Profitability dimension attribution** — credit-note reversals aren't project/cost-center tagged, so a
 >   tagged invoice's credit overstates project profitability (GL/AR unaffected). Thread dimensions, or accept?
+> - **Depreciation rounding stub** (LOW, cosmetic — money is correct) — a new reference test for `fin_run_depreciation`
+>   (0166) surfaced this: when `(cost-salvage)/life` rounds DOWN, the residual posts as a trailing sub-cent slice
+>   in period *life+1* (e.g. a 37th depreciation entry on a 36-month asset). The TOTAL is always exact and NBV
+>   never dips below salvage (8-shape invariant test proves it) — purely presentational. Absorb the residual into
+>   the final scheduled slice (conventional "plug", keeps it to `life` periods), or accept the stub? No urgency.
 > - **§3.1 signal idempotency backstop** (latent, low-urgency) — signal derivation is idempotent by
 >   construction today, but `signals` has no unique constraint, so a future re-derive path (backfill/retry)
 >   would double signals + inflate the §3.2 gate count. A clean backstop needs an `event_id` column on

@@ -651,6 +651,24 @@ first. Realistic status: **applied.** The correct action is a one-query confirma
 this (🟠 confirm, not 🔴 live-hole). The finding remains worth surfacing — the fixes' *existence* is what makes
 the base-policy holes moot — but the honest severity is "confirm the ordering held," not "critical live hole."
 
+## 42. DEPRECIATION reference test (0166) — WRITTEN, and it surfaced a LOW cosmetic behavior
+Added `src/lib/finance/__tests__/depreciationSalvage.test.ts` (6 cases) mirroring
+`fin_run_depreciation`'s per-period amount: `round((cost-salvage)/life, 4)` slice, clamped by
+`least(slice, (cost-salvage) - accumulated)` (the salvage floor). Pattern = recurrenceAnchor.test.ts:
+the SQL is source-of-truth, the JS mirror pins the acceptance spec for the one part invisible without a
+live DB (behavior near full depreciation — failure mode #1 named in the migration header).
+**The test earned its keep — it caught real behavior on first run:** for `10000 / salvage 0 / life 3`,
+monthly rounds DOWN to `3333.3333`; three slices = `9999.9999`, leaving a `0.0001` residual → the clamp
+posts a FOURTH sub-cent "stub" slice to close on `10000` exactly. So a rounding-down residual makes the
+schedule run **life+1 periods**, the last a stub (e.g. a 37th entry on a 36-month asset).
+**Severity: LOW / cosmetic — NOT a correctness bug.** The 8-shape invariant test confirms the total always
+lands on exactly `(cost - salvage)` and NBV never dips below salvage — the money is right. The only
+imperfection is presentational: the rounding residual spills into a trailing stub period instead of being
+absorbed into the final SCHEDULED slice (the conventional accounting "plug"). Flagged LOW in the founder
+queue as a cosmetic decision (allow stub vs. absorb into final scheduled slice). Consistent with §A24 /
+§5 — surfaced at its true (small) severity, not inflated. This is the productive kind of "test finds
+behavior the reader would miss," the opposite of the class-40 over-statement I corrected in class 41.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
