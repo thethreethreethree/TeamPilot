@@ -5,6 +5,7 @@ import AwaitingEvidence from "@/components/ui/AwaitingEvidence";
 import { SkeletonRow } from "@/components/ui/Skeleton";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { fetchTasks, type FetchTasksMode, type Task } from "@/lib/data/tasks";
+import { isTaskClosed } from "@/lib/tasks/statusLabels";
 import { fetchSignals, type SignalsMode } from "@/lib/data/signals";
 import { fetchProblems, type ProblemRecord } from "@/lib/data/problems";
 import { fetchResolutions, type ResolutionRecord } from "@/lib/data/resolutions";
@@ -183,6 +184,10 @@ export default function CommandDashboard() {
   };
 
   const blockedTasks = tasks.filter((t) => t.status === "Blocked");
+  // "Open tasks" = in-flight only. fetchTasks returns ALL non-deleted rows
+  // (incl. Completed), so tasks.length would count completed work as open —
+  // contradicting the card's label + copy. Exclude terminal statuses.
+  const openTaskCount = tasks.filter((t) => !isTaskClosed(t.status)).length;
   const criticalTasks = tasks.filter((t) => t.priority === "Critical");
   const draftProblems = problems.filter((p) => p.status === "draft");
   const surfacedProblems = problems.filter((p) => p.status === "surfaced");
@@ -244,7 +249,7 @@ export default function CommandDashboard() {
           >
             <ChainStat
               label="Open tasks"
-              value={tasks.length}
+              value={openTaskCount}
               icon={<ListChecks className="w-3.5 h-3.5" />}
               href="/dashboard/operations"
               loading={loading}

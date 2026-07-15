@@ -5,6 +5,7 @@ import { LearningHint } from "@/components/learning/LearningHint";
 import { SkeletonRow } from "@/components/ui/Skeleton";
 import {
   taskDisplayLabel,
+  isTaskClosed,
   TASK_CANONICAL_STATUSES,
   TASK_PRIORITIES,
 } from "@/lib/tasks/statusLabels";
@@ -159,6 +160,12 @@ export default function OperationsPage() {
   const blockedCount = tasks.filter((t) => t.status === "Blocked").length;
   const inProgressCount = tasks.filter((t) => t.status === "In Progress").length;
   const criticalCount = tasks.filter((t) => t.priority === "Critical").length;
+  // "Open tasks" = in-flight only. fetchTasks returns ALL non-deleted rows
+  // (incl. Completed, so the Completed filter works), so tasks.length would
+  // count completed work as open — contradicting this card's own label + copy
+  // ("anything not yet completed"). Exclude terminal statuses (Completed AND
+  // Cancelled, via isTaskClosed).
+  const openCount = tasks.filter((t) => !isTaskClosed(t.status)).length;
 
   const openCreate = () => {
     setDraft(emptyDraft);
@@ -268,7 +275,7 @@ export default function OperationsPage() {
             how="Use this number to gauge load, not to chase. A team with 200 open tasks and steady completions is fine. A team with 50 open tasks and zero completions is stuck. The number alone tells you nothing — the trend versus completions tells you everything."
             principle="Open count is the load gauge. Pair it mentally with completion velocity to read the operational truth."
           >
-            <Stat label="Open tasks" value={tasks.length} color="text-primary" />
+            <Stat label="Open tasks" value={openCount} color="text-primary" />
           </LearningHint>
           <LearningHint
             category="Tasks · Risk"
