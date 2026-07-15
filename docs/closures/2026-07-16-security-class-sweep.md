@@ -1,7 +1,7 @@
 # Security audit — four-class sweep (2026-07-16)
 
 > ## ⬆️ EXECUTIVE SUMMARY (navigational — kept current through session end; the numbered classes below are the record)
-> This began as a 4-class security sweep and became a **whole-session comprehensive audit (64 classes)**. The
+> This began as a 4-class security sweep and became a **whole-session comprehensive audit (66 classes)**. The
 > FINANCE audit is 100% complete (every calc + reconciliation surface, with reference tests for the subtle ones);
 > the entire §3 constitutional core is verified sound BY ENFORCEMENT (not just prose); the security perimeter is
 > **double-verified — insider finding-by-finding AND §1.3 outside-view adversary sweep (6 OWASP surfaces)**; the
