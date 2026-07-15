@@ -685,6 +685,22 @@ The reference-test sweep of subtle DEFINER math is at a sensible boundary — de
 cosmetic behavior, break-even is clean; the remaining calc surfaces (FX, cash-flow) are lower-risk
 (fewer sign/rounding traps) and can get tests if a specific doubt arises, not speculatively (§A24).
 
+## 44. FINANCE SURFACE end-to-end reachability (§1.5.1 layers 2-3) — VERIFY-CLEAN, rigorous
+Follows the class 42-43 reference tests: correct SQL is worthless if no real user can reach it (layer 2 =
+"does it actually work end-to-end," not "does the unit pass"). Traced the two just-tested features and then
+the whole finance surface:
+- `fin_run_depreciation` ← `api/finance/assets/route.ts` ← `/dashboard/finance/assets` page (fetches it) ←
+  `FinanceNav.tsx` link. `fin_break_even` ← `api/finance/unit-economics` ← page (fetches) ← FinanceNav link.
+  Full chain FinanceNav → page → fetch → route → DEFINER → DB, intact for both.
+- **Whole-surface navigability, rigorously:** a count match (28 linked hrefs == 28 page dirs) can hide a
+  coincidence (one orphaned page + one dead link offsetting), so I ran a SET-DIFF (`comm -3` of page dirs vs
+  linked hrefs). **Empty diff → perfect 1:1: every finance page dir has a nav link and every link resolves to
+  a page. No orphaned feature, no dead link across 28 sub-pages.** DB→route reachability is separately
+  guaranteed by the green INVARIANT-3 gate. So the finance product is reachable top-to-bottom.
+Method note for future audits: prefer a set-diff over a count when checking correspondence — equal counts are
+a classic false-clean. This is the layer-2/3 complement to the calc-correctness reference tests: the money is
+right (42/43) AND a user can actually get to it (44).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
