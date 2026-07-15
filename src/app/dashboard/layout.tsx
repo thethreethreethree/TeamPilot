@@ -76,18 +76,33 @@ export default async function DashboardLayout({
 
     // Even with a session, the user might not have completed onboarding
     // (just signed up, no company yet). Redirect them through the flow.
+    // CRITICAL onboarding gate — company_id ONLY. Deliberately NOT joined with the
+    // preference columns: coupling this gate to a migration-added column means a
+    // single missing column (unapplied migration, fresh deploy) bounces EVERY
+    // dashboard user to onboarding. That is the 2026-07-03 migration-coupling outage
+    // class; the gate stays on the column that has always existed.
     const { data: profile } = await supabase
       .from("profiles")
-      .select("company_id, experience_mode, learning_mode_enabled")
+      .select("company_id")
       .eq("id", user.id)
       .maybeSingle();
     if (!profile?.company_id) {
       redirect("/onboarding");
     }
-    // Fail-safe to 'standard' (the never-over-serve default) if the column is
-    // null/unreadable — mirrors getExperienceMode's posture exactly.
-    initialMode = profile?.experience_mode === "expert" ? "expert" : "standard";
-    initialLearningEnabled = Boolean(profile?.learning_mode_enabled);
+    // Preferences — a SEPARATE, best-effort read. If experience_mode /
+    // learning_mode_enabled are missing (migration not applied somewhere), this
+    // query errors, `prefs` is null, and we keep the safe defaults (standard /
+    // client-fetch fallback) WITHOUT touching the gate above. Migration-coupling
+    // lesson: the preference read must never be able to break the critical path.
+    const { data: prefs } = await supabase
+      .from("profiles")
+      .select("experience_mode, learning_mode_enabled")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (prefs) {
+      initialMode = prefs.experience_mode === "expert" ? "expert" : "standard";
+      initialLearningEnabled = Boolean(prefs.learning_mode_enabled);
+    }
   }
 
   return (
