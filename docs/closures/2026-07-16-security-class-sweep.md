@@ -563,6 +563,15 @@ Stronger than hypothesized: the open-period gate is a TRIGGER on the journal tab
 ## 35. §3.1 EVENTS IMMUTABILITY (the method's foundation) VERIFIED — rewrite-rule enforced, no tamper
 The append-only §3.1 chain rests on events being tamper-proof (retrospective analysis is only honest if history cannot be edited). events (0004:36-37) carries REWRITE RULES: `on update to events do instead nothing` + `on delete to events do instead nothing`. Rewrite rules (unlike triggers) bind EVEN THE TABLE OWNER + service-role, so NO path — API, DEFINER fns, direct SQL, service-role — can update or delete an event. The historical record is immutable by construction. brain_evolution_events (0007:103-105, the §3.4 override + §7.5 review audit) has the same protection, so the accountability trail is equally tamper-proof. The strongest possible enforcement on the most foundational data. Hypothesis (events editable) impossible.
 
+## 36. §3.5 RESOLUTION REASONING immutability VERIFIED — field-level trigger, the asset is frozen
+check_resolution_immutability (0005:50-68): a trigger that raises if action_taken / reasoning / decided_at
+change after creation, while ALLOWING durability / observed_outcome / reviewed_at / reviewer to be filled later.
+So the original DECISION + its WHY (§3.5 "the reasoning is the asset"; reasoning is NOT NULL) are FROZEN — nobody
+can rewrite the rationale to retroactively justify a bad call — but the durability REVIEW (consequence
+measurement, filled later by 0100) is permitted. The exact right split: history's reasoning is immutable, its
+measured outcome is recordable. Together with class 35 (events immutable), the §3.1→§3.5 DATA is tamper-proof
+end-to-end. Hypothesis (edit reasoning to justify a bad call) is impossible.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
