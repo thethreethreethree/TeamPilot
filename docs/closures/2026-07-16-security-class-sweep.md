@@ -145,6 +145,22 @@ completed timestamp), never a mutable status that a later lifecycle step overwri
 Fresh-surface audit tally (C.A.R.E read-path): 2 real fixes (command stats phantom-status #9, resolution-rate
 #10), 1 verified-clean (SLA readout). Honest §1.7 outcome — flags AND solid findings both on record.
 
+## 11. FRESH-SURFACE (§1.7) — AR outstanding ignored CREDIT NOTES on two consumers — 2 FIX
+Applied the metric-integrity lens to finance AR. Credit notes (0143) reduce a customer's balance and 0143 added
+a `credited` column to fin_invoice_summary (outstanding = total − received − credited), updating fin_ar_aging
+AND fin_kpis. But two AR consumers were MISSED:
+- **fin_dashboard_summary.ar_outstanding (0136, APPLIED)** — `sum(total − received)`, ignored `credited`. The
+  Command Center headline AR OVERSTATED receivables by issued credit notes and stopped tying to GL AR. Fixed
+  in **new migration 0185** (create-or-replace; UNAPPLIED — founder applies).
+- **fin_cash_commitments (0175, UNAPPLIED)** — referenced `i.paid` on fin_invoice_summary, which has NO `paid`
+  column (invoices use `received`); the view would FAIL to apply, and its comment claimed a credit-note netting
+  it didn't do. Fixed IN PLACE (`i.paid` → `i.received − i.credited`).
+Verify-before-report caught a near-miss: fin_ar_aging LOOKED broken in 0133 but 0143 supersedes it and DOES
+subtract credit notes — nearly reported a fixed view. Boundary confirmed (§A26): aging + KPIs already correct;
+AP has no vendor-credit feature so total − paid is right. Baseline lesson: when a feature adds a component to a
+derived amount (credit notes → AR), grep EVERY consumer of the base view — one was applied+live-wrong, one was
+an unapplied migration that wouldn't even apply.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
