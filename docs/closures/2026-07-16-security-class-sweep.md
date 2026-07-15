@@ -720,6 +720,32 @@ heterogeneous nav patterns, grep-based orphan detection is a false-positive mach
 40-item fake-finding report. When a mechanical check contradicts something already proven (finance is linked),
 the check is wrong, not the prior. Do not ship grep-orphan lists app-wide without per-candidate confirmation.
 
+## 46. THE MOAT METRIC (§3.5 communication-quality — consequence-not-agreement) — VERIFY-CLEAN, 4 axes
+Pivoted off the diminishing-returns nav grind to the single most constitution-central surface: how the Coach's
+effectiveness is measured. §3.5's hardest rule: "Measuring agreement instead of consequence is grading your own
+homework — forbidden." Audited `api/admin/coach-readout/route.ts` + its page on FOUR axes, all sound:
+1. **Substance** — primary metric is `close_durability` (held/reopened/partial), a downstream CONSEQUENCE. The
+   route header + code (lines 36-37) explicitly: "does NOT weight accepted suggestions as proof of value.
+   Acceptance is a leading indicator only; consequence is the [answer]." Accept-rate exists solely for
+   heuristic mis-calibration (A4), not as the verdict.
+2. **Surface (§1.5.1 layer 4 — the honest-code/dishonest-surface trap)** — the PAGE leads with a framing
+   contract, headlines "changes downstream consequence — NOT agreement," reads the Held column FIRST, presents
+   NO verdict, and — the §4 move — STATES THE FALSIFICATION BAR BEFORE THE DATA ("at N>=10, if coached
+   held-rate is no better than uncoached, that's the rollback signal, not a reason to reframe the metric").
+   A good-looking chart cannot retroactively define success.
+3. **Provenance** — `close_durability` is a mutable column BUT every change emits an immutable
+   `chat.topic_durability_reviewed` event (0015, mirroring the resolutions chain verified in class 18); a
+   `reopened` is captured even if the topic was optimistically marked `held` at close. History is on the
+   append-only record.
+4. **Experimental design (the anti-gaming clincher)** — the readout compares COACHED vs UNCOACHED durability
+   at EQUAL N. Any residual subjectivity in "held" inflates BOTH arms equally and cancels in the difference —
+   the metric is the comparison, not the absolute. Systematic self-grading cannot manufacture a coached
+   advantage. This is the structural defense §3.5 demands, done correctly.
+**The product's thesis-defense is intact at its most important point.** This is the highest-value clean of the
+session — a completely different domain from the finance/nav checks, hitting the constitution's most-emphasized
+anti-pattern at the moat, sound on substance AND surface AND provenance AND design. Contrast with the
+classes-44/45 nav grind (artifacts): this is where audit attention actually belonged.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
