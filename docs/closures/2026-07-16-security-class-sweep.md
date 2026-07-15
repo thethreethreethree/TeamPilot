@@ -701,6 +701,25 @@ Method note for future audits: prefer a set-diff over a count when checking corr
 a classic false-clean. This is the layer-2/3 complement to the calc-correctness reference tests: the money is
 right (42/43) AND a user can actually get to it (44).
 
+## 45. WHOLE-APP orphan check — verify-clean, and a METHOD CAUTION (nearly reported 40 fake orphans)
+Tried to generalize class 44's set-diff from finance to the whole app: find any `page.tsx` route linked from
+nowhere (a §1.5.1 layer-3 dead-end). The naive version (`comm -23` of all page routes vs JSX `href="..."`
+literals) flagged **~40 "orphaned" pages — INCLUDING the finance pages I had JUST proven are 1:1-linked**
+via FinanceNav. That contradiction is what caught it: verify-before-report (§A24). Root cause: this codebase
+authors nav as CONFIG ARRAYS (`{ href: "/dashboard/finance/assets", label }`) — property syntax — plus
+template strings and redirects; a `href="..."` attribute grep misses all of those. Corrected to match the
+route STRING anywhere (the extraction class 44 actually used) → list dropped to 12, and every one is an
+ENTRY-POINT or PUBLIC page (`/`, `/dashboard` root, `/login`, `/privacy`, `/terms`, `/help`, `/demo`,
+`/pitch`, `/onboarding`, `/install`, `/sales-coach/*`) reached by URL/redirect/footer/external — not a
+surprising orphan. (A second artifact inflated even this: the href-grep only extracted `/dashboard/*` +
+`/auth/*` prefixes, so pages outside those prefixes show "unlinked" regardless.) **Conclusion: no real
+orphaned feature; the app's navigability is sound.**
+DURABLE METHOD LESSON (the real asset here): the class-44 set-diff is trustworthy ONLY on a surface with
+UNIFORM nav (one config array, one route prefix, matching extraction) — finance qualified. Generalized across
+heterogeneous nav patterns, grep-based orphan detection is a false-positive machine; it nearly produced a
+40-item fake-finding report. When a mechanical check contradicts something already proven (finance is linked),
+the check is wrong, not the prior. Do not ship grep-orphan lists app-wide without per-candidate confirmation.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
