@@ -1141,6 +1141,22 @@ keys are the two designed to be public, and the catastrophic key (service-role) 
 server. The §1.3 outside-view sweep is now comprehensive across the headless-checkable attack surface, and it
 resolved the way a mature codebase should: mostly clean, one real footgun found, fixed, and gated.
 
+## 65. DEPENDENCY audit (`npm audit`) — 1 real advisory, MODERATE, NON-EXPLOITABLE here; auto-fix is dangerous
+Supply-chain surface — distinct from the app-code adversary sweep, standard in a security review, unchecked
+until now. `npm audit` reports 2-3 moderate advisories, all ONE root: transitive `postcss <8.5.10`
+(GHSA-qx2v-qp2m-jg93 — XSS via unescaped `</style>` in CSS stringify output), pulled in by `next`.
+- **Not exploitable in THIS app.** The advisory bites code that runs PostCSS on UNTRUSTED CSS input and serves
+  the output. Next runs PostCSS at BUILD TIME on first-party CSS (Tailwind etc.), never on user input at
+  runtime. The vector does not exist here. Honest severity: moderate advisory, effectively non-exploitable.
+- **The npm auto-fix is CATASTROPHIC — do NOT run it.** `npm audit fix --force` resolves to `next@9.3.3` — a
+  Next **16→9 downgrade**. npm's resolver misfiring; applying it is far worse than the advisory. Flagged loudly.
+- **Safe remediation:** a `package.json` `overrides` pin of `postcss >= 8.5.10` (patch within 8.5.x,
+  API-compatible), or wait for Next to bump its bundled copy. Low-urgency maintenance, needs a build test.
+- **DID NOT modify the dependency tree** — non-exploitable + low-urgency + a maintenance decision needing a
+  build verification = founder's call, not a by-fiat change (§3.3). Added to the queue as LOW with the
+  auto-fix warning. This is what a dependency audit should produce: the advisory, its real exploitability HERE
+  (not the abstract CVSS), and the SAFE fix path distinguished from the dangerous auto-fix.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to

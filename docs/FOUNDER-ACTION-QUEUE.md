@@ -127,6 +127,11 @@
 >   advancement is pure toil and a source of "forgot to advance" drift. A dated auto-emit is safe precisely
 >   because the trigger is a fixed date, not a subjective call. Pair it with the same cron you'll wire for the
 >   durability sweep. (Firm — automate the objective, keep humans for judgment.)
+> - **Dependency advisory: `postcss <8.5.10`** (LOW — moderate CVSS but NON-EXPLOITABLE here) — `npm audit`
+>   flags a transitive postcss XSS (via `next`). It bites code running PostCSS on UNTRUSTED CSS at runtime; Next
+>   runs it at BUILD time on your own CSS, so the vector doesn't exist here. **⚠️ DO NOT run `npm audit fix
+>   --force`** — it downgrades Next **16→9** (catastrophic). Safe fix: a `package.json` `overrides` pin of
+>   `postcss` `>=8.5.10` + `npm i` + a build test, or just wait for Next to bump it. No urgency (not exploitable).
 > - **Widget bootstrap DoS/log-spam** (moderate, availability only) — `/api/care/widget/bootstrap` is public,
 >   un-rate-limited, and writes an unbounded `care_widget_load_events` row per call. Sibling public routes are
 >   rate-limited; bootstrap isn't (rate-limiting it risks breaking legit high-volume embeds on shared IPs).
