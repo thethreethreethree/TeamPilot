@@ -59,6 +59,10 @@ export default async function DashboardLayout({
   // mismatch, and "Expert exactly as-is" holds from the very first frame. Read from
   // the SAME profile query that already gates onboarding — no extra round-trip.
   let initialMode: ExperienceMode = "standard";
+  // §A26 sibling of the F1 fix: learning-mode hints used the same default-then-fetch
+  // pattern (hints appeared a frame late for users who had them on). undefined =
+  // "server didn't read it" → the client falls back to its own fetch.
+  let initialLearningEnabled: boolean | undefined = undefined;
   if (supabaseEnabled) {
     const supabase = await createClient();
     const {
@@ -74,7 +78,7 @@ export default async function DashboardLayout({
     // (just signed up, no company yet). Redirect them through the flow.
     const { data: profile } = await supabase
       .from("profiles")
-      .select("company_id, experience_mode")
+      .select("company_id, experience_mode, learning_mode_enabled")
       .eq("id", user.id)
       .maybeSingle();
     if (!profile?.company_id) {
@@ -83,11 +87,12 @@ export default async function DashboardLayout({
     // Fail-safe to 'standard' (the never-over-serve default) if the column is
     // null/unreadable — mirrors getExperienceMode's posture exactly.
     initialMode = profile?.experience_mode === "expert" ? "expert" : "standard";
+    initialLearningEnabled = Boolean(profile?.learning_mode_enabled);
   }
 
   return (
     <ToastProvider>
-      <LearningModeProvider>
+      <LearningModeProvider initialEnabled={initialLearningEnabled}>
        <ExperienceModeProvider initialMode={initialMode}>
         <div className="flex min-h-screen bg-base overflow-x-hidden">
           {/* Skip-to-content link for keyboard / screen-reader users.

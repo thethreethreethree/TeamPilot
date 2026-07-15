@@ -70,13 +70,19 @@ const LearningModeContext = createContext<LearningModeContextValue | null>(
 
 export function LearningModeProvider({
   children,
+  initialEnabled,
 }: {
   children: React.ReactNode;
+  /** The preference read SERVER-SIDE in the layout, so hints don't pop in a frame
+   *  late for users who have them on (§A26 sibling of the experience-mode F1 fix —
+   *  same default-then-fetch pattern, resolved the same way). Omitted → false, and
+   *  the background fetch still reconciles. */
+  initialEnabled?: boolean;
 }) {
   const { resolved, setPreference } = useTheme();
-  const [enabled, setEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(initialEnabled ?? false);
   const [active, setActive] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(initialEnabled !== undefined);
   const [askJeffContext, setAskJeffContext] =
     useState<LearningHintContext | null>(null);
 
