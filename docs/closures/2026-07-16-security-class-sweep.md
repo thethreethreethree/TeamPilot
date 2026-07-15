@@ -380,6 +380,19 @@ LIABILITY/EQUITY budget line would mis-compute in is_alert — but budgets are r
 only, so it's a dead edge case. If liability/equity budgeting is ever added, mirror the actual column's
 type-awareness in is_alert. Severity ~nil.
 
+## 24. 0183 DEFINER-revoke security fix — INDEPENDENTLY VERIFIED COMPLETE
+0183 revokes EXECUTE (from authenticated, anon) on the SECURITY DEFINER helpers that take a company as a
+trusted PARAMETER (cross-tenant read/write via PostgREST RPC — a client passes another company's id; DEFINER
+bypasses RLS). Rather than trust the migration's "nine" claim, ran the same §A26 sweep independently: every
+DEFINER function taking p_company (fin_account_by_code, fin_approval_limit_for, fin_get_rate,
+fin_inventory_accounts, fin_mileage_rate_for, fin_obe_account, fin_per_diem_rate_for) + fin_post_system_entry
+is revoked — the revoke list EXACTLY matches the sweep, no miss, and no p_company in a non-first position that
+would slip past. Checked the subtle edge: fin_approval_limit_for is REDEFINED in 0168 (delegation) but keeps
+the same (uuid,uuid) signature, so 0183's revoke covers the current version (a signature change there would
+have left the delegation-aware version client-callable — it didn't). Class fully closed. (Deep meta the author
+records: rls:audit has "no concept of a function", so DEFINER funcs were a gate blind spot — A30: a green gate
+speaks to the gate's vocabulary, not the system. The revoke-vs-nine-guards choice removes the attack surface.)
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
