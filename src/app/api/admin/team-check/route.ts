@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { isAdminRole } from "@/lib/supabase/auth-helpers";
+import { isTaskClosed } from "@/lib/tasks/statusLabels";
 
 /**
  * GET /api/admin/team-check
@@ -155,7 +156,10 @@ export async function GET() {
     .filter((r) => {
       const t = r._task;
       if (!t || t.deleted_at !== null) return false;
-      if (t.status === "Completed") return false;
+      // Exclude ALL terminal statuses, not just Completed — a cancelled task is
+      // deliberately ended and needs no engagement nudge (§A26 class fix, see
+      // isTaskClosed). Surfacing one would hand the admin a false action item.
+      if (isTaskClosed(t.status)) return false;
       const lastEngaged = r.last_engaged_at;
       const joined = r.joined_at;
       if (lastEngaged === null) {

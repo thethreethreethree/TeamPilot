@@ -5,6 +5,7 @@ import { supabaseEnabled } from "@/lib/supabase/config";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { isAdminRole } from "@/lib/supabase/auth-helpers";
+import { isTaskClosed } from "@/lib/tasks/statusLabels";
 
 /**
  * POST /api/admin/team-check/nudge
@@ -90,9 +91,13 @@ export async function POST(req: NextRequest) {
   if (task.company_id !== profile.company_id) {
     return NextResponse.json({ error: "Cross-tenant action denied." }, { status: 403 });
   }
-  if (task.status === "Completed") {
+  // Block nudging on ANY terminal task, not just Completed. A nudge inserts a
+  // task.nudge_sent event into the append-only §3.1 chain (0021 trigger below),
+  // so nudging a deliberately-cancelled task both wastes the recipient's
+  // attention AND writes a durable event for closed work (§A26 class fix).
+  if (isTaskClosed(task.status)) {
     return NextResponse.json(
-      { error: "Cannot nudge on a completed task." },
+      { error: "Cannot nudge on a completed or cancelled task." },
       { status: 400 }
     );
   }

@@ -36,7 +36,7 @@ import type { CoachContextPayload } from "@/lib/coach/v5/types";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import { TaskStepChecklist } from "@/components/tasks/TaskStepChecklist";
 import { TaskGateEditor } from "@/components/tasks/TaskGateEditor";
-import { taskDisplayLabel } from "@/lib/tasks/statusLabels";
+import { taskDisplayLabel, isTaskClosed } from "@/lib/tasks/statusLabels";
 
 /**
  * /dashboard/operations/[id] — task detail.
@@ -212,7 +212,7 @@ export default function TaskDetailPage() {
       )
     : null;
   const showMyNudge =
-    !!me && myStaleness !== null && myStaleness >= STALE_DAYS && task.status !== "Completed";
+    !!me && myStaleness !== null && myStaleness >= STALE_DAYS && !isTaskClosed(task.status);
 
   return (
     <div className="min-h-screen bg-base">

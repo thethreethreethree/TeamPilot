@@ -147,3 +147,27 @@ export const TASK_CANONICAL_STATUSES: TaskCanonicalStatus[] = [
   "Needs Review",
   "Completed",
 ];
+
+/**
+ * Terminal (closed) task statuses — no further work happens on one, so any
+ * "is this task still open / does it need attention?" check must treat ALL of
+ * these as closed.
+ *
+ * 'Completed' is canonical (above). 'Cancelled' is deliberately NOT in
+ * TaskCanonicalStatus — the DISPLAY/label domain is the 5 workflow values — but
+ * a task CAN nonetheless BE 'Cancelled': the server transition map
+ * (src/app/api/tasks/route.ts) admits New/In Progress/Blocked → Cancelled, and
+ * `tasks.status` is free `text` with no DB CHECK. A check that only excludes
+ * 'Completed' therefore acts on deliberately-ended work — false `task_slipped`
+ * signals (fixed in migration 0184), nudges on cancelled tasks, stale badges on
+ * cancelled tasks. This constant is the single source of truth for "closed",
+ * and is correct whether or not 'Cancelled' is ever promoted to a first-class
+ * canonical status (labels/enum/UI) — an open founder decision (the source-of-
+ * truth split: transition map admits it; label domain + create enum omit it).
+ */
+export const TERMINAL_TASK_STATUSES = ["Completed", "Cancelled"] as const;
+
+/** True when a task is in a terminal/closed status (no further work expected). */
+export function isTaskClosed(status: string | null | undefined): boolean {
+  return (TERMINAL_TASK_STATUSES as readonly string[]).includes(status ?? "");
+}
