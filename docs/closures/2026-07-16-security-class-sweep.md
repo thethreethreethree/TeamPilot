@@ -271,6 +271,20 @@ mitigation: a problem still cannot surface without genuinely distinct evidence. 
 worth adding (signal_count could still inflate), but the §3.2 gate is NOT wide open to it — lower severity than
 first stated.
 
+## 18. §3.5 DURABILITY EMISSION (0100) VERIFIED SOUND — core-thesis chain audit COMPLETE
+resolutions_emit_durability_review (0100): fires `after update of durability`, guards with `is distinct from`
+(null-safe), emits resolution.durability_reviewed + derives in-txn. signal_sources map held→resolution_held,
+reopened→problem_recurrence ("honest recurrence"), partial→partial_resolution; 'unknown' earns NO signal;
+sourced at problem:${problem_id}. §3.5 "consequence not agreement" done right. Sound.
+
+### CORE-THESIS CHAIN (§3.1→§3.5) — fully audited this session, all sound:
+events (emitters) → **signals** (derive_signals_for_event: sound + idempotent-by-construction, class 16 latent
+backstop flag) → **§3.2 gate** (check_understanding_gate: sound, class 17, mitigates 16 via distinct-sources) →
+**problems** (open-count/lifecycle: sound) → **resolutions + §3.5 durability** (0100 emission: sound). The
+constitutional core is verified end-to-end. ONE latent founder-domain flag (class 16 signal-idempotency backstop,
+lowered severity by 17). Everything else on the chain is correct. This + the metric/computation sweep (classes
+1-15) = the session's audit is comprehensive across BOTH the derived-metric surfaces AND the constitutional core.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
