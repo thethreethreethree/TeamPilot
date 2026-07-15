@@ -398,6 +398,17 @@ already encodes exactly this rule — a DEFINER fn taking a tenant param must be
 forward (the "lesson returned because nothing gated it" failure the author described can't recur). Verified the
 gate exists before building a duplicate; my manual §A26 sweep + this automated gate independently agree.
 
+## 25. BUILT a structural gate — invariant-audit INVARIANT 5 (every upload route validates)
+Turned fix #15's lesson into a mechanical gate (§3.2 structural, §1.6 close-the-loop — the same move the author
+made for the DEFINER class in INVARIANT 4). A route reading a multipart File must run validateUploadCandidate
+OR EXECUTABLE_EXTENSIONS (media escape hatch), or be allowlisted with its reason. Allowlisted: the tenant-logo
+route (verified well-validated inline: image-only MIME allow-list + MIME-DERIVED extension into a fixed path, so
+no client filename reaches the storage key — the BLOCKED_EXTENSIONS check adds nothing there; not a bug). Gate
+GREEN (4 exceptions, 0 violations); 4 tests pin the detection. So the next upload route that forgets validation
+FAILS CI instead of shipping the hole silently — the recording-route class can't recur. `8f75b46`.
+This session's structural additions to invariant-audit: none new to the SCRIPT except mine (INVARIANT 4 DEFINER
+was pre-existing, verified green; INVARIANT 5 upload is new). npm run check now enforces both.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
