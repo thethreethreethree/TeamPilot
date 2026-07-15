@@ -896,6 +896,27 @@ This is the §1.6 pattern completed honestly: when the lesson can't be made mech
 describes (the route), find the layer where it CAN be structural (the chokepoint) — and propose it rather than
 ship a gate that cries wolf or misses.
 
+## 53. PRE-APPLY dependency verification of this session's built migrations (0184/0185/0186) — CLEAN
+Directly de-risks the founder's biggest pending action (applying the queue). A migration referencing an object
+not yet present fails MID-APPLY — this exact class already bit once this session (`0175` referenced a
+non-existent `i.paid` column, caught + fixed to `received`). So I traced every object the three UNAPPLIED
+migrations I built reference, against the already-applied baseline (founder applied through 0115 + finance
+0121-0143 + recurring 0140):
+- **0184** (task-overrun exclude Cancelled) — `create or replace` of `emit_task_overran_event` +
+  `run_task_overrun_sweep` (originals from 0109, APPLIED); reads `tasks` (0001/0032) + `events` (0001). ✓
+- **0185** (dashboard AR nets credit notes) — `create or replace fin_dashboard_summary`; the risky refs are
+  summary-view COLUMNS (the 0175 class). Verified: `fin_invoice_summary` (0143) exposes `total`+`received`+
+  `credited` → `sum(total-received-credited)` valid; `fin_bill_summary` (0135) exposes `total`+`paid` →
+  `sum(total-paid)` valid. The migration's own comment already flagged "`credited` present since 0143". ✓
+- **0186** (recurring anchor-day) — `alter table fin_recurring_bills add anchor_day` (table from 0140, APPLIED)
+  + backfill from existing `next_date` + `create or replace fin_generate_recurring_bill` over `fin_bills`/
+  `fin_bill_lines` (applied). ✓
+Apply-ORDER is also safe: numeric order applies 0114/0115 → 0157-0182 → 0184/0185/0186, and none of the three
+depends on anything in the 0157-0182 batch (all their deps are ≤0143). **All three will apply cleanly onto the
+current schema.** No 0175-class missing-object/wrong-column trap remains in what I built. (I did NOT re-verify
+the pre-existing 0157-0182 batch object-by-object — those weren't built this session; flagged as the one part
+of the apply queue whose dependency-safety I'm asserting from their authors, not from an in-session trace.)
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
