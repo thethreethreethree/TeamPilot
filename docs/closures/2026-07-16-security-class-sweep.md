@@ -1020,6 +1020,25 @@ low-risk but still touches the load-bearing derive function, and it pre-empts a 
 guide, the founder greenlights, THEN I build carefully; contrast the recurring-drift build, which had a RECORDED
 prior decision). The correction strengthens the advice without overtaking the call.
 
+## 59. Resolved the Part-2 question I said was "unknowable" — signal_sources is static + collision-free
+Class 58 corrected my "cheap insurance" rec but left Part 2 (the unique index) gated on "a data check I can't
+see headlessly." Followed through instead of leaving it open — and the follow-through resolved it:
+- **signal_sources is MIGRATION-SEEDED ONLY** — every app-layer reference (feedback/route, smoke-test, the
+  chain integration test, taskOverrunSweep) is a COMMENT or a TEST; no route/lib INSERTs a rule at runtime. So
+  the seeded rows are the COMPLETE ruleset — the redundancy question IS statically answerable, contra class 58.
+- **Extracted all 12 seeded rules, checked for a collision** (two rules, same event_kind, same signal_kind +
+  same rendered source → would violate the unique index during one derive). NONE. The only same-(event_kind,
+  signal_kind) pair, `feedback.submitted → user_friction`, carries different predicates (`{"kind":"bug"}` vs
+  `{"kind":"friction"}`) → different `source` → distinct key. So one derive call never self-collides; a
+  re-derive (the guarded case) is correctly rejected. **Part 2 is safe against the current ruleset and does
+  exactly its job.**
+This is verify-further resolving uncertainty in the RIGHT direction — class 58 was right to distrust my "cheap,"
+but its residual ("gate on a data check") was itself resolvable, and I resolved it rather than parking it on the
+founder. Net: BOTH parts of the signal backstop are verified sound; the only residual is a hypothetical future
+redundant rule, which the index would correctly reject at migrate time. The founder decision is now
+"greenlight the build" (design verified end-to-end), not "go check your data first." Two corrections deep — the
+confident "cheap" (58) AND the over-cautious "unknowable" (58's residual) — both walked to ground (59).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to

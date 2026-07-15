@@ -96,14 +96,19 @@
 >     column (existing signals can't backfill — they carry no event link), and the derive function ALREADY has
 >     `p_event_id` in scope (0014), so storing it is behavior-preserving. This is the genuinely cheap piece and
 >     it's the prerequisite for any future backstop.
->   - **Part 2 (careful, DON'T do blind): the partial unique index `(event_id, kind, source)`.** The live derive
->     (0014) inserts ONE signal per matching `signal_sources` rule, so this index is only safe if no two enabled
->     rules for the same event_kind produce the same (signal_kind, source_template). If a redundant rule exists,
->     the index turns benign config redundancy into a HARD derivation failure — breaking the §3.1→§3.2 chain for
->     that event. That's a data question about your `signal_sources` I can't see headlessly. Confirm "no
->     redundant rules" (a one-line query) BEFORE adding the index, or make it a monitoring check instead of a
->     hard constraint. §3.2 importance still justifies Part 1 pre-emptively; Part 2 needs the data check first.
->   (Corrected lean: do Part 1 now; gate Part 2 on a redundancy check. My original "cheap" undersold Part 2.)
+>   - **Part 2 (safe — I VERIFIED it statically): the partial unique index `(event_id, kind, source)`.** I first
+>     flagged this as needing a data check "I can't see headlessly." Then I checked: `signal_sources` is
+>     MIGRATION-SEEDED ONLY (no route/lib inserts a rule at runtime — all app references are comments/tests), so
+>     the seeded set IS the complete ruleset. I extracted all 12 seeded rules and checked for a collision (two
+>     rules with the same event_kind producing the same signal_kind + rendered source): NONE. The one same-
+>     (event_kind, signal_kind) pair — `feedback.submitted → user_friction` — has different source predicates
+>     (`{"kind":"bug"}` vs `{"kind":"friction"}`) → different `source` → no collision. So within one derive call
+>     the index is never violated; a RE-DERIVE (exactly what we're guarding against) is correctly rejected. **The
+>     index is safe to add against your current rules, and it does precisely its job.** Only a FUTURE migration
+>     adding a genuinely redundant rule would trip it — and that trip is the desired behavior (it stops a
+>     redundant rule silently double-counting), caught at migrate/derive time, not in production drift.
+>   (Verified lean: BOTH parts are safe to build. Part 1 stores the link; Part 2 enforces once-per-event. My
+>   original "cheap" undersold the analysis; doing the analysis confirms both are sound. Still your greenlight to build.)
 > - **Recurring-bill month-end DRIFT** (minor, LIVE, 0140 applied) — a monthly/quarterly/annual bill anchored
 >   to day 29/30/31 drifts to day 28 after February and never recovers (`next_date + interval '1 month'` clamps
 >   Jan 31→Feb 28→Mar 28). Your recorded "recurring-drift = anchor-day" decision was NEVER implemented. Minor
