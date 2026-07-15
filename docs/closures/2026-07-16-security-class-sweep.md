@@ -447,6 +447,24 @@ must advance them by hand, and "Control month completed" never appears in the ac
 accuracy only — the PRODUCT's §3.4 discipline is enforced by the brain gate above, independent of this. Low
 priority; in the founder queue.
 
+## 27. §3.3 GUIDE-DON'T-OVERTAKE structurally enforced — the ENTIRE §3 now verified sound
+POST /api/ai/decision-dialogue gates the LLM behind DialogueDecisionSchema (situation + userDiagnosis +
+userProposal, EACH min-20-chars). readBody returns 400 if the user hasn't stated a SUBSTANTIVE view, so
+proposeDecisionDialogue (the AI's own proposal) is UNREACHABLE until the human has articulated their own
+diagnosis and proposal FIRST — and the AI receives that view as input, responding TO it, never independently
+(it can also `suppressed`-decline). The schema IS the structural gate that makes the System a participant in
+the user's diagnosis rather than an overtaker (§3.3 non-negotiable product behavior). Encoded in code, not
+merely claimed.
+
+**§3 (How to Build the System) — verified sound END TO END this session:**
+- §3.1 events→signals→derivation (idempotent-by-construction; 1 latent backstop flag, class 16)
+- §3.2 Understanding Gate trigger (distinct-source counting, no off-by-one, class 17)
+- §3.3 Guide-don't-overtake (user-first schema gate — THIS)
+- §3.4 control-gate + override (fail-closed default + leadership-audited unlock, class 26)
+- §3.5 durability emission + cost-per-outcome (consequence-not-agreement, classes 18/#179)
+The constitutional discipline the product's honesty CLAIM rests on is actually ENFORCED in code at every §3
+clause. A bug in any of these would matter more than any metric; none found (one latent backstop, flagged).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
