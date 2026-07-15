@@ -260,6 +260,8 @@ limitations, not fixes. The bottleneck is founder application of the queued fixe
 
 - **payroll (0167):** exemplary — net_pay>0 CHECK (no negative net), gross=net+withholdings asserted with an accountant-actionable error (not opaque balance failure), employer-tax on-top-of-gross (true employee cost), row-locked + draft-only (no double-post), deliberately does NOT fake tax computation (records provider figures, §3.4). Both hypotheses (negative net, identity violation) guarded.
 
+- **year-end close (0151):** exemplary — closing entry balances BY CONSTRUCTION in all 3 cases (profit: RE credited by net; loss: RE debited; net=0: RE line SKIPPED since a 0/0 line violates the debit-XOR-credit CHECK, and the rev/exp lines already balance). Double-close guarded (unique + existence check), reversible, skips zero-balance accounts, RE=3000. Both hypotheses (net-to-zero, double-close) + the subtle net=0 edge handled.
+
 Eleven verify-clean/known-limitation results now stand alongside the ~14 fixes. Confirmed pattern: real bugs
 lived in the EARLIER/middle migrations (transition guard, C.A.R.E command stats, 0136 dashboard, 0175 forecast);
 the LATER finance work (0149/0150/0159 + 0145 algo) is consistently careful and correct. The metric-integrity +
