@@ -15,7 +15,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/config", () => ({ supabaseEnabled: true }));
 
 import { createClient } from "@/lib/supabase/server";
-import { PATCH } from "../route";
+import { PATCH, POST } from "../route";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 
@@ -105,5 +105,64 @@ describe("PATCH task status transitions", () => {
   it("404 when the task does not exist", async () => {
     mock(fakeSb({ currentStatus: null }));
     expect((await PATCH(req({ id: ID, status: "In Progress" }))).status).toBe(404);
+  });
+});
+
+/**
+ * POST create — the "a Blocked task must carry a reason" guarantee, on the CREATE path.
+ * PATCH enforced it; POST did not, so a task could be created directly as Blocked with
+ * no reason (the primary bypass the board advertises the API prevents). This pins the
+ * create-side enforcement (the board modal already has the field, so no new UX).
+ */
+function createSb() {
+  return {
+    auth: { getUser: async () => ({ data: { user: { id: "u1" } } }) },
+    from: (table: string) => {
+      if (table === "profiles") {
+        return {
+          select: () => ({
+            eq: () => ({ maybeSingle: async () => ({ data: { company_id: "co-1" } }) }),
+          }),
+        };
+      }
+      if (table === "tasks") {
+        return {
+          insert: () => ({
+            select: () => ({ single: async () => ({ data: { id: "new-1" }, error: null }) }),
+          }),
+        };
+      }
+      if (table === "task_steps") {
+        return { insert: async () => ({ error: null }) };
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  };
+}
+
+describe("POST create — blocker_reason guarantee", () => {
+  it("REJECTS creating a Blocked task with no reason (400)", async () => {
+    mock(createSb());
+    const res = await POST(req({ title: "Fix the thing", status: "Blocked" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/blocker reason/i);
+  });
+
+  it("REJECTS a Blocked task with a whitespace-only reason (400)", async () => {
+    mock(createSb());
+    const res = await POST(req({ title: "X", status: "Blocked", blockerReason: "   " }));
+    expect(res.status).toBe(400);
+  });
+
+  it("ALLOWS a Blocked task WITH a reason", async () => {
+    mock(createSb());
+    const res = await POST(req({ title: "X", status: "Blocked", blockerReason: "waiting on vendor" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("ALLOWS a non-Blocked task with no reason (To Do)", async () => {
+    mock(createSb());
+    const res = await POST(req({ title: "X", status: "To Do" }));
+    expect(res.status).toBe(200);
   });
 });

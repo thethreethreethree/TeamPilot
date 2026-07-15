@@ -58,6 +58,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Enforce the "a Blocked task must carry a reason" guarantee on CREATE. PATCH
+  // already enforces it (route below), but POST did not — so a task could be
+  // CREATED directly as Blocked with no reason, the primary bypass of the
+  // guarantee the board advertises ("the API rejects the transition without
+  // one"). The board's create modal already shows a blocker_reason field when
+  // status=Blocked, so this needs no new UX; it just makes the guarantee true on
+  // the create path too. (The detail-page TRANSITION to Blocked has no reason
+  // field and still needs a UX decision — tracked separately in the queue.)
+  if (
+    body.status === "Blocked" &&
+    (typeof body.blockerReason !== "string" || !body.blockerReason.trim())
+  ) {
+    return NextResponse.json(
+      { error: "A blocker reason is required when creating a task as Blocked." },
+      { status: 400 }
+    );
+  }
+
   // Spawn-engine linkage fields. The xor constraint in 0030 enforces
   // that linked_decision_id and linked_chat_topic_id can't both be
   // set, so we just pass through whatever the caller sent and let
