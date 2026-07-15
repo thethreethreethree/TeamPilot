@@ -19,6 +19,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import {
   DeckShell,
   DeckCard,
@@ -56,6 +57,15 @@ export default function SalesCoachHome() {
   // The rep's name for the mobile "Welcome, [name]" header (PWA home).
   const [name, setName] = useState<string | null>(null);
   const [context, setContext] = useState<"in_person" | "video">("video");
+  // Spec 1a (2026-07-15): In-person is the default for Standard — door-to-door reps
+  // live at doorsteps, not on video, and defaulting to the channel they never use is
+  // a tiny tax paid on every single session. Expert keeps the prior video default,
+  // unchanged. The effect flips the default once the mode resolves; deps are stable
+  // after load, so a rep's manual pick afterward is never overridden.
+  const { isStandard, loaded: modeLoaded } = useExperienceMode();
+  useEffect(() => {
+    if (modeLoaded && isStandard) setContext("in_person");
+  }, [modeLoaded, isStandard]);
   const [clientLabel, setClientLabel] = useState("");
   // Phase 2 capture (optional) — WHERE / HOW / WHAT, entered up front.
   const [territory, setTerritory] = useState("");
