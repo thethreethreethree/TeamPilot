@@ -33,6 +33,11 @@
 >   construction today, but `signals` has no unique constraint, so a future re-derive path (backfill/retry)
 >   would double signals + inflate the §3.2 gate count. A clean backstop needs an `event_id` column on
 >   `signals` (they carry none; (kind,source) is legitimately non-unique). Add it now, or accept the risk?
+> - **CRM control-month tracking** (minor, vendor-tooling — NOT a §3.4 product issue; the product's §3.4
+>   gate in brain/ is sound + fail-closed) — the CRM `control_month_completed` event is defined + UI-labeled
+>   but never emitted, and nothing auto-advances a customer past control_month at its 30-day mark. A vendor
+>   sees accounts stuck in control_month and advances by hand. Add an auto-advance (emit control_month_completed
+>   + set stage='activated' when the window ends), or accept manual. Low priority.
 > - **Widget bootstrap DoS/log-spam** (moderate, availability only) — `/api/care/widget/bootstrap` is public,
 >   un-rate-limited, and writes an unbounded `care_widget_load_events` row per call. Sibling public routes are
 >   rate-limited; bootstrap isn't (rate-limiting it risks breaking legit high-volume embeds on shared IPs).

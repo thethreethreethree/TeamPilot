@@ -425,6 +425,23 @@ FAILS CI instead of shipping the hole silently — the recording-route class can
 This session's structural additions to invariant-audit: none new to the SCRIPT except mine (INVARIANT 4 DEFINER
 was pre-existing, verified green; INVARIANT 5 upload is new). npm run check now enforces both.
 
+## 26. §3.4 CONTROL-GATE (the honesty moat's month-1 mechanism) VERIFIED SOUND — fail-closed
+Traced the §3.4 "month 1 = control, no AI guidance" enforcement to its real home: brain/index.ts
+`evaluateControlGate` (NOT the CRM lifecycle_stage — nothing functional gates on that; it's vendor tracking).
+The gate: `guidanceEnabled = manualEnabled || (unlockAt && new Date(unlockAt) <= now)`. Correct AND FAIL-CLOSED
+— a null/malformed unlockAt → NaN<=now is false → autoUnlocked=false, so a misconfigured company STAYS in the
+honest baseline rather than silently enabling guidance. That is §3.4 + §5 (the builder-under-pressure default
+must be "suppressed," never "enabled") encoded in a pure, unit-tested function (controlGate.test.ts). A bug here
+— failing OPEN — would violate the core thesis; it fails closed. Exemplary. The constitutional moat holds.
+
+FLAGGED (minor, vendor-tooling — NOT a §3.4 violation): the CRM `control_month_completed` activity-event type
+is DEFINED (0049:230) and UI-LABELED (crm/[id]/page.tsx:55) but NEVER EMITTED (dead event, task_slipped class),
+and the CRM records a control-month 30-day window (0049:321 `now()+interval '30 days'`) but has NO mechanism to
+auto-advance an account past control_month when it elapses. So a vendor sees accounts stuck in control_month and
+must advance them by hand, and "Control month completed" never appears in the activity feed. Vendor tracking
+accuracy only — the PRODUCT's §3.4 discipline is enforced by the brain gate above, independent of this. Low
+priority; in the founder queue.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
