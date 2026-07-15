@@ -242,6 +242,21 @@ tax/budget/runway/bank/inventory) · CRM (no aggregate-metric surface) · sales 
 bugs found+fixed on tasks/C.A.R.E/finance-earlier-migrations; everything else verified clean or founder-gated
 limitation. The audit is exhaustive across metric/computation surfaces. Bottleneck = founder application.
 
+## 16. §3.1 CHAIN — signal derivation idempotent-by-construction + 1 latent backstop FLAG
+Audited derive_signals_for_event (0005→0014, the events→signals core). Correct: template substitution (0014
+fixed a prior bug), predicate matching (`payload @> predicate`), per-source emission. **Idempotent TODAY by
+construction** — all ~15 call sites are `perform derive_signals_for_event(v_event_id)` right after inserting a
+NEW event, so each event derives exactly once; no re-derivation path exists (the task-overrun sweep dedups at
+the EVENT level before calling derive).
+
+FLAGGED (latent, not live — same class as the finance source-postings backstop): the `insert into signals` has
+NO on-conflict/not-exists guard, and the `signals` table has NO unique constraint (only a company/observed_at
+index). So a FUTURE re-derive path (backfill, retry, manual re-run) would silently DOUBLE signals → inflate the
+§3.2 gate's threshold count so a problem could surface on fewer real signals than required — a constitutional-
+core integrity risk. A clean backstop is non-trivial: `signals` carries no `event_id`, and (kind, source) is
+legitimately non-unique (a task blocked twice = two real task_blocked signals), so dedup needs an `event_id`
+column first — a schema decision, founder-domain. No fix applied (no live bug; the fix is a schema call).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
