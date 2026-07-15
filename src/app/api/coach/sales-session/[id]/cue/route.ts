@@ -12,11 +12,10 @@ import {
 } from "@/lib/data/salesCoach";
 import { generateLiveCue } from "@/lib/coach/v5/liveCue";
 import { getExperienceMode } from "@/lib/experience/mode";
-
 // Spec 4.3a: the AI LISTENS for a rep's first days on the coach, then starts
-// advising. Observe honestly before intervening — §3.4's month-1 control at the
-// per-rep scale.
-const OBSERVE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+// advising. The window boundary is a pure, unit-tested function (observeWindow.ts)
+// so an off-by-one can't fire cues a day early or suppress them a day late.
+import { isWithinObserveWindow, observeWindowEndsAt } from "@/lib/coach/v5/observeWindow";
 
 /**
  * Live Sales Coach — generate a live cue for a session (Phase B brain).
@@ -114,8 +113,7 @@ export async function POST(
     const mode = await getExperienceMode(supabase, auth.user.id);
     if (mode === "standard") {
       const startedAt = await getAgentCoachStart(session.agentId);
-      const ageMs = startedAt ? Date.now() - Date.parse(startedAt) : NaN;
-      if (Number.isFinite(ageMs) && ageMs < OBSERVE_WINDOW_MS) {
+      if (isWithinObserveWindow(startedAt, Date.now())) {
         return NextResponse.json({
           cue: {
             shouldCue: false,
@@ -127,9 +125,7 @@ export async function POST(
           },
           cueId: null,
           observing: true,
-          observeUntil: new Date(
-            Date.parse(startedAt as string) + OBSERVE_WINDOW_MS
-          ).toISOString(),
+          observeUntil: observeWindowEndsAt(startedAt),
         });
       }
     }
