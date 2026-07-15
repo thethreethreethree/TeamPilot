@@ -67,6 +67,55 @@ the route (so the guard was simultaneously dead-for-UI and broken-for-API). **Fi
 mirrors UI" is structural; 6 tests lock it (incl. the To Do → In Progress regression). Behavior change flagged:
 the route no longer accepts → 'Cancelled' (never should have; no UI/enum/label for it; no consumer used it).
 
+## 8. FLAGGED (not fixed — needs a founder UX decision): the "Blocked needs a reason" guarantee is bypassable
+Same "validation only on the path the UI doesn't use" class as #7, but here it makes the product state a
+FALSE guarantee (§3.4 honesty-is-the-moat), so it's flagged prominently rather than silently patched.
+
+**Evidence.**
+- The rule "a task in Blocked must carry a blocker_reason" is enforced in exactly ONE place: PATCH
+  /api/tasks (route.ts ~L170, "audit findings 7+8"). There is NO DB enforcement — `blocker_reason` is a
+  nullable column (0001:42); the 0006 trigger only EMITS an event when it changes, never REQUIRES it.
+- The task DETAIL page moves status via `transitionStatus → changeTaskStatus` (lib/data/tasks.ts), a DIRECT
+  RLS-client write that never hits the route — so the enforcement is bypassed. The detail page has NO
+  blocker_reason field at all (grep-confirmed), and its transition buttons DO offer 'Blocked' (from To Do /
+  In Progress). Net: a user can put a task into Blocked with no reason, from the detail page, today.
+- Meanwhile the board's own copy asserts the guarantee to users: operations/page.tsx:276 "any task in Blocked
+  must carry a blocker_reason (the API rejects the transition without one)"; :345 "required if status='Blocked'".
+  The System claims a property a real path violates — the exact "confident, well-formed failure" §0 targets.
+
+**Scope — THREE bypasses confirmed; only ONE path enforces.** (verified this session, not assumed)
+  - **POST /api/tasks (create)** — the MAIN task-creation path. route.ts:76-96 writes `blocker_reason:
+    body.blockerReason ?? null` with NO Blocked-requires-reason check; the board's client submit validates
+    only `title` (page.tsx:197). So creating a task directly as 'Blocked' with an empty reason succeeds. This
+    is the biggest gap — the primary flow, not an edge case.
+  - **Detail-page transition** — `transitionStatus → changeTaskStatus` direct RLS write, no field, offers
+    'Blocked'. Bypass.
+  - **Any API/mobile consumer** — same as POST.
+  - **Only board EDIT (PATCH /api/tasks)** actually enforces it (route.ts ~L170).
+
+**Root cause (deeper than blocker_reason).** The task route validates BY HAND — POST checks only `title`;
+PATCH hand-rolls the transition/blocker checks reading `body` directly. `TaskCreateSchema` / `TaskPatchSchema`
+(validate.ts) are **DEAD CODE — imported nowhere** (grep-confirmed). So the zod enums (status/priority) and
+any schema-level blocker rule are NOT the runtime guard on either path; they only *look* like protection.
+(NB: this session's enum single-sourcing — dfbfe39 — is still correct and harmless, but it hardened a schema
+the route doesn't currently use; that's a reason to WIRE the schema, not evidence the route is guarded.)
+
+**Why not auto-fixed.** The correct fix is COUPLED and parts are founder-domain (§3.3, don't overtake):
+  1. **DB trigger** (universal enforcement, single-source pattern): raise if `status='Blocked'` AND
+     `blocker_reason` null/empty — catches every writer (POST, PATCH, direct client, future mobile, SQL).
+     Migration, founder-gated. Must NOT ship before (2)/(3) or it hard-errors the create + Blocked-transition
+     flows with no way to comply. Pre-existing Blocked-with-null rows (if any) aren't retro-broken (trigger
+     fires on write), but audit them first.
+  2. **Board create**: block client submit when status='Blocked' && reason empty (the field already exists;
+     just make it required), mirroring the API rule.
+  3. **Detail-page reason collection**: add a reason affordance on transition-to-'Blocked' (no field today).
+     The board's conditional-inline-field pattern is the precedent; a small modal is the alternative — a UX
+     call for the founder, hence flagged not built.
+  4. **Separately**: either WIRE `TaskCreateSchema`/`TaskPatchSchema` into the route via `readBody()` (so
+     status/priority/blocker are validated once, declaratively) or DELETE them. Dead validation code that
+     looks live is a landmine — a future dev may "rely" on it.
+Recommended sequence: (2)+(3) client collection → (1) migration → apply together; (4) as its own cleanup.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
