@@ -225,6 +225,8 @@ limitations, not fixes. The bottleneck is founder application of the queued fixe
 
 - **break-even (0176 fin_unit_economics):** exemplary — break_even_revenue only when revenue>0 AND contribution>0 (else NULL: no divide-by-zero at revenue=0, no nonsense at negative margin), PLUS an undefined_because human explanation (§A11 no-naked-verdict, §3.4). Both hypotheses (div-by-zero, negative margin) anticipated + refused.
 
+- **cost-per-outcome (0179):** exemplary AND the most constitutional finance code. cost_per_outcome NULL (not 0) when nothing held (§3.4 — a 0 reads as "fixing things costs nothing"); ONLY durability=held counts as an outcome; surfaces fixes_that_reopened ("money on fixes that came back" — impossible for a cost-per-resolution metric); unreviewed is its own bucket ("folding it into held is grading your own homework", §3.5). The finance system ENFORCING measure-consequence-not-agreement. Both hypotheses (div-by-zero, what-counts-as-outcome) handled.
+
 Eleven verify-clean/known-limitation results now stand alongside the ~14 fixes. Confirmed pattern: real bugs
 lived in the EARLIER/middle migrations (transition guard, C.A.R.E command stats, 0136 dashboard, 0175 forecast);
 the LATER finance work (0149/0150/0159 + 0145 algo) is consistently careful and correct. The metric-integrity +
