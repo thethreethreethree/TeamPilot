@@ -143,6 +143,25 @@ export default function AfterPitchPage() {
   // eat the viewport and bury the breakdown/scores below it (founder 2026-07-03).
   const [showWhatHappened, setShowWhatHappened] = useState(false);
   const [savingOutcome, setSavingOutcome] = useState<SalesOutcome | null>(null);
+  // Spec 1b: name the session AFTER recording, once the rep knows what it was.
+  const [renaming, setRenaming] = useState(false);
+  const [labelDraft, setLabelDraft] = useState("");
+
+  const saveRename = useCallback(async () => {
+    const label = labelDraft.trim();
+    setRenaming(false);
+    if (!label) return;
+    try {
+      const res = await fetch(`/api/coach/sales-session/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientLabel: label }),
+      });
+      if (res.ok) setSession((await res.json()).session);
+    } catch {
+      /* best-effort; the label just stays as it was */
+    }
+  }, [id, labelDraft]);
 
   // Log the call's result. Append-only, same endpoint the session page uses:
   // re-selecting records a correction, never erases the earlier read. This is the
@@ -280,11 +299,47 @@ export default function AfterPitchPage() {
               </h1>
               <Award className="w-5 h-5 text-brand shrink-0" aria-hidden />
             </div>
-            {session && (
+            {session && !renaming && (
               <p className="text-[11px] text-brand mt-1">
                 {session.clientLabel ?? "Session"}
                 {dur ? ` · ${dur} conversation` : ` · ${ctxLabel}`}
+                {/* Spec 1b: rename here, now that the rep knows what the call was
+                    ("angry customer"). Standard + owner only. */}
+                {isStandard && isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLabelDraft(session.clientLabel ?? "");
+                      setRenaming(true);
+                    }}
+                    className="ml-1.5 text-muted underline decoration-dotted hover:text-primary"
+                  >
+                    rename
+                  </button>
+                )}
               </p>
+            )}
+            {session && renaming && (
+              <div className="mt-1 flex items-center justify-center gap-1.5">
+                <input
+                  autoFocus
+                  value={labelDraft}
+                  onChange={(e) => setLabelDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void saveRename();
+                    if (e.key === "Escape") setRenaming(false);
+                  }}
+                  placeholder="Name this call (e.g. angry customer)"
+                  className="text-[11px] bg-surface border border-default rounded-md px-2 py-1 text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+                />
+                <button
+                  type="button"
+                  onClick={() => void saveRename()}
+                  className="text-[11px] font-semibold text-[#09090B] bg-brand px-2 py-1 rounded-md"
+                >
+                  Save
+                </button>
+              </div>
             )}
           </div>
         </div>
