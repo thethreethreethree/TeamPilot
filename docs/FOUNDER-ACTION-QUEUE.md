@@ -16,7 +16,9 @@
 > reply" filtered non-existent statuses (undercount / permanently-0) — fixed; C.A.R.E "Resolution rate"
 > counted transient status so it fell as you archived resolved work — fixed to `resolved_at`; finance task
 > transition guard was broken for API callers (rejected To Do→In Progress) — fixed; dashboard "Open tasks"
-> counted completed tasks — fixed; team-check nudge/digest could act on cancelled tasks — fixed.
+> counted completed tasks — fixed; team-check nudge/digest could act on cancelled tasks — fixed. SECURITY:
+> the sales-call recording upload accepted executables via a spoofed audio/webm Content-Type (the one upload
+> route that can't use the shared validator — it blocks .webm) — fixed with a targeted executable-ext block.
 >
 > **NEW DECISIONS FOR YOU (each decision-ready):**
 > - **Credit-note TAX attribution** — the tax report's output tax is gross (doesn't net credit-note tax);
