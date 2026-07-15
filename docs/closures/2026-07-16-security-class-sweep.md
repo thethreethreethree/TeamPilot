@@ -33,6 +33,13 @@ No ungated admin-client route found. (The one real service-role gap this session
 Every route that actually invokes an LLM carries `rateLimit` (spot-confirmed after-pitch, cue). The two grep
 flags (`health`, `settings`) make no LLM call — they matched the `ANTHROPIC_API_KEY` existence check.
 
+## 5. CSV formula injection (CWE-1236) — CLEAN (verified)
+Every CSV **exporter** routes user data through the neutralizer (`export/[entity]` via toCsv/csvSafe;
+finance contractors / reports / statements). The two grep flags (`finance/banking`, `finance/cards`) are
+CSV **importers** (`parseCsv` / statement upload → `/import`) — they read CSV, never write it, so
+formula-injection (an export-opened-in-Excel attack) doesn't apply. Baseline rule: a new CSV EXPORT must
+route cells through `neutralizeCsvFormula`; imports don't need it.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - New admin-client routes MUST gate the caller (user context / care-agent / session token / cron secret) AND
