@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sweepDurabilityChecks } from "@/lib/care/durabilitySweep";
+import { constantTimeEqual } from "@/lib/api/constantTime";
 
 /**
  * POST /api/care/durability-sweep
@@ -24,8 +25,11 @@ export async function POST(req: NextRequest) {
       { status: 503 }
     );
   }
-  const provided = req.headers.get("x-care-sweep-secret");
-  if (provided !== expected) {
+  // Constant-time compare — a plain !== short-circuits on the first differing byte,
+  // leaking the secret to a timing side-channel. Matches the -cron sibling and every
+  // other secret check in the codebase (which all use constantTimeEqual).
+  const provided = req.headers.get("x-care-sweep-secret") ?? "";
+  if (!constantTimeEqual(provided, expected)) {
     return NextResponse.json(
       { error: "Sweep authentication failed." },
       { status: 401 }
