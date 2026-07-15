@@ -7,6 +7,35 @@ export type ProblemStatus =
   | "resolved"
   | "dismissed";
 
+/**
+ * Statuses where a problem is still IN PLAY — the single source of truth for
+ * "open problem". Per the §3.2 lifecycle (migration 0002): draft (pre-gate) →
+ * surfaceable (gate passed, may be shown) → surfaced (shown, timestamped). All
+ * three are open; only 'resolved' / 'dismissed' are closed.
+ *
+ * NB on 'surfaceable': the constitutional model defines it, but the live app
+ * transitions problems draft → surfaced DIRECTLY (problems/page.tsx, diagnose)
+ * and nothing auto-promotes to 'surfaceable' (the 0002 trigger only VALIDATES a
+ * transition, it doesn't set the state), so 'surfaceable' is currently
+ * unoccupied in practice. Including it here is defensive-correct, not a live-bug
+ * fix — it means any future path that DOES produce 'surfaceable' (e.g. an
+ * auto-promotion trigger) is counted as open everywhere at once. This was
+ * hand-listed inline in the finance dimensions route; it now imports this so the
+ * definition lives in one place. (The dashboard's draft+surfaced count is
+ * correct-in-practice and left as-is; if 'surfaceable' ever gets used, switch it
+ * to isProblemOpen too.)
+ */
+export const OPEN_PROBLEM_STATUSES: ProblemStatus[] = [
+  "draft",
+  "surfaceable",
+  "surfaced",
+];
+
+/** True when a problem is still in play (not resolved/dismissed). */
+export function isProblemOpen(status: string): boolean {
+  return (OPEN_PROBLEM_STATUSES as string[]).includes(status);
+}
+
 export type ProblemRecord = {
   id: string;
   kind: string;

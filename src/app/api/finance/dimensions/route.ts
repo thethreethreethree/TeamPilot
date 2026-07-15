@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
+import { OPEN_PROBLEM_STATUSES } from "@/lib/data/problems";
 
 /**
  * GET  /api/finance/dimensions — cost centers + projects + open problems (the tags for cost slicing).
@@ -28,7 +29,7 @@ export async function GET() {
     sb
       .from("problems")
       .select("id, title, status")
-      .in("status", ["draft", "surfaceable", "surfaced"])
+      .in("status", OPEN_PROBLEM_STATUSES)
       .order("created_at", { ascending: false })
       .limit(100),
   ]);
