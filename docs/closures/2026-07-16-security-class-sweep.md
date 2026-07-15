@@ -1202,6 +1202,25 @@ create an erroring cron; the honest output is the correct sequence, not prematur
 ONLY dormant one; no other cron route is unscheduled. The cron-wiring surface is fully accounted for: everything
 is either live-once-`CRON_SECRET`-set or the one correctly-sequenced-post-`0172` entry. No hidden dormant task.
 
+## 69. Push-delivery OPEN item — `sender.ts` STATICALLY VERIFIED SOUND → the issue is definitively config
+Applied fresh-eyes to the memory's "push delivery diagnosis OPEN" (subscribes fine, doesn't deliver;
+`sender.ts` instrumented, awaiting founder logs). The prior approach WAITED for runtime logs. A fresh STATIC read
+of the whole send path narrows it without the logs:
+- VAPID setup (36-42): reads all 3 env vars, early-returns if any missing (logged, not silent). ✓
+- Send (124-136): `webpush.sendNotification({endpoint, keys:{p256dh, auth}}, payloadString)` — correct
+  subscription structure + stringified JSON payload. ✓
+- Error handling (144-169): catch swallows NOTHING — logs `statusCode` + message in ALL envs; 404/410 →
+  soft-disable dead sub; 403 → counted as the GLOBAL keypair-mismatch fault with a named diagnostic. ✓
+**No code bug in the send path.** So push-delivery failure is DEFINITIVELY a config issue, not code — almost
+certainly a VAPID keypair mismatch (browser subscribed with a `NEXT_PUBLIC_VAPID_PUBLIC_KEY` that doesn't pair
+with the server's `VAPID_PRIVATE_KEY`) or the VAPID vars unset on the server. The code already DIAGNOSES which:
+the logged `statusCode` names it (403 = keypair mismatch · 401 = bad VAPID auth · 410/404 = dead sub · early
+"no VAPID configured" log = vars unset). Founder action narrowed to: set ONE matching keypair
+(`npx web-push generate-vapid-keys` → both `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` on Vercel),
+trigger a push, read the logged `statusCode`. No code fix pending. This is fresh-eyes value on an OPEN item:
+static verification removed "is it a code bug?" from the founder's uncertainty — it's config, and the code
+self-diagnoses the exact config fault.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
