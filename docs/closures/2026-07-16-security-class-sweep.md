@@ -806,6 +806,29 @@ min-length gate), §3.5 consequence-not-agreement (durability comparison at equa
 (≥30-event readiness + fail-closed). The product embodies the method it runs on — structurally, where a future
 edit would trip a gate, not merely in prose.** The §3 constitutional core is comprehensively verified sound.
 
+## 49. §3.4 CONTROL-GATE (month-1 honest-baseline suppression) — enforcement RE-READ this session — CLEAN
+The one thesis pillar I had been asserting from MEMORY ("brain/ gate is fail-closed") rather than re-reading —
+§0.1 / §6-checklist-#1a forbid citing cached labels for a substantive claim, so I read the actual code this
+session. §3.4 is the sharpest honesty rule: "a system that behaved identically for every customer on install
+would be claiming understanding it cannot have — a lie"; month-1 must be a suppressed control baseline.
+Enforcement, verified line-by-line in `src/lib/brain/index.ts`:
+- **Fail-closed arithmetic** — `evaluateControlGate`: `autoUnlocked = Boolean(unlockAt) && new
+  Date(unlockAt).getTime() <= now`. A NULL unlock → `Boolean(null)`=false. A MALFORMED unlock → `NaN <= now`
+  =false. Either way the company stays SUPPRESSED. `guidanceEnabled = manualEnabled || autoUnlocked`, so the
+  default (both false) is suppressed. The comment names the §5 concern verbatim: "the builder-under-pressure
+  default must be 'suppressed,' never 'enabled'."
+- **The `controlExempt` bypass is NOT a backdoor** (the real test) — every one of the exempt call sites is the
+  SEPARATE Sales-Coach / Dissect product (`coach/sales-session/*`, `dissect/ask-coach`, `salesReview`,
+  `salesSummary`, `coachV5`/`dissectCoachV5`), which the FOUNDER decided is active day-1 (2026-06-30, documented
+  in-code: "the control window is for the Elostate diagnostic system only"). The Elostate team-diagnosis path
+  and C.A.R.E do NOT set it. Confirming the split: the TEAM `ai/decision-dialogue` (the §3.3 route, class 48) is
+  ABSENT from the exempt list → it stays §3.4-gated. On-demand separate-product tools are exempt by founder
+  decision; the ambient team-guidance intervention that §3.4 governs is not.
+**All SIX §3 sub-sections now enforcement-verified IN THIS SESSION (§3.1 rewrite-rule immutability, §3.2 gate
+counts, §3.3 schema ask-first, §3.4 fail-closed control-gate, §3.5 equal-N durability, §3.6 30-event+fail-closed
+readiness).** The §3 constitutional core — the product's entire thesis-defense — is comprehensively sound by
+enforcement evidence, not prose, and the one memory-only claim is now re-earned by reading (§0.1 satisfied).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
