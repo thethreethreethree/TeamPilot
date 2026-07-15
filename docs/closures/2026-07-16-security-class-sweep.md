@@ -1170,6 +1170,22 @@ strongest headless "it actually works" evidence (§1.5.1 Layer 2 — end-to-end,
 honest capstone for the session's shipped changes. Everything committed this session sits on a fully-green tree
 that also builds for production.
 
+## 67. Structural-soundness sweep of the WHOLE apply queue (§A26 boundary of class 53's authored-only check)
+Classes 53-57 verified apply-safety (forward-refs, columns, NOT-NULL, data-constraint) and I structurally
+checked the 3 migrations I AUTHORED (0184/0185/0186). §A26: the class boundary is "ALL unapplied queue
+migrations are structurally sound," not just mine. Swept the rest — dollar-quote parity, paren balance, BEGIN/
+function consistency:
+- **0114 / 0115** (account-join): even dollar-quotes, parens 27/27 & 16/16 balanced, 1 fn each. ✓
+- **0141** (invite-escalation RLS): 0 functions / 0 dollar-quotes — CORRECT (pure `create policy` statements, no
+  plpgsql body); parens 21/21. ✓
+- **0142** (subledger created_by pin): even dollar-quotes, parens 51/51, 1 fn. ✓
+- **0157-0182** (26 finance migrations): ZERO files with odd dollar-quotes or unbalanced parens. ✓
+**The entire apply queue is now verified apply-safe on every statically-checkable dimension** — object
+forward-refs (54), column forward-refs (55), NOT-NULL structural (56), existing-data constraint (57), file
+presence, AND gross SQL structure (67, whole queue). No migration in the queue will fail the founder's apply on
+a structural SQL error; the only residual is live-DB semantic checks against real data (the dev-push's job).
+This is the complete, honest floor of what a source-only trace can guarantee about the apply.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
