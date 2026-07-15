@@ -511,6 +511,21 @@ not-null) fails the predicate, no re-fire; and the fix captures the real bug (an
 NULL→set previously emitted nothing, so the join was never recorded on the chain). Exactly-one on the join
 moment. Both account-join halves (0114 email-match + 0115 join-event) are logic-sound; both staging-gated.
 
+## 29. LIVE BUG (minor) — recurring-bill month-end DRIFT; the decided "anchor-day" fix was never built
+fin_generate_recurring_bill (0140, APPLIED) advances next_date with `next_date + interval '1 month'` (and
+'3 months' / '1 year'). Postgres clamps month overflow: Jan 31 + 1 month = Feb 28, then Feb 28 + 1 month =
+Mar 28 — so a monthly/quarterly/annual bill anchored to day 29/30/31 DRIFTS permanently down to day 28 after
+passing February and never recovers. Verified LIVE: only 0140 defines the function (no later anchor-day
+redefinition), and no day_of_month/anchor logic exists anywhere. The financial-system memo recorded
+"recurring-drift = anchor-day" as a decided fix — it was decided but NEVER IMPLEMENTED; 0140 still drifts.
+Weekly is fine (+7 days is exact). Severity: MINOR — a bill DRAFT generates a couple days early each month; the
+vendor/amount are correct, only the date drifts. No financial-integrity impact.
+FIX (needs founder go-ahead — schema change + untestable-here clamp logic across 3 frequencies): add
+`anchor_day int` (backfill = extract(day from next_date)); advance to the anchor_day of the next period CLAMPED
+to that month's last day (`least(anchor_day, days_in_month)`), re-anchoring from anchor_day NOT the drifted
+next_date. Not shipped blind — a subtly-wrong date-clamp migration I can't run could be worse than the known
+drift. In the founder queue. (This is the one LIVE bug found late that isn't already fixed/flagged as founder-UX.)
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to

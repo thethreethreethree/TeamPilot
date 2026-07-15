@@ -35,6 +35,12 @@
 >   construction today, but `signals` has no unique constraint, so a future re-derive path (backfill/retry)
 >   would double signals + inflate the §3.2 gate count. A clean backstop needs an `event_id` column on
 >   `signals` (they carry none; (kind,source) is legitimately non-unique). Add it now, or accept the risk?
+> - **Recurring-bill month-end DRIFT** (minor, LIVE, 0140 applied) — a monthly/quarterly/annual bill anchored
+>   to day 29/30/31 drifts to day 28 after February and never recovers (`next_date + interval '1 month'` clamps
+>   Jan 31→Feb 28→Mar 28). Your recorded "recurring-drift = anchor-day" decision was NEVER implemented. Minor
+>   (a draft generates a couple days early; amount/vendor correct). Fix = add anchor_day column + clamp logic;
+>   I did NOT ship it blind (schema + date math I can't test here — a subtle clamp bug could be worse). Give the
+>   go-ahead and I'll build + carefully test it, or you apply anchor-day.
 > - **CRM control-month tracking** (minor, vendor-tooling — NOT a §3.4 product issue; the product's §3.4
 >   gate in brain/ is sound + fail-closed) — the CRM `control_month_completed` event is defined + UI-labeled
 >   but never emitted, and nothing auto-advances a customer past control_month at its 30-day mark. A vendor
