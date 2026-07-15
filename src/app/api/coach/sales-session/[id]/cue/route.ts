@@ -110,10 +110,15 @@ export async function POST(
   //  but the rep can still pull help on demand". If you want the window to also
   //  silence on-demand requests, drop the `!body.force` guard.]
   if (!body.force) {
-    const mode = await getExperienceMode(supabase, auth.user.id);
-    if (mode === "standard") {
-      const startedAt = await getAgentCoachStart(session.agentId);
-      if (isWithinObserveWindow(startedAt, Date.now())) {
+    // Order matters for cost (audit F2, 2026-07-15): check the WINDOW first. Once a
+    // rep is past their first 3 days — which is almost every cue, forever — this is
+    // one indexed read and we skip the mode lookup entirely. Only a rep still inside
+    // the window pays for the second read (to confirm it's Standard, since Expert is
+    // never observed). Behaviour is identical to reading mode first.
+    const startedAt = await getAgentCoachStart(session.agentId);
+    if (isWithinObserveWindow(startedAt, Date.now())) {
+      const mode = await getExperienceMode(supabase, auth.user.id);
+      if (mode === "standard") {
         return NextResponse.json({
           cue: {
             shouldCue: false,
