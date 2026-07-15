@@ -36,12 +36,11 @@ function userSb(userId: string | null, msg: unknown) {
 function adminSb() {
   const authors = { data: [{ author_id: "author" }], error: null };
   const parts = { data: [{ user_id: "author", role: "member", left_at: null }, { user_id: "other", role: "member", left_at: null }], error: null };
-  let call = 0;
   return {
     from: () => ({
       select: () => ({
         eq: () => ({
-          eq: () => ({ eq: () => ({ not: () => ({ order: () => ({ limit: async () => (call++, authors) }) }) }) }),
+          eq: () => ({ eq: () => ({ not: () => ({ order: () => ({ limit: async () => authors }) }) }) }),
           is: () => ({ in: async () => parts }),
         }),
       }),
