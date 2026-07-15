@@ -392,6 +392,11 @@ the same (uuid,uuid) signature, so 0183's revoke covers the current version (a s
 have left the delegation-aware version client-callable — it didn't). Class fully closed. (Deep meta the author
 records: rls:audit has "no concept of a function", so DEFINER funcs were a gate blind spot — A30: a green gate
 speaks to the gate's vocabulary, not the system. The revoke-vs-nine-guards choice removes the attack surface.)
+**DOUBLY CONFIRMED + now GATED:** the codebase's own `invariant:audit` (scripts/invariant-audit.mjs INVARIANT 4)
+already encodes exactly this rule — a DEFINER fn taking a tenant param must be revoked or auth_company_id-guarded
+— and running it returns GREEN (0 violations, 594 files). So the class is closed AND structurally enforced going
+forward (the "lesson returned because nothing gated it" failure the author described can't recur). Verified the
+gate exists before building a duplicate; my manual §A26 sweep + this automated gate independently agree.
 
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
