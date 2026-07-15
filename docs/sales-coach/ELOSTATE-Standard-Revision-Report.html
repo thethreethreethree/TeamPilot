@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ELOSTATE Sales Coach — Standard Mode Revision</title>
+<style>
+  @page { size: A4 portrait; margin: 14mm 14mm 16mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #0b0b0f; --ink2: #14141b; --line: rgba(255,255,255,.08);
+    --ember: #facc15; --ember2: #f59e0b; --emerald:#6ee7b7; --amber:#fcd34d;
+    --txt: #e7e7ea; --mut: #9a9aa4; --mut2:#6c6c78; --brand:#facc15;
+    --paper:#faf9f7; --paperink:#1a1a1f; --papermut:#6b6b74; --paperline:#e6e3dd;
+  }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--paperink); background: var(--paper); font-size: 11px; line-height: 1.5; }
+  .page { page-break-after: always; padding: 2mm 0; }
+  .page:last-child { page-break-after: auto; }
+
+  /* Cover */
+  .cover { background: var(--ink); color: var(--txt); border-radius: 18px; padding: 34px 30px; position: relative; overflow: hidden; }
+  .cover::after { content:""; position:absolute; right:-60px; top:-60px; width:220px; height:220px; border-radius:50%; background: radial-gradient(circle, rgba(250,204,21,.22), transparent 70%); }
+  .eyebrow { text-transform: uppercase; letter-spacing: .22em; font-size: 9.5px; color: var(--ember); font-weight: 700; }
+  .cover h1 { font-size: 30px; line-height: 1.08; margin: 12px 0 8px; letter-spacing: -.02em; font-weight: 800; }
+  .cover h1 span { color: var(--ember); }
+  .cover p { color: var(--mut); max-width: 62ch; font-size: 12px; }
+  .statrow { display: flex; gap: 26px; margin-top: 24px; }
+  .stat .n { font-size: 26px; font-weight: 800; color: #fff; }
+  .stat .l { font-size: 9.5px; color: var(--mut); text-transform: uppercase; letter-spacing: .12em; }
+  .cover .foot { margin-top: 22px; font-size: 10px; color: var(--mut2); border-top: 1px solid var(--line); padding-top: 12px; }
+
+  h2.sec { font-size: 16px; font-weight: 800; letter-spacing: -.01em; margin: 4px 0 3px; }
+  h2.sec .num { color: var(--ember2); font-weight: 800; margin-right: 8px; }
+  .sub { color: var(--papermut); font-size: 10.5px; margin-bottom: 14px; }
+
+  /* Checklist table */
+  table.chk { width: 100%; border-collapse: collapse; }
+  table.chk th { text-align: left; font-size: 8.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--papermut); border-bottom: 1.5px solid var(--paperink); padding: 6px 8px; }
+  table.chk td { padding: 8px 8px; border-bottom: 1px solid var(--paperline); vertical-align: top; }
+  .tag { display:inline-block; font-size: 8px; font-weight: 700; letter-spacing:.06em; padding: 2px 6px; border-radius: 999px; white-space: nowrap; }
+  .done { background: #d9f5e6; color: #0f7a4d; }
+  .where { color: var(--papermut); font-size: 9.5px; font-weight: 600; }
+  td .what { font-weight: 600; }
+  td .why { color: var(--papermut); font-size: 10px; }
+  .pill-p { font-weight:800; color: var(--ember2); }
+
+  /* Phone mockups */
+  .screens { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; margin-top: 6px; }
+  .screen { }
+  .cap { font-size: 10.5px; font-weight: 700; margin-bottom: 6px; }
+  .cap .p { color: var(--ember2); }
+  .cap small { display:block; font-weight: 500; color: var(--papermut); font-size: 9.5px; margin-top:1px; }
+  .phone { background: var(--ink); border-radius: 20px; padding: 12px 11px 14px; color: var(--txt); border: 6px solid #1c1c24; box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+  .st { display:flex; justify-content: space-between; font-size: 8px; color: var(--mut); margin-bottom: 8px; }
+  .ttl { font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+  .card { background: var(--ink2); border: 1px solid var(--line); border-radius: 12px; padding: 9px; margin-bottom: 7px; }
+  .seg { display:flex; gap:6px; }
+  .seg .b { flex:1; text-align:center; font-size: 9px; font-weight:700; padding: 6px; border-radius: 8px; border:1px solid var(--line); color: var(--mut); }
+  .seg .b.on { border-color: rgba(250,204,21,.5); background: rgba(250,204,21,.1); color: var(--ember); }
+  .field { font-size: 9px; color: var(--mut2); border:1px solid var(--line); border-radius: 8px; padding: 7px 8px; margin: 7px 0; }
+  .cta { background: linear-gradient(135deg,#fde68a,#f59e0b); color:#1a1a1f; text-align:center; font-weight:800; font-size:11px; padding: 9px; border-radius: 10px; }
+  .cta.big { padding: 12px; font-size: 12px; }
+  .lbl { font-size: 8px; text-transform: uppercase; letter-spacing:.1em; color: var(--mut); font-weight:700; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tile { background: var(--ink2); border:1px solid var(--line); border-radius: 10px; padding: 8px; }
+  .tile .k { font-size: 7.5px; text-transform:uppercase; letter-spacing:.08em; color: var(--mut); font-weight:700; }
+  .tile .v { font-size: 15px; font-weight:800; margin-top:1px; }
+  .v.good { color: var(--emerald); } .v.mid { color: var(--ember); } .v.low { color: var(--amber); } .v.na { color: var(--mut2); }
+  .tile .d { font-size: 7.5px; color: var(--mut); line-height: 1.35; margin-top: 3px; }
+  .note { font-size: 8.5px; color: var(--txt); background: rgba(250,204,21,.06); border:1px solid rgba(250,204,21,.3); border-radius: 9px; padding: 8px; line-height:1.4; }
+  .removed { position: relative; opacity:.4; }
+  .removed::after { content:"REMOVED"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:800; letter-spacing:.14em; color:#ff6b6b; }
+  .strike { text-decoration: line-through; color: var(--mut2); }
+  .rowbtns { display:flex; gap:6px; }
+  .rowbtns .g { flex:1; text-align:center; font-size:8.5px; font-weight:700; padding:6px; border-radius:8px; border:1px solid var(--line); color:var(--mut); }
+  .scoregrid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+  .sc { background: var(--ink2); border:1px solid var(--line); border-radius:8px; padding:6px 4px; text-align:center; }
+  .sc .k { font-size:6.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); font-weight:700; line-height:1.1; }
+  .sc .v { font-size:12px; font-weight:800; margin-top:2px; }
+  .readblk .h { font-size:8px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .readblk .h.g { color: var(--emerald); } .readblk .h.a { color: var(--ember); }
+  .readblk p { font-size:8.5px; color: var(--txt); margin:2px 0 6px; line-height:1.4; }
+
+  .legend { display:flex; gap: 14px; margin-top: 14px; font-size: 9.5px; color: var(--papermut); flex-wrap: wrap; }
+  .legend b { color: var(--paperink); }
+  .foot-note { margin-top: 16px; font-size: 9.5px; color: var(--papermut); border-top:1px solid var(--paperline); padding-top: 10px; }
+  .foot-note strong { color: #b45309; }
+</style>
+</head>
+<body>
+
+<!-- ───────────────────────── COVER ───────────────────────── -->
+<div class="page">
+  <div class="cover">
+    <div class="eyebrow">System Revision · Report</div>
+    <h1>ELOSTATE Sales Coach<br><span>Standard Mode</span> — simplified for the field</h1>
+    <p>Every change from the Edit List, applied to <b style="color:#fff">Standard mode</b> so the coach stays out of a door-to-door rep's way — fewer words, one obvious next step, momentum between doors. <b style="color:#fff">Expert mode is untouched.</b></p>
+    <div class="statrow">
+      <div class="stat"><div class="n">18</div><div class="l">changes shipped</div></div>
+      <div class="stat"><div class="n">8</div><div class="l">screens revised</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">Expert screens changed</div></div>
+      <div class="stat"><div class="n">695</div><div class="l">tests green</div></div>
+    </div>
+    <div class="foot">Governed build under ThinkerThinker.md &amp; CLAUDE.md (AMD-006 four-layer). Screens shown are faithful representations of the revised Standard UI — not live captures. All work is <b>BUILT</b> and gate-verified (tsc · lint · theme · tests); it has not yet rendered in a live session, so it is not marked TESTED.</div>
+  </div>
+</div>
+
+<!-- ───────────────────────── CHECKLIST ───────────────────────── -->
+<div class="page">
+  <h2 class="sec"><span class="num">01</span>What changed — the Edit List, line by line</h2>
+  <p class="sub">Each priority edit from your PDF, what it now does in Standard, and where it lives.</p>
+  <table class="chk">
+    <thead><tr><th style="width:15%">Edit</th><th style="width:37%">What changed</th><th style="width:33%">Why it matters</th><th style="width:15%">Status</th></tr></thead>
+    <tbody>
+      <tr><td class="what"><span class="pill-p">1a</span> Start default</td><td class="what">In-person is the default channel, not Online video.</td><td class="why">Door reps live at doorsteps; defaulting to video taxed every session.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">1b</span> Name after</td><td class="what">No title required to start; name the call <em>after</em> recording ("angry customer") via a rename on the summary.</td><td class="why">Momentum: start the call, name it once you know what it was.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">2</span> Sessions tab</td><td class="what">Start-a-session card removed; tab is browse-only (growth, search, history). Start lives on Home.</td><td class="why">One clear purpose per tab.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">3</span> Analytics</td><td class="what">1515 ELO number &amp; team aggregate gone; six per-skill scores /10 + short AI breakdowns.</td><td class="why">"Closing 2/10" tells a rep what to work on; "you're a 6" doesn't.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">4.1</span> Live screen</td><td class="what">"Prep me" &amp; "Generate growth review" removed from the live screen.</td><td class="why">Pre/post clutter a rep doesn't touch mid-call.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">4.2</span> Ask the coach</td><td class="what">Kept; prompt reframed to "What are you struggling on?"</td><td class="why">Invites the real blocker, not a product-info query.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">4.3</span> One mode</td><td class="what">Suggestion / Guide-my-response collapsed to one button.</td><td class="why">No mode decision mid-conversation.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">4.3a</span> Listen 3 days</td><td class="what">First 3 days: the coach listens (records + reviews) but gives no live cues; advice starts day 4. A visible "learning your style" notice explains the silence.</td><td class="why">Observe before intervening — an honest baseline, and never reads as "broken".</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">4.4</span> Less wordy live</td><td class="what">Verbose live-coaching helper text stripped (safety caveat kept).</td><td class="why">Fewer words on the busiest screen.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">4.5</span> Upload removed</td><td class="what">"Upload the call recording" removed from Standard.</td><td class="why">Door-to-door reps won't use it.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">5–7</span> After recording</td><td class="what"><b>Biggest priority.</b> The dense post-record screen is gone. Recording ends → After-Pitch Summary comes up + one "Start Next Door". Summary &amp; timeline stay in the session for reliving.</td><td class="why">"Too much on there takes away momentum. We lose users." Now: one screen, one next step.</td><td><span class="tag done">✓ Done</span></td></tr>
+      <tr><td class="what"><span class="pill-p">8–11</span> After-Pitch trim</td><td class="what">Moments timeline, "What happened", the breakdown 3-up removed. Scores + "what you did well" + "opportunities to grow" kept — and made <em>less wordy</em>.</td><td class="why">Keep the learning, drop the scroll.</td><td><span class="tag done">✓ Done</span></td></tr>
+    </tbody>
+  </table>
+  <div class="legend">
+    <span><b>Standard</b> = the simplified experience (default for new reps).</span>
+    <span><b>Expert</b> = today's full system, deliberately unchanged.</span>
+  </div>
+  <div class="foot-note">Honest status: every item is <strong>BUILT and gate-verified</strong> (types, lint, theme, 695 tests). None has been exercised in a live session yet, so nothing is marked TESTED. Two founder decisions are flagged in-app: whether the 3-day window should also silence on-demand help, and the exact talk/pace scoring bands (both one-line tunable).</div>
+</div>
+
+<!-- ───────────────────────── MOCKUPS 1 ───────────────────────── -->
+<div class="page">
+  <h2 class="sec"><span class="num">02</span>The new system — Standard screens</h2>
+  <p class="sub">Faithful representations of the revised Standard UI (not live captures).</p>
+  <div class="screens">
+
+    <div class="screen">
+      <div class="cap"><span class="p">1a·1b</span> Start a coaching session <small>In-person default · title optional</small></div>
+      <div class="phone">
+        <div class="st"><span>9:41</span><span>▪ ▪ ▪ &nbsp;100%</span></div>
+        <div class="ttl">Start a coaching session</div>
+        <div class="seg"><div class="b">▷ Online video</div><div class="b on">▤ In-person</div></div>
+        <div class="field">Name it later (optional)</div>
+        <div class="cta">⤳ Start session</div>
+        <div style="font-size:8px;color:var(--mut2);margin-top:7px">+ Add details (where / how / what) — optional</div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="cap"><span class="p">2</span> Sessions tab <small>browse-only — start card removed</small></div>
+      <div class="phone">
+        <div class="st"><span>9:41</span><span>▪ ▪ ▪ &nbsp;100%</span></div>
+        <div class="ttl">Sessions</div>
+        <div class="card removed" style="height:52px"></div>
+        <div class="card" style="padding:7px"><div class="lbl">◔ Growth opportunities to practice</div></div>
+        <div class="card" style="padding:7px"><div class="lbl">▤ Where your sessions stand</div></div>
+        <div class="field">⌕ Search client or agent…</div>
+        <div style="font-size:8px;color:var(--mut2);text-align:center;margin-top:6px">Your coaching history below</div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="cap"><span class="p">3</span> Analytics — all about you <small>six skills /10 · ELO &amp; team aggregate removed</small></div>
+      <div class="phone">
+        <div class="st"><span>9:41</span><span>▪ ▪ ▪ &nbsp;100%</span></div>
+        <div class="ttl">Your skills <span style="font-size:8px;color:var(--mut);font-weight:400">· last 6 calls</span></div>
+        <div class="grid2">
+          <div class="tile"><div class="k">Talk / Listen</div><div class="v mid">6/10</div><div class="d">Leave a bit more room to listen.</div></div>
+          <div class="tile"><div class="k">Tone</div><div class="v good">8/10</div><div class="d">Warm and steady — keep it.</div></div>
+          <div class="tile"><div class="k">Speed of speech</div><div class="v good">9/10</div><div class="d">Clear, unhurried pace.</div></div>
+          <div class="tile"><div class="k">Questions</div><div class="v mid">7/10</div><div class="d">Good discovery; dig one deeper.</div></div>
+          <div class="tile"><div class="k">Objection</div><div class="v low">4/10</div><div class="d">Acknowledge before you answer.</div></div>
+          <div class="tile"><div class="k">Closing</div><div class="v low">2/10</div><div class="d">Ask for the next step out loud.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="cap"><span class="p">4.1–4.5</span> Live coaching <small>one mode · 3-day notice · no Upload</small></div>
+      <div class="phone">
+        <div class="st"><span>9:41</span><span>▪ ▪ ▪ &nbsp;100%</span></div>
+        <div class="ttl">◉ Live coaching</div>
+        <div class="seg" style="margin-bottom:7px"><div class="b on" style="flex:0 0 auto;padding:6px 12px">Suggestion</div></div>
+        <div class="note" style="margin-bottom:7px">◉ The coach is <b>learning your style</b> — it's listening this call, not coaching yet. Your call is still recorded &amp; reviewed. Live cues switch on after your first few days (Jul 18).</div>
+        <div class="card" style="padding:7px"><div class="lbl">? Ask the coach</div><div style="font-size:8.5px;color:var(--mut);margin-top:3px">What are you struggling on?</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ───────────────────────── MOCKUPS 2 — biggest priority ───────────────────────── -->
+<div class="page">
+  <h2 class="sec"><span class="num">03</span>The biggest priority — after the recording</h2>
+  <p class="sub">Before: a wall of transcript, tools, buttons. After: the After-Pitch Summary comes up, and one Next Door. Nothing else.</p>
+  <div class="screens">
+
+    <div class="screen">
+      <div class="cap strike">Before — everything at once</div>
+      <div class="phone">
+        <div class="st"><span>4:16</span><span>▪ ▪ ▪ &nbsp;48%</span></div>
+        <div class="ttl strike">Test 2</div>
+        <div class="card strike" style="padding:6px;font-size:8px">Conversation summary · timeline · Prep me · Generate review · Ask coach · Call outcome</div>
+        <div class="card strike" style="padding:6px;font-size:8px">Coach tools: Summarize · Ask coach · Dissect</div>
+        <div class="card strike" style="padding:6px;font-size:8px">Upload the call recording</div>
+        <div class="card strike" style="padding:6px;font-size:8px">TRANSCRIPT — AGENT: "Perfect, I'm looking for a for my family. Um, those are the only people that we have, but we do have a promotional offer…" (continues, and continues…)</div>
+        <div style="text-align:center;font-size:8px;color:#ff6b6b;font-weight:700;margin-top:4px">↓ scroll · scroll · scroll ↓</div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="cap"><span class="p">5–11</span> After — After-Pitch + Next Door</div>
+      <div class="phone">
+        <div class="st"><span>4:22</span><span>▪ ▪ ▪ &nbsp;46%</span></div>
+        <div style="text-align:center"><div class="ttl" style="font-size:14px">After Pitch Summary 🏅</div>
+        <div style="font-size:8px;color:var(--ember);margin-bottom:8px">Angry customer · 5m 46s &nbsp;·&nbsp; <span style="color:var(--mut2);text-decoration:underline">rename</span></div></div>
+        <div class="lbl" style="margin-bottom:4px">Your scores</div>
+        <div class="scoregrid" style="margin-bottom:8px">
+          <div class="sc"><div class="k">Opener</div><div class="v" style="color:var(--amber)">4/10</div></div>
+          <div class="sc"><div class="k">Object'n</div><div class="v" style="color:var(--amber)">3/10</div></div>
+          <div class="sc"><div class="k">Talk/Lis</div><div class="v" style="color:var(--ember)">73/27</div></div>
+          <div class="sc"><div class="k">Quest'ns</div><div class="v" style="color:var(--ember)">2 of 4</div></div>
+        </div>
+        <div class="readblk">
+          <div class="h g">✓ What you did well</div>
+          <p>You adapted the solution to the customer's dog. Nice listening.</p>
+          <div class="h a">◔ Opportunity to grow</div>
+          <p>Frame price as part of the value first, then say the number.</p>
+        </div>
+        <div class="card" style="padding:6px;margin:6px 0"><div class="lbl">How did it go?</div><div class="rowbtns" style="margin-top:4px"><div class="g">Sold</div><div class="g">Follow-up</div><div class="g">No sale</div></div></div>
+        <div class="cta big">› Start Next Door</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="foot-note">The conversation <strong>summary and full timeline are not deleted</strong> — they stay on the session page so a rep or manager can relive the call and learn from it. What changed is the <em>moment the door closes</em>: the rep sees one clean debrief and one next step, instead of a screen that stalls them. That is the AMD-006 workflow-continuity fix your note described — "it takes away momentum, we lose users."</div>
+</div>
+
+</body>
+</html>
