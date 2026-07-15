@@ -1,14 +1,17 @@
 # Security audit — four-class sweep (2026-07-16)
 
 > ## ⬆️ EXECUTIVE SUMMARY (navigational — added at session end; the numbered classes below are the record)
-> This began as a 4-class security sweep and became a **whole-session comprehensive audit** (28 classes).
+> This began as a 4-class security sweep and became a **whole-session comprehensive audit** (29 classes). The
+> FINANCE audit is 100% complete (every calc + reconciliation surface); the entire §3 constitutional core is
+> verified sound; the security perimeter is systematically swept.
 >
-> **16 REAL FIXES** (all tested where testable; migrations UNAPPLIED unless noted):
+> **17 REAL FIXES** (all tested where testable; migrations UNAPPLIED unless noted):
 > - *Tasks:* transition-guard drift (#7, live), "Open tasks" overcount (live), `0184` false task_slipped
 >   (Cancelled), 3× team-check Cancelled (live), domain-list dedup (live), blocker_reason CREATE enforcement
 >   (server+client, live).
 > - *C.A.R.E:* command-stats phantom statuses (live), resolution-rate transient-status (live).
-> - *Finance:* dashboard AR (`0185`) + cash-forecast (`0175`) credit-note omission.
+> - *Finance:* dashboard AR (`0185`) + cash-forecast (`0175`) credit-note omission; recurring-bill month-end
+>   DRIFT (`0186`, anchor-day, algorithm-test-verified — the founder's decided fix, finally built).
 > - *Security:* session-rename authz (live), timing-unsafe secret (live), push recipient (live), recording-upload
 >   executable-via-spoofed-MIME (#15, live), + the notify-message recipient bug.
 >
