@@ -119,7 +119,32 @@ transcript, and do not invent specifics. If the conversation is too thin
 to teach from, say so honestly rather than manufacturing a lesson.
 `.trim();
 
-export function buildSalesReviewSystemPrompt(corpusOverride?: string): string {
+/**
+ * Standard-mode brevity (spec p12 "make sure it's LESS WORDY"). This is a
+ * PER-FIELD length instruction, NOT the blanket shapeSystemPrompt directive —
+ * that one tells the model to answer in 2-3 plain sentences and would corrupt
+ * this JSON call (§A14, documented in experience/mode.ts). So we keep the exact
+ * JSON shape and only cap the prose INSIDE each field. §3.4: shorter, never less
+ * honest — the same finding, in fewer words. Expert/undefined → "" (unchanged).
+ */
+function reviewBrevityBlock(
+  mode: import("@/lib/experience/mode").ExperienceMode | undefined
+): string {
+  if (mode !== "standard") return "";
+  return `
+STANDARD LENGTH (the reader chose a simplified experience — the full-length review overwhelms them):
+- Keep every "point", "opportunity" and "nextStep" to ONE short sentence. No preamble, no second clause.
+- "example" stays a real transcript quote but trimmed to the fewest words that still prove the point.
+- At most 2 strengths and 2 growth areas — the most important only. Fewer, sharper, not a checklist.
+- "closing" is one short line.
+- Do NOT drop a real growth area to hit the length — say it in fewer words. Simpler, never less honest.
+`;
+}
+
+export function buildSalesReviewSystemPrompt(
+  corpusOverride?: string,
+  mode?: import("@/lib/experience/mode").ExperienceMode
+): string {
   return `You are a Live Sales Coach delivering a post-conversation growth
 review to a sales agent. You have just read the full transcript of one
 of their live customer conversations.
@@ -127,6 +152,7 @@ of their live customer conversations.
 ${TONE_LAW}
 
 ${methodologyBlock(corpusOverride)}
+${reviewBrevityBlock(mode)}
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {

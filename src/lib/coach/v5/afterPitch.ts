@@ -115,6 +115,9 @@ export async function generateAfterPitchSummary(args: {
   sessionId: string;
   context?: SalesContext;
   outcome?: string | null;
+  /** The rep's experience dial. Standard shortens the narrative read (spec p12).
+   *  Undefined → today's (Expert-length) behaviour. */
+  mode?: import("@/lib/experience/mode").ExperienceMode;
 }): Promise<AfterPitchSummary> {
   try {
     const segments = await getSessionTranscriptAdmin(args.sessionId);
@@ -126,6 +129,7 @@ export async function generateAfterPitchSummary(args: {
         companyId: args.companyId,
         context: args.context,
         segments,
+        mode: args.mode,
       }),
       generateSalesMoments({
         companyId: args.companyId,

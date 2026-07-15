@@ -7,6 +7,7 @@ import {
   getLatestAfterPitchSummaryAdmin,
 } from "@/lib/data/salesCoach";
 import { generateAfterPitchSummary } from "@/lib/coach/v5/afterPitch";
+import { getExperienceMode } from "@/lib/experience/mode";
 
 /**
  * After Pitch Summary — the rep's "between doors" debrief.
@@ -105,11 +106,18 @@ export async function POST(
     );
   }
 
+  // The rep's own experience dial shapes the LENGTH of the read (spec p12: Standard
+  // must be "LESS WORDY"). Read from the OWNER's preference, not the caller's — a
+  // manager generating the summary must still see the rep's version, not their own
+  // mode's. §3.4: Standard shortens presentation only, never omits a real finding.
+  const mode = await getExperienceMode(supabase, session.agentId);
+
   const summary = await generateAfterPitchSummary({
     companyId: session.companyId,
     sessionId: id,
     context: session.context,
     outcome: session.outcome,
+    mode,
   });
 
   if (summary.hasSignal) {

@@ -51,6 +51,9 @@ export async function generateSalesReview(args: {
   sessionTitle?: string;
   context?: SalesContext;
   segments: TranscriptSegment[];
+  /** Standard shortens each field's prose (spec p12); Expert/undefined keeps
+   *  today's length. Presentation only — the tone law and honesty are unchanged. */
+  mode?: import("@/lib/experience/mode").ExperienceMode;
 }): Promise<SalesReview> {
   try {
     const agentSegments = args.segments.filter((s) => s.speaker === "agent");
@@ -64,7 +67,7 @@ export async function generateSalesReview(args: {
     const corpus = await getCurrentSalesCorpus(args.companyId).catch(
       () => null
     );
-    const systemPrompt = buildSalesReviewSystemPrompt(corpus?.content);
+    const systemPrompt = buildSalesReviewSystemPrompt(corpus?.content, args.mode);
     const userMessage = buildSalesReviewUserMessage({
       sessionTitle: args.sessionTitle,
       context: args.context,
