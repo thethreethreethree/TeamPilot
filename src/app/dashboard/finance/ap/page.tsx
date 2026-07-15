@@ -7,7 +7,7 @@ import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, computeLineTax, parseMoneyInput } from "@/lib/finance/format";
 import { todayIso } from "@/lib/finance/dateRange";
 import { useToast } from "@/components/ui/toast";
-import { Plus, CheckCircle2, DollarSign } from "lucide-react";
+import { Plus, CheckCircle2, DollarSign, CalendarClock } from "lucide-react";
 
 type Vendor = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
@@ -184,6 +184,30 @@ export default function ApPage() {
       toast.success(action === "approve" ? "Approved & posted to the ledger" : "Paid");
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
+  };
+
+  // Schedule a payment for LATER, instead of paying now. Different endpoint from act() — scheduling is an
+  // intent, not a posting, and it lives on the fin_payment_schedules worklist rather than the GL.
+  //
+  // AMD-006 Layer 3 (workflow continuity): scheduling deliberately does NOT move the bill to 'paid' or post
+  // anything. If the toast just said "Scheduled" the clerk would be left wondering whether money moved. So
+  // it names where the intent went (the Schedules page) and states plainly that nothing has settled yet —
+  // the next action (execute it when due) happens there, and the clerk is pointed at it.
+  const schedule = async (billId: string, amount: number, date: string) => {
+    setBusy(true);
+    const res = await fetch("/api/finance/ap/schedules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "schedule", billId, amount, scheduledDate: date }),
+    });
+    const j = await res.json();
+    setBusy(false);
+    if (res.ok) {
+      // The RPC's message is the useful one when it refuses (it names how much room is actually left on the
+      // bill after what's already paid + already scheduled). Don't overwrite it with generic wording.
+      toast.success("Payment scheduled", "It's on the Schedules worklist. Nothing has moved yet — execute it there when it's due.");
+      void load();
+    } else toast.error("Couldn't schedule", j?.error ?? "");
   };
 
   return (
@@ -386,11 +410,21 @@ export default function ApPage() {
                         </button>
                       )}
                       {b.status === "approved" && (
-                        <PayButton
-                          defaultAmount={Math.max(0, (b.total ?? 0) - (b.paid ?? 0))}
-                          onPay={(amt) => act(b.id, "pay", amt)}
-                          disabled={busy}
-                        />
+                        <div className="inline-flex flex-col items-end gap-1">
+                          <PayButton
+                            defaultAmount={Math.max(0, (b.total ?? 0) - (b.paid ?? 0))}
+                            onPay={(amt) => act(b.id, "pay", amt)}
+                            disabled={busy}
+                          />
+                          {/* Pay now, OR queue it for later. An approved bill is exactly what
+                              fin_schedule_payment requires; before this the schedule worklist could be
+                              executed and cancelled but never populated — the create step had no home. */}
+                          <ScheduleButton
+                            defaultAmount={Math.max(0, (b.total ?? 0) - (b.paid ?? 0))}
+                            onSchedule={(amt, date) => schedule(b.id, amt, date)}
+                            disabled={busy}
+                          />
+                        </div>
                       )}
                       {b.status === "paid" && <span className="text-xs text-emerald-400">Paid</span>}
                     </td>
@@ -443,6 +477,25 @@ function PayButton({ defaultAmount, onPay, disabled }: { defaultAmount: number; 
       <input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="Amt" className="w-16 bg-surface rounded px-1.5 py-1 text-xs text-primary border border-default" />
       <button onClick={() => onPay(Number(amt))} disabled={disabled || !amt} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-brand/20 text-brand disabled:opacity-60">
         <DollarSign className="w-3 h-3" /> Pay
+      </button>
+    </span>
+  );
+}
+
+// The deferred sibling of PayButton: same default-to-outstanding convenience, plus the one field that
+// distinguishes a schedule from a payment — WHEN. Amount pre-fills to the outstanding balance (edit down
+// for a partial), date defaults to today (move it forward for a future-dated instruction). The server
+// caps the scheduled total at what the bill still owes (paid + already-scheduled + this ≤ total), so a
+// clerk cannot quietly over-commit a bill across several instructions.
+function ScheduleButton({ defaultAmount, onSchedule, disabled }: { defaultAmount: number; onSchedule: (amount: number, date: string) => void; disabled: boolean }) {
+  const [amt, setAmt] = useState(defaultAmount > 0 ? defaultAmount.toFixed(2) : "");
+  const [date, setDate] = useState(todayIso());
+  return (
+    <span className="inline-flex items-center gap-1">
+      <input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="Amt" className="w-16 bg-surface rounded px-1.5 py-1 text-xs text-primary border border-default" />
+      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-surface rounded px-1.5 py-1 text-xs text-primary border border-default" />
+      <button onClick={() => onSchedule(Number(amt), date)} disabled={disabled || !amt || !date} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-surface-raised text-secondary border border-default disabled:opacity-60">
+        <CalendarClock className="w-3 h-3" /> Schedule
       </button>
     </span>
   );
