@@ -54,8 +54,24 @@ NOT a unit test (the predicate lives in the DB function). Flagged same-class-low
 team-check nudge / staleness badge (`status === 'Completed'`) act on cancelled tasks; and the server
 transition map allows 'Cancelled' while the create enum + web-UI map omit it (a source-of-truth split).
 
+## 7. Duplicated status graph drifted → broken server guard — 1 FIX (same investigative thread)
+Tracing the Cancelled question into the transition graph exposed a second, larger defect. The task status
+transition map was declared TWICE — the client graph (operations/[id]/page.tsx, what the UI renders) and an
+inline copy in PATCH /api/tasks ("audit findings 7+8: backend now enforces it"). They had drifted: the server
+copy keyed a phantom `New` (nothing writes 'New'), OMITTED `To Do` and `Needs Review`, and its comment falsely
+claimed it mirrored the UI. Result (AMD-006 L2): the server guard **rejected To Do → In Progress** — the most
+basic transition — for the API/mobile consumers it was added to protect (`transitions['To Do'] ?? [] → []`).
+The web UI dodged it only because `changeTaskStatus` writes status directly via the RLS client and never hits
+the route (so the guard was simultaneously dead-for-UI and broken-for-API). **Fixed `f71eca8`** → one shared
+`TASK_STATUS_TRANSITIONS` + `allowedTaskTransitions()` in statusLabels.ts, imported by BOTH sides so "server
+mirrors UI" is structural; 6 tests lock it (incl. the To Do → In Progress regression). Behavior change flagged:
+the route no longer accepts → 'Cancelled' (never should have; no UI/enum/label for it; no consumer used it).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
+- A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
+  happen — the server transition map had silently diverged from the UI's for who-knows-how-long. Prefer ONE
+  exported source both import (TASK_STATUS_TRANSITIONS, isTaskClosed, csvSafe are the pattern).
 - A new "task is still open" predicate MUST exclude BOTH terminal statuses (`Completed`, `Cancelled`), not
   just Completed — especially any path that writes to the immutable §3.1 event/signal chain.
 - New admin-client routes MUST gate the caller (user context / care-agent / session token / cron secret) AND
