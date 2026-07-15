@@ -1,5 +1,33 @@
 # Founder action queue — as of 2026-07-14
 
+> ### ⬆️ 2026-07-16 ADDENDUM (audit session — newer than everything below)
+>
+> A metric-integrity + algorithmic audit ran across tasks → C.A.R.E → finance. **~14 real fixes, all
+> verified & tested where testable; ~11 verified-clean; ~9 false-findings refuted before reporting.** Full
+> trail: `docs/closures/2026-07-16-security-class-sweep.md`. New founder-actionable items on top of the batch below:
+>
+> **APPLY (2 new migrations, after the `0157–0182` batch):**
+> - **`0184`** — task-overrun sweep now excludes CANCELLED tasks (was emitting false `task_slipped` signals).
+> - **`0185`** — finance dashboard `ar_outstanding` now nets issued credit notes (was overstating AR; didn't
+>   tie to GL). Also **`0175` was corrected IN PLACE** (referenced a non-existent `i.paid` column → would not
+>   apply; now `i.received − i.credited`) — applies with the existing batch.
+>
+> **ALREADY LIVE (TS — deployed, no apply needed), FYI:** C.A.R.E "Open conversations" & "Awaiting first
+> reply" filtered non-existent statuses (undercount / permanently-0) — fixed; C.A.R.E "Resolution rate"
+> counted transient status so it fell as you archived resolved work — fixed to `resolved_at`; finance task
+> transition guard was broken for API callers (rejected To Do→In Progress) — fixed; dashboard "Open tasks"
+> counted completed tasks — fixed; team-check nudge/digest could act on cancelled tasks — fixed.
+>
+> **NEW DECISIONS FOR YOU (each decision-ready):**
+> - **Credit-note TAX attribution** — the tax report's output tax is gross (doesn't net credit-note tax);
+>   pick the jurisdiction rule (leaning *proportional*) → netting becomes mechanical. (Code refuses to guess.)
+> - **`blocker_reason` when Blocked** — the "a Blocked task must have a reason" guarantee is bypassable on the
+>   main create path; the fix needs a UX call (modal vs inline field) + a DB trigger.
+> - **`Cancelled` as a first-class task status** — currently a source-of-truth split (transition map admits it;
+>   labels/enum omit it). Promote it, or remove it from the server transition map?
+> - **Profitability dimension attribution** — credit-note reversals aren't project/cost-center tagged, so a
+>   tagged invoice's credit overstates project profitability (GL/AR unaffected). Thread dimensions, or accept?
+
 > **THE ONE THING TO DO:** apply migrations **`0157`–`0182`** to staging, then run the **19 acceptance
 > files** in `docs/financial-system/tests/`. That is the only path from `BUILT` to `TESTED`, and I cannot
 > walk it — nothing I built this session has touched a live database. No trigger has fired, no route has
