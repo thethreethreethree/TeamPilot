@@ -24,6 +24,7 @@ import { DeckCard } from "@/components/sales-coach/ui/deck";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 // §A13 — the moment/score shapes live once in summaryTypes (imported, not
 // re-declared) so a new field like `sentiment` can't silently drift this page.
 import type {
@@ -108,6 +109,13 @@ export default function AfterPitchPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const router = useRouter();
+  // Experience dial (0110). Standard = the founder's simplified debrief: scores +
+  // your-read + cue loop + Start Next Door, and NOTHING that adds words without
+  // adding a decision. Expert = today's full surface, untouched (founder 2026-07-15:
+  // "Keep Expert mode exactly how it is. But simplify the Sales Coach on Standard").
+  // The removed blocks (moments timeline, What-happened replay, the breakdown 3-up)
+  // are the ones crossed out in the spec PDF — they are momentum cost, not learning.
+  const { isStandard } = useExperienceMode();
   const [session, setSession] = useState<Session | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   // The rep sees their full summary (incl. private scores) + Start Next Door.
@@ -281,6 +289,23 @@ export default function AfterPitchPage() {
               Rebuild summary
             </button>
           </div>
+        ) : isStandard ? (
+          /* STANDARD (founder 2026-07-15): scores + your-read + cue loop + one
+             focus + Start Next Door. The moments timeline, the "What happened"
+             replay and the breakdown 3-up (You said / AI suggested / Strategy /
+             Correct line) are REMOVED — they are the exact blocks crossed out in
+             the spec PDF, and every one of them adds words and scrolling between
+             the door just closed and the next one, which is the momentum cost the
+             founder is removing. The conversation summary + timeline still live on
+             the SESSION page for reliving the call (kept there, per the spec).
+             Nothing honest is lost: the scores are unchanged, the read is the same
+             engine, the focus is the same reconciled verdict (deriveFocus). */
+          <>
+            <Scoreboard scores={summary.scores} />
+            <FocusCard focus={summary.focus} />
+            <Narrative narrative={summary.narrative} />
+            <CueLoop entries={summary.cueLoop} />
+          </>
         ) : (
           <>
             <Timeline moments={summary.moments} />
