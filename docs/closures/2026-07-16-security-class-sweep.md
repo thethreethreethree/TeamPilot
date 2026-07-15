@@ -223,6 +223,8 @@ limitations, not fixes. The bottleneck is founder application of the queued fixe
   guarded), correct direction (line ccy → base via amount×rate), CLIENT fx_rate IGNORED (authoritative from the
   table — no rate manipulation), system-ops trust-but-validate. FX is the highest-impact calc surface; careful.
 
+- **break-even (0176 fin_unit_economics):** exemplary — break_even_revenue only when revenue>0 AND contribution>0 (else NULL: no divide-by-zero at revenue=0, no nonsense at negative margin), PLUS an undefined_because human explanation (§A11 no-naked-verdict, §3.4). Both hypotheses (div-by-zero, negative margin) anticipated + refused.
+
 Eleven verify-clean/known-limitation results now stand alongside the ~14 fixes. Confirmed pattern: real bugs
 lived in the EARLIER/middle migrations (transition guard, C.A.R.E command stats, 0136 dashboard, 0175 forecast);
 the LATER finance work (0149/0150/0159 + 0145 algo) is consistently careful and correct. The metric-integrity +
