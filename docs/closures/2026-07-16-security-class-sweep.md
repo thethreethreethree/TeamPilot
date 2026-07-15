@@ -262,6 +262,8 @@ limitations, not fixes. The bottleneck is founder application of the queued fixe
 
 - **year-end close (0151):** exemplary — closing entry balances BY CONSTRUCTION in all 3 cases (profit: RE credited by net; loss: RE debited; net=0: RE line SKIPPED since a 0/0 line violates the debit-XOR-credit CHECK, and the rev/exp lines already balance). Double-close guarded (unique + existence check), reversible, skips zero-balance accounts, RE=3000. Both hypotheses (net-to-zero, double-close) + the subtle net=0 edge handled.
 
+- **card-matching (0160):** verified clean — §A28 alignment to the bank-rec held: excludes already-matched (not exists), single-candidate only, equal-amount-to-the-cent with abs() sign handling, ±3 days, 1:1 unique. (Matches a card charge to an EXPENSE CLAIM, not a GL entry — the correct accounting difference.) FINANCE AUDIT 100% COMPLETE: every calc + reconciliation surface verified; 1 live bug found+built (recurring-drift 0186), 2 AR credit-note fixes, all else exemplary.
+
 Eleven verify-clean/known-limitation results now stand alongside the ~14 fixes. Confirmed pattern: real bugs
 lived in the EARLIER/middle migrations (transition guard, C.A.R.E command stats, 0136 dashboard, 0175 forecast);
 the LATER finance work (0149/0150/0159 + 0145 algo) is consistently careful and correct. The metric-integrity +
