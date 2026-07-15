@@ -582,6 +582,16 @@ commit an unbalanced posted entry. The ledger cannot hold a debit≠credit entry
 slips through) impossible. This + period-lock (34) + posting-immutability + author-pin (33) + the balanced-by-
 construction postings (payroll/year-end/depreciation/credit-note) = the double-entry integrity is airtight.
 
+## 38. CROSS-TENANT READ isolation VERIFIED — no unscoped SELECT, pervasive auth_company_id()
+The write-focused rls:audit gate confirms writes pin the tenant; this closes the READ side. NO core/tenant
+table has a `using (true)` SELECT policy (grep clean after excluding the deliberate vendor/public/widget
+cross-tenant tables). Core reads are company-scoped: events (0004 `for all using (company_id = auth_company_id())`),
+problems/tasks/signals/companies all scope SELECT to auth_company_id(). 88 migration files use auth_company_id()
+— tenant scoping is pervasive, not spot-applied. auth_company_id() resolves the caller's company from their
+session, so a user can read ONLY their own company's rows, by ANY path. Cross-tenant-read hypothesis handled.
+With the service-role sweep (21), widget audit (19), routing (30), and email threading (31), tenant isolation
+is verified across EVERY access path — RLS reads+writes, service-role routes, and the public surfaces.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
