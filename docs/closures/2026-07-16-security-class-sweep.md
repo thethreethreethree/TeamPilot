@@ -314,6 +314,20 @@ The public attack surface (the app's highest-risk part) is consistently origin/t
 quota-enforced. Embed token is public-by-design (lives in customer HTML); security rests on allowed_origins +
 the server-derived tenant — the correct embeddable-widget model. No leak found.
 
+## 20. FILE UPLOAD path — VERIFIED SECURE (classic attack surface, every vector handled)
+validateUploadCandidate + buildStoragePath (src/lib/storage/assets.ts), the customer upload route
+(care/conversations/[id]/upload). All classic file-upload vectors handled:
+- **DoS/size:** CUSTOMER_MAX_BYTES 10MB / AGENT_MAX_BYTES 25MB, empty rejected.
+- **MIME-spoof:** customer allow-list (image/ + application/pdf) PLUS a BLOCKED_EXTENSIONS block-list wired
+  specifically because browser MIME is spoofable (Audit F2) — evil.exe-as-image/png is caught by extension.
+- **Dangerous types:** executables / video / zip / sh blocked by MIME prefix.
+- **Path traversal:** storage key = {companyId}/{YYYY}/{MM}/{fileId(randomUUID)}{.ext}; filename is NOT a path
+  component, and the extension is sanitized to plain alphanumeric (author documented the exact "evil.x/../secret"
+  attack and mitigated it — defense-in-depth even if the backend treats keys literally).
+- **Scope:** session-token → conversation, rate-limited, closed→410.
+Author had already security-audited this (F2 refs); found sound. With class 3 (file ACCESS) + class 19 (widget),
+the entire customer file-handling + public surface is verified — no DoS, spoof, traversal, or cross-tenant vector.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
