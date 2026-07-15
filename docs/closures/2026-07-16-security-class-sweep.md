@@ -34,7 +34,11 @@
 > - 🟠 **CONFIRM (1 query, likely already true):** `select tgname from pg_trigger where tgname in
 >   ('profiles_guard_privileged','chat_participants_guard_privilege');` → expect 2 rows (privileged-column
 >   self-write guards). Almost certainly applied given migration ordering; confirm, don't alarm.
-> - **APPLY:** `0114`·`0115`·`0184`·`0185`·`0186`·finance `0157-0182`·security `0141`/`0142`.
+> - **APPLY:** `0114`·`0115`·`0184`·`0185`·`0186`·finance `0157-0182`·security `0141`/`0142`. ✅ **APPLY-SAFETY
+>   VERIFIED (classes 53-56):** the whole queue is forward-reference-clean at object + column granularity and has
+>   no NOT-NULL-no-default hazard — it applies cleanly in numeric order onto the current schema. The ONLY residual
+>   is data-content constraint violations (an existing row tripping a new CHECK/UNIQUE/FK), which only your dev
+>   `supabase db push` can surface. Apply with confidence; if one fails, it'll be a data issue, not a broken migration.
 > - **DECIDE 8:** tax attribution · blocker_reason *transition*-surface UX · Cancelled-first-class · profitability
 >   dims · signal backstop · bootstrap DoS · CRM control-month · **depreciation rounding-stub (LOW, cosmetic —
 >   absorb residual into final scheduled slice vs. accept a trailing sub-cent period)**.
