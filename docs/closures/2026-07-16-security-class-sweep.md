@@ -554,6 +554,9 @@ Exemplary: (1) tenant resolved from the To: address's UNIQUE inbound_email_local
 ## 32. Decision→task SPAWN linkage (0030) VERIFIED — xor correct; company-scoping inert-negligible
 tasks_spawn_source_xor: check(linked_decision_id is null OR linked_chat_topic_id is null) — rejects only the both-set case, correctly allowing decision XOR chat OR neither. on-delete-set-null (unlink, not cascade-delete). Double-link hypothesis handled. NEGLIGIBLE note (verify-before-flag kept it proportionate, NOT flagged): the POST route doesn't validate linkedDecisionId is in the caller's company, but it is INERT — FK requires existence, RLS makes a foreign decision unreadable (the link is dangling+useless), the UUID is unguessable, and the UI picker only shows own-company decisions. Non-exploitable; a company-match check would be belt-and-suspenders defense-in-depth, not a fix.
 
+## 33. SEPARATION-OF-DUTIES (self-approval fraud) VERIFIED across finance approvals
+The anti-self-approval class is sound everywhere: fin_approve_expense_report (0125:94 "cannot approve your own expense report", v_emp = auth.uid() → raise); fin_approve_bill (0130:25 "cannot approve a bill you created" — itself a resolved audit flag where one person could create AND self-approve); fin_subledger_author_pin (0142) pins created_by = auth.uid() in the RLS with-check so authorship cannot be SPOOFED to route around the SoD check. All gated by fin_can_approve + submitted-only + company-scope + open-period. Self-approval fraud vector closed at every approval gate. Hypothesis (approve-your-own) handled.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
