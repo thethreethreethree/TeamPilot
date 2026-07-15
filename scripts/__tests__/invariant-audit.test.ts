@@ -18,7 +18,8 @@ const SCRIPT = readFileSync("scripts/invariant-audit.mjs", "utf8");
 describe("invariant-audit.mjs", () => {
   it("passes on the current tree (no CSV export unrouted, no finance route on the service role)", () => {
     const out = execFileSync("node", ["scripts/invariant-audit.mjs"], { encoding: "utf8" });
-    expect(out).toContain("Every CSV export is formula-safe");
+    expect(out).toContain("Violations:           0");
+    expect(out).toContain("every upload route validated");
   });
 
   // The patterns must actually match a real violation. Verified against strings shaped like the code they
@@ -135,5 +136,39 @@ describe("invariant-audit.mjs — SECURITY DEFINER tenant parameters", () => {
     const block = SCRIPT.slice(SCRIPT.indexOf("const DEFINER_RE"), SCRIPT.indexOf("const revoked"));
     expect(block).toContain("matchAll");
     expect(block).not.toContain(".exec(");
+  });
+});
+
+/**
+ * FILE-UPLOAD VALIDATION. Five routes accept a multipart File; four wire validateUploadCandidate, one (the
+ * sales-call recording upload) uses EXECUTABLE_EXTENSIONS because the shared validator blocks .webm. Before
+ * this gate, that one route diverged silently and shipped an executable-via-spoofed-audio-MIME hole (fix
+ * 0964c64). The gate ensures every upload route runs a sanctioned validation path or is allowlisted.
+ */
+describe("invariant-audit.mjs — file-upload validation", () => {
+  const handlesUpload = (s) =>
+    /formData\(\)/.test(s) && /(instanceof File|uploadAssetBytes|\.arrayBuffer\(\))/.test(s);
+  const validated = (s) => /validateUploadCandidate|EXECUTABLE_EXTENSIONS/.test(s);
+
+  it("flags an upload route (formData + File) that runs NO sanctioned validator", () => {
+    const bad =
+      'const form = await req.formData(); const file = form.get("file"); if (!(file instanceof File)) {}';
+    expect(handlesUpload(bad) && !validated(bad)).toBe(true); // the recording route BEFORE 0964c64
+  });
+
+  it("a route wiring validateUploadCandidate is NOT flagged", () => {
+    const good =
+      'const form = await req.formData(); const file = form.get("file"); validateUploadCandidate({ sizeBytes: file.size });';
+    expect(handlesUpload(good) && !validated(good)).toBe(false);
+  });
+
+  it("the media escape hatch (EXECUTABLE_EXTENSIONS) counts as validated — recordings need .webm", () => {
+    const rec =
+      'const form = await req.formData(); const b = await file.arrayBuffer(); EXECUTABLE_EXTENSIONS.some((e) => n.endsWith(e));';
+    expect(handlesUpload(rec) && !validated(rec)).toBe(false);
+  });
+
+  it("a non-upload route (JSON body, no File) is out of scope — no false alarm", () => {
+    expect(handlesUpload("const body = await req.json();")).toBe(false);
   });
 });

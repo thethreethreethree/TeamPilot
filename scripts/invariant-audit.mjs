@@ -312,14 +312,56 @@ for (const [name, info] of definerFns) {
   });
 }
 
+// ═══ INVARIANT 5 — every file-upload route must VALIDATE the upload ═══════════════════════════
+//
+// LEARNED: 2026-07-16. Five routes accept a file upload. Four wire the shared validateUploadCandidate
+// (size cap + MIME allow-list + BLOCKED_EXTENSIONS). ONE — the sales-call recording upload — rolled its own
+// inline checks and FORGOT the extension block, so an executable uploaded as Content-Type: audio/webm passed
+// the MIME-prefix check with nothing rejecting the .exe (fix 0964c64: EXECUTABLE_EXTENSIONS). The validator
+// existed and was tested. Nothing enforced that every upload route USES a sanctioned validation path — so the
+// one route that diverged, diverged silently. Same shape as INVARIANT 4: a rule known and written, not gated.
+//
+// The rule: a route that reads a multipart File must run EITHER validateUploadCandidate (general files) OR,
+// for a media route that legitimately can't (the validator blocks .webm/.mp4), the EXECUTABLE_EXTENSIONS
+// block — or be allowlisted with the reason its own inline validation is sufficient.
+const UPLOAD_VALIDATE_ALLOWLIST = new Map([
+  ["src/app/api/care/agent/tenant/logo/route.ts",
+    "Own inline validation, stronger than the generic path for its use case: strict image-ONLY MIME allow-list " +
+    "(png/jpg/svg/webp/ico), 2MB cap, and the stored extension is DERIVED FROM THE VALIDATED MIME (never the " +
+    "filename) into a fixed path {companyId}/widget-logo.{ext}. No client filename reaches the storage key, so " +
+    "the BLOCKED_EXTENSIONS check adds nothing. (SVG is allowed but served cross-origin from the storage bucket " +
+    "and rendered via <img>, so SVG-script never runs in the app origin.)"],
+]);
+for (const f of FILES) {
+  if (!/\/route\.ts$/.test(f.path)) continue;
+  const handlesUpload =
+    /formData\(\)/.test(f.sql) &&
+    /(instanceof File|uploadAssetBytes|\.arrayBuffer\(\))/.test(f.sql);
+  if (!handlesUpload) continue;
+  if (UPLOAD_VALIDATE_ALLOWLIST.has(f.path)) continue;
+  if (/validateUploadCandidate|EXECUTABLE_EXTENSIONS/.test(f.sql)) continue;
+  findings.push({
+    rule: "A file-upload route must validate the upload (size / MIME / extension)",
+    file: f.path,
+    why:
+      "reads a multipart File (formData) but never runs validateUploadCandidate or the EXECUTABLE_EXTENSIONS\n" +
+      "      block. The browser-supplied Content-Type is spoofable, so an executable can ride in under a claimed\n" +
+      "      image/audio type. Wire validateUploadCandidate (general files) or EXECUTABLE_EXTENSIONS (media\n" +
+      "      routes that need .webm/.mp4), or allowlist it with the reason its inline validation is sufficient.",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
-  console.log("\n✓ Every CSV export is formula-safe, and no finance route bypasses RLS.");
+  console.log(
+    "\n✓ CSV exports formula-safe · finance routes RLS-scoped · finance schema reachable ·" +
+      " no client-callable DEFINER tenant-param fn · every upload route validated."
+  );
   process.exit(0);
 }
 
