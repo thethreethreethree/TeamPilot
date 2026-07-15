@@ -27,6 +27,10 @@
 >   labels/enum omit it). Promote it, or remove it from the server transition map?
 > - **Profitability dimension attribution** — credit-note reversals aren't project/cost-center tagged, so a
 >   tagged invoice's credit overstates project profitability (GL/AR unaffected). Thread dimensions, or accept?
+> - **§3.1 signal idempotency backstop** (latent, low-urgency) — signal derivation is idempotent by
+>   construction today, but `signals` has no unique constraint, so a future re-derive path (backfill/retry)
+>   would double signals + inflate the §3.2 gate count. A clean backstop needs an `event_id` column on
+>   `signals` (they carry none; (kind,source) is legitimately non-unique). Add it now, or accept the risk?
 
 > **THE ONE THING TO DO:** apply migrations **`0157`–`0182`** to staging, then run the **19 acceptance
 > files** in `docs/financial-system/tests/`. That is the only path from `BUILT` to `TESTED`, and I cannot
