@@ -939,6 +939,25 @@ mid-apply-failure class); it did NOT exhaustively cross-check every COLUMN refer
 were spot-verified in class 53). Combined with class 53, the ENTIRE apply queue (0114/0115 + 0157-0182 +
 0184/0185/0186) is now forward-reference-clean and applies cleanly in numeric order onto the current schema.
 
+## 55. Column-level forward-refs in 0157-0182 — the piece class 54 scoped out — also CLEAN
+Completes the apply-safety story. A column forward-ref (migration N reads column X that migration M>N adds →
+mid-apply failure) can only target an `alter table ... add column` in the batch. Enumerated them: 0161
+(fin_expense_items.kind/quantity/jurisdiction), 0170 (fin_vendors.is_1099/tax_classification), 0179
+(problem_id on fin_journal_lines/bill_lines/expense_items), 0181 (fin_invoice_lines.item_id/qty). Then checked
+whether any EARLIER batch migration reads each:
+- **problem_id** — the real risk (Phase-4 cost features are scattered: 0173/0176/0177 precede 0179). CLEAN: no
+  pre-0179 migration references problem_id; 0179 both adds and first-uses it.
+- **fin_invoice_lines.item_id / .qty** (added 0181) — CLEAN: the only pre-0181 `.qty` hits are 0180's OWN
+  inventory tables (`m.qty` = movements, `i.qty_on_hand` = items, both created in 0180), NOT invoice_lines.
+- **0161 / 0170 columns** — feature-local (mileage/per-diem, 1099); no earlier migration touches them, and all
+  use `if not exists` (re-run-safe).
+**No column-level forward reference exists.** With classes 53+54, the ENTIRE apply queue is now verified
+forward-reference-clean at BOTH object and column granularity: it applies cleanly, in numeric order, onto the
+current schema, with no mid-apply missing-object/missing-column failure. The apply-safety verification of the
+founder's biggest action is COMPLETE. (What a live `supabase db push` on the founder's dev DB still adds beyond
+this static trace: runtime constraint violations against real DATA — e.g. a NOT-NULL backfill on existing rows.
+Those are data-dependent and unknowable from source; the founder's dev-apply is the right place for them.)
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
