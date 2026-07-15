@@ -218,6 +218,11 @@ limitations, not fixes. The bottleneck is founder application of the queued fixe
   float, active-only + open-period + post-acquisition guards, Dr 6500/Cr 1900 via the balance-asserted path.
   My hypothesis (over-depreciation past salvage) was exactly what the author anticipated and clamped.
 
+- **multicurrency fin_get_rate + fin_lines_compute_base (0119):** correct — same-currency→1, temporal lookup
+  (most-recent rate on/before entry_date), MISSING rate RAISES (never a silent 0/1 → my exact hypothesis,
+  guarded), correct direction (line ccy → base via amount×rate), CLIENT fx_rate IGNORED (authoritative from the
+  table — no rate manipulation), system-ops trust-but-validate. FX is the highest-impact calc surface; careful.
+
 Eleven verify-clean/known-limitation results now stand alongside the ~14 fixes. Confirmed pattern: real bugs
 lived in the EARLIER/middle migrations (transition guard, C.A.R.E command stats, 0136 dashboard, 0175 forecast);
 the LATER finance work (0149/0150/0159 + 0145 algo) is consistently careful and correct. The metric-integrity +
