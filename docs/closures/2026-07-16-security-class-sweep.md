@@ -1235,6 +1235,16 @@ of the CI gap to close headlessly: the WAC calc now has a CI regression guard, w
 concurrency behavior remains the founder's staging-CI decision (unchanged). A32 in practice: I did NOT ship the
 un-testable GitHub Actions YAML (class 71's decision), and DID ship the fully-verifiable reference test — build
 what you can verify, decline what you can't.
+**§A26 sweep boundary of the finance-reference-test class (A33-bounded):** after building inventoryWac, checked
+the next candidate — OVERHEAD ALLOCATION (0173). DECLINED: its formula is a single proportion
+(`round(overhead × share, 4)`), and its one subtle aspect (do the rounded parts sum to the pool?) is
+INTENTIONALLY not enforced because 0173 is analytical-only (a view/opinion, never a posted balancing entry). No
+strong invariant to pin → below the bar. Boundary reached: the 4 genuinely-subtle, invariant-bearing finance
+calcs are now CI-pinned (recurrence date-clamp · depreciation salvage-floor · break-even refusal · inventory
+WAC+COGS); the remaining calcs are simple proportions/divisions (overhead, runway, FX = amount×rate) or
+not-computed (payroll POSTS pre-computed values) or founder-gated (tax netting). Reference-testing those would
+be the low-value-test A33 warns against. 86 finance tests is the productive ceiling for CI-runnable calc coverage;
+the rest of the CI gap is genuinely DB-level (posting/balance/concurrency) — the founder's staging-CI decision.
 
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
