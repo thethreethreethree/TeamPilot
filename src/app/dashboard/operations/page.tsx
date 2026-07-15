@@ -205,6 +205,13 @@ export default function OperationsPage() {
       setError("Title is required.");
       return;
     }
+    // Match the server rule (POST/PATCH reject a Blocked task with no reason): validate
+    // client-side too, so the user gets inline feedback instead of a server 400. The
+    // blocker_reason field is already shown in this modal when status is Blocked.
+    if (draft.status === "Blocked" && !draft.blockerReason.trim()) {
+      setError("A blocker reason is required when a task is Blocked.");
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
