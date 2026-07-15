@@ -769,6 +769,29 @@ The product's "honesty is the moat" thesis is implemented honestly at the two su
 the effectiveness verdict and the progress display. This is the audit attention that pays; recorded as the
 high-value pair that closes the §3-thesis surface review.
 
+## 48. §3.3 "GUIDE, DON'T OVERTAKE" — ask-first is ENFORCED at the API contract — VERIFY-CLEAN
+Third thesis pillar (with 46 §3.5, 47 §3.6). §3.3 (non-negotiable product behavior): "The System ASKS the user
+what they think the best solution is BEFORE asserting its own." The failure mode is an assert-first flow that
+hands over the answer. Traced all three coaching surfaces:
+- **`chat/guide`** (message refinement) — sharpens the user's OWN draft IN THEIR VOICE ("you are not writing a
+  new message; surfacing what they were trying to say"); user accepts/edits/discards; System never decides.
+  Guide-not-overtake for its purpose. ✓
+- **The assert-first surfaces were RETIRED, not left lying around** — `ai/decision` + `ai/analyze` are now 410
+  deprecation stubs, their own comments naming WHY: `ai/decision` "presupposes the answer space exists
+  independent of the user, which is the §3.3 overtake"; `ai/analyze` "asserts a problem without signals,
+  asserts without asking user first." Codified in `docs/GUIDE_DONT_OVERTAKE.md`. The anti-pattern was
+  structurally removed, not just discouraged.
+- **The replacement ENFORCES ask-first at the schema** (the clincher — enforcement, not a comment):
+  `DialogueDecisionSchema` requires `userDiagnosis: z.string().min(20)` AND `userProposal: z.string().min(20)` —
+  both mandatory, 20-char floor (not `optional()`, not `min(1)` a space satisfies). `decision-dialogue` CANNOT
+  be invoked until the user has articulated their own diagnosis and proposal. The prompt then injects those so
+  the System engages WITH the user's view (adds perspective, compares) rather than replacing it — §3.3's "offer
+  how and why, never take over." A `suppressed` path lets the System refuse outright.
+**Three §3 thesis pillars verified this session by ENFORCEMENT evidence, not comments: §3.3 ask-first (schema
+min-length gate), §3.5 consequence-not-agreement (durability comparison at equal N), §3.6 real-not-vanity
+(≥30-event readiness + fail-closed). The product embodies the method it runs on — structurally, where a future
+edit would trip a gate, not merely in prose.** The §3 constitutional core is comprehensively verified sound.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
