@@ -218,6 +218,12 @@ lived in the EARLIER/middle migrations (transition guard, C.A.R.E command stats,
 the LATER finance work (0149/0150/0159 + 0145 algo) is consistently careful and correct. The metric-integrity +
 algorithmic audit of the finance/C.A.R.E read-paths is COMPLETE to its productive boundary.
 
+**+ inventory (0180/0181) VERIFIED CLEAN (12th):** negative stock triple-guarded (CHECK qty_on_hand>=0 +
+explicit stock check + `for update` row lock on fin_sell_inventory), weighted-average cost correct, and 0181
+forces fin_issue_invoice to post COGS-or-nothing (an inventory sale can't fabricate 100% gross margin — textbook
+§1.5 holistic). The credit-note-doesn't-return-stock interaction is already flagged in FOUNDER-ACTION-QUEUE as a
+business decision. Exemplary. Confirms the pattern is universal: every LATER finance migration is carefully built.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
