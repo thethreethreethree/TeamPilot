@@ -30,12 +30,25 @@ import {
   Sparkles,
 } from "lucide-react";
 
-export type TaskCanonicalStatus =
-  | "To Do"
-  | "In Progress"
-  | "Blocked"
-  | "Needs Review"
-  | "Completed";
+/**
+ * The canonical task workflow statuses, in workflow order — the SINGLE source
+ * of truth for the status VALUE set. The zod create/patch enum (validate.ts) and
+ * the operations board's status dropdown both import this, so a status can't be
+ * added in one place and silently missed in another (the drift that broke the
+ * server transition guard — see TASK_STATUS_TRANSITIONS below).
+ *
+ * 'Cancelled' is intentionally absent — see TERMINAL_TASK_STATUSES for the split.
+ */
+export const TASK_CANONICAL_STATUSES = [
+  "To Do",
+  "In Progress",
+  "Blocked",
+  "Needs Review",
+  "Completed",
+] as const;
+
+/** Canonical workflow status — derived from TASK_CANONICAL_STATUSES (single source). */
+export type TaskCanonicalStatus = (typeof TASK_CANONICAL_STATUSES)[number];
 
 export type TaskDisplayLabel = {
   /** The invitation the leader / participant reads. NOT the chain value. */
@@ -139,15 +152,6 @@ export function taskDisplayLabel(
   );
 }
 
-/** All canonical statuses in workflow order. */
-export const TASK_CANONICAL_STATUSES: TaskCanonicalStatus[] = [
-  "To Do",
-  "In Progress",
-  "Blocked",
-  "Needs Review",
-  "Completed",
-];
-
 /**
  * Terminal (closed) task statuses — no further work happens on one, so any
  * "is this task still open / does it need attention?" check must treat ALL of
@@ -205,3 +209,15 @@ export const TASK_STATUS_TRANSITIONS: Record<string, string[]> = {
 export function allowedTaskTransitions(status: string): string[] {
   return TASK_STATUS_TRANSITIONS[status] ?? [];
 }
+
+/**
+ * Task priority levels, low → high — the SINGLE source of truth for the priority
+ * VALUE set. Like TASK_CANONICAL_STATUSES: the zod enum (validate.ts) and the
+ * operations board dropdown both import this so the list can't drift between
+ * client and server. (This file is the client-safe home for task-domain value
+ * sets; validate.ts is server-only and can't be imported by the board page.)
+ */
+export const TASK_PRIORITIES = ["Low", "Medium", "High", "Critical"] as const;
+
+/** Task priority — derived from TASK_PRIORITIES (single source). */
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];

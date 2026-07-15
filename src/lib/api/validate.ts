@@ -1,6 +1,10 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodSchema, z } from "zod";
+import {
+  TASK_CANONICAL_STATUSES,
+  TASK_PRIORITIES,
+} from "@/lib/tasks/statusLabels";
 
 /**
  * Shared request-body validator (audit Tier 2 #11).
@@ -54,10 +58,10 @@ export const TaskCreateSchema = z.object({
   description: OptionalText,
   department: z.string().max(120).optional().or(z.literal("")),
   assignee: z.string().max(200).optional().or(z.literal("")),
-  status: z
-    .enum(["To Do", "In Progress", "Blocked", "Needs Review", "Completed"])
-    .optional(),
-  priority: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
+  // Enums derived from the single source of truth (statusLabels) so the API's
+  // accepted values can't drift from the board dropdown / status labels.
+  status: z.enum(TASK_CANONICAL_STATUSES).optional(),
+  priority: z.enum(TASK_PRIORITIES).optional(),
   aiPriorityScore: z.number().int().min(0).max(100).optional(),
   impactLevel: z.string().max(40).optional(),
   blockerReason: z.string().max(1000).optional().or(z.literal("")),

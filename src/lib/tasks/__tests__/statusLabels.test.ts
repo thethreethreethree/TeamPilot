@@ -6,6 +6,7 @@ import {
   TASK_CANONICAL_STATUSES,
   TASK_STATUS_TRANSITIONS,
   allowedTaskTransitions,
+  TASK_PRIORITIES,
 } from "../statusLabels";
 
 /**
@@ -88,6 +89,12 @@ describe("TASK_STATUS_TRANSITIONS (shared client+server graph)", () => {
   it("unknown status yields no transitions (never throws)", () => {
     expect(allowedTaskTransitions("Cancelled")).toEqual([]);
     expect(allowedTaskTransitions("Bogus")).toEqual([]);
+  });
+});
+
+describe("TASK_PRIORITIES (single source for the priority value set)", () => {
+  it("is the four levels, low → high", () => {
+    expect([...TASK_PRIORITIES]).toEqual(["Low", "Medium", "High", "Critical"]);
   });
 });
 

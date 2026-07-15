@@ -3,7 +3,11 @@
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { SkeletonRow } from "@/components/ui/Skeleton";
-import { taskDisplayLabel } from "@/lib/tasks/statusLabels";
+import {
+  taskDisplayLabel,
+  TASK_CANONICAL_STATUSES,
+  TASK_PRIORITIES,
+} from "@/lib/tasks/statusLabels";
 import { fetchTasks, type FetchTasksMode, type Task } from "@/lib/data/tasks";
 import { fetchTeam, type TeamMember } from "@/lib/data/team";
 import { supabaseEnabled } from "@/lib/supabase/client";
@@ -20,7 +24,10 @@ import {
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-type FilterType = "All" | "Blocked" | "In Progress" | "To Do" | "Needs Review" | "Completed";
+import type { TaskCanonicalStatus } from "@/lib/tasks/statusLabels";
+
+// Derived from the canonical status set (single source) + the "All" sentinel.
+type FilterType = "All" | TaskCanonicalStatus;
 
 type TaskFilterHint = {
   whatItIs: string;
@@ -66,6 +73,9 @@ const FILTER_HINTS: Record<FilterType, TaskFilterHint> = {
   },
 };
 
+// Order is intentional (Blocked surfaced first). Entries are FilterType-checked,
+// so only valid statuses compile; if a status is added to TASK_CANONICAL_STATUSES,
+// add it here too (a missing entry only drops a filter button, not a data path).
 const FILTERS: FilterType[] = [
   "All",
   "Blocked",
@@ -82,8 +92,10 @@ const PRIORITY_DOTS: Record<string, string> = {
   Low: "bg-surface-raised",
 };
 
-const STATUS_OPTIONS = ["To Do", "In Progress", "Blocked", "Needs Review", "Completed"];
-const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
+// Single source of truth (statusLabels) — was a local copy that could drift from
+// the API's accepted values and the status-label set.
+const STATUS_OPTIONS = TASK_CANONICAL_STATUSES;
+const PRIORITY_OPTIONS = TASK_PRIORITIES;
 
 type Draft = {
   title: string;
