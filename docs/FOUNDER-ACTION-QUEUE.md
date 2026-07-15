@@ -531,20 +531,20 @@ is the ONLY cron still needing a vercel.json entry — and only AFTER `0172` app
 > suggested task-overrun schedule above is daily, so it's fine on either tier.)
 
 ### Minor functional gap — the variance-alert threshold is defined but never applied
-`0149` added `fin_settings.variance_alert_pct` (a configurable budget-variance alert threshold, your
-default 10%) — but a grep confirms it's **read nowhere** in the code (no TS/SQL consumer). So the budget
-page's over/under-budget indicator can't be honoring it: every overage flags the same regardless of size,
-instead of alerting only past your ±10% threshold. Not a bug (the variance amounts + red/green still
-work), but the tunable you built does nothing yet. When you want threshold-based alerting, wire
-`variance_alert_pct` into the over-budget test — e.g. flag when `abs(actual − budget) > budget *
-variance_alert_pct/100` (guard `budget = 0`, matching the divide-by-zero discipline the rest of the
-finance UI already follows). **Why I flagged rather than wired it:** the current indicator (`budgets/page.tsx`
-line 174) is a pure sign check (`bad = expense-over / revenue-under`), and the page doesn't fetch the
-setting — so wiring the threshold needs (a) a new settings fetch and (b) a UX decision on how a
-*sub-threshold* overage should render (today any overage is red; gating by the threshold would turn a small
-overage green, which may read wrong — you may want a third amber/neutral state). That UX call is yours, so I
-left it. This is a design choice, not a mechanical apply. Found during a divide-by-zero sweep (which otherwise came up clean: runway,
-margin %, period-over-period, and dashboard bars all guard their zero denominators).
+> **UPDATED 2026-07-16 (class 71): `variance_alert_pct` is NO LONGER dead — `0182` wires it.** This section
+> originally flagged it as read-nowhere dead config. Since then `0182` ("MAKE variance_alert_pct REAL", in the
+> unapplied finance batch) rewrote `fin_budget_variance` to READ it as the alert threshold
+> (`… > s.variance_alert_pct`), and `budgets/route.ts` + `budgets/page.tsx` now write it from the UI. So
+> **applying `0157–0182` activates threshold-based variance alerting** — no manual wiring owed. The paragraph
+> below is retained only for the history of why it was flagged.
+>
+> ~~`0149` added `fin_settings.variance_alert_pct`~~ (default 10%) was, at flag time, **read nowhere** — dead
+> config that implied a working control (the A31 "seam" example). `0182` closes it: the SQL now flags a line
+> only when the variance exceeds `variance_alert_pct`. One residual UX call remains yours: today any overage
+> renders red; once the threshold is live, a *sub-threshold* overage could render green (which may read wrong —
+> you may want a third amber/neutral state on `budgets/page.tsx`). That presentation choice is the only open
+> piece; the mechanism is built. (Found during a divide-by-zero sweep which otherwise came up clean: runway,
+> margin %, period-over-period, dashboard bars all guard their zero denominators.)
 
 ### §3.5 hard metric "meeting duration" has no data path — registered signal, no feature (roadmap, not a bug)
 `signal_sources` registers `meeting.overran → meeting_overran` (`0005`, with a "coordination cost"
