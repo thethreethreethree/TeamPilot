@@ -40,8 +40,24 @@ CSV **importers** (`parseCsv` / statement upload → `/import`) — they read CS
 formula-injection (an export-opened-in-Excel attack) doesn't apply. Baseline rule: a new CSV EXPORT must
 route cells through `neutralizeCsvFormula`; imports don't need it.
 
+## 6. Signal-integrity (pre-activation) — 1 FIX (added same session, after wiring the task-overrun cron)
+Wiring the dormant task-overrun sweep into `vercel.json` (`8bebaf5`) prompted a correctness pass on the
+logic it fires. The candidate filter (0109) treated `status <> 'Completed'` as "still open", but 'Cancelled'
+is also terminal (server transition map, `tasks/route.ts:214-219`) and reachable via a direct API PATCH
+(the route validates status against the map, not the create-enum; `tasks.status` has no DB CHECK). So an
+overdue **cancelled** task would emit a false `task_slipped` signal into the append-only §3.1 chain — §A25
+(false match worse than a miss) polluting a §3.5 hard metric. **Fixed `7098820`** → migration `0184`
+(create-or-replace both functions, `not in ('Completed','Cancelled')`, both the candidate query and the
+emit re-check). **UNAPPLIED** — founder applies. Caught BEFORE first emission (cron dormant until
+CRON_SECRET), so no historical false-slip to clean up. Verified by SQL reading + transition-map evidence,
+NOT a unit test (the predicate lives in the DB function). Flagged same-class-lower-consequence, not fixed:
+team-check nudge / staleness badge (`status === 'Completed'`) act on cancelled tasks; and the server
+transition map allows 'Cancelled' while the create enum + web-UI map omit it (a source-of-truth split).
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
+- A new "task is still open" predicate MUST exclude BOTH terminal statuses (`Completed`, `Cancelled`), not
+  just Completed — especially any path that writes to the immutable §3.1 event/signal chain.
 - New admin-client routes MUST gate the caller (user context / care-agent / session token / cron secret) AND
   scope every query to the caller's tenant.
 - New LLM routes MUST carry `rateLimit`.
