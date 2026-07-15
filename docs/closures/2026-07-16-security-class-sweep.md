@@ -1186,6 +1186,19 @@ presence, AND gross SQL structure (67, whole queue). No migration in the queue w
 a structural SQL error; the only residual is live-DB semantic checks against real data (the dev-push's job).
 This is the complete, honest floor of what a source-only trace can guarantee about the apply.
 
+## 68. Dormant scheduled-report cron — deferral is CORRECT, and diagnosed the PRECISE reason + sequencing
+Re-examined the "build" category (not everything is un-buildable): `vercel.json` exists with 3 scheduled crons
+(durability-sweep, backfill-dissects, task-overrun) — all live once `CRON_SECRET` is set. The finance
+`deliver-cron` route EXISTS but has NO `vercel.json` entry (dormant). Rather than "build" it (add the entry),
+checked WHY it was deferred: `deliver-cron` reads `fin_report_schedules_due` + calls `fin_record_report_delivery`,
+both created in **`0172`** — in the UNAPPLIED finance batch. So adding the cron entry NOW would schedule a job
+that ERRORS every run until the founder applies `0157–0182`. The deferral was correct; I gave the precise reason
+(0172 dependency, sharper than the prior "shared CRON_SECRET" note) and the exact safe sequencing in the queue:
+add `{ "path": "/api/finance/reports/deliver-cron", "schedule": "0 5 * * *" }` AFTER applying the batch. This is
+A33/§2 in practice — I did NOT build the tempting thing (the cron entry) because diagnosing first showed it would
+create an erroring cron; the honest output is the correct sequence, not premature motion. The 3 live crons + the
+1 correctly-sequenced dormant one are now precisely documented for the founder's post-apply step.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to

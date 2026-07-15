@@ -167,7 +167,14 @@ The Financial System is **81 of 84 features BUILT (96%)**. The three that remain
 
 **Also awaiting you:**
 - **`.xlsx` export** — needs a new dependency. CSV works today.
-- **The scheduled-report cron is dormant** — needs `CRON_SECRET` + a `vercel.json` entry.
+- **The scheduled-report cron is dormant** — needs `CRON_SECRET` + a `vercel.json` entry. **⚠️ SEQUENCING
+  (verified 2026-07-16, class 68):** the `deliver-cron` route reads `fin_report_schedules_due` + calls
+  `fin_record_report_delivery`, both created in **`0172`** (in the UNAPPLIED finance batch). So add the
+  `vercel.json` cron entry ONLY AFTER you've applied `0157–0182` — scheduling it before `0172` lands makes the
+  cron ERROR every run (the view doesn't exist yet). Exact entry to add post-apply:
+  `{ "path": "/api/finance/reports/deliver-cron", "schedule": "0 5 * * *" }` (5am daily, offset from the other
+  three crons; same `CRON_SECRET` as them — sharing is fine). The other 3 crons are already scheduled in
+  `vercel.json` and their tables are applied, so they're live once `CRON_SECRET` is set.
 - **Credit notes do not return stock to inventory** (found while writing `tests/0181`). Correct for a
   services credit note; **wrong for a returned physical good** — the revenue reverses but the goods stay
   expensed. Whether a credit note implies a physical return is a *business* decision (a refund for a damaged
