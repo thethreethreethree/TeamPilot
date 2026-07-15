@@ -604,6 +604,26 @@ export async function getLatestAfterPitchSummaryAdmin(
   return data?.payload ?? null;
 }
 
+/** An agent's recent after-pitch summaries (payload + session id), newest first.
+ *  Service-role: the personal Analytics aggregation reads across the rep's own
+ *  sessions; the API route authorizes that the caller IS this agent before use. */
+export async function getRecentAfterPitchSummariesAdmin(
+  agentId: string,
+  limit = 20
+): Promise<{ sessionId: string; payload: unknown }[]> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("after_pitch_summaries")
+    .select("session_id, payload")
+    .eq("agent_id", agentId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((r) => ({
+    sessionId: r.session_id as string,
+    payload: r.payload,
+  }));
+}
+
 /** An agent's sessions, most recent first (RLS-scoped). */
 export async function listAgentSessions(
   agentId: string,
