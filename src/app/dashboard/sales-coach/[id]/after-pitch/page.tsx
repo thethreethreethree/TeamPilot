@@ -31,6 +31,15 @@ import type {
   SalesMoment as Moment,
   ScoreCategory,
 } from "@/lib/coach/v5/summaryTypes";
+// Outcome capture reuses the ONE definition + endpoint the session page uses
+// (§A21 compose-don't-fork). In Standard the After-Pitch is the post-call screen,
+// so the outcome — the consequence the coach measures against (§3.5) — is logged
+// here, one tap, rather than lost when the dense session page is skipped.
+import {
+  OUTCOME_LABELS,
+  OUTCOME_ORDER,
+  type SalesOutcome,
+} from "@/lib/coach/v5/outcomeLabels";
 
 /**
  * After Pitch Summary — the rep's private "between doors" debrief (AMD-006
@@ -82,6 +91,7 @@ type Session = {
   offer: string | null;
   startedAt?: string;
   endedAt?: string | null;
+  outcome?: SalesOutcome | null;
 };
 
 /** Conversation length for the header ("2m 43s"). Null until the call has
@@ -132,6 +142,28 @@ export default function AfterPitchPage() {
   // "What happened" is the longest block; collapsed by default so it doesn't
   // eat the viewport and bury the breakdown/scores below it (founder 2026-07-03).
   const [showWhatHappened, setShowWhatHappened] = useState(false);
+  const [savingOutcome, setSavingOutcome] = useState<SalesOutcome | null>(null);
+
+  // Log the call's result. Append-only, same endpoint the session page uses:
+  // re-selecting records a correction, never erases the earlier read. This is the
+  // consequence the coach grades itself against (§3.5), so in the Standard flow —
+  // where this screen replaces the session page — it must be capturable right here.
+  const recordOutcome = useCallback(
+    async (outcome: SalesOutcome) => {
+      setSavingOutcome(outcome);
+      try {
+        const res = await fetch(`/api/coach/sales-session/${id}/outcome`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ outcome }),
+        });
+        if (res.ok) setSession((await res.json()).session);
+      } finally {
+        setSavingOutcome(null);
+      }
+    },
+    [id]
+  );
 
   const generate = useCallback(async () => {
     setGenerating(true);
@@ -362,6 +394,41 @@ export default function AfterPitchPage() {
             rep's private self-assessment and aren't shown to managers (A18). */}
         {!loading && (
           <div className="space-y-2 pt-1">
+            {/* Call outcome — Standard only, owner only. In Expert this is captured
+                on the session page (untouched); in Standard this screen replaces it,
+                so the consequence the coach measures against (§3.5) is logged right
+                here, one tap, above Next Door. Append-only: re-tapping is a
+                correction, never an erase. A LOSS is the most valuable data, so the
+                copy never nudges toward the flattering answer (§3.5). */}
+            {isStandard && isOwner && session && (
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-2">
+                <p className="text-[11px] font-semibold text-primary">
+                  How did it go?
+                  {session.outcome == null && (
+                    <span className="ml-1 font-normal text-muted">
+                      — logging the real result is what sharpens your coaching.
+                    </span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {OUTCOME_ORDER.map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      onClick={() => void recordOutcome(o)}
+                      disabled={savingOutcome !== null}
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                        session.outcome === o
+                          ? "border-ember-400/50 bg-ember-400/10 text-brand"
+                          : "border-default text-secondary hover:text-primary"
+                      }`}
+                    >
+                      {OUTCOME_LABELS[o]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {isOwner ? (
               <LearningHint
                 as="block"
