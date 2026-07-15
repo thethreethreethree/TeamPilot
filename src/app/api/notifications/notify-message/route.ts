@@ -76,27 +76,41 @@ export async function POST(req: NextRequest) {
   // non-system message in this topic recently. We grab the distinct
   // author_id set from the last N messages.
   const admin = createAdminClient();
-  const { data: recentAuthors } = await admin
-    .from("chat_messages")
-    .select("author_id")
-    .eq("topic_id", body.topicId)
-    .eq("company_id", msg.company_id)
-    .eq("kind", "message")
-    .not("author_id", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  // BUGFIX 2026-07-16 (open push-delivery issue): recipients are "sent a message
+  // OR joined explicitly" per the intent below — but the code only queried recent
+  // message AUTHORS, never the participants table. So a user ADDED to a topic who
+  // hadn't yet sent a message (the recipient of a first message — the notification
+  // that matters most) got NOTHING, even though subscribed. We now UNION active
+  // explicit participants (chat_participants, left_at IS NULL, member/admin — an
+  // observer isn't "actively engaged") with the recent authors. Strictly additive:
+  // no one previously notified loses it; the missing case is now covered.
+  const [{ data: recentAuthors }, { data: parts }] = await Promise.all([
+    admin
+      .from("chat_messages")
+      .select("author_id")
+      .eq("topic_id", body.topicId)
+      .eq("company_id", msg.company_id)
+      .eq("kind", "message")
+      .not("author_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    admin
+      .from("chat_participants")
+      .select("user_id, role, left_at")
+      .eq("topic_id", body.topicId)
+      .is("left_at", null)
+      .in("role", ["admin", "member"]),
+  ]);
 
-  if (!recentAuthors || recentAuthors.length === 0) {
-    return NextResponse.json({ notified: 0 });
+  const engaged = new Set<string>();
+  for (const r of recentAuthors ?? []) {
+    if (r.author_id) engaged.add(r.author_id as string);
+  }
+  for (const p of parts ?? []) {
+    if (p.user_id) engaged.add(p.user_id as string);
   }
 
-  const recipientIds = Array.from(
-    new Set(
-      recentAuthors
-        .map((r) => r.author_id as string | null)
-        .filter((id): id is string => !!id && id !== auth.user!.id)
-    )
-  );
+  const recipientIds = Array.from(engaged).filter((id) => id !== auth.user!.id);
 
   if (recipientIds.length === 0) {
     return NextResponse.json({ notified: 0 });
