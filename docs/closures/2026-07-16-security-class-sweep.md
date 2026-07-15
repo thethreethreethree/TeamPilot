@@ -303,6 +303,17 @@ is verified against it); rate-limited (30/min write, 60/min read); Zod body (1-4
 with the earlier sweep (class 3: file/tts paths, same token-scoping), the customer-facing widget paths are
 consistently token-scoped and verified — no cross-conversation/tenant leak.
 
+**Widget audit now COMPLETE end-to-end** (all public entry points verified):
+- **bootstrap** (`/api/care/widget/bootstrap`): embed token length-bounded, resolved server-side with
+  allowed_origins → 403, returns ONLY customer-safe appearance fields (never embed_token/origins/quota).
+- **create** (`POST /api/care/conversations`): the company is derived from the VALIDATED embed token
+  (`tenantId = resolution.companyId`), NEVER caller-supplied — so a forged token can't create conversations
+  under another company; allowed_origins→403, quota→429, inactive→410, unknown→404; rate-limited 10/min.
+- **message-post** + **file/tts**: session-token cross-checked (above + class 3).
+The public attack surface (the app's highest-risk part) is consistently origin/token-scoped, rate-limited,
+quota-enforced. Embed token is public-by-design (lives in customer HTML); security rests on allowed_origins +
+the server-derived tenant — the correct embeddable-widget model. No leak found.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
