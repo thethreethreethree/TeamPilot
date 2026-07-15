@@ -2489,7 +2489,7 @@ export async function routeNewConversation(args: {
     .select("assigned_agent_id")
     .eq("company_id", args.companyId)
     .in("assigned_agent_id", agentIds)
-    .in("status", ["open", "in_conversation", "awaiting_customer"]);
+    .in("status", OPEN_CONVERSATION_STATUSES);
 
   const loadByAgent = new Map<string, number>();
   for (const c of openConvs ?? []) {
@@ -2573,7 +2573,7 @@ export async function fetchAgentPresence(
     .from("support_conversations")
     .select("id", { count: "exact", head: true })
     .eq("assigned_agent_id", agentId)
-    .in("status", ["open", "in_conversation", "awaiting_customer"]);
+    .in("status", OPEN_CONVERSATION_STATUSES);
 
   return {
     agentId: state.agent_id as string,
@@ -2645,7 +2645,7 @@ export async function fetchTeamPresence(
       .from("support_conversations")
       .select("assigned_agent_id")
       .in("assigned_agent_id", agentIds)
-      .in("status", ["open", "in_conversation", "awaiting_customer"]);
+      .in("status", OPEN_CONVERSATION_STATUSES);
     const loadByAgent = new Map<string, number>();
     for (const c of openConvs ?? []) {
       const id = c.assigned_agent_id as string | null;

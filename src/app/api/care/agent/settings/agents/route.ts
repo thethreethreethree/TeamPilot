@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { OPEN_CONVERSATION_STATUSES } from "@/lib/data/care";
 
 async function requireCompanyAdmin() {
   const auth = await requireCareAgent();
@@ -51,7 +52,7 @@ export async function GET() {
       .from("support_conversations")
       .select("assigned_agent_id")
       .in("assigned_agent_id", agentIds)
-      .in("status", ["open", "in_conversation", "awaiting_customer"]);
+      .in("status", OPEN_CONVERSATION_STATUSES);
     for (const c of convs ?? []) {
       const id = c.assigned_agent_id as string | null;
       if (!id) continue;
