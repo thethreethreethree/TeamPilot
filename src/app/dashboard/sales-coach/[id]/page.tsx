@@ -469,8 +469,9 @@ export default function SessionDetail() {
             </div>
 
             {/* Step 3 — pre-knock prep card. §3.3: prepares the rep (opening +
-                likely objections + key value), does not script them. */}
-            {prep &&
+                likely objections + key value), does not script them. Expert only —
+                its trigger (Prep me) is gated above; explicit guard for clarity. */}
+            {!isStandard && prep &&
               (prep.hasContent ? (
                 <LearningHint
                   as="block"
@@ -548,8 +549,14 @@ export default function SessionDetail() {
                     Ask the coach
                   </h2>
                 </div>
+                {/* Spec p4.2: Standard reframes the prompt from "ask for advice or
+                    the details of what you're selling" to the rep's own words —
+                    "What are you struggling on?" — which invites the real blocker
+                    instead of a product-info query. Expert keeps its original copy. */}
                 <p className="text-xs text-secondary leading-relaxed">
-                  Ask for advice or the details of what you&apos;re selling.
+                  {isStandard
+                    ? "What are you struggling on?"
+                    : "Ask for advice or the details of what you’re selling."}
                 </p>
                 <div className="flex items-center gap-2">
                   <LearningHint
@@ -610,8 +617,10 @@ export default function SessionDetail() {
             {/* Phase 2 — outcome + captured details. §1.5.1 L3: once the call
                 has ended, recording what happened is the natural next step
                 (shown only post-call, never blocking Stop). §3.5: the outcome
-                is the consequence the coach measures against — not agreement. */}
-            {session && session.status !== "active" && (
+                is the consequence the coach measures against — not agreement.
+                Expert only: in Standard the outcome is captured on the After-Pitch
+                that comes up on end (§3.5 preserved there, not dropped). */}
+            {!isStandard && session && session.status !== "active" && (
               <LearningHint
                 as="block"
                 category="Sales Coach · Outcome"
@@ -668,10 +677,12 @@ export default function SessionDetail() {
               </LearningHint>
             )}
 
+            {/* Expert only — the rep-first WHY dialogue is depth the Standard flow
+                trades away for momentum (the After-Pitch read carries the lesson). */}
             {/* Phase 3 — the WHY. §3.3: the rep goes FIRST; the coach's read
                 is gated behind the rep's and builds on it. Gated on a recorded
                 outcome (§3.2/§3.5 — no consequence, no why). */}
-            {session && session.outcome && (
+            {!isStandard && session && session.outcome && (
               <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
                 <div className="flex items-center gap-1.5">
                   <HelpCircle className="w-3.5 h-3.5 text-brand" aria-hidden />
@@ -786,8 +797,10 @@ export default function SessionDetail() {
               </section>
             )}
 
-            {/* Review (strengths first — the tone law) */}
-            {review?.hasSignal && (
+            {/* Review (strengths first — the tone law). Expert only: in Standard the
+                same read is delivered on the After-Pitch ("what you did well" /
+                "opportunities to grow"), so a second copy here is redundant. */}
+            {!isStandard && review?.hasSignal && (
               <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-4">
                 <h2 className="text-sm font-semibold text-primary">
                   Your growth review
