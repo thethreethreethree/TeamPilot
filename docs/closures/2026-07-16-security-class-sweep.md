@@ -352,6 +352,22 @@ The §A26 "is X wired/gated EVERYWHERE?" sweep beats spot-checking on careful co
 sweep found a REAL gap (recording route, fix #15) where 4/5 routes were wired; the service-role sweep confirmed
 clean across all 28. Enumerate the whole class, don't sample it.
 
+## 22. RATE-LIMIT / DoS sweep — mostly clean, 1 flagged tradeoff (bootstrap load-event spam)
+Swept every API route for rateLimit. Findings:
+- **LLM routes:** covered (class 4 holds). The `ai/analyze|decision|finance|marketing` routes flagged as
+  no-rateLimit are DEPRECATED 410 STUBS (2026-06-02 audit residue — they return 410 and do nothing; no
+  rateLimit/auth/LLM needed). False alarm.
+- **Public action routes** (conversation create, message-post, uploads): all rate-limited.
+- **Authenticated routes** without rateLimit (care/agent/*, coach/*, admin/crm/*, brain — the bulk of the list):
+  lower DoS risk (require a valid account); not flagged.
+- **FLAG (moderate, design tradeoff): `care/widget/bootstrap`** is public, has NO rateLimit, and calls
+  logLoadEvent → an UNBOUNDED insert into care_widget_load_events on every call (no dedup/throttle). Flood →
+  load-event table spam + DB write load. Its sibling public routes (create=10/min, message=30/min) ARE
+  rate-limited; bootstrap is the outlier. NOT auto-fixed: rate-limiting bootstrap risks breaking legit
+  high-volume widget loads (shared IPs / busy embeds), and throttling/sampling the log loses the traffic +
+  wrong-origin tracking the founder wants. The threshold is a founder call. Confidentiality/integrity is
+  unaffected (bootstrap returns only safe fields, class 19) — this is availability/cost only.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to

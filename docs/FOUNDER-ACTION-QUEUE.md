@@ -33,6 +33,11 @@
 >   construction today, but `signals` has no unique constraint, so a future re-derive path (backfill/retry)
 >   would double signals + inflate the §3.2 gate count. A clean backstop needs an `event_id` column on
 >   `signals` (they carry none; (kind,source) is legitimately non-unique). Add it now, or accept the risk?
+> - **Widget bootstrap DoS/log-spam** (moderate, availability only) — `/api/care/widget/bootstrap` is public,
+>   un-rate-limited, and writes an unbounded `care_widget_load_events` row per call. Sibling public routes are
+>   rate-limited; bootstrap isn't (rate-limiting it risks breaking legit high-volume embeds on shared IPs).
+>   Options: a generous per-IP limit, throttle/sample the LOAD-EVENT write only (keeps the widget loading but
+>   loses tracking precision), or accept. No confidentiality/integrity impact.
 
 > **THE ONE THING TO DO:** apply migrations **`0157`–`0182`** to staging, then run the **19 acceptance
 > files** in `docs/financial-system/tests/`. That is the only path from `BUILT` to `TESTED`, and I cannot
