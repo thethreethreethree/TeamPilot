@@ -185,6 +185,13 @@ const RPC_ONLY_TABLES = new Map([
   ["events", "§3.1 append-only historical record; the app inserts via the emit helpers, which name the helper not the table."],
 ]);
 
+// Individual COLUMNS the app deliberately does not name (the table IS app-facing, but this column is
+// DEFINER-managed or derived, not user-set). Same rule as RPC_ONLY_TABLES: a deliberate omission carries its
+// reason, so the next reader can tell it from a forgotten one.
+const RPC_ONLY_COLUMNS = new Map([
+  ["fin_recurring_bills.anchor_day", "0186 — the day-of-month a bill re-anchors to (drift fix). DERIVED from next_date (the date the user picks) and read only by the DEFINER recurrence fn fin_generate_recurring_bill. There is no separate user control: the user sets the DATE; the day-of-month follows. Naming it in src/ would imply a UI control that correctly does not exist."],
+]);
+
 // NOT limited to fin_*. A31's own lesson is "ask what part of this you find boring, and put the gate
 // there" — and the core product (events, signals, problems, resolutions, care, coach) had NEVER been
 // checked for reachability at all. It came back clean but for one deliberate exception, and a gate that
@@ -210,6 +217,7 @@ for (const f of migs) {
     // Bookkeeping columns are set by defaults/triggers, never by the app — naming them would be the bug.
     if (/^(created_at|updated_at|created_by|company_id|id|posted_entry_id|entry_id)$/.test(col)) continue;
     if (RPC_ONLY_TABLES.has(table)) continue;
+    if (RPC_ONLY_COLUMNS.has(key)) continue;
     if (!named(col)) {
       findings.push({
         rule: "A finance column must be reachable from the product",
