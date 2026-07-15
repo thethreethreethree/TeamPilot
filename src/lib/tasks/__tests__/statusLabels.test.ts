@@ -4,6 +4,8 @@ import {
   TERMINAL_TASK_STATUSES,
   taskDisplayLabel,
   TASK_CANONICAL_STATUSES,
+  TASK_STATUS_TRANSITIONS,
+  allowedTaskTransitions,
 } from "../statusLabels";
 
 /**
@@ -51,6 +53,41 @@ describe("isTaskClosed", () => {
       isTaskClosed(s)
     );
     expect(canonicalTerminal).toEqual(["Completed"]);
+  });
+});
+
+describe("TASK_STATUS_TRANSITIONS (shared client+server graph)", () => {
+  it("allows the most basic transition an API consumer must make: To Do → In Progress", () => {
+    // The regression this guards: the server route once keyed 'New' (phantom) and
+    // omitted 'To Do', so it rejected this transition for API/mobile consumers.
+    expect(allowedTaskTransitions("To Do")).toContain("In Progress");
+  });
+
+  it("allows Needs Review → Completed (server route once omitted the 'Needs Review' key)", () => {
+    expect(allowedTaskTransitions("Needs Review")).toContain("Completed");
+  });
+
+  it("Completed is terminal (no onward transitions)", () => {
+    expect(allowedTaskTransitions("Completed")).toEqual([]);
+  });
+
+  it("does NOT use the phantom 'New' status the app never writes", () => {
+    expect(TASK_STATUS_TRANSITIONS).not.toHaveProperty("New");
+  });
+
+  it("every transition key AND every target is a canonical status (no drift, no 'Cancelled')", () => {
+    const canonical = new Set<string>(TASK_CANONICAL_STATUSES);
+    for (const [from, targets] of Object.entries(TASK_STATUS_TRANSITIONS)) {
+      expect(canonical.has(from)).toBe(true);
+      for (const to of targets) {
+        expect(canonical.has(to)).toBe(true);
+      }
+    }
+  });
+
+  it("unknown status yields no transitions (never throws)", () => {
+    expect(allowedTaskTransitions("Cancelled")).toEqual([]);
+    expect(allowedTaskTransitions("Bogus")).toEqual([]);
   });
 });
 

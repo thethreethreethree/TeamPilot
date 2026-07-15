@@ -171,3 +171,37 @@ export const TERMINAL_TASK_STATUSES = ["Completed", "Cancelled"] as const;
 export function isTaskClosed(status: string | null | undefined): boolean {
   return (TERMINAL_TASK_STATUSES as readonly string[]).includes(status ?? "");
 }
+
+/**
+ * The task status transition graph — the SINGLE source of truth for "given the
+ * current status, which statuses may it move to?".
+ *
+ * Why this lives here (not copied into each caller): it was previously declared
+ * TWICE — once in the operations detail page (client, the graph the UI renders)
+ * and once inline in PATCH /api/tasks (server, "backend now enforces it"). The
+ * two DRIFTED: the server copy keyed the start state as a phantom 'New' (the app
+ * only ever writes 'To Do'), omitted 'To Do' and 'Needs Review' entirely (so the
+ * server rejected the most basic transition — To Do → In Progress — for the API
+ * consumers it was added to protect), and listed 'Cancelled' targets the UI never
+ * offers. The comment claimed the server "mirrors the UI map" while it did not.
+ * Making both import THIS constant makes that invariant structural, not a hope.
+ *
+ * Keys are canonical statuses (TaskCanonicalStatus). 'Cancelled' is intentionally
+ * absent: the UI never offered it and it has no label/enum — so no app path
+ * creates a cancelled task. isTaskClosed()/migration 0184 still handle 'Cancelled'
+ * defensively (direct SQL, imports, a future deliberate re-add). Promoting
+ * 'Cancelled' to a first-class transition is an open founder decision — it would
+ * be a single edit here plus a label + create-enum value.
+ */
+export const TASK_STATUS_TRANSITIONS: Record<string, string[]> = {
+  "To Do": ["In Progress", "Blocked"],
+  "In Progress": ["Needs Review", "Blocked", "Completed"],
+  Blocked: ["In Progress", "To Do"],
+  "Needs Review": ["Completed", "In Progress"],
+  Completed: [],
+};
+
+/** Statuses `status` may transition to. Unknown status → [] (no transitions). */
+export function allowedTaskTransitions(status: string): string[] {
+  return TASK_STATUS_TRANSITIONS[status] ?? [];
+}

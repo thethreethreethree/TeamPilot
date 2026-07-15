@@ -36,7 +36,11 @@ import type { CoachContextPayload } from "@/lib/coach/v5/types";
 import { useCoachEnabled } from "@/lib/coach/useCoachEnabled";
 import { TaskStepChecklist } from "@/components/tasks/TaskStepChecklist";
 import { TaskGateEditor } from "@/components/tasks/TaskGateEditor";
-import { taskDisplayLabel, isTaskClosed } from "@/lib/tasks/statusLabels";
+import {
+  taskDisplayLabel,
+  isTaskClosed,
+  TASK_STATUS_TRANSITIONS as STATUS_TRANSITIONS,
+} from "@/lib/tasks/statusLabels";
 
 /**
  * /dashboard/operations/[id] — task detail.
@@ -65,13 +69,10 @@ import { taskDisplayLabel, isTaskClosed } from "@/lib/tasks/statusLabels";
  * participant. It surfaces what's known about the work, offers next
  * steps, never punishes. Stress is self-reported only, never inferred.
  */
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  "To Do": ["In Progress", "Blocked"],
-  "In Progress": ["Needs Review", "Blocked", "Completed"],
-  Blocked: ["In Progress", "To Do"],
-  "Needs Review": ["Completed", "In Progress"],
-  Completed: [],
-};
+// STATUS_TRANSITIONS moved to the shared source of truth
+// (TASK_STATUS_TRANSITIONS in @/lib/tasks/statusLabels) so the server route
+// (PATCH /api/tasks) enforces the exact same graph this page renders — they
+// had drifted. Imported above.
 
 // STATUS_COLOR removed — taskDisplayLabel() in
 // src/lib/tasks/statusLabels.ts is the single source for status

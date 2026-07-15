@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
+import { allowedTaskTransitions } from "@/lib/tasks/statusLabels";
 
 /**
  * Production task API. Live-mode only — the chain depends on real events being
@@ -205,20 +206,16 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
-    // (b) Transition graph. Mirrors the UI's STATUS_TRANSITIONS
-    // map; backend now enforces it.
+    // (b) Transition graph. Enforces the SAME graph the UI renders by importing
+    // the one shared source of truth (allowedTaskTransitions) — previously this
+    // was a drifted inline copy that keyed a phantom 'New' and omitted 'To Do' /
+    // 'Needs Review', so it rejected legitimate API transitions (To Do → In
+    // Progress) for the exact mobile/API consumers it was meant to guard.
     if (
       safePatch.status !== undefined &&
       safePatch.status !== current.status
     ) {
-      const transitions: Record<string, string[]> = {
-        New: ["In Progress", "Blocked", "Cancelled"],
-        "In Progress": ["Blocked", "Completed", "Cancelled"],
-        Blocked: ["In Progress", "Cancelled"],
-        Completed: [],
-        Cancelled: [],
-      };
-      const allowedNext = transitions[current.status as string] ?? [];
+      const allowedNext = allowedTaskTransitions(current.status as string);
       if (!allowedNext.includes(nextStatus)) {
         return NextResponse.json(
           {
