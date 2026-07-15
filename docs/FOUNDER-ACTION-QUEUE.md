@@ -54,6 +54,13 @@
 >   in period *life+1* (e.g. a 37th depreciation entry on a 36-month asset). The TOTAL is always exact and NBV
 >   never dips below salvage (8-shape invariant test proves it) — purely presentational. Absorb the residual into
 >   the final scheduled slice (conventional "plug", keeps it to `life` periods), or accept the stub? No urgency.
+> - **LLM chokepoint rate-limit** (LOW, defense-in-depth — NO current gap) — verified every LLM-invoking route is
+>   already throttled (user routes: `rateLimit`; inbound-email: per-sender `ai_suppressed_flood`). But "every
+>   route throttles" can't be mechanically gated (an LLM call sits N hops deep via wrappers, needs call-graph
+>   analysis). The structural guarantee: add a per-company rate-limit at the single `call()` chokepoint in
+>   `src/lib/claude.ts` — then no route CAN make an unthrottled LLM call, by construction. Slightly changes
+>   behavior (a per-company LLM ceiling atop existing throttles), so it's your call. Build it, or accept the
+>   current per-route coverage? No urgency (current coverage is complete).
 > - **§3.1 signal idempotency backstop** (latent, low-urgency) — signal derivation is idempotent by
 >   construction today, but `signals` has no unique constraint, so a future re-derive path (backfill/retry)
 >   would double signals + inflate the §3.2 gate count. A clean backstop needs an `event_id` column on

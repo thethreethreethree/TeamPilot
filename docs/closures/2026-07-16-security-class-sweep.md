@@ -872,6 +872,30 @@ resolution durability in aggregate for EFFECTIVENESS (consequence). **Both produ
 §3.5-sound: ELOSTATE coach-readout (46) + C.A.R.E grader/analytics (51).** The grading-own-homework prohibition
 holds across the whole product, not just the surface I first checked.
 
+## 52. LLM-route rate-limit coverage — VERIFY-CLEAN; gate DECLINED (call-graph); CHOKEPOINT proposed
+The baseline note "new LLM routes MUST carry rateLimit" is prose with no gate (unlike uploads → INVARIANT 5).
+Swept it the way the upload sweep found fix #15:
+- **VERIFY-CLEAN, zero gaps** — every route that actually invokes an LLM is throttled. User-facing routes call
+  `rateLimit` (ai/decision-dialogue, chat/*, coach/sales-session/*, coach/v5/grade-sent, …). The one that DOESN'T
+  is `care/inbound/email` — and that's correct: email has no IP/user key, so it uses a purpose-built PER-SENDER
+  throttle (`senderAiReplies` within `AI_SENDER_WINDOW_MS` → emits `ai_suppressed_flood` and returns BEFORE
+  `generateCareReply`). Two grep "gaps" (`brain/route.ts`, `brain/unlock`) were false positives — they import
+  `@/lib/brain` for the §3.4 control-gate (`loadBrain`/`loadControlGate`/`unlockControlGate`), not an LLM call.
+  `health`/`settings` only read `Boolean(process.env.*_API_KEY)`. All refuted by reading, not assumed.
+- **A mechanical gate is NOT cleanly achievable (declined, same reasoning as class 50)** — "does this route
+  invoke an LLM" is a CALL-GRAPH property, not a pattern: the care agent-messages route reaches the LLM via
+  `gradeCareAgentReply` (care/grader.ts) → `gradeCoachV5`, two hops from the route. Direct-name detection →
+  false negatives; import detection → false positives (control-gate imports). A grep gate would be one or the
+  other. Below the precision bar INVARIANT 3/4/5 hold. No gate built.
+- **The STRUCTURAL answer, since the gate can't be (proposal, founder-gated)** — every LLM call in the codebase
+  funnels through the internal `call()` in `src/lib/claude.ts`. A per-company rate-limit AT THAT CHOKEPOINT
+  would make "no route can make an unthrottled LLM call" true BY CONSTRUCTION — the guarantee a route-level gate
+  can't give. It slightly changes behavior (a per-company LLM ceiling, defense-in-depth atop the existing
+  per-route/per-sender throttles), so it's a founder decision, not a by-fiat build. Added to the queue.
+This is the §1.6 pattern completed honestly: when the lesson can't be made mechanical at the layer prose
+describes (the route), find the layer where it CAN be structural (the chokepoint) — and propose it rather than
+ship a gate that cries wolf or misses.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
