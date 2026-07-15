@@ -203,3 +203,41 @@ export function aggregateSkills(
   ];
   return out;
 }
+
+// ── AI breakdown merge (pure, so the §3.4 honesty rule is unit-testable) ──────
+export type SkillBreakdown = SkillScore & { breakdown: string };
+
+/** Parse the breakdown LLM's `{ lines: [{label, line}] }` into a label→line map.
+ *  Malformed / missing / non-string → empty map: degrade, never throw (§3.4). */
+export function parseBreakdownLines(text: string): Map<string, string> {
+  try {
+    const raw = JSON.parse(text) as { lines?: { label?: string; line?: string }[] };
+    if (!Array.isArray(raw.lines)) return new Map();
+    return new Map(
+      raw.lines
+        .filter(
+          (l) => typeof l?.label === "string" && typeof l?.line === "string" && l.line.trim()
+        )
+        .map((l) => [l.label as string, (l.line as string).trim()])
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * Attach a breakdown line to each skill. THE §3.4 / §A24 INVARIANT LIVES HERE: a
+ * skill with NO score never receives an AI line — it keeps its honest deterministic
+ * read ("not enough sessions yet"), because we do not manufacture an explanation for
+ * a number that does not exist. A scored skill uses its AI line when present, else
+ * the read. So a stray LLM line for an unmeasured skill can never leak through.
+ */
+export function mergeBreakdowns(
+  skills: SkillScore[],
+  byLabel: Map<string, string>
+): SkillBreakdown[] {
+  return skills.map((s) => ({
+    ...s,
+    breakdown: (s.score !== null && byLabel.get(s.label)) || s.read,
+  }));
+}

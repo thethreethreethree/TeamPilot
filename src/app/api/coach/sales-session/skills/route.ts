@@ -9,7 +9,10 @@ import { dissectCoachV5 } from "@/lib/claude";
 import {
   aggregateSkills,
   agentWpm,
+  parseBreakdownLines,
+  mergeBreakdowns,
   type SkillScore,
+  type SkillBreakdown,
 } from "@/lib/coach/v5/skillAnalytics";
 import type { ScoreCategory } from "@/lib/coach/v5/summaryTypes";
 
@@ -83,14 +86,14 @@ export async function GET(req: NextRequest) {
   });
 }
 
-type SkillOut = SkillScore & { breakdown: string };
-
 async function addBreakdowns(
   skills: SkillScore[],
   companyId: string | undefined
-): Promise<SkillOut[]> {
-  const fallback = (): SkillOut[] =>
-    skills.map((s) => ({ ...s, breakdown: s.read }));
+): Promise<SkillBreakdown[]> {
+  // Degrade path (§3.4): no company / no scored skills / any failure below → each
+  // skill keeps its deterministic read. mergeBreakdowns with an empty map yields
+  // exactly that, so the fallback and the success path share one honest merge.
+  const fallback = (): SkillBreakdown[] => mergeBreakdowns(skills, new Map());
 
   // Only skills we actually scored get an AI line; a null-score skill keeps its
   // honest "not enough yet" read (nothing to explain).
@@ -116,18 +119,9 @@ Write one short line for each. JSON only.`;
   try {
     const r = await dissectCoachV5({ companyId, systemPrompt, userMessage });
     if (r.suppressed) return fallback();
-    const raw = JSON.parse(r.text) as { lines?: { label?: string; line?: string }[] };
-    if (!Array.isArray(raw.lines)) return fallback();
-    const byLabel = new Map(
-      raw.lines
-        .filter((l) => typeof l.label === "string" && typeof l.line === "string" && l.line.trim())
-        .map((l) => [l.label as string, (l.line as string).trim()])
-    );
-    return skills.map((s) => ({
-      ...s,
-      // AI line when we have one for a scored skill; else the honest band read.
-      breakdown: (s.score !== null && byLabel.get(s.label)) || s.read,
-    }));
+    // Pure parse + merge (unit-tested in skillAnalytics): a null-score skill can
+    // never receive an AI line, and a malformed response degrades to reads.
+    return mergeBreakdowns(skills, parseBreakdownLines(r.text));
   } catch {
     return fallback();
   }

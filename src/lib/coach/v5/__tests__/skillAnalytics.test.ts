@@ -4,6 +4,8 @@ import {
   speedScore,
   agentWpm,
   aggregateSkills,
+  parseBreakdownLines,
+  mergeBreakdowns,
   type SkillKey,
   type SkillScore,
 } from "../skillAnalytics";
@@ -88,5 +90,42 @@ describe("aggregateSkills — six skills, null not zero when unmeasured", () => 
     const skills = aggregateSkills([[cat("talk_ratio", 0, "—", { caveat: true })]], [null]);
     const talk = skills.find((s) => s.key === "talk_listen");
     expect(talk?.score).toBeNull();
+  });
+});
+
+describe("mergeBreakdowns — the §3.4/§A24 honesty rule (never explain a number that doesn't exist)", () => {
+  const s = (key: string, score: number | null): SkillScore => ({
+    key: key as SkillScore["key"], label: key, score, sampleSize: 1,
+    read: score === null ? "Not enough sessions yet to score this." : "band read",
+  });
+
+  it("a null-score skill keeps its deterministic read even if the LLM returned a line for it", () => {
+    const lines = new Map([["speed", "You race — slow down."]]); // stray line for an unmeasured skill
+    const out = mergeBreakdowns([s("speed", null)], lines);
+    expect(out[0]!.breakdown).toBe("Not enough sessions yet to score this."); // NOT the LLM line
+  });
+
+  it("a scored skill uses its LLM line when present", () => {
+    const out = mergeBreakdowns([s("closing", 2)], new Map([["closing", "Ask for the next step."]]));
+    expect(out[0]!.breakdown).toBe("Ask for the next step.");
+  });
+
+  it("a scored skill with no LLM line falls back to its read", () => {
+    const out = mergeBreakdowns([s("tone", 8)], new Map());
+    expect(out[0]!.breakdown).toBe("band read");
+  });
+});
+
+describe("parseBreakdownLines — degrade, never throw (§3.4)", () => {
+  it("parses a well-formed response into a label→line map", () => {
+    const m = parseBreakdownLines('{"lines":[{"label":"Tone","line":"Warm."}]}');
+    expect(m.get("Tone")).toBe("Warm.");
+  });
+  it("returns an empty map on malformed JSON", () => {
+    expect(parseBreakdownLines("not json").size).toBe(0);
+  });
+  it("returns an empty map when lines is missing or wrong-shaped", () => {
+    expect(parseBreakdownLines('{"nope":1}').size).toBe(0);
+    expect(parseBreakdownLines('{"lines":[{"label":"X"}]}').size).toBe(0); // no line
   });
 });
