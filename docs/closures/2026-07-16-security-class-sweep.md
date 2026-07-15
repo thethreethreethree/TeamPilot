@@ -1,9 +1,10 @@
 # Security audit — four-class sweep (2026-07-16)
 
-> ## ⬆️ EXECUTIVE SUMMARY (navigational — added at session end; the numbered classes below are the record)
-> This began as a 4-class security sweep and became a **whole-session comprehensive audit** (29 classes). The
-> FINANCE audit is 100% complete (every calc + reconciliation surface); the entire §3 constitutional core is
-> verified sound; the security perimeter is systematically swept.
+> ## ⬆️ EXECUTIVE SUMMARY (navigational — kept current through session end; the numbered classes below are the record)
+> This began as a 4-class security sweep and became a **whole-session comprehensive audit (48 classes)**. The
+> FINANCE audit is 100% complete (every calc + reconciliation surface, now with reference tests for the subtle
+> ones); the entire §3 constitutional core is verified sound BY ENFORCEMENT (not just prose); the security
+> perimeter + tenant isolation are systematically swept to their linchpin.
 >
 > **17 REAL FIXES** (all tested where testable; migrations UNAPPLIED unless noted):
 > - *Tasks:* transition-guard drift (#7, live), "Open tasks" overcount (live), `0184` false task_slipped
@@ -17,14 +18,27 @@
 >
 > **1 STRUCTURAL GATE BUILT:** invariant-audit INVARIANT 5 (every upload route must validate) — fix #15 can't recur.
 >
-> **VERIFIED SOUND** (the important negatives): the ENTIRE §3 constitutional core (§3.1 derivation, §3.2 gate,
-> §3.3 guide-don't-overtake, §3.4 control-gate fail-closed + leadership-audited override, §3.5 durability/
-> cost-per-outcome); all 13 finance calc surfaces; every service-role route (28) tenant-scoped; the 0183
-> DEFINER-revoke complete; both account-join halves (0114/0115). ~10 false-findings refuted before reporting.
+> **VERIFIED SOUND** (the important negatives): the ENTIRE §3 constitutional core, checked by *enforcement
+> evidence* not comments — §3.1 events-immutability (rewrite-rule), §3.2 gate (distinct-signal/source counts),
+> **§3.3 ask-first (schema `min(20)` on userDiagnosis+userProposal; assert-first routes retired to 410)**,
+> §3.4 control-gate fail-closed, **§3.5 consequence-not-agreement (coached-vs-uncoached durability at equal N)**,
+> **§3.6 real-not-vanity (≥30-event readiness + fail-closed error state)**; all finance calc surfaces (+ new
+> depreciation & break-even reference tests, 78 finance tests); every service-role route (28) tenant-scoped;
+> the 0183 DEFINER-revoke complete; both account-join halves; **`auth_company_id()` linchpin un-spoofable**;
+> the self-write privileged-column class closed by triggers `0090`+`0093`; finance surface reachable
+> end-to-end (28/28 pages navigable, set-diff verified). ~12 false-findings refuted before reporting — incl. a
+> near-miss 40-item fake-orphan report caught by verify-before-report, and my OWN over-stated 🔴 on `0090`
+> corrected to 🟠 (migrations apply in order → applying through 0115 necessarily applied 0090-0093).
 >
-> **YOUR QUEUE** (see FOUNDER-ACTION-QUEUE.md): APPLY `0114`·`0115`·`0184`·`0185`·finance `0157-0182`·security
-> `0141`/`0142`. DECIDE 7 items (tax attribution · blocker_reason *transition*-surface UX · Cancelled-first-class
-> · profitability dims · signal backstop · bootstrap DoS · CRM control-month). CONFIG: `CRON_SECRET`·VAPID·runbook.
+> **YOUR QUEUE** (see FOUNDER-ACTION-QUEUE.md):
+> - 🟠 **CONFIRM (1 query, likely already true):** `select tgname from pg_trigger where tgname in
+>   ('profiles_guard_privileged','chat_participants_guard_privilege');` → expect 2 rows (privileged-column
+>   self-write guards). Almost certainly applied given migration ordering; confirm, don't alarm.
+> - **APPLY:** `0114`·`0115`·`0184`·`0185`·`0186`·finance `0157-0182`·security `0141`/`0142`.
+> - **DECIDE 8:** tax attribution · blocker_reason *transition*-surface UX · Cancelled-first-class · profitability
+>   dims · signal backstop · bootstrap DoS · CRM control-month · **depreciation rounding-stub (LOW, cosmetic —
+>   absorb residual into final scheduled slice vs. accept a trailing sub-cent period)**.
+> - **CONFIG:** `CRON_SECRET`·VAPID·runbook.
 
 Recorded per §1.7.4 (audits immutable + comparable). This session swept four attack-surface classes across the
 API. Two yielded real fixes; two verified clean. Every "clean" was earned by inspecting the candidates (§1.7.3),
