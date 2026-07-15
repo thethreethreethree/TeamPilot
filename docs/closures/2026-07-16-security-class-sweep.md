@@ -1118,6 +1118,24 @@ This is the A33 lesson applied cleanly, in contrast to classes 50/52 where I DEC
 was imprecise (semantic/call-graph); here it is a literal string match with a natural tool-native home. The XSS
 footgun can no longer be re-introduced silently — the class is closed at the gate, not just the instance.
 
+## 64. Adversary lens — SECRET EXPOSURE (client-bundle leak / hardcoded keys) — VERIFY-CLEAN
+Sixth adversary surface, and a high-severity one (a leaked service-role key bypasses all RLS for every tenant).
+Three checks, all clean:
+1. **`NEXT_PUBLIC_` env vars** — exactly 4, all legitimately public: `NEXT_PUBLIC_SITE_URL`,
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the anon key is DESIGNED to be public — it is
+   the RLS-protected client key), `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (the public half of the push keypair; the
+   private half stays server-only). No secret rides the public prefix.
+2. **Hardcoded secrets** — none. No `sk-…` literals, no `service_role` JWT strings, no inline `apiKey`/`secret`
+   string literals (all secret access is via `process.env`).
+3. **Service-role key in a client component** — none. `SERVICE_ROLE`/`service_role` never appears in a
+   `'use client'` file, so the admin client (and its key) cannot be bundled into the browser. The admin client
+   (`lib/supabase/admin.ts`) is server-only by construction.
+**Adversary sweep now 6 surfaces (60-64): auth brute-force · stored XSS (+fix #18 +gate 63) · SSRF · open
+redirect · CSRF · secret exposure — 5 clean + 1 fixed-and-gated.** Secret hygiene is sound: the only "public"
+keys are the two designed to be public, and the catastrophic key (service-role) is structurally confined to the
+server. The §1.3 outside-view sweep is now comprehensive across the headless-checkable attack surface, and it
+resolved the way a mature codebase should: mostly clean, one real footgun found, fixed, and gated.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
