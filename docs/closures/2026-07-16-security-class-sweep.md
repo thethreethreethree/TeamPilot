@@ -293,6 +293,16 @@ constitutional core is verified end-to-end. ONE latent founder-domain flag (clas
 lowered severity by 17). Everything else on the chain is correct. This + the metric/computation sweep (classes
 1-15) = the session's audit is comprehensive across BOTH the derived-metric surfaces AND the constitutional core.
 
+## 19. PUBLIC CUSTOMER WIDGET message-post — VERIFIED SECURE (completes the widget security audit)
+The highest-risk surface (public, unauthenticated customer input). POST
+/api/care/conversations/[id]/messages is correctly secured: session-token required (401 if missing);
+`getCareConversationByToken(token)` resolves BY the token then cross-checks `conversation.id !== id` — so a
+customer cannot post into another conversation with a mismatched token (the token is the authority, the URL id
+is verified against it); rate-limited (30/min write, 60/min read); Zod body (1-4000); closed→410, tenant-paused
+→410. session_token is a unique gen_random_uuid()::text (0034) → exact-match, no injection surface. Combined
+with the earlier sweep (class 3: file/tts paths, same token-scoping), the customer-facing widget paths are
+consistently token-scoped and verified — no cross-conversation/tenant leak.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
