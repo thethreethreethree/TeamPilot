@@ -44,17 +44,19 @@ create or replace view fin_cash_today with (security_invoker = true) as
 
 -- ─── Every future cash movement we actually KNOW about ────────────────
 create or replace view fin_cash_commitments with (security_invoker = true) as
-  -- Money owed TO us: invoices sent and not fully paid. fin_invoice_summary already nets off issued credit
-  -- notes (0143), so a credited invoice does not sit in the forecast as inflow that will never arrive.
+  -- Money owed TO us: invoices sent and not fully paid. Outstanding nets BOTH receipts and issued
+  -- credit notes (0143 added the `credited` column) — total − received − credited — so a credited
+  -- invoice does not sit in the forecast as inflow that will never arrive. (fin_invoice_summary has
+  -- no `paid` column — that is fin_bill_summary; invoices use `received`.)
   select i.company_id,
          'inflow'::text                              as direction,
          coalesce(i.due_date, i.invoice_date)        as expected_on,
-         (i.total - i.paid)::numeric(19,4)           as amount,
+         (i.total - i.received - i.credited)::numeric(19,4)  as amount,
          'invoice'::text                             as source_type,
          i.invoice_number                            as source_ref
     from fin_invoice_summary i
    where i.status = 'sent'
-     and (i.total - i.paid) > 0
+     and (i.total - i.received - i.credited) > 0
 
   union all
 
