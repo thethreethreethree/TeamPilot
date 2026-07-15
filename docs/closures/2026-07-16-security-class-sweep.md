@@ -560,6 +560,9 @@ The anti-self-approval class is sound everywhere: fin_approve_expense_report (01
 ## 34. PERIOD-LOCK + posting immutability (0118) VERIFIED — TRIGGER-enforced, no bypass
 Stronger than hypothesized: the open-period gate is a TRIGGER on the journal tables (0118:93-107), not a check inside the posting fn. Any insert/update/delete touching a period whose status is closed/locked raises "fin: period is % — post corrections into an open period". Because it is a trigger it binds EVERY writer — the API, all DEFINER posting fns, direct SQL, service-role — so there is NO posting path that can bypass the lock (my hypothesis was "does one path skip the check"; a trigger makes that impossible). Posted entries/lines are also immutable (T-14). Closed books are truly sealed. Financial-integrity control sound.
 
+## 35. §3.1 EVENTS IMMUTABILITY (the method's foundation) VERIFIED — rewrite-rule enforced, no tamper
+The append-only §3.1 chain rests on events being tamper-proof (retrospective analysis is only honest if history cannot be edited). events (0004:36-37) carries REWRITE RULES: `on update to events do instead nothing` + `on delete to events do instead nothing`. Rewrite rules (unlike triggers) bind EVEN THE TABLE OWNER + service-role, so NO path — API, DEFINER fns, direct SQL, service-role — can update or delete an event. The historical record is immutable by construction. brain_evolution_events (0007:103-105, the §3.4 override + §7.5 review audit) has the same protection, so the accountability trail is equally tamper-proof. The strongest possible enforcement on the most foundational data. Hypothesis (events editable) impossible.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
