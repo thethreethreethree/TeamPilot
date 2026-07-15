@@ -258,6 +258,8 @@ limitations, not fixes. The bottleneck is founder application of the queued fixe
 
 - **overhead allocation (0173):** exemplary — ANALYTICAL (a view, not fictional GL entries that drift from truth); allocated_overhead & share NULL when total_direct=0 (div-by-zero guarded, §3.4 "0 would be a lie that balances"); correct proportional (overhead * direct/total_direct); an "unallocated" bucket surfaces what could not be allocated rather than spreading it. FINANCE CALC + CONSTITUTIONAL AUDIT COMPLETE: every calc surface (depreciation, FX, break-even, cost-per-outcome, overhead, variance, runway, budget, bank, inventory, tax, AR/AP, profitability) verified sound; 2 AR credit-note bugs fixed; the rest uniformly exemplary, author anticipating each classic bug.
 
+- **payroll (0167):** exemplary — net_pay>0 CHECK (no negative net), gross=net+withholdings asserted with an accountant-actionable error (not opaque balance failure), employer-tax on-top-of-gross (true employee cost), row-locked + draft-only (no double-post), deliberately does NOT fake tax computation (records provider figures, §3.4). Both hypotheses (negative net, identity violation) guarded.
+
 Eleven verify-clean/known-limitation results now stand alongside the ~14 fixes. Confirmed pattern: real bugs
 lived in the EARLIER/middle migrations (transition guard, C.A.R.E command stats, 0136 dashboard, 0175 forecast);
 the LATER finance work (0149/0150/0159 + 0145 algo) is consistently careful and correct. The metric-integrity +
