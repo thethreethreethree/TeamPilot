@@ -1246,6 +1246,22 @@ not-computed (payroll POSTS pre-computed values) or founder-gated (tax netting).
 be the low-value-test A33 warns against. 86 finance tests is the productive ceiling for CI-runnable calc coverage;
 the rest of the CI gap is genuinely DB-level (posting/balance/concurrency) — the founder's staging-CI decision.
 
+## 73. §3.4 CYCLE-PHASE RESOLVER reference test (cycle/phase.ts) — BUILT; found by a SYSTEMATIC coverage scan
+Instead of another one-off "is X tested?" probe (which kept returning already-covered), ran a SYSTEMATIC scan:
+every `src/lib` module with real logic + no test. Most are correctly untested (DB wrappers, LLM-prompt builders,
+API wrappers, React hooks — not clean unit targets). But it surfaced a genuine HIGH-VALUE gap: `cycle/phase.ts`,
+the **§3.4 cycle-phase resolver** — a PURE function that mirrors SQL `company_cycle_phase` (0031) and decides
+control (days 0-29, Coach LOCKED OFF — the month-1 honest baseline) / intervention (30-59, Coach may enable) /
+ongoing (60+). It was UNTESTED. If the JS drifts from the SQL, app and DB disagree on whether a company is in
+control — a §3.4 MOAT-integrity bug (the whole "month 1 = no AI guidance" honesty claim rests on this boundary).
+Built `cycle/__tests__/phase.test.ts` (10 cases) pinning: day-0/29=control→`canEnableCoach=false` (the §3.4
+lock), day-30 transition→intervention→unlockable, day-59/60 boundary, skip-control→intervention-immediately,
+non-negative floor (future anchor → control = SAFE default, never accidentally unlocked), phaseEndsAt marks, and
+the invariant `canEnableCoach false IFF phase===control`. All 10 pass. This is the systematic scan beating the
+one-off probe — it found a constitutional-critical untested pure fn the ad-hoc checks missed. **§3.4 is now
+pinned on BOTH sides this session: the control-GATE (`evaluateControlGate`, class 49, fail-closed) AND the
+control-PHASE resolver (class 73).** The moat's month-1 lock is test-protected end to end.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
