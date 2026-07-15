@@ -1157,6 +1157,17 @@ until now. `npm audit` reports 2-3 moderate advisories, all ONE root: transitive
   auto-fix warning. This is what a dependency audit should produce: the advisory, its real exploitability HERE
   (not the abstract CVSS), and the SAFE fix path distinguished from the dangerous auto-fix.
 
+## 66. PRODUCTION BUILD verified green (§1.5.1 Layer 2 capstone) — the session's changes are production-safe
+`npm run check` covers typecheck/lint/theme/rls/invariant/805-tests but NOT the production build, which can fail
+on build-time / static-generation issues the check misses. Ran `next build` — exit 0. Full compile, every route
+generated (static ○ + dynamic ƒ), middleware (Proxy) built. Confirms this session's code changes — fix #18
+(my-growth XSS sink → `{title}`), the `layout.tsx` eslint-disable justification, the `.eslintrc.json` +
+`invariant-audit.mjs` gate additions — all compile for production. Combined: `npm run check` GREEN + `next
+build` GREEN = the codebase is verified across BOTH the check pipeline and the production build. This is the
+strongest headless "it actually works" evidence (§1.5.1 Layer 2 — end-to-end, not just unit-green), and the
+honest capstone for the session's shipped changes. Everything committed this session sits on a fully-green tree
+that also builds for production.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
