@@ -917,6 +917,28 @@ current schema.** No 0175-class missing-object/wrong-column trap remains in what
 the pre-existing 0157-0182 batch object-by-object — those weren't built this session; flagged as the one part
 of the apply queue whose dependency-safety I'm asserting from their authors, not from an in-session trace.)
 
+## 54. 0157-0182 batch apply-safety (the largest queue chunk) — forward-ref scan CLEAN after refuting 4
+Class 53 verified the 3 migrations I BUILT; this closes the gap I flagged there — the pre-existing 0157-0182
+finance batch (26 migrations), the largest part of the founder's apply queue. The batch has PHASE DISORDER
+(0166 "Phase 8 Part B" before 0167 "Part A"; Phase-4 items 0173/0176/0177/0179 scattered among Phase 6/7/9) —
+exactly where a forward reference (a lower migration depending on an object a higher one creates → mid-apply
+failure) would hide. Built an object→first-created-migration map for the batch and scanned every migration for
+references to objects created LATER in the batch.
+- **4 candidates flagged, ALL 4 refuted** (verify-before-report): 0157/0158/0166/0167 reference `fin_can_approve`,
+  which my batch-only map recorded as "first created in 0168." False positive — `fin_can_approve()` actually
+  ORIGINATES in **0116** (finance foundation, APPLIED); 0168 merely `create or replace`s it (delegation-aware).
+  The four call it as a guard (`if not fin_can_approve() then raise`) — an already-existing function. The map
+  was blind to pre-batch origins; checking the true origin cleared all four.
+- **No other forward reference** — every table/view/function referenced in the batch either exists pre-0157
+  (applied foundation) or is created by an earlier-numbered batch migration. Legit `create or replace` overrides
+  (0168 over 0116's fin_can_approve; 0168 over 0157's fin_approval_limit_for; 0182 over 0149's fin_budget_variance)
+  are all later-replaces-earlier, never the reverse. Phase disorder is cosmetic (labels), not dependency order.
+**The 0157-0182 batch is apply-order-safe.** Scope honesty: this verified TABLE/VIEW/FUNCTION forward-refs (the
+mid-apply-failure class); it did NOT exhaustively cross-check every COLUMN reference against its adding migration
+(a narrower risk — the 0175-class column typo was a never-existed column, not a forward-ref, and 0185's columns
+were spot-verified in class 53). Combined with class 53, the ENTIRE apply queue (0114/0115 + 0157-0182 +
+0184/0185/0186) is now forward-reference-clean and applies cleanly in numeric order onto the current schema.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
