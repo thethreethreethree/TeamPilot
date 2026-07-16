@@ -7,8 +7,22 @@
  *
  * FRAMEWORK (governs the shape of this, per the founder's "spec as written, GOVERNED by the framework"):
  *  - A11 (mirror, don't judge): a bare letter is a verdict. So `gradeSkill` returns the letter TOGETHER WITH the
- *    countable basis (`fromScore` = the /10 it summarizes) — the surface shows "A- · talk/listen 7.8/10", a
- *    summary of a count, not a standalone judgment. [This is decision ①(b), the founder's announced default.]
+ *    countable basis (`fromScore` = the /10 it summarizes) — the surface shows "A- · talk/listen 7.8/10".
+ *
+ *    ⚠️ CORRECTED 2026-07-17 — this comment used to end "…a summary of a count, not a standalone judgment
+ *    [decision ①(b), the founder's announced default]". BOTH halves were wrong.
+ *      (a) **The A11 defence does not survive A11's actual text.** Read at source: "the first is a verdict that
+ *          can be wrong; the second is a count that cannot." The `/10` is itself a DERIVED SCORE, not countable
+ *          behaviour — so pairing the letter with it does not convert a verdict into a count; it is two verdicts
+ *          on one line. What actually satisfies A11 is the `breakdown` ("asked for the close in 2 of 9 calls"),
+ *          which the manager view now renders under every grade. This function's output is A11-*compatible*
+ *          only because that count travels beside it — not because `fromScore` is a count.
+ *      (b) **"The founder's announced default" was a false attribution.** ①(b) was MY recommendation. The
+ *          founder had announced nothing. Claiming their sanction for my own design choice is worse than
+ *          offloading the choice to them (A20's inverse), and it is the kind of claim a reader cannot check.
+ *    ⑤ remains OPEN and is now sharper than ①(b) ever was: per A1 the letter reinforces no clause of the
+ *    constitution, and the founder's own C.A.R.E audit (2026-06-16) prescribed labels "descriptive of the reply
+ *    shape, not of agent worth". The live recommendation is to let the COUNT be the label. See the queue.
  *  - A18 (label is the defense against a leader misusing the data): the band labels invite COACHING, not
  *    penalty. There is deliberately NO "F". The lowest band is a "growth area" — a coaching target, never a
  *    stack-rank verdict. A manager reading "growth area" is invited to teach; a manager reading "F" is invited
@@ -16,10 +30,25 @@
  *  - §3.5 / §3.6 honesty: a null score (not enough data — e.g. speed with no transcript timing, §3.4) grades to
  *    null, NOT to a low letter. An unmeasured skill is "still accumulating", never a bad grade.
  *
- * THE BANDS ARE A FOUNDER-TUNABLE CONSTANT (like skillAnalytics' band constants). They are aligned to the
- * existing /10 UI semantics (<5 weak / 5–8 developing / 8+ strong), NOT academic percentages (5/10 is not "50% =
- * F" — in the current product 5/10 is "developing"). Adjust GRADE_BANDS to retune; the tier/coaching label moves
- * with it. FLAGGED for founder review: the exact cutoffs below are a recommendation, not a mandate.
+ * THE BANDS ARE §4 INSTRUMENTATION — NOT A FOUNDER PREFERENCE (corrected 2026-07-17, per A4).
+ *
+ * This comment used to read "a FOUNDER-TUNABLE constant… FLAGGED for founder review: the cutoffs are a
+ * recommendation, not a mandate", and I told the founder in writing that they should set these against real rep
+ * data. **That was wrong, and A4 says why:** "the constitutionally honest move is to surface uncertainties AS
+ * uncertainties and let the §4 readout produce the answer. Pre-resolving them looks like decisiveness but
+ * CONTAMINATES the experiment — you have encoded an assumption that should have been measured." The cutoffs are
+ * neither mine to pick nor the founder's: they are a question for the DATA. Handing them to the founder as a
+ * preference is the same error as picking them myself, wearing better manners.
+ *
+ * So they ship as A4 prescribes — a defensible starting point chosen to READ OUT CLEARLY, not because it is
+ * provably right (A4's own example: "Coach v1 ships with 3 heuristics… whether 3 is enough is itself part of the
+ * §4 readout, not a pre-decision"). They are aligned to the existing /10 UI semantics (<5 weak / 5–8 developing /
+ * 8+ strong), NOT academic percentages — in this product 5/10 is "developing", not "50% = F".
+ *
+ * The §4 question these are instrumentation FOR: do reps whose growth-area skills are graded `D` improve faster
+ * than those graded `C-` for the same underlying score? A band that changes behaviour is right; a band that only
+ * changes the letter is cosmetic. Retune GRADE_BANDS when the data answers, not before — and note the readout is
+ * currently impossible (A2: this revision emits no chain events, so nothing about it can be measured yet).
  */
 
 export type LetterGrade =
