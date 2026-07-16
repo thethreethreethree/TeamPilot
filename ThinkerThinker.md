@@ -994,6 +994,19 @@ Then I verified my own recommendation before it could be acted on — I designed
 
 **The lesson about the lesson.** The tell was the word **"cheap."** I reached for a confidence-adjective before doing the work that would earn it — and confidence-adjectives (*cheap, simple, just, trivial, obviously*) are where unverified recommendations hide, because they actively discourage both reader and author from checking. **Its own test:** the next time I hand the founder a recommendation containing a word like "cheap" or "just," have I designed the thing I'm calling cheap — or am I about to decide for them while calling it advice?
 
+**Addendum — 2026-07-17: the tell is SYMMETRIC, and this asset only named half of it.**
+
+A32 lists the adjectives that hide an unverified recommendation to **act**: *cheap, simple, just, trivial, obviously*. They share a mechanism — *"they actively discourage both reader and author from checking."* **The same mechanism runs in reverse, and A32 does not name it.**
+
+Both directions fired in one session (the ELOSALES revision):
+
+- **Toward acting** — the direction A32 names. I told the founder decision ⑧ was **"~3 lines"** of route change. Designing it showed the rule is not route-implementable at all: RLS admits the write, so it needs a `BEFORE UPDATE` trigger. **A32 caught this exactly as written.**
+- **Toward NOT acting** — the direction it misses. I declined to recommend a `pre-push` hook because it would cost **"~2 minutes per push"** — thirty-five pushes, seventy minutes of the founder's time, too expensive to propose. **I never measured it.** Measuring took thirty seconds: the five static gates run in **16 seconds**; all six in ~30. The objection was invented, and it suppressed a recommendation that would have prevented a day of red `main`.
+
+**The symmetric rule:** *expensive, slow, risky, invasive, out-of-scope, a big refactor, that's the founder's call* are **confidence-adjectives too**. They earn their authority the same way — by not being checked — and they are **more dangerous than the "cheap" family**, because a wrong *"cheap"* gets caught when someone tries to build the thing, while a wrong *"expensive"* is never falsified: **the work simply never happens, and nothing surfaces to contradict the estimate.** A32's original framing (*"authority transfers risk… the decider ACTS on what looks earned"*) has a silent partner: **the decider also DECLINES what looks unaffordable — and an unmeasured cost is a decision made on their behalf, in the shape of a deferral.**
+
+**Sharper future-use rule, replacing the one-sided version:** before *any* cost adjective reaches the founder — in either direction — **produce the number.** If the claim is "cheap", design it. If the claim is "expensive", **time it**. A32's original test asked *"have I designed the thing I'm calling cheap?"*; the complete test is **"have I measured the thing I'm calling expensive — or am I declining on their behalf while calling it their call?"** In this session the measurement was a `for` loop and thirty seconds, and it inverted the recommendation.
+
 ---
 
 ## A33 · Not every lesson can be gated — a gate must be PRECISE or not exist; when the pattern resists precise detection, find the CHOKEPOINT where the invariant holds by construction, or keep the prose and decline
