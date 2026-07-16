@@ -21,8 +21,9 @@
 >
 > **Correction 06:33:** the line above once read *"none of them are my opinion."* That was itself an overstatement of the same shape. **The RULES are verbatim; the APPLICATIONS are my judgment** — and verdict 3's application was simply wrong (withdrawn above). AMD-006's sieve is verbatim, but *whether ⑦ is a Layer-2 break* rests on my reading that "recordings" means audio. A2's rule is verbatim, but *whether this is "a feature positioned as a methodology improvement"* is my classification of the founder's spec. **Both are overrulable.** The first draft of this closure reported the build as sound; the second overstated its condemnation. Neither was earned by looking.
 
-**Status: BUILT · gate-verified · NOT runtime-TESTED.** tsc clean · ESLint clean · 856 vitest (15 skipped) ·
-`next build` green. No route in this revision has run against a live database. Migration `0187` is UNAPPLIED —
+**Status: BUILT · gate-verified · NOT runtime-TESTED.** **`npm run check` — the project's canonical gate, all six — exits 0** (typecheck · lint · theme:audit 0 leaks · rls:audit 0 risks/0 missing policies/all views invoker-run · invariant:audit 0 violations incl. INVARIANT 6 · 857 tests) + `next build` green.
+
+> **Correction (A38, 06:52):** this line originally read *"tsc clean · ESLint clean · 856 vitest · next build green"* — which was **four of the six gates**, with the lint scoped to files I chose to name. I reported that as "gate-verified" ~30 times before ever running `npm run check`. When I ran it, **it failed** — on a pre-existing error from the previous day's session that my scoped lint could not see. **A claim of verification must name the command that produced it.** No route in this revision has run against a live database. Migration `0187` is UNAPPLIED —
 and per OPEN ⑦ may never be worth applying. Expert mode untouched (verified by diff: zero `!isStandard` lines
 changed; every other file is new, additive, or inside the Standard branch).
 

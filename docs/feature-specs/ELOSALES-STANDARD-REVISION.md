@@ -190,8 +190,9 @@ Plus tests: `__tests__/skillGrade.test.ts`, `__tests__/skillAccess.test.ts`, `__
 
 ### 7.2 Gate results (the verification behind "BUILT")
 
-`npx tsc --noEmit` clean · `npx eslint` clean on all changed files · `npx vitest run` **856 passed, 15 skipped**
-(849 before this revision's guard tests; +7) · `npx next build` green.
+**`npm run check` — the project's canonical gate, all six — exits 0** (typecheck · lint · theme:audit 0 leaks · rls:audit 0 risks/0 missing policies/all views invoker-run · invariant:audit 0 violations incl. INVARIANT 6 · 857 tests) + `next build` green.
+
+> **Corrected (A38, 06:52).** This section originally listed *`npx tsc --noEmit` · `npx eslint` **on all changed files** · `npx vitest run` · `npx next build`* — **four of six, with the lint pointed at my own diff.** That is the scoped substitute A38 names: it cannot fail on anything I did not think to name, which is precisely why it missed a lint error that had been failing `main`'s CI for a day. **The word "gate-verified" now means the command above, by name, and nothing else.**
 
 **Expert isolation — method named:** verified by `git diff` inspection of both revised pages; no line on a
 `!isStandard` path changed. Every other file is new, an additive migration, or a backward-compatible route
