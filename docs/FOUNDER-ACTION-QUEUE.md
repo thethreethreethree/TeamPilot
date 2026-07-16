@@ -120,10 +120,36 @@
 > guaranteed against the rep's wishes — then it is (a) or (b), and that costs a BEFORE-UPDATE trigger, not a
 > route change.
 >
-> **⑤ — I recommend (b): pair each letter with its tier word** ("D · growth area", "A- · strength"). *Why:* it
-> keeps the letters your PDF mandates while putting the coaching-shaped label on the same line, so the invited
-> action travels wherever the grade renders. The tier already exists in `skillGrade.ts`; this is small. *Override
-> if:* you want the bare letter (ship as-spec'd, tension accepted on the record) or no letter at all.
+> **⑤ — RECOMMENDATION CHANGED (05:34). I now recommend the COUNT be the label, not a letter paired with a
+> word.** I previously said "(b): pair each letter with its tier word." That was the best answer I had before
+> reading `docs/CARE-ASSET-AUDIT-2026-06-16.md` — **your own audit, which diagnosed this exact class a month ago
+> in C.A.R.E and prescribed the opposite of what the PDF orders.** Its words:
+>
+> > *"The labels `productive`/`neutral`/`needs_guidance`, **read as a 3-tier ladder, invite the leader to rank
+> > agents — which IS comparison**… **Remediation:** re-label per A18's explicit test. Candidate replacements…
+> > **descriptive of the reply shape, not of agent worth.** Then in any leader-aggregate surface, **NEVER
+> > stack-rank agents by grade composition** — show distributions per agent, not comparisons across agents."*
+>
+> If a **3-tier word** ladder was judged to invite ranking, a **9-tier letter** ladder (A+ → D) is that failure
+> amplified — and a letter is the *purest* worth-label there is: it carries **zero shape information**. "D" says
+> nothing about what happened; it says the person is bad at this. The prescribed direction is a label that
+> **describes the shape of the behaviour**. You already have those — they are the counts I put under each grade
+> tonight to fix A11.
+>
+> **So the answer ⑤ has been circling all night is: let the count BE the label.** `Closing — asked for the close
+> in 2 of the last 9 calls` is A11-compliant (a count that cannot be wrong, not a verdict that can), A18-compliant
+> (describes the call, not the rep), A1-compliant (it reinforces §3.5 rather than importing academia), and A7's
+> next step attaches to it naturally. **The letter adds nothing the count doesn't, and adds the one thing the
+> framework rejects.**
+>
+> **What holds already:** the no-stack-rank half of that remediation. I show one rep at a time; there is no
+> leaderboard and no cross-rep comparison anywhere. That was luck, not design — but it holds.
+>
+> *Override if:* the letters are load-bearing for you commercially or pedagogically — reps may simply *understand*
+> a letter faster than a count, and that is a real argument I cannot weigh from here. **But note the cost you'd be
+> accepting:** per A1 the letter reinforces no clause of your constitution, so keeping it is a §7 amendment (your
+> PDF can *begin* one — you are the ratifier — but §7.2's gate has never been run on it), and per this audit it is
+> the label shape your own prior diagnosis told you to remove.
 >
 > > **⚠️ PRECEDENT I OWED YOU ON ⑤ (found 04:31, A28 — I flagged seven decisions and searched for precedents on
 > > none of them).** Your product has **already decided this question, the opposite way, in C.A.R.E.** The
