@@ -6,8 +6,11 @@
 >
 > 1. **AMD-006 (Layer 2)** — nothing can play a recording; the feature does not deliver its result. *"A build
 >    that passes layer 4 but fails any of 1–3 is NOT shippable, regardless of surface quality."*
-> 2. **A2** — it emits **zero** chain events; the improvement claim is unmeasurable. *"If no clean answer, the
->    feature is not yet shippable."*
+> 2. **A2** — ~~the improvement claim is unmeasurable~~ **CORRECTED 06:38: the OUTCOME arm already exists**
+>    (`after_pitch_summaries` + `coach.after_pitch_summary_generated` give a rep's grade trajectory today). What
+>    is missing is the **treatment** arm — nothing records that a manager looked or saved — so the correlation
+>    the PDF's claim rests on cannot be built. **One event completes it.** I had said "nothing can be measured";
+>    that was the same overstatement as verdict 3, from the same cause: reading my own surface as the product.
 > 3. ~~**A6** — pillar 2 without pillar 3.~~ **WITHDRAWN 06:31 — I was wrong.** Pillar 3 exists:
 >    `/dashboard/sales-coach/[id]/after-pitch/` is Standard-aware and derives "the ONE Next Door Focus" per
 >    review, so a rep gets guidance and a next move after every recording. **Two pillars ship together; A6 does

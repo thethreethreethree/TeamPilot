@@ -630,7 +630,9 @@ feature on for every Standard manager from day one, there is no un-exposed arm �
 only be read out *against each team's own past*, never against a concurrent control. That is a real cost to §4's
 evidentiary power, and it is the founder's call whether it is worth an opt-in.
 
-### 7.5k THE SECOND "NOT SHIPPABLE" — this revision emits no events, so nothing about it can be read out (A2 + §3.1)
+### 7.5k THE SECOND "NOT SHIPPABLE" — **NARROWED 2026-07-17T06:38.** The outcome arm exists; the TREATMENT arm does not (A2 + §3.1)
+
+> **Correction before the section is read.** I wrote that this revision emits no events and therefore *"nothing about it can be measured."* **The first clause is true; the conclusion overstated it** — the same error as the withdrawn A6 verdict, from the same cause: I read my own surface as if it were the product. **The rep-side OUTCOME is already measurable today**: `after_pitch_summaries` (the table `skillAnalytics` derives the six scores from) plus the existing `coach.after_pitch_summary_generated` event give a rep's grade trajectory with no new work. **What is missing is the treatment arm** — nothing records that a manager looked, saved, or coached — so the *correlation* the PDF's improvement claim rests on cannot be built. That makes the fix **one event**, not a measurement loop from scratch, and makes this the cheapest of the three findings rather than the deepest.
 
 *2026-07-17, from A2 — read after A4 produced a finding and I stopped asserting that nothing below A7 mattered.
 This is the deepest finding of the session and it is structural, not cosmetic.*
