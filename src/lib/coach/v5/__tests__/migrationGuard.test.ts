@@ -1,0 +1,66 @@
+import { describe, it, expect } from "vitest";
+import { isMissingColumnError } from "../migrationGuard";
+
+/**
+ * These tests pin the fallback/fail-loud boundary. The guard exists to keep a pending migration from taking a
+ * feature down; it must never widen into "swallow errors that look vaguely schema-ish" (§3.4).
+ */
+describe("isMissingColumnError", () => {
+  const COL = "recording_saved";
+
+  it("fires on the SELECT shape Postgres returns pre-0187 (42703)", () => {
+    expect(
+      isMissingColumnError(
+        { code: "42703", message: 'column coaching_sessions.recording_saved does not exist' },
+        COL
+      )
+    ).toBe(true);
+  });
+
+  it("fires on the UPDATE shape PostgREST returns pre-0187 (PGRST204 schema cache)", () => {
+    expect(
+      isMissingColumnError(
+        {
+          code: "PGRST204",
+          message: "Could not find the 'recording_saved' column of 'coaching_sessions' in the schema cache",
+        },
+        COL
+      )
+    ).toBe(true);
+  });
+
+  it("fires when the code is absent but the message is canonical", () => {
+    expect(isMissingColumnError({ message: "column recording_saved does not exist" }, COL)).toBe(true);
+  });
+
+  // The important one: the guard must not mask a DIFFERENT column being missing — that's a real defect.
+  it("does NOT fire when 42703 names a different column", () => {
+    expect(
+      isMissingColumnError({ code: "42703", message: 'column coaching_sessions.agent_id does not exist' }, COL)
+    ).toBe(false);
+  });
+
+  it("does NOT fire on unrelated errors — they must stay loud", () => {
+    expect(isMissingColumnError({ code: "42501", message: "permission denied for table coaching_sessions" }, COL)).toBe(false);
+    expect(isMissingColumnError({ code: "PGRST301", message: "JWT expired" }, COL)).toBe(false);
+    expect(isMissingColumnError({ code: "57014", message: "canceling statement due to statement timeout" }, COL)).toBe(false);
+  });
+
+  it("does NOT fire when the column is merely mentioned in an unrelated failure", () => {
+    // Names the column, but nothing about it is missing — a constraint violation must not degrade to a fallback.
+    expect(
+      isMissingColumnError(
+        { code: "23514", message: 'new row violates check constraint on recording_saved' },
+        COL
+      )
+    ).toBe(false);
+  });
+
+  it("handles null/empty inputs without throwing", () => {
+    expect(isMissingColumnError(null, COL)).toBe(false);
+    expect(isMissingColumnError(undefined, COL)).toBe(false);
+    expect(isMissingColumnError({}, COL)).toBe(false);
+    expect(isMissingColumnError({ code: "42703", message: null }, COL)).toBe(false);
+    expect(isMissingColumnError({ code: "42703", message: "column x does not exist" }, "")).toBe(false);
+  });
+});

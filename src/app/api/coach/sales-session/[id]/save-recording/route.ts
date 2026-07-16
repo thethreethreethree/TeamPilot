@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
+import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 
 /**
  * POST /api/coach/sales-session/[id]/save-recording   body: { saved?: boolean }  (default true)
@@ -78,6 +79,16 @@ export async function POST(
     })
     .eq("id", id);
   if (error) {
+    // Migration-coupling (2026-07-03 lesson): the recording_saved columns land with 0187. Until it's applied a
+    // save can't succeed — but return an honest, non-leaking message with a transient status, never the raw
+    // pg schema string ("column ... does not exist"). Unlike the read path there's no lossless fallback: a
+    // save requires the column to persist to.
+    if (isMissingColumnError(error, "recording_saved")) {
+      return NextResponse.json(
+        { error: "Saving recordings isn't available yet — it ships with a pending update." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

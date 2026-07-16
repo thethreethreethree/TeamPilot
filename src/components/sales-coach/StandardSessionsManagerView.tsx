@@ -65,6 +65,7 @@ export function StandardSessionsManagerView({ fallback }: { fallback: React.Reac
 
 function RepRecordings({ member, onBack }: { member: Member; onBack: () => void }) {
   const [recordings, setRecordings] = useState<Recording[] | null>(null);
+  const [savingAvailable, setSavingAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -75,7 +76,11 @@ function RepRecordings({ member, onBack }: { member: Member; onBack: () => void 
     try {
       const r = await fetch(`/api/coach/sales-session/recordings?agentId=${encodeURIComponent(member.id)}`);
       if (!r.ok) throw new Error("recordings read failed");
-      setRecordings((await r.json()).recordings ?? []);
+      const d = await r.json();
+      setRecordings(d.recordings ?? []);
+      // §3.4 honesty: the endpoint tells us whether the save-past-2-days column (0187) is live. When it isn't,
+      // don't render a Save button that can only silently fail — omit the affordance (AMD-006 L4).
+      setSavingAvailable(d.savingAvailable !== false);
     } catch {
       // §3.4: a failed read must not read as "no recordings".
       setError(true);
@@ -129,15 +134,17 @@ function RepRecordings({ member, onBack }: { member: Member; onBack: () => void 
                   {new Date(rec.createdAt).toLocaleString()}
                 </span>
               </Link>
-              <button
-                onClick={() => void toggleSave(rec)}
-                disabled={savingId === rec.id}
-                className={`shrink-0 text-[11px] px-2 py-1 rounded border ${
-                  rec.saved ? "border-brand text-brand" : "border-white/15 text-muted"
-                } hover:opacity-80 disabled:opacity-50`}
-              >
-                {rec.saved ? "Saved" : "Save"}
-              </button>
+              {savingAvailable && (
+                <button
+                  onClick={() => void toggleSave(rec)}
+                  disabled={savingId === rec.id}
+                  className={`shrink-0 text-[11px] px-2 py-1 rounded border ${
+                    rec.saved ? "border-brand text-brand" : "border-white/15 text-muted"
+                  } hover:opacity-80 disabled:opacity-50`}
+                >
+                  {rec.saved ? "Saved" : "Save"}
+                </button>
+              )}
             </div>
           ))}
         </div>
