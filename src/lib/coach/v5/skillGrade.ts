@@ -69,7 +69,12 @@ export type SkillGrade = {
 /**
  * Cutoffs are INCLUSIVE lower bounds on the /10 score. Highest matching band wins.
  * Tiers map to the existing SkillScores color semantics: strong≈emerald(≥8), solid/developing≈brand(≥5),
- * growth-area≈amber(<5). Tunable — FLAGGED for founder review.
+ * growth-area≈amber(<5).
+ *
+ * NOT "flagged for founder review" — that phrasing lived here too and is the same A4 error the header now
+ * documents: these cutoffs are §4 instrumentation, answered by DATA, not a preference for the founder to set.
+ * Retune when the readout answers (and note per A2 the readout does not exist yet — this revision emits no
+ * chain events, so nothing about these bands can currently be measured).
  */
 type Band = { min: number; letter: LetterGrade; tier: SkillGrade["tier"] };
 
