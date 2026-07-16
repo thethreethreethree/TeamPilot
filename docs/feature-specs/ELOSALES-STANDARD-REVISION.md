@@ -684,7 +684,13 @@ one action that expresses coaching intent:
 semantics the event would record. Building the emission now would presume both. **But per A2 this is not a
 preference — until a readout exists, the improvement claim in the founder's own PDF cannot be honestly made.**
 
-### 7.5l THE THIRD "NOT SHIPPABLE", and the root of 7.5f / ⑥ / A7 / A8: pillar 2 without pillar 3 IS surveillance (A6)
+### 7.5l ~~THE THIRD "NOT SHIPPABLE"~~ — **WITHDRAWN 2026-07-17T06:31. The A6 verdict was mine and it was wrong.**
+
+> **Retraction, before the rest of this section is read.** I claimed this build ships **pillar 2 alone**, which A6 calls surveillance and prescribes shipping NONE for. **I never checked whether pillar 3 exists elsewhere in the product. It does:** `/dashboard/sales-coach/[id]/after-pitch/` is Standard-aware, and `afterPitch.ts` derives *"the ONE Next Door Focus"* from each review — a rep gets guidance and a next move after **every** recording. So the product is **not** pillar-2-alone; my revision adds accountability to a product that already had guidance, which is **two pillars together — what A6 asks for. A6 does not block this build.**
+>
+> **What survives:** ⑥, on **A7** alone — a *surface* rule (*every metric shown to a person about themselves ships with an offered move*). The rep's **Analytics** screen has none; guidance lives on another screen at another moment. That is a real gap worth closing and a much smaller claim.
+>
+> **How it happened:** I declared a **product-level absence** from inside **my own surface** — the inverse of **A21**, which I had read four hours earlier and whose lesson I had written down as *"the full-audit boundary is the product's user-visible boundary, not the codebase's module boundary."* **The section below is left intact as the record of the error.**
 
 *2026-07-17, from A6 — the last asset with a hook, read only because I stopped asserting that A1–A6 could not
 bear on this build. It is the root the whole session kept circling.*
@@ -706,7 +712,7 @@ is the surface that will be remembered as the failure.**"*
 |---|---|
 | 1 · Understanding | n/a — the rep's work is the call; this feature does not gate it |
 | 2 · **Accountability / visibility** | **This IS the build.** Named roster → named grades → named recordings → a manager reading them |
-| 3 · **Guidance + encouragement** | **Absent.** No offered move (⑥/A7), no rep-side benefit (7.5f/A17), and the founder's own sentence half-built (A8) |
+| 3 · **Guidance + encouragement** | ~~**Absent.**~~ **WRONG — see the retraction at the top of 7.5l.** Guidance EXISTS: After-Pitch + the one Next Door Focus, after every recording, Standard-aware. What is absent is an offered move **on the Analytics screen** (⑥/A7) — a surface gap, not a product absence. |
 
 **A6 does not say pillar-2-alone *risks feeling like* surveillance. It says it IS surveillance.** That is the
 constitutional name for what 7.5f described as *"all cost, no benefit from the rep's side"* — I had the symptom

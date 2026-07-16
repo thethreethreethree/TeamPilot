@@ -8,13 +8,15 @@
 >    that passes layer 4 but fails any of 1–3 is NOT shippable, regardless of surface quality."*
 > 2. **A2** — it emits **zero** chain events; the improvement claim is unmeasurable. *"If no clean answer, the
 >    feature is not yet shippable."*
-> 3. **A6** — pillar 2 (accountability) shipped without pillar 3 (guidance). *"**Pillar 2 alone is
->    surveillance**… ship NONE."*
+> 3. ~~**A6** — pillar 2 without pillar 3.~~ **WITHDRAWN 06:31 — I was wrong.** Pillar 3 exists:
+>    `/dashboard/sales-coach/[id]/after-pitch/` is Standard-aware and derives "the ONE Next Door Focus" per
+>    review, so a rep gets guidance and a next move after every recording. **Two pillars ship together; A6 does
+>    not block this.** What survives is narrower and rests on **A7**: the rep's *Analytics screen* shows metrics
+>    with no offered move. "This screen is incomplete" ≠ "the product is surveillance" — I merged them.
 >
 > **Plus A1:** the letter grade reinforces **no clause** — a candidate amendment that shipped as a feature.
 >
-> All four were found **only** by reading the clauses at source. All four were invisible while I worked from
-> cached labels — and the first draft of this very closure reported the build as sound.
+> **Correction 06:33:** the line above once read *"none of them are my opinion."* That was itself an overstatement of the same shape. **The RULES are verbatim; the APPLICATIONS are my judgment** — and verdict 3's application was simply wrong (withdrawn above). AMD-006's sieve is verbatim, but *whether ⑦ is a Layer-2 break* rests on my reading that "recordings" means audio. A2's rule is verbatim, but *whether this is "a feature positioned as a methodology improvement"* is my classification of the founder's spec. **Both are overrulable.** The first draft of this closure reported the build as sound; the second overstated its condemnation. Neither was earned by looking.
 
 **Status: BUILT · gate-verified · NOT runtime-TESTED.** tsc clean · ESLint clean · 856 vitest (15 skipped) ·
 `next build` green. No route in this revision has run against a live database. Migration `0187` is UNAPPLIED —
