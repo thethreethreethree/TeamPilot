@@ -379,6 +379,20 @@ for (const f of FILES) {
 // allowlisted with the reason its own path is sufficient. NOTE the deliberate narrowness: `memberId`/`userId`
 // are NOT matched. team/route.ts reads `memberId` to REMOVE a member — a mutation target, not a per-person
 // read — and firing there would be exactly the cry-wolf failure A30 forbids.
+// BOUNDARY — what this invariant does NOT cover, stated so a green run is not mistaken for a complete one
+// (A26: an exclusion is a real boundary decision and must be named, never silently skipped):
+//
+//   1. SQL. The manager predicate ALSO lives in RLS — 0084's `coaching_sessions - select` admits
+//      `p.role in ('CEO','COO','admin') or p.sales_coach_role = 'admin'`, and 0102's UPDATE policy mirrors it.
+//      That is a FIFTH definition of "manager", in a language this TS-scanning gate cannot reach. It agrees with
+//      skillAccess today (verified 2026-07-17); nothing enforces that it keeps agreeing. Comparing a
+//      regex-extracted SQL fragment against a TS function is not a precise detector (A33) — so this is declined
+//      and recorded, not gated. The rls:audit script is the surface that would own it if it ever becomes one.
+//   2. Cross-person reads that carry no person-id. A manager opening ONE rep's session by session-id
+//      (`/api/coach/sales-session/[id]`) is a cross-person read with no `agentId` anywhere. It is RLS-scoped
+//      (createClient, not the admin client), so the policy above IS its gate — correct today, and outside this
+//      detector by construction. A route that reads a session with the ADMIN client and no in-code gate would
+//      slip past both this invariant and RLS; that shape has no precise detector either.
 const CROSS_PERSON_GATE_ALLOWLIST = new Map([]);
 for (const f of FILES) {
   if (!/\/route\.ts$/.test(f.path)) continue;
