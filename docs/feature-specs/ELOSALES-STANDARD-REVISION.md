@@ -747,6 +747,55 @@ negative: no existing surface is left frozen in pre-flag behaviour.** The one A5
 future-use note asks for *"a one-line ripple-trace summary in the commit body naming every surface touched (and
 every surface deliberately not touched)"* — my `0187` commit did not carry one. Recorded, not re-committed.
 
+### 7.5m ⑤ is a §7 question, not a preference: letter grades are an external framework that reinforces no clause (A1)
+
+*2026-07-17, from A1 — the last unread asset. I had written, one turn earlier, that A1's subject "has no surface
+here that I can name." That was the seventh such assertion tonight and the seventh to be wrong.*
+
+**A1's rule:** *"When integrating external frameworks, the first move is to triangulate them against the existing
+constitution. Convergence — external sources stating the same principle from a different angle — is a feature...
+**Conflict would mean a candidate amendment requiring §7.2 soundness gate.** Without convergence/conflict triage
+up front, every external framework reads as new and the System chases trends."* Its test: *"State which
+constitutional section the framework reinforces. **If you cannot name one, it is a candidate amendment, not a
+feature.**"*
+
+**The letter grade is an external framework.** A+/A/A−…D is the academic grading system — the most widely
+deployed evaluative-verdict vocabulary in existence — imported wholesale into a product whose thesis is
+mirror-not-judge. Run A1's convergence test honestly:
+
+| Clause | Does letter-grading reinforce it? |
+|---|---|
+| §3.3 guide-don't-overtake | **No.** A grade asserts the verdict rather than asking. |
+| A11 mirror-not-judge | **No.** *"The first is a verdict that can be wrong; the second is a count that cannot."* A grade is the first. |
+| A18 label-invites-coaching | **No.** A18's own q3 fails a label that invites comparison "even slightly"; "D" is school vocabulary. |
+| §3.5 measure-consequence | **No.** It renders a derived score, not a downstream consequence. |
+| A7 / A8 growth surface | **No.** A grade with no offered move is A7's own FAIL example. |
+
+**I cannot name a single clause it reinforces.** Per A1 that is dispositive: **the letter grade is a candidate
+amendment, not a feature** — and it shipped as a feature, in a build governed by a constitution whose §7.1
+default is *deny*.
+
+**This reframes ⑤ entirely, and it is the last altitude.** I have offered ⑤ to the founder three times, each
+framing smaller than the last was wrong:
+
+1. *"Should the letter be paired with its tier word?"* — a UI preference.
+2. *"A18's test fails a label that invites comparison"* — a values question.
+3. *"C.A.R.E already decided the opposite, by design"* (⑨) — a cross-module contradiction.
+4. **A1: does ELOSTATE's constitution admit an evaluative-verdict vocabulary at all — and if so, by which
+   ratified amendment?** That is a **§7 question**, and it has never been asked.
+
+**What this is NOT: me blocking the founder's spec.** Per AMD-001 the founder *is* the ratifier, and three
+existing amendments (AMD-002, AMD-003, AMD-006) were ratified by founder directive alone — a PDF ordering letter
+grades is a perfectly legitimate way for an amendment to *begin*. The honest point is narrower and harder: **it
+has not been through §7.2's soundness gate** (evidence-triggered, diagnosed, ripple-traced, alternative-tested,
+outside-view checked, doesn't-soften), and §7.1's default is denial until it is. I shipped the letters without
+noticing that shipping them was the constitutional act, not the ruling on them.
+
+**And note where this lands relative to 7.5j:** ⑤'s *empirical* half (do letters coach better than tier words?)
+is a §4 readout question — answered by data, not by us. ⑤'s *constitutional* half is this: whether the
+constitution admits the vocabulary at all. **The §4 question cannot be asked until the §7 question is answered**,
+because §4 measures a method the constitution has to first permit.
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
