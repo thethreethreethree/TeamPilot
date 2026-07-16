@@ -43,8 +43,16 @@ export function StandardSessionsManagerView({ fallback }: { fallback: React.Reac
   return (
     <div className="glass-card p-5">
       <h2 className="text-sm font-semibold text-primary mb-1">Your team</h2>
+      {/* A27 — this line used to read "Recordings clear after 2 days unless saved." That PROMISED an invariant
+          nothing enforces: the retention purge is DORMANT (it needs 0187 applied plus CRON_SECRET and a schedule
+          entry), so nothing deletes anything today. What actually happens is this list FILTERS to the last 2
+          days — the recordings are hidden, not cleared, and they persist in storage. A promised-but-unenforced
+          invariant is worse than silence (§3.4), and this one is a false PRIVACY assurance: a rep reading
+          "clear" believes their calls are ephemeral when they are merely out of sight. The label now states
+          only what is actually true and verifiable from this surface; when the purge is wired, it can promise
+          deletion again — and A27's point is that the promise must follow the enforcement, never lead it. */}
       <p className="text-[11px] text-muted mb-4">
-        Open a rep to review their recent recordings. Recordings clear after 2 days unless saved.
+        Open a rep to review their recent recordings. This list shows the last 2 days, plus anything saved.
       </p>
       <div className="flex flex-col divide-y divide-white/5">
         {(members ?? []).map((m) => (
@@ -116,7 +124,12 @@ function RepRecordings({ member, onBack }: { member: Member; onBack: () => void 
     <div className="glass-card p-5">
       <button onClick={onBack} className="text-[11px] text-muted hover:opacity-80 mb-3">← Team</button>
       <h2 className="text-sm font-semibold text-primary mb-1">{member.fullName ?? "Rep"}</h2>
-      <p className="text-[11px] text-muted mb-4">Recordings from the last 2 days. Save one to keep it longer.</p>
+      {/* A27 again — "Save one to keep it longer" implies the unsaved ones go away. They don't yet (dormant
+          purge, see the note above). Saving is real and does exempt a recording from the purge once it runs, so
+          the control is honest; the implied deletion is what had to go. */}
+      <p className="text-[11px] text-muted mb-4">
+        Recordings from the last 2 days. Saving one keeps it in this list.
+      </p>
 
       {loading ? (
         <p className="text-sm text-muted">Loading…</p>

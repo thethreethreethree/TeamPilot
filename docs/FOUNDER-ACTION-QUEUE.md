@@ -24,6 +24,17 @@
 > **⚠️ Ordering has a data consequence:** the purge cron is **dormant**. If playback ships later, the audio it
 > would have played may already be purged. And **⑧ is armed by ⑦** — see below.
 >
+> **🔴 NOTHING IS ACTUALLY BEING DELETED, AND THE UI SAID IT WAS (fixed 04:35, A27).** The retention purge has
+> never run — it needs `0187` applied **plus** `CRON_SECRET` **plus** a schedule entry. Until all three, the
+> "2-day retention" is a **read filter**: the recordings list hides anything older than 2 days, and the audio
+> **stays in storage indefinitely**. My Sessions copy told reps *"Recordings clear after 2 days unless saved"* —
+> a promise of an invariant nothing enforces, and specifically a **false privacy assurance** (a rep reads
+> "clear" and believes their calls are ephemeral; they are merely out of sight, and per ⑦ also unplayable, so
+> they accumulate invisibly). Copy corrected to state only what is true — **the promise must follow the
+> enforcement, never lead it.** *Your action:* if you keep the audio (⑦ option 1), **wire the cron** and the
+> stronger wording becomes honest again. If you drop the audio (⑦ option 2), this disappears entirely — and
+> that is now one more argument for option 2.
+>
 > **⬇️ RECOMMENDATIONS ADDED 04:26 — I had been offloading.** Everything below originally listed options and
 > said "your call." Per A20, *"founder decision needed" is appropriate ONLY when the agent has surfaced options
 > **with its own recommendation** — without that, it's offloading.* I had a default on every one of these and
