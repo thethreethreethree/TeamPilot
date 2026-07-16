@@ -1,5 +1,48 @@
 # Founder action queue — as of 2026-07-14
 
+> ### ⬆️ 2026-07-17 ADDENDUM (ELOSALES Standard revision — newest; read before the 07-16 block)
+>
+> The Standard-mode manager-transparency revision from your PDF is **BUILT and gate-verified** (tsc · ESLint ·
+> 856 vitest · `next build`) and **NOT runtime-TESTED** — nothing here has run against a live DB. Expert mode is
+> untouched (verified by diff: zero `!isStandard` lines changed). Full record:
+> `docs/feature-specs/ELOSALES-STANDARD-REVISION.md` (section 7 = honest build report). PDF:
+> `docs/sales-coach/ELOSALES-Standard-ManagerTransparency-Report.pdf`.
+>
+> **🔴 DECIDE ⑦ BEFORE YOU APPLY `0187` — the migration may be moot.** Nothing in this product can play a call
+> recording. `audio_asset_url` is written by the uploader and read by **nothing that renders a player** (every
+> `new Audio()` in the tree is TTS; no surface signs a URL for session audio). So today: a manager clicking a
+> recording gets a **transcript**; the Save button preserves a file **nobody can listen to**; the 2-day purge
+> deletes a file **nobody could have heard**. The audio is nonetheless **real and accumulating** (the write path
+> is live — confirmed), so you are storing every rep's calls with **zero realized value and a growing privacy
+> exposure**. Three shapes, in `ELOSALES-STANDARD-REVISION.md` section 7.5g:
+> 1. **Build playback** (~60 lines; `assets.ts` already has `createSignedUrl`) → retention means what your PDF
+>    says, and `0187` is worth applying.
+> 2. **Drop the audio** → `0187`, the purge cron, the save route and the Save UI **all go away**, and this
+>    revision gets materially simpler.
+> 3. **Ship as-is** → retention guards an unhearable asset, on the record.
+>
+> **⚠️ Ordering has a data consequence:** the purge cron is **dormant**. If playback ships later, the audio it
+> would have played may already be purged. And **⑧ is armed by ⑦** — see below.
+>
+> **🟠 The other open rulings** (all founder-only; I built the spec as written and did not drift):
+> - **⑧ Who may UN-save a recording?** Your PDF names who may *save*; it is silent on un-save, and **I decided
+>   that silently — the one place I did so.** Today a rep can un-save what their *manager* saved, which also
+>   nulls `recording_saved_by` (erasing who preserved it), and the purge then deletes it. **Latent today** (the
+>   audio is unplayable anyway); **destructive the moment ⑦ option 1 ships.** Four designed options in section 7.5h;
+>   I'd take the append-only save attribution regardless of which you pick.
+> - **⑤ + ⑥ are ONE question, not two** (section 7.5f): *what does this feature give the rep?* Right now — letter
+>   grades on their own screen and a notice their manager reads their recordings. **All cost, no benefit.** ⑤ is
+>   "should a letter-shaped verdict exist at all"; ⑥ is "a metric must ship with an offered next step" (A7 —
+>   currently violated, and my A10 fix sharpened it). Rule on the absence and both resolve.
+> - **② Rep-facing Save UI** — your PDF says "saved by the manager **or user**"; the API accepts the rep, the UI
+>   doesn't exist. Additive if you want it (interacts with ⑧).
+> - **③ One rep profile or two** — built as two (matching your two PDF screenshots); my earlier recommendation
+>   was one unified profile. Flagged as a deviation from my own advice, not hidden.
+>
+> **✅ Then, to convert BUILT → TESTED:** apply `0187` (if ⑦ says so) → open Sessions & Analytics as a manager →
+> confirm roster, grades, counts, recordings, Save, and the 2-day purge. The **pre-0187 fallback path is the
+> least-tested code in the revision and is exactly what a manager hits today**, so watch it first.
+>
 > ### ⬆️ 2026-07-16 ADDENDUM (audit session — newer than everything below)
 >
 > A metric-integrity + algorithmic audit ran across tasks → C.A.R.E → finance. **~14 real fixes, all
