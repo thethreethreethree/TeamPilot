@@ -70,10 +70,24 @@ export async function POST(
     );
   }
 
+  // CORRECTION (2026-07-17, A13/A21): the first version of this comment cited team/route.ts as "the precedent
+  // the codebase already decides this by." WRONG PRECEDENT. The real structural fix exists —
+  // `src/lib/supabase/strictUpdate.ts` (`strictMutate`/`strictMutateOne`), built as A13's prescribed remedy
+  // after the CAT-001 recovery window, unit-tested, and used at 8+ sites in src/lib/data/care.ts. team/route.ts
+  // is itself an INLINE instance — an example of the per-function patching A13 calls the wrong fix — so citing
+  // it as precedent propagated the very thing the helper exists to eliminate.
+  //
+  // Why this route still hand-rolls it (stated, not assumed): strictMutate's contract is "throw; the API layer
+  // converts to 4xx/5xx" — it is built to be called from the DATA layer (care.ts is one). This route IS the API
+  // layer and needs THREE outcomes a generic throw cannot express: 503 when 0187 is unapplied
+  // (isMissingColumnError, above), 500 on a real error, 404 on zero rows. Collapsing those into a thrown Error
+  // and re-parsing its message would be worse. The honest residual: the coach module never adopted the helper
+  // the C.A.R.E audit built (A21 — the drift is invisible from inside either module); aligning them is a real
+  // refactor with error-semantics consequences, outside this revision's blast radius.
+  //
   // A29 swept the class of tonight's purge fix ("a mutation reporting success without asserting the effect
-  // landed") into this handler, and A28's discriminator found the codebase already decides it: team/route.ts
-  // does `.eq(id).eq(company_id)` + `.select("id")` + a rowcount assert, citing the 558ce56 team-removal
-  // false-ok. This route did neither — it returned {recording_saved: saved} whether or not a row changed.
+  // landed") into this handler, and found it here: the route returned {recording_saved: saved} whether or not a
+  // row actually changed — the same false-ok shape as the 558ce56 team-removal bug. Two fixes:
   //   • company_id scope: defence in depth. The tenant check above reads the row first, so this is belt-and-
   //     braces against a TOCTOU race (row re-tenanted between read and write) and against a future edit that
   //     drops the earlier check — the write itself is now unable to leave the caller's company.
