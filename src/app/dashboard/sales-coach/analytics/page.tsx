@@ -32,9 +32,14 @@ type SkillRow = {
  * Your OWN coaching analytics over time — cue-reliance trend (the
  * "training wheels come off" signal, §3.5), session volume, reviews, and
  * growth opportunities. Measured against your own past, never ranked
- * against others (§A18). Team-level analytics arrives once the Sales
- * Coach team is defined (Phase 3). Every number is real (§3.4); sparse
- * data shows honestly as "not enough yet", not a fake trend.
+ * against others (§A18). Every number is real (§3.4); sparse data shows
+ * honestly as "not enough yet", not a fake trend.
+ *
+ * MODE SPLIT (ELOSALES Standard revision): EXPERT keeps the ELO badge + the anonymized team AGGREGATE (no
+ * per-person breakdown). STANDARD is role-conditional — a MANAGER gets a roster → per-rep profile (named
+ * grades + the counts behind them), which is a per-person breakdown by design, per the revision spec. The
+ * on-page copy is therefore ALSO mode-split: Expert's "aggregate only" promise is true for Expert and would be
+ * a lie in Standard, so each mode states what is actually visible in it.
  */
 
 type ProgressPoint = { sessionId: string; startedAt: string; cueCount: number };
@@ -164,6 +169,13 @@ export default function SalesCoachAnalyticsPage() {
             reads about them). Self-framed as you-vs-the-standard, not a rank.
             Expert only: spec p3 removes the ELO number from Standard. */}
         {!isStandard && <AgentEloBadge self />}
+        {/* EXPERT ONLY — this copy promises "aggregate only, no per-person breakdown", which is TRUE of the
+            Expert team view and FALSE of Standard since the ELOSALES revision built exactly that per-person
+            breakdown for managers. Leaving it un-gated told a Standard rep their manager sees only an
+            anonymized aggregate while their manager was reading their name, their grades and their recordings —
+            a false statement to a person about who is watching them (§3.4 / A10). Standard's honest version is
+            below. Expert's copy is unchanged. */}
+        {!isStandard && (
         <LearningHint
           as="block"
           category="Sales Coach · Analytics"
@@ -184,6 +196,34 @@ export default function SalesCoachAnalyticsPage() {
             </p>
           </div>
         </LearningHint>
+        )}
+
+        {/* STANDARD — the honest counterpart. In Standard a manager CAN open a named rep and read their grades,
+            the counts behind them, and their recent recordings. A rep is told that plainly here, because the
+            alternative is a product that reassures someone their manager isn't looking while their manager is
+            looking. A10's contract is not just "you can see the read" — it is that the rep is never misled about
+            what is read about them. */}
+        {isStandard && (
+          <LearningHint
+            as="block"
+            category="Sales Coach · Analytics"
+            title="Your manager sees these grades — and so do you"
+            whatItIs="The framing for Analytics in Standard: your six skills, scored from your recent calls, each with the count it came from. Your manager can open your profile and read these same grades and counts, and can see your recordings from the last 2 days."
+            why="A coaching tool that shows your manager something you cannot see is surveillance wearing a coaching label. This surface refuses that: there is no read your manager has about you that you cannot read here — same grades, same counts, same screen. You are told what is visible, rather than left to assume."
+            how="Read your skills as a trend against your own past, not against other people. If your manager raises a grade with you, the count behind it is right here — check it, and push back on it if it is wrong. A count is something you can argue with."
+            principle="A read about you that you can't see is a read you can't answer."
+          >
+            <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
+              <Users className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
+              <p className="text-xs text-secondary leading-relaxed">
+                Your manager can open your profile and see{" "}
+                <span className="text-primary">these same grades</span> and your recordings from the
+                last 2 days — nothing here is hidden from you, and nothing there is hidden from you
+                (§A10). Tracked against your own past, never as a ranking (§A18).
+              </p>
+            </div>
+          </LearningHint>
+        )}
 
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
