@@ -13,7 +13,24 @@
 -- after 2 days" means the purge job nulls audio_asset_url + removes the asset for sessions whose recording is
 -- older than 2 days AND recording_saved = false. Until the purge runs, the same predicate is applied at read time
 -- so an expired-but-not-yet-purged recording is never shown (defense in depth). recording_saved is the founder's
--- "unless saved" escape hatch; either the owning rep OR a manager may set it (enforced in the Layer-2 route).
+-- "unless saved" escape hatch; either the owning rep OR a manager may set it.
+--
+-- ⚠️ THESE COLUMNS ARE NOT ROUTE-PROTECTED — READ THIS BEFORE DESIGNING ANY RULE ABOUT WHO MAY SAVE/UN-SAVE.
+-- An earlier version of this comment said the save rule is "enforced in the Layer-2 route". That is the exact
+-- marker phrase A23 names for a privilege class ("enforced at the API layer" — it states the assumption a direct
+-- PostgREST call breaks), and it was an over-claim. The live UPDATE policy (0102) mirrors its USING clause into
+-- WITH CHECK, so it constrains only the row's IDENTITY (company_id, agent_id) — every other column is free for
+-- anyone the USING clause admits, which includes THE OWNING REP. Therefore, today:
+--   • a rep can PATCH recording_saved = false directly, releasing a recording their MANAGER saved, and the purge
+--     then deletes it — no route involved, so no route-layer rule can prevent it;
+--   • a rep can PATCH recording_saved_by to any uuid, spoofing who preserved it. Per A26's addendum this is the
+--     LOW-consequence tier (audit/display attribution, like created_by/invited_by) rather than an authz input —
+--     nothing reads it to decide access — so it is a STATED residual, not a fix being smuggled in here.
+-- Consequence for the open ⑧ decision (who may un-save?): options that restrict un-saving to a manager, or to
+-- whoever saved it, CANNOT be implemented in the route. They need a BEFORE UPDATE trigger — WITH CHECK cannot
+-- express "may not CHANGE" because it cannot reference OLD (A23's prescribed fix, and the shape used by
+-- 0090/0093/0142). No trigger is authored here on purpose: what it must enforce depends on ⑧, which is the
+-- founder's ruling, and on ⑦ (if the audio is dropped, this migration and its purge disappear entirely).
 --
 -- Idempotent: add-column-if-not-exists + create-index-if-not-exists. Safe to run twice.
 

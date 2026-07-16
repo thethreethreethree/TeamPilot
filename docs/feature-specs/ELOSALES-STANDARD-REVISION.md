@@ -506,16 +506,45 @@ without asking; deciding it a second time, differently and still silently, is th
 Designed options (A32):
 
 - **(a) Manager-only un-save.** A rep may save (preserve) but not un-save; only a manager can release. Protects
-  the coaching contract; weakest on the rep's privacy interest. ~3 lines.
+  the coaching contract; weakest on the rep's privacy interest. ~~~3 lines.~~ **See the correction below.**
 - **(b) Only the saver may un-save.** Whoever preserved it can release it; a manager's save is not a rep's to
   undo, and vice-versa. Symmetric and explainable to both parties; needs the `recording_saved_by` we already
-  store. ~6 lines.
+  store. ~~~6 lines.~~ **See the correction below.**
 - **(c) Rep-always-wins.** The rep may always un-save their own call, and a manager who wants it kept must
   discuss that with them — the coaching conversation A18 wants, forced by the design rather than by the tool.
   Most consistent with A10/A18's spirit; costs the manager a guarantee.
 - **(d) Append-only save history.** Any of the above, plus never overwrite `recording_saved_by` to null on
   release — keep who saved and who released, so "it vanished" is never a mystery (§3.1's instinct, applied to
   this field). Composes with (a)/(b)/(c) and is the one I would want regardless of which you pick.
+
+**CORRECTION (2026-07-17T04:22, from reading A23) — my option costs above were wrong, and (a)/(b) are not
+route-implementable at all.** I estimated "~3 lines" and "~6 lines" for route changes. **A route change cannot
+enforce either rule.** The live UPDATE policy (`0102`) mirrors its `USING` clause into `WITH CHECK`, so it
+constrains only the row's IDENTITY (`company_id`, `agent_id`) — every other column is writable by anyone the
+`USING` clause admits, **including the owning rep**. A rep can therefore `PATCH recording_saved = false` straight
+through PostgREST, releasing their manager's save, with **no route involved**. Whatever rule the save-recording
+route implements is bypassed by not calling it.
+
+This is A23's class exactly, and my `0187` comment carried A23's **named marker phrase** for it (*"enforced in
+the Layer-2 route"* — A23: *"it names the exact assumption a direct PostgREST call breaks"*). The migration
+comment is corrected in place.
+
+**Real costs:** (a) and (b) need a **BEFORE UPDATE trigger** — `WITH CHECK` cannot express *"may not CHANGE"*
+because it cannot reference `OLD` (A23's prescribed fix; same shape as `0090`/`0093`/`0142`). That is a
+migration, not three lines, and it must exempt service-role/DEFINER writers via a block-list of
+`authenticated`/`anon` so a misjudgement fails toward *allow a privileged writer*, never *block the product*.
+**(c) rep-always-wins is the only option that is already true** — it is what the schema does today, for free.
+**(d) is still cheap** and still what I would want regardless.
+
+**And this is A32 twice in one session.** A32: *"don't recommend an action you haven't designed — the design is
+the confirmation,"* and its tell is the confidence-adjective. Mine was **"~3 lines"** — a cost asserted before
+the design that would have earned it, handed to a founder who could rationally have acted on it. I did exactly
+what A32 was captured to prevent, in the same session I read A32 and claimed to embody it.
+
+**Low-consequence residual, stated (A26 addendum):** `recording_saved_by` is likewise rep-spoofable via direct
+PATCH. Nothing reads it to decide access — it is audit/display attribution, the exact tier A26's addendum names
+as the honest stopping point (*"vs. ELO/decision/impersonation inputs"*). Not fixed; recorded so it is not
+mistaken for swept.
 
 ### 7.6 What I could not complete
 
