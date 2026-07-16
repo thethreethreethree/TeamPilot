@@ -14,6 +14,7 @@ import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
+import { StandardAnalyticsManagerView } from "@/components/sales-coach/StandardAnalyticsManagerView";
 
 type SkillRow = {
   key: string;
@@ -151,7 +152,14 @@ export default function SalesCoachAnalyticsPage() {
             the rep's own mirror for "learning from their day". Replaces the ELO
             number (removed below for Standard) so focus shifts to tone, questions,
             etc. — the things a rep can actually work on — not one opaque rating. */}
-        {isStandard && <SkillScores skills={skills} sampleSessions={skillSessions} />}
+        {/* ELOSALES revision (PDF Analytics §B): in Standard, a MANAGER sees the team roster → per-rep
+            profile; a REP still sees their own scores (A10 self-view = the fallback). Expert branch below is
+            untouched. Role split lives in StandardAnalyticsManagerView (team endpoint's isManager). */}
+        {isStandard && (
+          <StandardAnalyticsManagerView
+            fallback={<SkillScores skills={skills} sampleSessions={skillSessions} />}
+          />
+        )}
 
         {/* Your OWN Sales Effectivity Rating (§A10 — the rep sees what the System
             reads about them). Self-framed as you-vs-the-standard, not a rank.
