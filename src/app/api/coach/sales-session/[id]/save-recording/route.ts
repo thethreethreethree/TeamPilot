@@ -70,14 +70,26 @@ export async function POST(
     );
   }
 
-  const { error } = await admin
+  // A29 swept the class of tonight's purge fix ("a mutation reporting success without asserting the effect
+  // landed") into this handler, and A28's discriminator found the codebase already decides it: team/route.ts
+  // does `.eq(id).eq(company_id)` + `.select("id")` + a rowcount assert, citing the 558ce56 team-removal
+  // false-ok. This route did neither — it returned {recording_saved: saved} whether or not a row changed.
+  //   • company_id scope: defence in depth. The tenant check above reads the row first, so this is belt-and-
+  //     braces against a TOCTOU race (row re-tenanted between read and write) and against a future edit that
+  //     drops the earlier check — the write itself is now unable to leave the caller's company.
+  //   • rowcount assert: 0 rows means the row vanished or moved between the read and this write. Saying "saved"
+  //     then would be a phantom success on a RETENTION control — the recording would purge while the UI shows
+  //     Saved. An honest 404 is the §3.4 answer.
+  const { data: updated, error } = await admin
     .from("coaching_sessions")
     .update({
       recording_saved: saved,
       recording_saved_by: saved ? auth.user.id : null,
       recording_saved_at: saved ? new Date().toISOString() : null,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .select("id");
   if (error) {
     // Migration-coupling (2026-07-03 lesson): the recording_saved columns land with 0187. Until it's applied a
     // save can't succeed — but return an honest, non-leaking message with a transient status, never the raw
@@ -90,6 +102,10 @@ export async function POST(
       );
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!updated || updated.length === 0) {
+    // The row was there when we read it and isn't now (deleted, or re-tenanted). Never claim the save.
+    return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
 
   return NextResponse.json({ id, recording_saved: saved });
