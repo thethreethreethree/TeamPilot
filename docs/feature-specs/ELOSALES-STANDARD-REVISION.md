@@ -351,8 +351,8 @@ move. Both are satisfiable at once, but only by building something.
 **Why it is surfaced and not built (A24e / §3.3).** The fix is a product feature the PDF never asked for, on a
 surface whose violation is older than my work. Shipping it unasked is drift; hiding it is dishonest. So:
 
-- **Designed recommendation (per A32 — I do not recommend what I have not designed).** A static per-skill move
-  map: six skills → six offered next steps, rendered only on growth-area tiers. No LLM call, no per-rep
+- **⚠️ SUPERSEDED 2026-07-18T07:24 — the move map was the wrong fix.** Tracing the REP's layer-3 path (I had only traced the manager's) showed `SkillScores` has **zero** links — a dead end — but the rep's move is not missing: **After-Pitch's one Next Door Focus** is generated per session, LLM-derived, reconciled across two engines. **The grade simply cannot reach it.** A static per-skill map would have been a parallel, dumber copy of an engine that already exists (A13/A28). **The real fix: link each graded skill to the sessions that produced it, and through them to the Next Door Focus the coach already wrote** — same spine as ⑩. See the queue. 
+- ~~**Designed recommendation (per A32).** A static per-skill move map:~~ six skills → six offered next steps, rendered only on growth-area tiers. No LLM call, no per-rep
   generation, no fabrication risk, no new data. `Closing · D — "Want to try asking for the close outright on
   your next call?"` It is deterministic copy in `skillGrade.ts`'s neighborhood, ~30 lines, and it converts every
   tile from a verdict into an offer. It also makes A7 true for the *pre-existing* surface, not just my addition.
@@ -404,7 +404,7 @@ after the user surfaces the absence"* — a directive to build. Your terms say d
 PDF. That conflict is real and it is not mine to resolve: a rep-facing growth surface is a product decision about
 what ELOSALES *is*, not a defect repair. What I can hand you is the shape:
 
-- **Minimum honest version** — ⑥'s static per-skill move map, rendered on the rep's own tiles. Turns each tile
+- **Minimum honest version** — ~~⑥'s static per-skill move map~~ **superseded: link the rep's tiles to the Next Door Focus that already exists (see ⑥ in the queue).** Turns each tile
   from a verdict into an offer. ~30 lines, no LLM, no new data. Makes the rep's screen answer *"so what do I do?"*
 - **The real version** — the rep's Analytics leads with what improved against their own past (§3.6 make learning
   visible: the System proving it knows them better than it did) before it shows any grade. Bigger; it is the
@@ -735,7 +735,7 @@ and they are distinct:
 2. **A2** — even if it did, no event exists to prove it.
 3. **A6** — even if both were fixed, shipping pillar 2 alone ships surveillance. *"Ship NONE."*
 
-**What this does to ⑥.** ⑥ was on the founder's queue as *"I recommend building the move map (~30 lines);
+**What this does to ⑥.** *(The move map itself was superseded 07:24 — see the note in 7.5e; the real fix is to link to After-Pitch. The reclassification below still stands: ⑥ is a precondition, not a polish item.)* ⑥ was on the founder's queue as *"I recommend building the move map (~30 lines);
 override if you want the fuller version."* **A6 reclassifies it:** the move map is not an enhancement to
 recommend, it is **the second pillar without which A6 says this does not ship at all.** My recommendation was
 right and my framing was, once again, too small — I offered as a preference the thing the constitution requires
