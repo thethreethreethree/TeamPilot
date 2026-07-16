@@ -33,7 +33,9 @@ Founder queue: `docs/FOUNDER-ACTION-QUEUE.md` (2026-07-17 addendum). Report: PDF
 This document exists because **A22 requires it**: *"the session-read manifest commits to the repo — either
 inline in the closing commit message, or as a `docs/closures/<date>-<feature>.md` file. It is the audit-trail
 that A19's third question alone could not produce."* A22's own test is whether a multi-commit closure produces
-one. This is a 16-commit closure.
+one. **This is a 73-commit closure** (measured, not remembered — it said "16" until 07:02, written when it was true and repeated after it wasn't).
+
+> **What that number means, since it is the honest shape of the session.** The revision itself was ~16 commits of build-and-fix. **The other ~57 were correcting my own account of it** — three false promises in shipped copy, a retracted asset, a withdrawn verdict, a narrowed verdict, two false attributions, an unverified premise flagged, the 4-of-6 "gate-verified" claim, and a lint error that had been failing CI for a day. **The code needed 14 fixes. My reporting of the code needed more.** Every one of those corrections came from a mechanical gate, a residual I had written down, or a file I finally opened — **none from my judgment, which was wrong every time I exercised it.**
 
 ---
 
