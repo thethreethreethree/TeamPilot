@@ -158,7 +158,48 @@ one doesn't.
 
 ---
 
-## 5. Decision-making infrastructure (the constitutional core)
+## 5. ELOSALES Sales Coach (the rep-facing coaching engine)
+
+> **Added 2026-07-17.** This module was **absent from this inventory entirely** — twelve sections covering chat,
+> tasks, C.A.R.E, decisions, the CRM, integrations and even *"what we deliberately don't have"*, and nothing for a
+> whole customer-requested product. The omission had a cost: auditing the Standard manager-transparency revision, I
+> claimed the build shipped **"accountability with no guidance — surveillance, ship none"** and that **"nothing about
+> it can be measured."* **Both were false** — After-Pitch and the skill trajectory were already there. I asserted
+> those absences from inside my own surface, and the one artifact that would have contradicted me in seconds is the
+> one you are reading. Per **A21**, a cross-system inventory is not documentation; it is the thing that stops you
+> declaring a gap that isn't one.
+
+The Sales Coach is the same discipline pointed at a sales call instead of a chat thread: it observes what the rep
+actually did, mirrors it back with counts, and offers **one** next move — never a ranking, never a verdict it will
+not show its evidence for.
+
+| Tool | What it is | Where |
+|---|---|---|
+| **Session recording** | A rep starts and records a call from the coach's home. The audio lands in the assets bucket; the transcript, cues and scores hang off the session. | `/dashboard/sales-coach` |
+| **Live cues** | In-call coaching whispers, delivered while the call is happening — the "training wheels" the §3.5 reliance trend expects you to stop needing. | `/dashboard/sales-coach` (live panel) |
+| **Session record** | Per-call: transcript, the AI review, the summary, and the pivot moment — the call's own record, readable after the fact. | `/dashboard/sales-coach/[id]` |
+| **After-Pitch → the one Next Door Focus** | After every recording, the rep gets **one** thing to work on next, reconciled across two engines so it cannot contradict itself. **This is the guidance pillar** — it is not on the Analytics screen, which is exactly what made it easy for an audit to miss. | `/dashboard/sales-coach/[id]/after-pitch` |
+| **Skill analytics (six dimensions)** | Talk/Listen, Tone, Speed of speech, Questions, Objection, Closing — each a /10 derived from the rep's recent After-Pitch summaries, with the countable behaviour behind it. Standard shows the rep their own six. | `/dashboard/sales-coach/analytics` · `src/lib/coach/v5/skillAnalytics.ts` |
+| **Manager transparency (Standard)** | A manager opens a named rep → their grades with the counts underneath, and their recordings from the last 2 days. The rep sees the same grades on their own screen. *(2026-07-17 revision; several founder rulings still open — see `docs/FOUNDER-ACTION-QUEUE.md`.)* | `/dashboard/sales-coach/analytics` · `/sessions` |
+| **Sales Effectivity Rating (ELO)** | The rep's rating against our measurement standard — you-vs-the-standard, never a leaderboard. Expert-only in the Standard/Expert split. | `/dashboard/sales-coach/analytics` · `src/lib/coach/v5/salesElo.ts` |
+| **Coach Assessment** | "How the team is growing" — the coach's own read of team trajectory. | `/dashboard/sales-coach/coach-assessment` |
+| **Roleplay Practice** | Simulated pitches — practice reps against the same engine that grades the real ones. | `/dashboard/sales-coach/roleplay` |
+| **Strategy Library** | Correct lines and sales strategies — the winning-lines record, so what worked once is reusable. | `/dashboard/sales-coach/strategy` |
+| **Sales team chat** | The team's own thread inside the coach. | `/dashboard/sales-coach/team-chat` |
+| **Team & roles** | Roster + `sales_coach_role` (admin/staff). Roles only — no metrics on this surface. | `/dashboard/sales-coach/team` |
+| **Coach settings** | Voice, cue delivery, and the experience dial (Standard vs Expert). | `/dashboard/sales-coach/settings` |
+
+**Why this composes the way the rest of the product does:** the rep sees every read the coach forms about them
+(§A10), the manager sees the counts and not just the verdict (§A11), and the one next move is offered rather than
+imposed (§3.3). **What is deliberately NOT here:** a leaderboard, a stack-rank, or a per-rep comparison — the same
+refusal C.A.R.E's leadership view makes, arrived at from the opposite direction.
+
+**Audited-this-session caveat (§A24 honesty):** the surfaces above are named from their own UI titles and code.
+The manager-transparency row is **built but not runtime-tested**, and the Sessions/Analytics rows reflect the
+2026-07-17 revision whose open rulings are live. Roleplay, Strategy, Coach Assessment and team-chat are **listed,
+not audited** this session — their presence is verified; their behaviour is not.
+
+## 6. Decision-making infrastructure (the constitutional core)
 
 The thing that makes everything else work. This is the layer no
 other productivity tool has.
@@ -179,7 +220,7 @@ That refusal is the moat.
 
 ---
 
-## 6. The Living Diagnosis chain (the infrastructure underneath)
+## 7. The Living Diagnosis chain (the infrastructure underneath)
 
 What every tool above actually writes to. Append-only, immutable,
 queryable forever.
@@ -200,7 +241,7 @@ the future patterns it will inform.
 
 ---
 
-## 7. AI augmentation (cross-system)
+## 8. AI augmentation (cross-system)
 
 The intelligence layer that's available everywhere — coaching,
 drafting, surfacing — and refuses to overtake.
@@ -224,7 +265,7 @@ All of them refuse to speak when they haven't earned the right.
 
 ---
 
-## 8. Knowledge management
+## 9. Knowledge management
 
 The team's institutional memory, built automatically from the work
 the team is already doing.
@@ -243,7 +284,7 @@ gets surfaced when you need it again.
 
 ---
 
-## 9. Operational hub (the daily landing)
+## 10. Operational hub (the daily landing)
 
 The view that tells you what to focus on today, derived from real
 state — not aspirational dashboards.
@@ -259,7 +300,7 @@ decide.
 
 ---
 
-## 10. Vendor-side back office (CRM for the SaaS operator)
+## 11. Vendor-side back office (CRM for the SaaS operator)
 
 For ELOSTATE (or any company running this stack as a multi-tenant
 product) to manage its own customer base.
@@ -281,7 +322,7 @@ the rest of the System applies to internal reasoning.
 
 ---
 
-## 11. Integration surfaces
+## 12. Integration surfaces
 
 How the system connects to the outside world.
 
@@ -297,7 +338,7 @@ How the system connects to the outside world.
 
 ---
 
-## 12. What we deliberately don't have (and won't)
+## 13. What we deliberately don't have (and won't)
 
 Honesty section. Per §3.4 + §A11, these are absences-by-design, not
 gaps:
