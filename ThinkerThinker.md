@@ -730,6 +730,20 @@ A specific pre-flight check the agent must run during ANY audit closure:
 
 > *If a user learns to use feature X in module A, will their muscle memory + mental model work when they use feature X in module B? If no, this is an L3 finding with severity = HIGH because it's a category of confusion, not an instance.*
 
+**Test result — 2026-07-17, ELOSALES Standard revision. A21's test was run on a real audit and A21 LOST, three times, in a direction it does not name.**
+
+The audit read A21 mid-session, quoted this future-use note in its own findings, produced the ⑨ finding from it (two surfaces named "Team" asserting opposite visibility philosophies — a textbook A21 catch) — **and then, in the next ninety minutes, made the inverse error three times without ever running steps 1–2:**
+
+- Claimed the build ships **"pillar 2 alone — surveillance, ship NONE"** (A6). **False.** Guidance exists: After-Pitch + the one Next Door Focus, Standard-aware, after every recording. Withdrawn.
+- Claimed **A17's rep contract "has NO surface."** Same fact, same error.
+- Claimed **"nothing about it can ever be measured"** (A2). **False.** The outcome arm exists (`after_pitch_summaries` + `coach.after_pitch_summary_generated` give a rep's grade trajectory today); only the treatment arm is missing.
+
+**The direction A21 does not name, and should.** A21 is written about **divergence** — *two surfaces exist and contradict*. All three failures above were **absence claims** — *this surface doesn't exist* — asserted from inside one module. **Step 2 answers both** (*"list every module that exposes a surface for it"* is precisely "does this exist elsewhere?"), so the diagnostic is sufficient; **the framing is what let me skip it.** An audit hunting *contradictions* does not feel obliged to run an inventory before declaring a *gap* — the inventory reads as a parity check, not an existence check. It is both.
+
+**Why this belongs here rather than in a new asset (A35's grep-first rule, applied):** the drafting instinct was to capture "declaring an absence from inside your own surface" as A38. Grepping first showed A21 already owns it — a new asset would have been the A35-vs-A22 duplicate again, one session later. **A21 does not need extending. It needed running.**
+
+**What the failure says about the asset's efficacy (§4/§7.5 — assets are distrusted until results prove them):** A21 caught a real HIGH finding within minutes of being read, then failed to prevent three errors of its own class in the same session, from the same reader. **Reading an asset demonstrably does not deploy it.** Its diagnostic is a numbered procedure and I never executed step 1. That is A30's thesis pointed at A21 itself: **this note is prose, and prose is what the reader must remember to run.**
+
 **Implementation note for ELOSTATE.** The known same-concept-different-implementation pairs as of 2026-06-18:
 
 - **Ask Coach**: ELOSTATE rich v5 panel vs C.A.R.E counts-only panel — HIGH severity; the recommended action is unify on Coach v5 backend + shared `CoachPanelV5` component. The C.A.R.E version's counts can become one section within the v5 panel, not the whole UX.
