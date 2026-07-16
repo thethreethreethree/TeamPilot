@@ -70,7 +70,8 @@ Before claiming "shipped" on ANY surface where **person A can see data the Syste
 - [ ] Name the concrete surface where the **subject** is helped, not just measured. Not the leader's coaching intent — **the product's surface**.
 - [ ] Every metric shown to the subject about themselves **ships with an offered next move** (A7). *"Your task completion rate is 60%"* is A7's own FAIL example.
 - [ ] **A6 is the floor: pillar 2 (accountability) shipped without pillar 3 (guidance) IS surveillance** — not "risks feeling like." *"If only one pillar is buildable in this round, ship NONE."*
-- [ ] **The trap this build fell into:** every A18-shaped mitigation (no F, floor at D, counts under grades, honest copy) is a **label** on a pillar-2-alone surface. **A18 makes the label invite coaching; A6 says the structure is the thing.**
+- [ ] **Ask it at the PRODUCT level, not the surface level.** Pillar 3 may already exist on another screen, at another moment. **If you are about to write "there is no guidance here", run A21's step 2 first — *list every module that exposes a surface for this concept* — because that sentence is an existence claim about the product, and you are standing inside one surface of it.**
+- [ ] **The trap this build fell into — and the trap the AUDIT then fell into, which is worse:** the Analytics screen has no offered move (real, ⑥/A7). **But I then declared the whole build "pillar 2 alone — surveillance, ship NONE" without checking, and that was FALSE**: After-Pitch + the one Next Door Focus is the guidance pillar, Standard-aware, after every recording. **"This screen is incomplete" and "the product is surveillance" are not the same claim.** A6 is a product-level rule; do not fire it from a surface-level look.
 
 ---
 
@@ -95,7 +96,7 @@ Before claiming "shipped" on ANY surface where **person A can see data the Syste
 
 ## Worked example — the ELOSALES Standard manager-transparency revision (2026-07-17)
 
-Run against the build that triggered this file, the checklist scores **1 of 5 at first ship**:
+Run against the build that triggered this file, the checklist scores **2 of 5 at first ship** (it read "1 of 5" until 07:06 — test 5 was scored FAIL on a verdict I later withdrew, which is itself the lesson: **an audit's absence-claims need the same evidence bar as its defect-claims**):
 
 | Test | Result at first ship |
 |---|---|
@@ -103,7 +104,7 @@ Run against the build that triggered this file, the checklist scores **1 of 5 at
 | 2 · Told-the-truth | **FAIL.** Page told reps their manager sees "no per-person breakdown" while the build shipped one. *(Fixed same session.)* |
 | 3 · Label | **FAIL → open ⑤.** Letter grades; no clause supports them (A1); the C.A.R.E audit had already prescribed shape-not-worth labels. |
 | 4 · Verdict-vs-count | **FAIL.** Manager saw the letter and `/10` but **not** the breakdown — authority shown the verdict with its evidence stripped. *(Fixed same session.)* |
-| 5 · Two-pillar | **FAIL → open ⑥.** Pillar 2 only. A6: ship none. |
+| 5 · Two-pillar | **PASS at the product level** — After-Pitch's Next Door Focus is the guidance pillar. ~~FAIL: pillar 2 only, A6 ship none~~ — **I claimed that and withdrew it; it was the audit's error, not the build's.** What is real is narrower: **the Analytics screen** shows metrics with no offered move (⑥/A7). |
 | *(no stack-ranking)* | **PASS** — one rep at a time, no leaderboard. **By luck, not design.** |
 
 **Every one of these was found AFTER shipping, by reading the source clauses late — three of them only because a commit hook refused a citation.** This checklist exists so the next leader-visible surface finds them in five minutes, before the claim of "shipped" is made.
