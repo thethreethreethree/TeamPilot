@@ -2,6 +2,32 @@
 
 > ### ⬆️ 2026-07-17 ADDENDUM (ELOSALES Standard revision — newest; read before the 07-16 block)
 >
+> ## 🔴 FIRST, UNRELATED TO THIS BUILD: your CI has almost certainly been RED since 2026-07-16
+>
+> **Fixed in this session, but you should know it happened.** `readoutSummary.test.ts` has declared an unused
+> `DAY` constant since commit `717654fa` (2026-07-16 — the metric-integrity audit session). ESLint fails on it.
+>
+> **Why that matters:** `.github/workflows/ci.yml` runs `npm run lint` on **every push to `main`**, with **no
+> `continue-on-error`**. So — by inference from verified facts, not from a guess — **every push to main for the
+> past day has failed CI**, including roughly thirty-five of mine tonight. *(I could not confirm the run status:
+> `gh` is not installed here. The config, the trigger, and the lint failure are each verified; the conclusion
+> follows from them.)*
+>
+> **How two consecutive sessions missed it:** neither ran the gate. Yesterday's session left the error; I claimed
+> **"gate-verified"** roughly thirty times tonight while running **four of the six** gates — `tsc`, a *scoped*
+> `npx eslint <files I chose to name>`, `vitest`, `next build`. I never ran `npm run lint`, `theme:audit` or
+> `rls:audit`. **The gate everyone quotes is the gate nobody runs; the scoped substitute is what gets reported.**
+>
+> **Now green:** `npm run check` exits 0 across all six — theme 0 leaks · RLS 0 risks, 0 missing policies, every
+> view invoker-run · invariant 0 violations (incl. the new INVARIANT 6) · 857 tests · typecheck · build.
+>
+> **Your action:** confirm CI is green again on the next push. And note the standing hole — **nothing enforces
+> `npm run check` locally** (`core.hooksPath` → `scripts/hooks/` has `commit-msg` + `pre-commit`, but no
+> `pre-push`). CI is the only enforcement, and CI's verdict only helps if someone reads it. **A gate that fires
+> into a void nobody checks is decoration** — that is what happened here for a day.
+>
+> ---
+>
 > ## 🔴 THE HEADLINE: your framework says this does not ship, in three independent ways
 >
 > I built the revision as specified and it is gate-verified. Then I audited it by **reading the clauses at
