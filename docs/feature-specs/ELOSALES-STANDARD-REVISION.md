@@ -212,8 +212,8 @@ Expert screen was rendered in this session.
 
 - **Everything runtime.** No route ran against a live DB. Rosters, grades, recordings, Save, purge: all untested.
 - **Grade bands** (`/10 → letter` cutoffs) are a judgement call, flagged tunable. There is no empirical basis for
-  A- starting at 8.5 rather than 8.0 — the founder should set these against real rep data (§3.5: don't dress a
-  guess as a measure).
+  A- starting at 8.5 rather than 8.0. ~~The founder should set these against real rep data~~ — **see the A4
+  correction in 7.5j; that sentence was wrong.**
 - **The fallback path itself.** It is only exercisable *pre-0187* — which is the live state right now, so it is
   the path a manager would hit today, and it is the least-tested code in the revision. Highest-priority thing to
   watch on first run.
@@ -583,6 +583,52 @@ watching people**. Per §3.3 that sentence is the founder's to say; drafting it 
 deciding the philosophy and letting the founder discover it as fait accompli. What I can say is that **silence
 is the one option that is definitely wrong**: two surfaces asserting opposite philosophies, neither
 acknowledging the other, is how a product forfeits the right to claim either is principled.
+
+### 7.5j The grade bands are §4 instrumentation, not a founder preference — I mis-assigned them (A4 + A3)
+
+*2026-07-17, from A4 and A3 — assets I had left unread on the assumption that nothing below A7 could bear on
+this build. Both bear on it directly.*
+
+**What I told the founder, and why it was wrong.** I wrote: *"the grade bands are a judgement call… the founder
+should set these against real rep data."* A4 says the opposite: *"When proposing a new methodology, the urge is
+to give crisp answers to every adjacent design question to look decisive. The constitutionally honest move is to
+surface uncertainties AS uncertainties and let the §4 readout produce the answer. **Pre-resolving them looks like
+decisiveness but contaminates the experiment — you have encoded an assumption that should have been measured.**"*
+
+So the bands are **neither mine to pick nor the founder's to pick**. They are a **§4 readout uncertainty**. My
+framing was wrong twice over: it *offloaded* the question (A20), and it offered the founder a decision that
+should be answered by **data about whether the grading produces better coaching outcomes**, not by anyone's
+preference. A4's own worked example is exact: *"Coach v1 ships with 3 heuristics not because 3 is provably right,
+but because 3 is small enough to read out clearly; whether 3 is enough is itself part of the §4 readout, not a
+pre-decision."*
+
+**The correct handling, per A4's future-use note** (*"every scope doc should explicitly list its open design
+uncertainties as part of the §4 readout instrumentation — 'these will be answered by the data, not by us.' Treat
+that list as a deliverable of the scope, not a sign of indecision"*): the bands ship as they are — a defensible
+starting point, chosen to read out clearly — and are **recorded here as §4 instrumentation**:
+
+> **§4 readout uncertainties for this revision** (to be answered by data, not by us):
+> 1. **Are the `/10 → letter` cutoffs right?** Instrument against §3.5's consequence metrics — do reps whose
+>    growth-area skills are graded *D* improve faster than those graded *C-* for the same underlying score? A
+>    band that changes behaviour is right; a band that only changes the letter is cosmetic.
+> 2. **Does a letter outperform a tier word?** ⑤ is partly a values question (A18: does a "D" invite comparison?)
+>    and partly this: which framing produces more coaching conversations and fewer defensive ones? The values
+>    half is the founder's; **this half is the data's**, and pre-deciding it contaminates the answer.
+> 3. **Does per-rep visibility produce better coaching than the aggregate?** This is ⑨'s empirical half — C.A.R.E
+>    refuses per-agent by design; Sales Coach now allows it. Two philosophies, one company: that is a natural
+>    comparison, and §4 exists to settle it rather than have both surfaces assert.
+
+**A3 — a default I never examined, recorded as a deviation.** A3: *"For any new methodology feature, check both
+defaults explicitly… **If you cannot ship with default-OFF and surface-only-cite, name why and record the
+deviation as a known risk in the §4 readout assumptions.**"* This revision is **default-ON for every Standard
+manager** — no flag, no opt-in. I never considered a default-OFF, and A3 says defaulting ON *"forces adoption but
+contaminates the A/B baseline — there is no honest comparison if everyone is already in the experiment arm."*
+
+**Named, per A3's requirement:** the deviation is that the founder's PDF specifies the feature outright, so
+shipping it dark behind a flag would be drift from an explicit instruction. **The recorded risk:** with the
+feature on for every Standard manager from day one, there is no un-exposed arm — so uncertainties 1–3 above can
+only be read out *against each team's own past*, never against a concurrent control. That is a real cost to §4's
+evidentiary power, and it is the founder's call whether it is worth an opt-in.
 
 ### 7.6 What I could not complete
 
