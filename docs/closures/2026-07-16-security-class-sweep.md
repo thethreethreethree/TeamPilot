@@ -1291,6 +1291,21 @@ provably pure and tsc+build are strong nets, so it was verifiable end-to-end. **
 CI-pinned across its measurement surfaces: §3.3 ask-first (74) · §3.4 control-gate (49) + cycle-phase (73) ·
 §3.5 consequence metric (75).** The moat is protected in CI, not just prose — A30 realized for the constitution.
 
+## 76. Constant-time secret comparison (class 2 lesson) — class SWEPT CLEAN codebase-wide; gate DECLINED (A33)
+New lens: "which lessons this session are GATED vs only prose?" (A30 applied to invariant-audit). Checked the
+class-2 fix (timing-unsafe secret `!==`, fixed this session). NOT gated (prose in the baseline note only).
+§A26-swept it: EVERY direct comparison against a `process.env.*(SECRET|TOKEN)` uses `constantTimeEqual` (7 routes
+on the sanctioned path); the precise env-secret-`!==` pattern returns ZERO. The one `!==` a naive grep flagged
+(`conversation?.id === id`) is a non-secret ID check in a LOG line — a false positive. **So the class is clean
+codebase-wide.** GATE DECLINED per A33: the precise single-line pattern (`process.env.X_SECRET !==`) is clean but
+INCOMPLETE — the actual class-2 bug was two-line (`const expected = process.env.X; … incoming !== expected`),
+which a single-line grep misses; the complete pattern (any secret-named var with `!==`) is NOISY (false-positives
+on the log-line ID check + routes that PASS a secret rather than compare it). Neither meets the precision bar, so
+per A33 the honest output is: keep the prose + this verified-clean sweep, decline the noisy gate. (Contrast the
+GENUINELY-gateable lessons this session that DID get gates: upload-validation INVARIANT 5, react/no-danger — both
+unambiguous literal patterns.) The lesson holds on the sanctioned `constantTimeEqual` primitive (itself tested,
+class from the security-primitive sweep) + this record; a future reviewer greps the two-line pattern by hand.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
