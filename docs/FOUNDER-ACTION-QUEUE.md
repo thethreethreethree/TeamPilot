@@ -105,8 +105,7 @@
 >
 > ---
 >
-> The revision is **BUILT and gate-verified** (tsc · ESLint · 856 vitest · `next build`) and **NOT
-> runtime-TESTED** — nothing here has run against a live DB. Expert mode is untouched (verified by diff: zero
+> The revision is **BUILT** and **`npm run check` exits 0** — your project's canonical six-gate command (typecheck · lint · theme:audit 0 leaks · rls:audit 0 risks · invariant:audit 0 violations · 857 tests) plus `next build`. It is **NOT runtime-TESTED** — nothing here has run against a live DB. Expert mode is untouched (verified by diff: zero
 > `!isStandard` lines changed). Full record: `docs/feature-specs/ELOSALES-STANDARD-REVISION.md` (section 7 =
 > honest build report). PDF: `docs/sales-coach/ELOSALES-Standard-ManagerTransparency-Report.pdf`. Also awaiting
 > you: **CAT-003** (proposed catastrophic event — my conduct this session; yours to classify) and **AMD-007**
