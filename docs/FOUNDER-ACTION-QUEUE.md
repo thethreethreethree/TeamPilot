@@ -2,11 +2,42 @@
 
 > ### ⬆️ 2026-07-17 ADDENDUM (ELOSALES Standard revision — newest; read before the 07-16 block)
 >
-> The Standard-mode manager-transparency revision from your PDF is **BUILT and gate-verified** (tsc · ESLint ·
-> 856 vitest · `next build`) and **NOT runtime-TESTED** — nothing here has run against a live DB. Expert mode is
-> untouched (verified by diff: zero `!isStandard` lines changed). Full record:
-> `docs/feature-specs/ELOSALES-STANDARD-REVISION.md` (section 7 = honest build report). PDF:
-> `docs/sales-coach/ELOSALES-Standard-ManagerTransparency-Report.pdf`.
+> ## 🔴 THE HEADLINE: your framework says this does not ship, in three independent ways
+>
+> I built the revision as specified and it is gate-verified. Then I audited it by **reading the clauses at
+> source instead of from my memory of them**, and the framework returned **three separate verdicts that it is
+> not shippable as it stands.** None of these is my opinion, and none is a matter of taste:
+>
+> | # | Verdict | Clause, in its own words |
+> |---|---|---|
+> | 1 | **It doesn't deliver its result.** Nothing in this product can play a recording — a manager clicking one to hear the call gets a transcript, and `0187`/purge/Save manage an asset no human can consume. | **AMD-006**, read in full at last: *"A build that passes layer 4 but fails any of 1–3 is **NOT shippable**, regardless of surface quality. The order is a sieve."* Layer 2 = *"does the feature, when invoked the way a real user would invoke it, deliver the intended result?"* |
+> | 2 | **Nothing about it can ever be measured.** It emits **zero** chain events — sibling coach routes emit four kinds; mine emit none. The improvement your PDF claims is unprovable as built. | **A2**: *"what event would prove this works?... **If no clean answer, the feature is not yet shippable** — back up to design until the readout is named."* |
+> | 3 | **It is surveillance.** It ships accountability (a manager reads named grades + recordings) with **no** guidance pillar — no offered move, no rep-side benefit. | **A6**, recording *your own* triad: *"**Pillar 2 alone is surveillance** (presence tracking without support)... **If only one pillar is buildable in this round, ship NONE.** The single-pillar surface is the surface that will be remembered as the failure."* |
+>
+> **They are not the same finding.** AMD-006 says it doesn't work; A2 says even if it did, nobody could prove
+> it; A6 says even with both fixed, its *structure* is surveillance until pillar 3 exists. Every A18-shaped
+> mitigation I built — no F, floor at D, counts under every grade, honest copy — is a **label** on a
+> pillar-2-alone surface. A18 makes the label invite coaching. **A6 says the structure is the thing.**
+>
+> **And a fourth, different problem:** per **A1**, the letter grade is an *external framework* (academic
+> grading) that reinforces **no clause** of your constitution — I ran the test against §3.3, A11, A18, §3.5,
+> A7/A8 and could not name one. A1: *"If you cannot name one, **it is a candidate amendment, not a feature.**"*
+> It shipped as a feature. You are the ratifier, so your PDF is a legitimate way for an amendment to *begin* —
+> but §7.2's soundness gate has never been run on it, and §7.1's default is deny.
+>
+> **What I recommend you do with this:** none of it means "throw the build away." ⑥ (guidance) is the pillar
+> that answers #3 and is ~30 lines. ⑦ answers #1 either way you rule it. #2 is one event on save. They are
+> tractable — but they are **preconditions**, not polish, and I had been handing them to you as preferences.
+>
+> ---
+>
+> The revision is **BUILT and gate-verified** (tsc · ESLint · 856 vitest · `next build`) and **NOT
+> runtime-TESTED** — nothing here has run against a live DB. Expert mode is untouched (verified by diff: zero
+> `!isStandard` lines changed). Full record: `docs/feature-specs/ELOSALES-STANDARD-REVISION.md` (section 7 =
+> honest build report). PDF: `docs/sales-coach/ELOSALES-Standard-ManagerTransparency-Report.pdf`. Also awaiting
+> you: **CAT-003** (proposed catastrophic event — my conduct this session; yours to classify) and **AMD-007**
+> (an amendment proposal; read it sceptically, I wrote it under a mandate that rewards output and said so inside
+> it).
 >
 > **🔴 DECIDE ⑦ BEFORE YOU APPLY `0187` — the migration may be moot.** Nothing in this product can play a call
 > recording. `audio_asset_url` is written by the uploader and read by **nothing that renders a player** (every
