@@ -15,16 +15,26 @@ import {
   type SkillBreakdown,
 } from "@/lib/coach/v5/skillAnalytics";
 import type { ScoreCategory } from "@/lib/coach/v5/summaryTypes";
+import { isSalesCoachManager, canManagerViewRepSkills } from "@/lib/coach/v5/skillAccess";
 
 /**
- * GET /api/coach/sales-session/skills — the rep's PERSONAL skill analytics (ELOSTATE
- * spec p3). Six skills scored /10 across their recent sessions, each with a short AI
- * breakdown. "All about the user — when they come home and want to learn from their
- * day." No team aggregate, no ELO number: this endpoint is the rep's own mirror only.
+ * GET /api/coach/sales-session/skills[?agentId=<rep>] — six skills scored /10 across recent
+ * sessions, each with a short AI breakdown.
  *
- * The scores are the rep's PRIVATE self-assessment (A18), so this returns ONLY the
- * caller's own skills — agent_id is always auth.uid(), never a parameter. A manager
- * cannot read a named rep's skill breakdown here; that stays a mirror for the rep.
+ * DEFAULT (no agentId, or agentId = caller): the rep's OWN mirror — unchanged from the original
+ * self-only behavior. Every existing caller keeps identical output.
+ *
+ * MANAGER READ (agentId != caller): the ELOSALES Standard revision (PDF Analytics §B) opens this
+ * to managers so they can see what a rep is doing well / where they need coaching. This DELIBERATELY
+ * crosses the original self-only §A18 boundary — done under the framework:
+ *   - Gate: caller must be a MANAGER (sales_coach_role='admin' OR company role CEO/COO/admin) in the
+ *     SAME company as the target rep. Non-managers and cross-company callers are refused.
+ *   - A10 (no shadow read): the data returned to a manager for rep X is the IDENTICAL computation the
+ *     rep sees in their own self-view — same endpoint, same numbers. The rep is never shown less than
+ *     their manager sees about them.
+ *   - A18 (label is the defense): the numbers are labeled as growth areas / strengths in the UI
+ *     (coaching framing), never as a rank. The route returns the scores; the coaching framing is the
+ *     surface's job (Layer 4).
  */
 
 // Bound the transcript fetches (speed-of-speech needs the raw turns). The score
@@ -44,12 +54,42 @@ export async function GET(req: NextRequest) {
   }
   const { data: profile } = await sb
     .from("profiles")
-    .select("company_id")
+    .select("company_id, role, sales_coach_role")
     .eq("id", auth.user.id)
     .maybeSingle();
   const companyId = profile?.company_id as string | undefined;
 
-  const recent = await getRecentAfterPitchSummariesAdmin(auth.user.id, MAX_SESSIONS);
+  // Resolve WHOSE skills to read. Default: the caller's own (self-mirror, unchanged — A10).
+  const requestedAgentId = new URL(req.url).searchParams.get("agentId");
+  let targetAgentId = auth.user.id;
+  if (requestedAgentId && requestedAgentId !== auth.user.id) {
+    // Manager reading a named rep — crosses the former self-only §A18 gate, done under the framework
+    // via the pure, tested authz decision (src/lib/coach/v5/skillAccess.ts).
+    const caller = {
+      role: profile?.role ?? null,
+      sales_coach_role: profile?.sales_coach_role ?? null,
+      company_id: companyId ?? null,
+    };
+    if (!isSalesCoachManager(caller)) {
+      return NextResponse.json(
+        { error: "Only a manager can view a rep's skill profile." },
+        { status: 403 }
+      );
+    }
+    // The RLS user client can only read a same-company profile, so a cross-company id returns null.
+    const { data: target } = await sb
+      .from("profiles")
+      .select("company_id")
+      .eq("id", requestedAgentId)
+      .maybeSingle();
+    const decision = canManagerViewRepSkills(caller, target ?? null);
+    if (!decision.ok) {
+      return NextResponse.json({ error: "Rep not found in your team." }, { status: 404 });
+    }
+    targetAgentId = requestedAgentId;
+  }
+
+  const recent = await getRecentAfterPitchSummariesAdmin(targetAgentId, MAX_SESSIONS);
   if (recent.length === 0) {
     // Honest empty state (§3.4): no sessions yet is not a zero score.
     return NextResponse.json({ skills: [], sampleSessions: 0 });
