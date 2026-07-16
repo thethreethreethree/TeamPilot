@@ -21,6 +21,27 @@
 >    revision gets materially simpler.
 > 3. **Ship as-is** → retention guards an unhearable asset, on the record.
 >
+> > **⑦ UPGRADE (04:55) — "ship as-is" is not mine to offer, and AMD-006 says so.** You required AMD-006 *in
+> > full*; I had been working from CLAUDE.md §1.5.1, which **summarises** it. Reading the actual amendment
+> > (`docs/amendments/AMD-006-system-and-user-flow-tracing.md`) — the same
+> > quoting-the-summary-instead-of-the-source failure this whole session has been about, aimed at your most
+> > explicit instruction — its **Addendum** defines **Layer 2 (operational effectivity)** as *"does the feature,
+> > when invoked the way a real user / caller / consumer would invoke it, deliver the intended result?"* and then
+> > rules: *"do not advance past a broken layer hoping a later one will mask the issue... **A build that passes
+> > layer 4 but fails any of 1–3 is NOT shippable, regardless of surface quality.** The order is a sieve."*
+> >
+> > A manager invoking "recordings" the way a real manager would — clicking one to hear the call — **gets a
+> > transcript**. The retention apparatus (`0187` + purge + Save) exists to manage an asset **no human can
+> > consume**. That is a Layer-2 break, and AMD-006 states Layer-2 breaks are **not survivable by composition or
+> > polish**. So **option 3 is not a legitimate choice under your own ratified amendment** — I listed it as if it
+> > were, and recommended against it on *my* reasoning while the constitution had already decided it (A28's
+> > shape, applied to an amendment rather than to code).
+> >
+> > This does **not** narrow your choice to option 1. **Option 2 (drop the audio) also repairs Layer 2** — by
+> > removing the unmet promise rather than fulfilling it: a Sessions tab that offers transcript-and-review
+> > review, and never implies audio, delivers exactly what it says. Both 1 and 2 are constitutional. Only "leave
+> > it broken and ship" is not.
+>
 > **⚠️ Ordering has a data consequence:** the purge cron is **dormant**. If playback ships later, the audio it
 > would have played may already be purged. And **⑧ is armed by ⑦** — see below.
 >
