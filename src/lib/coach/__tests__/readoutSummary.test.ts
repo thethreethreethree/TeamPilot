@@ -9,7 +9,6 @@ import { summarizeTopicDurability } from "../readoutSummary";
  * Extracted from the route (class 74) precisely so it could be tested here.
  */
 
-const DAY = 24 * 60 * 60 * 1000;
 const iso = (ms: number) => new Date(ms).toISOString();
 // a topic created at t0, closed `hours` later (or open if hours is null)
 const topic = (
