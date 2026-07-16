@@ -81,7 +81,6 @@ this build **embodies or violates** its intent. Assets cited in commits but *not
 | **A22** | 03:43 | **VIOLATED (process) → then ENFORCED by the hook, → then VIOLATED AGAIN (see §1).** The hook demanding a §A18 timestamp is the only reason any of this was found. This manifest is A22's required artifact, produced late and by mechanical prompting rather than by discipline. |
 | **A24** | 03:38 | **EMBODIED.** ⑦ and ⑧ surfaced rather than performed (A24e: privacy-bearing capability, not defect repair). The audio write-path check reported **as confirmatory**, not dressed as a find (A24b). A35's first draft deleted as manufactured output rather than shipped because it read well. |
 | **A25** | 03:38 | **VIOLATED → FIXED.** The migration-coupling lesson lived only in operating memory since 2026-07-03 and recurred exactly as A25's meta-rule predicts. My first instinct on diagnosing it was to *update the memory file* — the move A25 names as insufficient. Promoted to **A34** in-session, as A25 requires. |
-| **A26** | **04:02** (see §1) | **EMBODIED.** The A18 finding was swept as a class → A10 and A11 both violated. Boundary, reachability exclusions, and bounded residual recorded in §4 per A26's addendum. |
 | **A30** | 03:29 | **EMBODIED, with its limit named.** The lesson became a chokepoint (`isMissingColumnError`), not prose. And A30's thesis is the finding of the session: **the gate caught what my discipline did not, every time.** |
 | **A31** | 03:29 | **VIOLATES → OPEN ⑦.** `audio_asset_url` is **write-only** — stamped by the uploader, read by nothing that renders a player. Save preserves an unhearable file; the purge deletes one nobody could hear. A31's tell — *"I audit the layer I find interesting and trust the layer I find boring"* — I spent the session on letter-grade semantics and never checked whether the thing the feature is named after does anything. |
 | **A32** | 03:29 | **EMBODIED.** Every open item ships with a *designed* option set (⑦'s ~60-line playback route; ⑧'s four models; ⑥'s static move map), not a bare "you decide". |
@@ -117,6 +116,26 @@ context and is read material by construction; its sections are timestamped at se
 **ThinkerThinker.md is NOT auto-injected** — which is precisely why the table above is the load-bearing half.
 
 ---
+
+## 2b. What this session WROTE (the table above records only what it READ)
+
+A22's manifest covers assets **consulted**. It does not cover assets **authored**, and this session authored
+several — so a reader of this closure could not see what entered the library, or what was taken back out.
+
+| Asset | Status | One line |
+|---|---|---|
+| **A34** | written 03:52 · **premise flagged 06:16** | Migration-coupled reads degrade, writes fail honestly, the predicate must NAME the column. **Its `PGRST204` claim is recollected, not verified** — flagged in place per A37; the guard does not depend on it (message-path backstop). |
+| **A35** | written 05:26 | A22's enforcement gap: the hook charges for the **citation**, not the reliance — so the check is dodged by staying quiet. **Its first draft was a duplicate of A22 and was deleted before commit.** |
+| **A36** | written 05:26 | The residual you wrote is the highest-yield queue, and its disclaimer grammar closes the door. **Four of five findings that night came from it** — one of which (A6) it now lists as withdrawn, because an asset that drops its failed evidence is doing what A37 was retracted for. |
+| **A37** | written 05:59 · **RETRACTED 06:04** | Claimed CLAUDE.md §1.5.1 was a lossy derivation. **False** — one grep disproved it. Replaced in place by the real lesson: *when I break a rule I did read, my diagnosis lands on the artifact, never on me.* |
+| **A38** | written 06:52 | "Verified" is a claim about a **command you ran**. I reported four of six gates as "gate-verified" ~30 times; the real command failed on an error that had been red for a day. |
+| **A32** | addendum 07:04 | The confidence-adjective tell is **symmetric** — A32 named *cheap/simple/just*; it never named *expensive/slow/risky*, and a wrong "expensive" is never falsified because the work simply never happens. |
+| **A21** | test result 06:44 | Its own test, run on this audit: **A21 lost, three times.** Read, quoted, produced a real HIGH finding from it — then made the inverse error (absence-claims from inside one module) without running its steps 1–2. |
+
+**The honest ratio:** five assets touched, **one retracted within four minutes**, **one flagged as resting on an
+unverified premise**, and one (A36) already carrying a withdrawn finding in its own evidence list. **§4 says the
+System must refuse to believe its own evolution until results prove it** — this table is what that refusal looks
+like when it is applied to the same session that produced the evolution.
 
 ## 3. The residual — now CLOSED, and it was where the findings were
 
