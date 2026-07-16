@@ -51,10 +51,26 @@ export async function GET(req: NextRequest) {
 
   let purged = 0;
   let assetErrors = 0;
+  let malformed = 0;
   for (const row of expired ?? []) {
     const url = row.audio_asset_url as string;
-    // audio_asset_url is stored as `${ASSETS_BUCKET}/${storagePath}`; strip the bucket prefix.
-    const path = url.startsWith(`${ASSETS_BUCKET}/`) ? url.slice(ASSETS_BUCKET.length + 1) : url;
+    // THREE writers touch this column and they do NOT agree on its shape: `upload-recording` writes
+    // `${ASSETS_BUCKET}/${storagePath}` (bucket-relative), the session PATCH route's zod accepts a full
+    // `z.string().url()`, and this cron consumes it. The original code here assumed the first shape and fell
+    // back to using the raw string as a path — which is the dangerous branch: `remove()` on a path that isn't
+    // there returns NO error, so we would null the pointer and count it `purged`. The audio then survives
+    // FOREVER, unreferenced and unfindable, while the run reports that retention ran. That is the false-ok
+    // write class (A26 — "a mutation returning ok without asserting the write landed") in the one place it must
+    // never exist: the code whose entire job is to make a deletion promise true.
+    //
+    // A pointer we don't recognize means we cannot know whether the object exists, so we must not touch the
+    // row. Flag it and leave it — a data-integrity signal, never a silent purge. ("Already gone" is different
+    // and still converges below: no error + nothing removed is a legitimate reason to clear the pointer.)
+    if (!url.startsWith(`${ASSETS_BUCKET}/`)) {
+      malformed += 1;
+      continue;
+    }
+    const path = url.slice(ASSETS_BUCKET.length + 1);
     const { error: rmErr } = await admin.storage.from(ASSETS_BUCKET).remove([path]);
     // If the object is already gone, still null the pointer (converges). Only a real storage failure counts.
     if (rmErr && !/not found|does not exist/i.test(rmErr.message)) {
@@ -71,6 +87,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     purged,
     assetErrors,
+    // Rows whose pointer isn't in the shape this cron understands, so their audio could NOT be verified gone.
+    // Non-zero means the retention promise is NOT being kept for those rows — surfaced, never swallowed (§3.4).
+    malformed,
     scanned: expired?.length ?? 0,
     bounded: (expired?.length ?? 0) >= BATCH, // true = more may remain; not a silent "all clear"
     retentionDays: RETENTION_DAYS,
