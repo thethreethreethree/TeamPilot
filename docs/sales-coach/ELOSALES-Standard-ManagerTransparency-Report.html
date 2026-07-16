@@ -89,7 +89,7 @@
       <div class="stat"><div class="n">0</div><div class="l">Expert screens changed</div></div>
       <div class="stat"><div class="n">856</div><div class="l">tests green</div></div>
     </div>
-    <div class="foot">Governed build under ThinkerThinker.md &amp; CLAUDE.md (AMD-006 four-layer); <b>A18</b> is the primary asset (surfacing rep data to a leader &mdash; the label is the defense). Screens shown are faithful representations of the revised Standard UI &mdash; not live captures. All work is <b>BUILT</b> and gate-verified (tsc &middot; lint &middot; production build &middot; 856 tests); it has <b>not</b> yet rendered in a live session, so it is not marked TESTED. Migration <b>0187</b> is UNAPPLIED &mdash; the surfaces now degrade gracefully until you apply it. Two founder decisions remain open (see p.3).</div>
+    <div class="foot">Governed build under ThinkerThinker.md &amp; CLAUDE.md (AMD-006 four-layer); <b>A18</b> is the primary asset (surfacing rep data to a leader &mdash; the label is the defense). Screens shown are faithful representations of the revised Standard UI &mdash; not live captures. All work is <b>BUILT</b> and gate-verified (tsc &middot; lint &middot; production build &middot; 856 tests); it has <b>not</b> yet rendered in a live session, so it is not marked TESTED. Migration <b>0187</b> is UNAPPLIED &mdash; the surfaces now degrade gracefully until you apply it. Three founder decisions remain open (see p.3), including one about the letter grades themselves.</div>
   </div>
 </div>
 
@@ -111,6 +111,7 @@
       <tr><td class="what"><span class="pill-p">X</span> Expert mode</td><td class="what">Every change is a new file, an additive DB column, a backward-compatible route param, or code strictly inside the Standard branch. The git diff shows zero Expert render-path lines changed.</td><td class="why">Your hard constraint: Expert stays exactly the same.</td><td><span class="tag done">✓ Verified</span></td></tr>
       <tr><td class="what"><span class="pill-p">?2</span> Rep-saves-own</td><td class="what">The save API accepts the rep, but there is no rep-facing Save button yet. Your PDF says &ldquo;saved by the manager or user&rdquo; — the &ldquo;user&rdquo; UI is a scope decision.</td><td class="why">A10 + spec: does a rep get their own recordings-with-Save surface?</td><td><span class="tag held">◔ Your call</span></td></tr>
       <tr><td class="what"><span class="pill-p">?3</span> One profile vs two</td><td class="what">Built as two views (Analytics = scores, Sessions = recordings). My earlier recommendation was ONE unified profile. A deviation I&rsquo;m flagging, not hiding.</td><td class="why">AMD-006 L3: from a rep&rsquo;s low grade, can a manager reach that rep&rsquo;s recordings in one place?</td><td><span class="tag held">◔ Your call</span></td></tr>
+      <tr><td class="what"><span class="pill-p">?5</span> The letter itself</td><td class="what">Your PDF specifies letter grades, and I built them. But a letter is the most familiar <em>ranking</em> instrument there is — and the framework&rsquo;s test on leader-facing labels fails anything that invites comparison &ldquo;even slightly&rdquo;. Option: pair each letter with its tier word (&ldquo;D · growth area&rdquo;).</td><td class="why">Your spec vs. the framework — surfaced for your ruling, not resolved by me.</td><td><span class="tag held">◔ Your call</span></td></tr>
     </tbody>
   </table>
   <div class="legend">
@@ -230,9 +231,10 @@
       <li><b>Fixed</b> — migration-coupling (the Jul-3 outage class, repeated): recordings assumed 0187 was live and would have been hard-down until you applied it. Now degrades to the 2-day window. The degrade-vs-fail-loud rule is pure and unit-pinned — writing those tests corrected it twice (a bare code check would have swallowed a <em>different</em> column going missing; the write path fails with a different code entirely).</li>
       <li><b>Your decision ?2</b> — rep-facing recording-Save UI (spec &ldquo;or user&rdquo; + A10). Additive if you want it.</li>
       <li><b>Your decision ?3</b> — unify the two rep views into one profile (my ⑧ recommendation) vs keep them split (closer to your two PDF screenshots). A real refactor either way; your call.</li>
+      <li><b>Your decision ?5</b> — the letter grade is itself a leader-facing label. Found by re-reading the source clause rather than trusting my memory of it: the real test fails a label that invites comparison even slightly, and a &ldquo;D&rdquo; is school vocabulary. Your PDF mandates letters, so this is your ruling, not my redesign.</li>
     </ul>
   </div>
-  <div class="foot-note">Next: <strong>apply 0187</strong> &rarr; drive Sessions &amp; Analytics as a manager on staging &rarr; confirm the roster, grades, recordings, Save, and the 2-day purge &rarr; rule on ?2 and ?3. Full spec, conflicts, and file-by-file plan: <em>docs/feature-specs/ELOSALES-STANDARD-REVISION.md</em>.</div>
+  <div class="foot-note">Next: <strong>apply 0187</strong> &rarr; drive Sessions &amp; Analytics as a manager on staging &rarr; confirm the roster, grades, recordings, Save, and the 2-day purge &rarr; rule on ?2, ?3 and ?5. Full spec, conflicts, build report and file-by-file plan: <em>docs/feature-specs/ELOSALES-STANDARD-REVISION.md</em>.</div>
 </div>
 
 </body>
