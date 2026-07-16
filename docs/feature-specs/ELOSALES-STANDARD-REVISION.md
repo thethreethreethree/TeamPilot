@@ -412,6 +412,59 @@ what ELOSALES *is*, not a defect repair. What I can hand you is the shape:
   the risk is the one A18 names — the data gets used to rank, because nothing in the rep's experience makes it
   feel like coaching.
 
+### 7.5g OPEN ⑦ — nothing in this product can play a recording, and I built a retention policy around it (A31)
+
+*2026-07-17, verified by tracing every consumer of `audio_asset_url` and every audio path in the codebase.*
+
+**The finding.** `audio_asset_url` is **write-only**. It is stamped by `upload-recording`, filtered by the
+recordings list, and nulled by the retention purge — and **read by nothing that renders a player**. Every
+`new Audio()` in the tree is TTS (live cues, C.A.R.E. voice mode, settings preview). `ASSETS_BUCKET` appears in
+exactly three places: the uploader, the generic upload-url route, and my purge cron. **No surface creates a
+signed URL for a session's audio.** The detail page this feature links to renders transcript / review / summary /
+pivot — a genuine review surface, but not playback.
+
+**Consequences, stated plainly:**
+
+- A manager clicking *"Angry customer · Jul 15, 4:22 PM"* to hear the call gets a transcript.
+- **The Save button preserves an audio file no human can listen to.**
+- **The 2-day purge deletes an audio file no human could have heard.**
+- The entire retention apparatus in this revision — migration 0187, save route, purge cron, Save UI — guards an
+  asset with **no realized consumer**.
+
+**This is A31's class exactly:** *"a feature complete in the database and invisible in the product does not
+exist... its failure mode is uniquely undetectable: the schema review passes, the RLS audit passes, the tests
+pass, the page renders."* A31's worst instance is dead config (written by nothing, read by nothing); this is its
+sibling — **a dead asset**: written, protected, purged, never read. And A31 names the tell I walked straight
+past: *"I audit the layer I find interesting and trust the layer I find boring."*
+
+**My own contribution to it, honestly.** The recordings route's doc comment asserted *"playback reuses the
+existing session detail page."* I wrote that without opening the page. It is false, and it is the same
+citation-without-verification failure as A18/A10/A11 — pointed at my own architecture instead of the framework.
+The comment is now corrected in place rather than quietly deleted.
+
+**What is NOT wrong.** The feature still delivers real value: a manager can open a rep's recent sessions and read
+the transcript, the review, and the scored moments. Against the PDF's literal words — *"the manager can see all
+their recordings the past 2 days"* — that is arguably satisfied by the session record. But the PDF's other words
+— *"recordings,"* *"auto-delete after 2 days,"* *"unless saved"* — describe an audio artifact's lifecycle, and
+that is the reading the whole retention design was built on.
+
+**Surfaced, not built (A24e).** Call-audio playback is a **privacy-bearing capability**, not a defect repair:
+it makes every rep's recorded calls listenable by their manager, which is a decision about what ELOSALES *is*
+and interacts directly with A18 and with ⑤/⑥/7.5f. I will not ship that unasked. The shape, designed (A32):
+
+- **Build playback (~60 lines).** `assets.ts` already exposes `createSignedUrl`. Add
+  `GET /api/coach/sales-session/[id]/recording-url` — owner-or-manager, same gate as `recordings`, returning a
+  short-lived signed URL — and an `<audio controls>` on the detail page when `audio_asset_url` is non-null.
+  Retention then means what you wrote in the PDF, and Save becomes worth clicking.
+- **Or drop the audio.** If review is meant to be transcript-based, then storing call audio at all is a privacy
+  liability with no consumer, and the honest move is to stop uploading it — which would delete 0187's purpose
+  along with it and simplify this revision considerably.
+- **Or ship as-is,** on the record: retention guards an asset nobody can hear, until playback exists.
+
+**And a live-ordering note for whichever you choose:** the purge cron is **dormant**. If playback ships later, the
+audio it would have played may already have been purged by then — so the ordering of these two decisions has a
+data consequence, not just a scope one.
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a

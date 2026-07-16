@@ -14,8 +14,18 @@ import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
  *
  * DEFAULT (no agentId / =self): the rep's own recordings (A10 self-view). MANAGER read (agentId != caller):
  * gated by the same tested authz as skills — manager AND same company, else 403/404. Admin client reads the
- * rep's rows; the in-code gate is the authority. Standard-only surface. Playback reuses the existing session
- * detail page (/dashboard/sales-coach/[id]); this endpoint returns the LIST + metadata + saved-state only.
+ * rep's rows; the in-code gate is the authority. Standard-only surface. This endpoint returns the LIST +
+ * metadata + saved-state only.
+ *
+ * CORRECTION (2026-07-17) — an earlier version of this comment claimed "playback reuses the existing session
+ * detail page (/dashboard/sales-coach/[id])". That was asserted, not verified, and it is FALSE: no surface in
+ * this product plays a session's audio. `audio_asset_url` is written by upload-recording, filtered here, and
+ * nulled by the retention purge — and read by nothing that renders a player. The detail page this list links to
+ * shows transcript / review / summary / pivot, which is a real review surface, but it is not playback. So a
+ * "recording" here means the session RECORD (transcript + scores) plus a stored audio file that currently no
+ * human can hear (A31: written, protected and purged, never read). Retention/Save therefore guard an asset with
+ * no realized consumer. Surfaced to the founder as OPEN ⑦ rather than silently fixed — adding call-audio
+ * playback is a privacy-bearing capability, not a defect repair (A24e).
  */
 
 const RETENTION_DAYS = 2;
