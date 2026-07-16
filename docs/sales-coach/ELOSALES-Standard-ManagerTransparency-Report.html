@@ -84,12 +84,12 @@
     <h1>ELOSALES Sales Coach<br><span>Standard Mode</span> — the manager&rsquo;s view</h1>
     <p>This revision turns the Standard <b style="color:#fff">Sessions</b> and <b style="color:#fff">Analytics</b> tabs into a manager&rsquo;s window on the team: open a rep &rarr; see their last-2-days recordings and their six skills as letter grades, plus what they&rsquo;re strong at and where they need coaching. The goal from your PDF: coach the strugglers, replicate the closers. <b style="color:#fff">Expert mode is untouched.</b></p>
     <div class="statrow">
-      <div class="stat"><div class="n">13</div><div class="l">files built</div></div>
+      <div class="stat"><div class="n">15</div><div class="l">files built</div></div>
       <div class="stat"><div class="n">2</div><div class="l">Standard screens revised</div></div>
       <div class="stat"><div class="n">0</div><div class="l">Expert screens changed</div></div>
-      <div class="stat"><div class="n">849</div><div class="l">tests green</div></div>
+      <div class="stat"><div class="n">856</div><div class="l">tests green</div></div>
     </div>
-    <div class="foot">Governed build under ThinkerThinker.md &amp; CLAUDE.md (AMD-006 four-layer); <b>A18</b> is the primary asset (surfacing rep data to a leader &mdash; the label is the defense). Screens shown are faithful representations of the revised Standard UI &mdash; not live captures. All work is <b>BUILT</b> and gate-verified (tsc &middot; lint &middot; production build &middot; 849 tests); it has <b>not</b> yet rendered in a live session, so it is not marked TESTED. Migration <b>0187</b> is UNAPPLIED. Two founder decisions remain open (see p.3).</div>
+    <div class="foot">Governed build under ThinkerThinker.md &amp; CLAUDE.md (AMD-006 four-layer); <b>A18</b> is the primary asset (surfacing rep data to a leader &mdash; the label is the defense). Screens shown are faithful representations of the revised Standard UI &mdash; not live captures. All work is <b>BUILT</b> and gate-verified (tsc &middot; lint &middot; production build &middot; 856 tests); it has <b>not</b> yet rendered in a live session, so it is not marked TESTED. Migration <b>0187</b> is UNAPPLIED &mdash; the surfaces now degrade gracefully until you apply it. Two founder decisions remain open (see p.3).</div>
   </div>
 </div>
 
@@ -107,6 +107,7 @@
       <tr><td class="what"><span class="pill-p">A2c</span> Strengths / growth</td><td class="what">&ldquo;Doing well&rdquo; and &ldquo;struggling on&rdquo; are derived from those same graded scores — high tiers become Strengths, low tiers become Growth areas.</td><td class="why">Same data, coaching framing (A18) — one source, not a second opinion.</td><td><span class="tag done">✓ Built</span></td></tr>
       <tr><td class="what"><span class="pill-p">G</span> Manager gate</td><td class="what">Reading a named rep&rsquo;s scores/recordings requires being a manager (Sales-Coach admin or CEO/COO/admin) in the SAME company. Enforced by a pure, unit-tested authz function.</td><td class="why">Per-rep visibility crosses the old self-only §A18 line — so the gate is tested, not trusted.</td><td><span class="tag done">✓ Built</span></td></tr>
       <tr><td class="what"><span class="pill-p">H</span> Honest states</td><td class="what">A rep with too few sessions shows &ldquo;still accumulating&rdquo;, never a fabricated grade. A failed read shows an error, never &ldquo;no data&rdquo;.</td><td class="why">§3.5/§3.6 (no fabricated measure) and §3.4 (an error is not an empty).</td><td><span class="tag done">✓ Built</span></td></tr>
+      <tr><td class="what"><span class="pill-p">G2</span> Survives 0187 lag</td><td class="what">Recordings degrade to the plain 2-day window when the 0187 column isn&rsquo;t applied yet, instead of the tab going dark. Save hides itself until it can actually work; a save attempt returns an honest &ldquo;not available yet&rdquo;.</td><td class="why">The Jul-3 Team-Chat outage repeated itself here — code assuming a migration is live. Caught in self-audit, fixed.</td><td><span class="tag done">✓ Fixed</span></td></tr>
       <tr><td class="what"><span class="pill-p">X</span> Expert mode</td><td class="what">Every change is a new file, an additive DB column, a backward-compatible route param, or code strictly inside the Standard branch. The git diff shows zero Expert render-path lines changed.</td><td class="why">Your hard constraint: Expert stays exactly the same.</td><td><span class="tag done">✓ Verified</span></td></tr>
       <tr><td class="what"><span class="pill-p">?2</span> Rep-saves-own</td><td class="what">The save API accepts the rep, but there is no rep-facing Save button yet. Your PDF says &ldquo;saved by the manager or user&rdquo; — the &ldquo;user&rdquo; UI is a scope decision.</td><td class="why">A10 + spec: does a rep get their own recordings-with-Save surface?</td><td><span class="tag held">◔ Your call</span></td></tr>
       <tr><td class="what"><span class="pill-p">?3</span> One profile vs two</td><td class="what">Built as two views (Analytics = scores, Sessions = recordings). My earlier recommendation was ONE unified profile. A deviation I&rsquo;m flagging, not hiding.</td><td class="why">AMD-006 L3: from a rep&rsquo;s low grade, can a manager reach that rep&rsquo;s recordings in one place?</td><td><span class="tag held">◔ Your call</span></td></tr>
@@ -213,10 +214,10 @@
     <div class="block">
       <h3>Honest status</h3>
       <ul class="tight">
-        <li><b>BUILT + gate-verified</b>: tsc, lint, production build, 849 tests green.</li>
+        <li><b>BUILT + gate-verified</b>: tsc, lint, production build, 856 tests green.</li>
         <li><b>NOT TESTED</b> live: no route has run against a real DB/auth here.</li>
-        <li><b>0187 UNAPPLIED</b>: apply it, then the purge cron needs CRON_SECRET + a vercel entry (after 0187).</li>
-        <li><b>Purge cron dormant</b> until wired — same sequencing discipline as the other crons.</li>
+        <li><b>0187 UNAPPLIED</b> — but no longer fatal: Analytics never needed it, and recordings now fall back to the 2-day window until you apply it.</li>
+        <li><b>Purge cron dormant</b> until wired (CRON_SECRET + a vercel entry, after 0187).</li>
         <li><b>Grade bands</b> (the /10&rarr;letter cutoffs) are a one-line tunable constant, flagged for you.</li>
       </ul>
     </div>
@@ -226,6 +227,7 @@
     <ul class="tight">
       <li><b>Fixed</b> — §3.4: manager views rendered fetch failures as empty/wrong content &rarr; now an honest error state.</li>
       <li><b>Fixed</b> — A19: a stale Standard-Analytics comment &rarr; rewritten to the role-conditional behavior.</li>
+      <li><b>Fixed</b> — migration-coupling (the Jul-3 outage class, repeated): recordings assumed 0187 was live and would have been hard-down until you applied it. Now degrades to the 2-day window. The degrade-vs-fail-loud rule is pure and unit-pinned — writing those tests corrected it twice (a bare code check would have swallowed a <em>different</em> column going missing; the write path fails with a different code entirely).</li>
       <li><b>Your decision ?2</b> — rep-facing recording-Save UI (spec &ldquo;or user&rdquo; + A10). Additive if you want it.</li>
       <li><b>Your decision ?3</b> — unify the two rep views into one profile (my ⑧ recommendation) vs keep them split (closer to your two PDF screenshots). A real refactor either way; your call.</li>
     </ul>
