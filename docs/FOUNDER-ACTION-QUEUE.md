@@ -49,7 +49,17 @@
 > save route and the Save UI all disappear with it (a real simplification, and the privacy-cleanest option).
 > **Do NOT ship as-is** — that is the only option with no coherent end-state.
 >
-> **⑧ — I recommend (c) rep-always-wins + (d) append-only attribution.** *Why:* (c) is **already true and free**
+> **⑧ — I recommend (c) rep-always-wins + (d) append-only attribution.** **A15 sharpens this from a preference
+> into a default (04:50):** A15 asks whether a flagged behavior, *read as intent rather than as a defect*, matches
+> a constitutional rule — and whether a "fix" would contradict that intent. Both are yes here. A rep being able
+> to release their own recording IS A10/A18's shape (the rep is a participant in their own coaching, not its
+> subject); and (a)/(b) would make a rep's own call something a manager preserves **against their will**, which
+> is the surveillance relationship A18 exists to prevent. So **(c) is not merely the cheap option — it is what
+> the framework indicates, and (a)/(b) are a deliberate override of it**, legitimate but with that cost named.
+> The genuine tension that keeps this yours: your PDF's *"unless saved by the manager or user"* implies a
+> manager's save should MEAN something, and under (c) a rep can undo it — so (c) makes manager-save a request,
+> not a guarantee. That trade is a values call, which is why I recommend rather than close it. *Why (c) also
+> happens to be free:* (c) is **already true**
 > — it is what the schema does today (see the A23 note: a rep can PATCH `recording_saved` directly, so (a) and
 > (b) are not route-implementable and need a trigger migration). It is also the most consistent with A10/A18: the
 > rep controls what is kept of their own calls, and a manager who wants a call preserved has to *ask* — which is
