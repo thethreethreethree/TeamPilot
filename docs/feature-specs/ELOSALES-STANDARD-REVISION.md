@@ -684,6 +684,69 @@ one action that expresses coaching intent:
 semantics the event would record. Building the emission now would presume both. **But per A2 this is not a
 preference — until a readout exists, the improvement claim in the founder's own PDF cannot be honestly made.**
 
+### 7.5l THE THIRD "NOT SHIPPABLE", and the root of 7.5f / ⑥ / A7 / A8: pillar 2 without pillar 3 IS surveillance (A6)
+
+*2026-07-17, from A6 — the last asset with a hook, read only because I stopped asserting that A1–A6 could not
+bear on this build. It is the root the whole session kept circling.*
+
+**A6's triad** (the founder's own philosophy, recorded): (1) **Understanding** the work before starting (§3.2
+applied to work); (2) **Accountability** via proper communication (§3.1 + §3.6); (3) **Guidance — not
+micromanagement — and encouragement** (§3.3).
+
+**A6's rule:** *"The three pillars are NOT independently shippable. Pillar 1 alone is bureaucracy. **Pillar 2
+alone is surveillance (presence tracking without support).** Pillar 3 alone is feel-good noise... **Ship any one
+alone and you ship the failure mode of that pillar.**"* And its future-use note: *"Whenever scoping a 'human
+workflow' feature... check that the design covers all three pillars before shipping any one. **If only one pillar
+is buildable in this round, ship NONE** — defer until two pillars can ship together. **The single-pillar surface
+is the surface that will be remembered as the failure.**"*
+
+**Map this revision honestly:**
+
+| Pillar | This build |
+|---|---|
+| 1 · Understanding | n/a — the rep's work is the call; this feature does not gate it |
+| 2 · **Accountability / visibility** | **This IS the build.** Named roster → named grades → named recordings → a manager reading them |
+| 3 · **Guidance + encouragement** | **Absent.** No offered move (⑥/A7), no rep-side benefit (7.5f/A17), and the founder's own sentence half-built (A8) |
+
+**A6 does not say pillar-2-alone *risks feeling like* surveillance. It says it IS surveillance.** That is the
+constitutional name for what 7.5f described as *"all cost, no benefit from the rep's side"* — I had the symptom
+and A6 has the diagnosis.
+
+**This unifies the session's biggest thread.** 7.5f (A17: the rep's contract has no surface), ⑥ (A7: a metric
+with no offered move), A8 (the founder's definition, half built), and A6 are **not four findings** — they are one
+finding at four altitudes, and A6 is the floor: *ship accountability without guidance and you have built
+surveillance, whatever the labels say.* Every A18-shaped mitigation I built (no F, floor at D, counts under
+grades, honest copy) is a **label** on a pillar-2-alone surface. A18 makes the label invite coaching; **A6 says
+the structure is the thing, and the structure is currently surveillance.**
+
+**Third independent not-shippable verdict, and the strongest.** All three come from the framework, none from me,
+and they are distinct:
+
+1. **AMD-006 (Layer 2)** — the feature does not deliver its result (the audio has no consumer).
+2. **A2** — even if it did, no event exists to prove it.
+3. **A6** — even if both were fixed, shipping pillar 2 alone ships surveillance. *"Ship NONE."*
+
+**What this does to ⑥.** ⑥ was on the founder's queue as *"I recommend building the move map (~30 lines);
+override if you want the fuller version."* **A6 reclassifies it:** the move map is not an enhancement to
+recommend, it is **the second pillar without which A6 says this does not ship at all.** My recommendation was
+right and my framing was, once again, too small — I offered as a preference the thing the constitution requires
+as a precondition.
+
+**What I am NOT doing:** building it unasked. A6 says ship none, not "build pillar 3 on your own judgement" — and
+the fuller pillar-3 surface (lead with what improved against the rep's own past, §3.6) is a product decision
+about what ELOSALES gives a rep, which is the founder's (§3.3). But the honest statement is now sharper than a
+recommendation: **on the framework's own terms, this build is not shippable in three independent ways, and ⑥ is
+one of the three — not a polish item.**
+
+**A5 — confirmatory, recorded for completeness.** A5 requires that a new gating flag be ripple-traced to *every
+existing surface that gates similar behaviour*. `recording_saved` is a new gating flag (it gates the purge). Its
+read-sites: the recordings list and the purge cron — **both new, both mine, both correct**. The pre-existing gate
+for the same concept is `audio_asset_url is not null`, whose other read-sites (`upload-recording`, the session
+PATCH route) have no reason to consult `recording_saved` — they neither list nor expire recordings. **Verified
+negative: no existing surface is left frozen in pre-flag behaviour.** The one A5 process step I skipped: its
+future-use note asks for *"a one-line ripple-trace summary in the commit body naming every surface touched (and
+every surface deliberately not touched)"* — my `0187` commit did not carry one. Recorded, not re-committed.
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
