@@ -474,6 +474,49 @@ and interacts directly with A18 and with ⑤/⑥/7.5f. I will not ship that unas
 audio it would have played may already have been purged by then — so the ordering of these two decisions has a
 data consequence, not just a scope one.
 
+### 7.5h OPEN ⑧ — who may UN-save? I decided that silently, and un-saving is destructive
+
+*2026-07-17. Found while checking the save-recording authz for untested security-critical paths.*
+
+**The ambiguity I resolved without asking.** The PDF says recordings delete *"unless saved by the manager **or
+user**."* That names who may **save**. It says nothing about who may **un-save**. My route accepts
+`{saved: false}` from **either party** — I chose symmetric toggle, silently. The founder's terms for this build
+were explicit: *"Do not resolve ambiguity silently by substituting your own structure — surface it and ask."*
+This is the one place I did exactly that, and I did not notice until auditing my own authz.
+
+**What the code actually permits.** A rep (owner) can POST `{saved:false}` on a recording **their manager saved**.
+The update sets `recording_saved: false, recording_saved_by: null, recording_saved_at: null` — so it **erases who
+saved it and when**. The purge then removes the audio within ≤2 days. The manager's coaching material disappears
+with **no record that it was ever preserved, or by whom**.
+
+**Why this is A17 wearing an authz costume.** Manager's contract: preserve the evidence for the coaching
+conversation. Rep's contract: control what is kept of my own calls (a real privacy interest, and the more
+sympathetic one). **Both are legitimate; they collide precisely here**; and I resolved the collision by letting
+whoever clicks last win — which is not a design, it is the absence of one. The operations are also **not
+symmetric**: saving is additive and reversible, un-saving is destructive and, post-purge, irreversible.
+
+**Honest severity, traced (§1.5), and it depends on ⑦.** *Today* the stakes are near-zero: per ⑦ the audio is
+unplayable, so un-saving destroys a file nobody could hear, and the transcript + scores are kept regardless.
+**The moment playback ships (⑦ option 1), this becomes real and destructive** — and a rep who dislikes a call
+being reviewed has a one-click, unattributed way to ensure it never can be. So ⑧ is currently latent and is
+armed by ⑦. **Order matters: if you build playback, rule on ⑧ first.**
+
+**Surfaced, not fixed — because fixing it silently would repeat the original error.** I already decided this once
+without asking; deciding it a second time, differently and still silently, is the same fault with better manners.
+Designed options (A32):
+
+- **(a) Manager-only un-save.** A rep may save (preserve) but not un-save; only a manager can release. Protects
+  the coaching contract; weakest on the rep's privacy interest. ~3 lines.
+- **(b) Only the saver may un-save.** Whoever preserved it can release it; a manager's save is not a rep's to
+  undo, and vice-versa. Symmetric and explainable to both parties; needs the `recording_saved_by` we already
+  store. ~6 lines.
+- **(c) Rep-always-wins.** The rep may always un-save their own call, and a manager who wants it kept must
+  discuss that with them — the coaching conversation A18 wants, forced by the design rather than by the tool.
+  Most consistent with A10/A18's spirit; costs the manager a guarantee.
+- **(d) Append-only save history.** Any of the above, plus never overwrite `recording_saved_by` to null on
+  release — keep who saved and who released, so "it vanished" is never a mystery (§3.1's instinct, applied to
+  this field). Composes with (a)/(b)/(c) and is the one I would want regardless of which you pick.
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
