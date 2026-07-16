@@ -272,12 +272,30 @@
 > > say, not mine to draft into your product. *Override if:* you consider the divergence itself wrong — then it
 > > is (a), and ⑤/⑨ collapse into one much larger conversation about per-person visibility across the product.
 >
-> **⑥ — I recommend BUILDING the static per-skill move map** (~30 lines, no LLM, no new data). *Why:* A7 is
-> currently violated on the rep's own screen — six metrics, no offered move — and my A10 fix sharpened it. It is
-> the cheapest half of the 7.5f absence, and it is the difference between a rep's screen saying *"you are a D"*
-> and *"here's the next thing to try."* *Override if:* you want the fuller version instead (lead with what
-> improved against their own past) — that is better and bigger, and it is a product judgment I should not make.
+> **⑥ — RECOMMENDATION REPLACED (07:18). Do NOT build the static move map I proposed. Link the grade to the move
+> that already exists.** Tracing the REP's layer-3 path (I had only traced the manager's, in ⑩) shows
+> `SkillScores` has **zero** links — no `href`, no `onClick`. It is a **dead end**. But the rep's move is not
+> missing: **After-Pitch's one Next Door Focus** is generated per session, LLM-derived, reconciled across two
+> engines. **The grade simply cannot reach it.**
 >
+> So ⑥ is not "the rep has no offered move" (that was my third absence-claim of the night, and like the other two
+> it was false). **⑥ and ⑩ are ONE finding:** *both parties reach an insight and stall, because the insight
+> surface does not compose with the action surface that already exists.* The rep sees `Closing · D` with no path
+> to their own Next Door Focus; the manager sees the same grade with no path to the rep.
+>
+> **My original fix was actively wrong** — a static per-skill move map would have been a **parallel, dumber copy
+> of an engine you already have** (A13: author the space once; A28: the precedent already decides it). I nearly
+> shipped you a duplicate of After-Pitch because I never checked whether After-Pitch reached this screen.
+>
+> **I now recommend:** make each graded skill link to **the sessions that produced it** and, through them, to the
+> **Next Door Focus** the coach already wrote. Same spine as ⑩'s "Discuss with \<rep\>": *don't make the user
+> re-derive state the system already has.* Cheaper than the move map, and it uses the real per-call guidance
+> instead of generic per-skill copy. *Override if:* you want a lighter touch — surfacing the rep's most recent
+> Next Door Focus at the top of Analytics is a smaller version of the same idea.
+>
+> ~~*Superseded, kept for the record:* "I recommend BUILDING the static per-skill move map (~30 lines, no LLM, no
+> new data)… the difference between a rep's screen saying 'you are a D' and 'here's the next thing to try.'"~~
+> **That fix would have duplicated After-Pitch. The gap was never the move; it was the link to it.**
 > > **The strongest argument for ⑥ is yours, not mine (found 04:45, A8).** A8 records your own definition of what
 > > this System *is*: ***"you guide them, you identify their strength and weaknesses and you help them grow and
 > > break limitations."*** This feature does the **first half and stops.** It identifies strengths and weaknesses
