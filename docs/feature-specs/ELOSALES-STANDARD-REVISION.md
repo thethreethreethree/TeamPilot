@@ -359,6 +359,59 @@ surface whose violation is older than my work. Shipping it unasked is drift; hid
   needs a real generation path, cost, and a §3.5 honesty story for sparse data. Bigger; not obviously better.
 - **Your call.** A7 binds this product; whether it is repaired now or queued is a scope decision, not mine.
 
+### 7.5f THE ALTITUDE FINDING — ⑤ and ⑥ are not two decisions, they are one absence (A17)
+
+*2026-07-17, from reading A17 — the last clause this build leaned on without naming. It reframes everything
+above, including my own reporting of it.*
+
+**A17's diagnostic, run honestly on this revision:**
+
+| Contract | Concrete surface serving it |
+|---|---|
+| Manager — see who is struggling and who is winning | roster → per-rep grades + the counts behind them ✓ |
+| Manager — coach the struggler, replicate the winner | recordings + counts (partial: the data is there; the *move* is not) |
+| **Rep — be coached, not judged** | **???** |
+
+**The ??? is the finding.** Tally what this revision *gives* the rep: letter grades on their own view (7.5c's A10
+fix — more judgment), and a plain notice that their manager reads their grades and their recordings (7.5d's §3.4
+fix — accurate, and unwelcome). **From the rep's side this revision is all cost and no benefit.** Both of those
+were *correct* fixes. Both made the rep's experience worse. That is A17's named failure mode, verbatim: *"the
+technical goals silently optimize against the experiential ones... an honestly-labeled 'lesser version' badge is
+still demoralizing."*
+
+**This indicts the audit, not just the build.** Four findings on one surface — A10 (7.5c), A11 (7.5c), A7 (7.5e),
+false copy (7.5d) — each diagnosed correctly at its own altitude, each fixed or surfaced locally. A17 is explicit
+that this pattern IS the signal: *"when a recurring failure pattern resists local fixing, the identification is
+at the wrong altitude. Climb until the pattern resolves into a single discipline."* A17 took twelve rounds to
+surface originally because *"the experiential layer is hardest to make legible — there is no type-check for 'does
+this make the user feel encouraged'."* There is no type-check for it here either, which is exactly why every gate
+in this build stayed green through all four.
+
+**The single structural fact underneath all of them: this revision serves the manager's contract and has no
+surface that serves the rep's.** Not "has a weak one" — has none. And per A18, the moment behavior data is
+surfaced upward the rep is a stakeholder by construction, whether or not the spec names them as a user.
+
+**What this does to the open decisions.** I reported ⑤ (should a letter-shaped verdict exist at all?) and ⑥ (a
+metric must ship with an offered move) as two independent rulings. **They are one question wearing two hats:**
+*what does this feature give the rep?* ⑥'s designed fix (a per-skill offered move) is half the missing surface;
+⑤'s answer determines the other half (whether the thing the move attaches to is a verdict or a mirror). Rule on
+the absence and both resolve; rule on them separately and you are patching symptoms — which is what I was
+handing you.
+
+**Not built, and this one is genuinely yours (§3.3 / A24e).** A17 says *"add the surface BEFORE shipping, not
+after the user surfaces the absence"* — a directive to build. Your terms say do not drift from a manager-facing
+PDF. That conflict is real and it is not mine to resolve: a rep-facing growth surface is a product decision about
+what ELOSALES *is*, not a defect repair. What I can hand you is the shape:
+
+- **Minimum honest version** — ⑥'s static per-skill move map, rendered on the rep's own tiles. Turns each tile
+  from a verdict into an offer. ~30 lines, no LLM, no new data. Makes the rep's screen answer *"so what do I do?"*
+- **The real version** — the rep's Analytics leads with what improved against their own past (§3.6 make learning
+  visible: the System proving it knows them better than it did) before it shows any grade. Bigger; it is the
+  surface A17 is actually asking for, and it needs your product judgment on tone and scope.
+- **Ship as-is** — legitimate, on the record: the manager contract is served, the rep contract is deferred, and
+  the risk is the one A18 names — the data gets used to rank, because nothing in the rep's experience makes it
+  feel like coaching.
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
