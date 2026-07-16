@@ -158,9 +158,120 @@ honest-empty floor) `[dep ①]`; retention filter unit test; a manager-authz tes
 
 **Expert-untouched verification (final step):** `git diff` review confirming zero change to any `!isStandard`
 branch, Expert-only file, or Expert API path; Expert Analytics still renders ELO + team-aggregate; Expert
-Sessions still renders the Start panel. Report in §7.
+Sessions still renders the Start panel. Report in section 7 below.
+<!-- Note: "§" is reserved in this repo for constitutional/TT references. Sections of THIS doc are cited as
+     "section N" so a citation scan can't confuse a local heading for a framework clause. -->
 
 ## 7. Honest build report
 
-> PENDING build. Will contain: file-by-file what was built, which clause each part satisfies, what could not be
-> completed, anything changed from the spec and why, anything untested ("untested" stated plainly).
+*Written 2026-07-17, after the build and the self-audit. Status words are used strictly: **BUILT** = written and
+gate-verified (tsc/ESLint/vitest/`next build`). **TESTED** = observed working against a live DB/auth. Nothing in
+this revision is TESTED — no route here has run against a real database in this session. Where I say "verified,"
+the verification method is named.*
+
+### 7.1 File-by-file
+
+| File | What it does | Clause it serves | Status |
+|---|---|---|---|
+| `supabase/migrations/0187_coaching_recording_retention.sql` | Adds `recording_saved`, `recording_saved_by`, `recording_saved_at` + a partial retention index. Additive only. | PDF item 1b (2-day retention, "unless saved") | **BUILT · UNAPPLIED.** Founder must apply. |
+| `src/lib/coach/v5/skillGrade.ts` | Pure `/10 → A+/A/A-…D`. Floor is D, never F. Grade carries `fromScore`. Null score → `not-yet`. | **A18** (no punitive F), **A11** (grade carries its basis), **§3.5/§3.6** (null ≠ fabricated grade) | BUILT · 6 unit tests |
+| `src/lib/coach/v5/skillAccess.ts` | Pure authz: `isSalesCoachManager`, `canManagerViewRepSkills` (manager AND same company). | **A18** (this is the gate on the §A18-crossing read) | BUILT · 7 unit tests |
+| `src/lib/coach/v5/migrationGuard.ts` | Pure `isMissingColumnError(error, column)` — the degrade-vs-fail-loud decision. | **§3.4** (a real error must stay loud) | BUILT · 7 unit tests. *Added by the self-audit, not the original plan.* |
+| `src/app/api/coach/sales-session/skills/route.ts` | Added optional `?agentId=`. Default = self (unchanged). Manager read gated by `skillAccess`. | **A10** (self path untouched), **A18** (gate) | BUILT · untested live |
+| `src/app/api/coach/sales-session/recordings/route.ts` | GET `?agentId=`; manager-or-self; returns last-2-days OR saved. Falls back to window-only when 0187 is absent. | PDF 1a/1b, **A10**, **A18**, **§3.4** | BUILT · untested live |
+| `src/app/api/coach/sales-session/[id]/save-recording/route.ts` | POST `{saved?}`; owner OR manager (same company); sets the three 0187 columns. Honest 503 pre-0187. | PDF 1b ("saved by the manager or user"), **§3.4** | BUILT · untested live |
+| `src/app/api/coach/sales-session/recording-purge-cron/route.ts` | CRON_SECRET-gated; deletes the AUDIO asset + nulls `audio_asset_url` for unsaved recordings >2 days. Keeps transcript/scores. Bounded batch 500, honest `bounded` flag. | PDF 1b (auto-delete) | **BUILT · DORMANT.** Needs 0187 + CRON_SECRET + a vercel entry. |
+| `src/components/sales-coach/StandardAnalyticsManagerView.tsx` | Manager → roster → rep profile (letter grades, strengths, growth). Rep → `fallback` (own SkillScores). | PDF Analytics §B, **A10**, **A11**, **A18**, **§3.4** | BUILT · untested live |
+| `src/components/sales-coach/StandardSessionsManagerView.tsx` | Manager → roster → rep recordings (+ Save). Rep → `fallback`. Hides Save when `savingAvailable:false`. | PDF Sessions 1a/1b, **A10**, **§3.4**, AMD-006 L4 | BUILT · untested live |
+| `src/app/dashboard/sales-coach/analytics/page.tsx` | One line, entirely inside `isStandard &&`. | Expert isolation | BUILT · Expert path unchanged |
+| `src/app/dashboard/sales-coach/sessions/page.tsx` | Early return for `isStandard && isManager` only. | Expert isolation | BUILT · Expert path unchanged |
+
+Plus tests: `__tests__/skillGrade.test.ts`, `__tests__/skillAccess.test.ts`, `__tests__/migrationGuard.test.ts`.
+
+### 7.2 Gate results (the verification behind "BUILT")
+
+`npx tsc --noEmit` clean · `npx eslint` clean on all changed files · `npx vitest run` **856 passed, 15 skipped**
+(849 before this revision's guard tests; +7) · `npx next build` green.
+
+**Expert isolation — method named:** verified by `git diff` inspection of both revised pages; no line on a
+`!isStandard` path changed. Every other file is new, an additive migration, or a backward-compatible route
+param. This is a *static* verification. It is not a runtime proof that Expert renders identically, because no
+Expert screen was rendered in this session.
+
+### 7.3 What changed from the spec, and why
+
+1. **Split rep views, not one unified profile.** The build follows the PDF's two screenshots (Sessions = recordings,
+   Analytics = grades). My own earlier recommendation (⑧) was a single unified rep profile so a manager could go
+   from a low grade straight to the recordings behind it. **I built the spec, flagged the deviation from my own
+   advice, and left the call to the founder** rather than silently substituting my structure. → **OPEN ③**.
+2. **No rep-facing Save button.** The PDF says "saved by the manager **or user**." The API accepts the rep; the UI
+   surface for the rep does not exist yet. Not silently resolved. → **OPEN ②**.
+3. **`migrationGuard.ts` was not in the plan.** It came out of the self-audit (see 7.5). Additive, no spec impact.
+
+### 7.4 Uncertain / not verified
+
+- **Everything runtime.** No route ran against a live DB. Rosters, grades, recordings, Save, purge: all untested.
+- **Grade bands** (`/10 → letter` cutoffs) are a judgement call, flagged tunable. There is no empirical basis for
+  A- starting at 8.5 rather than 8.0 — the founder should set these against real rep data (§3.5: don't dress a
+  guess as a measure).
+- **The fallback path itself.** It is only exercisable *pre-0187* — which is the live state right now, so it is
+  the path a manager would hit today, and it is the least-tested code in the revision. Highest-priority thing to
+  watch on first run.
+- **The purge cron has never fired.** Its 2-day boundary, batch bound, and asset-deletion behavior are unobserved.
+
+### 7.5 What the self-audit found (§1.5.2)
+
+- **Fixed ① (§3.4).** Both manager views rendered a failed fetch as empty/wrong content — a load error read as
+  "no data" / "not a manager". Now an explicit error state.
+- **Fixed ④ (A19).** A stale comment describing pre-revision behavior.
+- **Fixed (migration coupling).** The recordings surface assumed 0187 was live and would have been **hard-down**
+  until the founder applied it — a repeat of the 2026-07-03 Team Chat outage class. Now degrades to the 2-day
+  window. Writing the guard's tests corrected my own fix twice: a bare `42703` check would have masked a
+  *different* column going missing, and the write path fails with `PGRST204`, not `42703`.
+- **Held ② and ③** for founder ruling rather than resolving silently.
+
+**Not gated, and why (A30/A33).** A30 says a lesson in prose returns and must be encoded. This class resists a
+precise gate: detecting it requires knowing *which migrations are applied per environment*, which is live DB
+state — the exact thing that is not statically knowable, and the exact thing that caused the bug. Per A33 the
+honest move is the chokepoint, not a noisy gate: the detection rule now lives in one tested primitive
+(`isMissingColumnError`) that both routes call. **Gate declined, reason recorded, so it isn't re-litigated.**
+
+### 7.5b OPEN ⑤ — the letter grade is itself a label, and A18's actual test is stricter than my memory of it
+
+*Surfaced 2026-07-17, from re-reading `ThinkerThinker.md` A18 (line 601) rather than citing it from memory.*
+
+**The conflict.** The PDF specifies letter grades (A+/A/A-) — explicit, and I built it as written. A18 says that
+when a system surfaces human-behavior data to a leader, **the label IS the structural defense**, and its test
+(question 3) is: *"If the answer is 'penalize' — even slightly — the label is wrong."* A18 names
+*"Underperforming"* as a label that **invites comparison**.
+
+The most prominent label a manager sees against each skill is **not** "Growth areas" — it is **the letter**. A
+letter grade is school vocabulary: the most familiar ranking instrument most people have encountered. Read A18's
+question 2 honestly — *someone who has worked for you six months has a **D** in Closing* — and a D invites
+comparison at least as much as it invites mentorship. By A18's own strictness ("even slightly"), that is a flag.
+
+**Why it wasn't caught during the build.** I was working from a remembered A18 ("labels should invite coaching"),
+which the surrounding labels satisfy, so the build passed my own check. The **actual text** applies the test to
+the label *on the data*, which here is the grade. Working from cached labels instead of the source is the
+§0.1/A19 failure mode CAT-001 exists to prevent — and it reached the built surface. The mitigations I *did* build
+(no F; floor at D; grade carries its /10; "coaching targets, not a rank") show the tension was felt but never
+named precisely enough to decide on.
+
+**Not resolved here, on purpose.** The spec is explicit and the founder forbade drift; A18 is a framework clause.
+That is a spec-vs-framework conflict, which the founder's governance terms require me to **surface and ask**, not
+silently restructure. Options, for the founder — not a recommendation I've earned the right to make:
+
+- **(a) Ship as spec'd.** Founder's explicit instruction wins; A18 is mitigated by the no-F floor, the /10 basis,
+  and the coaching captions. The tension is accepted, on the record.
+- **(b) Pair the letter with its tier word** — "D · growth area", "A- · strength" — so the invited action travels
+  with the grade wherever it renders. Small change (the tier already exists in `skillGrade.ts`); keeps the PDF's
+  letters intact while putting an A18-shaped label on the same line.
+- **(c) Founder's own framing** — the label question is a judgement about how this company coaches, which is the
+  founder's call to make, not mine (§3.3).
+
+### 7.6 What I could not complete
+
+- Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
+  small additive change once ruled on.
+- **Live verification is not completable by me** in this environment: it needs 0187 applied and a real manager
+  session. That is the founder's step, and it is the only thing standing between BUILT and TESTED.
