@@ -77,6 +77,31 @@
 > > and that C.A.R.E's copy claims the refusal is "by design." If ⑤ ships as-spec'd, one of these two surfaces is
 > > eventually going to look like the accident. *My recommendation is unchanged* — (b) — but the choice is
 > > materially bigger than "letters or not," and I framed it too small.
+> >
+> > **⑨ — UPGRADED TO A SEPARATE HIGH FINDING (04:42, A21). This is not part of ⑤, and I buried it.** A21 is the
+> > asset for exactly this shape: *"audits that look WITHIN modules but not ACROSS modules miss 'same name,
+> > different feature' composition failures."* Both surfaces are literally titled **Team** / **Your team**. A
+> > leader who learns in C.A.R.E that *"Team means aggregate only — we don't look at individuals here, by
+> > design"* and then opens Sales Coach's **Your team** finds a named roster with letter grades and recordings.
+> > A21's pre-flight check: *"If a user learns feature X in module A, will their mental model work in module B?
+> > If no, this is an L3 finding with **severity = HIGH**, because it is a category of confusion, not an
+> > instance."* It also names why I missed it: *"the drift is invisible from inside either module"* — my audit
+> > was Sales-Coach-only, and A21 says the full-audit boundary is **the product's user-visible boundary, not the
+> > codebase's module boundary.**
+> >
+> > **This is independent of ⑤.** ⑤ decides the *letter*; the *named roster* is your PDF's core either way. So
+> > ⑨ survives every ⑤ outcome except retracting per-person entirely.
+> >
+> > **I recommend A21's option (b): keep the divergence and make the vocabulary carry it** — the Sales Coach team
+> > surface should say plainly why it is per-person when the other team view refuses to be, e.g. *"unlike the
+> > support queue, a recorded call is a performed artifact — this view is per-rep by design, to coach the call,
+> > not to rank the person."* *Why (b) over (a) unify:* unifying means either giving C.A.R.E per-agent data (huge,
+> > unasked, and it would defeat that surface's stated design) or refusing your PDF (drift). *Why not silence:*
+> > two surfaces asserting opposite philosophies with neither acknowledging the other is how a product loses the
+> > right to claim either one is principled. **I have NOT written that copy** — the distinction between a
+> > performed artifact and ongoing labour is a claim about what ELOSTATE believes, and that sentence is yours to
+> > say, not mine to draft into your product. *Override if:* you consider the divergence itself wrong — then it
+> > is (a), and ⑤/⑨ collapse into one much larger conversation about per-person visibility across the product.
 >
 > **⑥ — I recommend BUILDING the static per-skill move map** (~30 lines, no LLM, no new data). *Why:* A7 is
 > currently violated on the rep's own screen — six metrics, no offered move — and my A10 fix sharpened it. It is

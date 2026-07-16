@@ -546,6 +546,44 @@ PATCH. Nothing reads it to decide access — it is audit/display attribution, th
 as the honest stopping point (*"vs. ELO/decision/impersonation inputs"*). Not fixed; recorded so it is not
 mistaken for swept.
 
+### 7.5i OPEN ⑨ (HIGH) — two surfaces named "Team" now assert opposite philosophies (A21)
+
+*2026-07-17, from A21 — the asset for exactly this shape, read after A28's precedent search surfaced the
+divergence and I filed it as a footnote under ⑤. It is not a footnote.*
+
+**The finding.** C.A.R.E.'s Leadership page is titled **Team** and says on screen: *"aggregate only · no
+per-agent breakdown **by design** (§A18)."* Sales Coach's Standard manager view is titled **Your team** and is,
+after this revision, a named roster → per-rep letter grades, counts, and recordings. **Same concept, same word,
+opposite philosophy, same leaders, same product.**
+
+**A21's severity rule, applied:** *"If a user learns to use feature X in module A, will their muscle memory +
+mental model work when they use feature X in module B? If no, this is an L3 finding with **severity = HIGH**
+because it's a category of confusion, not an instance."* A leader who learns *"Team means we don't look at
+individuals here — by design"* and then opens **Your team** to find named grades has had their model of the
+product's ethics broken, not just their navigation.
+
+**Why my audit missed it, in A21's own words:** *"the drift is invisible from inside either module."* Every
+check I ran was Sales-Coach-only. A21: *"the 'full audit' boundary is the product's **user-visible** boundary,
+not the codebase's **module** boundary."* The user experiences a feature concept; they do not experience my
+module scoping.
+
+**Independent of ⑤.** ⑤ rules on the *letter*; the *named roster* is the PDF's core regardless. ⑨ survives every
+⑤ outcome except retracting per-person visibility entirely.
+
+**Recommended action — A21 option (b): keep the divergence, make the vocabulary carry it.** A21 requires one of
+two things for any cross-module divergence: *"either unify to a shared backend + component, or document why the
+divergence is intentional with the L4 vocabulary explicitly distinguishing them."* (a) unify is not available —
+it means giving C.A.R.E. per-agent data (huge, unasked, and it defeats that surface's stated design) or refusing
+the PDF (drift). So (b): the Sales Coach team surface should state why it is per-person when the sibling surface
+refuses to be.
+
+**I have not written that copy, deliberately.** The candidate reason — *a recorded call is a performed artifact
+the rep opts into; a support queue is ongoing labour* — is a claim about **what this company believes about
+watching people**. Per §3.3 that sentence is the founder's to say; drafting it into the product would be me
+deciding the philosophy and letting the founder discover it as fait accompli. What I can say is that **silence
+is the one option that is definitely wrong**: two surfaces asserting opposite philosophies, neither
+acknowledging the other, is how a product forfeits the right to claim either is principled.
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
