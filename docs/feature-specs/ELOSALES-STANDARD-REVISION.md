@@ -423,6 +423,15 @@ exactly three places: the uploader, the generic upload-url route, and my purge c
 signed URL for a session's audio.** The detail page this feature links to renders transcript / review / summary /
 pivot — a genuine review surface, but not playback.
 
+**The other half of the seam, checked (A31: *"the seam runs in both directions, and I was blind to both"*) —
+CONFIRMATORY, not a second find.** The WRITE path is live and reachable: `SessionRecordingUpload` renders on the
+session detail page and inside `LiveCoachingPanel`, and it posts to `upload-recording`, which stamps the column.
+So this is **not** a dead asset in both directions, and the manager's list will **not** be permanently empty —
+real audio arrives. That is the good news, and it makes ⑦ *worse*, not better: **the audio genuinely
+accumulates**, call after call, listenable by no one. The privacy exposure of storing every rep's recorded sales
+calls is therefore real and growing, while the value drawn from it is currently zero. That asymmetry is the
+strongest argument for option 2 below.
+
 **Consequences, stated plainly:**
 
 - A manager clicking *"Angry customer · Jul 15, 4:22 PM"* to hear the call gets a transcript.
