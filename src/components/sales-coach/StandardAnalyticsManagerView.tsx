@@ -26,25 +26,27 @@ type SkillRow = { key?: string; label: string; score: number | null; breakdown: 
 export function StandardAnalyticsManagerView({ fallback }: { fallback: React.ReactNode }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [isManager, setIsManager] = useState<boolean | null>(null);
+  const [error, setError] = useState(false);
   const [selected, setSelected] = useState<Member | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void fetch("/api/coach/sales-session/team")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("team read failed"))))
       .then((d) => {
         if (cancelled) return;
-        if (!d) { setIsManager(false); return; }
         setMembers(d.members ?? []);
         setIsManager(Boolean(d.isManager));
       })
-      .catch(() => setIsManager(false));
+      // §3.4: a failed read is NOT "you're not a manager". Show an honest error, never silently the rep view.
+      .catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
   }, []);
 
-  // Not a manager (or team fetch failed / 403) → the rep sees their own self-view (A10). Unchanged behavior.
-  if (isManager === false) return <>{fallback}</>;
+  if (error) return <div className="text-sm text-muted">Couldn&apos;t load your team — refresh to try again.</div>;
   if (isManager === null) return <div className="text-sm text-muted">Loading team…</div>;
+  // Confirmed non-manager → the rep sees their own self-view (A10).
+  if (isManager === false) return <>{fallback}</>;
 
   if (selected) {
     return <RepProfile member={selected} onBack={() => setSelected(null)} />;
@@ -81,18 +83,20 @@ function RepProfile({ member, onBack }: { member: Member; onBack: () => void }) 
   const [skills, setSkills] = useState<SkillRow[] | null>(null);
   const [sampleSessions, setSampleSessions] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const r = await fetch(`/api/coach/sales-session/skills?agentId=${encodeURIComponent(member.id)}`);
-      if (r.ok) {
-        const d = await r.json();
-        setSkills(d.skills ?? []);
-        setSampleSessions(d.sampleSessions ?? 0);
-      } else {
-        setSkills([]);
-      }
+      if (!r.ok) throw new Error("skills read failed");
+      const d = await r.json();
+      setSkills(d.skills ?? []);
+      setSampleSessions(d.sampleSessions ?? 0);
+    } catch {
+      // §3.4: a failed read must NOT read as "still accumulating" (an honest-empty). Say it failed.
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -113,6 +117,8 @@ function RepProfile({ member, onBack }: { member: Member; onBack: () => void }) 
 
       {loading ? (
         <p className="text-sm text-muted">Loading…</p>
+      ) : error ? (
+        <p className="text-sm text-muted">Couldn&apos;t load this rep&apos;s skills — try again.</p>
       ) : scored.length === 0 ? (
         // §3.5/§3.6 honest-empty: not enough sessions yet is not a bad grade.
         <p className="text-sm text-muted">

@@ -18,24 +18,26 @@ type Recording = { id: string; clientLabel: string | null; createdAt: string; sa
 export function StandardSessionsManagerView({ fallback }: { fallback: React.ReactNode }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [isManager, setIsManager] = useState<boolean | null>(null);
+  const [error, setError] = useState(false);
   const [selected, setSelected] = useState<Member | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void fetch("/api/coach/sales-session/team")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("team read failed"))))
       .then((d) => {
         if (cancelled) return;
-        if (!d) { setIsManager(false); return; }
         setMembers(d.members ?? []);
         setIsManager(Boolean(d.isManager));
       })
-      .catch(() => setIsManager(false));
+      // §3.4: a failed read is not "not a manager"; show an honest error, never silently the rep view.
+      .catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
   }, []);
 
-  if (isManager === false) return <>{fallback}</>;
+  if (error) return <div className="text-sm text-muted">Couldn&apos;t load your team — refresh to try again.</div>;
   if (isManager === null) return <div className="text-sm text-muted">Loading team…</div>;
+  if (isManager === false) return <>{fallback}</>;
   if (selected) return <RepRecordings member={selected} onBack={() => setSelected(null)} />;
 
   return (
@@ -64,13 +66,19 @@ export function StandardSessionsManagerView({ fallback }: { fallback: React.Reac
 function RepRecordings({ member, onBack }: { member: Member; onBack: () => void }) {
   const [recordings, setRecordings] = useState<Recording[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const r = await fetch(`/api/coach/sales-session/recordings?agentId=${encodeURIComponent(member.id)}`);
-      setRecordings(r.ok ? (await r.json()).recordings ?? [] : []);
+      if (!r.ok) throw new Error("recordings read failed");
+      setRecordings((await r.json()).recordings ?? []);
+    } catch {
+      // §3.4: a failed read must not read as "no recordings".
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -107,6 +115,8 @@ function RepRecordings({ member, onBack }: { member: Member; onBack: () => void 
 
       {loading ? (
         <p className="text-sm text-muted">Loading…</p>
+      ) : error ? (
+        <p className="text-sm text-muted">Couldn&apos;t load recordings — try again.</p>
       ) : (recordings ?? []).length === 0 ? (
         <p className="text-sm text-muted">No recordings in the last 2 days.</p>
       ) : (

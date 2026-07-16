@@ -148,10 +148,10 @@ export default function SalesCoachAnalyticsPage() {
     <>
       <TopBar title="Analytics" subtitle="Your coaching over time" />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-6 bg-base">
-        {/* STANDARD (spec p3): six per-skill /10 scores + short AI breakdowns —
-            the rep's own mirror for "learning from their day". Replaces the ELO
-            number (removed below for Standard) so focus shifts to tone, questions,
-            etc. — the things a rep can actually work on — not one opaque rating. */}
+        {/* STANDARD is ROLE-CONDITIONAL (ELOSALES revision): a MANAGER sees the team roster → per-rep
+            profile (grades + strengths/growth); a REP sees their OWN six per-skill /10 scores + AI
+            breakdowns (the self-mirror, A10) — that rep path is the `fallback` below. Either way the ELO
+            number stays Expert-only. Role split lives in StandardAnalyticsManagerView. */}
         {/* ELOSALES revision (PDF Analytics §B): in Standard, a MANAGER sees the team roster → per-rep
             profile; a REP still sees their own scores (A10 self-view = the fallback). Expert branch below is
             untouched. Role split lives in StandardAnalyticsManagerView (team endpoint's isManager). */}
