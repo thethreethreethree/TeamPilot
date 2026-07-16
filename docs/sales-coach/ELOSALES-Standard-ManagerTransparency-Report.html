@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ELOSALES Sales Coach — Standard Mode · Manager Transparency Revision</title>
+<style>
+  @page { size: A4 portrait; margin: 14mm 14mm 16mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #0b0b0f; --ink2: #14141b; --line: rgba(255,255,255,.08);
+    --ember: #facc15; --ember2: #f59e0b; --emerald:#6ee7b7; --amber:#fcd34d;
+    --txt: #e7e7ea; --mut: #9a9aa4; --mut2:#6c6c78; --brand:#facc15;
+    --paper:#faf9f7; --paperink:#1a1a1f; --papermut:#6b6b74; --paperline:#e6e3dd;
+  }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--paperink); background: var(--paper); font-size: 11px; line-height: 1.5; }
+  .page { page-break-after: always; padding: 2mm 0; }
+  .page:last-child { page-break-after: auto; }
+  .cover { background: var(--ink); color: var(--txt); border-radius: 18px; padding: 34px 30px; position: relative; overflow: hidden; }
+  .cover::after { content:""; position:absolute; right:-60px; top:-60px; width:220px; height:220px; border-radius:50%; background: radial-gradient(circle, rgba(250,204,21,.22), transparent 70%); }
+  .eyebrow { text-transform: uppercase; letter-spacing: .22em; font-size: 9.5px; color: var(--ember); font-weight: 700; }
+  .cover h1 { font-size: 30px; line-height: 1.08; margin: 12px 0 8px; letter-spacing: -.02em; font-weight: 800; }
+  .cover h1 span { color: var(--ember); }
+  .cover p { color: var(--mut); max-width: 64ch; font-size: 12px; }
+  .statrow { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+  .stat .n { font-size: 26px; font-weight: 800; color: #fff; }
+  .stat .l { font-size: 9.5px; color: var(--mut); text-transform: uppercase; letter-spacing: .12em; }
+  .cover .foot { margin-top: 22px; font-size: 10px; color: var(--mut2); border-top: 1px solid var(--line); padding-top: 12px; }
+  h2.sec { font-size: 16px; font-weight: 800; letter-spacing: -.01em; margin: 4px 0 3px; }
+  h2.sec .num { color: var(--ember2); font-weight: 800; margin-right: 8px; }
+  .sub { color: var(--papermut); font-size: 10.5px; margin-bottom: 14px; }
+  table.chk { width: 100%; border-collapse: collapse; }
+  table.chk th { text-align: left; font-size: 8.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--papermut); border-bottom: 1.5px solid var(--paperink); padding: 6px 8px; }
+  table.chk td { padding: 8px 8px; border-bottom: 1px solid var(--paperline); vertical-align: top; }
+  .tag { display:inline-block; font-size: 8px; font-weight: 700; letter-spacing:.06em; padding: 2px 6px; border-radius: 999px; white-space: nowrap; }
+  .done { background: #d9f5e6; color: #0f7a4d; }
+  .held { background: #fde7c9; color: #92600a; }
+  td .why { color: var(--papermut); font-size: 10px; }
+  td .what { font-weight: 600; }
+  .pill-p { font-weight:800; color: var(--ember2); }
+  .screens { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; margin-top: 6px; }
+  .cap { font-size: 10.5px; font-weight: 700; margin-bottom: 6px; }
+  .cap .p { color: var(--ember2); }
+  .cap small { display:block; font-weight: 500; color: var(--papermut); font-size: 9.5px; margin-top:1px; }
+  .phone { background: var(--ink); border-radius: 20px; padding: 12px 11px 14px; color: var(--txt); border: 6px solid #1c1c24; box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+  .st { display:flex; justify-content: space-between; font-size: 8px; color: var(--mut); margin-bottom: 8px; }
+  .ttl { font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+  .card { background: var(--ink2); border: 1px solid var(--line); border-radius: 12px; padding: 9px; margin-bottom: 7px; }
+  .field { font-size: 9px; color: var(--mut2); border:1px solid var(--line); border-radius: 8px; padding: 7px 8px; margin: 7px 0; }
+  .lbl { font-size: 8px; text-transform: uppercase; letter-spacing:.1em; color: var(--mut); font-weight:700; }
+  .rowi { display:flex; justify-content:space-between; align-items:center; padding:6px 2px; border-bottom:1px solid var(--line); font-size:9px; }
+  .rowi:last-child { border-bottom:none; }
+  .rowi .nm { color: var(--txt); }
+  .rowi .rt { color: var(--mut); font-size:8px; }
+  .save { font-size:7.5px; font-weight:700; padding:2px 7px; border-radius:6px; border:1px solid var(--line); color:var(--mut); }
+  .save.on { border-color: rgba(250,204,21,.5); color: var(--ember); }
+  .grade { display:flex; justify-content:space-between; align-items:center; padding:5px 2px; border-bottom:1px solid var(--line); }
+  .grade:last-child { border-bottom:none; }
+  .grade .gk { font-size:9px; color: var(--txt); }
+  .grade .gv { font-size:9px; color: var(--mut); }
+  .gA { color: var(--emerald) !important; font-weight:800; }
+  .gB { color: var(--ember) !important; font-weight:800; }
+  .gD { color: var(--amber) !important; font-weight:800; }
+  .colh { font-size:7.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--mut); font-weight:700; margin:2px 0; }
+  .note { font-size: 8.5px; color: var(--txt); background: rgba(250,204,21,.06); border:1px solid rgba(250,204,21,.3); border-radius: 9px; padding: 8px; line-height:1.4; }
+  .legend { display:flex; gap: 14px; margin-top: 14px; font-size: 9.5px; color: var(--papermut); flex-wrap: wrap; }
+  .legend b { color: var(--paperink); }
+  .foot-note { margin-top: 16px; font-size: 9.5px; color: var(--papermut); border-top:1px solid var(--paperline); padding-top: 10px; }
+  .foot-note strong { color: #b45309; }
+  .grid2c { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .block { border:1px solid var(--paperline); border-radius:12px; padding:12px 14px; }
+  .block h3 { font-size:11px; font-weight:800; margin-bottom:6px; }
+  .block .c { font-size:8px; color:var(--papermut); font-family:ui-monospace,monospace; }
+  ul.tight { margin:4px 0 0 14px; } ul.tight li { font-size:10px; margin:3px 0; color:var(--paperink); }
+  ul.tight li b { color:#b45309; }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="page">
+  <div class="cover">
+    <div class="eyebrow">System Revision · Report</div>
+    <h1>ELOSALES Sales Coach<br><span>Standard Mode</span> — the manager&rsquo;s view</h1>
+    <p>This revision turns the Standard <b style="color:#fff">Sessions</b> and <b style="color:#fff">Analytics</b> tabs into a manager&rsquo;s window on the team: open a rep &rarr; see their last-2-days recordings and their six skills as letter grades, plus what they&rsquo;re strong at and where they need coaching. The goal from your PDF: coach the strugglers, replicate the closers. <b style="color:#fff">Expert mode is untouched.</b></p>
+    <div class="statrow">
+      <div class="stat"><div class="n">13</div><div class="l">files built</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">Standard screens revised</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">Expert screens changed</div></div>
+      <div class="stat"><div class="n">849</div><div class="l">tests green</div></div>
+    </div>
+    <div class="foot">Governed build under ThinkerThinker.md &amp; CLAUDE.md (AMD-006 four-layer); <b>A18</b> is the primary asset (surfacing rep data to a leader &mdash; the label is the defense). Screens shown are faithful representations of the revised Standard UI &mdash; not live captures. All work is <b>BUILT</b> and gate-verified (tsc &middot; lint &middot; production build &middot; 849 tests); it has <b>not</b> yet rendered in a live session, so it is not marked TESTED. Migration <b>0187</b> is UNAPPLIED. Two founder decisions remain open (see p.3).</div>
+  </div>
+</div>
+
+<!-- 01 WHAT CHANGED -->
+<div class="page">
+  <h2 class="sec"><span class="num">01</span>What changed — line by line</h2>
+  <p class="sub">Each part of your PDF, what it now does in Standard, and its honest status.</p>
+  <table class="chk">
+    <thead><tr><th style="width:16%">Part</th><th style="width:38%">What changed</th><th style="width:31%">Why it matters</th><th style="width:15%">Status</th></tr></thead>
+    <tbody>
+      <tr><td class="what"><span class="pill-p">S1</span> Sessions tab</td><td class="what">For a MANAGER, the tab is a team roster &rarr; open a rep &rarr; their recordings from the last 2 days, each linking to the call for playback. A rep still sees their own browse-only view (A10).</td><td class="why">The manager can see what a rep is actually saying, to coach through data.</td><td><span class="tag done">✓ Built</span></td></tr>
+      <tr><td class="what"><span class="pill-p">S1b</span> Retention</td><td class="what">Recordings auto-delete after 2 days unless SAVED (by the rep or a manager). The audio is purged; the transcript &amp; scores are kept. (Migration 0187 + a purge cron.)</td><td class="why">Keeps the useful call, clears the noise — your &ldquo;delete after 2 days unless saved&rdquo;.</td><td><span class="tag done">✓ Built</span></td></tr>
+      <tr><td class="what"><span class="pill-p">A2</span> Analytics tab</td><td class="what">For a MANAGER, a team roster &rarr; open a rep &rarr; their profile: the six skills as letter grades, plus Strengths and Growth areas. The old ELO/team-aggregate stays Expert-only. A rep still sees their own six /10 scores.</td><td class="why">Transparency on who&rsquo;s doing well and who&rsquo;s struggling; data to teach better.</td><td><span class="tag done">✓ Built</span></td></tr>
+      <tr><td class="what"><span class="pill-p">A2b</span> Letter grades</td><td class="what">The six scores (Tone, Speed, Talk/Listen, Questions, Objection, Closing) render as A+/A/A-&hellip;D. Each grade carries its /10 basis; the floor is &ldquo;D / growth-area&rdquo;, never an F.</td><td class="why">A11: a grade that shows its count is a mirror, not a bare verdict. A18: no punitive F.</td><td><span class="tag done">✓ Built</span></td></tr>
+      <tr><td class="what"><span class="pill-p">A2c</span> Strengths / growth</td><td class="what">&ldquo;Doing well&rdquo; and &ldquo;struggling on&rdquo; are derived from those same graded scores — high tiers become Strengths, low tiers become Growth areas.</td><td class="why">Same data, coaching framing (A18) — one source, not a second opinion.</td><td><span class="tag done">✓ Built</span></td></tr>
+      <tr><td class="what"><span class="pill-p">G</span> Manager gate</td><td class="what">Reading a named rep&rsquo;s scores/recordings requires being a manager (Sales-Coach admin or CEO/COO/admin) in the SAME company. Enforced by a pure, unit-tested authz function.</td><td class="why">Per-rep visibility crosses the old self-only §A18 line — so the gate is tested, not trusted.</td><td><span class="tag done">✓ Built</span></td></tr>
+      <tr><td class="what"><span class="pill-p">H</span> Honest states</td><td class="what">A rep with too few sessions shows &ldquo;still accumulating&rdquo;, never a fabricated grade. A failed read shows an error, never &ldquo;no data&rdquo;.</td><td class="why">§3.5/§3.6 (no fabricated measure) and §3.4 (an error is not an empty).</td><td><span class="tag done">✓ Built</span></td></tr>
+      <tr><td class="what"><span class="pill-p">X</span> Expert mode</td><td class="what">Every change is a new file, an additive DB column, a backward-compatible route param, or code strictly inside the Standard branch. The git diff shows zero Expert render-path lines changed.</td><td class="why">Your hard constraint: Expert stays exactly the same.</td><td><span class="tag done">✓ Verified</span></td></tr>
+      <tr><td class="what"><span class="pill-p">?2</span> Rep-saves-own</td><td class="what">The save API accepts the rep, but there is no rep-facing Save button yet. Your PDF says &ldquo;saved by the manager or user&rdquo; — the &ldquo;user&rdquo; UI is a scope decision.</td><td class="why">A10 + spec: does a rep get their own recordings-with-Save surface?</td><td><span class="tag held">◔ Your call</span></td></tr>
+      <tr><td class="what"><span class="pill-p">?3</span> One profile vs two</td><td class="what">Built as two views (Analytics = scores, Sessions = recordings). My earlier recommendation was ONE unified profile. A deviation I&rsquo;m flagging, not hiding.</td><td class="why">AMD-006 L3: from a rep&rsquo;s low grade, can a manager reach that rep&rsquo;s recordings in one place?</td><td><span class="tag held">◔ Your call</span></td></tr>
+    </tbody>
+  </table>
+  <div class="legend">
+    <span><b>Standard</b> = the simplified experience (default for new reps).</span>
+    <span><b>Expert</b> = today&rsquo;s full system, deliberately unchanged.</span>
+  </div>
+  <div class="foot-note">Honest status: every item is <strong>BUILT and gate-verified</strong> (tsc, lint, production build, 849 tests). None has rendered in a live session, so nothing is marked TESTED — apply <strong>0187</strong> and drive it on staging to confirm. An audit (against the framework) found and <strong>fixed</strong> two violations I introduced — a §3.4 error-as-empty and an A19 stale comment — and flagged the two decisions above (?2, ?3) rather than resolving them silently.</div>
+</div>
+
+<!-- 02 SCREENS -->
+<div class="page">
+  <h2 class="sec"><span class="num">02</span>The new system — Standard screens (manager view)</h2>
+  <p class="sub">Faithful representations of the revised Standard UI (not live captures). A rep&rsquo;s own self-view is unchanged (A10).</p>
+  <div class="screens">
+
+    <div class="screen">
+      <div class="cap"><span class="p">S1</span> Sessions &mdash; team roster <small>manager opens a rep&rsquo;s recent recordings</small></div>
+      <div class="phone">
+        <div class="st"><span>9:41</span><span>▪ ▪ ▪ &nbsp;100%</span></div>
+        <div class="ttl">Your team</div>
+        <div class="card" style="padding:7px">
+          <div class="rowi"><span class="nm">Marcus Bell</span><span class="rt">staff &rarr;</span></div>
+          <div class="rowi"><span class="nm">Dana Cole</span><span class="rt">staff &rarr;</span></div>
+          <div class="rowi"><span class="nm">Priya Shah</span><span class="rt">admin &rarr;</span></div>
+        </div>
+        <div style="font-size:8px;color:var(--mut2);margin-top:4px">Open a rep to review recent recordings.</div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="cap"><span class="p">S1</span> Rep &rarr; recordings <small>last 2 days · Save keeps one longer</small></div>
+      <div class="phone">
+        <div class="st"><span>9:41</span><span>▪ ▪ ▪ &nbsp;100%</span></div>
+        <div style="font-size:8px;color:var(--mut2);margin-bottom:3px">&larr; Team</div>
+        <div class="ttl">Marcus Bell</div>
+        <div class="card" style="padding:8px">
+          <div class="rowi"><span><span class="nm">Angry customer</span><br><span class="rt">Jul 15, 4:22 PM</span></span><span class="save on">Saved</span></div>
+          <div class="rowi"><span><span class="nm">Follow-up call</span><br><span class="rt">Jul 15, 1:10 PM</span></span><span class="save">Save</span></div>
+          <div class="rowi"><span><span class="nm">Session</span><br><span class="rt">Jul 14, 6:02 PM</span></span><span class="save">Save</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="cap"><span class="p">A2</span> Analytics &mdash; team roster <small>manager opens a rep&rsquo;s skill profile</small></div>
+      <div class="phone">
+        <div class="st"><span>9:41</span><span>▪ ▪ ▪ &nbsp;100%</span></div>
+        <div class="ttl">Your team</div>
+        <div class="card" style="padding:7px">
+          <div class="rowi"><span class="nm">Marcus Bell</span><span class="rt">staff &rarr;</span></div>
+          <div class="rowi"><span class="nm">Dana Cole</span><span class="rt">staff &rarr;</span></div>
+          <div class="rowi"><span class="nm">Priya Shah</span><span class="rt">admin &rarr;</span></div>
+        </div>
+        <div style="font-size:8px;color:var(--mut2);margin-top:4px">Data to coach with, never a ranking.</div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="cap"><span class="p">A2</span> Rep &rarr; profile <small>letter grades · strengths · growth areas</small></div>
+      <div class="phone">
+        <div class="st"><span>9:41</span><span>▪ ▪ ▪ &nbsp;100%</span></div>
+        <div style="font-size:8px;color:var(--mut2);margin-bottom:3px">&larr; Team</div>
+        <div class="ttl">Marcus Bell</div>
+        <div class="card" style="padding:8px 9px">
+          <div style="display:flex;gap:10px;margin-bottom:7px">
+            <div style="flex:1"><div class="colh">Strengths</div><div style="font-size:9px;color:var(--txt)">Tone · A-</div><div style="font-size:9px;color:var(--txt)">Speed · A</div></div>
+            <div style="flex:1"><div class="colh">Growth areas</div><div style="font-size:9px;color:var(--txt)">Objection · D</div><div style="font-size:9px;color:var(--txt)">Closing · D</div></div>
+          </div>
+          <div class="colh">Skill grades</div>
+          <div class="grade"><span class="gk">Tone</span><span class="gv"><span class="gA">A-</span> · 8.6/10</span></div>
+          <div class="grade"><span class="gk">Speed of speech</span><span class="gv"><span class="gA">A</span> · 9.1/10</span></div>
+          <div class="grade"><span class="gk">Talk / Listen</span><span class="gv"><span class="gB">B</span> · 7.4/10</span></div>
+          <div class="grade"><span class="gk">Questions</span><span class="gv"><span class="gB">B-</span> · 6.7/10</span></div>
+          <div class="grade"><span class="gk">Objection</span><span class="gv"><span class="gD">D</span> · 4.2/10</span></div>
+          <div class="grade"><span class="gk">Closing</span><span class="gv"><span class="gD">D</span> · 3.0/10</span></div>
+        </div>
+        <div style="font-size:7.5px;color:var(--mut2)">Grades summarize the countable behavior behind each skill — coaching targets, not a rank.</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="foot-note">A10 (no shadow read): the numbers a manager sees for a rep are the <strong>identical computation</strong> the rep sees in their own Analytics — the rep is never shown less than their manager sees. A18: every label (&ldquo;Growth areas&rdquo;, grades-as-targets) is chosen to invite <em>coaching</em>, not ranking. Sample data shown; real grades come from the rep&rsquo;s scored calls, with a &ldquo;still accumulating&rdquo; state until there&rsquo;s enough.</div>
+</div>
+
+<!-- 03 FRAMEWORK + STATUS -->
+<div class="page">
+  <h2 class="sec"><span class="num">03</span>Framework spine, audit &amp; what&rsquo;s yours to decide</h2>
+  <p class="sub">Built to the spec, governed by the framework — and honest about what isn&rsquo;t finished.</p>
+  <div class="grid2c">
+    <div class="block">
+      <h3>Framework the build satisfies</h3>
+      <ul class="tight">
+        <li><b>A18</b> — surfacing rep data to a manager, the label is the defense: Strengths / Growth areas, grades as targets, no F, no leaderboard.</li>
+        <li><b>A10</b> — no shadow read: the manager sees the identical numbers the rep sees; same endpoint, same computation.</li>
+        <li><b>A11</b> — mirror not verdict: each letter grade travels with its /10; strengths/growth are derived from those counts.</li>
+        <li><b>§3.5 / §3.6</b> — no fabricated measure; a thin sample shows &ldquo;still accumulating&rdquo;.</li>
+        <li><b>§3.4</b> — a failed read shows an error, not zeros (fixed in audit).</li>
+        <li><b>AMD-006</b> — built foundation-up: data &rarr; APIs &rarr; composition &rarr; surface; Expert isolation proven by diff.</li>
+      </ul>
+    </div>
+    <div class="block">
+      <h3>Honest status</h3>
+      <ul class="tight">
+        <li><b>BUILT + gate-verified</b>: tsc, lint, production build, 849 tests green.</li>
+        <li><b>NOT TESTED</b> live: no route has run against a real DB/auth here.</li>
+        <li><b>0187 UNAPPLIED</b>: apply it, then the purge cron needs CRON_SECRET + a vercel entry (after 0187).</li>
+        <li><b>Purge cron dormant</b> until wired — same sequencing discipline as the other crons.</li>
+        <li><b>Grade bands</b> (the /10&rarr;letter cutoffs) are a one-line tunable constant, flagged for you.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="block" style="margin-top:14px">
+    <h3>Audit result (against the framework, actual files re-read)</h3>
+    <ul class="tight">
+      <li><b>Fixed</b> — §3.4: manager views rendered fetch failures as empty/wrong content &rarr; now an honest error state.</li>
+      <li><b>Fixed</b> — A19: a stale Standard-Analytics comment &rarr; rewritten to the role-conditional behavior.</li>
+      <li><b>Your decision ?2</b> — rep-facing recording-Save UI (spec &ldquo;or user&rdquo; + A10). Additive if you want it.</li>
+      <li><b>Your decision ?3</b> — unify the two rep views into one profile (my ⑧ recommendation) vs keep them split (closer to your two PDF screenshots). A real refactor either way; your call.</li>
+    </ul>
+  </div>
+  <div class="foot-note">Next: <strong>apply 0187</strong> &rarr; drive Sessions &amp; Analytics as a manager on staging &rarr; confirm the roster, grades, recordings, Save, and the 2-day purge &rarr; rule on ?2 and ?3. Full spec, conflicts, and file-by-file plan: <em>docs/feature-specs/ELOSALES-STANDARD-REVISION.md</em>.</div>
+</div>
+
+</body>
+</html>
