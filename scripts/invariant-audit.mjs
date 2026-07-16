@@ -359,16 +359,51 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 6 — a route reading a NAMED OTHER PERSON's data must use the shared cross-person gate ═══
+//
+// LEARNED: 2026-07-17 (the ELOSALES Standard manager-transparency revision — the first leader-visible-data
+// surface this codebase shipped). Three coach routes accept `?agentId=` — i.e. the caller names WHICH PERSON's
+// data to read. Two wired the shared gate (isSalesCoachManager + canManagerViewRepSkills, pure + unit-tested).
+// The ELO route rolled its own inline copy of "who counts as a manager" — the FOURTH copy of that predicate,
+// and one the same session's consolidation missed. It happened to be correct. Nothing enforced that it stay
+// correct, and nothing would have caught it if it hadn't been: same shape as INVARIANT 4 and 5 — a rule known
+// and written, not gated.
+//
+// Why THIS is the chokepoint: "is this surface leader-visible?" is a semantic property of a UI with no
+// mechanical detector (A33 — do not lower the precision bar). But one layer down, every read of a NAMED other
+// person's data must accept that person's id from the caller. `?agentId=` IS that chokepoint: a route reading
+// it is, by construction, either serving self or crossing the §A18 boundary. Precise by design — a route that
+// reads agentId and does not gate it is the IDOR/shadow-read shape, never a false positive.
+//
+// The rule: a route reading `searchParams.get("agentId")` must gate it through canManagerViewRepSkills — or be
+// allowlisted with the reason its own path is sufficient. NOTE the deliberate narrowness: `memberId`/`userId`
+// are NOT matched. team/route.ts reads `memberId` to REMOVE a member — a mutation target, not a per-person
+// read — and firing there would be exactly the cry-wolf failure A30 forbids.
+const CROSS_PERSON_GATE_ALLOWLIST = new Map([]);
+for (const f of FILES) {
+  if (!/\/route\.ts$/.test(f.path)) continue;
+  if (!/searchParams\.get\(["']agentId["']\)/.test(f.sql)) continue;
+  if (CROSS_PERSON_GATE_ALLOWLIST.has(f.path)) continue;
+  if (/canManagerViewRepSkills/.test(f.sql)) continue;
+  findings.push({
+    rule: "A route reading another person's data (?agentId=) must use the shared cross-person gate",
+    file: f.path,
+    why:
+      "reads `agentId` from the caller — so it can serve one person's data to another — but never calls canManagerViewRepSkills. That gate is pure, unit-tested, and enforces BOTH conditions (caller is a manager AND target is in the same company). Hand-rolling it is how the fourth copy of the manager predicate appeared. Wire the shared gate, or allowlist with the reason. See docs/pre-merge-checklists/LEADER-VISIBLE-DATA.md before shipping any leader-visible surface.",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
   console.log(
     "\n✓ CSV exports formula-safe · finance routes RLS-scoped · finance schema reachable ·" +
-      " no client-callable DEFINER tenant-param fn · every upload route validated."
+      " no client-callable DEFINER tenant-param fn · every upload route validated ·" +
+      " every cross-person read gated."
   );
   process.exit(0);
 }

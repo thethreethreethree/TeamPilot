@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { isSalesCoachManager, canManagerViewRepSkills } from "@/lib/coach/v5/skillAccess";
 import { getAgentEloRating } from "@/lib/coach/v5/salesElo";
 
 /**
@@ -38,17 +39,21 @@ export async function GET(req: NextRequest) {
   if (!companyId) {
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
-  const role = (profile?.role as string | null) ?? null;
-  const isManager =
-    role === "CEO" ||
-    role === "COO" ||
-    role === "admin" ||
-    profile?.sales_coach_role === "admin";
+  // The cross-person gate lives in ONE place (skillAccess), not four (A13/A28/INVARIANT 6). This route had the
+  // FOURTH inline copy of "who counts as a manager" — provably identical to isSalesCoachManager, and missed by
+  // the consolidation that fixed list/ and team/ earlier in this session. INVARIANT 6 found it. Behaviour is
+  // preserved exactly: same order (manager check before the target fetch), same 403 for a non-manager peer,
+  // same 404 for a cross-company target.
+  const caller = {
+    role: (profile?.role as string | null) ?? null,
+    sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
+    company_id: companyId,
+  };
 
   const agentId = req.nextUrl.searchParams.get("agentId") || auth.user.id;
   const isSelf = agentId === auth.user.id;
 
-  if (!isSelf && !isManager) {
+  if (!isSelf && !isSalesCoachManager(caller)) {
     // A rep may only see their own rating; peers' ratings need manager access.
     return NextResponse.json(
       { error: "You can only view your own rating." },
@@ -64,14 +69,13 @@ export async function GET(req: NextRequest) {
       .select("company_id")
       .eq("id", agentId)
       .maybeSingle();
-    if (!target || target.company_id !== companyId) {
+    if (!canManagerViewRepSkills(caller, target ?? null).ok) {
       return NextResponse.json(
         { error: "Agent not found in your company." },
         { status: 404 }
       );
     }
   }
-
   const elo = await getAgentEloRating(agentId);
   // §A18 exposure discipline: the per-session `history` (each game's derived
   // gameScore) is a finer read of the rep's owner-private scores than "managers

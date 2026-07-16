@@ -20,6 +20,7 @@ describe("invariant-audit.mjs", () => {
     const out = execFileSync("node", ["scripts/invariant-audit.mjs"], { encoding: "utf8" });
     expect(out).toContain("Violations:           0");
     expect(out).toContain("every upload route validated");
+    expect(out).toContain("every cross-person read gated");
   });
 
   // The patterns must actually match a real violation. Verified against strings shaped like the code they
@@ -31,6 +32,25 @@ describe("invariant-audit.mjs", () => {
     const routed = /csvSafe|neutralizeCsvFormula|toCsv|statementsToCsv/;
     expect(routed.test('import { toCsv } from "@/lib/export/toCsv";')).toBe(true);
     expect(routed.test('const csv = rows.map(r => r.join(",")).join("\\n");')).toBe(false);
+  });
+
+  // INVARIANT 6. The detector must match the real call shapes AND stay narrow enough not to cry wolf: the
+  // gate exists because the ELO route hand-rolled the manager predicate (the 4th copy), so the negative case
+  // below — an inline `role === "CEO" || sales_coach_role === "admin"` does NOT count as gated — is the one
+  // that proves this catches the bug it was built for.
+  it("the cross-person detector matches both agentId read shapes, and does not accept a hand-rolled gate", () => {
+    const readsAgentId = /searchParams\.get\(["']agentId["']\)/;
+    expect(readsAgentId.test('const requestedAgentId = new URL(req.url).searchParams.get("agentId");')).toBe(true);
+    expect(readsAgentId.test("const agentId = req.nextUrl.searchParams.get('agentId') || auth.user.id;")).toBe(true);
+    // Deliberately narrow (A30's false-positive constraint): a MUTATION target is not a per-person read.
+    // team/route.ts reads memberId to remove a member — firing there would be the cry-wolf failure.
+    expect(readsAgentId.test('const memberId = url.searchParams.get("memberId");')).toBe(false);
+    expect(readsAgentId.test('const userId = url.searchParams.get("userId");')).toBe(false);
+
+    const gated = /canManagerViewRepSkills/;
+    expect(gated.test("if (!canManagerViewRepSkills(caller, target ?? null).ok) {")).toBe(true);
+    // The ELO route's pre-fix shape: correct, but hand-rolled. The gate must NOT treat it as gated.
+    expect(gated.test('const isManager = role === "CEO" || profile?.sales_coach_role === "admin";')).toBe(false);
   });
 
   it("the service-role detector matches every way a finance route could reach for it", () => {
