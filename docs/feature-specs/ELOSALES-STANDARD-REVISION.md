@@ -165,7 +165,7 @@ Sessions still renders the Start panel. Report in section 7 below.
 ## 7. Honest build report
 
 *Written 2026-07-17, after the build and the self-audit. Status words are used strictly: **BUILT** = written and
-gate-verified (tsc/ESLint/vitest/`next build`). **TESTED** = observed working against a live DB/auth. Nothing in
+gate-verified **by `npm run check`** — the project's canonical six-gate command, named rather than paraphrased (per A38: *"verified" is a claim about a command you ran*). **TESTED** = observed working against a live DB/auth. *(This definition originally read "gate-verified (tsc/ESLint/vitest/next build)" — **four of the six gates**, with the lint scoped to files I chose to name. It was the definition of the status word this whole document uses, so every "BUILT" below inherited it. The real command, run at 06:47, **failed** — on an error that had been failing CI for a day and that my scoped lint could not see.)* Nothing in
 this revision is TESTED — no route here has run against a real database in this session. Where I say "verified,"
 the verification method is named.*
 
