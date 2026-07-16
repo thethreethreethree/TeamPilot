@@ -24,7 +24,62 @@
 > **⚠️ Ordering has a data consequence:** the purge cron is **dormant**. If playback ships later, the audio it
 > would have played may already be purged. And **⑧ is armed by ⑦** — see below.
 >
-> **🟠 The other open rulings** (all founder-only; I built the spec as written and did not drift):
+> **⬇️ RECOMMENDATIONS ADDED 04:26 — I had been offloading.** Everything below originally listed options and
+> said "your call." Per A20, *"founder decision needed" is appropriate ONLY when the agent has surfaced options
+> **with its own recommendation** — without that, it's offloading.* I had a default on every one of these and
+> withheld it to avoid being wrong (A20's mode 2). Each item now carries **I recommend X; override if Y.** The
+> choice remains yours; the work of having an opinion is mine.
+>
+> **⑦ — I recommend BUILDING PLAYBACK (option 1).** *Why:* your PDF's own words — *"recordings,"* *"delete after
+> 2 days,"* *"unless saved"* — only mean something if a recording can be heard; that language describes an audio
+> lifecycle, so "drop the audio" contradicts your evident intent, and "ship as-is" keeps a growing privacy
+> liability with zero value drawn from it. Building it makes the spec you wrote true. *Override if:* you intended
+> review to be transcript-based all along — in which case **drop the audio**, and `0187`, the purge cron, the
+> save route and the Save UI all disappear with it (a real simplification, and the privacy-cleanest option).
+> **Do NOT ship as-is** — that is the only option with no coherent end-state.
+>
+> **⑧ — I recommend (c) rep-always-wins + (d) append-only attribution.** *Why:* (c) is **already true and free**
+> — it is what the schema does today (see the A23 note: a rep can PATCH `recording_saved` directly, so (a) and
+> (b) are not route-implementable and need a trigger migration). It is also the most consistent with A10/A18: the
+> rep controls what is kept of their own calls, and a manager who wants a call preserved has to *ask* — which is
+> the coaching conversation the product exists to cause, forced by design instead of by a silent guarantee. (d)
+> keeps who-saved/who-released so "it vanished" is never a mystery. *Override if:* you want the coaching evidence
+> guaranteed against the rep's wishes — then it is (a) or (b), and that costs a BEFORE-UPDATE trigger, not a
+> route change.
+>
+> **⑤ — I recommend (b): pair each letter with its tier word** ("D · growth area", "A- · strength"). *Why:* it
+> keeps the letters your PDF mandates while putting the coaching-shaped label on the same line, so the invited
+> action travels wherever the grade renders. The tier already exists in `skillGrade.ts`; this is small. *Override
+> if:* you want the bare letter (ship as-spec'd, tension accepted on the record) or no letter at all.
+>
+> **⑥ — I recommend BUILDING the static per-skill move map** (~30 lines, no LLM, no new data). *Why:* A7 is
+> currently violated on the rep's own screen — six metrics, no offered move — and my A10 fix sharpened it. It is
+> the cheapest half of the 7.5f absence, and it is the difference between a rep's screen saying *"you are a D"*
+> and *"here's the next thing to try."* *Override if:* you want the fuller version instead (lead with what
+> improved against their own past) — that is better and bigger, and it is a product judgment I should not make.
+>
+> **The 7.5f absence — I recommend ⑤(b) + ⑥ as the minimum**, and treating the fuller rep surface as a real
+> product decision you own. *Why:* together they turn the rep's screen from a verdict into an offer, which is the
+> smallest honest answer to *"what does this feature give the rep?"*
+>
+> **② — I recommend BUILDING the rep-facing Save UI.** *Why:* your PDF says "saved by the manager **or user**,"
+> and under ⑧(c) the rep already has the capability at the API layer — so the UI merely makes an existing power
+> visible instead of hidden. *Override if:* ⑧ goes to (a).
+>
+> **③ — I recommend the unified rep profile** (grades and recordings in one place). *Why:* it was my
+> recommendation before I built it split, and the reason still stands: a manager who sees "Closing · D" should
+> reach that rep's recordings without navigating to a different tab and re-finding them (AMD-006 L3). *Override
+> if:* you want the two screens to match your two PDF screenshots exactly — which is a legitimate reading of the
+> spec and why I built it that way.
+>
+> **The Sessions flicker — I recommend gating the early return on the team-loading state.** *Why:* `isManager`
+> starts `false`, so a Standard manager provably renders the rep's Sessions page first, then swaps to the roster.
+> It is the F1-flicker class this codebase already fixed once. I deferred it as "runtime-unverifiable headless,"
+> which was me applying my own risk bar (A20's mode 3) — the logic is verifiable by reading, and the fix is a
+> loading gate. *Override if:* you'd rather I not touch that page's structure at all under the no-drift rule —
+> which is a real constraint you set, and the reason I am recommending rather than shipping.
+>
+> **🟠 The rulings themselves** (options and evidence in `docs/feature-specs/ELOSALES-STANDARD-REVISION.md`):
 > - **⑧ Who may UN-save a recording?** Your PDF names who may *save*; it is silent on un-save, and **I decided
 >   that silently — the one place I did so.** Today a rep can un-save what their *manager* saved, which also
 >   nulls `recording_saved_by` (erasing who preserved it), and the purge then deletes it. **Latent today** (the
