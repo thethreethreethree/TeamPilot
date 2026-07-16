@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import {
   classifySession,
   extractSessionSignals,
@@ -29,9 +30,15 @@ async function resolve() {
     .select("role, company_id, sales_coach_role")
     .eq("id", auth.user.id)
     .maybeSingle();
-  const role = (profile?.role as string | null) ?? null;
-  const isCompanyAdmin = role === "CEO" || role === "COO" || role === "admin";
-  const isManager = isCompanyAdmin || profile?.sales_coach_role === "admin";
+  // One definition of "manager", shared with /team and the skills/recordings gates (A33 chokepoint): this
+  // predicate decides what a leader can see about a named rep, and it was written inline in three places that
+  // agreed only by coincidence. Behaviour here is unchanged — the inline form was provably identical — but it
+  // now lives behind skillAccess's unit tests, so a future weakening fails CI instead of review.
+  const isManager = isSalesCoachManager({
+    role: (profile?.role as string | null) ?? null,
+    sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
+    company_id: (profile?.company_id as string | null) ?? null,
+  });
   return {
     ok: true as const,
     userId: auth.user.id,

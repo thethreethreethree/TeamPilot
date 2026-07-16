@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { readBody } from "@/lib/api/validate";
 
 /**
@@ -31,9 +32,16 @@ async function resolve() {
     .select("role, company_id, sales_coach_role")
     .eq("id", auth.user.id)
     .maybeSingle();
-  const role = (profile?.role as string | null) ?? null;
-  const isCompanyAdmin = role === "CEO" || role === "COO" || role === "admin";
-  const isManager = isCompanyAdmin || profile?.sales_coach_role === "admin";
+  // Same single definition of "manager" as /list and the skills/recordings gates (A33 chokepoint). The two
+  // routes agreed only by coincidence, and the Standard Sessions page trusts BOTH — /list decides whether the
+  // page early-returns the manager view, /team decides what that view renders. Divergence would have shown a
+  // manager a blank screen. Behaviour unchanged (the inline form was provably identical); the definition is now
+  // unit-tested in one place.
+  const isManager = isSalesCoachManager({
+    role: (profile?.role as string | null) ?? null,
+    sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
+    company_id: (profile?.company_id as string | null) ?? null,
+  });
   return {
     ok: true as const,
     sb,

@@ -199,27 +199,34 @@ export default function SalesCoachAnalyticsPage() {
         )}
 
         {/* STANDARD — the honest counterpart. In Standard a manager CAN open a named rep and read their grades,
-            the counts behind them, and their recent recordings. A rep is told that plainly here, because the
+            the counts behind them, and their recent recordings. That is stated plainly here, because the
             alternative is a product that reassures someone their manager isn't looking while their manager is
             looking. A10's contract is not just "you can see the read" — it is that the rep is never misled about
-            what is read about them. */}
+            what is read about them.
+
+            ROLE-NEUTRAL BY CONSTRUCTION (A14): this hint renders under `isStandard` for BOTH readers — the role
+            split lives inside StandardAnalyticsManagerView (it owns the team fetch), so this surface does not
+            know who is reading it. The first draft was rep-framed ("YOUR manager can open YOUR profile") and
+            therefore rendered nonsense to a manager, who is not looking at their own profile — A14's exact
+            shape: one render branch verified, the sibling never walked. The copy below is written to be TRUE
+            read from either seat rather than plumbing role state up to the page for a paragraph. */}
         {isStandard && (
           <LearningHint
             as="block"
             category="Sales Coach · Analytics"
-            title="Your manager sees these grades — and so do you"
-            whatItIs="The framing for Analytics in Standard: your six skills, scored from your recent calls, each with the count it came from. Your manager can open your profile and read these same grades and counts, and can see your recordings from the last 2 days."
-            why="A coaching tool that shows your manager something you cannot see is surveillance wearing a coaching label. This surface refuses that: there is no read your manager has about you that you cannot read here — same grades, same counts, same screen. You are told what is visible, rather than left to assume."
-            how="Read your skills as a trend against your own past, not against other people. If your manager raises a grade with you, the count behind it is right here — check it, and push back on it if it is wrong. A count is something you can argue with."
+            title="Grades here are visible to both the rep and their manager"
+            whatItIs="The framing for Analytics in Standard: six skills, scored from recent calls, each shown with the count it came from. A manager can open any rep on their team and read those same grades and counts, and can see that rep's recordings from the last 2 days. The rep sees exactly the same grades on this screen."
+            why="A coaching tool that shows a manager something the rep cannot see is surveillance wearing a coaching label. This surface refuses that: there is no read a manager has about a rep that the rep cannot read themselves — same grades, same counts. Both parties are told what is visible, rather than left to assume."
+            how="Read skills as a trend against your own past, not against other people. Managers: the count under each grade is the thing to coach on — it is specific, and the rep can check it. Reps: if a grade comes up, the count behind it is right here — a count is something you can argue with."
             principle="A read about you that you can't see is a read you can't answer."
           >
             <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
               <Users className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
               <p className="text-xs text-secondary leading-relaxed">
-                Your manager can open your profile and see{" "}
-                <span className="text-primary">these same grades</span> and your recordings from the
-                last 2 days — nothing here is hidden from you, and nothing there is hidden from you
-                (§A10). Tracked against your own past, never as a ranking (§A18).
+                In Standard, a manager can open a rep&apos;s profile and see{" "}
+                <span className="text-primary">these same grades</span> and their recordings from the
+                last 2 days — and the rep sees every grade their manager sees (§A10). Tracked against
+                your own past, never as a ranking (§A18).
               </p>
             </div>
           </LearningHint>
