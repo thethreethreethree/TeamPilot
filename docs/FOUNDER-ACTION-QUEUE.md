@@ -127,7 +127,7 @@
 >
 > **⑤ — RECOMMENDATION CHANGED (05:34). I now recommend the COUNT be the label, not a letter paired with a
 > word.** I previously said "(b): pair each letter with its tier word." That was the best answer I had before
-> reading `docs/CARE-ASSET-AUDIT-2026-06-16.md` — **your own audit, which diagnosed this exact class a month ago
+> reading `docs/CARE-ASSET-AUDIT-2026-06-16.md` — **a prior audit in this repo (agent-written, 2026-06-16, not yours — see the attribution correction at the end of this item), which diagnosed this exact class a month ago
 > in C.A.R.E and prescribed the opposite of what the PDF orders.** Its words:
 >
 > > *"The labels `productive`/`neutral`/`needs_guidance`, **read as a 3-tier ladder, invite the leader to rank
@@ -154,7 +154,9 @@
 > a letter faster than a count, and that is a real argument I cannot weigh from here. **But note the cost you'd be
 > accepting:** per A1 the letter reinforces no clause of your constitution, so keeping it is a §7 amendment (your
 > PDF can *begin* one — you are the ratifier — but §7.2's gate has never been run on it), and per this audit it is
-> the label shape your own prior diagnosis told you to remove.
+> the label shape a prior diagnosis in this repo recommended removing.
+>
+> > **ATTRIBUTION CORRECTED 06:24.** This item originally said *"**your own audit**… your own prior diagnosis told you to remove"*, and that overstated my case in my favour. **You did not write that audit — a previous agent session did**, and its A18 re-label was a *proposal that was never shipped* (its own status line reads *"P1 — partial compliance at the label layer; structural fix would re-label"*). So the honest weight is: **a prior agent analysis reached the same conclusion I am reaching now, and nobody acted on it.** That is corroboration, not a self-contradiction on your part — meaningfully weaker, and the version you should weigh. I found this sweeping the class of a false attribution I had shipped in `skillGrade.ts` (*"the founder's announced default"* for a choice that was mine); this was the same shape, aimed at the argument's weight rather than at a design choice.**
 >
 > > **⚠️ PRECEDENT I OWED YOU ON ⑤ (found 04:31, A28 — I flagged seven decisions and searched for precedents on
 > > none of them).** Your product has **already decided this question, the opposite way, in C.A.R.E.** The

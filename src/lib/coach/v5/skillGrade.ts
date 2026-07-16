@@ -21,7 +21,7 @@
  *          founder had announced nothing. Claiming their sanction for my own design choice is worse than
  *          offloading the choice to them (A20's inverse), and it is the kind of claim a reader cannot check.
  *    ⑤ remains OPEN and is now sharper than ①(b) ever was: per A1 the letter reinforces no clause of the
- *    constitution, and the founder's own C.A.R.E audit (2026-06-16) prescribed labels "descriptive of the reply
+ *    constitution, and the C.A.R.E asset audit (2026-06-16 — agent-written, not the founder's) proposed labels "descriptive of the reply
  *    shape, not of agent worth". The live recommendation is to let the COUNT be the label. See the queue.
  *  - A18 (label is the defense against a leader misusing the data): the band labels invite COACHING, not
  *    penalty. There is deliberately NO "F". The lowest band is a "growth area" — a coaching target, never a
