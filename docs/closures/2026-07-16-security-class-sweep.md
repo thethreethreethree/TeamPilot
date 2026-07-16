@@ -1276,6 +1276,21 @@ enforcement.** The pattern holds: a NEW systematic lens (constitutional-constant
 enforcement the ad-hoc probes missed. The moat's structural interrupts are increasingly protected in CI, not
 just prose — the strongest form of §A30 (gate the lesson) for the thesis core.
 
+## 75. §3.5 MOAT METRIC computation now CI-pinned — extracted `summarizeTopicDurability` + tested
+Continuing the constitutional-constant lens to the §3.5 moat metric: the coach-readout's durability breakdown
+(held/reopened/partial counts = the COACHED-vs-UNCOACHED consequence comparison, class 46) was computed by a
+route-LOCAL `summarize()` — pure logic, but untestable in place (route needs auth + DB) and untested. Extracted
+it to `src/lib/coach/readoutSummary.ts` as `summarizeTopicDurability` (a clean pure fn — closure-free, verified
+before moving), imported it back into the route (call sites unchanged), and wrote 6 tests pinning: exact held/
+reopened/partial counts, the subtle `unknown` = explicit-unknown-OR-closed-without-a-mark logic (the review
+gap), avgCloseHours (positive durations only), avgMessages (missing id → 0), and honest-empty (empty input →
+zeros, not a crash). **Verified on EVERY headless axis: test (6 pass) · tsc clean · lint clean · `next build`
+clean (coach-readout compiles).** Behaviour preserved by construction (identical fn relocated). This is A32's
+"build what you can verify" — a route refactor is riskier than a pure-additive test, but the function is
+provably pure and tsc+build are strong nets, so it was verifiable end-to-end. **The §3 thesis core is now
+CI-pinned across its measurement surfaces: §3.3 ask-first (74) · §3.4 control-gate (49) + cycle-phase (73) ·
+§3.5 consequence metric (75).** The moat is protected in CI, not just prose — A30 realized for the constitution.
+
 ## Baseline note for the next pass
 - New secret checks MUST use `constantTimeEqual` (enforced-by-convention; grep `!==.*secret|token|Bearer`).
 - A rule declared in TWO places (client + server copy of the same graph/list) is a drift bug waiting to
