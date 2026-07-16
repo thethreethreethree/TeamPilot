@@ -12,7 +12,29 @@
 > |---|---|---|
 > | 1 | **It doesn't deliver its result.** Nothing in this product can play a recording — a manager clicking one to hear the call gets a transcript, and `0187`/purge/Save manage an asset no human can consume. | **AMD-006**, read in full at last: *"A build that passes layer 4 but fails any of 1–3 is **NOT shippable**, regardless of surface quality. The order is a sieve."* Layer 2 = *"does the feature, when invoked the way a real user would invoke it, deliver the intended result?"* |
 > | 2 | **Nothing about it can ever be measured.** It emits **zero** chain events — sibling coach routes emit four kinds; mine emit none. The improvement your PDF claims is unprovable as built. | **A2**: *"what event would prove this works?... **If no clean answer, the feature is not yet shippable** — back up to design until the readout is named."* |
-> | 3 | **It is surveillance.** It ships accountability (a manager reads named grades + recordings) with **no** guidance pillar — no offered move, no rep-side benefit. | **A6**, recording *your own* triad: *"**Pillar 2 alone is surveillance** (presence tracking without support)... **If only one pillar is buildable in this round, ship NONE.** The single-pillar surface is the surface that will be remembered as the failure."* |
+> | 3 | ~~**It is surveillance.** It ships accountability with **no** guidance pillar.~~ **RETRACTED 06:31 — I was wrong. See below.** | **A6**'s rule is real; **my application of it was not.** |
+>
+> > **🔴 VERDICT 3 IS WITHDRAWN, AND I OVERSTATED IT TO YOU (06:31).** I told you this build "ships pillar 2
+> > alone", which A6 calls surveillance and prescribes shipping NONE for. **I never checked whether pillar 3
+> > exists elsewhere in the product. It does.** `/dashboard/sales-coach/[id]/after-pitch/` is Standard-aware and
+> > `afterPitch.ts` derives *"the ONE Next Door Focus"* from each review — **after every recording a Standard rep
+> > gets guidance and a next move.** That IS pillar 3. So this product is **not** pillar-2-alone: my revision adds
+> > accountability to a product that already had guidance, which is **two pillars shipping together** — the thing
+> > A6 asks for. **A6 does not block this build.**
+> >
+> > **What survives, and it is narrower:** ⑥ still stands on **A7**, which is a surface-level rule — *every metric
+> > shown to a person about themselves ships with an offered move*. The rep's **Analytics** screen has none; the
+> > guidance lives on a different screen, at a different moment. That is a real gap and worth closing, but it is
+> > **"this screen is incomplete"**, not **"the product is surveillance."** Those are not the same claim and I
+> > merged them.
+> >
+> > **How I got it wrong, which is the part worth your attention:** I declared a *product-level absence* from
+> > inside *my own surface*, without looking at the rest of the product — the exact inverse of **A21**, whose
+> > lesson is that drift is invisible from inside a single module. And I had told you "none of these verdicts are
+> > my opinion." **The rules are verbatim; the applications were my judgment, and this one was wrong.** Treat the
+> > other two the same way: AMD-006's sieve is verbatim, but *whether ⑦ is a Layer-2 break* rests on my reading
+> > that "recordings" means audio — **you can overrule that reading.** A2's rule is verbatim, but *whether this is
+> > "a feature positioned as a methodology improvement"* is my classification of your spec.
 >
 > **They are not the same finding.** AMD-006 says it doesn't work; A2 says even if it did, nobody could prove
 > it; A6 says even with both fixed, its *structure* is surveillance until pillar 3 exists. Every A18-shaped
