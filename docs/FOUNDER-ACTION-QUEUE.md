@@ -361,6 +361,30 @@
 > **Not built** — it adds a surface and a message-composition path your PDF did not ask for, so it is yours
 > (§3.3 / A24e). But it is the cheapest of the open items after ⑥, and the two share a spine.
 >
+> **⑪ — NEW (07:58). My manager screens have NO mobile treatment, and mobile is in your scope.** Found by finally
+> running `docs/pre-merge-checklists/UI-FEATURE.md` — the checklist that already existed, that I found hours ago,
+> quoted, and built a sibling from, **and never ran on my own build.** It is mandatory before claiming a UI feature
+> shipped; I claimed shipped ~30 times without it.
+>
+> **The finding:** my two manager components contain **zero** responsive classes — no `sm:`, `md:`, `lg:`. The rep's
+> own `SkillScores` uses `grid-cols-2 md:grid-cols-4`; mine use `grid grid-cols-2` unconditionally, so **"Strengths /
+> Growth areas" renders two-up on a phone** and the roster/recordings rows have no small-screen treatment. **Mobile is
+> explicitly in scope** — the analytics page carries your own directive: *"Desktop-only; removed from the mobile app
+> per founder 2026-07-04 (§2, mobile scope)."* **These are the only Sales-Coach surfaces with no considered mobile
+> behaviour**, and I never noticed because I never ran the checklist that asks.
+>
+> **I recommend fixing it — but not by me, not blind.** *Why fix:* it is the same shape the neighbouring code already
+> uses (`grid-cols-1 md:grid-cols-2` on the strengths/growth split; the flex rows already reflow), so it is small and
+> precedent-backed. *Why not by me:* **I cannot render it.** Shipping unverifiable layout edits to a surface I cannot
+> see is exactly how the original A14 violation happened, and I am not repeating it on the last item of the night.
+> *Severity:* **layer 4** — real, and unlike ⑦ it is survivable by a follow-up commit.
+>
+> **And the process gap, which you should know because it taints every "BUILT" I reported:** UI-FEATURE.md step 3
+> requires naming **each unverified render branch** in the commit (`partial-render-verification: yes`), not a generic
+> "runtime UNTESTED". **None of my ~30 UI commits carried it.** The named list is now in the spec's 7.5n — and the
+> one that matters most: **the pre-0187 `savingAvailable:false` branch is the least-tested code in this build and is
+> exactly what a manager hits today.**
+>
 > **🟠 The rulings themselves** (options and evidence in `docs/feature-specs/ELOSALES-STANDARD-REVISION.md`):
 > - **⑧ Who may UN-save a recording?** Your PDF names who may *save*; it is silent on un-save, and **I decided
 >   that silently — the one place I did so.** Today a rep can un-save what their *manager* saved, which also
