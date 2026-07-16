@@ -144,13 +144,24 @@ function RepProfile({ member, onBack }: { member: Member; onBack: () => void }) 
           <p className="text-[11px] uppercase tracking-wide text-muted mb-2">Skill grades</p>
           <div className="flex flex-col divide-y divide-white/5">
             {graded.map((g) => (
-              <div key={g.label} className="flex items-center justify-between py-2">
-                <span className="text-sm text-primary">{g.label}</span>
-                <span className="text-sm text-muted">
-                  {g.grade.letter === null
-                    ? "— still accumulating"
-                    : `${g.grade.letter} · ${g.grade.fromScore}/10`}
-                </span>
+              <div key={g.label} className="py-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-primary">{g.label}</span>
+                  <span className="text-sm text-muted">
+                    {g.grade.letter === null
+                      ? "— still accumulating"
+                      : `${g.grade.letter} · ${g.grade.fromScore}/10`}
+                  </span>
+                </div>
+                {/* A11 — the countable behavior the grade is made of. A manager shown only a letter can do
+                    nothing but ACCEPT the System's verdict; the count is what makes the grade coachable (you
+                    can talk about it with the rep) and challengeable (the rep can dispute a count, never a
+                    letter). A11's line is exact: "the first is a verdict that can be wrong; the second is a
+                    count that cannot." Rendering the grade WITHOUT this line hands authority a judgment with
+                    its evidence stripped out — the inverse of what A11 asks for. */}
+                {g.breakdown && (
+                  <p className="mt-1 text-[11px] leading-snug text-secondary">{g.breakdown}</p>
+                )}
               </div>
             ))}
           </div>

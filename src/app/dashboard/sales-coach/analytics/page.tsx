@@ -15,6 +15,7 @@ import { LearningHint } from "@/components/learning/LearningHint";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { StandardAnalyticsManagerView } from "@/components/sales-coach/StandardAnalyticsManagerView";
+import { gradeSkill } from "@/lib/coach/v5/skillGrade";
 
 type SkillRow = {
   key: string;
@@ -148,13 +149,11 @@ export default function SalesCoachAnalyticsPage() {
     <>
       <TopBar title="Analytics" subtitle="Your coaching over time" />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-6 bg-base">
-        {/* STANDARD is ROLE-CONDITIONAL (ELOSALES revision): a MANAGER sees the team roster → per-rep
-            profile (grades + strengths/growth); a REP sees their OWN six per-skill /10 scores + AI
-            breakdowns (the self-mirror, A10) — that rep path is the `fallback` below. Either way the ELO
-            number stays Expert-only. Role split lives in StandardAnalyticsManagerView. */}
-        {/* ELOSALES revision (PDF Analytics §B): in Standard, a MANAGER sees the team roster → per-rep
-            profile; a REP still sees their own scores (A10 self-view = the fallback). Expert branch below is
-            untouched. Role split lives in StandardAnalyticsManagerView (team endpoint's isManager). */}
+        {/* ELOSALES revision (PDF Analytics section B) — STANDARD is ROLE-CONDITIONAL: a MANAGER sees the
+            team roster → per-rep profile (grades + the counts behind them); a REP sees their OWN six skills
+            with the SAME grade the manager reads (A10 — no shadow read), which is the `fallback` below.
+            Either way the ELO number stays Expert-only. Role split lives in StandardAnalyticsManagerView
+            (team endpoint's isManager). The Expert branch below is untouched. */}
         {isStandard && (
           <StandardAnalyticsManagerView
             fallback={<SkillScores skills={skills} sampleSessions={skillSessions} />}
@@ -473,11 +472,18 @@ function SkillScores({
         <p className="text-[11px] text-muted">
           Across your last {sampleSessions} scored{" "}
           {sampleSessions === 1 ? "call" : "calls"} — your own mirror, not a ranking.
+          {" "}This is the same read your manager sees about you.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-2.5">
         {skills.map((s) => {
           const scored = s.score !== null;
+          // A10 — "the user sees the same data, WITH THE SAME LEVEL OF DETAIL." The manager's per-rep profile
+          // renders a letter grade for each skill; until this line the rep could only see the /10 and could
+          // not see the letter their manager was reading — a derived read about them they had no surface for,
+          // which is A10's definition of a shadow read. This revision CREATED that asymmetry, so it repairs
+          // it: same grade, same screen, so a rep can challenge or use what is said about them.
+          const grade = gradeSkill(s.score);
           // Low scores are the point — colour them so the eye lands on what to work
           // on. Null (unmeasured) is neutral grey, never red.
           const tone = !scored
@@ -496,9 +502,14 @@ function SkillScores({
                 <p className="text-[10px] uppercase tracking-widest font-bold text-muted">
                   {s.label}
                 </p>
-                <p className={`text-lg font-bold tabular-nums ${tone}`}>
-                  {scored ? `${s.score}/10` : "—"}
-                </p>
+                <div className="flex items-baseline gap-1.5">
+                  {grade.letter && (
+                    <span className={`text-xs font-bold ${tone}`}>{grade.letter}</span>
+                  )}
+                  <p className={`text-lg font-bold tabular-nums ${tone}`}>
+                    {scored ? `${s.score}/10` : "—"}
+                  </p>
+                </div>
               </div>
               <p className="mt-1 text-[11px] leading-snug text-secondary">
                 {s.breakdown}

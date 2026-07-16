@@ -269,6 +269,44 @@ silently restructure. Options, for the founder — not a recommendation I've ear
 - **(c) Founder's own framing** — the label question is a judgement about how this company coaches, which is the
   founder's call to make, not mine (§3.3).
 
+### 7.5c The A18 finding was one instance of a class — I swept it (§A26)
+
+*2026-07-17. The class is not "A18 was misremembered." It is: **every clause I cited across this build, I cited
+from memory** — A10, A11, §3.4, §3.5 governed this revision and I never opened any of them. Re-reading A18
+produced a real finding on a built surface, which makes the unswept remainder a known risk, not a hypothetical.
+So I read A10 and A11 at the source. Both contradicted compliance claims I had written into my own code comments.*
+
+**FIXED — A10 violation (a shadow read this revision created).** A10's test is *"a UI surface where the user can
+see this same data themselves, **with the same level of detail**."* My comment claimed *"the numbers here are the
+identical computation the rep sees."* True of the numbers, **false of the build**: the manager's profile renders a
+**letter grade** and a **strengths/growth classification**; the rep's self-view rendered only the raw `/10`. The
+letter and the classification were derived reads about the rep **that the rep had no surface for** — A10's
+definition of a shadow read, and the rep cannot challenge a verdict they cannot see. This asymmetry **did not
+exist before this revision** — my build created the A10 obligation, so repairing it is completing my own work, not
+drifting from the spec. The rep's own Analytics now shows the same letter grade the manager reads, and says so
+plainly: *"This is the same read your manager sees about you."*
+
+**FIXED — A11 inversion (the authority saw the verdict with its evidence stripped out).** Each rep skill card
+renders `breakdown` — the countable behavior. The manager's profile rendered the letter and the `/10` and **not
+the breakdown**. So the person *with authority over the rep* saw the **verdict without the counts**, and could do
+nothing but accept the System's judgment. That is precisely inverted from A11: *"the System counts, observes,
+surfaces — the user decides."* My defense in the report ("the grade carries its /10 basis") does not survive the
+source either — the `/10` is itself a derived score, not countable behavior, and A11 is exact: *"the first is a
+verdict that can be wrong; the second is a count that cannot."* Attaching a count to a verdict does not convert
+the verdict into a count. The manager's profile now renders the breakdown under each grade, so the grade is
+coachable (there is something to talk about with the rep) and challengeable (a rep can dispute a count; nobody
+can dispute a letter).
+
+**Still OPEN ⑤ (unchanged, and now better understood).** These two fixes make the grade *honest* — it shows its
+evidence, and the rep sees it. They do **not** answer whether the System should render a letter-shaped verdict on
+a person at all, which is A11's actual question and the PDF's explicit instruction. That remains the founder's
+ruling. What changed: ⑤ is now the *narrow* residue of a real conflict rather than my only view of it.
+
+**Method note.** Both findings came from reading two clauses, at their source, for the first time in this build.
+Neither is subtle once read; both were invisible while I was working from cached labels that I *believed* were the
+clauses. That is CAT-001's failure mode reproduced end-to-end, on a built surface, in a session that quoted the
+constitution in every commit message. Citation is not compliance (§A22).
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
