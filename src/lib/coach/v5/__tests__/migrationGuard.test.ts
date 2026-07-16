@@ -8,7 +8,11 @@ import { isMissingColumnError } from "../migrationGuard";
 describe("isMissingColumnError", () => {
   const COL = "recording_saved";
 
-  it("fires on the SELECT shape Postgres returns pre-0187 (42703)", () => {
+  // NOTE on these two test NAMES (corrected 2026-07-17): they used to assert what Postgres/PostgREST *return*.
+  // That is a claim about an external system I have not verified here (see the ⚠️ in migrationGuard.ts). What
+  // these tests actually pin is what THIS PREDICATE does with each error SHAPE — which is the part that is mine
+  // to guarantee, and the part a future reader needs. The shapes are recollected; the behaviour is tested.
+  it("fires on an undefined-column SHAPE carrying pg's 42703", () => {
     expect(
       isMissingColumnError(
         { code: "42703", message: 'column coaching_sessions.recording_saved does not exist' },
@@ -17,7 +21,7 @@ describe("isMissingColumnError", () => {
     ).toBe(true);
   });
 
-  it("fires on the UPDATE shape PostgREST returns pre-0187 (PGRST204 schema cache)", () => {
+  it("fires on a schema-cache SHAPE carrying PGRST204", () => {
     expect(
       isMissingColumnError(
         {

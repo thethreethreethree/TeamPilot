@@ -11,8 +11,20 @@
  * Two things the naive inline version got wrong, pinned by the tests:
  *  - A bare code check is too permissive: 42703 for a DIFFERENT column is a real bug, not a pending migration.
  *    The error must name the column we're guarding, or we stay loud.
- *  - Reads and writes fail differently: PostgREST returns 42703 ("column ... does not exist") on select, but
- *    PGRST204 ("Could not find the 'x' column ... in the schema cache") on update.
+ *  - Reads and writes appear to fail differently: 42703 ("column ... does not exist") on select, and PGRST204
+ *    ("Could not find the 'x' column ... in the schema cache") on update.
+ *
+ * ⚠️ THE CODES ARE RECOLLECTED, NOT VERIFIED (flagged 2026-07-17). `PGRST204` in particular is asserted from
+ * memory: it appears nowhere else in this repo, no other PostgREST code is handled anywhere in src/, and it has
+ * not been observed against a live PostgREST here. It is written down because it is probably right — not because
+ * it is known right, and an earlier asset this session (A37, retracted) proved what my recollection is worth.
+ *
+ * The predicate is deliberately built NOT to depend on the codes being right: it requires the message to NAME
+ * the guarded column, and then accepts a known code OR the canonical phrasing (`does not exist` / `schema
+ * cache`). So a wrong/missing code still degrades correctly through the message path — and a message that names
+ * the column but describes something else (a constraint violation) still fails loudly. If the first real
+ * pre-0187 write shows a different code, add it to MISSING_COLUMN_CODES and correct A34's line; nothing else
+ * needs to change.
  */
 
 export type PostgrestLikeError = {
