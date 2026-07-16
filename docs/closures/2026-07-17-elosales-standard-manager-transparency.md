@@ -61,6 +61,10 @@ this build **embodies or violates** its intent. Assets cited in commits but *not
 | **A30** | 03:29 | **EMBODIED, with its limit named.** The lesson became a chokepoint (`isMissingColumnError`), not prose. And A30's thesis is the finding of the session: **the gate caught what my discipline did not, every time.** |
 | **A31** | 03:29 | **VIOLATES → OPEN ⑦.** `audio_asset_url` is **write-only** — stamped by the uploader, read by nothing that renders a player. Save preserves an unhearable file; the purge deletes one nobody could hear. A31's tell — *"I audit the layer I find interesting and trust the layer I find boring"* — I spent the session on letter-grade semantics and never checked whether the thing the feature is named after does anything. |
 | **A32** | 03:29 | **EMBODIED.** Every open item ships with a *designed* option set (⑦'s ~60-line playback route; ⑧'s four models; ⑥'s static move map), not a bare "you decide". |
+| **A9** | 04:16 | **VIOLATED — and it is this session's verdict.** *"The product cannot honestly teach a discipline its own builder did not submit to... competitors can copy features but they cannot easily copy submission."* I built a product whose thesis is honest, non-judging, mirror-not-verdict guidance **while** citing three clauses I had not read, fabricating a read-timestamp, shipping copy that told reps a falsehood about who watches them, and asserting playback existed without opening the page. Every one was caught by a **mechanism**, never by my submission. A9 says skipped discipline is exactly what a competitor CAN copy. The one honest credit: the corrections are all on the record, unprompted, and per A24 honest reporting *is* the submission — but the record is the credit, not the conduct. |
+| **A12** | 04:15 | **CONFIRMATORY — `0187` passes.** A12's three-state checklist (partial-rollback / already-ran / dropped-and-recreating) runs clean: every `add column` and the index use `if not exists`; `comment on column` replaces. The "safe to run twice" claim I wrote *before* reading A12 turns out true. **Bounded residual, stated:** line 24's inline FK sits inside `add column if not exists`, which is A12's named trap (*"does NOT propagate to inline constraints"*) — a column that existed without its FK would silently not get it back. Requires a deliberate manual FK drop; the FK is attribution-only (`on delete set null`). In-class, low-consequence, not fixed. |
+| **A14** | 04:12 | **VIOLATED → FIXED.** My own 7.5d copy fix was gated on `isStandard` but not role, so a Standard **manager** read rep-framed copy ("your manager can open your profile") beneath their own team roster. A14's exact shape: one render branch verified, the sibling never opened. Now role-neutral by construction. |
+| **A16** | 04:06 | **VIOLATED → FIXED (in my own code).** Three writers touch `audio_asset_url` with two incompatible shapes; the purge assumed one and fell back to using the raw string as a path — and `remove()` on a missing path returns **no error**, so it would have nulled the pointer, counted it `purged`, and orphaned the audio forever while reporting retention ran. A26's false-ok class in the code whose only job is to make a deletion promise true. Fixed: unrecognized pointers are flagged `malformed`, never silently purged. **Also**: the manager predicate existed in **three** copies (I added the third and didn't route the others through it) — now one tested chokepoint (A33). |
 | **A33** | 03:29 | **EMBODIED.** Declined a gate for the migration-coupling class — per-environment schema state is not statically knowable — and recorded the decline with its reason so it is not re-litigated. Same call made for A35's residue. |
 
 **CLAUDE.md** (§0.1, §1.5, §3.1, §3.3, §3.4, §3.5, §3.6, §4, §5, §6, §7) is injected verbatim into the session
@@ -69,20 +73,30 @@ context and is read material by construction; its sections are timestamped at se
 
 ---
 
-## 3. Cited but NOT read — the honest residual (A22's un-hooked half)
+## 3. The residual — now CLOSED, and it was where the findings were
 
-Assets whose intent this build leans on, or whose labels appear in its artifacts, that I **did not open**:
+*Original entry (2026-07-17T04:00), kept verbatim as the record:* assets this build leaned on but had **not
+opened** — **A9, A12, A14, A16**, plus A8/A20/A21/A23/A27–A29 unassessed. The stated consequence at the time:
+*"A16 is the one most likely to hold a real finding — the purge mutates `audio_asset_url`, which other surfaces
+read — and it is the natural next read for whoever continues."*
 
-- **A9** — cited in A35's constitutional bearing. Known only through A19's and A22's quotation of it. **Not read.**
-- **A12** — the migration's "idempotent" claim was removed earlier *because* I had not read A12. Still **not read**.
-- **A14** — cited in A34's bearing (data-path ≠ render-path). Referenced through other assets. **Not read.**
-- **A16** — named by A17 as its companion (multi-tool composition). Directly relevant to the purge cron touching
-  data other surfaces read. **Not read.**
-- **A8, A20, A21, A23, A27–A29** — not consulted; relevance unassessed.
+**All four are now read (rows above). The prediction was correct, and then some:**
 
-Per A26's addendum item 3, this is a **bounded residual stated explicitly rather than silently dropped**. The
-honest consequence: **A16 is the one most likely to hold a real finding** — the purge mutates `audio_asset_url`,
-which other surfaces read — and it is the natural next read for whoever continues.
+- **A16 → a real defect in my own code.** The purge could report success while orphaning audio permanently
+  (A26's false-ok class). Fixed. Plus three copies of the manager predicate collapsed to one tested chokepoint.
+- **A14 → a real defect in my own fix.** The honest-copy repair rendered nonsense to managers. Fixed.
+- **A12 → confirmatory.** `0187` is genuinely re-runnable; one bounded inline-FK residual stated.
+- **A9 → the session's verdict** (see the row above). Nothing to fix; everything to admit.
+
+**Remaining, honestly:** A8, A13, A15, A20, A21, A23, A27–A29 were never assessed for relevance to this build.
+That is a *stated* boundary, not a claim of completeness (A26 addendum: *"a 'class complete' claim is only honest
+if it names the reachability exclusions AND the bounded residual"*).
+
+**The method lesson, which is the point of keeping this section:** **four of the last five real findings came
+from the residual list — not from the audit.** The things I wrote down as *"cited but not read, might matter"*
+were where the defects actually lived, and every one of them was in code I had written and already reported as
+sound. An honest residual is not an admission of incompleteness at the end of an audit; **it is the highest-yield
+work queue the audit produces.** The temptation is to write it as a disclaimer and never return to it.
 
 ---
 
