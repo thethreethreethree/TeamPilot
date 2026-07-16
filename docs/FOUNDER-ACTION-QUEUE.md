@@ -52,6 +52,21 @@
 > action travels wherever the grade renders. The tier already exists in `skillGrade.ts`; this is small. *Override
 > if:* you want the bare letter (ship as-spec'd, tension accepted on the record) or no letter at all.
 >
+> > **⚠️ PRECEDENT I OWED YOU ON ⑤ (found 04:31, A28 — I flagged seven decisions and searched for precedents on
+> > none of them).** Your product has **already decided this question, the opposite way, in C.A.R.E.** The
+> > Leadership page says on screen, today: *"The team's work · last 30 days · **aggregate only · no per-agent
+> > breakdown by design (§A18)**."* A leader there gets **no named-person view, deliberately, citing the same
+> > clause** this revision is in tension with. Your ELOSALES PDF asks for the exact opposite — named reps, named
+> > grades, named recordings — for the **same leaders in the same app**.
+> >
+> > That does not make the PDF wrong: A28 says a precedent that genuinely *conflicts* leaves a real decision open,
+> > and Sales Coach may have a principled reason to differ (a sales call is a *performed*, coachable artifact; a
+> > support queue is ongoing labor — and you own that distinction, not me). But you should be ruling on ⑤ knowing
+> > that **the two products will tell your leaders opposite things about what they may see about their people**,
+> > and that C.A.R.E's copy claims the refusal is "by design." If ⑤ ships as-spec'd, one of these two surfaces is
+> > eventually going to look like the accident. *My recommendation is unchanged* — (b) — but the choice is
+> > materially bigger than "letters or not," and I framed it too small.
+>
 > **⑥ — I recommend BUILDING the static per-skill move map** (~30 lines, no LLM, no new data). *Why:* A7 is
 > currently violated on the rep's own screen — six metrics, no offered move — and my A10 fix sharpened it. It is
 > the cheapest half of the 7.5f absence, and it is the difference between a rep's screen saying *"you are a D"*
@@ -72,12 +87,15 @@
 > if:* you want the two screens to match your two PDF screenshots exactly — which is a legitimate reading of the
 > spec and why I built it that way.
 >
-> **The Sessions flicker — I recommend gating the early return on the team-loading state.** *Why:* `isManager`
-> starts `false`, so a Standard manager provably renders the rep's Sessions page first, then swaps to the roster.
-> It is the F1-flicker class this codebase already fixed once. I deferred it as "runtime-unverifiable headless,"
-> which was me applying my own risk bar (A20's mode 3) — the logic is verifiable by reading, and the fix is a
-> loading gate. *Override if:* you'd rather I not touch that page's structure at all under the no-drift rule —
-> which is a real constraint you set, and the reason I am recommending rather than shipping.
+> **The Sessions flicker — ✅ BUILT, not flagged (A28).** I had listed this as a decision for you. It wasn't one:
+> **your codebase already ruled on this class.** The F1 experience-mode flicker was fixed by making the first
+> render the correct one (`dashboard/layout.tsx` → `initialMode`; ExperienceModeProvider: *"start from the
+> server-read mode ... no flicker window"*). A28: a parallel surface's existing pattern converts *a preference to
+> flag* into *an alignment to build*. So I built it — in Standard, both branches now hold until the role is known
+> rather than rendering the rep view and correcting. Pure addition; Expert renders exactly as before, including
+> during load. *Override if:* you want the fuller precedent applied (server-read the role and pass it as an
+> initial prop, as the layout does for mode) — that is the more thorough alignment and a bigger change to the
+> page's data flow.
 >
 > **🟠 The rulings themselves** (options and evidence in `docs/feature-specs/ELOSALES-STANDARD-REVISION.md`):
 > - **⑧ Who may UN-save a recording?** Your PDF names who may *save*; it is silent on un-save, and **I decided

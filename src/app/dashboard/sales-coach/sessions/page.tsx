@@ -267,6 +267,25 @@ export default function SalesCoachSessionsPage() {
   // ELOSALES revision (PDF Sessions item 1a): in Standard, a MANAGER's Sessions tab is the team roster →
   // rep's recent recordings. Early-return ONLY for standard managers — Expert (!isStandard) and standard REPS
   // (who keep their own browse-only self-view below, A10) never reach here, so those paths are byte-identical.
+  //
+  // FLICKER GATE (A28 — the precedent decides this, it was never a preference to flag). `isManager` starts
+  // false and is only known once the list fetch resolves, so without this a Standard MANAGER renders the REP's
+  // Sessions page first and then swaps to the roster. This codebase already ruled on that class: the F1
+  // experience-mode flicker was fixed by making the first render the correct one (dashboard/layout.tsx →
+  // initialMode; ExperienceModeProvider "start from the server-read mode ... no flicker window"). The principle
+  // is what transfers — never render the wrong view while the deciding value is unknown — so in Standard we
+  // hold both branches until the role is known rather than guessing rep and correcting. Expert (!isStandard) is
+  // untouched by this gate and still renders exactly as before, including during load.
+  if (isStandard && loading) {
+    return (
+      <>
+        <TopBar title="Sessions" subtitle="Your coaching history" />
+        <div className="flex-1 flex items-center justify-center bg-base">
+          <span className="text-xs text-muted">Loading…</span>
+        </div>
+      </>
+    );
+  }
   if (isStandard && isManager) {
     return (
       <>
