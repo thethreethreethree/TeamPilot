@@ -138,7 +138,7 @@ a part of the record as a ratification would be.
 
 Verified this proposal against **AMD-001's mandated §7 text at source** (read 05:05) rather than against
 CLAUDE.md's rendering of it. The derivation is **faithful** — word-for-word across §7.1–7.5 — so the soundness
-gate I wrote against is the real one. Two corrections follow from re-running §7.2.5 hostilely instead of
+gate I wrote against is the real one. (**Correction 06:06:** elsewhere I claimed AMD-006→§1.5.1 was a *lossy* derivation. That was false and is retracted — see A37. **All four checked derivations are faithful.** This proposal never depended on that claim: its case rests on AMD-005's prohibition being scoped to CAT-001's location rather than its behaviour, which is quoted from the ratified text and stands.) Two corrections follow from re-running §7.2.5 hostilely instead of
 agreeably, because the first pass's "outside view" was written by the party with the investment.
 
 ### 1. Disclosure the founder is owed before weighing this (§7.2.6 / A24)
