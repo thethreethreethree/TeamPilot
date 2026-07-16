@@ -312,6 +312,38 @@
 > initial prop, as the layout does for mode) — that is the more thorough alignment and a bigger change to the
 > page's data flow.
 >
+> **⑩ — NEW (07:12). The manager stalls at the moment of insight, and it is the layer AMD-006 was written for.**
+> I audited layer 1 (structure), layer 2 (⑦), and layer 4 (labels/copy) exhaustively tonight and **never traced
+> layer 3 — workflow continuity** — which is the layer AMD-006 exists for.
+>
+> **Traced now, and verified rather than assumed:** the rep profile has two interactive elements (the roster
+> buttons, and *back*) — **no action**. The session detail has no share/discuss/message path. **team-chat has no
+> session or rep linkage at all.** So a manager reads *"Closing · D — asked for the close in 2 of his last 9
+> calls"*, and to actually coach they must **leave the surface, open another channel, and retype the context from
+> memory.**
+>
+> **Framed precisely, because I have overstated twice tonight:** this is **not** an absence — the capability to
+> coach exists (team-chat, chat, notifications). It is a **composition** gap: the feature does not connect to it.
+> AMD-006's layer 3 asks *"does invoking it leave the surrounding workflow intact, accelerated, or broken?"*, and
+> its **own trigger** was this exact shape — the Close button that worked perfectly and dropped the user into an
+> empty state, *"built as a discrete action, not as a step in a workflow."*
+>
+> **Why it matters against your own words:** your PDF's goal is *"transparency on who is doing well and who is
+> struggling — **the data allows them to teach their team members better**."* The **teaching step has no path.**
+> The build delivers the transparency and stops one move short of the purpose it was built for.
+>
+> **I recommend: a "Discuss with \<rep\>" action on the rep profile and the session record**, carrying the
+> context (the rep, the skill, the session, the count) into team-chat as a pre-filled opening line the manager
+> edits. *Why that shape:* it is AMD-006's own fix for its own trigger — don't make the user re-derive state the
+> system already has. It also composes with ⑥: the rep's next move and the manager's coaching message can be the
+> **same** Next Door Focus, which is the difference between two people guessing and two people working the same
+> problem. *Why not silence:* a manager who must retype context will do it twice and then stop, and the feature
+> will be remembered as a report rather than a coaching tool. *Override if:* you want coaching to happen off-app
+> deliberately (a real choice — some teams want the tool to inform, not to mediate).
+>
+> **Not built** — it adds a surface and a message-composition path your PDF did not ask for, so it is yours
+> (§3.3 / A24e). But it is the cheapest of the open items after ⑥, and the two share a spine.
+>
 > **🟠 The rulings themselves** (options and evidence in `docs/feature-specs/ELOSALES-STANDARD-REVISION.md`):
 > - **⑧ Who may UN-save a recording?** Your PDF names who may *save*; it is silent on un-save, and **I decided
 >   that silently — the one place I did so.** Today a rep can un-save what their *manager* saved, which also
