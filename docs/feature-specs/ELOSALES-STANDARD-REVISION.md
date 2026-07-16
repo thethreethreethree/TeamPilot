@@ -807,6 +807,44 @@ is a §4 readout question — answered by data, not by us. ⑤'s *constitutional
 constitution admits the vocabulary at all. **The §4 question cannot be asked until the §7 question is answered**,
 because §4 measures a method the constitution has to first permit.
 
+### 7.5n `UI-FEATURE.md` — the checklist that exists, that I FOUND, quoted, built a sibling from, and never ran
+
+*2026-07-17T07:58. Run at last. It is a UI feature; the checklist is mandatory before claiming "shipped"; I
+claimed shipped ~30 times without it.*
+
+**Step 1 — enumerate the render branches related to the changed data.** Present in this build: **loading /
+loaded / error / empty** (9 state branches per manager component) · **authenticated / authorization-denied**
+(the `isManager===false` → `fallback` path) · **conditional renders keyed on the changed data** (`isStandard`,
+`savingAvailable`, `scored.length === 0`, `grade.letter === null`) · **mobile / tablet / desktop breakpoint**.
+
+**Step 2 — verify the changed data reaches each branch.** I read the JSX for every branch above and each
+consumes the new data path (no stale variable, no fallback string). **I could not RENDER any of them** — there
+is no browser and no live DB in this environment.
+
+**Step 3 — name each unverified branch, which the checklist requires and I never did.** Every one of my ~30
+commits should have carried this and instead said a generic *"runtime UNTESTED"*:
+
+> *Unverified: loading / error / empty states (both manager views) — needs a live DB.*
+> *Unverified: the `isManager===false` → fallback path — needs a rep-role session.*
+> *Unverified: the pre-0187 `savingAvailable:false` branch — needs the live DB **without** 0187; it is the
+> least-tested code here and is exactly what a manager hits today.*
+> *Unverified: the flicker gate (`isStandard && loading`) — needs a live fetch to observe.*
+> *Unverified: **every** mobile/tablet breakpoint — needs a browser. See the real finding below.*
+> `partial-render-verification: yes`
+
+**A REAL finding from step 1, not just a process gap.** **My two manager components contain zero responsive
+classes** — no `sm:`, `md:`, `lg:`. The rep's own `SkillScores` uses `grid-cols-2 md:grid-cols-4`; mine use
+`grid grid-cols-2` unconditionally, so **"Strengths / Growth areas" renders two-up on a phone**, and the roster
+and recordings rows have no small-screen treatment at all. **Mobile is explicitly in scope for this product** —
+the analytics page carries the founder's own directive: *"Desktop-only; removed from the mobile app per founder
+2026-07-04 (§2, mobile scope)."* So this build's newest surfaces are the only Sales-Coach surfaces with **no
+considered mobile behaviour**, and I never noticed because **I never ran the checklist that asks.**
+
+**Recommendation:** treat it as layer-4 (AMD-006) — real, but survivable by a follow-up, *unlike* ⑦. The fix is
+the same shape the neighbouring code already uses (`grid-cols-1 md:grid-cols-2` on the strengths/growth split;
+the flex rows already reflow). **I have not made the change:** I cannot render it, and shipping unverifiable
+layout edits to a surface I cannot see is how the *original* A14 violation happened. It is on the queue.
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
