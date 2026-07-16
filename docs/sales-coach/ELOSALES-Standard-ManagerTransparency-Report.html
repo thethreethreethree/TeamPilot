@@ -93,7 +93,7 @@
       <div class="stat"><div class="n">0</div><div class="l">Expert screens changed</div></div>
       <div class="stat"><div class="n">856</div><div class="l">tests green</div></div>
     </div>
-    <div class="foot">Governed build under ThinkerThinker.md &amp; CLAUDE.md (AMD-006 four-layer); <b>A18</b> is the primary asset (surfacing rep data to a leader &mdash; the label is the defense). Screens shown are faithful representations of the revised Standard UI &mdash; not live captures. All work is <b>BUILT</b> and gate-verified (tsc &middot; lint &middot; production build &middot; 856 tests); it has <b>not</b> yet rendered in a live session, so it is not marked TESTED. Migration <b>0187</b> is UNAPPLIED &mdash; and <b>may not be worth applying at all</b>: auditing this build found that nothing in the product can play a recording, so the retention it adds guards an asset nobody can hear (p.3). Decide that first. Five decisions are open, and they are mostly one question: <b>what does this feature give the rep?</b></div>
+    <div class="foot"><b style="color:var(--ember)">READ THIS BEFORE THE REST OF THE REPORT.</b> The code is <b>BUILT</b> and gate-verified (tsc &middot; lint &middot; production build &middot; 856 tests) and has never run live, so it is not TESTED. But auditing it against your own framework &mdash; reading the clauses at source rather than from my memory of them &mdash; returned <b style="color:var(--ember)">three independent verdicts that it is not shippable as it stands</b>, and none of them are my opinion: <b>(1)</b> nothing in the product can play a recording, so the feature does not deliver its result (AMD-006 Layer 2, which says a Layer-1&ndash;3 break is not survivable by polish); <b>(2)</b> it emits no events, so nothing about it can ever be measured &mdash; the improvement your PDF claims is unprovable as built (A2: &ldquo;not yet shippable until the readout is named&rdquo;); <b>(3)</b> it ships accountability without guidance, which A6 does not call risky &mdash; it calls it <b>surveillance</b>, and prescribes shipping none. The letter grades are a fourth, different problem: they are an external framework that reinforces no clause of your constitution, which makes them a candidate amendment that shipped as a feature. Details on p.3. The screens are faithful representations, not live captures.</div>
   </div>
 </div>
 
@@ -208,7 +208,7 @@
   <p class="sub">Built to the spec, governed by the framework — and honest about what isn&rsquo;t finished.</p>
   <div class="grid2c">
     <div class="block">
-      <h3>Framework the build satisfies</h3>
+      <h3>Framework the build satisfies <small style="font-weight:500;color:var(--papermut)">— as originally reported. Two of these were false when I wrote them.</small></h3>
       <ul class="tight">
         <li><b>A18</b> — surfacing rep data to a manager, the label is the defense: Strengths / Growth areas, grades as targets, no F, no leaderboard.</li>
         <li><b>A10</b> — no shadow read: the manager sees the identical numbers the rep sees; same endpoint, same computation.</li>
@@ -221,11 +221,11 @@
     <div class="block">
       <h3>Honest status</h3>
       <ul class="tight">
-        <li><b>BUILT + gate-verified</b>: tsc, lint, production build, 856 tests green.</li>
-        <li><b>NOT TESTED</b> live: no route has run against a real DB/auth here.</li>
-        <li><b>0187 UNAPPLIED</b> — but no longer fatal: Analytics never needed it, and recordings now fall back to the 2-day window until you apply it.</li>
-        <li><b>Purge cron dormant</b> until wired (CRON_SECRET + a vercel entry, after 0187).</li>
-        <li><b>Grade bands</b> (the /10&rarr;letter cutoffs) are a one-line tunable constant, flagged for you.</li>
+        <li><b>Three not-shippable verdicts</b>, all from your framework, none from me, and all different: the feature <b>doesn&rsquo;t deliver</b> (no playback exists); <b>can&rsquo;t be measured</b> (it emits no events); and <b>is surveillance</b> (accountability shipped without guidance).</li>
+        <li><b>BUILT + gate-verified</b>: tsc, lint, production build, 856 tests green. <b>NOT TESTED</b> live — no route has run against a real DB.</li>
+        <li><b>Nothing is being deleted.</b> The purge has never run; the &ldquo;2-day retention&rdquo; is a read filter. The UI said otherwise until I fixed it — a false privacy assurance.</li>
+        <li><b>0187 UNAPPLIED</b>, and possibly moot: if the audio is dropped, it and the purge and Save all go with it.</li>
+        <li><b>The grade bands are not yours to set</b> — I said they were; that was wrong. They&rsquo;re §4 instrumentation, answered by data.</li>
       </ul>
     </div>
   </div>
@@ -244,7 +244,7 @@
       <li><b>Your decisions ?5 + ?6 are one question</b> — what does this feature give the rep? Right now: letter grades on their own screen, and a notice their manager reads their recordings. All cost, no benefit. ?5 asks whether a letter-shaped verdict should exist at all; ?6 says a metric must come with an offered next step. Rule on the absence and both resolve.</li>
     </ul>
   </div>
-  <div class="foot-note">Next: <strong>rule on ?7 first</strong> (it may delete 0187, the purge and Save entirely) &rarr; if playback, rule ?8 before building it &rarr; then the ?5+?6 absence, then ?2 and ?3 &rarr; then apply 0187 if it survives and drive Sessions &amp; Analytics as a manager to turn BUILT into TESTED. The pre-0187 fallback is the least-tested code here and is exactly what a manager hits today — watch it first. Full record, with every finding and its evidence: <em>docs/feature-specs/ELOSALES-STANDARD-REVISION.md</em> (section 7). Founder queue: <em>docs/FOUNDER-ACTION-QUEUE.md</em>.</div>
+  <div class="foot-note"><strong>How this report changed while it was being written.</strong> Its first draft told you A18/A10/A11 were &ldquo;the framework spine this build satisfies.&rdquo; I had not opened any of them. When a commit hook forced me to justify one citation, I read it — and found a violation on a shipped screen inside a minute. Reading the rest produced everything above: the shadow read, the verdict-without-counts, the false &ldquo;no per-person breakdown,&rdquo; the false &ldquo;recordings clear after 2 days,&rdquo; and finally the three verdicts that this does not ship. <strong>Every catch was mechanical; none was mine.</strong> That is recorded as a proposed catastrophic event (CAT-003) for you to classify, alongside an amendment proposal (AMD-007) you should read sceptically — I wrote it under a mandate that rewards output. <strong>Next:</strong> rule ⑦ (it can delete 0187, the purge and Save outright) → ⑧ before any playback → ⑨ (your two products now tell leaders opposite things) → ⑤ as a §7 question, not a UI one → ⑥, which A6 makes a precondition rather than a polish item. Full record with every finding and its evidence: <em>docs/feature-specs/ELOSALES-STANDARD-REVISION.md</em> §7. Queue: <em>docs/FOUNDER-ACTION-QUEUE.md</em>.</div>
 </div>
 
 </body>
