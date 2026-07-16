@@ -109,6 +109,16 @@
 > and *"here's the next thing to try."* *Override if:* you want the fuller version instead (lead with what
 > improved against their own past) — that is better and bigger, and it is a product judgment I should not make.
 >
+> > **The strongest argument for ⑥ is yours, not mine (found 04:45, A8).** A8 records your own definition of what
+> > this System *is*: ***"you guide them, you identify their strength and weaknesses and you help them grow and
+> > break limitations."*** This feature does the **first half and stops.** It identifies strengths and weaknesses
+> > — precisely, with counts — and then offers the rep nothing to do about it. A8's test is *"am I writing this
+> > AS a feature, or AS a growth surface? If it reads as a tool the user picks up and puts down, **rewrite**"* —
+> > and its worked example is exactly this shape: *"not 'task overdue' but 'want to push this forward? here's
+> > where I'd help' — same data, opposite effect on the human reading it."* **`Closing · D · 3.0/10` is "task
+> > overdue."** So ⑥ is not a nice-to-have I am upselling you on the basis of a clause; it is the half of your own
+> > sentence that this revision left unbuilt.
+>
 > **The 7.5f absence — I recommend ⑤(b) + ⑥ as the minimum**, and treating the fuller rep surface as a real
 > product decision you own. *Why:* together they turn the rep's screen from a verdict into an offer, which is the
 > smallest honest answer to *"what does this feature give the rep?"*
