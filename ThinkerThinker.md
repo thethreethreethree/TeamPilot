@@ -1069,7 +1069,7 @@ Under a continuous mandate I later returned to that list, for lack of anything e
 - **A21** → two surfaces named "Team" asserting opposite philosophies (HIGH).
 - **A27** → a false privacy assurance in copy I had shipped *that night*.
 - **A29** → the false-ok class, unswept.
-- Later, after I stopped asserting that A1–A6 could not matter: **A2** (no readout — not shippable), **A6** (pillar 2 alone is surveillance — ship none), **A1** (the letter grade is a candidate amendment, not a feature), **A4** (the bands were never the founder's to set).
+- Later, after I stopped asserting that A1–A6 could not matter: **A2** (no readout — not shippable), **A6** (~~pillar 2 alone is surveillance — ship none~~ — **WITHDRAWN 06:31: I never checked whether pillar 3 existed elsewhere in the product; it does. The A6 *read* was real work; the *conclusion* was wrong, and it is listed here as a finding-that-failed rather than quietly dropped — a residual entry can yield a false positive, and A36's claim is about the queue's YIELD, not its infallibility.**), **A1** (the letter grade is a candidate amendment, not a feature), **A4** (the bands were never the founder's to set).
 
 **Seven separate times I asserted "no obvious hook." Seven times I was wrong.** Four of the last five real findings came from the residual rather than from the audit — **and every one of them was in code or advice I had already reported as sound.**
 
