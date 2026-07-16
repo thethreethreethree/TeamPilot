@@ -630,6 +630,60 @@ feature on for every Standard manager from day one, there is no un-exposed arm �
 only be read out *against each team's own past*, never against a concurrent control. That is a real cost to §4's
 evidentiary power, and it is the founder's call whether it is worth an opt-in.
 
+### 7.5k THE SECOND "NOT SHIPPABLE" — this revision emits no events, so nothing about it can be read out (A2 + §3.1)
+
+*2026-07-17, from A2 — read after A4 produced a finding and I stopped asserting that nothing below A7 mattered.
+This is the deepest finding of the session and it is structural, not cosmetic.*
+
+**A2's rule:** *"For any new feature positioned as a methodology improvement, design backwards. Build the
+measurement loop first — the §3.1 chain events, the metric definition (downstream consequence, not agreement),
+the natural A/B — and only then derive the minimum feature surface that produces that measurement. **Shipping the
+feature first and figuring out measurement later is the §4/§5 imitation-of-intelligence trap: a fluent confident
+method with no validated results, indistinguishable from the inside from genuine innovation.**"*
+
+Its test: *"what event would prove this works? What is the alternative we would compare against? **If no clean
+answer, the feature is not yet shippable** — back up to design until the readout is named."*
+
+**Verified fact:** this revision emits **zero** chain events. The precedent is unambiguous — sibling coach routes
+emit `coach.sales_review_generated`, `coach.after_pitch_summary_generated`, and event kinds from the decision and
+why routes. My three routes (`recordings`, `save-recording`, `recording-purge-cron`) touch the `events` table
+**not at all**.
+
+**Three consequences, in ascending order of seriousness:**
+
+1. **The founder's stated goal is unmeasurable as built.** *"Manager transparency to coach struggling reps and
+   replicate winning reps"* is an improvement claim. Nothing this revision does leaves a trace that could ever
+   confirm or refute it. Per §3.5 the honest metric is *downstream consequence* — did a rep's graded skill
+   improve after a manager coached from it? — and there is no event from which to derive it.
+2. **The §4 uncertainties I recorded in 7.5j one hour ago are unanswerable.** I named instrumentation ("do reps
+   graded D improve faster than reps graded C-?") for a chain that receives nothing. That is A4's discipline
+   applied on top of A2's absence: I recorded what to measure without noticing there is no measurement loop.
+3. **§3.1 is not being fed.** *"Everything is an event. Events are append-only... Entity state is derived by
+   replaying events, never edited directly."* `save-recording` **mutates a boolean directly**. And ⑧'s option (d)
+   — "append-only save attribution", which I offered the founder as *my preference, the one I'd want regardless*
+   — **is §3.1's requirement**, not my taste. I recommended the constitution's own rule without recognising it as
+   one.
+
+**This is the SECOND independent not-shippable verdict on this build**, and both come from the framework rather
+than from me: **AMD-006** (Layer 2 — the audio has no consumer; a Layer-2 break is not survivable by the layers
+above) and **A2** (no readout — not yet shippable until it is named). They are not the same finding: AMD-006 says
+the feature does not deliver its result; A2 says even if it did, nobody could ever prove it.
+
+**Designed alignment (A28 — the precedent decides the shape, not me).** The minimum readout is one event on the
+one action that expresses coaching intent:
+
+- **`coach.recording_saved`** — emitted by `save-recording` (subject `sales_session:<id>`, actor = the saver,
+  payload = whether the saver was the rep or a manager). It is the natural §3.1 form of ⑧(d): attribution
+  becomes append-only *by construction* rather than by a column I promised not to null. It also answers "is this
+  feature used at all," which is the cheapest possible readout.
+- **NOT a view event.** I considered `coach.rep_profile_viewed` and am recommending against it: logging that a
+  manager *looked* at a named rep is surveillance data about the manager, and per A18/A10 it would need its own
+  visibility contract before it could exist. The saved-event is sufficient for the first readout.
+
+**Not built, and gated:** the save route may not survive ⑦ (drop the audio deletes it), and ⑧ decides the save
+semantics the event would record. Building the emission now would presume both. **But per A2 this is not a
+preference — until a readout exists, the improvement claim in the founder's own PDF cannot be honestly made.**
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
