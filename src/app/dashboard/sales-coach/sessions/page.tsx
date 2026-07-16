@@ -36,6 +36,7 @@ import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { StartSessionPanel } from "@/components/sales-coach/StartSessionPanel";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
+import { StandardSessionsManagerView } from "@/components/sales-coach/StandardSessionsManagerView";
 
 /**
  * Sales Coach → Sessions (Phase 1). The full, filterable session history.
@@ -262,6 +263,20 @@ export default function SalesCoachSessionsPage() {
       down: last.cueCount < first.cueCount,
     };
   })();
+
+  // ELOSALES revision (PDF Sessions item 1a): in Standard, a MANAGER's Sessions tab is the team roster →
+  // rep's recent recordings. Early-return ONLY for standard managers — Expert (!isStandard) and standard REPS
+  // (who keep their own browse-only self-view below, A10) never reach here, so those paths are byte-identical.
+  if (isStandard && isManager) {
+    return (
+      <>
+        <TopBar title="Sessions" subtitle="Your team" />
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-4 bg-base">
+          <StandardSessionsManagerView fallback={null} />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
