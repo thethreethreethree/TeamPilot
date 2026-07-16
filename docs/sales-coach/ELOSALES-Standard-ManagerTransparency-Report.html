@@ -62,6 +62,10 @@
   .gB { color: var(--ember) !important; font-weight:800; }
   .gD { color: var(--amber) !important; font-weight:800; }
   .colh { font-size:7.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--mut); font-weight:700; margin:2px 0; }
+  .bd { font-size:7.5px; line-height:1.35; color:var(--mut); padding:3px 2px 5px; border-bottom:1px solid var(--line); }
+  .bd:last-of-type { border-bottom:none; }
+  .grade + .bd { border-bottom:1px solid var(--line); }
+  .grade { border-bottom:none !important; }
   .note { font-size: 8.5px; color: var(--txt); background: rgba(250,204,21,.06); border:1px solid rgba(250,204,21,.3); border-radius: 9px; padding: 8px; line-height:1.4; }
   .legend { display:flex; gap: 14px; margin-top: 14px; font-size: 9.5px; color: var(--papermut); flex-wrap: wrap; }
   .legend b { color: var(--paperink); }
@@ -170,7 +174,7 @@
     </div>
 
     <div class="screen">
-      <div class="cap"><span class="p">A2</span> Rep &rarr; profile <small>letter grades · strengths · growth areas</small></div>
+      <div class="cap"><span class="p">A2</span> Rep &rarr; profile <small>grades, each showing the count behind it</small></div>
       <div class="phone">
         <div class="st"><span>9:41</span><span>▪ ▪ ▪ &nbsp;100%</span></div>
         <div style="font-size:8px;color:var(--mut2);margin-bottom:3px">&larr; Team</div>
@@ -181,19 +185,21 @@
             <div style="flex:1"><div class="colh">Growth areas</div><div style="font-size:9px;color:var(--txt)">Objection · D</div><div style="font-size:9px;color:var(--txt)">Closing · D</div></div>
           </div>
           <div class="colh">Skill grades</div>
-          <div class="grade"><span class="gk">Tone</span><span class="gv"><span class="gA">A-</span> · 8.6/10</span></div>
-          <div class="grade"><span class="gk">Speed of speech</span><span class="gv"><span class="gA">A</span> · 9.1/10</span></div>
           <div class="grade"><span class="gk">Talk / Listen</span><span class="gv"><span class="gB">B</span> · 7.4/10</span></div>
-          <div class="grade"><span class="gk">Questions</span><span class="gv"><span class="gB">B-</span> · 6.7/10</span></div>
+          <div class="bd">Marcus spoke 61% of the time; the target band is nearer 45%.</div>
           <div class="grade"><span class="gk">Objection</span><span class="gv"><span class="gD">D</span> · 4.2/10</span></div>
+          <div class="bd">Met 3 of 7 objections with a question; the rest with a counter.</div>
           <div class="grade"><span class="gk">Closing</span><span class="gv"><span class="gD">D</span> · 3.0/10</span></div>
+          <div class="bd">Asked for the close in 2 of his last 9 calls.</div>
+          <div class="grade"><span class="gk">Tone</span><span class="gv"><span class="gA">A-</span> · 8.6/10</span></div>
+          <div class="bd">Warm open on 8 of 9 calls; stayed steady under pushback.</div>
         </div>
-        <div style="font-size:7.5px;color:var(--mut2)">Grades summarize the countable behavior behind each skill — coaching targets, not a rank.</div>
+        <div style="font-size:7.5px;color:var(--mut2)">Every grade shows the count it came from — that is the part you can coach, and the part Marcus can push back on.</div>
       </div>
     </div>
 
   </div>
-  <div class="foot-note">A10 (no shadow read): the numbers a manager sees for a rep are the <strong>identical computation</strong> the rep sees in their own Analytics — the rep is never shown less than their manager sees. A18: every label (&ldquo;Growth areas&rdquo;, grades-as-targets) is chosen to invite <em>coaching</em>, not ranking. Sample data shown; real grades come from the rep&rsquo;s scored calls, with a &ldquo;still accumulating&rdquo; state until there&rsquo;s enough.</div>
+  <div class="foot-note">Two of these screens changed <em>after</em> the first draft of this report, because auditing the build against the actual framework text (rather than my memory of it) found two real faults. <strong>The rep now sees the same letter grade their manager reads</strong> — before, the letter and the strengths/growth call were reads about the rep that the rep had no way to see, and you cannot challenge a verdict that is invisible to you. <strong>The manager now sees the count under every grade</strong> — before, the person with authority saw the letter with its evidence stripped out, and could only take the System's word for it. A count is something you can coach on, and something a rep can argue with; a bare letter is neither. Sample data shown; real grades come from the rep&rsquo;s scored calls, with a &ldquo;still accumulating&rdquo; state until there&rsquo;s enough.</div>
 </div>
 
 <!-- 03 FRAMEWORK + STATUS -->
@@ -228,6 +234,8 @@
     <ul class="tight">
       <li><b>Fixed</b> — §3.4: manager views rendered fetch failures as empty/wrong content &rarr; now an honest error state.</li>
       <li><b>Fixed</b> — A19: a stale Standard-Analytics comment &rarr; rewritten to the role-conditional behavior.</li>
+      <li><b>Fixed</b> — <b>the rep couldn&rsquo;t see the grade you see about them.</b> Found by reading the no-shadow-read clause at its source: it requires the same data at the <em>same level of detail</em>, and the letter + strengths/growth call existed only on your screen. Now on theirs too.</li>
+      <li><b>Fixed</b> — <b>you were shown the grade without its evidence.</b> The rep&rsquo;s own card lists the countable behavior; your profile of them listed only the letter. That is backwards — it hands authority a verdict and removes the part you&rsquo;d actually coach with. The counts now sit under every grade.</li>
       <li><b>Fixed</b> — migration-coupling (the Jul-3 outage class, repeated): recordings assumed 0187 was live and would have been hard-down until you applied it. Now degrades to the 2-day window. The degrade-vs-fail-loud rule is pure and unit-pinned — writing those tests corrected it twice (a bare code check would have swallowed a <em>different</em> column going missing; the write path fails with a different code entirely).</li>
       <li><b>Your decision ?2</b> — rep-facing recording-Save UI (spec &ldquo;or user&rdquo; + A10). Additive if you want it.</li>
       <li><b>Your decision ?3</b> — unify the two rep views into one profile (my ⑧ recommendation) vs keep them split (closer to your two PDF screenshots). A real refactor either way; your call.</li>
