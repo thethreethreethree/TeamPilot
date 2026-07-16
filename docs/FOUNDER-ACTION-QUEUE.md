@@ -21,10 +21,36 @@
 > **Now green:** `npm run check` exits 0 across all six — theme 0 leaks · RLS 0 risks, 0 missing policies, every
 > view invoker-run · invariant 0 violations (incl. the new INVARIANT 6) · 857 tests · typecheck · build.
 >
-> **Your action:** confirm CI is green again on the next push. And note the standing hole — **nothing enforces
-> `npm run check` locally** (`core.hooksPath` → `scripts/hooks/` has `commit-msg` + `pre-commit`, but no
-> `pre-push`). CI is the only enforcement, and CI's verdict only helps if someone reads it. **A gate that fires
-> into a void nobody checks is decoration** — that is what happened here for a day.
+> **Your action:** confirm CI is green again on the next push.
+>
+> **And a recommendation I owed you and withheld — `pre-push`.** Nothing enforces `npm run check` locally:
+> `core.hooksPath` → `scripts/hooks/` has `commit-msg` + `pre-commit`, **no `pre-push`**. CI is the only
+> enforcement, and CI's verdict only helps if someone reads it. I first wrote *"adding a pre-push hook would
+> change your workflow, so it's yours to decide"* — **that was me withholding a default on a cost I had not
+> measured** (A20's mode 2). So I measured it:
+>
+> | gate | cost | catches |
+> |---|---|---|
+> | `typecheck` | 3s | type breaks |
+> | `lint` | **10s** | **exactly this failure** |
+> | `theme:audit` | 1s | theme-bound leaks |
+> | `rls:audit` | 1s | tenant-pin / missing-policy / invoker-view |
+> | `invariant:audit` | 1s | the 6 encoded lessons (incl. cross-person reads) |
+> | *(all five static)* | **≈16s** | |
+> | `test` | ~10s | 857 tests |
+> | **all six (`npm run check`)** | **≈30s** | |
+>
+> **I recommend a `pre-push` hook running `npm run check` (~30s).** *Why:* it is the only thing that would have
+> stopped this — the error reached `main` and sat for a day precisely because **nothing local disagreed with the
+> author**, and CI's disagreement went unread. Thirty seconds is cheaper than a red `main`, and dramatically
+> cheaper than a day of it. *Why not the cost objection:* I assumed ~2 minutes and never checked; the five static
+> gates are **16 seconds**. *Override if:* you push very frequently and want it leaner — then run the **five
+> static gates only (~16s)** and leave `test` to CI. That still catches this exact class. *Do not* leave it at
+> nothing: the hook path already exists and is already wired for two hooks; this is one file.
+>
+> **I have not installed it.** It changes *your* workflow on *your* machine, and per A24(e) that is surfaced,
+> never performed. But the "it's yours to decide" I originally wrote was hiding behind that rule rather than
+> using it.
 >
 > ---
 >
