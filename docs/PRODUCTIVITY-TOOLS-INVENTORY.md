@@ -16,6 +16,34 @@
 
 Written 2026-06-18.
 
+> ## ⚠️ THIS INVENTORY IS INCOMPLETE — known gaps, recorded 2026-07-17
+>
+> The header above claims this is *"the actual native surface — what a customer gets."* **That claim is currently
+> false**, and per **A27** a promise an artifact does not keep is worse than silence, because the reader trusts it
+> and builds on it. So the gaps are named here rather than left for someone to discover by needing them.
+>
+> **Found by:** the ELOSALES Standard revision audit (2026-07-17). The Sales Coach — a whole customer-requested
+> module — was **absent entirely**, and that omission had a real cost: the audit twice declared a capability
+> missing from the product (*"no guidance pillar — surveillance"*, *"nothing can be measured"*) when it existed
+> all along, because it reasoned from its own surface and this document did not contradict it. **§5 was written
+> that day.** Sweeping the class (§A26) then found the rest.
+>
+> **Still absent, verified by name-search 2026-07-17:**
+>
+> | Module | Route | Why the gap matters |
+> |---|---|---|
+> | **Finance** | `/dashboard/finance` | The largest one. A full double-entry GL with AP, AR, expenses, banking/reconciliation, cost & profit dimensions, budgets/variance/runway, tax and year-end close — roughly 35 migrations of product. A reader of this document would not know it exists. |
+> | **Bootcamp** | `/dashboard/bootcamp` | Present in the app; not described here. |
+> | **Dissect** | `/dashboard/dissect` | Present in the app; not described here. |
+>
+> **Deliberately NOT written from memory (§A37).** I know roughly what Finance contains and could produce a
+> confident section in minutes. That is exactly the failure this session was made of — a fluent account, sourced
+> from recollection, that reads as verified. Each section above should be written by whoever audits that module,
+> from its own UI titles and code, the way §5 was. **A named gap is honest; a remembered section is an alibi.**
+>
+> **The standing lesson (A21):** this file is not documentation. It is the artifact that stops an audit declaring a
+> gap that isn't one — which makes *its* gaps the ones that cost the most.
+
 ---
 
 ## 1. Internal communication
