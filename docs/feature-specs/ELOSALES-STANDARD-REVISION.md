@@ -832,18 +832,43 @@ commits should have carried this and instead said a generic *"runtime UNTESTED"*
 > *Unverified: **every** mobile/tablet breakpoint — needs a browser. See the real finding below.*
 > `partial-render-verification: yes`
 
-**A REAL finding from step 1, not just a process gap.** **My two manager components contain zero responsive
-classes** — no `sm:`, `md:`, `lg:`. The rep's own `SkillScores` uses `grid-cols-2 md:grid-cols-4`; mine use
-`grid grid-cols-2` unconditionally, so **"Strengths / Growth areas" renders two-up on a phone**, and the roster
-and recordings rows have no small-screen treatment at all. **Mobile is explicitly in scope for this product** —
-the analytics page carries the founder's own directive: *"Desktop-only; removed from the mobile app per founder
-2026-07-04 (§2, mobile scope)."* So this build's newest surfaces are the only Sales-Coach surfaces with **no
-considered mobile behaviour**, and I never noticed because **I never ran the checklist that asks.**
+**A finding from step 1 — WHICH I THEN WITHDREW, 20 minutes later, because it was false.** This section is kept
+as a record of the withdrawal rather than rewritten, because the withdrawal is the part worth reading.
 
-**Recommendation:** treat it as layer-4 (AMD-006) — real, but survivable by a follow-up, *unlike* ⑦. The fix is
-the same shape the neighbouring code already uses (`grid-cols-1 md:grid-cols-2` on the strengths/growth split;
-the flex rows already reflow). **I have not made the change:** I cannot render it, and shipping unverifiable
-layout edits to a surface I cannot see is how the *original* A14 violation happened. It is on the queue.
+**What I wrote at 07:58:** *"My two manager components contain zero responsive classes — no `sm:`, `md:`, `lg:`.
+The rep's own `SkillScores` uses `grid-cols-2 md:grid-cols-4`; mine use `grid grid-cols-2` unconditionally… this
+build's newest surfaces are the only Sales-Coach surfaces with no considered mobile behaviour."* I filed it on the
+founder's queue and in the PDF.
+
+**Then I swept the class instead of trusting the instance, and the finding collapsed:**
+
+1. **`SkillScores` does not use `md:grid-cols-4`, and is not a component.** It is a local function at line 490 of
+   `src/app/dashboard/sales-coach/analytics/page.tsx`; its grid at line 525 is **`grid grid-cols-2 gap-2.5` — no
+   breakpoint**. Mine (line 129) is `grid grid-cols-2 gap-3` — **no breakpoint. Identical.** The
+   `grid-cols-2 md:grid-cols-4` I quoted lives at lines 270 and 331 — **different elements on the same page.** I
+   took a responsive class off a page I had read and attributed it to the function I was comparing against. The
+   comparison that made the finding vivid was **manufactured by attribution drift**, not observed.
+2. **`StandardSessionsManagerView` was never in the defect class.** It has no multi-column grid; I swept it in on a
+   bare `flex` match, and flex rows reflow unaided.
+3. **"The only surfaces with no considered mobile behaviour" was false in the opposite direction as well** — 15
+   other coach components carry no breakpoints. My *first* sweep returned "1 instance" and **did not find my own two
+   components**, because it searched `src/components/coach/` while they live in `src/components/sales-coach/`. A
+   checker that misses a defect already confirmed by hand is broken; I nearly reported "class swept, 1 instance."
+
+**What actually survives, and it is much smaller:** unconditional `grid-cols-2` is the **house pattern** for tight
+skill tiles across this tree (`SkillScores`, `StartSessionPanel`, and mine) — two tiles fit a phone, which is
+plausibly the reason. **This build follows local precedent; it does not deviate from it.** The only genuine suspects
+are the two surfaces using **`grid-cols-3`/`grid-cols-4` with no breakpoint** — `sales-coach/[id]/after-pitch/page.tsx`
+and `PivotAndScores.tsx`. Four columns on a phone is the shape that crushes. **Both are pre-existing, neither is
+mine, and I cannot render either** — per A26 they are **suspects, not defects**. Flagged on the queue, not fixed
+blind.
+
+**The lesson, which is the reason this stays in the record:** this is the second time in one session that a vivid
+comparison of mine was fabricated by attribution drift (A37 was the first), and **both times a single grep disproved
+what felt certain.** A37 I caught in four minutes by testing my own claim; this one survived long enough to reach
+the founder's decision queue and a generated PDF, and was caught **only** because I swept the class. The instance
+felt confirmed. It was not. Every unswept "the neighbouring code already does X" claim in this document should be
+read with that in mind.
 
 ### 7.6 What I could not complete
 

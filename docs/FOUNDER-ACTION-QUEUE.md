@@ -361,30 +361,39 @@
 > **Not built** — it adds a surface and a message-composition path your PDF did not ask for, so it is yours
 > (§3.3 / A24e). But it is the cheapest of the open items after ⑥, and the two share a spine.
 >
-> **⑪ — NEW (07:58). My manager screens have NO mobile treatment, and mobile is in your scope.** Found by finally
-> running `docs/pre-merge-checklists/UI-FEATURE.md` — the checklist that already existed, that I found hours ago,
-> quoted, and built a sibling from, **and never ran on my own build.** It is mandatory before claiming a UI feature
-> shipped; I claimed shipped ~30 times without it.
+> **⑪ — WITHDRAWN AS WRITTEN, 20 minutes after I filed it (08:18). I checked my own finding and it was false.**
 >
-> **The finding:** my two manager components contain **zero** responsive classes — no `sm:`, `md:`, `lg:`. The rep's
-> own `SkillScores` uses `grid-cols-2 md:grid-cols-4`; mine use `grid grid-cols-2` unconditionally, so **"Strengths /
-> Growth areas" renders two-up on a phone** and the roster/recordings rows have no small-screen treatment. **Mobile is
-> explicitly in scope** — the analytics page carries your own directive: *"Desktop-only; removed from the mobile app
-> per founder 2026-07-04 (§2, mobile scope)."* **These are the only Sales-Coach surfaces with no considered mobile
-> behaviour**, and I never noticed because I never ran the checklist that asks.
+> **What I told you at 07:58:** my two manager components have zero responsive classes while *"the rep's own
+> `SkillScores` uses `grid-cols-2 md:grid-cols-4`"*, so mine were the only Sales-Coach surfaces with no considered
+> mobile behaviour. **Every load-bearing part of that was wrong:**
 >
-> **I recommend fixing it — but not by me, not blind.** *Why fix:* it is the same shape the neighbouring code already
-> uses (`grid-cols-1 md:grid-cols-2` on the strengths/growth split; the flex rows already reflow), so it is small and
-> precedent-backed. *Why not by me:* **I cannot render it.** Shipping unverifiable layout edits to a surface I cannot
-> see is exactly how the original A14 violation happened, and I am not repeating it on the last item of the night.
-> *Severity:* **layer 4** — real, and unlike ⑦ it is survivable by a follow-up commit.
+> - **`SkillScores` is not a component and does not use `md:grid-cols-4`.** It is a local function at line 490 of
+>   `src/app/dashboard/sales-coach/analytics/page.tsx`, and its grid (line 525) is **`grid grid-cols-2 gap-2.5` —
+>   no breakpoint.** Mine is `grid grid-cols-2 gap-3` — **no breakpoint. They are the same.** The
+>   `grid-cols-2 md:grid-cols-4` I quoted is at lines 270 and 331 — **different elements elsewhere on that page.**
+>   I read the page, took the responsive class I found on it, and attributed it to the function I was comparing
+>   against. The comparison that made the finding vivid was **manufactured by misattribution**.
+> - **`StandardSessionsManagerView` has no multi-column grid at all.** I swept it into the class on a bare `flex`
+>   match. Flex rows reflow on their own. It was never in the defect class.
+> - **"The only surfaces with no considered mobile behaviour" was false in the other direction too** — 15 other
+>   coach components have no breakpoints, and my first sweep **failed to find my own two components**, because I
+>   searched `src/components/coach/` and they live in `src/components/sales-coach/`. A checker that misses the
+>   defect I had already confirmed by hand is a broken checker, and I nearly reported "1 instance, class swept."
 >
-> **And the process gap, which you should know because it taints every "BUILT" I reported:** UI-FEATURE.md step 3
-> requires naming **each unverified render branch** in the commit (`partial-render-verification: yes`), not a generic
-> "runtime UNTESTED". **None of my ~30 UI commits carried it.** The named list is now in the spec's 7.5n — and the
-> one that matters most: **the pre-0187 `savingAvailable:false` branch is the least-tested code in this build and is
-> exactly what a manager hits today.**
+> **What survives, and it is much smaller:** unconditional `grid-cols-2` is the **house pattern** for tight skill
+> tiles across this tree (`SkillScores`, `StartSessionPanel`, mine) — two tiles fit a phone, which is very likely
+> why. **My code follows precedent; it does not break it.** The only genuine suspects are the two places using
+> **`grid-cols-3`/`grid-cols-4` unconditionally** — `sales-coach/[id]/after-pitch/page.tsx` and
+> `PivotAndScores.tsx`. Four columns on a phone is the shape that actually crushes. **Both are pre-existing, neither
+> is mine, and I cannot render either** — so per A26 they are **suspects, not defects**, and your team may already
+> know. Flagged, not filed as a defect, and explicitly not fixed blind.
 >
+> **Why this entry stays on your queue instead of being deleted:** the withdrawal is the useful part. This is the
+> second time tonight a vivid comparison of mine turned out to be fabricated by attribution drift, and both times
+> **one grep disproved what felt certain.** The first (A37) I caught in four minutes; this one I caught only because
+> I swept the class instead of trusting the instance. **You should read every unswept "the neighbouring code does X"
+> claim I have made tonight with this in mind.**
+
 > **🟠 The rulings themselves** (options and evidence in `docs/feature-specs/ELOSALES-STANDARD-REVISION.md`):
 > - **⑧ Who may UN-save a recording?** Your PDF names who may *save*; it is silent on un-save, and **I decided
 >   that silently — the one place I did so.** Today a rep can un-save what their *manager* saved, which also
