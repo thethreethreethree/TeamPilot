@@ -307,6 +307,58 @@ Neither is subtle once read; both were invisible while I was working from cached
 clauses. That is CAT-001's failure mode reproduced end-to-end, on a built surface, in a session that quoted the
 constitution in every commit message. Citation is not compliance (§A22).
 
+### 7.5d FIXED — the page was telling reps their manager sees "no per-person breakdown"
+
+*2026-07-17. Found by running the **un-hooked half** of the pre-closure check — "which clauses did this build
+lean on WITHOUT naming?" — rather than the commit hook's cited-clauses half.*
+
+The Analytics `LearningHint` rendered in **both** modes and told the reader: *"for managers, an aggregate team
+view with **no per-person breakdown**"*, *"the team view is **anonymized aggregate only**"*, *"Managers: use the
+team aggregate ... **never to compare named people**."* **This revision built exactly the per-person breakdown
+that copy promises does not exist.** A Standard rep was being told, on screen, in reassuring language, that their
+manager sees only an anonymized aggregate — while their manager was reading their name, their letter grades, the
+counts behind them, and their recordings.
+
+This is worse than the A10 shadow read in 7.5c. There the rep merely *could not see* the read; here the product
+**asserts the read does not exist and comforts them with it**. A10's contract is not only "you can see what is
+read about you" — it is that you are never *misled* about what is read about you. It is also a plain §3.4
+violation: the System asserting something untrue to a user. The copy cited **A18 and A10 while doing it, in
+user-facing text** — citation-without-verification shipped all the way to the customer.
+
+**Fixed** by splitting the copy to match the truth of each mode. Expert keeps its hint byte-identical (the
+anonymized aggregate is real there, so the promise holds); Standard gets an honest counterpart that states
+plainly what a manager can open. **Class swept:** the C.A.R.E. aggregate-only claims were checked and remain
+true — that surface is untouched by this revision.
+
+### 7.5e OPEN ⑥ — A7 is violated on the rep's Analytics, and my A10 fix sharpened it (surfaced, NOT built)
+
+**The clause.** A7: *"Every metric the System shows a person about themselves must ship with an AI-offered move
+attached."* Its code-level test: *"would a reasonable person reading this in isolation feel helped or judged? If
+even slightly judged, the design fails A7."* Its **FAIL** examples include *"Your task completion rate is 60%."*
+
+**The finding.** The Standard rep's Analytics is six metrics, each now carrying a letter and a count, with **no
+offered move anywhere**. `Closing · D · 3.0/10 — asked for the close in 2 of your last 9 calls` is *"your task
+completion rate is 60%"* with a letter attached. The Coach's next-step exists at recording-end (After-Pitch /
+Next Door), not on this surface.
+
+**Honest attribution.** The violation **predates this revision** — the `/10` tiles and breakdowns were already
+there, moveless. But my A10 fix (7.5c) **sharpened it**: a letter grade with no offered move is more
+judgment-shaped than a bare number, so curing the shadow read made the A7 gap sting more. Two clauses pulling
+against each other on one surface — A10 says the rep must see the letter; A7 says no metric may stand without a
+move. Both are satisfiable at once, but only by building something.
+
+**Why it is surfaced and not built (A24e / §3.3).** The fix is a product feature the PDF never asked for, on a
+surface whose violation is older than my work. Shipping it unasked is drift; hiding it is dishonest. So:
+
+- **Designed recommendation (per A32 — I do not recommend what I have not designed).** A static per-skill move
+  map: six skills → six offered next steps, rendered only on growth-area tiers. No LLM call, no per-rep
+  generation, no fabrication risk, no new data. `Closing · D — "Want to try asking for the close outright on
+  your next call?"` It is deterministic copy in `skillGrade.ts`'s neighborhood, ~30 lines, and it converts every
+  tile from a verdict into an offer. It also makes A7 true for the *pre-existing* surface, not just my addition.
+- **The alternative** — an AI-generated move per rep per skill — is closer to A7's letter ("AI-offered") but
+  needs a real generation path, cost, and a §3.5 honesty story for sparse data. Bigger; not obviously better.
+- **Your call.** A7 binds this product; whether it is repaired now or queued is a scope decision, not mine.
+
 ### 7.6 What I could not complete
 
 - Nothing in the spec was left unbuilt. The two open items (②, ③) are **decisions**, not blocked work — each is a
