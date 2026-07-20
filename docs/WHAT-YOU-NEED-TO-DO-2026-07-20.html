@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>What you need to do — TeamPilot</title>
+<style>
+  :root{
+    --ink:#14171c; --muted:#5c6470; --faint:#8b93a0; --line:#e4e7ec;
+    --ember:#d97706; --ember-soft:#fff7ed; --ember-line:#fed7aa;
+    --do:#0f766e; --do-soft:#f0fdfa; --do-line:#99f6e4;
+    --page:#ffffff; --card:#fbfbfc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);font-size:13px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:var(--page)}
+  .wrap{max-width:820px;margin:0 auto;padding:0 34px}
+
+  /* Cover */
+  .cover{background:#14171c;color:#fff;padding:56px 34px 46px;margin-bottom:0}
+  .cover .kick{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#facc15;font-weight:600}
+  .cover h1{font-size:34px;line-height:1.1;margin:14px 0 12px;font-weight:700;letter-spacing:-.02em}
+  .cover p{color:#c3c8d0;max-width:620px;font-size:13.5px}
+  .cover .date{margin-top:20px;font-size:12px;color:#8b93a0}
+  .legend{display:flex;gap:18px;margin-top:22px;flex-wrap:wrap}
+  .legend span{font-size:11px;color:#c3c8d0;display:flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+
+  /* Section */
+  section{padding:26px 0 6px;border-bottom:1px solid var(--line)}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:4px}
+  .sec-num{font-size:12px;font-weight:700;color:var(--ember);letter-spacing:.05em;min-width:20px}
+  .sec-head h2{font-size:18px;font-weight:700;letter-spacing:-.01em}
+  .sec-sub{color:var(--muted);font-size:12.5px;margin:2px 0 16px 32px}
+
+  /* Item rows */
+  .item{display:flex;gap:12px;padding:12px 0;border-top:1px dashed var(--line);page-break-inside:avoid}
+  .item:first-of-type{border-top:none}
+  .box{width:15px;height:15px;border:1.6px solid var(--faint);border-radius:4px;margin-top:2px;flex:0 0 auto}
+  .body{flex:1}
+  .title-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .title-row .t{font-weight:650;font-size:13.5px}
+  .tag{font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;white-space:nowrap}
+  .t-easy{background:var(--do-soft);color:var(--do);border:1px solid var(--do-line)}
+  .t-decide{background:var(--ember-soft);color:var(--ember);border:1px solid var(--ember-line)}
+  .t-review{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+  .t-biz{background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe}
+  .desc{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .rec{margin-top:6px;font-size:12px;background:var(--card);border-left:3px solid var(--do);padding:6px 10px;border-radius:0 4px 4px 0}
+  .rec b{color:var(--do)}
+  .rec.mine{border-left-color:var(--ember)}
+  .rec.mine b{color:var(--ember)}
+  code{font-family:"SFMono-Regular",Consolas,monospace;font-size:11.5px;background:#f1f3f5;padding:1px 5px;border-radius:3px}
+
+  .note{background:var(--do-soft);border:1px solid var(--do-line);border-radius:7px;padding:12px 14px;margin:16px 0 4px;font-size:12.5px;color:#134e4a}
+  .note b{color:var(--do)}
+
+  .foot{padding:22px 0 40px;color:var(--faint);font-size:11px}
+  .foot b{color:var(--muted)}
+  @media print{ .cover{margin:0} section{break-inside:auto} }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="wrap" style="padding:0">
+    <div class="kick">TeamPilot · Founder action list</div>
+    <h1>What you need to do</h1>
+    <p>Everything below is genuinely yours — a decision or an ops action. None is blocked on code I could
+       write. Each item names what to do, my recommendation where I have one, and why it matters, so most can
+       be settled with a yes/no.</p>
+    <div class="date">Generated 2026-07-20 · after all migrations were applied to 0187</div>
+    <div class="legend">
+      <span><span class="dot" style="background:#14b8a6"></span> Quick / low-effort</span>
+      <span><span class="dot" style="background:#d97706"></span> A decision to make</span>
+      <span><span class="dot" style="background:#6366f1"></span> Needs your review</span>
+      <span><span class="dot" style="background:#8b5cf6"></span> Business call</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- 1 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">1</span><h2>One env var turns on features that are already built</h2></div>
+    <p class="sec-sub">The highest return for the least effort. These are built, tested, and — as of today — their database tables are all applied. They are inert only because a secret isn't set.</p>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">Set <code>CRON_SECRET</code> in your Vercel environment</span><span class="tag t-easy">Quick</span></div>
+        <div class="desc">One variable activates <b>two</b> dormant background jobs at the next deploy: the <b>task-overrun sweep</b> (flags missed deadlines — the product was blind to them) and the <b>durability sweep</b> (§3.5 measurement). Both are built, scheduled in <code>vercel.json</code>, and their tables are live. Nothing else to wire.</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">Add the scheduled-report cron to <code>vercel.json</code></span><span class="tag t-easy">Quick · now unblocked</span></div>
+        <div class="desc">Add <code>{ "path": "/api/finance/reports/deliver-cron", "schedule": "0 5 * * *" }</code>. This was <i>unsafe</i> before today — it needs views from migration 0172, which I applied today — so it is safe to add now. Uses the same <code>CRON_SECRET</code>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">2</span><h2>ELOSALES Standard revision — decisions that gate shipping it</h2></div>
+    <p class="sec-sub">The manager-transparency build (from your PDF) is built but paused on these. Each carries my recommendation — approve, or override.</p>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">⑦ &nbsp;Can a manager actually play a recording?</span><span class="tag t-decide">Decide</span></div>
+        <div class="desc">Today nothing in the product plays a call — a manager clicking one gets a transcript. Your PDF says "recordings … delete after 2 days," which implies audio.</div>
+        <div class="rec mine">My recommendation: <b>build playback</b> (~60 lines; the signed-URL helper already exists). Your own words point at audio. Alternatives: drop the audio entirely (also valid), or ship transcript-only as-is.</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">② &nbsp;Give reps a "Save recording" button of their own?</span><span class="tag t-decide">Decide</span></div>
+        <div class="desc">Your PDF says recordings are kept "unless saved by the manager <b>or user</b>." The manager save exists; the rep-facing one doesn't yet.</div>
+        <div class="rec mine">My recommendation: <b>build it</b> — "or user" is in your spec.</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">③ &nbsp;One rep profile, or two?</span><span class="tag t-decide">Decide</span></div>
+        <div class="desc">Skill grades and recordings can live on one unified rep profile page, or split across two.</div>
+        <div class="rec mine">My recommendation: <b>unified</b> — one place the manager reads a rep.</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">⑤ &nbsp;Show a letter grade, or the raw count?</span><span class="tag t-decide">Decide</span></div>
+        <div class="desc">Skills can display as A+/A/A- letters, or as the underlying count ("asked for the close in 2 of 9 calls").</div>
+        <div class="rec mine">My recommendation: <b>let the count be the label</b>. A count can't be argued with; a letter is a verdict a manager can misuse (§A11/A18).</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">⑥ / ⑩ &nbsp;Connect the insight to an action</span><span class="tag t-decide">Decide</span></div>
+        <div class="desc">A manager sees "this rep struggles at closing" and then… stalls — there's no next step. This is the workflow-continuity gap AMD-006 exists for.</div>
+        <div class="rec mine">My recommendation: <b>link each weak skill to the coaching move the product already generates</b> (the After-Pitch "next door"). Do <i>not</i> build a separate static tips list — it would duplicate what exists.</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">⑧ &nbsp;Who may <i>un-save</i> a recording?</span><span class="tag t-decide">Decide</span></div>
+        <div class="desc">Your PDF names who may save; it's silent on un-saving. Right now a rep can release what their manager saved.</div>
+        <div class="rec mine">My recommendation: <b>rep always wins</b> on their own recording, with append-only attribution (who saved/un-saved is never overwritten). Note: enforcing this properly needs a DB trigger, not just app code.</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">⑨ &nbsp;Reconcile two "team" views</span><span class="tag t-decide">Decide</span></div>
+        <div class="desc">C.A.R.E shows the team as an <b>aggregate only</b> (by design — no individual call-out). The Sales Coach shows <b>named per-rep grades</b>. Both are defensible; they should be a conscious choice, not an accident.</div>
+        <div class="rec">A consistency call for you — transparency-by-name (Sales Coach) vs protect-the-individual (C.A.R.E). Your PDF's stated goal is "transparency on who is doing well," which leans toward named.</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">Then: smoke-test it as a manager</span><span class="tag t-review">Review</span></div>
+        <div class="desc">Once the above are settled, open Sessions &amp; Analytics logged in as a manager and confirm the roster, grades, counts, recordings, Save, and the 2-day purge behave. This is the build's "BUILT → verified by you" step — I can't see the rendered screens.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">3</span><h2>Finance — a couple of judgment calls</h2></div>
+    <p class="sec-sub">The finance system is ~96% built. What remains is decisions, not code.</p>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">Tax report: how to net credit notes</span><span class="tag t-decide">Decide</span></div>
+        <div class="desc">The tax report can overstate tax owed when a credit note applies. Full write-up in <code>docs/financial-system/TAX-CREDIT-NOTE-NETTING-DECISION.md</code>.</div>
+        <div class="rec mine">My recommendation: <b>proportional netting</b>. One read.</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">Does a credit note return goods to inventory?</span><span class="tag t-biz">Business call</span></div>
+        <div class="desc">Today a credit note reverses revenue but leaves goods expensed — correct for services, wrong for a returned physical product. Whether a credit implies a physical return is your business rule (a refund for a damaged item the customer keeps is not a return).</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">Three "build later" finance features</span><span class="tag t-biz">Business call</span></div>
+        <div class="desc"><b>Scenario modelling</b> (best after the cash forecast is in real use), <b>multi-entity consolidation</b> (only if you run more than one legal entity — do you?), and an <b>integration</b> (Stripe / Plaid / QuickBooks — which first, if any?). Also: <code>.xlsx</code> export needs a new dependency; CSV works today.</div>
+      </div>
+    </div>
+    <div class="note"><b>Resolved today:</b> the recurring-bill "31st drifts to the 28th" decision is <b>done</b> — its recommended fix (an anchor-day column) was migration 0186, which I applied today. No action needed.</div>
+  </section>
+
+  <!-- 4 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">4</span><h2>Security — two items I deliberately did not touch</h2></div>
+    <p class="sec-sub">Both have ready text; both were withheld from autonomous action on purpose because they need your eyes.</p>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t"><code>events</code> INSERT-policy residual</span><span class="tag t-review">Review</span></div>
+        <div class="desc">A MED-severity fix (<code>coach.dissect_generated</code>) with ready SQL in <code>AUDIT-2026-07-09-brain-injection.md</code>. Held because it edits the single most critical RLS policy in the core chain — a core-policy change deserves your review before it ships.</div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">C.A.R.E prompt-injection defense</span><span class="tag t-review">Review</span></div>
+        <div class="desc">The C.A.R.E persona has no prompt-injection guard; a warmth-preserving instruction is drafted in the findings doc. Held because the persona is carefully tuned and I can't verify warmth headless — add it, then smoke-test the tone.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">5</span><h2>Infrastructure — one thing to merge</h2></div>
+    <div class="item">
+      <div class="box"></div>
+      <div class="body">
+        <div class="title-row"><span class="t">Add a CI gate that runs every migration on each PR</span><span class="tag t-review">Review &amp; merge</span></div>
+        <div class="desc">Today a migration with a bad column reference passes every CI check and only fails on apply — that's exactly how the 0175 bug I fixed today reached the repo. I designed the fix in <code>docs/proposals/ci-migration-gate.md</code> (uses the Supabase CLI, since 110 migrations need the <code>auth</code> schema a bare Postgres lacks). I did <b>not</b> wire it — it touches CI config and I can't run it headless.</div>
+        <div class="rec mine">My recommendation: <b>merge it non-blocking first</b>, watch it go green on real runs, then flip to blocking. Say the word and I'll open the PR.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <p><b>How this maps to what I did today:</b> you asked to automate migrations — that's done (<code>npm run db:check | db:dry | db:verify | db:apply</code>), the whole database is at 0187, and applying it surfaced + fixed one real bug (0175). Everything on this page is what's left <i>after</i> that, and every item here needs a decision or an action only you can take.</p>
+    <p style="margin-top:8px">Fuller detail on any item lives in <b>docs/FOUNDER-ACTION-QUEUE.md</b>. This page is the short version.</p>
+  </div>
+
+</div>
+</body>
+</html>
