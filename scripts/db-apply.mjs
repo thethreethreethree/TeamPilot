@@ -27,7 +27,7 @@
  */
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import pg from "pg";
 
@@ -71,13 +71,28 @@ function resolveConnection() {
 }
 
 // ---- migration files on disk -------------------------------------------------------------------------
+// ---- pure version logic (exported for tests) ---------------------------------------------------------
+// All ordering/selection is NUMERIC, never string. String compare is correct only while every version is
+// the same zero-padded width (4 digits today); the first 5-digit migration makes "10000" < "0999" true and
+// "9999" sort after "10000", which would baseline the wrong set or apply out of order — silently, in the
+// exact tool built to prevent that. These three helpers are the whole correctness core; db-apply.test.ts
+// pins them at the digit-width boundary.
+export function sortByVersion(files) {
+  return [...files].sort((a, b) => Number(a.version) - Number(b.version));
+}
+export function baselineSet(files, head) {
+  const headNum = Number(head);
+  return files.filter((f) => Number(f.version) <= headNum);
+}
+export function pendingFiles(files, appliedVersionSet) {
+  return sortByVersion(files).filter((f) => !appliedVersionSet.has(f.version));
+}
+
 function migrationFiles() {
-  return readdirSync(MIGRATIONS_DIR)
+  const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => /^\d+.*\.sql$/.test(f))
-    .map((f) => ({ version: f.match(/^(\d+)/)[1], name: f, path: join(MIGRATIONS_DIR, f) }))
-    // Sort by NUMERIC version, not filename string — apply order is correctness-critical (migrations must
-    // run in sequence) and a plain .sort() would misorder the day versions cross a digit-width boundary.
-    .sort((a, b) => Number(a.version) - Number(b.version));
+    .map((f) => ({ version: f.match(/^(\d+)/)[1], name: f, path: join(MIGRATIONS_DIR, f) }));
+  return sortByVersion(files);
 }
 
 async function ledgerExists(client) {
@@ -230,8 +245,7 @@ async function main() {
       // Numeric compare, NOT string. String `<=` is only correct while every version is the same digit
       // width (zero-padded 4). The first 5-digit migration would make "10000" <= "0999" true and baseline
       // the wrong set — a silent, high-consequence error in exactly the tool meant to prevent those.
-      const headNum = Number(head);
-      const toMark = files.filter((f) => Number(f.version) <= headNum);
+      const toMark = baselineSet(files, head);
       for (const f of toMark) {
         await client.query(
           `insert into public.${LEDGER}(version, name, baselined) values ($1,$2,true) on conflict do nothing`,
@@ -254,7 +268,7 @@ async function main() {
       process.exitCode = 1;
       return;
     }
-    const pending = files.filter((f) => !applied.has(f.version));
+    const pending = pendingFiles(files, applied);
 
     if (pending.length === 0) {
       console.log("[db-apply] nothing pending — DB is up to date with supabase/migrations/.");
@@ -303,7 +317,11 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(`[db-apply] fatal: ${e.message}`);
-  process.exitCode = 1;
-});
+// Auto-run only when invoked as a script — NOT when imported by a test (which would try to connect to the DB).
+const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) {
+  main().catch((e) => {
+    console.error(`[db-apply] fatal: ${e.message}`);
+    process.exitCode = 1;
+  });
+}
