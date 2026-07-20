@@ -82,24 +82,30 @@
 
   <!-- 1 -->
   <section>
-    <div class="sec-head"><span class="sec-num">1</span><h2>One env var turns on features that are already built</h2></div>
-    <p class="sec-sub">The highest return for the least effort. These are built, tested, and — as of today — their database tables are all applied. They are inert only because a secret isn't set.</p>
+    <div class="sec-head"><span class="sec-num">1</span><h2>Turn on features that are already built <span style="color:var(--do);font-size:14px;font-weight:700">· ✓ DONE 2026-07-20</span></h2></div>
+    <p class="sec-sub">Complete. You set <code>CRON_SECRET</code> and redeployed; I scheduled the report cron and verified the endpoint returns <b>401</b> (authenticated and live, not 503). All four crons are running. Nothing left in this section.</p>
 
     <div class="item">
-      <div class="box"></div>
+      <div class="box" style="background:var(--do);border-color:var(--do);position:relative">
+        <span style="position:absolute;top:-2px;left:2px;color:#fff;font-size:12px;font-weight:800">&#10003;</span>
+      </div>
       <div class="body">
-        <div class="title-row"><span class="t">Set <code>CRON_SECRET</code> in your Vercel environment</span><span class="tag t-easy">Quick</span></div>
-        <div class="desc">One variable activates <b>two</b> dormant background jobs at the next deploy: the <b>task-overrun sweep</b> (flags missed deadlines — the product was blind to them) and the <b>durability sweep</b> (§3.5 measurement). Both are built, scheduled in <code>vercel.json</code>, and their tables are live. Nothing else to wire.</div>
+        <div class="title-row"><span class="t" style="text-decoration:line-through;color:var(--faint)">Set <code>CRON_SECRET</code> in your Vercel environment</span><span class="tag t-easy">Done 2026-07-20</span></div>
+        <div class="desc"><b>Set + redeployed by you.</b> This activated all four crons (durability, dissect-backfill, task-overrun, finance report). <b>Confirm it took:</b> <code>curl -i https://YOUR-DOMAIN/api/care/durability-sweep-cron</code> should return <b>401</b> (working — it rejects anyone without Vercel's Bearer token); a <b>503</b> would mean the redeploy missed the env var. Ongoing status: Vercel &rarr; Cron Jobs tab.</div>
       </div>
     </div>
 
     <div class="item">
-      <div class="box"></div>
+      <div class="box" style="background:var(--do);border-color:var(--do);position:relative">
+        <span style="position:absolute;top:-2px;left:2px;color:#fff;font-size:12px;font-weight:800">&#10003;</span>
+      </div>
       <div class="body">
-        <div class="title-row"><span class="t">Add the scheduled-report cron to <code>vercel.json</code></span><span class="tag t-easy">Quick · now unblocked</span></div>
-        <div class="desc">Add <code>{ "path": "/api/finance/reports/deliver-cron", "schedule": "0 5 * * *" }</code>. This was <i>unsafe</i> before today — it needs views from migration 0172, which I applied today — so it is safe to add now. Uses the same <code>CRON_SECRET</code>.</div>
+        <div class="title-row"><span class="t" style="text-decoration:line-through;color:var(--faint)">Add the scheduled-report cron to <code>vercel.json</code></span><span class="tag t-easy">Done by me</span></div>
+        <div class="desc"><b>Scheduled 2026-07-20</b> (7am, commit <code>00a7afda</code>) — it was unblocked today (needs 0172's views, applied today) and I verified it is a clean no-op until report schedules exist. It stays inert until you set <code>CRON_SECRET</code> and redeploy.</div>
       </div>
     </div>
+
+    <div class="note"><b>Setting <code>CRON_SECRET</code> turns on FOUR crons at once</b> (durability, dissect-backfill, task-overrun, and now the finance report). Expect the task-overrun sweep's first run to emit a burst of <code>task_slipped</code> signals for tasks already past due — that is it working, not a bug. The <b>recording-purge</b> cron is deliberately NOT scheduled: it deletes recordings after 2 days and is coupled to decision &#9312; below.</div>
   </section>
 
   <!-- 2 -->
