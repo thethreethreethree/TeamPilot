@@ -28,3 +28,37 @@ New `security definer` function? It MUST `set search_path = public` (A23 / migra
 lesson). New event kind emitted into `events` but not mapped to a signal? Document it as an
 `enabled=false` `signal_sources` row so it's a legible deferral, not an accidental orphan
 (the 0026 / 0099 discipline).
+
+## Applying migrations
+
+Use `scripts/db-apply.mjs` (added 2026-07-20) — a direct Postgres connection using the
+credentials already in `.env.local`. The workflow, safest step first:
+
+```
+npm run db:check     # pure read: connection + ledger state + live-object probes. NO writes.
+npm run db:dry       # list the migrations that would apply (ledger vs. files on disk). NO writes.
+npm run db:verify    # run the whole pending batch in one transaction, then ROLL BACK. Proves it
+                     # executes against the live schema; commits nothing. Run this before applying.
+npm run db:apply     # apply pending migrations, each in its OWN transaction (rollback on failure).
+```
+
+**The ledger** is `public._agent_migrations` (our own table, not the Supabase CLI's). Applied
+state lives there — never infer "what's applied" from memory or these notes; run `db:check`.
+
+**Connection:** prefers `SUPABASE_DB_URL` (paste the IPv4 "Session pooler" string from the
+dashboard → Settings → Database); falls back to the direct `db.<ref>.supabase.co:5432` built
+from `SUPABASE_PROJECT_REF` + `SUPABASE_DB_PASSWORD` (IPv6, may not route from some networks —
+`db:check` will say so).
+
+**If `db:apply` fails on migration N:** that migration rolled back (nothing partial committed) and
+the run stopped; migrations before N are applied and ledgered. **Diagnose, do not retry** (§2):
+read the error, fix the migration's SQL, then re-run `db:apply` — it resumes at N because the
+earlier ones are already in the ledger. Worked example: 0175 failed with `column r.memo does not
+exist` — `fin_recurring_bills` (0140) has `description`, never `memo`; the view had been
+latent-broken since written because it had never run anywhere. Corrected to `r.description`, re-ran,
+resumed clean. (This is also why `db:verify` exists — it surfaces that class *before* a real apply.)
+
+**First-run baseline (already done, here for the record):** the tool was introduced after 0001–0172
+had been applied by hand with no ledger, so the ledger was seeded via `db:baseline=0172` (marks
+0001–0172 as already-applied from verified live-object probes, without re-running them) before the
+first real `db:apply` of 0173→0187. Baseline is once-only; the tool refuses to re-run it.
