@@ -74,8 +74,10 @@ function resolveConnection() {
 function migrationFiles() {
   return readdirSync(MIGRATIONS_DIR)
     .filter((f) => /^\d+.*\.sql$/.test(f))
-    .sort()
-    .map((f) => ({ version: f.match(/^(\d+)/)[1], name: f, path: join(MIGRATIONS_DIR, f) }));
+    .map((f) => ({ version: f.match(/^(\d+)/)[1], name: f, path: join(MIGRATIONS_DIR, f) }))
+    // Sort by NUMERIC version, not filename string — apply order is correctness-critical (migrations must
+    // run in sequence) and a plain .sort() would misorder the day versions cross a digit-width boundary.
+    .sort((a, b) => Number(a.version) - Number(b.version));
 }
 
 async function ledgerExists(client) {
@@ -225,7 +227,11 @@ async function main() {
           baselined  boolean not null default false
         )
       `);
-      const toMark = files.filter((f) => f.version <= head);
+      // Numeric compare, NOT string. String `<=` is only correct while every version is the same digit
+      // width (zero-padded 4). The first 5-digit migration would make "10000" <= "0999" true and baseline
+      // the wrong set — a silent, high-consequence error in exactly the tool meant to prevent those.
+      const headNum = Number(head);
+      const toMark = files.filter((f) => Number(f.version) <= headNum);
       for (const f of toMark) {
         await client.query(
           `insert into public.${LEDGER}(version, name, baselined) values ($1,$2,true) on conflict do nothing`,
