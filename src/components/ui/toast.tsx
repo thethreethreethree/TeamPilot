@@ -166,7 +166,11 @@ function ToastViewport({
       aria-label="Notifications"
       // top offset includes env(safe-area-inset-top) so toasts on
       // iPhones with notches don't render UNDER the status bar.
-      className="fixed top-[calc(1rem+env(safe-area-inset-top))] right-4 z-[60] flex flex-col gap-2 max-w-sm pointer-events-none"
+      // z-[70]: the "floats above product shells" tier. Product shells (CareShell/SalesCoachShell) are fixed
+      // z-[60] overlays; at the prior z-[60] toasts were EQUAL to them and showed only by DOM paint order — a
+      // fragility introduced when CareShell became an overlay (2026-07-20). z-[70] (matching the Cmd+K palette)
+      // makes toasts robustly visible over both product surfaces regardless of render order.
+      className="fixed top-[calc(1rem+env(safe-area-inset-top))] right-4 z-[70] flex flex-col gap-2 max-w-sm pointer-events-none"
     >
       {toasts.map((t) => {
         const Icon = ICON_MAP[t.kind];

@@ -98,7 +98,10 @@ export function AskJeffPanel() {
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/40 flex justify-end"
+      // z-[70]: floats above the z-[60] product shells (Care/SalesCoach), matching the palette + toasts. At
+      // z-[60] it was equal to the shells and relied on DOM paint order; z-[70] makes the Ask-Jeff slide-out
+      // robustly appear over both product surfaces.
+      className="fixed inset-0 z-[70] bg-black/40 flex justify-end"
       onClick={closeAskJeff}
     >
       <div
