@@ -296,7 +296,11 @@ export default function CommandPalette() {
       // pt-[15vh] reserves top space on desktop; on mobile we
       // start higher (pt-[5vh]) so the palette has room to render
       // its results panel within the visible viewport.
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[5vh] md:pt-[15vh] px-4"
+      // z-[70]: ABOVE the product shells (CareShell / SalesCoachShell are fixed z-[60] overlays). At the prior
+      // z-50 the palette opened BEHIND those shells, so Cmd+K global search was unreachable inside C.A.R.E and
+      // Sales Coach (regression surfaced 2026-07-20 when CareShell became an overlay; also pre-existing in
+      // Sales Coach). Global search must stay reachable from every surface — so the palette outranks the shells.
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-start justify-center pt-[5vh] md:pt-[15vh] px-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) close();
       }}
