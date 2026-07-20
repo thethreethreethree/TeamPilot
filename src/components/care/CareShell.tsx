@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { useToast } from "@/components/ui/toast";
+import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
   BarChart3,
   BookOpen,
@@ -278,6 +279,10 @@ export function CareShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
         {children}
       </main>
+      {/* Own LearningModeFab, mirroring SalesCoachShell (A21 parity). The dashboard-layout FAB sits at z-40,
+          BEHIND this z-[60] overlay, so it's hidden inside C.A.R.E — re-rendering it here keeps the learning
+          lightbulb reachable (it worked in Care before the overlay change; this restores it). */}
+      <LearningModeFab />
     </div>
   );
 }
