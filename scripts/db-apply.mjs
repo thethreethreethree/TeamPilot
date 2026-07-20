@@ -179,6 +179,7 @@ async function main() {
         "  --check      pure read: connection + ledger + live-head probes (NO writes)\n" +
         "  --baseline=NNNN   create ledger, mark 0001..NNNN as baselined (ledger only)\n" +
         "  --dry-run    list migrations that would apply (NO writes)\n" +
+        "  --verify     execute the pending batch in a transaction then ROLL BACK — proves it runs, commits nothing\n" +
         "  --apply      apply pending migrations, each in its own transaction\n"
     );
     return;
@@ -283,8 +284,41 @@ async function main() {
       return;
     }
 
+    if (mode === "--verify") {
+      // Prove the whole pending batch EXECUTES against the real schema, then roll back — commits nothing.
+      // ONE transaction in order, so each migration sees the prior's changes (0176 depends on 0175's table,
+      // etc.) — verifying each in isolation would give false failures. This is the gate that would have
+      // caught 0175 (`column r.memo does not exist`) BEFORE a real apply rather than mid-run. Caveat: a
+      // statement that cannot run inside a transaction (e.g. CREATE INDEX CONCURRENTLY) will fail here — but
+      // it would fail --apply too (that path also wraps each migration in begin/commit), so the signal is
+      // honest, not a false alarm.
+      console.log("\n[db-apply] VERIFY — applying the batch in one transaction, then rolling back…");
+      try {
+        await client.query("begin");
+        for (const f of pending) {
+          process.stdout.write(`   ${f.name} … `);
+          await client.query(readFileSync(f.path, "utf8"));
+          console.log("ok");
+        }
+        await client.query("rollback");
+        console.log(
+          `\n[db-apply] VERIFY PASSED — all ${pending.length} pending migration(s) execute clean. ` +
+            "Rolled back; nothing committed. Safe to --apply."
+        );
+      } catch (e) {
+        await client.query("rollback").catch(() => {});
+        console.log("FAILED");
+        console.error(`\n[db-apply] VERIFY FAILED: ${e.message}`);
+        console.error("[db-apply] rolled back; nothing committed. Fix the migration, then --verify again.\n");
+        process.exitCode = 1;
+      }
+      return;
+    }
+
     if (mode !== "--apply") {
-      console.error(`[db-apply] unknown mode '${mode}'. Use --check | --baseline=NNNN | --dry-run | --apply`);
+      console.error(
+        `[db-apply] unknown mode '${mode}'. Use --check | --baseline=NNNN | --dry-run | --verify | --apply`
+      );
       process.exitCode = 1;
       return;
     }
