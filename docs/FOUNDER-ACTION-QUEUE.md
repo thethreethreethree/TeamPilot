@@ -26,6 +26,14 @@
 > wire it because it adds a service to `ci.yml` and CI must never touch prod — that's an ops decision for you.
 > If you want it, say so and I'll build it against a throwaway container, not your database.
 >
+> **UPDATE (later 2026-07-20): designed it properly — see [docs/proposals/ci-migration-gate.md](proposals/ci-migration-gate.md).**
+> My "ephemeral Postgres" phrasing above was imprecise: a bare `postgres:16` container **fails**, because
+> **110 of 187 migrations reference the Supabase `auth` schema** (368 `auth.uid()`, 101 `auth.users`) + 29
+> `storage.*` — none of which vanilla Postgres has. The correct tool is the **Supabase CLI** (already a
+> dependency), whose `db reset` replays all migrations against a fresh local stack that HAS those schemas. The
+> proposal has a drafted `ci.yml` job + an honest list of what I could not verify headless (I can't run Docker
+> here) + the recommendation to ship it non-blocking first. Your call to merge it.
+>
 > **What is STILL genuinely open (unchanged by this):** the *decisions* — ⑦ (can anything play a recording?),
 > ⑧, ⑨, ⑤, ②, ③, the mobile suspects — and the *operational config* that no migration provides: `CRON_SECRET`
 > + a schedule entry for the purge/durability/overrun crons. Applying a migration was never the blocker on those;
