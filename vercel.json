@@ -11,6 +11,10 @@
     {
       "path": "/api/diagnosis/task-overrun-sweep-cron",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/finance/reports/deliver-cron",
+      "schedule": "0 7 * * *"
     }
   ]
 }
