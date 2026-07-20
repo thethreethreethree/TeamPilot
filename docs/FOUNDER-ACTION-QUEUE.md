@@ -18,6 +18,14 @@
 > `fin_recurring_bills.memo`, a column that table never had (it has `description`). It had been latent-broken
 > since written because it had never run anywhere; corrected to `r.description` and applied. Commit `285e25da`.
 >
+> **RECOMMENDATION (your call — I did not build it): add a CI migration-execution gate.** `0175` proved a
+> migration with a column-reference error passes every existing gate (tsc/lint/test/build don't parse SQL) and
+> only fails on live apply. I added `npm run db:verify` — applies the pending batch in a transaction then rolls
+> back, so you can catch this *before* `db:apply` — but that's manual and points at the prod DB. The durable
+> fix is CI spinning up an **ephemeral Postgres** and applying all migrations in order on every PR. I did not
+> wire it because it adds a service to `ci.yml` and CI must never touch prod — that's an ops decision for you.
+> If you want it, say so and I'll build it against a throwaway container, not your database.
+>
 > **What is STILL genuinely open (unchanged by this):** the *decisions* — ⑦ (can anything play a recording?),
 > ⑧, ⑨, ⑤, ②, ③, the mobile suspects — and the *operational config* that no migration provides: `CRON_SECRET`
 > + a schedule entry for the purge/durability/overrun crons. Applying a migration was never the blocker on those;
