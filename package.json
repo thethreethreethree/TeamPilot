@@ -16,7 +16,11 @@
     "invariant:audit": "node scripts/invariant-audit.mjs",
     "test:chain": "cross-env EXECOS_INTEGRATION_TEST=1 vitest run src/lib/data/__tests__/chain.integration.test.ts",
     "check": "npm run typecheck && npm run lint && npm run theme:audit && npm run rls:audit && npm run invariant:audit && npm run test",
-    "setup:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/check-setup.ps1"
+    "setup:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/check-setup.ps1",
+    "db:check": "node scripts/db-apply.mjs --check",
+    "db:baseline": "node scripts/db-apply.mjs --baseline",
+    "db:dry": "node scripts/db-apply.mjs --dry-run",
+    "db:apply": "node scripts/db-apply.mjs --apply"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
@@ -46,6 +50,7 @@
     "docx": "^9.7.1",
     "eslint": "^8",
     "eslint-config-next": "15.3.2",
+    "pg": "^8.22.0",
     "postcss": "^8",
     "supabase": "^2.104.0",
     "tailwindcss": "^3.4.1",

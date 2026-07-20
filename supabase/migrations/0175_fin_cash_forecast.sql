@@ -97,7 +97,11 @@ create or replace view fin_cash_commitments with (security_invoker = true) as
          r.next_date,
          (r.amount + r.tax_amount)::numeric(19,4),
          'recurring',
-         r.memo
+         -- source_ref: the recurring bill's label, parallel to invoice_number / bill_number above.
+         -- CORRECTED 2026-07-20: this read `r.memo`, a column fin_recurring_bills (0140) never had — it
+         -- has `description`. The migration failed on first apply (`column r.memo does not exist`); it had
+         -- been latent-broken since written because it had never been run anywhere.
+         r.description
     from fin_recurring_bills r
    where r.is_active;
 
