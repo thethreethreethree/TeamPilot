@@ -64,3 +64,43 @@ jobs:
       # on demand, so the build needs no live DB. Without this step those errors reach production.
       - name: Build
         run: npm run build
+
+  # Migration-execution gate — proposed 2026-07-20 (docs/proposals/ci-migration-gate.md). Closes the gap
+  # that let 0175 (a `column r.memo does not exist` bug) pass every gate above and fail only on live apply:
+  # nothing here parses SQL. This job applies EVERY migration to a throwaway database from scratch, so a bad
+  # column/table/view reference fails the PR instead of the founder's next `db:apply`.
+  #
+  # It uses the Supabase CLI, NOT a bare postgres container — 110 of 187 migrations reference the `auth`
+  # schema (auth.uid/auth.users) + 29 reference `storage`, which vanilla Postgres does not have; the CLI's
+  # local stack provides them and `supabase db reset` replays supabase/migrations/*.sql in order.
+  #
+  # SHIPPED NON-BLOCKING ON PURPOSE (continue-on-error: true). This job is UNVERIFIED — it was authored
+  # without a way to run Docker/Actions locally; open questions (does `db reset` need a seed? is `db start`
+  # enough? the storage.* deps? cold-start cost) are listed in the proposal and only a real run answers them.
+  # Let it go green on a few real PRs, THEN remove continue-on-error to make it blocking. Merging it blocking
+  # while any of those questions bites would red-wall every PR — the opposite of helpful.
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase database
+        # Boots Postgres + the auth/storage schemas the migrations depend on. Docker is available on
+        # ubuntu-latest runners. If this proves heavier than needed, `supabase db start` alone may suffice.
+        run: supabase start
+
+      - name: Apply all migrations from scratch
+        # Replays supabase/migrations/*.sql in order against the fresh local DB; nonzero exit on any error.
+        run: supabase db reset
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
