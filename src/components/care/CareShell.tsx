@@ -28,9 +28,16 @@ import {
  * CareShell — Zendesk Chat-shaped app shell for the Care product.
  *
  * Owns the dedicated left vertical sidebar for every page under
- * /dashboard/care. The main ELOSTATE sidebar collapses behind a
- * back-link in the Care header so Care feels like its own product
- * surface (which it is — competitors are full SaaS apps).
+ * /dashboard/care. The shell renders as a FIXED z-[60] full-viewport
+ * overlay (see the wrapper below) that covers the main ELOSTATE
+ * sidebar entirely, so Care reads as its own product surface (which it
+ * is — competitors are full SaaS apps). "Back to ELOSTATE" in the
+ * footer navigates away, unmounting the overlay and revealing the app.
+ *
+ * NOTE (2026-07-20): this comment previously claimed the main sidebar
+ * "collapses behind a back-link" — it never did. The old root was an
+ * inline flex div, so the main sidebar rendered beside Care (the
+ * double-sidebar the founder flagged). The overlay is the actual fix.
  *
  * Sidebar structure mirrors Zendesk Chat:
  *   - Online indicator at the top (agent status)
@@ -138,7 +145,14 @@ export function CareShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="flex h-dvh w-full bg-base overflow-hidden">
+    // FIXED full-viewport overlay (z-[60]) — mirrors SalesCoachShell exactly. This is what makes C.A.R.E its
+    // OWN page instead of a panel nested beside the main ELOSTATE sidebar. The main Sidebar sits at z-40, so a
+    // z-[60] fixed overlay covers it entirely; "Back to ELOSTATE" (footer) navigates away from /dashboard/care,
+    // unmounting this overlay and revealing the main app. Before 2026-07-20 this root was a plain `flex h-dvh`
+    // inline div, so the parent dashboard layout's <Sidebar/> rendered to its LEFT — the double-sidebar the
+    // founder screenshotted. Kept CareShell's existing inner `flex` (row) + mobile drawer untouched; only the
+    // wrapper became an overlay, so desktop AND the mobile drawer behave as before, now above the main chrome.
+    <div className="fixed inset-0 z-[60] flex h-dvh w-full bg-base overflow-hidden">
       {/* Mobile backdrop — appears when the C.A.R.E sidebar is
           OPEN on a < md viewport. Tap dismisses. Without the
           backdrop the user can lose the sidebar context with no
