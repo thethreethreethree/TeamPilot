@@ -1,5 +1,31 @@
 # Founder action queue — as of 2026-07-14
 
+> ### ⬆️ 2026-07-20 — ALL MIGRATIONS ARE NOW APPLIED. Every "apply migration NNNN" instruction below is DONE.
+>
+> You asked to automate migration application. I built `scripts/db-apply.mjs` (`npm run db:check | db:baseline |
+> db:dry | db:apply`) — a direct Postgres connection using the credentials already in `.env.local`, no CLI to
+> install. It is now the mechanism, and **the whole DB is caught up: `supabase/migrations/` 0001→0187 are applied,
+> `db:dry` is empty, and a ledger table `public._agent_migrations` (187 rows, max `0187`) records it.**
+>
+> **What this supersedes below (do NOT act on these — they are historical):** every "APPLY `0145`–`0153`",
+> "apply `0157`–`0182`", "apply `0184`/`0185`/`0186`", "apply `0187`", and the whole "you are at `0156`/`0111`
+> is UNAPPLIED" framing. The live DB was **already past** where these notes believed — the head was `0172`, not
+> `0156`; you had applied more than the queue recorded. Ground truth was established by probing live objects, not
+> by trusting these notes (two of my first probe queries were themselves wrong and were corrected before any
+> write — the write path refuses to run without a verified ledger baseline).
+>
+> **One real bug was surfaced and fixed by the apply itself:** `0175` (cash-forecast) referenced
+> `fin_recurring_bills.memo`, a column that table never had (it has `description`). It had been latent-broken
+> since written because it had never run anywhere; corrected to `r.description` and applied. Commit `285e25da`.
+>
+> **What is STILL genuinely open (unchanged by this):** the *decisions* — ⑦ (can anything play a recording?),
+> ⑧, ⑨, ⑤, ②, ③, the mobile suspects — and the *operational config* that no migration provides: `CRON_SECRET`
+> + a schedule entry for the purge/durability/overrun crons. Applying a migration was never the blocker on those;
+> a human decision or an operator action is. **⑦ note:** `0187` is now applied regardless of ⑦ — if you decide
+> "drop the audio", the columns it added are inert (default false) and can be dropped in a follow-up, not urgent.
+
+
+
 > ### ⬆️ 2026-07-17 ADDENDUM (ELOSALES Standard revision — newest; read before the 07-16 block)
 >
 > ## 🔴 FIRST, UNRELATED TO THIS BUILD: your CI has almost certainly been RED since 2026-07-16
