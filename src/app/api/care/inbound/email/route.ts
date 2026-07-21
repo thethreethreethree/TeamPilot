@@ -577,6 +577,9 @@ async function runAiFirstResponder(args: {
     const systemPrompt = buildCareSystemPrompt({
       productContext,
       agentName: tenant?.aiName,
+      // F2 (founder 2026-07-22): honour the per-tenant voice settings (previously loaded but unused).
+      aiTone: tenant?.aiTone,
+      aiResponseLength: tenant?.aiResponseLength,
     });
     const userMessage = buildCareUserMessage({
       newMessage: args.customerMessage,

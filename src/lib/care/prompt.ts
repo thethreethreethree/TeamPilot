@@ -140,6 +140,29 @@ The customer is sitting in silence waiting for you. Every extra sentence is dead
  * medium="voice" appends a strict brevity directive — see
  * buildVoiceAddendum() above for the reasoning.
  */
+/** Per-tenant voice settings → explicit tone + length directives (F2, founder 2026-07-22).
+ *  Previously aiTone/aiResponseLength were loaded from care_tenant_config but never reached the prompt,
+ *  so the settings did nothing (§A5 ripple gap / AMD-006 Layer-2). Defaults ('warm'/'medium') reproduce
+ *  the prior baked-in behaviour, so tenants who never set them are unaffected. Voice mode's 1-sentence
+ *  cap still wins because buildVoiceAddendum is appended AFTER this. */
+function buildToneLengthDirective(
+  tone: "warm" | "formal" | "casual" | "direct",
+  length: "short" | "medium" | "long"
+): string {
+  const toneLine: Record<typeof tone, string> = {
+    warm: "Tone: warm and empathetic — friendly and human, never stiff.",
+    formal: "Tone: professional and precise — courteous and polished; avoid slang and over-familiarity.",
+    casual: "Tone: relaxed and conversational — easygoing and friendly, like a helpful peer.",
+    direct: "Tone: direct and efficient — lead with the answer, minimal padding, still polite.",
+  };
+  const lengthLine: Record<typeof length, string> = {
+    short: "Length: keep replies to 1-2 sentences — answer and stop.",
+    medium: "Length: most replies are 1-4 sentences.",
+    long: "Length: a short paragraph is fine when the question genuinely needs the detail — but never pad.",
+  };
+  return `\n\nTONE & LENGTH (this business's settings):\n  - ${toneLine[tone]}\n  - ${lengthLine[length]}`;
+}
+
 export function buildCareSystemPrompt(args: {
   productContext?: string;
   medium?: "text" | "voice";
@@ -148,6 +171,9 @@ export function buildCareSystemPrompt(args: {
    *  the API save endpoint + constrained at the DB; safe to
    *  interpolate here without escaping. */
   agentName?: string;
+  /** Per-tenant voice settings (care_tenant_config). Default to the prior baked-in behaviour. */
+  aiTone?: "warm" | "formal" | "casual" | "direct";
+  aiResponseLength?: "short" | "medium" | "long";
 }): string {
   const name = (args.agentName ?? "Jeff").trim() || "Jeff";
   const sections = [buildIdentity(name)];
@@ -156,6 +182,9 @@ export function buildCareSystemPrompt(args: {
       `\n\nPRODUCT CONTEXT — what you're representing:\n${args.productContext}\n\nIf the customer asks about something outside this context, treat it as a hand-off case.`
     );
   }
+  sections.push(
+    buildToneLengthDirective(args.aiTone ?? "warm", args.aiResponseLength ?? "medium")
+  );
   if (args.medium === "voice") {
     sections.push(buildVoiceAddendum(name));
   }

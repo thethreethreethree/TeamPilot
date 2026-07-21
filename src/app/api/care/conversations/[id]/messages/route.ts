@@ -257,6 +257,9 @@ export async function POST(
     productContext,
     medium,
     agentName: tenant?.aiName,
+    // F2 (founder 2026-07-22): honour the per-tenant voice settings that were previously loaded but unused.
+    aiTone: tenant?.aiTone,
+    aiResponseLength: tenant?.aiResponseLength,
   });
   const userMessage = buildCareUserMessage({
     newMessage: body.body,
