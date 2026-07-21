@@ -260,11 +260,11 @@ const TOOLS: { key: ToolKey; name: string; icon: typeof GraduationCap; blurb: st
 ];
 
 const TONE_STYLES: Record<InboxState["statusTone"], string> = {
-  quiet: "bg-ink-800/60 text-zinc-400 border-ink-800",
+  quiet: "bg-surface-raised/60 text-secondary border-default",
   ai: "bg-ember-400/10 text-brand border-ember-400/30",
   needs: "bg-amber-500/15 text-amber-300 border-amber-500/40",
   live: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
-  resolved: "bg-emerald-500/20 text-emerald-200 border-emerald-500/50",
+  resolved: "bg-emerald-500/20 text-emerald-300 border-emerald-500/50",
 };
 
 export function CareDemoWalkthrough() {
@@ -296,7 +296,7 @@ export function CareDemoWalkthrough() {
       aria-label="C.A.R.E walkthrough — use the left and right arrow keys to move between steps"
       tabIndex={0}
       onKeyDown={onKeyDown}
-      className="rounded-2xl p-4 md:p-6 border border-ink-800 bg-ink-950 shadow-glow-ember-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/60"
+      className="rounded-2xl p-4 md:p-6 border border-default bg-surface shadow-glow-ember-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/60"
     >
       {/* Stepper header */}
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
@@ -305,19 +305,19 @@ export function CareDemoWalkthrough() {
             className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
               step.best
                 ? "bg-ember-400/15 text-brand border-ember-400/40"
-                : "bg-ink-800/60 text-zinc-500 border-ink-800"
+                : "bg-surface-raised/60 text-muted border-default"
             }`}
           >
             {step.best ? "★ the key feature" : `step ${i + 1} of ${STEPS.length}`}
           </span>
-          <span className="text-sm font-semibold text-zinc-100 truncate">{step.phase}</span>
+          <span className="text-sm font-semibold text-primary truncate">{step.phase}</span>
         </div>
         <div className="flex items-center gap-1.5" aria-hidden>
           {STEPS.map((_, idx) => (
             <span
               key={idx}
               className={`h-1.5 rounded-full transition-all ${
-                idx === i ? "w-6 bg-ember-400" : idx < i ? "w-1.5 bg-ember-400/50" : "w-1.5 bg-ink-700"
+                idx === i ? "w-6 bg-ember-400" : idx < i ? "w-1.5 bg-ember-400/50" : "w-1.5 bg-ember-400/20"
               }`}
             />
           ))}
@@ -327,7 +327,7 @@ export function CareDemoWalkthrough() {
       {/* Two panels */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* LEFT — customer widget */}
-        <div className="rounded-xl border border-ink-800 bg-ink-950/60 overflow-hidden flex flex-col">
+        <div className="rounded-xl border border-default bg-surface/60 overflow-hidden flex flex-col">
           <div className="flex items-center gap-2 px-3 py-2.5 bg-ember-400 text-[#09090B]">
             <div className="w-7 h-7 rounded-full bg-[#09090B]/10 flex items-center justify-center">
               <Bot className="w-4 h-4" aria-hidden />
@@ -347,25 +347,25 @@ export function CareDemoWalkthrough() {
             ))}
             {step.showCard && <HandoffCardMock />}
             {step.showWaiting && (
-              <p className="text-[10px] text-center text-zinc-500 italic">
+              <p className="text-[10px] text-center text-muted italic">
                 A member of our team will reply right here…
               </p>
             )}
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2 border-t border-ink-800 bg-ink-900/60">
-            <Paperclip className="w-3.5 h-3.5 text-zinc-500" aria-hidden />
-            <span className="flex-1 text-[11px] text-zinc-500">Message…</span>
-            <Phone className="w-3.5 h-3.5 text-zinc-500" aria-hidden />
+          <div className="flex items-center gap-2 px-3 py-2 border-t border-default bg-surface-raised/60">
+            <Paperclip className="w-3.5 h-3.5 text-muted" aria-hidden />
+            <span className="flex-1 text-[11px] text-muted">Message…</span>
+            <Phone className="w-3.5 h-3.5 text-muted" aria-hidden />
             <Send className="w-3.5 h-3.5 text-brand" aria-hidden />
           </div>
         </div>
 
         {/* RIGHT — agent inbox */}
-        <div className="rounded-xl border border-ink-800 bg-ink-950/60 overflow-hidden flex flex-col">
-          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-ink-800 bg-ink-900/60">
+        <div className="rounded-xl border border-default bg-surface/60 overflow-hidden flex flex-col">
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-default bg-surface-raised/60">
             <MessageCircle className="w-4 h-4 text-brand" aria-hidden />
-            <p className="text-xs font-bold text-zinc-100">Agent inbox</p>
+            <p className="text-xs font-bold text-primary">Agent inbox</p>
             <span
               className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                 TONE_STYLES[step.inbox.statusTone]
@@ -382,25 +382,25 @@ export function CareDemoWalkthrough() {
                 className={`rounded-lg border p-2.5 ${
                   step.best
                     ? "border-ember-400/50 bg-ember-400/[0.06] shadow-glow-ember-soft"
-                    : "border-ink-800 bg-ink-900/50"
+                    : "border-default bg-surface-raised/50"
                 }`}
               >
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                   {step.inbox.captured.map((f) => (
                     <div key={f.label} className="min-w-0">
-                      <p className="text-[9px] uppercase tracking-wider text-zinc-500">{f.label}</p>
-                      <p className="text-[11px] font-semibold text-zinc-100 truncate">{f.value}</p>
+                      <p className="text-[9px] uppercase tracking-wider text-muted">{f.label}</p>
+                      <p className="text-[11px] font-semibold text-primary truncate">{f.value}</p>
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="rounded-lg border border-dashed border-ink-800/60 p-2.5 text-[10px] text-zinc-500 italic">
+              <div className="rounded-lg border border-dashed border-default/60 p-2.5 text-[10px] text-muted italic">
                 No customer context captured yet.
               </div>
             )}
 
-            <p className="text-[11px] text-zinc-400 leading-relaxed flex-1">
+            <p className="text-[11px] text-secondary leading-relaxed flex-1">
               {step.inbox.transcriptNote}
             </p>
 
@@ -415,7 +415,7 @@ export function CareDemoWalkthrough() {
                     className={`text-[10px] font-medium px-2 py-1 rounded-md border flex items-center gap-1 transition-colors ${
                       active
                         ? "bg-ember-400 text-[#09090B] border-ember-400"
-                        : "bg-ink-800/60 text-zinc-400 border-ink-800"
+                        : "bg-surface-raised/60 text-secondary border-default"
                     }`}
                   >
                     <Icon className="w-3 h-3" aria-hidden /> {t.name}
@@ -426,7 +426,7 @@ export function CareDemoWalkthrough() {
 
             {step.inbox.toolNote && (
               <div className="rounded-lg border border-ember-400/30 bg-ember-400/[0.05] p-2.5">
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-secondary leading-relaxed">
                   <Sparkles className="w-3 h-3 text-brand inline mr-1 -mt-0.5" aria-hidden />
                   {step.inbox.toolNote}
                 </p>
@@ -437,12 +437,12 @@ export function CareDemoWalkthrough() {
       </div>
 
       {/* Caption + why */}
-      <div className="mt-4 rounded-xl border border-ink-800 bg-ink-900/40 p-4">
-        <p className="text-sm font-semibold text-zinc-100 flex items-start gap-2">
+      <div className="mt-4 rounded-xl border border-default bg-surface-raised/40 p-4">
+        <p className="text-sm font-semibold text-primary flex items-start gap-2">
           <CheckCircle2 className="w-4 h-4 text-brand mt-0.5 shrink-0" aria-hidden />
           {step.caption}
         </p>
-        <p className="text-xs text-zinc-400 leading-relaxed mt-1.5 pl-6">
+        <p className="text-xs text-secondary leading-relaxed mt-1.5 pl-6">
           <span className="text-brand font-semibold">Why it matters — </span>
           {step.why}
         </p>
@@ -454,13 +454,13 @@ export function CareDemoWalkthrough() {
           type="button"
           onClick={prev}
           disabled={i === 0}
-          className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border border-ink-800 text-zinc-400 hover:text-zinc-100 hover:border-ink-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border border-default text-secondary hover:text-primary hover:border-strong disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden /> Back
         </button>
 
-        <span className="text-[11px] font-mono text-zinc-500 flex items-center gap-2">
-          <span className="hidden sm:inline text-zinc-600" aria-hidden>
+        <span className="text-[11px] font-mono text-muted flex items-center gap-2">
+          <span className="hidden sm:inline text-muted" aria-hidden>
             ← → keys
           </span>
           {i + 1} / {STEPS.length}
@@ -470,7 +470,7 @@ export function CareDemoWalkthrough() {
           <button
             type="button"
             onClick={() => setI(0)}
-            className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg border border-ink-800 text-zinc-400 hover:text-zinc-100 hover:border-ink-600 transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg border border-default text-secondary hover:text-primary hover:border-strong transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" aria-hidden /> Replay
           </button>
@@ -490,11 +490,11 @@ export function CareDemoWalkthrough() {
         {TOOLS.map((t) => {
           const Icon = t.icon;
           return (
-            <div key={t.key} className="rounded-lg border border-ink-800 bg-ink-900/30 p-3">
-              <p className="text-xs font-semibold text-zinc-100 flex items-center gap-1.5 mb-1">
+            <div key={t.key} className="rounded-lg border border-default bg-surface-raised/30 p-3">
+              <p className="text-xs font-semibold text-primary flex items-center gap-1.5 mb-1">
                 <Icon className="w-3.5 h-3.5 text-brand" aria-hidden /> {t.name}
               </p>
-              <p className="text-[11px] text-zinc-400 leading-relaxed">{t.blurb}</p>
+              <p className="text-[11px] text-secondary leading-relaxed">{t.blurb}</p>
             </div>
           );
         })}
@@ -506,7 +506,7 @@ export function CareDemoWalkthrough() {
 function ChatBubble({ bubble }: { bubble: Bubble }) {
   if (bubble.from === "system") {
     return (
-      <p className="text-[10px] text-center text-zinc-500 italic px-4 leading-relaxed">
+      <p className="text-[10px] text-center text-muted italic px-4 leading-relaxed">
         {bubble.text}
       </p>
     );
@@ -518,7 +518,7 @@ function ChatBubble({ bubble }: { bubble: Bubble }) {
     <div className={`flex ${isCustomer ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] ${isCustomer ? "order-2" : ""}`}>
         {!isCustomer && (
-          <p className="text-[9px] text-zinc-500 mb-0.5 flex items-center gap-1">
+          <p className="text-[9px] text-muted mb-0.5 flex items-center gap-1">
             <Icon className="w-2.5 h-2.5" aria-hidden /> {label}
           </p>
         )}
@@ -527,8 +527,8 @@ function ChatBubble({ bubble }: { bubble: Bubble }) {
             isCustomer
               ? "bg-ember-400 text-[#09090B] rounded-br-sm"
               : bubble.from === "agent"
-                ? "bg-emerald-500/15 text-emerald-100 border border-emerald-500/30 rounded-bl-sm"
-                : "bg-ink-800 text-zinc-100 border border-ink-800 rounded-bl-sm"
+                ? "bg-emerald-500/15 text-primary border border-emerald-500/30 rounded-bl-sm"
+                : "bg-surface-raised text-primary border border-default rounded-bl-sm"
           }`}
         >
           {bubble.text}
@@ -541,8 +541,8 @@ function ChatBubble({ bubble }: { bubble: Bubble }) {
 /** A compact mock of the real HandoffCard (name/email/concern/order#). */
 function HandoffCardMock() {
   return (
-    <div className="rounded-lg border border-ember-400/30 bg-ink-900/70 p-2.5 space-y-1.5">
-      <p className="text-[10px] font-semibold text-zinc-100 flex items-center gap-1">
+    <div className="rounded-lg border border-ember-400/30 bg-surface-raised/70 p-2.5 space-y-1.5">
+      <p className="text-[10px] font-semibold text-primary flex items-center gap-1">
         <ShieldCheck className="w-3 h-3 text-brand" aria-hidden /> Help us connect you
       </p>
       <MockField label="Name" value="Devan Okoro" />
@@ -553,7 +553,7 @@ function HandoffCardMock() {
         <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-ember-400 text-[#09090B]">
           Connect me
         </span>
-        <span className="text-[10px] text-zinc-500 px-2 py-1">Skip</span>
+        <span className="text-[10px] text-muted px-2 py-1">Skip</span>
       </div>
     </div>
   );
@@ -562,8 +562,8 @@ function HandoffCardMock() {
 function MockField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[9px] uppercase tracking-wider text-zinc-500">{label}</p>
-      <div className="text-[11px] text-zinc-100 bg-ink-950/60 border border-ink-800 rounded px-2 py-1 mt-0.5">
+      <p className="text-[9px] uppercase tracking-wider text-muted">{label}</p>
+      <div className="text-[11px] text-primary bg-surface/60 border border-default rounded px-2 py-1 mt-0.5">
         {value}
       </div>
     </div>

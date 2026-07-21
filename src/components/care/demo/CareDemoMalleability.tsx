@@ -77,7 +77,7 @@ export function CareDemoMalleability() {
 
         {/* Toggle */}
         <div
-          className="inline-flex rounded-lg border border-default p-0.5 bg-ink-900/60 mb-4"
+          className="inline-flex rounded-lg border border-default p-0.5 bg-surface-raised/60 mb-4"
           role="group"
           aria-label="Business type"
         >
@@ -86,7 +86,7 @@ export function CareDemoMalleability() {
             onClick={() => setBiz("general")}
             aria-pressed={!isEcom}
             className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
-              !isEcom ? "bg-ember-400 text-[#09090B]" : "text-secondary hover:text-primary"
+              !isEcom ? "bg-ember-400 text-[#09090B]" : "text-secondary hover:text-brand"
             }`}
           >
             <Building2 className="w-3.5 h-3.5" aria-hidden /> General
@@ -96,25 +96,24 @@ export function CareDemoMalleability() {
             onClick={() => setBiz("ecommerce")}
             aria-pressed={isEcom}
             className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
-              isEcom ? "bg-ember-400 text-[#09090B]" : "text-secondary hover:text-primary"
+              isEcom ? "bg-ember-400 text-[#09090B]" : "text-secondary hover:text-brand"
             }`}
           >
             <Store className="w-3.5 h-3.5" aria-hidden /> E-commerce
           </button>
         </div>
 
-        {/* Reshaped capture card preview — a fixed-dark "product screen"
-            (fixed colors, not theme tokens, so it never goes dark-on-dark
-            in light mode). */}
-        <div className="rounded-xl border border-ember-400/25 bg-ink-950 p-3">
-          <p className="text-[11px] font-semibold text-zinc-100 mb-2">Handoff capture — what the customer sees</p>
+        {/* Reshaped capture card preview — theme-aware (semantic tokens),
+            so it flips cleanly with light/dark like the real widget. */}
+        <div className="rounded-xl border border-ember-400/25 bg-base p-3">
+          <p className="text-[11px] font-semibold text-primary mb-2">Handoff capture — what the customer sees</p>
           <div className="space-y-1">
-            <p className="text-[9px] uppercase tracking-wider text-zinc-500">What&apos;s this about?</p>
+            <p className="text-[9px] uppercase tracking-wider text-muted">What&apos;s this about?</p>
             <div className="flex flex-wrap gap-1.5">
               {TOPICS[biz].map((t) => (
                 <span
                   key={t}
-                  className="text-[10px] px-2 py-1 rounded-md border border-ink-700 bg-ink-900 text-zinc-300"
+                  className="text-[10px] px-2 py-1 rounded-md border border-default bg-surface-raised text-secondary"
                 >
                   {t}
                 </span>
@@ -126,8 +125,8 @@ export function CareDemoMalleability() {
               isEcom ? "opacity-100" : "opacity-40"
             }`}
           >
-            <p className="text-[9px] uppercase tracking-wider text-zinc-500">Order number</p>
-            <div className="text-[11px] text-zinc-100 bg-ink-950 border border-ink-700 rounded px-2 py-1 mt-0.5 flex items-center justify-between">
+            <p className="text-[9px] uppercase tracking-wider text-muted">Order number</p>
+            <div className="text-[11px] text-primary bg-base border border-default rounded px-2 py-1 mt-0.5 flex items-center justify-between">
               <span>{isEcom ? "10432" : "— hidden for general support —"}</span>
               {isEcom && (
                 <span className="text-[9px] text-brand font-semibold">shown for order concerns</span>
