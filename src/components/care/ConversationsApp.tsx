@@ -764,7 +764,10 @@ export function ConversationsApp({
         (c) =>
           (c.subject ?? "").toLowerCase().includes(q) ||
           (c.customer?.email ?? "").toLowerCase().includes(q) ||
-          (c.customer?.name ?? "").toLowerCase().includes(q)
+          (c.customer?.name ?? "").toLowerCase().includes(q) ||
+          // Search the captured concern too (0188), so an agent can pull up all "billing" or
+          // "order tracking" cases — the chip in the list is now actionable, not just visible.
+          (labelForAnyTopic(c.handoffTopic) ?? "").toLowerCase().includes(q)
       );
     }
     // Sort: priority weight DESC, then last_message_at DESC
