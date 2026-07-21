@@ -74,6 +74,15 @@ const SECURITY_HEADERS = [X_FRAME_OPTIONS, ...BASE_SECURITY_HEADERS];
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Build stamp — surfaces the deployed commit + build time as <meta> tags (see src/app/layout.tsx), so
+  // `curl <site> | grep build-sha` answers "what's actually deployed?" without opening Vercel. This closes the
+  // blind spot from the 2026-07-21 incident, where weeks of failed builds went unnoticed because nothing on the
+  // running site revealed its version. VERCEL_GIT_COMMIT_SHA is set by Vercel at build; "dev" locally. Injected
+  // via env so it's inlined once at BUILD time (stable across requests, not re-evaluated per render).
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: (process.env.VERCEL_GIT_COMMIT_SHA || "dev").slice(0, 7),
+    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
+  },
   // Output a standalone server bundle for container deploys (Vercel ignores
   // this and uses its own runtime; Docker / Fly / Render benefit).
   output: "standalone",
