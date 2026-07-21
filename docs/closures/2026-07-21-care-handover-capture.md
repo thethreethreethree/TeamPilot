@@ -126,6 +126,28 @@ mirroring the embedded widget's 4s poll (paused when hidden / mid-send). **Verif
 customer's direct-widget chat open post-handoff, reply as the agent from the inbox → the
 reply appears in the customer widget within ~4s, no refresh.
 
+## Governed audit (2026-07-21) — against ThinkerThinker.md + AMD-006
+
+Ran a full audit of this branch against the framework (precondition gate discharged: read
+AMD-006 in full + TT.md A11/A16/A17/A18/A19/A24/A25/A26/A27/A34/A35/A36 this session; audited
+the actual committed files). Findings:
+
+| # | Sev | Finding | Clause | Status |
+|---|---|---|---|---|
+| F1 | MED | `captureHandoffDetails` dropped concern/order and returned `ok` in the pre-0188 window (silent partial-degrade) | A34 #2 / §3.4 | **Minimal fix shipped** (`d3eef8e`): logs the drop + returns `concernDeferred`, surfaced by the route. **Founder decision open:** also gate the card's topic/order fields until schema-ready (zero silent drops) vs accept the log+signal. |
+| F2 | LOW-MED | step-1 customer upsert/insert errors swallowed unlogged (silent identity loss, returns ok) | §3.4 | **Fixed** (`d3eef8e`) — both writes now log like every sibling in care.ts. |
+| F3 | LOW | the "§A16 fix" citation for the sentinel was a loose fit (A16's canonical case is multi-tool composition) | A35 / §5 | **Fixed** (`d3eef8e`) — comment corrected to "applies A16's principle, not its canonical case." |
+| F4 | — | AMD-006 **Layer 2 (effectivity) is unverified** — no live handoff exercised | AMD-006 L2 | **Founder-side** — this runbook is the verification. Not closable by me. |
+
+**Checked and CLEAN (not a blanket pass — these were inspected):** A16 composition (grader never
+acts on the system notice); A25 (email resolves on the field via the unique constraint, normalization
+matches the inbound-email writer — no duplicate customers); A34 predicate (shared `isMissingColumnError`,
+names each column); A34 fuse (no commit asserts 0188 applied); A27 (no promised-but-unenforced invariant);
+A24 (post-feature fixes were genuine, not manufactured).
+
+**NOT inspected (no clean bill):** runtime/Layer 2 of anything; Layer 4 visual/design; deep voice-mode
+handoff timing; PATCH read-back perf (base→enriched).
+
 ## Open / follow-ups
 - **Runtime verification** is the founder's — the above has not been exercised against a live handoff.
 - Possible v2: re-surface the card on a post-handoff customer message (today it shows on the handoff turn +
