@@ -148,6 +148,18 @@ const FILE_ALLOWLIST = new Map([
     "src/lib/design/tokens.ts",
     "Design-tokens source file. Any Tailwind utility name appearing here is documentation referencing the utility, not an applied class.",
   ],
+  [
+    "src/components/care/demo/CareShowroom.tsx",
+    "Deliberate fixed-dark 'product console': the /care/demo showroom renders a dark agent-inbox screenshot inside the theme-aware page — a single-theme element per the design discipline, chosen for contrast-safety. Legible on both page themes (light-mode screenshot-verified 2026-07-22).",
+  ],
+  [
+    "src/components/care/demo/JeffLiveChat.tsx",
+    "Deliberate fixed-dark demo chat console — same rationale as CareShowroom.tsx.",
+  ],
+  [
+    "src/components/care/demo/CareHonestNote.tsx",
+    "Deliberate fixed-dark demo note — the theme-aware version rendered invisible in light mode (an unresolved theme-context bug, flagged for the audit); fixed colors are the contrast-safe workaround.",
+  ],
 ]);
 
 const files = Array.from(

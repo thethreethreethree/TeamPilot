@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { gradeCareAggregate, type CareGrade } from "@/lib/care/careQualityGrade";
 
 /**
  * Agent self-view — what your work has looked like over 30 days.
@@ -71,6 +72,8 @@ type GrowthSnapshot = {
       emptyFiller: number;
     };
   };
+  // §A10 parity — the same coaching grade + 4-week trajectory the leader sees about this agent.
+  trajectory: Array<number | null>;
 };
 
 export default function CareGrowthPage() {
@@ -162,19 +165,24 @@ export default function CareGrowthPage() {
 
         {snap && (
           <>
-            {/* §A10 preamble — same line on every visit. */}
+            {/* §A10 preamble — same line on every visit. Updated 2026-07-22: the leader's Coach
+                Assessment now shows a per-agent coaching grade + trajectory, so this view shows you the
+                SAME grade + trajectory about yourself. No asymmetric read. */}
             <div className="bg-ember-400/5 border border-ember-400/30 rounded-lg p-3 flex items-start gap-2">
               <ShieldCheck
                 className="w-4 h-4 text-brand shrink-0 mt-0.5"
                 aria-hidden
               />
               <p className="text-xs text-secondary leading-relaxed">
-                You see what the System sees about your work. This is the
-                same data your leader sees only as aggregate, never at
-                this individual detail. The discipline is structural — we
-                refuse asymmetric visibility on people (§A10).
+                You see what the System sees about your work — including the
+                same coaching grade and 4-week trajectory your leader sees
+                about you. Nothing is read about you that you can&apos;t read
+                yourself. The discipline is structural (§A10).
               </p>
             </div>
+
+            {/* §A10 parity — the coaching grade + trajectory the leader sees about you. */}
+            <CoachingGradeCard snap={snap} />
 
             {/* §A17 experiential FIRST — what landed durably. */}
             <LearningHint
@@ -570,5 +578,87 @@ function EditCell({
       <p className="text-lg font-bold text-primary">{count}</p>
       <p className="text-[10px] text-muted font-mono">{pct}%</p>
     </div>
+  );
+}
+
+const TIER_STYLE: Record<CareGrade["tier"], { text: string; label: string }> = {
+  strong: { text: "text-emerald-300", label: "Strong" },
+  solid: { text: "text-brand", label: "Solid" },
+  developing: { text: "text-amber-300", label: "Developing" },
+  "growth-area": { text: "text-amber-300", label: "Growth area" },
+  "not-yet": { text: "text-muted", label: "Not yet" },
+};
+
+/**
+ * §A10 parity — the coaching grade + 4-week trajectory the leader's Coach Assessment shows about this
+ * agent, shown here to the agent themselves. §A11: the letter summarizes the counts below (which are
+ * visible in the same view), the agent renders the verdict. §A18: no "F". §3.5: nothing until graded.
+ */
+function CoachingGradeCard({ snap }: { snap: GrowthSnapshot }) {
+  if (snap.coachAggregate.repliesGraded === 0) return null;
+  const grade = gradeCareAggregate(snap.coachAggregate);
+  if (!grade.letter) return null;
+  const tier = TIER_STYLE[grade.tier];
+  return (
+    <LearningHint
+      as="block"
+      category="C.A.R.E · Your work"
+      title="Your coaching grade"
+      whatItIs="A single letter summarizing the reply-pattern counts below, graded against a fixed competent-reply standard, plus the same 4-week trajectory your leader sees about you."
+      why="Per §A11 the letter is a summary of the counts you can already see — not a separate verdict; you decide if it's fair. Per §A18 there is no 'F' — the lowest band is a growth area. Graded against a standard, never against other agents."
+      how="Watch the trajectory move week over week against your own past. If a week dips, the counts below show which signal to work on."
+      principle="Measured against a standard and your own growth, never against each other."
+    >
+      <div className="bg-white/[0.02] border border-default rounded-xl p-5">
+        <div className="flex items-center gap-4">
+          <span
+            className={`inline-flex items-center justify-center w-14 h-14 rounded-xl border border-default ${tier.text} text-3xl font-extrabold shrink-0`}
+            aria-hidden
+          >
+            {grade.letter}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-bold ${tier.text}`}>{tier.label}</p>
+            <p className="text-[11px] text-muted leading-snug">
+              coaching grade · vs the competent-reply standard · the same grade your leader sees about you
+            </p>
+          </div>
+          <GrowthTrajectory points={snap.trajectory} />
+        </div>
+      </div>
+    </LearningHint>
+  );
+}
+
+/** 4-week sparkline of the Care Quality score, oldest→newest. Renders only with ≥2 weeks of data. */
+function GrowthTrajectory({ points }: { points: Array<number | null> }) {
+  const pts = points
+    .map((v, i) => ({ v, i }))
+    .filter((p): p is { v: number; i: number } => p.v !== null);
+  if (pts.length < 2) {
+    return <span className="text-[10px] text-muted shrink-0">trend builds over 2+ weeks</span>;
+  }
+  const W = 64;
+  const H = 24;
+  const n = points.length;
+  const x = (i: number) => (n <= 1 ? 0 : (i / (n - 1)) * W);
+  const y = (v: number) => H - v * H;
+  const d = pts
+    .map((p, k) => `${k === 0 ? "M" : "L"} ${x(p.i).toFixed(1)} ${y(p.v).toFixed(1)}`)
+    .join(" ");
+  const last = pts[pts.length - 1]!;
+  const rising = last.v >= (pts[0]?.v ?? last.v);
+  const stroke = rising ? "#34D399" : "#FCD34D";
+  return (
+    <svg
+      width={W}
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      aria-label="Your 4-week coaching-grade trajectory"
+      className="shrink-0 overflow-visible"
+    >
+      <path d={d} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={x(last.i)} cy={y(last.v)} r="2" fill={stroke} />
+    </svg>
   );
 }

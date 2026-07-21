@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
+import { careQualityScore } from "@/lib/care/careQualityGrade";
 import { strictMutate } from "@/lib/supabase/strictUpdate";
 import { notifyAssignedAgentOfCustomerMessage } from "@/lib/notifications/careNotify";
 import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
@@ -1683,6 +1684,11 @@ export type AgentGrowthSnapshot = {
       emptyFiller: number;
     };
   };
+
+  // §A10 parity — the same 4-week Care Quality trajectory the manager Coach Assessment shows about this
+  // agent (oldest→newest; null for a week with no graded replies). Closes the A10 shadow-read: without it
+  // the manager saw a trajectory the agent could not see about themselves.
+  trajectory: Array<number | null>;
 };
 
 // ─── Phase 7 §4 readouts — outcome-gated method evolution ────
@@ -3483,7 +3489,7 @@ export async function fetchAgentGrowth(
     // is honest about which rubric produced it.
     sb
       .from("support_messages")
-      .select("coach_counts")
+      .select("coach_counts, created_at")
       .eq("author_id", agentId)
       .eq("author_type", "agent")
       .eq("is_internal_note", false)
@@ -3529,6 +3535,7 @@ export async function fetchAgentGrowth(
         empty_filler?: number;
       };
     } | null;
+    created_at: string;
   };
   const coachRows = (coachCountsRows.data ?? []) as CoachRow[];
   const repliesGraded = coachRows.length;
@@ -3547,6 +3554,50 @@ export async function fetchAgentGrowth(
     unsupportedAbsolutes += c.risks?.unsupported_absolutes ?? 0;
     fabricatedSpecifics += c.risks?.fabricated_specifics ?? 0;
     emptyFiller += c.risks?.empty_filler ?? 0;
+  }
+
+  // §A10 parity — 4-week Care Quality trajectory (same weekly-bucket method the manager roster uses in
+  // careCoachAssessment.ts). Oldest→newest; null for a week with no graded replies.
+  const TRAJ_WEEKS = 4;
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+  const weekBuckets = Array.from({ length: TRAJ_WEEKS }, () => ({
+    g: 0,
+    ack: 0,
+    ans: 0,
+    nxt: 0,
+    risk: 0,
+  }));
+  for (const row of coachRows) {
+    const c = row.coach_counts;
+    if (!c) continue;
+    const age = nowMs - new Date(row.created_at).getTime();
+    const wi = Math.min(TRAJ_WEEKS - 1, Math.max(0, Math.floor(age / WEEK_MS)));
+    const b = weekBuckets[wi]!;
+    b.g += 1;
+    b.ack += c.positive?.acknowledged ?? 0;
+    b.ans += c.positive?.answered ?? 0;
+    b.nxt += c.positive?.next_step ?? 0;
+    b.risk +=
+      (c.risks?.unsupported_absolutes ?? 0) +
+      (c.risks?.fabricated_specifics ?? 0) +
+      (c.risks?.empty_filler ?? 0);
+  }
+  const trajectory: Array<number | null> = [];
+  for (let i = TRAJ_WEEKS - 1; i >= 0; i--) {
+    const b = weekBuckets[i]!;
+    trajectory.push(
+      b.g > 0
+        ? careQualityScore({
+            repliesGraded: b.g,
+            acknowledgedCount: b.ack,
+            answeredCount: b.ans,
+            nextStepCount: b.nxt,
+            // careQualityScore only sums the three risk fields, so lumping the total into one is equivalent.
+            risks: { unsupportedAbsolutes: b.risk, fabricatedSpecifics: 0, emptyFiller: 0 },
+          })
+        : null
+    );
   }
 
   return {
@@ -3582,5 +3633,6 @@ export async function fetchAgentGrowth(
         emptyFiller,
       },
     },
+    trajectory,
   };
 }
