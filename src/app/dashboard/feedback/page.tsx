@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FeedbackPanel } from "@/components/feedback/FeedbackPanel";
 import {
@@ -97,7 +97,18 @@ const STATUS_COLORS: Record<FeedbackStatus, string> = {
   duplicate: "border-default bg-surface-raised text-muted",
 };
 
+// Suspense boundary so useSearchParams() can never fail static prerendering (the /login-class build break
+// that errored every Vercel deploy for weeks — 2026-07-21). This page is dynamic today, so this is defensive:
+// if it ever gets statically optimized, the build still passes.
 export default function MyFeedbackPage() {
+  return (
+    <Suspense fallback={null}>
+      <MyFeedbackPageInner />
+    </Suspense>
+  );
+}
+
+function MyFeedbackPageInner() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<FeedbackRow[]>([]);

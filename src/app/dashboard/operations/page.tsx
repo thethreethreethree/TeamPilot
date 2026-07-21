@@ -22,7 +22,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import type { TaskCanonicalStatus } from "@/lib/tasks/statusLabels";
@@ -120,7 +120,16 @@ const emptyDraft: Draft = {
   blockerReason: "",
 };
 
+// Suspense boundary — see the /login-class build-break note (2026-07-21). Defensive: dynamic today.
 export default function OperationsPage() {
+  return (
+    <Suspense fallback={null}>
+      <OperationsPageInner />
+    </Suspense>
+  );
+}
+
+function OperationsPageInner() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [mode, setMode] = useState<FetchTasksMode>("demo-fixtures");
   const [loading, setLoading] = useState(true);

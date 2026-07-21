@@ -15,11 +15,20 @@ import {
   UserMinus,
   UserPlus,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 
+// Suspense boundary — see the /login-class build-break note (2026-07-21). Defensive: dynamic today.
 export default function TeamPage() {
+  return (
+    <Suspense fallback={null}>
+      <TeamPageInner />
+    </Suspense>
+  );
+}
+
+function TeamPageInner() {
   const companyName = useCompanyName();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);

@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchHotkey } from "@/components/ui/useSearchHotkey";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 import { INVITABLE_ROLES } from "@/lib/roles";
@@ -51,7 +51,16 @@ function formatRelative(iso: string | null): string {
   return iso.slice(0, 10);
 }
 
+// Suspense boundary — see the /login-class build-break note (2026-07-21). Defensive: dynamic today.
 export default function TeamChatListPage() {
+  return (
+    <Suspense fallback={null}>
+      <TeamChatListPageInner />
+    </Suspense>
+  );
+}
+
+function TeamChatListPageInner() {
   const companyName = useCompanyName();
   const router = useRouter();
   const searchParams = useSearchParams();

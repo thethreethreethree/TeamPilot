@@ -19,7 +19,7 @@ import {
   Plus,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -30,7 +30,16 @@ const STATUS_BADGE: Record<string, string> = {
   dismissed: "bg-surface-raised text-muted border border-strong",
 };
 
+// Suspense boundary — see the /login-class build-break note (2026-07-21). Defensive: dynamic today.
 export default function ProblemsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProblemsPageInner />
+    </Suspense>
+  );
+}
+
+function ProblemsPageInner() {
   const [problems, setProblems] = useState<ProblemRecord[]>([]);
   const [mode, setMode] = useState<ProblemsMode>("live-empty");
   const [loading, setLoading] = useState(true);
