@@ -372,6 +372,12 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     },
     onError: setError,
+    // Voice handoff: the hook already ended the call; surface the capture card in the
+    // text view the customer drops back into.
+    onHandoff: () => {
+      setHandoffNeeded(true);
+      setHandoffDismissed(false);
+    },
   });
 
   // Reset: end any voice call, wipe local session, clear messages.

@@ -247,6 +247,12 @@ export function CareChatWidget() {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     },
     onError: setError,
+    // Voice handoff: the hook already ended the call (a voice channel can't route to the
+    // human); surface the capture card in the text view the customer drops back into.
+    onHandoff: () => {
+      setHandoffNeeded(true);
+      setHandoffDismissed(false);
+    },
   });
 
   // Reset the conversation. Ends any in-flight voice call, wipes

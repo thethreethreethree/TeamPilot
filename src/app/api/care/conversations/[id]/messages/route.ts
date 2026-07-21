@@ -221,6 +221,9 @@ export async function POST(
     return NextResponse.json({
       messages: messages.map(serializeMessage),
       aiReplied: false,
+      // Unambiguous "the AI no longer owns this thread" signal — the voice loop uses it to
+      // stop re-arming and hand back to a human instead of replaying a stale AI line.
+      aiResponding: false,
       handoffCaptureNeeded: handoffCaptureNeeded(conversation),
       businessType: tenant?.businessType ?? "general",
     });
@@ -330,6 +333,9 @@ export async function POST(
       // Signal the widget to show the handoff capture card (requirement #2: capture
       // name/email/concern). Only on a fresh handoff this turn — not on every reply.
       handoff: isHandoff,
+      // The AI's ownership AFTER this turn: false once it has handed off. The voice loop
+      // reads this to play the (fresh) handoff line then end the call instead of looping.
+      aiResponding: !isHandoff,
       businessType: tenant?.businessType ?? "general",
     });
   } catch (err) {
