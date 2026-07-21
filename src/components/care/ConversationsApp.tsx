@@ -1988,6 +1988,17 @@ function ConversationListRow({
           <p className="text-xs text-secondary truncate leading-tight">
             {c.subject ?? "Untitled"}
           </p>
+          {/* Captured concern (0188) surfaced in the LIST, not just the header — so an agent
+              triaging the inbox sees what each conversation is about at a glance, without
+              opening it (§1.5.1 workflow: faster triage). Only shown once captured. */}
+          {c.handoffTopic && (
+            <span
+              title="What the customer said this is about"
+              className="mt-1 inline-flex max-w-full items-center gap-1 rounded border border-default bg-surface/50 px-1.5 py-0.5 text-[9px] text-secondary"
+            >
+              <span className="truncate">{labelForAnyTopic(c.handoffTopic)}</span>
+            </span>
+          )}
           {c.supervisorGuidanceRequestedAt && (
             <span
               title="Supervisor guidance has been requested on this conversation"
