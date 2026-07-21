@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { fetchAgentConversation } from "@/lib/data/care";
+import { fetchAgentConversation, formatVisibleThreadForPrompt } from "@/lib/data/care";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { generateCareReply } from "@/lib/claude";
 import {
@@ -76,21 +76,9 @@ export async function POST(
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 
-  // Source text = the visible thread, derived fresh (same shape as the dissect route).
-  const sourceText = detail.messages
-    .filter((m) => !m.isInternalNote)
-    .map((m) => {
-      const role =
-        m.authorType === "customer"
-          ? "Customer"
-          : m.authorType === "agent"
-            ? "Agent"
-            : m.authorType === "ai"
-              ? "AI"
-              : "System";
-      return `${role}: ${m.body}`;
-    })
-    .join("\n");
+  // Source text = the visible thread, derived fresh — the SAME shared formatter the dissect
+  // route uses, so the follow-up grounds in the identically-shaped thread (A14/A16).
+  const sourceText = formatVisibleThreadForPrompt(detail.messages);
 
   const userHypothesis = (body.userHypothesis ?? "").trim();
   const history = body.history ?? [];

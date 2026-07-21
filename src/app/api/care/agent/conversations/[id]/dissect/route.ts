@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { fetchAgentConversation } from "@/lib/data/care";
+import { fetchAgentConversation, formatVisibleThreadForPrompt } from "@/lib/data/care";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { generateConversationDissect } from "@/lib/dissect/engine";
 
@@ -52,27 +52,15 @@ export async function POST(
   }
 
   // Only the real back-and-forth feeds the dissection — internal notes are the agent's own
-  // scratch, not part of the conversation being diagnosed.
-  const visible = detail.messages.filter((m) => !m.isInternalNote);
-  const turns = visible
-    .map((m) => {
-      const role =
-        m.authorType === "customer"
-          ? "Customer"
-          : m.authorType === "agent"
-            ? "Agent"
-            : m.authorType === "ai"
-              ? "AI"
-              : "System";
-      return `${role}: ${m.body}`;
-    })
-    .join("\n");
+  // scratch, not part of the conversation being diagnosed. Shared formatter so the follow-up
+  // (dissect/ask) grounds in the IDENTICALLY-shaped thread (A14/A16).
+  const sourceText = formatVisibleThreadForPrompt(detail.messages);
 
   // The engine guards thin input itself (returns hasSignal:false when there's too little to
   // diagnose honestly), so no separate short-circuit here — one honest path.
   const dissect = await generateConversationDissect({
     companyId: detail.conversation.companyId,
-    sourceText: turns,
+    sourceText,
   });
 
   return NextResponse.json({ dissect });
