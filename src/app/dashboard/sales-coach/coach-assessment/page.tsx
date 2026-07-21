@@ -309,37 +309,31 @@ export default function CoachAssessmentPage() {
                     <AgentEloBadge agentId={a.agentId} />
                   </div>
                 ) : (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isExpanded}
-                    aria-label={`${isExpanded ? "Hide" : "Show"} coaching detail for ${a.agentName}`}
-                    onClick={() => toggleAgent(a.agentId)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        toggleAgent(a.agentId);
-                      }
-                    }}
-                    className="mb-3 flex items-center gap-2 cursor-pointer rounded-lg -mx-1 px-1 py-1 transition-colors hover:bg-white/[0.03] focus:outline-none focus-visible:ring-1 focus-visible:ring-ember-400/50"
-                  >
-                    {/* Standard: A+/A- letter grades (founder 2026-07-21), replacing the ELO
-                        badge — matches the web per-rep profiles so a rep reads the same on every
-                        manager surface (A21). Expert keeps the ELO badge above. */}
-                    <div className="flex-1 min-w-0">
-                      <AgentSkillGrades agentId={a.agentId} />
-                    </div>
-                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-[10px] text-muted">
+                  <div className="mb-3">
+                    {/* Standard: prominent per-skill LETTER GRADES (founder 2026-07-21),
+                        replacing the ELO badge — same grades as the web per-rep profiles so a
+                        rep reads the same on every manager surface (A21). Expert keeps the ELO
+                        badge above. Restructured (founder: "reflect the Letter grade system") to
+                        LEAD with the grades; "Show coaching detail" is now its own control below
+                        the grades rather than the whole grade row being the toggle. */}
+                    <AgentSkillGrades agentId={a.agentId} />
+                    <button
+                      type="button"
+                      aria-expanded={isExpanded}
+                      aria-label={`${isExpanded ? "Hide" : "Show"} coaching detail for ${a.agentName}`}
+                      onClick={() => toggleAgent(a.agentId)}
+                      className="mt-2.5 inline-flex items-center gap-1 whitespace-nowrap text-[10px] text-muted hover:text-primary transition-colors rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-ember-400/50"
+                    >
                       {isExpanded ? (
                         <>
-                          <ChevronDown className="w-3 h-3" aria-hidden /> Hide detail
+                          <ChevronDown className="w-3 h-3" aria-hidden /> Hide coaching detail
                         </>
                       ) : (
                         <>
-                          <ChevronRight className="w-3 h-3" aria-hidden /> Show detail
+                          <ChevronRight className="w-3 h-3" aria-hidden /> Show coaching detail
                         </>
                       )}
-                    </span>
+                    </button>
                   </div>
                 )}
 
