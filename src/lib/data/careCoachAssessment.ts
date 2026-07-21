@@ -18,14 +18,10 @@
 
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { careQualityScore, type CareCoachAggregate } from "@/lib/care/careQualityGrade";
+import { deriveLearningGaps, type LearningGap } from "@/lib/care/careLearningGaps";
 
-/** A book-grounded coaching target derived from the count gaps — the "which book principle needs
- *  reinforcement" the founder asked for. Book names match docs/COACH_KNOWLEDGE_BASE.md. */
-export type LearningGap = {
-  skill: string;
-  principle: string;
-  book: string;
-};
+// Re-exported so existing importers of LearningGap from this module keep working.
+export type { LearningGap };
 
 export type CoachAssessmentAgent = {
   agentId: string;
@@ -50,78 +46,6 @@ export type CoachAssessmentRoster = {
   bounded: boolean;
 };
 
-// Each missed positive signal / frequent risk maps to the communication-book principle that addresses it.
-const POSITIVE_GAP: Record<
-  "acknowledged" | "answered" | "next_step",
-  LearningGap
-> = {
-  acknowledged: {
-    skill: "Acknowledging the customer's concern before solving",
-    principle: "Tactical empathy — label the feeling",
-    book: "Never Split the Difference",
-  },
-  answered: {
-    skill: "Answering the actual question directly",
-    principle: "Say the thing plainly; don't bury the answer",
-    book: "On Writing Well",
-  },
-  next_step: {
-    skill: "Offering a clear next step",
-    principle: "Commitment & consistency — end with the ask",
-    book: "Influence",
-  },
-};
-
-const RISK_GAP: Record<
-  "unsupportedAbsolutes" | "fabricatedSpecifics" | "emptyFiller",
-  LearningGap
-> = {
-  unsupportedAbsolutes: {
-    skill: "Avoiding overpromises and absolutes",
-    principle: "Make it safe — stay honest about what's certain",
-    book: "Crucial Conversations",
-  },
-  fabricatedSpecifics: {
-    skill: "Not inventing specifics to sound confident",
-    principle: "Accuracy over fluency — concrete but true",
-    book: "Made to Stick",
-  },
-  emptyFiller: {
-    skill: "Cutting empty filler",
-    principle: "Every word must earn its place",
-    book: "On Writing Well",
-  },
-};
-
-/** Derive up to two book-grounded coaching targets from the aggregate: the weakest positive signal (if
- *  below a competent threshold) + the most-frequent risk (if any). Worst-first. */
-function deriveLearningGaps(agg: CareCoachAggregate): LearningGap[] {
-  const gaps: LearningGap[] = [];
-  const n = agg.repliesGraded;
-  if (n <= 0) return gaps;
-
-  // Weakest positive signal, only flagged if genuinely under the competent bar (< 60% present).
-  const positives: Array<[keyof typeof POSITIVE_GAP, number]> = [
-    ["acknowledged", agg.acknowledgedCount / n],
-    ["answered", agg.answeredCount / n],
-    ["next_step", agg.nextStepCount / n],
-  ];
-  positives.sort((a, b) => a[1] - b[1]);
-  const weakest = positives[0];
-  if (weakest && weakest[1] < 0.6) gaps.push(POSITIVE_GAP[weakest[0]]);
-
-  // Most-frequent risk, only flagged if it actually occurs.
-  const risks: Array<[keyof typeof RISK_GAP, number]> = [
-    ["unsupportedAbsolutes", agg.risks.unsupportedAbsolutes],
-    ["fabricatedSpecifics", agg.risks.fabricatedSpecifics],
-    ["emptyFiller", agg.risks.emptyFiller],
-  ];
-  risks.sort((a, b) => b[1] - a[1]);
-  const worstRisk = risks[0];
-  if (worstRisk && worstRisk[1] > 0) gaps.push(RISK_GAP[worstRisk[0]]);
-
-  return gaps.slice(0, 2);
-}
 
 type CoachCountsShape = {
   positive?: { acknowledged?: number; answered?: number; next_step?: number };
