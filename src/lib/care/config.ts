@@ -16,6 +16,7 @@
 
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { type BusinessType, isBusinessType, DEFAULT_BUSINESS_TYPE } from "@/lib/care/handoverTopics";
 
 const ELOSTATE_COMPANY_ID = "c3e7f389-3df6-48c8-876b-0cd4baf5c2a7";
 
@@ -55,6 +56,10 @@ export type CareTenantConfig = {
   aiName: string;
   plan: "pilot" | "starter" | "pro" | "enterprise";
   monthlyConversationQuota: number;
+  /** Handover-capture business type (migration 0188). Drives which concern-topic list the widget shows
+   *  and whether the order-number field appears. Defaults to 'general' — including when the column is not
+   *  yet present (select("*") simply omits it pre-0188), so tenants behave exactly as before. */
+  businessType: BusinessType;
 };
 
 function mapConfig(row: Record<string, unknown>): CareTenantConfig {
@@ -81,6 +86,9 @@ function mapConfig(row: Record<string, unknown>): CareTenantConfig {
     plan: (row.plan as CareTenantConfig["plan"]) ?? "pilot",
     monthlyConversationQuota:
       (row.monthly_conversation_quota as number) ?? 200,
+    businessType: isBusinessType(row.business_type)
+      ? row.business_type
+      : DEFAULT_BUSINESS_TYPE,
   };
 }
 

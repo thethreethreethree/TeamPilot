@@ -120,6 +120,9 @@ const PatchBody = z.object({
   // library (the settings UI surfaces a curated picker but
   // accepts overrides). NULL → use deployment default (Antoni).
   voiceId: z.string().max(64).optional().nullable(),
+  // Handover capture (0188) — the business type that drives the concern-topic list on
+  // the customer handoff card and whether the order-number field appears.
+  businessType: z.enum(["general", "ecommerce"]).optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -157,6 +160,7 @@ export async function PATCH(req: NextRequest) {
     patch.ai_response_length = body.aiResponseLength;
   if (body.aiName !== undefined) patch.ai_name = body.aiName;
   if (body.voiceId !== undefined) patch.voice_id = body.voiceId;
+  if (body.businessType !== undefined) patch.business_type = body.businessType;
 
   const admin = createAdminClient();
   // Ensure a row exists (upsert by company_id).

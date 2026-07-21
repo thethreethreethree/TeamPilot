@@ -13,6 +13,8 @@ import {
 import { VoiceSurface } from "./voice/VoiceSurface";
 import { useVoiceMode } from "./voice/useVoiceMode";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { HandoffCard, type HandoffCardPayload } from "./HandoffCard";
+import { DEFAULT_BUSINESS_TYPE, type BusinessType } from "@/lib/care/handoverTopics";
 
 /**
  * Route prefixes where the customer-facing Care widget MUST NOT
@@ -97,6 +99,12 @@ export function CareChatWidget() {
   const [aiThinking, setAiThinking] = useState(false);
   const [conversationClosed, setConversationClosed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Handover capture (0188): the card that appears when Jeff hands off to a human.
+  const [handoffNeeded, setHandoffNeeded] = useState(false);
+  const [handoffDismissed, setHandoffDismissed] = useState(false);
+  const [businessType, setBusinessType] = useState<BusinessType>(DEFAULT_BUSINESS_TYPE);
+  const [handoffSubmitting, setHandoffSubmitting] = useState(false);
+  const [handoffError, setHandoffError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -143,6 +151,10 @@ export function CareChatWidget() {
       if (data.conversation?.status === "closed") {
         setConversationClosed(true);
       }
+      if (data.businessType) setBusinessType(data.businessType as BusinessType);
+      // Show the capture card if the server says this conversation was handed to a human
+      // and the customer hasn't been captured yet (persists across reloads).
+      if (data.handoffCaptureNeeded) setHandoffNeeded(true);
     } catch (e) {
       console.warn("[care widget] couldn't load messages", e);
     }
@@ -229,6 +241,10 @@ export function CareChatWidget() {
     setConversationClosed(false);
     setError(null);
     setDraft("");
+    // A fresh conversation is AI-first again — clear any handoff-card state.
+    setHandoffNeeded(false);
+    setHandoffDismissed(false);
+    setHandoffError(null);
   }, [voiceMode, endCall]);
 
   const handleSend = async () => {
@@ -378,6 +394,12 @@ export function CareChatWidget() {
       const data = await res.json();
       // Replace optimistic + AI reply with the server's canonical list.
       setMessages(data.messages ?? []);
+      if (data.businessType) setBusinessType(data.businessType as BusinessType);
+      // Jeff just handed off → surface the capture card (unless already dismissed).
+      if (data.handoff) {
+        setHandoffNeeded(true);
+        setHandoffDismissed(false);
+      }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("[care-widget] send failed:", err);
@@ -395,6 +417,40 @@ export function CareChatWidget() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void handleSend();
+    }
+  };
+
+  // Submit the handoff capture card (0188). Best-effort: on success the card disappears
+  // and the thread reloads (so the customer sees the system notice); on failure we keep
+  // the card up with an inline error so they can retry — never a dead end.
+  const submitHandoff = async (payload: HandoffCardPayload) => {
+    if (!session || handoffSubmitting) return;
+    setHandoffSubmitting(true);
+    setHandoffError(null);
+    try {
+      const res = await fetch(
+        `/api/care/conversations/${session.conversationId}/handoff`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-care-session": session.sessionToken,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        setHandoffError(j?.error ?? "Couldn't save those details. Please try again.");
+        return;
+      }
+      setHandoffNeeded(false);
+      setHandoffDismissed(true);
+      void loadMessages();
+    } catch {
+      setHandoffError("Couldn't reach the server.");
+    } finally {
+      setHandoffSubmitting(false);
     }
   };
 
@@ -539,6 +595,18 @@ export function CareChatWidget() {
             >
               {error}
             </div>
+          )}
+
+          {/* Handoff capture card (0188) — appears when Jeff hands off to a human.
+              Sits above the composer so the customer can still type while it's open. */}
+          {handoffNeeded && !handoffDismissed && !conversationClosed && (
+            <HandoffCard
+              businessType={businessType}
+              submitting={handoffSubmitting}
+              error={handoffError}
+              onSubmit={submitHandoff}
+              onSkip={() => setHandoffDismissed(true)}
+            />
           )}
 
           {/* Closed banner */}

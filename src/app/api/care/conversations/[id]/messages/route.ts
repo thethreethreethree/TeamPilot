@@ -7,6 +7,7 @@ import {
   listCareMessagesForCustomer,
   postCustomerMessage,
   postAiMessage,
+  postSystemMessage,
   markConversationHandedOff,
   type SupportMessage,
 } from "@/lib/data/care";
@@ -18,7 +19,9 @@ import {
   buildCareSystemPrompt,
   buildCareUserMessage,
   detectHandoffSignal,
+  stripHandoffSentinel,
 } from "@/lib/care/prompt";
+import { HANDOFF_NOTICE } from "@/lib/care/handoverNotice";
 import { generateCareReply } from "@/lib/claude";
 import { LlmError } from "@/lib/llm/errors";
 
@@ -83,6 +86,7 @@ export async function GET(
   }
 
   const messages = await listCareMessagesForCustomer(conversation.id);
+  const tenant = await getCareTenantConfigByCompanyId(conversation.companyId);
   return NextResponse.json({
     conversation: {
       id: conversation.id,
@@ -90,7 +94,26 @@ export async function GET(
       aiResponding: conversation.aiResponding,
     },
     messages: messages.map(serializeMessage),
+    // Persist the handoff card across reloads: needed once the conversation has been
+    // handed to a human (aiResponding=false) AND the customer hasn't been captured yet.
+    handoffCaptureNeeded: handoffCaptureNeeded(conversation),
+    // The card uses this to pick the concern-topic list + whether to show order #.
+    businessType: tenant?.businessType ?? "general",
   });
+}
+
+/**
+ * Whether the widget should still show the handoff capture card: the conversation is in
+ * a human-handled state (ai_responding=false — set only by a handoff or an agent claim)
+ * and we haven't yet captured who the customer is. Once a topic or a linked customer
+ * exists, stop nudging. Kept in one place so GET and POST agree.
+ */
+function handoffCaptureNeeded(c: {
+  aiResponding: boolean;
+  handoffTopic: string | null;
+  customerId: string | null;
+}): boolean {
+  return !c.aiResponding && !(c.handoffTopic || c.customerId);
 }
 
 export async function POST(
@@ -198,6 +221,8 @@ export async function POST(
     return NextResponse.json({
       messages: messages.map(serializeMessage),
       aiReplied: false,
+      handoffCaptureNeeded: handoffCaptureNeeded(conversation),
+      businessType: tenant?.businessType ?? "general",
     });
   }
 
@@ -272,22 +297,40 @@ export async function POST(
     await markConversationHandedOff(conversation.id);
   }
 
-  // If the AI emitted a hand-off signal, flip the conversation so
-  // the next customer message doesn't trigger another AI reply.
-  if (detectHandoffSignal(aiText)) {
+  // Detect the hand-off BEFORE stripping the sentinel (the sentinel IS the signal),
+  // then strip it so the customer never sees the machine token in Jeff's message.
+  const isHandoff = detectHandoffSignal(aiText);
+  aiText = stripHandoffSentinel(aiText);
+
+  if (isHandoff) {
+    // Flip so the next customer message doesn't trigger another AI reply — the agent
+    // owns it now (§3.3 — the AI actually cedes the thread when it says it will).
     await markConversationHandedOff(conversation.id);
   }
 
-  // Persist the AI reply.
+  // Persist the (sentinel-stripped) AI reply.
   const aiMsg = await postAiMessage({
     conversationId: conversation.id,
     body: aiText,
   });
 
+  // On hand-off, post the customer-facing notice AFTER Jeff's message so the thread
+  // reads: Jeff's warm "bringing in a teammate" line, then the system notice. This is
+  // requirement #1 — the customer is told a human is joining. Posted here (not inside
+  // markConversationHandedOff) because the AI-reply fallback path above already handled
+  // its own messaging; we only want the notice on a genuine in-band handoff.
+  if (isHandoff) {
+    await postSystemMessage({ conversationId: conversation.id, body: HANDOFF_NOTICE });
+  }
+
     const messages = await listCareMessagesForCustomer(conversation.id);
     return NextResponse.json({
       messages: messages.map(serializeMessage),
       aiReplied: !!aiMsg,
+      // Signal the widget to show the handoff capture card (requirement #2: capture
+      // name/email/concern). Only on a fresh handoff this turn — not on every reply.
+      handoff: isHandoff,
+      businessType: tenant?.businessType ?? "general",
     });
   } catch (err) {
     // Top-level catch — surfaces any uncaught exception

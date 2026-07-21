@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { detectHandoffSignal } from "../prompt";
+import {
+  detectHandoffSignal,
+  stripHandoffSentinel,
+  HANDOFF_SENTINEL,
+} from "../prompt";
 
 /**
  * detectHandoffSignal tests.
@@ -62,10 +66,10 @@ describe("detectHandoffSignal", () => {
     }
   });
 
-  it("documents the known recall ceiling (false negatives the heuristic misses)", () => {
+  it("documents the phrase-heuristic recall ceiling (fallback misses these on their own)", () => {
     // These ARE handoffs in intent but use vocabulary outside the phrase
-    // list. Documented on the record (§3.4) rather than silently assumed
-    // covered — the robust fix is the prompt sentinel noted in the source.
+    // list. Without the sentinel the fallback heuristic misses them (§3.4).
+    // The next describe block shows the sentinel closes exactly this gap.
     const missed = [
       "Let me refer you to my manager.",
       "I'll ask a specialist to reach out to you.",
@@ -74,5 +78,33 @@ describe("detectHandoffSignal", () => {
     for (const p of missed) {
       expect(detectHandoffSignal(p)).toBe(false);
     }
+  });
+});
+
+/**
+ * Sentinel coupling (founder-approved 2026-07-21). The prompt tells the AI to append
+ * HANDOFF_SENTINEL on a handoff turn; the route detects it and strips it before the
+ * customer sees anything. Coupling the generator and detector closes the recall ceiling
+ * the phrase heuristic documents above — a missed handoff leaves the AI replying over a
+ * promised human, the dangerous failure mode.
+ */
+describe("handoff sentinel", () => {
+  it("detects the sentinel even when no phrase matches (closes the recall gap)", () => {
+    // Same vocabulary the phrase heuristic misses — now caught because the model
+    // appended the sentinel.
+    expect(detectHandoffSignal(`Let me refer you to my manager.\n${HANDOFF_SENTINEL}`)).toBe(true);
+    expect(detectHandoffSignal(`Let me get a human on this. ${HANDOFF_SENTINEL}`)).toBe(true);
+  });
+
+  it("strips the sentinel (and its surrounding whitespace) from the visible reply", () => {
+    const raw = `I'm bringing in a teammate who can dig into this with you.\n\n${HANDOFF_SENTINEL}`;
+    const shown = stripHandoffSentinel(raw);
+    expect(shown).not.toContain(HANDOFF_SENTINEL);
+    expect(shown).toBe("I'm bringing in a teammate who can dig into this with you.");
+  });
+
+  it("is a no-op on ordinary text (idempotent, safe when the token is absent)", () => {
+    const plain = "Here's how to reset your password.";
+    expect(stripHandoffSentinel(plain)).toBe(plain);
   });
 });

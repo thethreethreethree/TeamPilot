@@ -5,6 +5,8 @@ import { Loader2, MessageCircle, Phone, RotateCcw, Send, X } from "lucide-react"
 import { VoiceSurface } from "./voice/VoiceSurface";
 import { useVoiceMode } from "./voice/useVoiceMode";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { HandoffCard, type HandoffCardPayload } from "./HandoffCard";
+import { DEFAULT_BUSINESS_TYPE, type BusinessType } from "@/lib/care/handoverTopics";
 
 /**
  * Embedded C.A.R.E widget — runs inside the iframe served at
@@ -36,6 +38,8 @@ type WidgetConfig = {
   displayName: string | null;
   /** Per-tenant agent name. Default 'Jeff' if bootstrap omits. */
   aiName: string;
+  /** Handover capture (0188) — drives the concern-topic list + order field on the card. */
+  businessType: BusinessType;
 };
 
 type StoredSession = {
@@ -58,6 +62,7 @@ const DEFAULT_CONFIG: WidgetConfig = {
   logoUrl: null,
   displayName: null,
   aiName: "Jeff",
+  businessType: DEFAULT_BUSINESS_TYPE,
 };
 
 export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
@@ -72,6 +77,11 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   const [sending, setSending] = useState(false);
   const [aiThinking, setAiThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Handover capture (0188) — the card shown when Jeff hands off to a human.
+  const [handoffNeeded, setHandoffNeeded] = useState(false);
+  const [handoffDismissed, setHandoffDismissed] = useState(false);
+  const [handoffSubmitting, setHandoffSubmitting] = useState(false);
+  const [handoffError, setHandoffError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -189,6 +199,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
       }
       const data = await res.json();
       setMessages(data.messages ?? []);
+      if (data.handoffCaptureNeeded) setHandoffNeeded(true);
     } catch {
       /* ignore */
     }
@@ -280,6 +291,10 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
       }
       const data = await res.json();
       setMessages(data.messages ?? []);
+      if (data.handoff) {
+        setHandoffNeeded(true);
+        setHandoffDismissed(false);
+      }
     } catch {
       setError("Couldn't reach the server.");
       setDraft(body);
@@ -287,6 +302,38 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     } finally {
       setSending(false);
       setAiThinking(false);
+    }
+  };
+
+  // Submit the handoff capture card (0188). Best-effort; keeps the card up on failure.
+  const submitHandoff = async (payload: HandoffCardPayload) => {
+    if (!session || handoffSubmitting) return;
+    setHandoffSubmitting(true);
+    setHandoffError(null);
+    try {
+      const res = await fetch(
+        `/api/care/conversations/${session.conversationId}/handoff`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-care-session": session.sessionToken,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        setHandoffError(j?.error ?? "Couldn't save those details. Please try again.");
+        return;
+      }
+      setHandoffNeeded(false);
+      setHandoffDismissed(true);
+      void loadMessages();
+    } catch {
+      setHandoffError("Couldn't reach the server.");
+    } finally {
+      setHandoffSubmitting(false);
     }
   };
 
@@ -340,6 +387,9 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     setMessages([]);
     setError(null);
     setDraft("");
+    setHandoffNeeded(false);
+    setHandoffDismissed(false);
+    setHandoffError(null);
   }, [voiceMode, endCall, storageKey]);
 
   if (!bootstrapped) {
@@ -509,6 +559,17 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
             >
               {error}
             </div>
+          )}
+
+          {/* Handoff capture card (0188) — shown when Jeff hands off to a human. */}
+          {handoffNeeded && !handoffDismissed && (
+            <HandoffCard
+              businessType={config.businessType}
+              submitting={handoffSubmitting}
+              error={handoffError}
+              onSubmit={submitHandoff}
+              onSkip={() => setHandoffDismissed(true)}
+            />
           )}
 
           {/* Phase 9 — call mode replaces the text composer

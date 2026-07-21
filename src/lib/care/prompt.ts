@@ -94,6 +94,8 @@ When to escalate:
 
 When you escalate, say it clearly and warmly: "I'm going to bring in a teammate who can dig into this with you — they'll see everything we've talked about." Then end your message there; don't continue trying to answer.
 
+Handoff signal (IMPORTANT, machine-read): whenever — and ONLY when — you are handing this conversation to a human teammate, append this exact token as the very last thing in your message, on its own line: ${HANDOFF_SENTINEL}. It is stripped out before the customer ever sees it; it exists so the system reliably knows to bring in a person and stop replying as you. Never write it in a normal answer, and never mention it to the customer.
+
 Format:
   - Short paragraphs. Most replies should be 1-4 sentences. Long replies feel impersonal.
   - No bullet lists unless the customer asks for steps or comparisons. Bullets read as "robot."
@@ -223,11 +225,36 @@ export function buildCareUserMessage(args: {
  * "our team will" is deliberately NOT matched — "our team will keep
  * improving" is not a handoff).
  *
- * The robust structural fix (deferred — it changes customer-visible
- * output, so it needs founder sign-off): have the prompt end a handoff
- * turn with a canonical sentinel the route strips before display, so the
- * generator and detector are coupled instead of guessing. See §A16.
+ * The robust structural fix (founder-approved 2026-07-21): the prompt now ends a
+ * handoff turn with a canonical sentinel (HANDOFF_SENTINEL) that the route strips
+ * before display, so the generator and detector are COUPLED instead of guessing.
+ * detectHandoffSignal checks the sentinel first; the phrase list below is retained as
+ * a fallback for the turn where the model forgets the token (belt-and-suspenders —
+ * recall matters more than a rare false positive, since a missed handoff means the AI
+ * keeps replying after promising a human). See §A16.
  */
+
+/**
+ * Canonical handoff sentinel. The AI appends it to a handoff turn (see buildIdentity);
+ * the route strips it before the customer sees anything and uses its presence as the
+ * authoritative "hand this to a human now" signal. Chosen to never occur in natural
+ * support prose. If you change it, change the prompt instruction in lockstep.
+ */
+export const HANDOFF_SENTINEL = "[[HANDOFF]]";
+
+/**
+ * Remove the handoff sentinel (and the surrounding whitespace/newline it sits on) from
+ * an AI reply before it is stored or shown. Idempotent and safe on text with no token.
+ */
+export function stripHandoffSentinel(text: string): string {
+  return text
+    .split(HANDOFF_SENTINEL)
+    .join("")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 const HANDOFF_PHRASES = [
   "bring in a teammate",
   "bring in a colleague",
@@ -255,6 +282,9 @@ const HANDOFF_PHRASES = [
 ] as const;
 
 export function detectHandoffSignal(aiResponse: string): boolean {
+  // Sentinel first — the coupled, authoritative signal (founder-approved 2026-07-21).
+  if (aiResponse.includes(HANDOFF_SENTINEL)) return true;
+  // Fallback: the phrase heuristic, for the turn where the model forgets the token.
   const normalized = aiResponse.toLowerCase();
   return HANDOFF_PHRASES.some((p) => normalized.includes(p));
 }
