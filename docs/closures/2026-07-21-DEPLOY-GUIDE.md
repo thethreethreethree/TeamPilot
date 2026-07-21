@@ -4,6 +4,14 @@ Everything from this session is built, verified (build + 869 tests + theme/RLS/i
 exact commits), and pushed. This is the exact order to ship it. Two deploys — one needs no DB
 change, one needs migration `0188`.
 
+> ⚠️ **Vercel auto-deploy is likely OFF.** Per the deploy-failure history (weeks of no builds),
+> a `git push` probably will NOT auto-trigger a build. After each push below, **manually deploy
+> in the Vercel dashboard** (Deployments → redeploy the pushed commit) and, if you want pushes to
+> auto-build again, check Vercel → Settings → Git (production branch + auto-deploy). Watch the
+> Deployments list for a RED status first when "updates aren't showing" — that's the tell, not
+> browser/SW cache. (The old `useSearchParams`/Suspense build break that caused this is already
+> fixed on these branches; they build clean locally.)
+
 ---
 
 ## DEPLOY 1 — now, NO migration → `integration/no-migration-deploy`
