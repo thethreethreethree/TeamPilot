@@ -153,6 +153,30 @@ function mapMessage(row: Record<string, unknown>): SupportMessage {
   };
 }
 
+/**
+ * Format a conversation's VISIBLE messages (internal notes excluded) as a plain
+ * "Role: body" transcript for an LLM prompt. Shared by the Dissect diagnosis and its
+ * Ask-Coach follow-up so both ground the model in the IDENTICALLY-shaped thread (A14/A16 —
+ * one data contract; a drifted re-format would let the diagnosis and the discussion run on
+ * different shapes of the same conversation).
+ */
+export function formatVisibleThreadForPrompt(messages: SupportMessage[]): string {
+  return messages
+    .filter((m) => !m.isInternalNote)
+    .map((m) => {
+      const role =
+        m.authorType === "customer"
+          ? "Customer"
+          : m.authorType === "agent"
+            ? "Agent"
+            : m.authorType === "ai"
+              ? "AI"
+              : "System";
+      return `${role}: ${m.body}`;
+    })
+    .join("\n");
+}
+
 // ─── Customer-side (service-role; no auth) ────────────────────
 
 /**
