@@ -339,13 +339,19 @@ export default function CareDemoPage() {
           <p className="text-[10px] uppercase tracking-widest text-brand font-semibold mb-2 flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5" aria-hidden /> The honest part
           </p>
-          <p className="text-sm md:text-base text-secondary leading-relaxed">
+          {/* Body uses text-primary (not text-secondary): in light mode the
+              text-secondary token rendered invisible in THIS ember-tinted
+              glass-card box specifically (founder-reported 2026-07-22), while
+              text-primary/text-brand render fine here. Root CSS mechanism not
+              fully isolated; text-primary is the verified-readable fix and the
+              honest statement warrants full contrast regardless. */}
+          <p className="text-sm md:text-base text-primary leading-relaxed">
             The same AI brain that runs C.A.R.E also grades and learns —
             and we don&apos;t claim it&apos;s perfect on day one. It gets
             sharper about your business with every conversation, because
             every concern is captured, not thrown away. That compounding
             is the part a competitor can&apos;t copy — it&apos;s built from
-            <em className="text-primary not-italic font-semibold"> your</em> history.
+            <em className="text-brand not-italic font-semibold"> your</em> history.
           </p>
         </div>
       </section>
