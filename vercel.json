@@ -15,6 +15,10 @@
     {
       "path": "/api/finance/reports/deliver-cron",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/coach/sales-session/recording-purge-cron",
+      "schedule": "0 3 * * *"
     }
   ]
 }
