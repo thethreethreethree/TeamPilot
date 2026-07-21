@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /demo/c.a.r.e — the C.A.R.E sales demo page.
+ * /care/demo — the C.A.R.E sales demo page.
  *
  * A LIVE, in-product page a salesperson drives in front of a prospect
  * (distinct from the PDF leave-behind). It does three things, in the

@@ -5,7 +5,7 @@ import type { Metadata } from "next";
  *
  * The page itself is a client component ("use client") and so can't export
  * `metadata`. This server layout supplies it: a real title + description so
- * a shared elostate.com/demo/c.a.r.e link and the browser tab are meaningful
+ * a shared elostate.com/care/demo link and the browser tab are meaningful
  * (not the generic root default), plus a page-level `robots: noindex` that
  * reinforces the /demo/ disallow in robots.ts — a sales/pitch page, not an
  * SEO surface.
