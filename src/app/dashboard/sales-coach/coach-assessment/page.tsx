@@ -15,6 +15,7 @@ import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
+import { AgentGradeBadge } from "@/components/sales-coach/AgentGradeBadge";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 
 /**
@@ -189,8 +190,10 @@ export default function CoachAssessmentPage() {
                   ranking</span>
                   : everyone is measured against their own growth, never each
                   other. The{" "}
-                  <span className="text-primary">Sales ELO Rating</span>
-                  {" is a gamified score of each rep against our measurement standard (1500) — never against peers. Admins and managers see the team’s; each rep sees their own."}
+                  <span className="text-primary">{isExpert ? "Sales ELO Rating" : "coaching grade"}</span>
+                  {isExpert
+                    ? " is a gamified score of each rep against our measurement standard (1500) — never against peers. Admins and managers see the team’s; each rep sees their own."
+                    : " is a letter summarizing each rep’s calls against our competent-call standard — never against peers. Admins and managers see the team’s; each rep sees their own."}
                 </p>
               </div>
             </LearningHint>
@@ -313,7 +316,8 @@ export default function CoachAssessmentPage() {
                     }}
                     className="mb-3 flex items-center gap-2 cursor-pointer rounded-lg -mx-1 px-1 py-1 transition-colors hover:bg-white/[0.03] focus:outline-none focus-visible:ring-1 focus-visible:ring-ember-400/50"
                   >
-                    <AgentEloBadge agentId={a.agentId} />
+                    {/* Standard (founder 2026-07-22): letter grade, not the raw ELO number. */}
+                    <AgentGradeBadge agentId={a.agentId} />
                     <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-[10px] text-muted">
                       {isExpanded ? (
                         <>
