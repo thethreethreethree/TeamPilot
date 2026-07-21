@@ -54,6 +54,13 @@ export const metadata: Metadata = {
   },
   description: DESCRIPTION,
   applicationName: "ELOSTATE",
+  // Build stamp (see next.config.ts) — renders <meta name="build-sha"> + <meta name="build-time"> so the
+  // deployed commit is readable from the running site: `curl <site> | grep build-sha`. Diagnostic for the
+  // "is my change actually live?" question that the 2026-07-21 failed-deploy incident made painfully hard.
+  other: {
+    "build-sha": process.env.NEXT_PUBLIC_BUILD_SHA ?? "unknown",
+    "build-time": process.env.NEXT_PUBLIC_BUILD_TIME ?? "unknown",
+  },
   // metadataBase is used to resolve relative URLs in OG tags. In production set
   // NEXT_PUBLIC_SITE_URL to your deployed origin; falls back to a placeholder
   // so build doesn't fail in dev.
