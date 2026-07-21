@@ -43,14 +43,12 @@ export function StandardSessionsManagerView({ fallback }: { fallback: React.Reac
   return (
     <div className="glass-card p-5">
       <h2 className="text-sm font-semibold text-primary mb-1">Your team</h2>
-      {/* A27 — this line used to read "Recordings clear after 2 days unless saved." That PROMISED an invariant
-          nothing enforces: the retention purge is DORMANT (it needs 0187 applied plus CRON_SECRET and a schedule
-          entry), so nothing deletes anything today. What actually happens is this list FILTERS to the last 2
-          days — the recordings are hidden, not cleared, and they persist in storage. A promised-but-unenforced
-          invariant is worse than silence (§3.4), and this one is a false PRIVACY assurance: a rep reading
-          "clear" believes their calls are ephemeral when they are merely out of sight. The label now states
-          only what is actually true and verifiable from this surface; when the purge is wired, it can promise
-          deletion again — and A27's point is that the promise must follow the enforcement, never lead it. */}
+      {/* A27 — this line must NOT promise deletion until the purge actually runs. UPDATE 2026-07-21: the purge is
+          now WIRED — 0187 is applied, CRON_SECRET is set, and recording-purge-cron is scheduled in vercel.json
+          (founder decision ⑭). BUT it doesn't ENFORCE until this ships AND the cron fires in production, so per
+          A27 (the promise follows the enforcement, never leads it) the copy below deliberately still says "shows
+          the last 2 days," not "clears." Flip it to promise deletion only after a production run of the purge is
+          confirmed — the enforcement being merely deployed is not yet the enforcement being observed. */}
       <p className="text-[11px] text-muted mb-4">
         Open a rep to review their recent recordings. This list shows the last 2 days, plus anything saved.
       </p>
