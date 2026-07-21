@@ -84,6 +84,9 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   const [handoffError, setHandoffError] = useState<string | null>(null);
   // F1 (A34/§3.4): true when the server couldn't persist the concern (pre-0188 window).
   const [concernDeferredNote, setConcernDeferredNote] = useState(false);
+  // Proactive (§1.5.2): handed off to a human — drives the standing "an agent will reply"
+  // indicator so the customer isn't left in silence after the one-time notice scrolls away.
+  const [handedOff, setHandedOff] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -202,6 +205,9 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
       const data = await res.json();
       setMessages(data.messages ?? []);
       if (data.handoffCaptureNeeded) setHandoffNeeded(true);
+      if (typeof data.conversation?.aiResponding === "boolean") {
+        setHandedOff(data.conversation.aiResponding === false);
+      }
     } catch {
       /* ignore */
     }
@@ -297,6 +303,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
         setHandoffNeeded(true);
         setHandoffDismissed(false);
       }
+      if (typeof data.aiResponding === "boolean") setHandedOff(data.aiResponding === false);
     } catch {
       setError("Couldn't reach the server.");
       setDraft(body);
@@ -402,6 +409,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     setHandoffDismissed(false);
     setHandoffError(null);
     setConcernDeferredNote(false);
+    setHandedOff(false);
   }, [voiceMode, endCall, storageKey]);
 
   if (!bootstrapped) {
@@ -572,6 +580,26 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
               {error}
             </div>
           )}
+
+          {/* Standing "waiting for an agent" indicator (§1.5.2) — keeps the customer oriented
+              after handoff until a human actually replies; hides once an agent message lands. */}
+          {handedOff &&
+            !(handoffNeeded && !handoffDismissed) &&
+            !messages.some((m) => m.authorType === "agent") && (
+              <div className="mx-4 my-2 flex items-center gap-2 rounded-lg border border-default bg-surface/50 px-3 py-2 text-[11px] text-secondary">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span
+                    className="absolute inline-flex h-full w-full animate-ping rounded-full"
+                    style={{ backgroundColor: `${config.color}99` }}
+                  />
+                  <span
+                    className="relative inline-flex h-2 w-2 rounded-full"
+                    style={{ backgroundColor: config.color }}
+                  />
+                </span>
+                A member of our team will reply right here — you&apos;ll see it as soon as they do.
+              </div>
+            )}
 
           {/* F1 (A34/§3.4): honest note when the concern couldn't be persisted yet. */}
           {concernDeferredNote && (

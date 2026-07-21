@@ -108,6 +108,10 @@ export function CareChatWidget() {
   // F1 (A34/§3.4): true when the server couldn't persist the concern (pre-0188 window) —
   // we tell the customer honestly rather than implying it was captured.
   const [concernDeferredNote, setConcernDeferredNote] = useState(false);
+  // Proactive (§1.5.2, founder's "smooth customer interaction"): the conversation is with a
+  // human now (ai_responding=false). Drives a standing "an agent will reply" indicator so the
+  // customer isn't left in apparent silence after the one-time handoff notice scrolls away.
+  const [handedOff, setHandedOff] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -158,6 +162,9 @@ export function CareChatWidget() {
       // Show the capture card if the server says this conversation was handed to a human
       // and the customer hasn't been captured yet (persists across reloads).
       if (data.handoffCaptureNeeded) setHandoffNeeded(true);
+      if (typeof data.conversation?.aiResponding === "boolean") {
+        setHandedOff(data.conversation.aiResponding === false);
+      }
     } catch (e) {
       console.warn("[care widget] couldn't load messages", e);
     }
@@ -276,6 +283,7 @@ export function CareChatWidget() {
     setHandoffDismissed(false);
     setHandoffError(null);
     setConcernDeferredNote(false);
+    setHandedOff(false);
   }, [voiceMode, endCall]);
 
   const handleSend = async () => {
@@ -431,6 +439,7 @@ export function CareChatWidget() {
         setHandoffNeeded(true);
         setHandoffDismissed(false);
       }
+      if (typeof data.aiResponding === "boolean") setHandedOff(data.aiResponding === false);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("[care-widget] send failed:", err);
@@ -631,6 +640,23 @@ export function CareChatWidget() {
               {error}
             </div>
           )}
+
+          {/* Standing "waiting for an agent" indicator (§1.5.2): once handed off and the
+              card is done, keep the customer oriented until a human actually replies — the
+              one-time notice scrolls away, this doesn't. Hides as soon as an agent message
+              lands (they're now in a live conversation) or if the card is still showing. */}
+          {handedOff &&
+            !conversationClosed &&
+            !(handoffNeeded && !handoffDismissed) &&
+            !messages.some((m) => m.authorType === "agent") && (
+              <div className="mx-4 my-2 flex items-center gap-2 rounded-lg border border-default bg-surface/50 px-3 py-2 text-[11px] text-secondary">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ember-400/60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-ember-400" />
+                </span>
+                A member of our team will reply right here — you&apos;ll see it as soon as they do.
+              </div>
+            )}
 
           {/* F1 (A34/§3.4): honest note when the concern couldn't be persisted yet.
               Only appears in the pre-0188 window; name/email still reached the agent. */}
