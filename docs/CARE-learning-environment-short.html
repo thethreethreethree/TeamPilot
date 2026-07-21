@@ -1,0 +1,104 @@
+<meta charset="utf-8" />
+<title>C.A.R.E — Short &amp; Sweet</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  :root{--ink-950:#09090B;--ink-900:#18181B;--ink-850:#1f1f23;--ink-800:#27272A;--ink-700:#3F3F46;
+    --ember-300:#FDE047;--ember-400:#FACC15;--emerald:#6EE7B7;--emerald-d:#34D399;--amber:#FCD34D;--rose:#FB7185;
+    --tx:#FAFAFA;--tx2:#D4D4D8;--tx3:#A1A1AA;--tx4:#71717A;}
+  html{font-family:Inter,-apple-system,"Segoe UI",system-ui,sans-serif;}
+  body{background:var(--ink-950);color:var(--tx);}
+  .page{width:210mm;min-height:296mm;background:var(--ink-950);padding:20mm 18mm;page-break-after:always;position:relative;overflow:hidden;display:flex;flex-direction:column;}
+  .page:last-child{page-break-after:auto;}
+  .glow{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;}
+  .g1{width:420px;height:420px;background:radial-gradient(circle,rgba(250,204,21,.55),transparent 66%);top:-150px;right:-120px;opacity:.55;}
+  .g2{width:360px;height:360px;background:radial-gradient(circle,rgba(202,138,4,.4),transparent 70%);bottom:-160px;left:-110px;opacity:.5;}
+  .brand{display:flex;align-items:center;gap:9px;}
+  .bulb{width:22px;height:30px;} .brandtx{font-weight:900;letter-spacing:-.02em;font-size:14px;}
+  .tag{font-size:9.5px;color:var(--tx4);border-left:1px solid var(--ink-700);padding-left:9px;letter-spacing:.05em;}
+  .kicker{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--ember-400);font-weight:700;}
+  .huge{font-size:62px;line-height:.98;letter-spacing:-.03em;font-weight:800;}
+  .big{font-size:30px;line-height:1.05;letter-spacing:-.02em;font-weight:800;}
+  .amber{color:var(--ember-400);} .em{color:var(--emerald);} .strike{color:var(--tx4);text-decoration:line-through;text-decoration-color:var(--rose);text-decoration-thickness:3px;}
+  .lead{font-size:16px;line-height:1.5;color:var(--tx2);}
+  .beat{font-size:15px;line-height:1.35;color:var(--tx2);}
+  .num{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--tx4);}
+  .foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--ink-800);display:flex;justify-content:space-between;align-items:center;}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;}
+  .dotmark{width:26px;height:26px;border-radius:8px;background:rgba(250,204,21,.12);border:1px solid rgba(250,204,21,.35);color:var(--ember-400);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;}
+  .card{background:var(--ink-900);border:1px solid var(--ink-800);border-radius:14px;}
+  .grade{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:21px;}
+</style>
+
+<!-- ===== PAGE 1 — THE PUNCH ===== -->
+<section class="page">
+  <div class="glow g1"></div><div class="glow g2"></div>
+  <div class="brand">
+    <svg class="bulb" viewBox="0 0 22 30" fill="none"><path d="M11 1C6 1 2.5 4.6 2.5 9.2c0 3 1.6 5 3.2 6.7 1.1 1.2 1.8 2 1.8 3.4v1h7v-1c0-1.4.7-2.2 1.8-3.4 1.6-1.7 3.2-3.7 3.2-6.7C19.5 4.6 16 1 11 1Z" fill="#FACC15"/><rect x="7" y="23" width="8" height="2.2" rx="1.1" fill="#CA8A04"/><rect x="7.8" y="26.4" width="6.4" height="2.2" rx="1.1" fill="#CA8A04"/></svg>
+    <span class="brandtx">ELOSTATE</span><span class="tag">C.A.R.E</span>
+  </div>
+
+  <div style="margin-top:70px;">
+    <p class="kicker">The tool that trains its user</p>
+    <h1 class="huge" style="margin-top:26px;">AI should<br/>make your team<br/><span class="strike">weaker.</span> <span class="amber">sharper.</span></h1>
+    <p class="lead" style="margin-top:28px;max-width:150mm;">
+      Every other support AI writes the reply for your agents. They copy, paste, and quietly forget how to
+      think. C.A.R.E does the opposite: it <b style="color:var(--tx)">coaches</b> — so every conversation
+      makes them a better communicator, and they lean on the AI <span class="amber">less</span> over time.
+    </p>
+  </div>
+
+  <!-- three beats -->
+  <div style="margin-top:44px;display:flex;flex-direction:column;gap:20px;">
+    <div style="display:flex;gap:16px;align-items:flex-start;">
+      <div class="dotmark">1</div>
+      <p class="beat"><b style="color:var(--tx)">It coaches, it doesn't answer for them.</b> &nbsp;C.A.R.E asks how <em style="font-style:normal;color:var(--tx)">they'd</em> handle it first — then adds the move, and the <span class="amber">why</span>.</p>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;">
+      <div class="dotmark">2</div>
+      <p class="beat"><b style="color:var(--tx)">Grounded in 10 masterworks.</b> &nbsp;Voss, Cialdini, Rosenberg, Crucial Conversations — real principles, source-verified, behind every suggestion.</p>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;">
+      <div class="dotmark">3</div>
+      <p class="beat"><b style="color:var(--tx)">Skills compound.</b> &nbsp;Communication, judgment, sales instinct — sharpened every reply. The better they get, the quieter the AI needs to be.</p>
+    </div>
+  </div>
+
+  <div class="foot"><span class="num">elostate.com · C.A.R.E</span><span class="num">01</span></div>
+</section>
+
+<!-- ===== PAGE 2 — THE PROOF + CLOSE ===== -->
+<section class="page">
+  <div class="glow g2"></div>
+  <p class="kicker">The proof, in three glances</p>
+  <h2 class="big" style="margin-top:16px;max-width:150mm;">Every other platform tracks activity.<br/>We track <span class="amber">growth</span>.</h2>
+
+  <div style="display:flex;gap:14px;margin-top:26px;">
+    <div class="card" style="flex:1;padding:16px;">
+      <div class="grade" style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.4);color:var(--emerald);">A-</div>
+      <p style="font-size:13px;font-weight:700;margin-top:10px;">A coaching grade</p>
+      <p style="font-size:11.5px;line-height:1.45;color:var(--tx3);margin-top:4px;">Graded against a standard — never a leaderboard. There's no "F", only a growth area.</p>
+    </div>
+    <div class="card" style="flex:1;padding:16px;">
+      <p style="font-size:20px;">📖</p>
+      <p style="font-size:13px;font-weight:700;margin-top:8px;">The next lesson</p>
+      <p style="font-size:11.5px;line-height:1.45;color:var(--tx3);margin-top:4px;">"Reinforce tactical empathy — Voss." The exact book principle each agent should practice next.</p>
+    </div>
+    <div class="card" style="flex:1;padding:16px;">
+      <svg viewBox="0 0 120 40" style="width:100%;height:40px;"><path d="M4 34 C 40 30, 78 16, 116 6" fill="none" stroke="#FACC15" stroke-width="3" stroke-linecap="round"/><circle cx="116" cy="6" r="4" fill="#FACC15"/></svg>
+      <p style="font-size:13px;font-weight:700;margin-top:8px;">The trajectory</p>
+      <p style="font-size:11.5px;line-height:1.45;color:var(--tx3);margin-top:4px;">A line that climbs week over week. Growth you — and they — can actually see.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:30px;padding:30px 32px;border-color:rgba(250,204,21,.3);background:rgba(250,204,21,.05);">
+    <p class="big" style="font-size:28px;">Rent your team a crutch,<br/>or <span class="amber">build them a spine.</span></p>
+    <p class="lead" style="font-size:14px;margin-top:14px;">Bring one real support conversation your team handled this week. Watch C.A.R.E turn it into a lesson.</p>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ember-400);margin-top:18px;">Book a demo → &nbsp;[your booking link]</p>
+  </div>
+
+  <div class="foot">
+    <div class="brand"><svg class="bulb" style="width:15px;height:20px;" viewBox="0 0 22 30" fill="none"><path d="M11 1C6 1 2.5 4.6 2.5 9.2c0 3 1.6 5 3.2 6.7 1.1 1.2 1.8 2 1.8 3.4v1h7v-1c0-1.4.7-2.2 1.8-3.4 1.6-1.7 3.2-3.7 3.2-6.7C19.5 4.6 16 1 11 1Z" fill="#FACC15"/></svg><span class="brandtx" style="font-size:12px;">ELOSTATE · C.A.R.E</span></div>
+    <span class="num">02</span>
+  </div>
+</section>
