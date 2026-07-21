@@ -98,6 +98,11 @@ export function useVoiceMode(args: {
   onMessagesReturned: (messages: ReturnedMessage[]) => void;
   onRemoveOptimistic: (tempId: string) => void;
   onError: (msg: string) => void;
+  /** Fired when a turn's /messages response shows the AI has handed off to a human
+   *  (aiResponding=false). The voice loop stops re-arming; the consumer should end the
+   *  call and surface the text/handoff-card path so the customer can reach the human.
+   *  Without this the loop replays the stale AI handoff line every turn forever. */
+  onHandoff?: () => void;
 }) {
   const [voiceMode, setVoiceMode] = useState(false);
   const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
@@ -536,6 +541,11 @@ export function useVoiceMode(args: {
 
       // 2. Send to /messages — Jeff's brain runs unchanged.
       let aiReplyText = "";
+      // Handoff state from the response: handedOff = the AI has ceded the thread to a
+      // human (aiResponding=false); freshHandoff = it ceded ON THIS turn (so the newest
+      // AI message IS the real handoff line, worth speaking once before we hang up).
+      let handedOff = false;
+      let freshHandoff = false;
       try {
         const msgRes = await fetch(
           `/api/care/conversations/${active.conversationId}/messages`,
@@ -561,6 +571,8 @@ export function useVoiceMode(args: {
           .reverse()
           .find((m) => m.authorType === "ai");
         aiReplyText = lastAi?.body ?? "";
+        handedOff = data.aiResponding === false;
+        freshHandoff = data.handoff === true;
         // Diagnostic — if the user reports Jeff responding to
         // the previous question rather than the current one,
         // this log + the STT log above let us see whether the
@@ -578,13 +590,37 @@ export function useVoiceMode(args: {
         return;
       }
 
-      // 3. Play Jeff's reply.
-      if (aiReplyText) {
+      // 3. Play Jeff's reply — but NEVER replay a stale AI line on a turn where the AI has
+      // already handed off (handedOff && !freshHandoff). On the turn it hands off
+      // (freshHandoff) the newest AI message IS the real "bringing in a teammate" line, so
+      // speak that once; on later turns there is no fresh reply and replaying it would loop
+      // the handoff line forever (the bug this guards).
+      const shouldPlay = aiReplyText && (!handedOff || freshHandoff);
+      if (shouldPlay) {
         voiceDebug(
           `[care/voice][${turnId}] speakReply len=${aiReplyText.length}`
         );
         await speakReply(aiReplyText, active.sessionToken);
         voiceDebug(`[care/voice][${turnId}] speakReply done`);
+      }
+
+      // 3b. Handoff → stop the voice loop. The AI has ceded the thread to a human; a voice
+      // call can't route to the agent, so end it and hand back to the consumer (which shows
+      // the text/handoff-card path). Do NOT re-arm — otherwise the customer keeps talking to
+      // a dead AI that repeats its handoff line every turn.
+      if (handedOff) {
+        voiceDebug(`[care/voice][${turnId}] handed off — ending voice loop`);
+        callActiveRef.current = false;
+        turnInFlightRef.current = false;
+        // Fully end the call (release mic + close the voice surface), same as endCall — a
+        // voice channel can't route to the human agent, so we hand back to text mode where
+        // the handoff card + the agent's replies live. Then notify the consumer to surface
+        // the capture card.
+        teardown();
+        setVoiceMode(false);
+        setVoicePhase("idle");
+        args.onHandoff?.();
+        return;
       }
 
       // 4. ACTIVE grace — block here for 500ms before arming
@@ -609,7 +645,7 @@ export function useVoiceMode(args: {
     };
 
     recorder.start();
-  }, [args, speakReply]);
+  }, [args, speakReply, teardown]);
 
   /**
    * Start the call. Requests mic permission FIRST (before any

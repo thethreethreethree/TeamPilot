@@ -65,6 +65,7 @@ type TenantConfig = {
   ai_response_length: "short" | "medium" | "long";
   ai_name: string;
   voice_id: string | null;
+  business_type: "general" | "ecommerce";
   plan: string;
   monthly_conversation_quota: number;
 };
@@ -133,6 +134,7 @@ export default function CareWidgetSettingsPage() {
           aiResponseLength: draft.ai_response_length,
           aiName: draft.ai_name,
           voiceId: draft.voice_id,
+          businessType: draft.business_type ?? "general",
         }),
       });
       if (res.ok) {
@@ -777,6 +779,44 @@ Always hand off to a human for:
             </div>
           </div>
         </Section>
+
+        {/* Business type — 0188. Drives the concern-topic list on the customer handoff
+            card (and whether the order-number field appears) when Jeff hands off to a
+            human. General = SaaS/support topics; E-commerce = order-centric topics. */}
+        <LearningHint
+          as="block"
+          category="C.A.R.E · Settings"
+          title="Business type"
+          whatItIs="Whether your customers ask about a service (General) or orders they placed (E-commerce). It sets the list of concerns the widget offers when a conversation is handed to a human, and — for e-commerce — asks for an order number."
+          why="A support team and an online store field completely different questions. Showing a returns/tracking/cancel list to a SaaS customer is noise; showing it to a shopper is exactly what they need. Matching the list to your business means the concern the agent sees is the real one."
+          how="Pick the one that fits how customers reach you. Save to apply it to the handoff card immediately."
+          principle="Ask for the details that match the business — an order number means nothing to a service customer, and everything to a shopper."
+        >
+        <Section
+          title="Business type"
+          subtitle="Sets the concern list customers pick from when a conversation is handed to a human — and, for e-commerce, asks for an order number."
+        >
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+              Business type
+            </label>
+            <select
+              value={draft.business_type ?? "general"}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  business_type: e.target
+                    .value as TenantConfig["business_type"],
+                })
+              }
+              className="w-full bg-base border border-default rounded-md px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"
+            >
+              <option value="general">General (service / support)</option>
+              <option value="ecommerce">E-commerce (orders / products)</option>
+            </select>
+          </div>
+        </Section>
+        </LearningHint>
 
         {/* Voice — Phase 9 commit 2. The widget surface itself
             is customer-opt-in (they click the mic button); this

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
 import type { ConversationDissect, CoachTurn } from "@/lib/dissect/types";
+import { labelForAnyTopic } from "@/lib/care/handoverTopics";
 import {
   playNewMessageChime,
   hasNewCustomerMessage,
@@ -103,6 +104,12 @@ type Conversation = {
    *  a per-conversation channel badge + (for email) signal to
    *  the agent that their reply will dispatch as outbound email. */
   source?: "web_widget" | "embedded_widget" | "email" | string | null;
+  /** Handover capture (0188) — the customer's concern captured on the handoff card.
+   *  handoffTopic is a machine value (handoverTopics.ts); handoffTopicDetail is their
+   *  own words on "Other"; orderNumber is the e-commerce reference. Null until captured. */
+  handoffTopic?: string | null;
+  handoffTopicDetail?: string | null;
+  orderNumber?: string | null;
   tags: Array<{ id: string; name: string; color: string }>;
   customer: {
     id: string;
@@ -759,7 +766,10 @@ export function ConversationsApp({
         (c) =>
           (c.subject ?? "").toLowerCase().includes(q) ||
           (c.customer?.email ?? "").toLowerCase().includes(q) ||
-          (c.customer?.name ?? "").toLowerCase().includes(q)
+          (c.customer?.name ?? "").toLowerCase().includes(q) ||
+          // Search the captured concern too (0188), so an agent can pull up all "billing" or
+          // "order tracking" cases — the chip in the list is now actionable, not just visible.
+          (labelForAnyTopic(c.handoffTopic) ?? "").toLowerCase().includes(q)
       );
     }
     // Sort: priority weight DESC, then last_message_at DESC
@@ -1990,6 +2000,17 @@ function ConversationListRow({
           <p className="text-xs text-secondary truncate leading-tight">
             {c.subject ?? "Untitled"}
           </p>
+          {/* Captured concern (0188) surfaced in the LIST, not just the header — so an agent
+              triaging the inbox sees what each conversation is about at a glance, without
+              opening it (§1.5.1 workflow: faster triage). Only shown once captured. */}
+          {c.handoffTopic && (
+            <span
+              title="What the customer said this is about"
+              className="mt-1 inline-flex max-w-full items-center gap-1 rounded border border-default bg-surface/50 px-1.5 py-0.5 text-[9px] text-secondary"
+            >
+              <span className="truncate">{labelForAnyTopic(c.handoffTopic)}</span>
+            </span>
+          )}
           {c.supervisorGuidanceRequestedAt && (
             <span
               title="Supervisor guidance has been requested on this conversation"
@@ -2031,6 +2052,62 @@ function ConversationListRow({
         </div>
       </button>
     </li>
+  );
+}
+
+/**
+ * Handover capture line (0188) — a compact strip in the conversation header showing what
+ * the customer told the widget when Jeff handed off: their concern (topic + free text),
+ * order number, name, and email. Renders nothing if nothing was captured, so a normal
+ * conversation header is unchanged. The email is surfaced here (not only in the Customer
+ * panel) because it's the agent's reply address — the founder's screenshot pointed here.
+ */
+function HandoffCaptureLine({ conversation }: { conversation: Conversation }) {
+  const concernLabel = labelForAnyTopic(conversation.handoffTopic);
+  const detail = conversation.handoffTopicDetail?.trim() || null;
+  const orderNumber = conversation.orderNumber?.trim() || null;
+  const email = conversation.customer?.email?.trim() || null;
+  const name = conversation.customer?.name?.trim() || null;
+
+  // Nothing captured → render nothing (header stays as it was pre-0188).
+  if (!concernLabel && !detail && !orderNumber && !email && !name) return null;
+
+  const chip =
+    "inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border border-default bg-surface/50 text-secondary max-w-full";
+
+  return (
+    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+      {concernLabel && (
+        <span className={chip} title={detail ? `“${detail}”` : undefined}>
+          <span className="text-muted">Concern:</span>
+          <span className="text-primary font-medium truncate">
+            {concernLabel}
+            {detail ? ` — ${detail}` : ""}
+          </span>
+        </span>
+      )}
+      {orderNumber && (
+        <span className={chip}>
+          <span className="text-muted">Order #</span>
+          <span className="text-primary font-medium truncate">{orderNumber}</span>
+        </span>
+      )}
+      {name && (
+        <span className={chip}>
+          <span className="text-primary font-medium truncate">{name}</span>
+        </span>
+      )}
+      {email && (
+        <a
+          href={`mailto:${email}`}
+          className={`${chip} hover:border-strong`}
+          title={`Email ${email}`}
+        >
+          <Mail className="w-3 h-3 text-muted" aria-hidden />
+          <span className="text-primary truncate">{email}</span>
+        </a>
+      )}
+    </div>
   );
 }
 
@@ -2125,6 +2202,11 @@ function DetailHeader({
               );
             })}
           </div>
+          {/* Handover capture (0188) — the details the customer gave when Jeff handed
+              off (requirement #2: visible to the agent). Only rendered when something
+              was captured; the customer email is here too so the agent has the reply
+              address at a glance without expanding the Customer panel. */}
+          <HandoffCaptureLine conversation={conversation} />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap justify-start md:justify-end gap-y-2 min-w-0 md:max-w-[60%] pt-1 md:pt-0 border-t md:border-t-0 border-default md:border-transparent">
           {/* Summarize — System's read of the thread for an agent
