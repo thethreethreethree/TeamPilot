@@ -5,10 +5,10 @@ import type { MetadataRoute } from "next";
  * /invite/* out of search results (they're either gated behind auth or are
  * customer-specific URLs that shouldn't be indexed).
  *
- * /demo/* is also disallowed: those are sales/pitch pages a rep drives in
- * front of a prospect (e.g. /demo/c.a.r.e), not SEO landing pages — and they
- * may carry placeholder CTAs / forward-looking copy that shouldn't be
- * indexed. Remove "/demo/" here if a demo page is ever meant to rank.
+ * /care/demo is also disallowed: it's a sales/pitch page a rep drives in front
+ * of a prospect (the C.A.R.E walkthrough), not an SEO landing page — and it may
+ * carry placeholder CTAs / forward-looking copy that shouldn't be indexed.
+ * Remove "/care/demo" here if the demo page is ever meant to rank.
  */
 export default function robots(): MetadataRoute.Robots {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:4321";
@@ -17,7 +17,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/login"],
-        disallow: ["/api/", "/dashboard/", "/onboarding/", "/invite/", "/demo/"],
+        disallow: ["/api/", "/dashboard/", "/onboarding/", "/invite/", "/care/demo"],
       },
     ],
     sitemap: `${base}/sitemap.xml`,
