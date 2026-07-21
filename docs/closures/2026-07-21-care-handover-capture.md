@@ -104,6 +104,17 @@ end-to-end.** Migration `0188` UNAPPLIED. Invisible until deployed (the standing
 - Card appears but submit 400s → topic value not in the tenant's business-type set (drift); check the dropdown.
 - Nothing at all → confirm 0188 applied (`db:check`) and the deploy actually shipped this branch.
 
+## Bonus fix found during the audit (commit `c1e782b3`, separate from the feature)
+
+While wiring the agent display into `DetailHeader`, a proactive audit (§1.5.2) of that
+component surfaced a pre-existing latent bug: the PATCH `/api/care/agent/conversations/[id]`
+read-back returned the BASE conversation shape (no `priority`), but the client's §1.6
+divergence check reads `fresh.priority`. So every **priority change** false-positived —
+`undefined !== "high"` → toast *"Priority change didn't stick — DB still reads 'undefined'"*
++ a forced reload — even though the change landed. Fixed by returning the enriched shape.
+**Extra verification step:** after deploy, change a conversation's priority from the header
+dropdown → it should update quietly with NO "didn't stick" error toast.
+
 ## Open / follow-ups
 - **Runtime verification** is the founder's — the above has not been exercised against a live handoff.
 - Possible v2: re-surface the card on a post-handoff customer message (today it shows on the handoff turn +
