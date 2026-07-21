@@ -104,16 +104,27 @@ end-to-end.** Migration `0188` UNAPPLIED. Invisible until deployed (the standing
 - Card appears but submit 400s → topic value not in the tenant's business-type set (drift); check the dropdown.
 - Nothing at all → confirm 0188 applied (`db:check`) and the deploy actually shipped this branch.
 
-## Bonus fix found during the audit (commit `c1e782b3`, separate from the feature)
+## Bonus fixes found during the audit (separate from the feature)
 
-While wiring the agent display into `DetailHeader`, a proactive audit (§1.5.2) of that
-component surfaced a pre-existing latent bug: the PATCH `/api/care/agent/conversations/[id]`
+Two pre-existing bugs surfaced by proactive audit (§1.5.2 / §1.5.1) while building on these
+surfaces:
+
+**1. Priority-change false-positive (`c1e782b3`).** The PATCH `/api/care/agent/conversations/[id]`
 read-back returned the BASE conversation shape (no `priority`), but the client's §1.6
 divergence check reads `fresh.priority`. So every **priority change** false-positived —
 `undefined !== "high"` → toast *"Priority change didn't stick — DB still reads 'undefined'"*
 + a forced reload — even though the change landed. Fixed by returning the enriched shape.
-**Extra verification step:** after deploy, change a conversation's priority from the header
-dropdown → it should update quietly with NO "didn't stick" error toast.
+**Verify:** change a conversation's priority from the header dropdown → updates quietly, NO
+"didn't stick" toast.
+
+**2. Direct widget went silent post-handoff (`e044bf4e`).** The embedded widget polls
+`/messages` every 4s so an agent's reply appears in the customer's open chat without a
+refresh; the DIRECT widget (ELOSTATE marketing + dashboard) had no poll. After a handoff a
+prospect could send messages and never see the agent's reply until reopening the chat — the
+"no smooth customer interaction" gap, sharpened by the card promising "Connect me". Fixed by
+mirroring the embedded widget's 4s poll (paused when hidden / mid-send). **Verify:** with a
+customer's direct-widget chat open post-handoff, reply as the agent from the inbox → the
+reply appears in the customer widget within ~4s, no refresh.
 
 ## Open / follow-ups
 - **Runtime verification** is the founder's — the above has not been exercised against a live handoff.
