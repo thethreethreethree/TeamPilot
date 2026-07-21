@@ -327,6 +327,11 @@ export default function SalesCoachAnalyticsPage() {
               </LearningHint>
             )}
 
+            {/* ⑤ (founder 2026-07-21): the personal self-charts below — aggregate stat tiles,
+                cue-reliance trend, recurring growth — are SUPPRESSED in Standard so the page stays
+                focused on the six /10 skill scores rendered above. Expert keeps them, unchanged. */}
+            {!isStandard && (
+              <>
             {/* Aggregate stats */}
             <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <LearningHint as="block" category="Sales Coach · Analytics" title="Sessions (all time)"
@@ -447,6 +452,8 @@ export default function SalesCoachAnalyticsPage() {
                 </div>
               </section>
               </LearningHint>
+            )}
+              </>
             )}
           </>
         )}
