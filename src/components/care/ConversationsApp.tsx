@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -273,7 +273,18 @@ const VIEW_HINTS: Record<
   },
 };
 
-export function ConversationsApp({
+// Suspense boundary so useSearchParams() below can never fail static prerendering (the /login-class build
+// break — 2026-07-21). Rendered only by dynamic /dashboard/care pages today, so this is defensive; the
+// wrapper forwards props to the inner component.
+export function ConversationsApp(props: { initialId?: string | null }) {
+  return (
+    <Suspense fallback={null}>
+      <ConversationsAppInner {...props} />
+    </Suspense>
+  );
+}
+
+function ConversationsAppInner({
   initialId,
 }: {
   initialId?: string | null;
