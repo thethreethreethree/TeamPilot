@@ -1,5 +1,13 @@
 # Founder action queue — as of 2026-07-14
 
+> ### ⬆️ 2026-07-21 — C.A.R.E handover capture BUILT (`feat/care-handover-capture`, `b8791b0c`)
+> When Jeff hands off to a human: the customer is now told, and a compact card captures name/email/concern
+> (+ "Other" free-text, + order # for e-commerce) — visible to the agent in the inbox header.
+> **YOUR ACTIONS: (1) apply migration `0188` (`npm run db:apply`) — additive-only, safe; (2) merge/deploy the
+> branch; (3) runtime-verify with [docs/closures/2026-07-21-care-handover-capture.md](closures/2026-07-21-care-handover-capture.md)
+> (has a step-by-step verification runbook).** Statically green (tsc/lint/build/866 tests) but NOT exercised
+> against a live handoff. Invisible until deployed — same deploy bottleneck as everything else.
+
 > ### ⬆️ 2026-07-20 — ALL MIGRATIONS ARE NOW APPLIED. Every "apply migration NNNN" instruction below is DONE.
 >
 > You asked to automate migration application. I built `scripts/db-apply.mjs` (`npm run db:check | db:baseline |
