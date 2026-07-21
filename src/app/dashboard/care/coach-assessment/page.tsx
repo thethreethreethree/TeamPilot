@@ -32,6 +32,7 @@ type Agent = {
   agentName: string;
   aggregate: CareCoachAggregate;
   learningGaps: LearningGap[];
+  trajectory: Array<number | null>;
 };
 type Roster = {
   windowDays: number;
@@ -161,9 +162,12 @@ export default function CareCoachAssessmentPage() {
                 >
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <h2 className="text-sm font-semibold text-primary">{a.agentName}</h2>
-                    <span className="text-[10px] text-muted">
-                      {n} repl{n === 1 ? "y" : "ies"} graded
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <Trajectory points={a.trajectory} />
+                      <span className="text-[10px] text-muted whitespace-nowrap">
+                        {n} repl{n === 1 ? "y" : "ies"} graded
+                      </span>
+                    </div>
                   </div>
 
                   {/* The grade (Standard) or the raw counts (Expert). A11: counts are shown in both. */}
@@ -226,6 +230,38 @@ export default function CareCoachAssessmentPage() {
         )}
       </div>
     </>
+  );
+}
+
+/** §3.6 make-learning-visible: a tiny 4-week sparkline of the Care Quality score (oldest→newest).
+ *  Renders only with ≥2 weeks of data — a single point isn't a trend. Gaps (null weeks) are skipped. */
+function Trajectory({ points }: { points: Array<number | null> }) {
+  const pts = points
+    .map((v, i) => ({ v, i }))
+    .filter((p): p is { v: number; i: number } => p.v !== null);
+  if (pts.length < 2) return null;
+  const W = 52;
+  const H = 18;
+  const n = points.length;
+  const x = (i: number) => (n <= 1 ? 0 : (i / (n - 1)) * W);
+  const y = (v: number) => H - v * H; // score 0..1 → bottom..top
+  const d = pts
+    .map((p, k) => `${k === 0 ? "M" : "L"} ${x(p.i).toFixed(1)} ${y(p.v).toFixed(1)}`)
+    .join(" ");
+  const last = pts[pts.length - 1]!;
+  const rising = last.v >= (pts[0]?.v ?? last.v);
+  const stroke = rising ? "#34D399" : "#FCD34D";
+  return (
+    <svg
+      width={W}
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      aria-label="4-week grade trajectory"
+      className="overflow-visible"
+    >
+      <path d={d} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={x(last.i)} cy={y(last.v)} r="2" fill={stroke} />
+    </svg>
   );
 }
 

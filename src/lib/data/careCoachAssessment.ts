@@ -17,7 +17,7 @@
  */
 
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import type { CareCoachAggregate } from "@/lib/care/careQualityGrade";
+import { careQualityScore, type CareCoachAggregate } from "@/lib/care/careQualityGrade";
 
 /** A book-grounded coaching target derived from the count gaps — the "which book principle needs
  *  reinforcement" the founder asked for. Book names match docs/COACH_KNOWLEDGE_BASE.md. */
@@ -34,6 +34,9 @@ export type CoachAssessmentAgent = {
   aggregate: CareCoachAggregate;
   /** Up to two book-grounded coaching targets, worst-first. Empty when the agent is solid or has no data. */
   learningGaps: LearningGap[];
+  /** §3.6 make-learning-visible: the Care Quality score for each of the last 4 weeks, OLDEST→NEWEST.
+   *  null for a week with no graded replies. So growth is a line, not a flat snapshot. */
+  trajectory: Array<number | null>;
 };
 
 export type CoachAssessmentRoster = {
@@ -151,7 +154,7 @@ export async function fetchCoachAssessmentRoster(
       .or("is_support_agent.eq.true,role.in.(CEO,COO,admin)"),
     sb
       .from("support_messages")
-      .select("author_id, coach_counts, support_conversations!inner(company_id)")
+      .select("author_id, coach_counts, created_at, support_conversations!inner(company_id)")
       .eq("author_type", "agent")
       .eq("is_internal_note", false)
       .eq("support_conversations.company_id", companyId)
@@ -170,26 +173,22 @@ export async function fetchCoachAssessmentRoster(
   const rows = (coachRes.data ?? []) as unknown as Array<{
     author_id: string | null;
     coach_counts: CoachCountsShape;
+    created_at: string;
   }>;
   const bounded = rows.length >= SCAN_CAP;
 
-  // Roll up by author.
-  const byAgent = new Map<string, CareCoachAggregate>();
-  for (const row of rows) {
-    const id = row.author_id;
-    const c = row.coach_counts;
-    if (!id || !c) continue;
-    let agg = byAgent.get(id);
-    if (!agg) {
-      agg = {
-        repliesGraded: 0,
-        acknowledgedCount: 0,
-        answeredCount: 0,
-        nextStepCount: 0,
-        risks: { unsupportedAbsolutes: 0, fabricatedSpecifics: 0, emptyFiller: 0 },
-      };
-      byAgent.set(id, agg);
-    }
+  // Roll up by author — a total aggregate AND four weekly buckets (for the §3.6 trajectory).
+  const TRAJ_WEEKS = 4;
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const emptyAgg = (): CareCoachAggregate => ({
+    repliesGraded: 0,
+    acknowledgedCount: 0,
+    answeredCount: 0,
+    nextStepCount: 0,
+    risks: { unsupportedAbsolutes: 0, fabricatedSpecifics: 0, emptyFiller: 0 },
+  });
+  const accumulate = (agg: CareCoachAggregate, c: NonNullable<CoachCountsShape>) => {
     agg.repliesGraded += 1;
     agg.acknowledgedCount += c.positive?.acknowledged ?? 0;
     agg.answeredCount += c.positive?.answered ?? 0;
@@ -197,15 +196,47 @@ export async function fetchCoachAssessmentRoster(
     agg.risks.unsupportedAbsolutes += c.risks?.unsupported_absolutes ?? 0;
     agg.risks.fabricatedSpecifics += c.risks?.fabricated_specifics ?? 0;
     agg.risks.emptyFiller += c.risks?.empty_filler ?? 0;
+  };
+
+  const byAgent = new Map<string, CareCoachAggregate>();
+  const byAgentWeek = new Map<string, CareCoachAggregate[]>(); // index 0 = most recent week
+  for (const row of rows) {
+    const id = row.author_id;
+    const c = row.coach_counts;
+    if (!id || !c) continue;
+    let agg = byAgent.get(id);
+    if (!agg) {
+      agg = emptyAgg();
+      byAgent.set(id, agg);
+    }
+    accumulate(agg, c);
+
+    let weeks = byAgentWeek.get(id);
+    if (!weeks) {
+      weeks = Array.from({ length: TRAJ_WEEKS }, emptyAgg);
+      byAgentWeek.set(id, weeks);
+    }
+    const age = now - new Date(row.created_at).getTime();
+    const wi = Math.min(TRAJ_WEEKS - 1, Math.max(0, Math.floor(age / WEEK_MS)));
+    const bucket = weeks[wi];
+    if (bucket) accumulate(bucket, c);
   }
 
   const withData: CoachAssessmentAgent[] = [];
   for (const [agentId, aggregate] of byAgent.entries()) {
+    const weeks = byAgentWeek.get(agentId) ?? [];
+    // Oldest → newest, so the line reads left-to-right as time.
+    const trajectory: Array<number | null> = [];
+    for (let i = TRAJ_WEEKS - 1; i >= 0; i--) {
+      const wk = weeks[i];
+      trajectory.push(wk && wk.repliesGraded > 0 ? careQualityScore(wk) : null);
+    }
     withData.push({
       agentId,
       agentName: nameById.get(agentId) ?? "Unnamed agent",
       aggregate,
       learningGaps: deriveLearningGaps(aggregate),
+      trajectory,
     });
   }
   // §A18 guardrail: ALWAYS alphabetical, NEVER sorted by grade.
