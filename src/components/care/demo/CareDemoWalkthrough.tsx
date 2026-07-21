@@ -272,10 +272,32 @@ export function CareDemoWalkthrough() {
   const step = STEPS[i];
   const atEnd = i === STEPS.length - 1;
 
+  const next = () => setI((v) => Math.min(STEPS.length - 1, v + 1));
+  const prev = () => setI((v) => Math.max(0, v - 1));
+
+  // Arrow-key navigation — for driving the demo live without reaching for
+  // the mouse. Scoped to the focused widget (tabIndex below), so it never
+  // hijacks page scrolling when the widget isn't focused.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      next();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      prev();
+    }
+  };
+
   if (!step) return null; // narrows Step|undefined (noUncheckedIndexedAccess)
 
   return (
-    <div className="rounded-2xl p-4 md:p-6 border border-ink-800 bg-ink-950 shadow-glow-ember-soft">
+    <div
+      role="group"
+      aria-label="C.A.R.E walkthrough — use the left and right arrow keys to move between steps"
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      className="rounded-2xl p-4 md:p-6 border border-ink-800 bg-ink-950 shadow-glow-ember-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-400/60"
+    >
       {/* Stepper header */}
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
@@ -430,14 +452,17 @@ export function CareDemoWalkthrough() {
       <div className="mt-4 flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => setI((v) => Math.max(0, v - 1))}
+          onClick={prev}
           disabled={i === 0}
           className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border border-ink-800 text-zinc-400 hover:text-zinc-100 hover:border-ink-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden /> Back
         </button>
 
-        <span className="text-[11px] font-mono text-zinc-500">
+        <span className="text-[11px] font-mono text-zinc-500 flex items-center gap-2">
+          <span className="hidden sm:inline text-zinc-600" aria-hidden>
+            ← → keys
+          </span>
           {i + 1} / {STEPS.length}
         </span>
 
@@ -452,7 +477,7 @@ export function CareDemoWalkthrough() {
         ) : (
           <button
             type="button"
-            onClick={() => setI((v) => Math.min(STEPS.length - 1, v + 1))}
+            onClick={next}
             className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg bg-ember-400 hover:bg-ember-500 text-[#09090B] shadow-glow transition-all"
           >
             Next <ArrowRight className="w-3.5 h-3.5" aria-hidden />
