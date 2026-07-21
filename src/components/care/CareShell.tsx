@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
+  GraduationCap,
   Home,
   Inbox,
   LayoutGrid,
@@ -82,6 +83,11 @@ const PRIMARY_NAV: NavItem[] = [
   // per-agent breakdown. Visible only to CEO / COO / admin
   // (gated server-side by /api/care/leadership/team).
   { label: "Team", href: "/dashboard/care/leadership", icon: Users },
+  // Per-agent coaching roster (founder 2026-07-22). Unlike "Team" (aggregate),
+  // this shows each agent's grade — a founder-approved override of the stricter
+  // aggregate-only stance, carrying the §A18 guardrails (alphabetical, vs a
+  // standard, coaching-framed, no F). Gated CEO/COO/admin by the route.
+  { label: "Coach Assessment", href: "/dashboard/care/coach-assessment", icon: GraduationCap },
 ];
 
 const SETTINGS_NAV: NavItem[] = [
