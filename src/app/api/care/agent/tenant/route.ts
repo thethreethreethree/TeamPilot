@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
+import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 
 /**
  * GET /api/care/agent/tenant
@@ -120,6 +121,9 @@ const PatchBody = z.object({
   // library (the settings UI surfaces a curated picker but
   // accepts overrides). NULL → use deployment default (Antoni).
   voiceId: z.string().max(64).optional().nullable(),
+  // Handover capture (0188) — the business type that drives the concern-topic list on
+  // the customer handoff card and whether the order-number field appears.
+  businessType: z.enum(["general", "ecommerce"]).optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -157,13 +161,38 @@ export async function PATCH(req: NextRequest) {
     patch.ai_response_length = body.aiResponseLength;
   if (body.aiName !== undefined) patch.ai_name = body.aiName;
   if (body.voiceId !== undefined) patch.voice_id = body.voiceId;
+  if (body.businessType !== undefined) patch.business_type = body.businessType;
 
   const admin = createAdminClient();
   // Ensure a row exists (upsert by company_id).
-  const { data } = await admin
+  const { data, error } = await admin
     .from("care_tenant_config")
     .upsert({ company_id: ctx.companyId, ...patch }, { onConflict: "company_id" })
     .select("*")
     .single();
+
+  if (error) {
+    // Migration-coupling guard (A34/A26): business_type lands with migration 0188. Until
+    // it's applied, bundling it into this upsert would fail the ENTIRE settings save (color,
+    // greeting, AI name — everything), because one missing column rejects the whole write.
+    // Degrade: drop business_type and retry so every other setting still persists; the
+    // business-type control is simply inert until 0188 is applied. Any OTHER error stays loud
+    // (and is no longer swallowed into a false-ok — the previous code ignored `error` and
+    // returned {config:null} with a 200).
+    if (isMissingColumnError(error, "business_type") && "business_type" in patch) {
+      const { business_type: _deferred, ...rest } = patch;
+      const retry = await admin
+        .from("care_tenant_config")
+        .upsert({ company_id: ctx.companyId, ...rest }, { onConflict: "company_id" })
+        .select("*")
+        .single();
+      if (retry.error) {
+        return NextResponse.json({ error: retry.error.message }, { status: 500 });
+      }
+      return NextResponse.json({ config: retry.data, businessTypeDeferred: true });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
   return NextResponse.json({ config: data });
 }

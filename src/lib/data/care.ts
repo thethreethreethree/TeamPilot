@@ -4,6 +4,8 @@ import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/adm
 import { strictMutate } from "@/lib/supabase/strictUpdate";
 import { notifyAssignedAgentOfCustomerMessage } from "@/lib/notifications/careNotify";
 import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
+import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
+import { HANDOFF_NOTICE } from "@/lib/care/handoverNotice";
 
 /**
  * ELOSTATE Care — data layer.
@@ -49,6 +51,13 @@ export type SupportConversation = {
   // requested supervisor input on this conversation. Orthogonal
   // to status — a conversation in any status can carry a flag.
   supervisorGuidanceRequestedAt: string | null;
+  // Handover capture (0188). The customer's concern, captured on the handoff card
+  // when Jeff brings in a human. All null until captured (capture is optional).
+  // handoffTopic = machine value from handoverTopics.ts; handoffTopicDetail = the
+  // customer's own words when they chose "Other"; orderNumber = e-commerce reference.
+  handoffTopic: string | null;
+  handoffTopicDetail: string | null;
+  orderNumber: string | null;
   createdAt: string;
 };
 
@@ -127,6 +136,11 @@ function mapConversation(row: Record<string, unknown>): SupportConversation {
       (row.resolution_outcome_category as string | null) ?? null,
     supervisorGuidanceRequestedAt:
       (row.supervisor_guidance_requested_at as string | null) ?? null,
+    // Handover capture (0188). Absent (→ null) on select("*") until the migration
+    // is applied, so the whole surface degrades gracefully to "not captured".
+    handoffTopic: (row.handoff_topic as string | null) ?? null,
+    handoffTopicDetail: (row.handoff_topic_detail as string | null) ?? null,
+    orderNumber: (row.order_number as string | null) ?? null,
     createdAt: row.created_at as string,
   };
 }
@@ -151,6 +165,30 @@ function mapMessage(row: Record<string, unknown>): SupportMessage {
     mediaUrl: (row.media_url as string | null) ?? null,
     mediaType: (row.media_type as string | null) ?? null,
   };
+}
+
+/**
+ * Format a conversation's VISIBLE messages (internal notes excluded) as a plain
+ * "Role: body" transcript for an LLM prompt. Shared by the Dissect diagnosis and its
+ * Ask-Coach follow-up so both ground the model in the IDENTICALLY-shaped thread (A14/A16 —
+ * one data contract; a drifted re-format would let the diagnosis and the discussion run on
+ * different shapes of the same conversation).
+ */
+export function formatVisibleThreadForPrompt(messages: SupportMessage[]): string {
+  return messages
+    .filter((m) => !m.isInternalNote)
+    .map((m) => {
+      const role =
+        m.authorType === "customer"
+          ? "Customer"
+          : m.authorType === "agent"
+            ? "Agent"
+            : m.authorType === "ai"
+              ? "AI"
+              : "System";
+      return `${role}: ${m.body}`;
+    })
+    .join("\n");
 }
 
 // ─── Customer-side (service-role; no auth) ────────────────────
@@ -313,6 +351,159 @@ export async function postAiMessage(args: {
     .single();
   if (error || !data) return null;
   return mapMessage(data);
+}
+
+/**
+ * Append a system-authored notice — a neutral, centered line the widget renders
+ * distinctly from customer/AI/agent turns (author_type + kind = 'system'). Used by the
+ * handover flow (0188) to tell the customer "connecting you with a support agent" when
+ * Jeff escalates OR when an agent claims the conversation. NOT graded, NOT an AI turn:
+ * it must never re-trigger the AI reply path, so it carries its own author_type.
+ */
+export async function postSystemMessage(args: {
+  conversationId: string;
+  body: string;
+}): Promise<SupportMessage | null> {
+  const sb = createServiceRoleClient();
+  const { data, error } = await sb
+    .from("support_messages")
+    .insert({
+      conversation_id: args.conversationId,
+      author_type: "system",
+      kind: "system",
+      body: args.body,
+    })
+    .select("*")
+    .single();
+  if (error || !data) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[care.postSystemMessage] insert failed conversationId=${args.conversationId} error=${error?.message ?? "no row returned"}`
+    );
+    return null;
+  }
+  return mapMessage(data);
+}
+
+/**
+ * Handover capture (0188). When the customer fills the handoff card, persist:
+ *  - full name + email → support_customers (upserted by email when present, so a
+ *    returning customer with the same email is deduped; linked via customer_id).
+ *  - concern topic + free-text detail + order number → the conversation row.
+ *
+ * Every field is optional (founder: never block the customer). Runs on the customer
+ * side (service-role, no auth) and MUST NOT touch ai_responding — capturing details is
+ * not a message and must never wake the AI. Degrades gracefully if 0188 is not yet
+ * applied: the conversation-field write is retried without the new columns so the
+ * customer link (customer_id) still lands and nothing 500s (migration-coupling lesson).
+ */
+export async function captureHandoffDetails(args: {
+  conversationId: string;
+  companyId: string;
+  name?: string | null;
+  email?: string | null;
+  topic?: string | null;
+  topicDetail?: string | null;
+  orderNumber?: string | null;
+}): Promise<{ ok: boolean; customerId: string | null; concernDeferred?: boolean }> {
+  const sb = createServiceRoleClient();
+  const name = args.name?.trim() || null;
+  const email = args.email?.trim().toLowerCase() || null;
+
+  // 1. Upsert / link the customer when we have something to identify them by.
+  let customerId: string | null = null;
+  if (email) {
+    // Dedupe on (company_id, email) — the unique constraint from 0034. Keep the latest
+    // name if one was provided, but never wipe an existing name with a blank.
+    const { data: up, error: upErr } = await sb
+      .from("support_customers")
+      .upsert(
+        { company_id: args.companyId, email, ...(name ? { name } : {}) },
+        { onConflict: "company_id,email" }
+      )
+      .select("id")
+      .maybeSingle();
+    // §3.4 observability (audit finding F2): a swallowed failure here silently loses the
+    // customer's identity while the endpoint still returns ok. Log it like every other
+    // write in this file, so a real RLS/constraint failure is visible, not invisible.
+    if (upErr) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care.captureHandoffDetails] customer upsert failed companyId=${args.companyId} error=${upErr.message}`
+      );
+    }
+    customerId = (up?.id as string | undefined) ?? null;
+  } else if (name) {
+    // No email to dedupe on — record the name so the agent still sees who they're
+    // talking to. One row per capture is acceptable (name-only can't be deduped).
+    const { data: ins, error: insErr } = await sb
+      .from("support_customers")
+      .insert({ company_id: args.companyId, name })
+      .select("id")
+      .maybeSingle();
+    if (insErr) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care.captureHandoffDetails] customer insert failed companyId=${args.companyId} error=${insErr.message}`
+      );
+    }
+    customerId = (ins?.id as string | undefined) ?? null;
+  }
+
+  // 2. Write the conversation-level fields (+ link the customer). NEVER ai_responding.
+  const full: Record<string, unknown> = {};
+  if (customerId) full.customer_id = customerId;
+  if (args.topic) full.handoff_topic = args.topic;
+  if (args.topicDetail?.trim()) full.handoff_topic_detail = args.topicDetail.trim();
+  if (args.orderNumber?.trim()) full.order_number = args.orderNumber.trim();
+  if (Object.keys(full).length === 0) return { ok: true, customerId };
+
+  const hadConcern = Boolean(
+    full.handoff_topic || full.handoff_topic_detail || full.order_number
+  );
+
+  const { error } = await sb
+    .from("support_conversations")
+    .update(full)
+    .eq("id", args.conversationId);
+
+  if (error) {
+    // Pre-0188 fallback: the new columns don't exist yet. Still land the customer link
+    // (an existing column) so the agent at least gets name/email; drop the topic/order
+    // fields until the migration is applied. Any OTHER error stays loud.
+    const newColMissing =
+      isMissingColumnError(error, "handoff_topic") ||
+      isMissingColumnError(error, "handoff_topic_detail") ||
+      isMissingColumnError(error, "order_number");
+    if (!newColMissing) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care.captureHandoffDetails] update failed conversationId=${args.conversationId} error=${error.message}`
+      );
+      return { ok: false, customerId };
+    }
+    if (customerId) {
+      await sb
+        .from("support_conversations")
+        .update({ customer_id: customerId })
+        .eq("id", args.conversationId);
+    }
+    // Audit finding F1 (A34 #2 / §3.4): pre-0188 the concern/order columns don't exist, so
+    // those fields were silently DROPPED while name/email were kept. A34 says a write that
+    // can't persist must not degrade silently. We can't persist here (no column), but we can
+    // be HONEST about it: log the drop (naming what was lost) and signal it up so the route/
+    // widget can tell the customer "we'll follow up" instead of implying their concern was
+    // captured. The founder-facing card-gating option (hide topic/order until schema-ready)
+    // remains a separate decision; this is the minimal honesty fix.
+    if (hadConcern) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care.captureHandoffDetails] concern/order DROPPED (0188 unapplied) conversationId=${args.conversationId} — apply migration 0188`
+      );
+      return { ok: true, customerId, concernDeferred: true };
+    }
+  }
+  return { ok: true, customerId };
 }
 
 /**
@@ -511,6 +702,16 @@ export async function claimConversation(args: {
   agentId: string;
 }): Promise<void> {
   const sb = await createServerClient();
+  // Read the prior AI state so we only post the customer notice when this claim is the
+  // moment the AI hands off (ai_responding was still true). If the AI already escalated,
+  // the messages route already posted the notice — don't double it (0188 requirement #1).
+  const { data: prior } = await sb
+    .from("support_conversations")
+    .select("ai_responding")
+    .eq("id", args.conversationId)
+    .maybeSingle();
+  const wasAiResponding = prior?.ai_responding === true;
+
   await strictMutate(
     sb
       .from("support_conversations")
@@ -523,6 +724,15 @@ export async function claimConversation(args: {
       .select("id"),
     { context: "claimConversation" }
   );
+
+  if (wasAiResponding) {
+    // Tell the customer a human is taking over. Fire-and-forget: a failed notice must
+    // not fail the claim itself (the agent still owns the conversation either way).
+    await postSystemMessage({
+      conversationId: args.conversationId,
+      body: HANDOFF_NOTICE,
+    });
+  }
 }
 
 /**

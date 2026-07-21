@@ -61,6 +61,9 @@ export async function GET(req: NextRequest) {
       logoUrl: c.widgetLogoUrl,
       displayName: c.companyDisplayName,
       aiName: c.aiName,
+      // Handover capture (0188): the widget uses this to pick the concern-topic list
+      // (handoverTopicsFor) and whether to show the order-number field. Customer-safe.
+      businessType: c.businessType,
     },
   });
 }

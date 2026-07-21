@@ -1,0 +1,410 @@
+<meta charset="utf-8" />
+<title>C.A.R.E — The Learning Environment</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  :root {
+    --ink-950:#09090B; --ink-900:#18181B; --ink-850:#1f1f23; --ink-800:#27272A; --ink-700:#3F3F46;
+    --ember-300:#FDE047; --ember-400:#FACC15; --ember-500:#EAB308; --ember-600:#CA8A04;
+    --emerald:#6EE7B7; --emerald-dim:#34D399; --amber:#FCD34D; --rose:#FB7185;
+    --tx:#FAFAFA; --tx2:#D4D4D8; --tx3:#A1A1AA; --tx4:#71717A;
+  }
+  html { font-family: Inter, -apple-system, "Segoe UI", system-ui, sans-serif; }
+  body { background:var(--ink-950); color:var(--tx); }
+  .page {
+    width:210mm; min-height:296mm; background:var(--ink-950); position:relative; overflow:hidden;
+    padding:18mm 16mm; page-break-after:always; display:flex; flex-direction:column;
+  }
+  .page:last-child { page-break-after:auto; }
+  .glow { position:absolute; border-radius:50%; filter:blur(70px); opacity:.5; pointer-events:none; }
+  .g1 { width:340px;height:340px; background:radial-gradient(circle,rgba(250,204,21,.5),transparent 68%); top:-120px; right:-90px; }
+  .g2 { width:300px;height:300px; background:radial-gradient(circle,rgba(202,138,4,.35),transparent 70%); bottom:-130px; left:-90px; }
+
+  .kicker { font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--ember-400); font-weight:700; }
+  h1 { font-size:44px; line-height:1.02; letter-spacing:-.02em; font-weight:800; }
+  h2 { font-size:27px; line-height:1.08; letter-spacing:-.015em; font-weight:800; }
+  h3 { font-size:15px; font-weight:700; }
+  .amber { color:var(--ember-400); }
+  .em { color:var(--emerald); }
+  .lead { font-size:14.5px; line-height:1.6; color:var(--tx2); }
+  .sm { font-size:12px; line-height:1.55; color:var(--tx3); }
+  .xs { font-size:10.5px; line-height:1.5; color:var(--tx4); }
+  .mono { font-family:"JetBrains Mono",ui-monospace,monospace; }
+  .brand { display:flex; align-items:center; gap:9px; }
+  .bulb { width:22px;height:30px; }
+  .brandtx { font-weight:900; letter-spacing:-.02em; font-size:14px; }
+  .tag { font-size:9.5px; color:var(--tx4); border-left:1px solid var(--ink-700); padding-left:9px; margin-left:2px; letter-spacing:.05em; }
+
+  .card { background:var(--ink-900); border:1px solid var(--ink-800); border-radius:14px; }
+  .card-e { background:rgba(250,204,21,.05); border:1px solid rgba(250,204,21,.28); border-radius:14px; }
+  .screen { background:var(--ink-950); border:1px solid var(--ink-800); border-radius:12px; overflow:hidden; }
+
+  /* chat mock */
+  .wchead { background:var(--ember-400); color:#09090B; display:flex; align-items:center; gap:8px; padding:8px 11px; }
+  .avatar { width:26px;height:26px;border-radius:50%; background:rgba(9,9,11,.12); display:flex;align-items:center;justify-content:center; font-weight:800; font-size:12px; }
+  .dot { width:6px;height:6px;border-radius:50%; background:#16794f; display:inline-block; }
+  .bubble { max-width:80%; font-size:11px; line-height:1.45; padding:7px 10px; border-radius:11px; }
+  .b-cust { background:var(--ember-400); color:#09090B; border-bottom-right-radius:3px; margin-left:auto; }
+  .b-ai { background:var(--ink-800); color:var(--tx); border:1px solid var(--ink-700); border-bottom-left-radius:3px; }
+  .b-agent { background:rgba(52,211,153,.12); color:#D1FAE5; border:1px solid rgba(52,211,153,.3); border-bottom-left-radius:3px; }
+  .lbl { font-size:8.5px; color:var(--tx4); margin-bottom:2px; display:flex; align-items:center; gap:4px; }
+
+  .pill { display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600; padding:3px 8px; border-radius:20px; }
+  .pill-e { background:rgba(250,204,21,.12); color:var(--ember-300); border:1px solid rgba(250,204,21,.3); }
+  .pill-em { background:rgba(52,211,153,.14); color:var(--emerald); border:1px solid rgba(52,211,153,.35); }
+  .pill-g { background:var(--ink-800); color:var(--tx3); border:1px solid var(--ink-700); }
+
+  .grade { width:46px;height:46px; border-radius:12px; display:flex;align-items:center;justify-content:center; font-weight:800; font-size:22px; }
+  .row { display:flex; gap:14px; }
+  .col { flex:1; }
+  .divider { height:1px; background:var(--ink-800); margin:14px 0; }
+  ul.check { list-style:none; }
+  ul.check li { font-size:12px; line-height:1.5; color:var(--tx2); padding-left:18px; position:relative; margin-bottom:6px; }
+  ul.check li::before { content:"→"; position:absolute; left:0; color:var(--ember-400); font-weight:700; }
+  .foot { margin-top:auto; padding-top:12px; border-top:1px solid var(--ink-800); display:flex; justify-content:space-between; align-items:center; }
+  .num { font-family:"JetBrains Mono",monospace; font-size:10px; color:var(--tx4); }
+</style>
+
+<!-- ============ PAGE 1 — COVER ============ -->
+<section class="page">
+  <div class="glow g1"></div><div class="glow g2"></div>
+  <div class="brand">
+    <svg class="bulb" viewBox="0 0 22 30" fill="none"><path d="M11 1C6 1 2.5 4.6 2.5 9.2c0 3 1.6 5 3.2 6.7 1.1 1.2 1.8 2 1.8 3.4v1h7v-1c0-1.4.7-2.2 1.8-3.4 1.6-1.7 3.2-3.7 3.2-6.7C19.5 4.6 16 1 11 1Z" fill="#FACC15"/><rect x="7" y="23" width="8" height="2.2" rx="1.1" fill="#CA8A04"/><rect x="7.8" y="26.4" width="6.4" height="2.2" rx="1.1" fill="#CA8A04"/></svg>
+    <span class="brandtx">ELOSTATE</span><span class="tag">C.A.R.E</span>
+  </div>
+
+  <div style="margin-top:64px;">
+    <p class="kicker">The learning environment · not just a tool</p>
+    <h1 style="margin-top:20px;">Most AI makes people<br/><span style="color:var(--tx3);text-decoration:line-through;text-decoration-color:var(--rose);text-decoration-thickness:2px;">worse</span> at their job.</h1>
+    <h1 style="margin-top:8px;" class="amber">C.A.R.E makes them better.</h1>
+    <p class="lead" style="margin-top:22px; max-width:150mm;">
+      Every other AI support platform quietly trains your team to stop thinking — hand the customer to
+      the bot, copy the suggestion, hit send. Skills atrophy. C.A.R.E is built on the opposite bet:
+      <span style="color:var(--tx)">the more your agents use it, the more capable they become.</span>
+      It doesn't answer <em style="font-style:normal;color:var(--tx)">for</em> them — it coaches them, using
+      the same ten communication masterworks a world-class trainer would, until they need it less.
+    </p>
+  </div>
+
+  <!-- the two curves -->
+  <div class="card" style="margin-top:34px; padding:18px 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:baseline;">
+      <h3>Agent skill over time</h3>
+      <span class="xs">communication · critical thinking · sales · analysis</span>
+    </div>
+    <svg viewBox="0 0 620 150" style="width:100%; height:150px; margin-top:8px;">
+      <line x1="30" y1="120" x2="600" y2="120" stroke="#3F3F46" stroke-width="1"/>
+      <line x1="30" y1="20" x2="30" y2="120" stroke="#3F3F46" stroke-width="1"/>
+      <!-- lazy AI: declines -->
+      <path d="M30 60 C 180 66, 360 92, 600 112" fill="none" stroke="#FB7185" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="600" cy="112" r="4" fill="#FB7185"/>
+      <text x="470" y="128" fill="#FB7185" font-size="11" font-family="Inter">typical AI · dependence</text>
+      <!-- C.A.R.E: rises -->
+      <path d="M30 88 C 200 82, 380 46, 600 22" fill="none" stroke="#FACC15" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="600" cy="22" r="4.5" fill="#FACC15"/>
+      <text x="452" y="16" fill="#FACC15" font-size="11" font-weight="700" font-family="Inter">C.A.R.E · mastery</text>
+      <text x="20" y="18" fill="#71717A" font-size="9" font-family="Inter" transform="rotate(-90 20 70)">skill →</text>
+      <text x="300" y="142" fill="#71717A" font-size="9" font-family="Inter">months of use →</text>
+    </svg>
+    <p class="xs" style="margin-top:2px;">Same job, same tools. The difference is whether the system does the thinking, or teaches it.</p>
+  </div>
+
+  <div class="foot">
+    <span class="num">elostate.com · C.A.R.E — Customer Assistance &amp; Response Engine</span>
+    <span class="num">01</span>
+  </div>
+</section>
+
+<!-- ============ PAGE 2 — THE TRAP ============ -->
+<section class="page">
+  <div class="glow g2"></div>
+  <p class="kicker">The trap nobody names</p>
+  <h2 style="margin-top:14px; max-width:150mm;">Convenience that quietly deskills your team.</h2>
+  <p class="lead" style="margin-top:14px; max-width:158mm;">
+    An AI that writes the whole reply feels like a gift on day one. But a muscle you never use wastes.
+    Agents stop reading the customer, stop structuring an argument, stop thinking through the objection —
+    because the machine did it. Six months in, take the AI away and the team is <em style="font-style:normal;color:var(--tx)">weaker</em>
+    than when they started.
+  </p>
+
+  <div class="row" style="margin-top:26px;">
+    <div class="col card" style="padding:18px; border-color:rgba(251,113,133,.3);">
+      <p class="pill" style="background:rgba(251,113,133,.12); color:var(--rose); border:1px solid rgba(251,113,133,.35);">✕ Typical AI support tool</p>
+      <ul style="list-style:none; margin-top:12px;">
+        <li class="sm" style="margin-bottom:9px;"><span style="color:var(--rose)">✕</span> &nbsp;Writes the reply <em style="font-style:normal;color:var(--tx2)">for</em> the agent — they copy &amp; paste</li>
+        <li class="sm" style="margin-bottom:9px;"><span style="color:var(--rose)">✕</span> &nbsp;Deflects hard cases to a bot; the human never learns them</li>
+        <li class="sm" style="margin-bottom:9px;"><span style="color:var(--rose)">✕</span> &nbsp;Optimizes for handle-time, not the person</li>
+        <li class="sm"><span style="color:var(--rose)">✕</span> &nbsp;Result: <span style="color:var(--tx2)">communication, critical thinking, sales instinct — all dull over time</span></li>
+      </ul>
+    </div>
+    <div class="col card-e" style="padding:18px;">
+      <p class="pill pill-e">◆ C.A.R.E</p>
+      <ul style="list-style:none; margin-top:12px;">
+        <li class="sm" style="margin-bottom:9px;"><span class="amber">→</span> &nbsp;Asks the agent how <em style="font-style:normal;color:var(--tx)">they'd</em> handle it first, then coaches</li>
+        <li class="sm" style="margin-bottom:9px;"><span class="amber">→</span> &nbsp;Hands off hard cases <em style="font-style:normal;color:var(--tx)">with</em> the full story, so the human grows into them</li>
+        <li class="sm" style="margin-bottom:9px;"><span class="amber">→</span> &nbsp;Optimizes for the agent's <span style="color:var(--tx)">skill trajectory</span></li>
+        <li class="sm"><span class="amber">→</span> &nbsp;Result: <span style="color:var(--tx)">sharper communication, judgment, and sales — every single reply</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:22px; padding:20px 22px; border-color:rgba(250,204,21,.28); background:rgba(250,204,21,.04);">
+    <p class="kicker">The thesis</p>
+    <p style="font-size:18px; line-height:1.4; font-weight:700; margin-top:8px;">
+      A tool that hands you the answer creates dependence.<br/>
+      <span class="amber">A coach that guides you to your own builds capability.</span>
+    </p>
+    <p class="sm" style="margin-top:10px;">
+      C.A.R.E is the second kind. As an agent's skill sharpens, they lean on the AI less — and their
+      performance at work rises holistically, because the underlying skills (not the crutch) got stronger.
+    </p>
+  </div>
+
+  <div class="foot"><span class="num">The learning environment</span><span class="num">02</span></div>
+</section>
+
+<!-- ============ PAGE 3 — THE COACH THAT GUIDES ============ -->
+<section class="page">
+  <div class="glow g1"></div>
+  <p class="kicker">The mechanism · guide, don't overtake</p>
+  <h2 style="margin-top:14px; max-width:155mm;">It asks how <span class="amber">you'd</span> solve it — before it ever tells you.</h2>
+  <p class="lead" style="margin-top:12px; max-width:158mm;">
+    This is the single design choice that turns a tool into a teacher. When an agent is stuck, the Coach
+    doesn't dump an answer. It draws out the agent's own thinking, then adds a perspective <em style="font-style:normal;color:var(--tx)">with the reasoning</em> —
+    so the agent keeps the skill, not just the sentence.
+  </p>
+
+  <div class="row" style="margin-top:22px;">
+    <!-- Ask Coach mock -->
+    <div class="col screen" style="flex:1.15;">
+      <div style="display:flex; align-items:center; gap:7px; padding:9px 12px; border-bottom:1px solid var(--ink-800); background:var(--ink-900);">
+        <span style="font-size:12px;">🩺</span><span style="font-weight:700; font-size:12px;">Ask Coach</span>
+        <span class="pill pill-g" style="margin-left:auto;">internal · customer never sees this</span>
+      </div>
+      <div style="padding:12px 13px; display:flex; flex-direction:column; gap:9px;">
+        <div class="card-e" style="padding:9px 11px;">
+          <p class="lbl" style="color:var(--ember-300);">COACH</p>
+          <p style="font-size:11.5px; line-height:1.45; color:var(--tx);">Before I weigh in — how would <b>you</b> want to handle this refund? What's your read on why they're upset?</p>
+        </div>
+        <div class="bubble b-cust" style="max-width:88%; font-size:11px;">I'd apologize and just refund it. They waited a week.</div>
+        <div class="card" style="padding:9px 11px; background:var(--ink-850);">
+          <p class="lbl" style="color:var(--ember-300);">COACH</p>
+          <p style="font-size:11.5px; line-height:1.45; color:var(--tx2);">Good instinct. One add: <b style="color:var(--tx)">label the feeling first</b> — "It sounds like the wait made you doubt we'd deliver." That's Voss's <span class="amber">tactical empathy</span>. It disarms before you fix, so the refund lands as care, not damage control.</p>
+        </div>
+      </div>
+    </div>
+    <!-- principle callout -->
+    <div class="col" style="flex:.85; display:flex; flex-direction:column; gap:12px;">
+      <div class="card" style="padding:15px;">
+        <h3 class="amber">Why this compounds</h3>
+        <p class="sm" style="margin-top:7px;">The reasoning is the transferable asset — not the answer. Hear "label the feeling, here's why" enough times and you start doing it on your own, in calls the Coach never sees.</p>
+      </div>
+      <div class="card" style="padding:15px;">
+        <h3>Three tools, one philosophy</h3>
+        <p class="sm" style="margin-top:8px;"><b style="color:var(--tx)">Co-Pilot</b> drafts a reply <em style="font-style:normal">and names the move</em> behind it.</p>
+        <p class="sm" style="margin-top:6px;"><b style="color:var(--tx)">Formulate</b> takes <em style="font-style:normal">your</em> one-line intent and shapes it — you stay in the driver's seat.</p>
+        <p class="sm" style="margin-top:6px;"><b style="color:var(--tx)">Coach</b> grades every reply and shows the principle to practice next.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px; padding:16px 20px;">
+    <p class="sm"><span class="amber" style="font-weight:700;">The tell:</span> the Coach surfaces only when there's something worth saying — and the better an agent gets, the quieter it becomes. Reliance going <em style="font-style:normal;color:var(--tx)">down</em> is the product working, not failing.</p>
+  </div>
+
+  <div class="foot"><span class="num">Guide, don't overtake</span><span class="num">03</span></div>
+</section>
+
+<!-- ============ PAGE 4 — THE BOOKS ============ -->
+<section class="page">
+  <div class="glow g2"></div>
+  <p class="kicker">Grounded in the masters</p>
+  <h2 style="margin-top:14px; max-width:155mm;">Ten communication masterworks, working behind every reply.</h2>
+  <p class="lead" style="margin-top:12px; max-width:158mm;">
+    The Coach doesn't invent advice. Every suggestion is matched to a named, verified principle from the
+    canon of communication, persuasion, and negotiation — and every principle is source-checked, so the
+    coaching an agent absorbs is the real thing.
+  </p>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:22px;">
+    <div class="card" style="padding:12px 14px;"><h3>Never Split the Difference</h3><p class="xs" style="margin-top:2px;">Chris Voss — tactical empathy, labeling, calibrated questions</p></div>
+    <div class="card" style="padding:12px 14px;"><h3>Influence</h3><p class="xs" style="margin-top:2px;">Robert Cialdini — reciprocity, commitment, social proof</p></div>
+    <div class="card" style="padding:12px 14px;"><h3>Crucial Conversations</h3><p class="xs" style="margin-top:2px;">Patterson et al — make it safe, start with heart</p></div>
+    <div class="card" style="padding:12px 14px;"><h3>Nonviolent Communication</h3><p class="xs" style="margin-top:2px;">Marshall Rosenberg — observation vs. evaluation</p></div>
+    <div class="card" style="padding:12px 14px;"><h3>Made to Stick</h3><p class="xs" style="margin-top:2px;">Chip &amp; Dan Heath — concrete, credible, unexpected</p></div>
+    <div class="card" style="padding:12px 14px;"><h3>On Writing Well</h3><p class="xs" style="margin-top:2px;">William Zinsser — clarity, brevity, humanity</p></div>
+    <div class="card" style="padding:12px 14px;"><h3>TED Talks</h3><p class="xs" style="margin-top:2px;">Chris Anderson — through-line, the single idea</p></div>
+    <div class="card" style="padding:12px 14px;"><h3>How to Win Friends…</h3><p class="xs" style="margin-top:2px;">Dale Carnegie — genuine interest, their name, their view</p></div>
+    <div class="card" style="padding:12px 14px;"><h3>Difficult Conversations</h3><p class="xs" style="margin-top:2px;">Stone · Patton · Heen — the third story</p></div>
+    <div class="card" style="padding:12px 14px;"><h3>Talking to Strangers</h3><p class="xs" style="margin-top:2px;">Malcolm Gladwell — default-to-truth, reading people</p></div>
+  </div>
+
+  <div class="card-e" style="margin-top:20px; padding:16px 18px;">
+    <p class="kicker">One principle, one reply — worked live</p>
+    <div class="row" style="margin-top:10px; gap:16px;">
+      <div class="col">
+        <p class="xs" style="text-transform:uppercase; letter-spacing:.1em; color:var(--rose);">Before</p>
+        <p class="sm" style="color:var(--tx3); margin-top:4px;">"Unfortunately that's our policy, there's nothing I can do about the shipping delay."</p>
+      </div>
+      <div class="col">
+        <p class="xs" style="text-transform:uppercase; letter-spacing:.1em; color:var(--emerald);">After · Voss + Zinsser</p>
+        <p class="sm" style="color:var(--tx); margin-top:4px;">"A week is far too long to wait, and I'd be frustrated too. Here's exactly what I can do right now —"</p>
+      </div>
+    </div>
+    <p class="xs" style="margin-top:10px;"><span class="amber">Why it works:</span> label the emotion (Voss), then cut the hedging and lead with action (Zinsser). The agent learns the move, not just the message.</p>
+  </div>
+
+  <div class="foot"><span class="num">7 of 10 books source-verified · the Coach never cites what it can't stand behind</span><span class="num">04</span></div>
+</section>
+
+<!-- ============ PAGE 5 — HOW WE SOLVE PROBLEMS ============ -->
+<section class="page">
+  <div class="glow g1"></div>
+  <p class="kicker">How we solve problems · Living Diagnosis</p>
+  <h2 style="margin-top:14px; max-width:155mm;">Understanding before solving — even for a conversation that isn't yours.</h2>
+  <p class="lead" style="margin-top:12px; max-width:158mm;">
+    Drop any messy thread into <b style="color:var(--tx)">Dissect a Conversation</b> and the system doesn't
+    jump to a fix. It earns the problem first — names it, quotes the evidence, finds the root cause, then
+    checks it from the outside. That discipline is the analytical muscle it's teaching the agent to build.
+  </p>
+
+  <div class="screen" style="margin-top:20px;">
+    <div style="display:flex; align-items:center; gap:7px; padding:9px 13px; border-bottom:1px solid var(--ink-800); background:var(--ink-900);">
+      <span style="font-size:12px;">🩺</span><span style="font-weight:700; font-size:12px;">Dissect a Conversation</span>
+      <span class="pill pill-e" style="margin-left:auto;">the problem, earned from evidence</span>
+    </div>
+    <div style="padding:15px;">
+      <div class="card-e" style="padding:12px 14px;">
+        <p class="xs" style="text-transform:uppercase; letter-spacing:.1em; color:var(--ember-300);">The problem</p>
+        <p style="font-size:13px; font-weight:700; margin-top:4px;">The customer isn't angry about the delay — they're afraid the order is lost and no one will own it.</p>
+      </div>
+      <div class="row" style="margin-top:13px; gap:13px;">
+        <div class="col">
+          <p class="xs" style="text-transform:uppercase; letter-spacing:.08em; color:var(--tx3);">Evidence from the text</p>
+          <p class="sm" style="margin-top:5px; border-left:2px solid var(--ink-700); padding-left:9px; color:var(--tx3); font-style:italic;">"I've emailed twice and no one answers"<br/>"just tell me if it's actually coming"</p>
+        </div>
+        <div class="col">
+          <p class="xs" style="text-transform:uppercase; letter-spacing:.08em; color:var(--tx3);">Root cause</p>
+          <p class="sm" style="margin-top:5px;">Silence, not the delay. Each unanswered email doubled the anxiety — the fix is ownership + a firm next update, not an apology.</p>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <span class="pill pill-g">Outside view: they've likely been burned before</span>
+        <span class="pill pill-g">Angle: name a specific time you'll update them</span>
+        <span class="pill pill-em">Ask Coach: how would you reassure them?</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:20px; gap:14px;">
+    <div class="col card" style="padding:14px 16px;"><h3 class="amber">1 · Identify</h3><p class="sm" style="margin-top:5px;">from what actually happened, not the surface complaint</p></div>
+    <div class="col card" style="padding:14px 16px;"><h3 class="amber">2 · Evidence</h3><p class="sm" style="margin-top:5px;">quoted from the conversation — no invented problems</p></div>
+    <div class="col card" style="padding:14px 16px;"><h3 class="amber">3 · Outside view</h3><p class="sm" style="margin-top:5px;">the read someone with no stake would have</p></div>
+  </div>
+
+  <div class="foot"><span class="num">Diagnose before you patch — the habit that makes an agent analytical</span><span class="num">05</span></div>
+</section>
+
+<!-- ============ PAGE 6 — PROOF OF GROWTH ============ -->
+<section class="page">
+  <div class="glow g2"></div>
+  <p class="kicker">Proof it's working · Coach Assessment</p>
+  <h2 style="margin-top:14px; max-width:155mm;">A dashboard that tracks <span class="amber">growth</span>, not activity.</h2>
+  <p class="lead" style="margin-top:12px; max-width:158mm;">
+    Managers don't see "how many replies." They see how each agent is <em style="font-style:normal;color:var(--tx)">developing</em> —
+    a coaching grade against a fixed standard (never a leaderboard), and exactly which book principle to
+    reinforce next. That's the difference between managing a team and building a championship one.
+  </p>
+
+  <!-- roster mock -->
+  <div class="row" style="margin-top:20px; gap:13px;">
+    <div class="col card" style="padding:15px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>Maria Okoro</h3><span class="xs">42 replies graded</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; margin-top:11px;">
+        <div class="grade" style="background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.4); color:var(--emerald);">A-</div>
+        <div><p style="font-size:12px; font-weight:700; color:var(--emerald);">Strong</p><p class="xs">vs the competent-reply standard</p></div>
+      </div>
+      <div style="display:flex; gap:6px; margin-top:12px;">
+        <span class="pill pill-em">Acknowledged 39/42</span><span class="pill pill-em">Answered 41/42</span>
+      </div>
+      <div style="margin-top:12px;">
+        <p class="xs" style="text-transform:uppercase; letter-spacing:.08em; color:var(--amber);">📖 Reinforce next</p>
+        <p class="sm" style="margin-top:4px;">Offering a clear next step — <span class="amber">commitment &amp; consistency</span> <span class="xs">(Influence)</span></p>
+      </div>
+    </div>
+    <div class="col card" style="padding:15px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>Devan Reyes</h3><span class="xs">18 replies graded</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; margin-top:11px;">
+        <div class="grade" style="background:rgba(250,204,21,.1); border:1px solid rgba(250,204,21,.4); color:var(--ember-400);">B</div>
+        <div><p style="font-size:12px; font-weight:700; color:var(--ember-400);">Solid</p><p class="xs">meets the standard · climbing</p></div>
+      </div>
+      <div style="display:flex; gap:6px; margin-top:12px;">
+        <span class="pill pill-em">Answered 16/18</span><span class="pill" style="background:rgba(252,211,77,.12);color:var(--amber);border:1px solid rgba(252,211,77,.3);">1 risk flag</span>
+      </div>
+      <div style="margin-top:12px;">
+        <p class="xs" style="text-transform:uppercase; letter-spacing:.08em; color:var(--amber);">📖 Reinforce next</p>
+        <p class="sm" style="margin-top:4px;">Acknowledging the concern first — <span class="amber">tactical empathy</span> <span class="xs">(Never Split the Difference)</span></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-e" style="margin-top:18px; padding:15px 18px;">
+    <div class="row" style="align-items:center; gap:16px;">
+      <div style="flex:1.3;">
+        <h3 class="amber">No "F". Ever.</h3>
+        <p class="sm" style="margin-top:6px;">The lowest band is "growth area" — a coaching target, never a verdict. Measured against a standard and their own trajectory, never against each other. A grade that invites teaching, not punishment.</p>
+      </div>
+      <div style="flex:1;">
+        <svg viewBox="0 0 260 90" style="width:100%; height:90px;">
+          <line x1="8" y1="76" x2="252" y2="76" stroke="#3F3F46" stroke-width="1"/>
+          <path d="M8 66 C 80 60, 150 40, 252 20" fill="none" stroke="#FACC15" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="252" cy="20" r="4" fill="#FACC15"/>
+          <text x="10" y="14" fill="#71717A" font-size="9" font-family="Inter">grade trajectory ↑</text>
+          <text x="120" y="88" fill="#71717A" font-size="9" font-family="Inter">4 weeks</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span class="num">Communication quality · learning gaps · trajectory — growth made visible</span><span class="num">06</span></div>
+</section>
+
+<!-- ============ PAGE 7 — THE PAYOFF ============ -->
+<section class="page">
+  <div class="glow g1"></div><div class="glow g2"></div>
+  <div style="margin-top:40px;">
+    <p class="kicker">The compounding payoff</p>
+    <h2 style="margin-top:16px; font-size:34px; max-width:160mm;">Your agents get better every reply —<br/>and eventually, they need us less.</h2>
+    <p class="lead" style="margin-top:18px; max-width:158mm;">
+      That's not a bug in the business model. It's the whole promise. An agent coached on the world's best
+      communication principles, one real conversation at a time, becomes a better communicator, a sharper
+      thinker, and a stronger closer — <em style="font-style:normal;color:var(--tx)">permanently</em>. Those
+      skills show up everywhere: shorter handle times, higher resolution, more upsells, calmer hard calls.
+    </p>
+  </div>
+
+  <div class="row" style="margin-top:34px; gap:14px;">
+    <div class="col card" style="padding:18px;"><h3 class="amber">Communication</h3><p class="sm" style="margin-top:6px;">reads the customer, labels emotion, writes with clarity</p></div>
+    <div class="col card" style="padding:18px;"><h3 class="amber">Critical thinking</h3><p class="sm" style="margin-top:6px;">diagnoses the real problem before reaching for a fix</p></div>
+    <div class="col card" style="padding:18px;"><h3 class="amber">Sales &amp; judgment</h3><p class="sm" style="margin-top:6px;">spots the moment to reassure, retain, or upsell</p></div>
+  </div>
+
+  <div class="card-e" style="margin-top:26px; padding:24px 26px;">
+    <p style="font-size:20px; line-height:1.35; font-weight:700;">
+      Every other platform rents your team a crutch.<br/>
+      <span class="amber">C.A.R.E builds them a spine.</span>
+    </p>
+    <p class="sm" style="margin-top:12px;">See it on your own support conversations — bring one your team handled this week, and watch the Coach turn it into a lesson.</p>
+    <p class="mono" style="margin-top:16px; font-size:12px; color:var(--ember-400);">Book a demo → &nbsp;[your booking link]</p>
+  </div>
+
+  <div class="foot">
+    <div class="brand"><svg class="bulb" style="width:16px;height:22px;" viewBox="0 0 22 30" fill="none"><path d="M11 1C6 1 2.5 4.6 2.5 9.2c0 3 1.6 5 3.2 6.7 1.1 1.2 1.8 2 1.8 3.4v1h7v-1c0-1.4.7-2.2 1.8-3.4 1.6-1.7 3.2-3.7 3.2-6.7C19.5 4.6 16 1 11 1Z" fill="#FACC15"/></svg><span class="brandtx" style="font-size:12px;">ELOSTATE · C.A.R.E</span></div>
+    <span class="num">07</span>
+  </div>
+</section>

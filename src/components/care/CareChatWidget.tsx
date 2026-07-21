@@ -13,6 +13,8 @@ import {
 import { VoiceSurface } from "./voice/VoiceSurface";
 import { useVoiceMode } from "./voice/useVoiceMode";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { HandoffCard, type HandoffCardPayload } from "./HandoffCard";
+import { DEFAULT_BUSINESS_TYPE, type BusinessType } from "@/lib/care/handoverTopics";
 
 /**
  * Route prefixes where the customer-facing Care widget MUST NOT
@@ -97,6 +99,19 @@ export function CareChatWidget() {
   const [aiThinking, setAiThinking] = useState(false);
   const [conversationClosed, setConversationClosed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Handover capture (0188): the card that appears when Jeff hands off to a human.
+  const [handoffNeeded, setHandoffNeeded] = useState(false);
+  const [handoffDismissed, setHandoffDismissed] = useState(false);
+  const [businessType, setBusinessType] = useState<BusinessType>(DEFAULT_BUSINESS_TYPE);
+  const [handoffSubmitting, setHandoffSubmitting] = useState(false);
+  const [handoffError, setHandoffError] = useState<string | null>(null);
+  // F1 (A34/§3.4): true when the server couldn't persist the concern (pre-0188 window) —
+  // we tell the customer honestly rather than implying it was captured.
+  const [concernDeferredNote, setConcernDeferredNote] = useState(false);
+  // Proactive (§1.5.2, founder's "smooth customer interaction"): the conversation is with a
+  // human now (ai_responding=false). Drives a standing "an agent will reply" indicator so the
+  // customer isn't left in apparent silence after the one-time handoff notice scrolls away.
+  const [handedOff, setHandedOff] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -143,6 +158,13 @@ export function CareChatWidget() {
       if (data.conversation?.status === "closed") {
         setConversationClosed(true);
       }
+      if (data.businessType) setBusinessType(data.businessType as BusinessType);
+      // Show the capture card if the server says this conversation was handed to a human
+      // and the customer hasn't been captured yet (persists across reloads).
+      if (data.handoffCaptureNeeded) setHandoffNeeded(true);
+      if (typeof data.conversation?.aiResponding === "boolean") {
+        setHandedOff(data.conversation.aiResponding === false);
+      }
     } catch (e) {
       console.warn("[care widget] couldn't load messages", e);
     }
@@ -152,6 +174,27 @@ export function CareChatWidget() {
     if (open && session) {
       void loadMessages();
     }
+  }, [open, session, loadMessages]);
+
+  // Poll for new messages while the panel is open — this is what lets an AGENT's reply
+  // (after a handoff) land in the customer's open widget without a refresh. Without it the
+  // direct widget went silent post-handoff: the customer sent messages but never saw the
+  // human's response until they reopened the chat — the "no smooth customer interaction"
+  // gap. Mirrors the embedded widget: 4s, paused when the tab is hidden or a send is in
+  // flight (so we never clobber optimistic state), only while open + session. loadMessages
+  // already handles 404/410 by clearing local state.
+  const sendingRef = useRef(false);
+  useEffect(() => {
+    sendingRef.current = sending;
+  }, [sending]);
+  useEffect(() => {
+    if (!open || !session) return;
+    const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (sendingRef.current) return;
+      void loadMessages();
+    }, 4000);
+    return () => window.clearInterval(id);
   }, [open, session, loadMessages]);
 
   const ensureSession = useCallback(async (): Promise<StoredSession | null> => {
@@ -214,6 +257,12 @@ export function CareChatWidget() {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     },
     onError: setError,
+    // Voice handoff: the hook already ended the call (a voice channel can't route to the
+    // human); surface the capture card in the text view the customer drops back into.
+    onHandoff: () => {
+      setHandoffNeeded(true);
+      setHandoffDismissed(false);
+    },
   });
 
   // Reset the conversation. Ends any in-flight voice call, wipes
@@ -229,6 +278,12 @@ export function CareChatWidget() {
     setConversationClosed(false);
     setError(null);
     setDraft("");
+    // A fresh conversation is AI-first again — clear any handoff-card state.
+    setHandoffNeeded(false);
+    setHandoffDismissed(false);
+    setHandoffError(null);
+    setConcernDeferredNote(false);
+    setHandedOff(false);
   }, [voiceMode, endCall]);
 
   const handleSend = async () => {
@@ -378,6 +433,13 @@ export function CareChatWidget() {
       const data = await res.json();
       // Replace optimistic + AI reply with the server's canonical list.
       setMessages(data.messages ?? []);
+      if (data.businessType) setBusinessType(data.businessType as BusinessType);
+      // Jeff just handed off → surface the capture card (unless already dismissed).
+      if (data.handoff) {
+        setHandoffNeeded(true);
+        setHandoffDismissed(false);
+      }
+      if (typeof data.aiResponding === "boolean") setHandedOff(data.aiResponding === false);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("[care-widget] send failed:", err);
@@ -395,6 +457,44 @@ export function CareChatWidget() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void handleSend();
+    }
+  };
+
+  // Submit the handoff capture card (0188). Best-effort: on success the card disappears
+  // and the thread reloads (so the customer sees the system notice); on failure we keep
+  // the card up with an inline error so they can retry — never a dead end.
+  const submitHandoff = async (payload: HandoffCardPayload) => {
+    if (!session || handoffSubmitting) return;
+    setHandoffSubmitting(true);
+    setHandoffError(null);
+    try {
+      const res = await fetch(
+        `/api/care/conversations/${session.conversationId}/handoff`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-care-session": session.sessionToken,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        setHandoffError(j?.error ?? "Couldn't save those details. Please try again.");
+        return;
+      }
+      // Audit F1 (A34 #2 / §3.4): if the server couldn't persist the concern (pre-0188
+      // window), be HONEST to the customer instead of implying it was captured.
+      const j = await res.json().catch(() => null);
+      setConcernDeferredNote(Boolean(j?.concernDeferred));
+      setHandoffNeeded(false);
+      setHandoffDismissed(true);
+      void loadMessages();
+    } catch {
+      setHandoffError("Couldn't reach the server.");
+    } finally {
+      setHandoffSubmitting(false);
     }
   };
 
@@ -539,6 +639,44 @@ export function CareChatWidget() {
             >
               {error}
             </div>
+          )}
+
+          {/* Standing "waiting for an agent" indicator (§1.5.2): once handed off and the
+              card is done, keep the customer oriented until a human actually replies — the
+              one-time notice scrolls away, this doesn't. Hides as soon as an agent message
+              lands (they're now in a live conversation) or if the card is still showing. */}
+          {handedOff &&
+            !conversationClosed &&
+            !(handoffNeeded && !handoffDismissed) &&
+            !messages.some((m) => m.authorType === "agent") && (
+              <div className="mx-4 my-2 flex items-center gap-2 rounded-lg border border-default bg-surface/50 px-3 py-2 text-[11px] text-secondary">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ember-400/60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-ember-400" />
+                </span>
+                A member of our team will reply right here — you&apos;ll see it as soon as they do.
+              </div>
+            )}
+
+          {/* F1 (A34/§3.4): honest note when the concern couldn't be persisted yet.
+              Only appears in the pre-0188 window; name/email still reached the agent. */}
+          {concernDeferredNote && !conversationClosed && (
+            <div className="mx-4 my-2 rounded-lg border border-default bg-surface/50 px-3 py-2 text-[11px] text-secondary">
+              Thanks — we&apos;ve got your details. We couldn&apos;t attach your specific
+              concern just now, but a teammate will follow up on it.
+            </div>
+          )}
+
+          {/* Handoff capture card (0188) — appears when Jeff hands off to a human.
+              Sits above the composer so the customer can still type while it's open. */}
+          {handoffNeeded && !handoffDismissed && !conversationClosed && (
+            <HandoffCard
+              businessType={businessType}
+              submitting={handoffSubmitting}
+              error={handoffError}
+              onSubmit={submitHandoff}
+              onSkip={() => setHandoffDismissed(true)}
+            />
           )}
 
           {/* Closed banner */}
