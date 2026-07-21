@@ -15,6 +15,7 @@ import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
+import { AgentSkillGrades } from "@/components/sales-coach/AgentSkillGrades";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 
 /**
@@ -188,9 +189,18 @@ export default function CoachAssessmentPage() {
                   <span className="text-primary">The notes are for coaching, not
                   ranking</span>
                   : everyone is measured against their own growth, never each
-                  other. The{" "}
-                  <span className="text-primary">Sales ELO Rating</span>
-                  {" is a gamified score of each rep against our measurement standard (1500) — never against peers. Admins and managers see the team’s; each rep sees their own."}
+                  other.{" "}
+                  {isExpert ? (
+                    <>
+                      The <span className="text-primary">Sales ELO Rating</span>
+                      {" is a gamified score of each rep against our measurement standard (1500) — never against peers. Admins and managers see the team’s; each rep sees their own."}
+                    </>
+                  ) : (
+                    <>
+                      The <span className="text-primary">skill grades (A+ to D)</span>
+                      {" are each rep’s read on Tone, Speed, Talk/Listen, Questions, Objections and Closing — coaching targets, never a rank. Managers see the team’s; each rep sees their own on Analytics."}
+                    </>
+                  )}
                 </p>
               </div>
             </LearningHint>
@@ -313,7 +323,12 @@ export default function CoachAssessmentPage() {
                     }}
                     className="mb-3 flex items-center gap-2 cursor-pointer rounded-lg -mx-1 px-1 py-1 transition-colors hover:bg-white/[0.03] focus:outline-none focus-visible:ring-1 focus-visible:ring-ember-400/50"
                   >
-                    <AgentEloBadge agentId={a.agentId} />
+                    {/* Standard: A+/A- letter grades (founder 2026-07-21), replacing the ELO
+                        badge — matches the web per-rep profiles so a rep reads the same on every
+                        manager surface (A21). Expert keeps the ELO badge above. */}
+                    <div className="flex-1 min-w-0">
+                      <AgentSkillGrades agentId={a.agentId} />
+                    </div>
                     <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-[10px] text-muted">
                       {isExpanded ? (
                         <>
