@@ -1,0 +1,145 @@
+<meta charset="utf-8" />
+<title>Your Side — Action List &amp; Decisions</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  :root{--ink-950:#09090B;--ink-900:#18181B;--ink-850:#1f1f23;--ink-800:#27272A;--ink-700:#3F3F46;
+    --ember-300:#FDE047;--ember-400:#FACC15;--emerald:#6EE7B7;--amber:#FCD34D;--rose:#FB7185;
+    --tx:#FAFAFA;--tx2:#D4D4D8;--tx3:#A1A1AA;--tx4:#71717A;}
+  html{font-family:Inter,-apple-system,"Segoe UI",system-ui,sans-serif;}
+  body{background:var(--ink-950);color:var(--tx);}
+  .page{width:210mm;min-height:296mm;background:var(--ink-950);padding:16mm 15mm;page-break-after:always;position:relative;overflow:hidden;display:flex;flex-direction:column;}
+  .page:last-child{page-break-after:auto;}
+  .glow{position:absolute;width:300px;height:300px;border-radius:50%;filter:blur(70px);opacity:.4;background:radial-gradient(circle,rgba(250,204,21,.5),transparent 68%);top:-120px;right:-90px;pointer-events:none;}
+  .kicker{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--ember-400);font-weight:700;}
+  h1{font-size:30px;line-height:1.05;letter-spacing:-.02em;font-weight:800;}
+  h2{font-size:16px;font-weight:800;letter-spacing:-.01em;}
+  .amber{color:var(--ember-400);} .em{color:var(--emerald);} .rose{color:var(--rose);}
+  .sm{font-size:11.5px;line-height:1.5;color:var(--tx2);} .xs{font-size:10px;line-height:1.45;color:var(--tx4);}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;}
+  .brand{display:flex;align-items:center;gap:8px;} .bulb{width:18px;height:25px;}
+  .brandtx{font-weight:900;letter-spacing:-.02em;font-size:13px;}
+  .tag{font-size:9px;color:var(--tx4);border-left:1px solid var(--ink-700);padding-left:8px;letter-spacing:.05em;}
+  .item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--ink-850);}
+  .item:last-child{border-bottom:none;}
+  .chk{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--ember-400);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;color:var(--ember-400);font-weight:800;font-size:11px;}
+  .n{width:20px;height:20px;border-radius:6px;background:rgba(250,204,21,.12);border:1px solid rgba(250,204,21,.3);color:var(--ember-400);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;margin-top:1px;}
+  .cmd{font-family:"JetBrains Mono",monospace;font-size:9.5px;color:var(--ember-300);background:var(--ink-900);border:1px solid var(--ink-800);border-radius:5px;padding:3px 7px;display:inline-block;margin-top:4px;}
+  .card{background:var(--ink-900);border:1px solid var(--ink-800);border-radius:12px;padding:14px 16px;}
+  .opt{border:1px solid var(--ink-800);border-radius:9px;padding:9px 11px;margin-top:7px;}
+  .opt.rec{border-color:rgba(110,231,183,.4);background:rgba(110,231,183,.06);}
+  .badge{font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:20px;background:rgba(110,231,183,.16);color:var(--emerald);border:1px solid rgba(110,231,183,.35);}
+  .foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--ink-800);display:flex;justify-content:space-between;align-items:center;}
+  .num{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--tx4);}
+  .pill{display:inline-block;font-size:9px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--ink-800);color:var(--tx3);border:1px solid var(--ink-700);}
+</style>
+
+<!-- ===== PAGE 1 — ACTION ITEMS ===== -->
+<section class="page">
+  <div class="glow"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div class="brand">
+      <svg class="bulb" viewBox="0 0 22 30" fill="none"><path d="M11 1C6 1 2.5 4.6 2.5 9.2c0 3 1.6 5 3.2 6.7 1.1 1.2 1.8 2 1.8 3.4v1h7v-1c0-1.4.7-2.2 1.8-3.4 1.6-1.7 3.2-3.7 3.2-6.7C19.5 4.6 16 1 11 1Z" fill="#FACC15"/></svg>
+      <span class="brandtx">ELOSTATE</span><span class="tag">C.A.R.E</span>
+    </div>
+    <span class="mono" style="color:var(--tx4);">2026-07-22 · session handoff</span>
+  </div>
+
+  <div style="margin-top:26px;">
+    <p class="kicker">What's on your side</p>
+    <h1 style="margin-top:12px;">Action list</h1>
+    <p class="sm" style="margin-top:8px;max-width:160mm;">Everything I built this session is committed, pushed, and gate-verified. These are the steps only you can take — deploy, credentials, and the placeholders I can't invent. Ordered by what unblocks the most.</p>
+  </div>
+
+  <div class="card" style="margin-top:18px;padding:6px 16px;">
+    <div class="item">
+      <div class="n">1</div>
+      <div>
+        <h2>Deploy the no-migration bundle <span class="pill">unblocks 4 features</span></h2>
+        <p class="sm" style="margin-top:4px;">One branch, no database step — ships C.A.R.E <b style="color:var(--tx)">Dissect</b>, the Sales Coach <b style="color:var(--tx)">Standard letter grade</b>, the <b style="color:var(--tx)">/demo/c.a.r.e</b> page, and the new C.A.R.E <b style="color:var(--tx)">Coach Assessment</b>.</p>
+        <span class="cmd">branch: integration/no-migration-2026-07-22 → deploy on Vercel</span>
+        <p class="xs" style="margin-top:5px;">Note: auto-deploy has been off — trigger the deploy manually and confirm the Vercel Git setting.</p>
+      </div>
+    </div>
+    <div class="item">
+      <div class="n">2</div>
+      <div>
+        <h2>Give me the Supabase Session-pooler string → I apply migration 0188</h2>
+        <p class="sm" style="margin-top:4px;">I <b style="color:var(--tx)">can</b> apply migrations, but this sandbox can't resolve the direct DB host. Paste the IPv4 <b style="color:var(--tx)">Session pooler</b> connection string (Supabase → Project → Connect) into <span class="mono" style="color:var(--ember-300)">SUPABASE_DB_URL</span> and I'll run it. Or apply it yourself:</p>
+        <span class="cmd">npm run db:check → npm run db:apply</span>
+      </div>
+    </div>
+    <div class="item">
+      <div class="n">3</div>
+      <div>
+        <h2>Fill the CTA placeholders</h2>
+        <p class="sm" style="margin-top:4px;">Replace <span class="mono" style="color:var(--ember-300)">[your booking link]</span> with your real booking/contact URL in three places, then it's prospect-ready:</p>
+        <p class="xs" style="margin-top:4px;">· <span class="mono">BOOKING_URL</span> in src/app/demo/c.a.r.e/page.tsx &nbsp; · the Learning-Environment PDF &nbsp; · the C.A.R.E demo sheet PDF</p>
+      </div>
+    </div>
+    <div class="item">
+      <div class="n">4</div>
+      <div>
+        <h2>After 0188 lands — deploy handover-capture</h2>
+        <p class="sm" style="margin-top:4px;">The AI→agent handover capture (name/email/concern/order) needs 0188. Once applied, deploy it.</p>
+        <span class="cmd">branch: feat/care-handover-capture</span>
+      </div>
+    </div>
+    <div class="item">
+      <div class="n">5</div>
+      <div>
+        <h2>Live-verify the auth-gated screens</h2>
+        <p class="sm" style="margin-top:4px;">I couldn't screenshot these (login + real data required). Eyeball them after deploy: Sales Coach <b style="color:var(--tx)">Standard letter grade</b>, C.A.R.E <b style="color:var(--tx)">Coach Assessment</b> roster, and the <b style="color:var(--tx)">Dissect</b> panel in the agent inbox.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span class="num">Your side · action list</span><span class="num">01</span></div>
+</section>
+
+<!-- ===== PAGE 2 — DECISIONS ===== -->
+<section class="page">
+  <div class="glow"></div>
+  <p class="kicker">Choose · my recommendation marked</p>
+  <h1 style="margin-top:12px;">Decisions</h1>
+  <p class="sm" style="margin-top:8px;max-width:160mm;">Open forks from this session. Each has my recommendation (✓ REC) — but they're yours. Tell me the letters and I'll execute.</p>
+
+  <!-- D1 -->
+  <div style="margin-top:18px;">
+    <h2>1 · C.A.R.E Coach Assessment — how far to take it</h2>
+    <div class="opt rec"><span class="badge">✓ Rec</span> &nbsp;<b style="color:var(--tx)">A · Ship it as built, layer richer metrics later.</b> <span class="sm">Letter grade + learning gaps on the data we already have — live now. Add escalation-success / service-to-sales once those signals are instrumented.</span></div>
+    <div class="opt"><b style="color:var(--tx2)">B · Go straight to the full dashboard.</b> <span class="sm">Escalation-success, service-to-sales conversion, trajectory — a real build (new instrumentation), not a re-scale.</span></div>
+    <div class="opt"><b style="color:var(--tx2)">C · Counts-only, drop the letter.</b> <span class="sm">Strictest against the no-leaderboard design; but not the "letter like Sales Coach" you asked for.</span></div>
+  </div>
+
+  <!-- D2 -->
+  <div style="margin-top:16px;">
+    <h2>2 · Grade band thresholds (both Sales &amp; C.A.R.E)</h2>
+    <div class="opt rec"><span class="badge">✓ Rec</span> &nbsp;<b style="color:var(--tx)">A · Keep the defaults, retune from real data.</b> <span class="sm">The cutoffs are instrumentation (B = the competent standard, no F). Per our own discipline, data answers them — not a hand-set guess.</span></div>
+    <div class="opt"><b style="color:var(--tx2)">B · Tune the thresholds now.</b> <span class="sm">Tell me the bands and I'll set them — but we'd be encoding an assumption we could instead measure.</span></div>
+  </div>
+
+  <!-- D3 -->
+  <div style="margin-top:16px;">
+    <h2>3 · The old whole-product tour (docs/demo.html)</h2>
+    <div class="opt rec"><span class="badge">✓ Rec</span> &nbsp;<b style="color:var(--tx)">A · Leave it.</b> <span class="sm">The new <span class="mono">/demo/c.a.r.e</span> page is the C.A.R.E pitch; the old tour is a separate, stale artifact — no need to touch it.</span></div>
+    <div class="opt"><b style="color:var(--tx2)">B · Add a C.A.R.E module to it.</b> <span class="sm">If you want the whole-product tour to include C.A.R.E too.</span></div>
+    <div class="opt"><b style="color:var(--tx2)">C · Retire it.</b> <span class="sm">Redirect it away if it's causing confusion.</span></div>
+  </div>
+
+  <!-- D4 -->
+  <div style="margin-top:16px;">
+    <h2>4 · Which PDF is the primary pitch</h2>
+    <div class="opt rec"><span class="badge">✓ Rec</span> &nbsp;<b style="color:var(--tx)">A · Use both, in sequence.</b> <span class="sm">The <b style="color:var(--tx)">demo sheet</b> shows <em style="font-style:normal">how</em> it works; the <b style="color:var(--tx)">Learning Environment</b> sheet shows <em style="font-style:normal">why</em> it's a league of its own. Lead with the second for the "wow", close with the first.</span></div>
+    <div class="opt"><b style="color:var(--tx2)">B · One only.</b> <span class="sm">Tell me which; I'll fold the essentials of the other into it.</span></div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <p class="sm"><span class="amber" style="font-weight:700;">To act on any of this:</span> reply with the action numbers you've done + the decision letters you want (e.g. "deployed 1, here's the pooler string for 2; decisions 1A 2A 3A 4A"). I'll execute immediately.</p>
+  </div>
+
+  <div class="foot">
+    <div class="brand"><svg class="bulb" style="width:14px;height:19px;" viewBox="0 0 22 30" fill="none"><path d="M11 1C6 1 2.5 4.6 2.5 9.2c0 3 1.6 5 3.2 6.7 1.1 1.2 1.8 2 1.8 3.4v1h7v-1c0-1.4.7-2.2 1.8-3.4 1.6-1.7 3.2-3.7 3.2-6.7C19.5 4.6 16 1 11 1Z" fill="#FACC15"/></svg><span class="brandtx" style="font-size:11px;">ELOSTATE · C.A.R.E</span></div>
+    <span class="num">02</span>
+  </div>
+</section>
