@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
+import type { ConversationDissect } from "@/lib/dissect/types";
 import {
   playNewMessageChime,
   hasNewCustomerMessage,
@@ -394,6 +395,7 @@ function ConversationsAppInner({
   // render at the top level and the buttons can live in
   // DetailHeader / Composer via props.
   const [summarizeOpen, setSummarizeOpen] = useState(false);
+  const [dissectOpen, setDissectOpen] = useState(false);
   const [formulateOpen, setFormulateOpen] = useState(false);
   const [askCoachOpen, setAskCoachOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -1647,6 +1649,7 @@ function ConversationsAppInner({
                 onAssign={assignTo}
                 onToggleGuidance={toggleSupervisorGuidance}
                 onSummarize={() => setSummarizeOpen(true)}
+                onDissect={() => setDissectOpen(true)}
                 onResolve={() => setResolveModalOpen(true)}
                 onClose={() => {
                   // Close = terminal state without a resolution
@@ -1895,6 +1898,12 @@ function ConversationsAppInner({
           onClose={() => setSummarizeOpen(false)}
         />
       )}
+      {selected && dissectOpen && (
+        <DissectCarePanel
+          conversationId={selected.id}
+          onClose={() => setDissectOpen(false)}
+        />
+      )}
       {selected && formulateOpen && (
         <FormulateCarePanel
           conversationId={selected.id}
@@ -2049,6 +2058,7 @@ function DetailHeader({
   onClose,
   onPriorityChange,
   onSummarize,
+  onDissect,
 }: {
   conversation: Conversation;
   acting: boolean;
@@ -2067,6 +2077,7 @@ function DetailHeader({
   onClose: () => void;
   onPriorityChange: (priority: string) => void;
   onSummarize: () => void;
+  onDissect: () => void;
 }) {
   const dl = careStatusDisplay(conversation.status);
   const Icon = dl.icon;
@@ -2156,6 +2167,28 @@ function DetailHeader({
             >
               <Sparkles className="w-3.5 h-3.5" aria-hidden />
               Summarize
+            </button>
+          </LearningHint>
+          {/* Dissect a Conversation (founder 2026-07-21) — the standalone diagnostic engine,
+              brought into the inbox. Where Summarize is a catch-up READ, Dissect is the
+              problem-solving LENS: problem, evidence, root cause, outside view, angles to
+              consider — ending on a guiding question so the agent renders the verdict (§A11). */}
+          <LearningHint
+            category="AI · C.A.R.E"
+            title="Dissect"
+            whatItIs="The System's problem-solving read of this conversation — the core problem, evidence quoted from the thread, the root cause (not just the symptom), how a detached observer would see it, and a few angles to consider. It ends on a question, not an answer."
+            why="Summarize catches you up; Dissect helps you SOLVE. On a stuck or tangled case, it separates the symptom the customer names from the root cause underneath, and grounds every claim in a quoted moment — so you act on the real problem, not the loudest one."
+            how="Open it on a hard case. Read the problem and its evidence, check the root cause against your own read, then use the angles as starting points — not instructions. You decide the reply."
+            principle="A diagnosis is the System's read, not a prescription — it surfaces the problem and the evidence; you render the verdict (§3.3)."
+          >
+            <button
+              type="button"
+              onClick={onDissect}
+              disabled={acting}
+              className="inline-flex items-center gap-1.5 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+            >
+              <Brain className="w-3.5 h-3.5" aria-hidden />
+              Dissect
             </button>
           </LearningHint>
           {/* Open as Decision Dialogue — escalates a tough
@@ -3632,6 +3665,151 @@ function SummarizeCarePanel({
             </AdvancedDetail>
           )}
         </>
+      )}
+    </ToolPanelShell>
+  );
+}
+
+/**
+ * "Dissect a Conversation" (founder 2026-07-21) inside C.A.R.E — the same engine as the
+ * standalone /dashboard/dissect page, run on THIS support thread. Where Summarize gives a
+ * catch-up read, Dissect gives the problem-solving lens: the core problem, evidence quoted
+ * from the thread, the root cause (§0), the outside view (§1.3), and angles to CONSIDER
+ * (§3.3 — not prescriptions), ending on a guiding question so the AGENT renders the verdict
+ * (§A11). Honest-empty when the thread is too thin to diagnose (§3.4) — never a fabricated
+ * problem.
+ */
+function DissectCarePanel({
+  conversationId,
+  onClose,
+}: {
+  conversationId: string;
+  onClose: () => void;
+}) {
+  const [dissect, setDissect] = useState<ConversationDissect | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/care/agent/conversations/${conversationId}/dissect`,
+          { method: "POST" }
+        );
+        if (!res.ok) {
+          setError("Couldn't dissect this conversation.");
+          return;
+        }
+        const data = await res.json();
+        setDissect((data.dissect as ConversationDissect) ?? null);
+      } catch {
+        setError("Couldn't reach the server.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [conversationId]);
+
+  const label = "text-xs uppercase tracking-widest text-muted font-bold mb-2";
+  return (
+    <ToolPanelShell title="Dissect" onClose={onClose}>
+      {loading && (
+        <p className="text-xs text-muted flex items-center gap-2">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+          Dissecting the thread…
+        </p>
+      )}
+      {error && <p className="text-xs text-red-300">{error}</p>}
+
+      {/* Honest-empty (§3.4): too little to diagnose is NOT a fabricated problem. */}
+      {dissect && !dissect.hasSignal && (
+        <p className="text-sm text-secondary leading-relaxed">
+          Not enough in this thread yet to dissect honestly — there&apos;s no clear problem to
+          diagnose. As the conversation develops, run this again.
+        </p>
+      )}
+
+      {dissect && dissect.hasSignal && (
+        <div className="space-y-4">
+          <div>
+            <p className={label}>Summary</p>
+            <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
+              {dissect.summary}
+            </p>
+          </div>
+
+          <div>
+            <p className={label}>The problem</p>
+            <p className="text-sm text-primary leading-relaxed">
+              {dissect.problem.statement}
+            </p>
+            {dissect.problem.whyItMatters && (
+              <p className="text-xs text-secondary leading-relaxed mt-1">
+                Why it matters: {dissect.problem.whyItMatters}
+              </p>
+            )}
+          </div>
+
+          {dissect.evidence.length > 0 && (
+            <div>
+              <p className={label}>Evidence from the thread</p>
+              <ul className="space-y-2">
+                {dissect.evidence.map((e, i) => (
+                  <li key={i} className="text-xs leading-relaxed">
+                    <span className="text-secondary">{e.observation}</span>
+                    {e.excerpt && (
+                      <span className="block mt-0.5 pl-2 border-l-2 border-default text-muted italic">
+                        “{e.excerpt}”
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {dissect.rootCause && (
+            <div>
+              <p className={label}>Root cause</p>
+              <p className="text-sm text-primary leading-relaxed">{dissect.rootCause}</p>
+            </div>
+          )}
+
+          {dissect.outsideView && (
+            <div>
+              <p className={label}>Outside view</p>
+              <p className="text-sm text-secondary leading-relaxed">{dissect.outsideView}</p>
+            </div>
+          )}
+
+          {dissect.anglesToConsider.length > 0 && (
+            <div>
+              <p className={label}>Angles to consider</p>
+              <ul className="space-y-2">
+                {dissect.anglesToConsider.map((a, i) => (
+                  <li key={i} className="text-xs leading-relaxed">
+                    <span className="text-primary font-medium">{a.angle}</span>
+                    {a.why && <span className="text-secondary"> — {a.why}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {dissect.guidingQuestion && (
+            <div className="pt-3 border-t border-default">
+              <p className="text-sm text-arc-300 leading-relaxed">
+                {dissect.guidingQuestion}
+              </p>
+              <ExpertOnly>
+                <p className="text-[10px] text-muted italic mt-2">
+                  §3.3 — these are angles to consider, not a verdict. You decide the
+                  reply; the System surfaces the diagnosis, not the answer.
+                </p>
+              </ExpertOnly>
+            </div>
+          )}
+        </div>
       )}
     </ToolPanelShell>
   );
