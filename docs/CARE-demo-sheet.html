@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>C.A.R.E — Demo Sheet</title>
+<style>
+  /* ---------- Tokens ---------- */
+  :root{
+    --ground:#FCFBF8;
+    --panel:#FFFFFF;
+    --ink:#1A1712;
+    --muted:#6B6459;
+    --faint:#98918380;
+    --accent:#C77E00;        /* refined amber-gold */
+    --accent-deep:#7A4E00;
+    --teal:#234B45;          /* deep warm teal for trust/depth */
+    --teal-soft:#e9f0ee;
+    --amber-soft:#fbf1dd;
+    --hairline:#EAE4D8;
+    --serif: Georgia,"Iowan Old Style","Palatino Linotype","Book Antiqua",serif;
+    --sans: system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:#eceae4;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Page model (each .page becomes a PDF page) ---------- */
+  .page{
+    width:210mm;
+    min-height:297mm;
+    margin:10mm auto;
+    background:var(--ground);
+    padding:20mm 18mm 16mm;
+    position:relative;
+    box-shadow:0 2px 24px rgba(0,0,0,.12);
+  }
+  @page{ size:A4; margin:0; }
+  @media print{
+    body{background:#fff}
+    .page{margin:0;box-shadow:none;width:auto;min-height:auto;page-break-after:always}
+    .page:last-child{page-break-after:auto}
+    .no-print{display:none !important}
+  }
+
+  /* ---------- Type ---------- */
+  h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:-.01em;line-height:1.12;margin:0}
+  h1{font-size:40px;letter-spacing:-.02em}
+  h2{font-size:26px}
+  h3{font-size:17px;letter-spacing:0}
+  p{margin:0 0 10px}
+  .eyebrow{
+    font-family:var(--sans);font-size:10.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.18em;color:var(--accent-deep);margin:0 0 12px
+  }
+  .lede{font-size:15.5px;color:#3a352c;max-width:60ch}
+  .small{font-size:12px;color:var(--muted)}
+  .accent{color:var(--accent-deep)}
+  .rule{height:2px;background:var(--accent);width:52px;border:0;margin:0 0 20px}
+
+  /* ---------- Header / footer marks ---------- */
+  .brandmark{display:flex;align-items:center;gap:11px;margin-bottom:30px}
+  .brandmark .dot{width:34px;height:34px;border-radius:9px;background:linear-gradient(150deg,var(--accent),#E7A21B);
+    display:flex;align-items:center;justify-content:center;color:#231a06;font-family:var(--serif);font-weight:700;font-size:17px}
+  .brandmark .wm{font-family:var(--serif);font-weight:600;font-size:16px;letter-spacing:.02em}
+  .brandmark .sub{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:1px}
+  .foot{position:absolute;left:18mm;right:18mm;bottom:9mm;display:flex;justify-content:space-between;
+    font-size:9.5px;color:var(--faint);letter-spacing:.04em;border-top:1px solid var(--hairline);padding-top:6px}
+
+  /* ---------- Hero ---------- */
+  .hero-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--teal);background:var(--teal-soft);padding:5px 11px;border-radius:100px;margin-bottom:22px}
+  .hero h1{font-size:52px;max-width:15ch;margin-bottom:16px}
+  .hero .lede{font-size:17px;max-width:56ch}
+  .expand{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:34px;border:1px solid var(--hairline);border-radius:12px;overflow:hidden}
+  .expand div{padding:15px 14px;border-right:1px solid var(--hairline)}
+  .expand div:last-child{border-right:0}
+  .expand .k{font-family:var(--serif);font-size:22px;color:var(--accent-deep)}
+  .expand .v{font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.4}
+  .statband{display:flex;gap:26px;margin-top:30px;flex-wrap:wrap}
+  .statband .s{flex:1;min-width:130px}
+  .statband .s b{display:block;font-family:var(--serif);font-size:19px;color:var(--ink)}
+  .statband .s span{font-size:11px;color:var(--muted)}
+
+  /* ---------- Journey ---------- */
+  .journey{display:flex;flex-direction:column;gap:0;margin-top:8px}
+  .step{display:grid;grid-template-columns:38px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--hairline)}
+  .step:last-child{border-bottom:0}
+  .step .n{font-family:var(--serif);font-size:22px;color:var(--accent);line-height:1;padding-top:2px}
+  .step h3{margin-bottom:4px}
+  .step p{font-size:12.5px;color:#403b31;margin:0}
+  .chip{display:inline-block;font-size:10px;font-weight:600;color:var(--teal);background:var(--teal-soft);
+    padding:2px 8px;border-radius:100px;margin:6px 6px 0 0}
+
+  /* ---------- Tool cards ---------- */
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+  .tool{border:1px solid var(--hairline);border-radius:11px;padding:14px 15px;background:var(--panel)}
+  .tool .th{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
+  .tool .th b{font-family:var(--serif);font-size:15.5px}
+  .tool .th .role{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent-deep)}
+  .tool p{font-size:11.5px;color:#403b31;margin:0 0 7px}
+  .tool .win{font-size:11px;color:var(--teal);font-weight:600;display:flex;gap:6px;align-items:flex-start}
+  .tool .win::before{content:"→";color:var(--accent)}
+
+  /* ---------- Feature grid ---------- */
+  .feat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px;margin-top:6px}
+  .feat .f{border-top:2px solid var(--accent);padding:11px 2px 0;}
+  .feat .f b{font-family:var(--serif);font-size:14px;display:block;margin-bottom:3px}
+  .feat .f span{font-size:11px;color:var(--muted);line-height:1.42}
+
+  .moat{margin-top:20px;background:var(--teal);color:#f3f1ea;border-radius:13px;padding:20px 22px}
+  .moat .eyebrow{color:#e7b866}
+  .moat h3{color:#fff;font-size:18px;margin-bottom:8px}
+  .moat p{font-size:12.5px;color:#d9dedb;max-width:64ch;margin:0}
+  .moat .three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+  .moat .three div b{font-family:var(--serif);color:#f0c179;font-size:13px}
+  .moat .three div p{font-size:11px;color:#cdd4d1;margin-top:2px}
+
+  /* ---------- Comparison ---------- */
+  table.cmp{width:100%;border-collapse:collapse;margin-top:6px;font-size:11.5px}
+  table.cmp th,table.cmp td{text-align:left;padding:10px 12px;vertical-align:top;border-bottom:1px solid var(--hairline)}
+  table.cmp thead th{font-family:var(--sans);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);border-bottom:2px solid var(--ink)}
+  table.cmp thead th.us{color:var(--accent-deep)}
+  table.cmp td.dim{color:#7c766a}
+  table.cmp td.usc{color:var(--ink);font-weight:600;background:var(--amber-soft)}
+  table.cmp .rowlabel{font-weight:600;color:var(--ink);width:24%}
+
+  .closer{margin-top:20px;border:1px dashed var(--accent);border-radius:12px;padding:18px 20px;background:#fff}
+  .closer h3{font-size:17px;margin-bottom:6px}
+  .closer p{font-size:12.5px;color:#403b31;margin:0;max-width:66ch}
+
+  .callout{border-left:3px solid var(--accent);padding:2px 0 2px 15px;margin:14px 0;font-family:var(--serif);
+    font-size:16px;color:var(--ink);font-style:italic;max-width:58ch}
+
+  .printbar{max-width:210mm;margin:14px auto 0;text-align:center}
+  .printbar button{font:inherit;font-size:13px;font-weight:600;color:#fff;background:var(--ink);border:0;
+    padding:10px 22px;border-radius:8px;cursor:pointer}
+  .printbar span{display:block;font-size:11px;color:#8a8478;margin-top:7px}
+</style>
+</head>
+<body>
+
+<div class="printbar no-print">
+  <button onclick="window.print()">Save as PDF&nbsp;→ Print → “Save as PDF”</button>
+  <span>Choose A4, margins “None/Default”, and enable “Background graphics”.</span>
+</div>
+
+<!-- ============ PAGE 1 — HERO ============ -->
+<section class="page hero">
+  <div class="brandmark">
+    <div class="dot">C</div>
+    <div><div class="wm">C.A.R.E</div><div class="sub">Customer Assistance &amp; Response Engine</div></div>
+  </div>
+
+  <span class="hero-tag">Product Overview</span>
+  <h1>Support that answers honestly, hands off gracefully, and gets smarter with every conversation.</h1>
+  <p class="lede">C.A.R.E pairs an AI first-responder your customers actually trust with a human agent
+  workspace built to resolve faster. The AI never guesses — when it can’t help, it says so and brings in a
+  person, who arrives already holding the full picture. Every resolution becomes memory the whole team reuses.</p>
+
+  <div class="expand">
+    <div><div class="k">Jeff</div><div class="v">Your AI first-responder — text &amp; voice, on your site, in your brand.</div></div>
+    <div><div class="k">Handoff</div><div class="v">Honest escalation with the customer’s name, email &amp; concern captured.</div></div>
+    <div><div class="k">Toolset</div><div class="v">Coach, Co-Pilot, Summarize, Dissect &amp; more inside the agent workspace.</div></div>
+    <div><div class="k">Memory</div><div class="v">Each closed case teaches the system this team — no generic day-one bot.</div></div>
+  </div>
+
+  <div class="statband">
+    <div class="s"><b>No forms</b><span>Customers just type. Zero friction to the first message.</span></div>
+    <div class="s"><b>Zero-hallucination posture</b><span>The AI hands off rather than invent an answer.</span></div>
+    <div class="s"><b>Human + AI, composed</b><span>A real person is always behind the conversation.</span></div>
+    <div class="s"><b>Proven, not promised</b><span>Impact measured against an honest baseline — not hype.</span></div>
+  </div>
+
+  <div class="foot"><span>C.A.R.E — Customer Assistance &amp; Response Engine</span><span>Product Demo Sheet</span></div>
+</section>
+
+<!-- ============ PAGE 2 — CUSTOMER JOURNEY ============ -->
+<section class="page">
+  <span class="eyebrow">Part One · The Customer Experience</span>
+  <h2>From the first “hi” to a resolved issue — without a single dead end.</h2>
+  <hr class="rule" style="margin-top:16px" />
+  <p class="lede" style="margin-bottom:14px">The journey a customer takes the moment they open Jeff — and how C.A.R.E carries
+  their query or complaint all the way to a human who can actually close it.</p>
+
+  <div class="journey">
+    <div class="step"><div class="n">1</div><div>
+      <h3>They open the chat — and just talk.</h3>
+      <p>No “describe your issue in 200 characters,” no category picker, no email gate. The widget lives on your
+      site in your colours (text or a real voice call) and asks for nothing but the message. Every field between a
+      customer and their question is a place they quietly leave — so there are none.</p>
+    </div></div>
+
+    <div class="step"><div class="n">2</div><div>
+      <h3>Jeff answers — grounded, warm, and honest.</h3>
+      <p>The AI responds in plain language, grounded in your product’s real context. Crucially, it has exactly three
+      moves on any “can you do X?” — <b>yes</b> (only if it truly knows), <b>hand off</b>, or a rare explicit <b>no</b>.
+      It will never manufacture a confident wrong answer, the failure that erodes trust in every other support bot.</p>
+      <span class="chip">Text or voice</span><span class="chip">Answers the easy 80% instantly</span>
+    </div></div>
+
+    <div class="step"><div class="n">3</div><div>
+      <h3>When a human is needed, the customer is told — and captured.</h3>
+      <p>The moment Jeff reaches the edge of what it should answer (an account decision, a refund, a complaint), it
+      says so warmly and brings in a teammate. The customer is told a support agent is joining, and a compact card
+      captures their <b>name, email, and specific concern</b> — including order details for e-commerce — so nothing
+      is re-asked.</p>
+      <span class="chip">“A teammate is joining…”</span><span class="chip">Name · Email · Concern · Order&nbsp;#</span>
+    </div></div>
+
+    <div class="step"><div class="n">4</div><div>
+      <h3>The agent picks up holding the whole story.</h3>
+      <p>In the inbox the agent sees the full transcript, the captured concern in the header, the customer’s email as
+      a reply address, and a one-tap summary of what’s been tried. They start solving on turn one — the customer
+      never repeats themselves, the single most common support frustration.</p>
+    </div></div>
+
+    <div class="step"><div class="n">5</div><div>
+      <h3>Resolved — and the loop is closed.</h3>
+      <p>When the issue is solved, the resolution and its outcome are recorded. The customer leaves helped; the system
+      keeps the case as an asset, so the next time a similar question appears, the answer is already in the room.</p>
+      <span class="chip">Outcome recorded</span><span class="chip">Reusable next time</span>
+    </div></div>
+  </div>
+
+  <div class="foot"><span>Part One · Customer Experience</span><span>C.A.R.E Demo Sheet</span></div>
+</section>
+
+<!-- ============ PAGE 3 — AGENT EFFICIENCY & TOOLS ============ -->
+<section class="page">
+  <span class="eyebrow">Part Two · Agent Efficiency &amp; Response Quality</span>
+  <h2>The workspace is built to make one agent answer better, and faster.</h2>
+  <hr class="rule" style="margin-top:16px" />
+  <p class="lede" style="margin-bottom:16px">C.A.R.E doesn’t just route tickets — it equips the person answering them.
+  Each tool below removes a specific cost: catch-up time, drafting time, or the risk of a reply that reads worse
+  than it should.</p>
+
+  <div class="tools">
+    <div class="tool">
+      <div class="th"><b>Read Phase</b><span class="role">Understand first</span></div>
+      <p>Before replying, the agent gets a structured read of the conversation — what’s being asked, what’s been
+      tried, what’s still open. Understanding precedes the answer, by design.</p>
+      <div class="win">Fewer wrong-footed replies; the agent acts on the real problem.</div>
+    </div>
+
+    <div class="tool">
+      <div class="th"><b>Summarize</b><span class="role">Catch up in seconds</span></div>
+      <p>Collapses a long thread into a 3–5 sentence read and surfaces similar past resolutions — so an agent taking
+      over a parked or escalated conversation is current in seconds, not minutes.</p>
+      <div class="win">Minutes of catch-up become seconds; institutional memory shows up in the moment.</div>
+    </div>
+
+    <div class="tool">
+      <div class="th"><b>Co-Pilot</b><span class="role">Draft, sharpened</span></div>
+      <p>Helps the agent phrase the reply — suggesting a clearer, warmer, more resolution-focused version, with the
+      reasoning shown so the agent stays in control and keeps learning.</p>
+      <div class="win">A stronger message, written faster — the agent sends, not stares.</div>
+    </div>
+
+    <div class="tool">
+      <div class="th"><b>Coach</b><span class="role">Quality, measured</span></div>
+      <p>Reads each reply for what actually makes support land — was the customer acknowledged, was the question
+      answered, is there a clear next step — and flags empty filler or unsupported absolutes. It counts facts;
+      it never scolds.</p>
+      <div class="win">Reply quality rises without a supervisor reading every message.</div>
+    </div>
+
+    <div class="tool">
+      <div class="th"><b>Dissect</b><span class="role">Learn from the call</span></div>
+      <p>Breaks a finished conversation into its parts so a team can see what worked and what to coach — turning
+      real interactions into concrete, personalised improvement instead of generic training.</p>
+      <div class="win">Every conversation becomes coaching material, tailored to this rep.</div>
+    </div>
+
+    <div class="tool">
+      <div class="th"><b>Resolution Capture</b><span class="role">Close the loop</span></div>
+      <p>Records the resolution and its outcome when a case ends — and later reflects whether the fix actually held,
+      so “resolved” means resolved, not just closed.</p>
+      <div class="win">The team gets measurably smarter about its own recurring issues.</div>
+    </div>
+  </div>
+
+  <p class="small" style="margin-top:14px"><b>Also inside:</b> supervisor guidance flags for a second opinion,
+  priority &amp; assignment controls, canned responses, file &amp; image attachments, and full voice support — all in
+  one screen, so the agent never leaves the conversation to work it.</p>
+
+  <div class="callout">The result: the AI absorbs the volume, the tools compress the effort, and the human is freed to
+  do the one thing only a human can — judgment.</div>
+
+  <div class="foot"><span>Part Two · Agent Efficiency</span><span>C.A.R.E Demo Sheet</span></div>
+</section>
+
+<!-- ============ PAGE 4 — FEATURES + MOAT ============ -->
+<section class="page">
+  <span class="eyebrow">Why Teams Choose It</span>
+  <h2>The features that make C.A.R.E feel different on day one.</h2>
+  <hr class="rule" style="margin-top:16px" />
+
+  <div class="feat">
+    <div class="f"><b>Honest AI</b><span>Hands off instead of hallucinating — the trust other bots spend and never rebuild.</span></div>
+    <div class="f"><b>Frictionless start</b><span>No pre-chat form. The conversation begins before the customer can abandon it.</span></div>
+    <div class="f"><b>White-label</b><span>Your name, colour, logo, and voice — on your own site, in an embeddable widget.</span></div>
+    <div class="f"><b>Voice &amp; text</b><span>Customers can type or place a real hands-free voice call to your agent.</span></div>
+    <div class="f"><b>Context handoff</b><span>Name, email, concern &amp; order details captured — the human never re-asks.</span></div>
+    <div class="f"><b>Agent copilot suite</b><span>Read, Summarize, Co-Pilot, Coach, Dissect — quality and speed in one screen.</span></div>
+    <div class="f"><b>Learning system</b><span>It models <i>your</i> team from real data — no identical, generic day-one behaviour.</span></div>
+    <div class="f"><b>Consequence metrics</b><span>Measured by resolution &amp; fewer clarification cycles — not vanity activity counts.</span></div>
+    <div class="f"><b>Everything is an asset</b><span>Every message, decision, and resolution is kept and reused, never discarded.</span></div>
+  </div>
+
+  <div class="moat">
+    <div class="eyebrow">The Moat</div>
+    <h3>Honesty is the product — and it’s the one thing competitors can’t fake.</h3>
+    <p>Most support AI claims instant, identical results on install — a promise it can’t keep, because it hasn’t met
+    your customers yet. C.A.R.E refuses that lie, and that refusal is exactly why it earns trust the others can’t.</p>
+    <div class="three">
+      <div><b>Month 1 — Baseline</b><p>The team operates as itself. We capture an honest control, with no AI guidance, so improvement is real, not assumed.</p></div>
+      <div><b>Month 2 — Intervention</b><p>The only thing that changes is the guidance layer — so every gain is attributable to the method, not chance.</p></div>
+      <div><b>Then — Compounding</b><p>Learning never stops at day 30. The proof checkpoint is the floor; everything after is upside that grows with your data.</p></div>
+    </div>
+  </div>
+
+  <div class="foot"><span>Features &amp; Differentiation</span><span>C.A.R.E Demo Sheet</span></div>
+</section>
+
+<!-- ============ PAGE 5 — COMPARE & CONTRAST ============ -->
+<section class="page">
+  <span class="eyebrow">Compare &amp; Contrast</span>
+  <h2>Why C.A.R.E is in a league of its own.</h2>
+  <hr class="rule" style="margin-top:16px" />
+  <p class="lede" style="margin-bottom:6px">Not a longer feature list — a different philosophy. Here is where typical
+  support software stops, and where C.A.R.E begins.</p>
+
+  <table class="cmp">
+    <thead>
+      <tr><th class="rowlabel">&nbsp;</th><th>Typical support software</th><th>Legacy chatbots / “AI deflection”</th><th class="us">C.A.R.E</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="rowlabel">First contact</td>
+        <td class="dim">A form: category, priority, email — before you can even ask.</td>
+        <td class="dim">A bot that loops canned articles and blocks the human.</td>
+        <td class="usc">Open and type. The AI answers honestly or brings a person.</td>
+      </tr>
+      <tr>
+        <td class="rowlabel">When the AI doesn’t know</td>
+        <td class="dim">N/A — a human reads everything from scratch.</td>
+        <td class="dim">Guesses confidently, or dead-ends the customer.</td>
+        <td class="usc">Says so, hands off, and captures the context first.</td>
+      </tr>
+      <tr>
+        <td class="rowlabel">The handoff</td>
+        <td class="dim">Ticket lands cold; the customer repeats everything.</td>
+        <td class="dim">Often no handoff at all — the bot is the ceiling.</td>
+        <td class="usc">Agent inherits transcript, concern, email &amp; a summary.</td>
+      </tr>
+      <tr>
+        <td class="rowlabel">The agent’s tools</td>
+        <td class="dim">A reply box and a macro list.</td>
+        <td class="dim">None — there is no human in the loop.</td>
+        <td class="usc">Read, Summarize, Co-Pilot, Coach, Dissect — in one screen.</td>
+      </tr>
+      <tr>
+        <td class="rowlabel">What’s measured</td>
+        <td class="dim">Tickets closed, handle time — agent <i>activity</i>.</td>
+        <td class="dim">“Deflection rate” — often just customers giving up.</td>
+        <td class="usc">Resolution, durability, fewer clarification cycles — <i>consequence</i>.</td>
+      </tr>
+      <tr>
+        <td class="rowlabel">Does it learn <i>you</i>?</td>
+        <td class="dim">No — same rules for every company.</td>
+        <td class="dim">No — a generic model with your logo on it.</td>
+        <td class="usc">Yes — it models your team from your real data over time.</td>
+      </tr>
+      <tr>
+        <td class="rowlabel">The promise</td>
+        <td class="dim">“Organise your tickets.”</td>
+        <td class="dim">“Deflect 60% on day one.”</td>
+        <td class="usc">“Prove the gain against an honest baseline.”</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="closer">
+    <h3>The one-line reason.</h3>
+    <p>Everyone else automates the <b>ticket</b>. C.A.R.E elevates the <b>conversation</b> — keeping a real human in
+    the loop, arming them to answer better and faster, and refusing to claim understanding it hasn’t earned. Honest
+    AI, a human always behind it, and a system that compounds with your team: that combination is why C.A.R.E isn’t a
+    better version of the category — it’s a different one.</p>
+  </div>
+
+  <div class="foot"><span>Compare &amp; Contrast</span><span>C.A.R.E — Customer Assistance &amp; Response Engine</span></div>
+</section>
+
+</body>
+</html>
