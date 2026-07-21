@@ -3,6 +3,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import {
   fetchAgentConversation,
   findSimilarResolutions,
+  formatVisibleThreadForPrompt,
 } from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
@@ -82,19 +83,9 @@ export async function POST(
     });
   }
 
-  const turns = visible
-    .map((m) => {
-      const role =
-        m.authorType === "customer"
-          ? "Customer"
-          : m.authorType === "agent"
-            ? "Agent"
-            : m.authorType === "ai"
-              ? "AI"
-              : "System";
-      return `${role}: ${m.body}`;
-    })
-    .join("\n");
+  // Shared thread formatter (A13 author-once) — same "Role: body" transcript the Dissect
+  // routes use. `visible` is kept below for the prior-resolutions match.
+  const turns = formatVisibleThreadForPrompt(detail.messages);
 
   const productContext = await getProductContextForTenant(
     detail.conversation.companyId
