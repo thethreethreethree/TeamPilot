@@ -23,6 +23,7 @@ import {
   type SalesIntel,
 } from "@/components/sales-coach/PivotAndScores";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { RecordingPlayer } from "@/components/sales-coach/RecordingPlayer";
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { LiveCoachingPanel } from "@/components/sales-coach/LiveCoachingPanel";
@@ -347,6 +348,10 @@ export default function SessionDetail() {
                   Conversation summary
                 </h2>
               </div>
+              {/* Playback (founder 2026-07-21): relive the actual call audio, not just the
+                  transcript. Lazy — signs a URL only on tap. Owner or same-company manager,
+                  enforced by the /recording-url route (the assets bucket is private). */}
+              <RecordingPlayer sessionId={id} />
               {summary && (
                 <p className="text-xs text-secondary leading-relaxed whitespace-pre-wrap">
                   {summary}

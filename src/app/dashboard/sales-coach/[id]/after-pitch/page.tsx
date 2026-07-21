@@ -396,7 +396,10 @@ export default function AfterPitchPage() {
             <Scoreboard scores={summary.scores} />
             <FocusCard focus={summary.focus} />
             <Narrative narrative={summary.narrative} />
-            <CueLoop entries={summary.cueLoop} />
+            {/* ⑪ (founder 2026-07-21): cut the cue-loop card from the Standard after-recording
+                screen — it added words/scroll between the door closing and the next one. The
+                1-tap outcome capture stays (below, §3.5 needs the logged result). "What the coach
+                cued" still lives on the session detail page for reliving. */}
           </>
         ) : (
           <>
