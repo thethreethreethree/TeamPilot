@@ -51,6 +51,9 @@
   .statband .s{flex:1;min-width:120px}
   .statband .s b{display:block;font-family:var(--serif);font-size:16px;color:var(--ink)}
   .statband .s span{font-size:10.5px;color:var(--muted)}
+  .pillars{display:grid;grid-template-columns:1fr 1fr;gap:13px 20px;margin-top:22px;border-top:1px solid var(--hairline);padding-top:16px}
+  .pillars .p b{font-family:var(--serif);font-size:14px;color:var(--accent-deep);display:block;margin-bottom:2px}
+  .pillars .p span{font-size:10.5px;color:var(--muted);line-height:1.4}
 
   /* ---------- Embedded product mockups (the REAL dark UI) ---------- */
   .screen{background:var(--app-bg);border:1px solid #05050799;border-radius:16px;padding:14px;
@@ -182,6 +185,13 @@
         <div class="s"><b>Zero-guess AI</b><span>Hands off, never hallucinates.</span></div>
         <div class="s"><b>Human + AI</b><span>A real person is always behind it.</span></div>
       </div>
+
+      <div class="pillars">
+        <div class="p"><b>Jeff</b><span>Your AI first-responder — text &amp; voice, on your site, in your brand.</span></div>
+        <div class="p"><b>Handoff</b><span>Honest escalation with the customer’s name, email &amp; concern captured.</span></div>
+        <div class="p"><b>Toolset</b><span>Summarize, Co-Pilot, Coach &amp; Dissect inside the agent workspace.</span></div>
+        <div class="p"><b>Memory</b><span>Every resolution teaches the system this team — no generic day-one bot.</span></div>
+      </div>
     </div>
 
     <!-- REAL widget UI, example conversation -->
@@ -197,6 +207,9 @@
           <div class="b jeff">Ah, that’s frustrating — I’m sorry. A double-charge on a renewal is something a
           teammate needs to look at your account for. Let me bring one in.</div>
           <div class="b sys">You’re being connected with a member of our support team. They’ll pick up right here.</div>
+          <div class="b jeff">Hi Maria — Sam here from the team. I can see the renewal on your account and I’m
+          pulling the charge log now. One minute.</div>
+          <div class="b cust">Thank you!</div>
         </div>
         <div class="composer">
           <div class="inp">Type a message…</div>
@@ -262,6 +275,12 @@
     <p>The resolution and its outcome are recorded, so the next time a similar question appears, the answer is
     already in the room.</p>
   </div></div>
+
+  <div style="margin-top:16px;border-left:3px solid var(--accent);padding-left:16px">
+    <p style="font-family:var(--serif);font-size:17px;font-style:italic;color:var(--ink);max-width:62ch;margin:0">
+    The customer told their story once. By the time a human says hello, they already hold the name, the email, the
+    concern, and the full transcript — so the conversation moves forward, never back.</p>
+  </div>
 
   <div class="foot"><span>Part One · Customer Experience</span><span>C.A.R.E Demo Sheet</span></div>
 </section>
