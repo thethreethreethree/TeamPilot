@@ -56,13 +56,17 @@ export default function SalesCoachHome() {
   const [stats, setStats] = useState<Stats | null>(null);
   // The rep's name for the mobile "Welcome, [name]" header (PWA home).
   const [name, setName] = useState<string | null>(null);
-  const [context, setContext] = useState<"in_person" | "video">("video");
-  // Spec 1a (2026-07-15): In-person is the default for Standard — door-to-door reps
-  // live at doorsteps, not on video, and defaulting to the channel they never use is
-  // a tiny tax paid on every single session. Expert keeps the prior video default,
-  // unchanged. The effect flips the default once the mode resolves; deps are stable
-  // after load, so a rep's manual pick afterward is never overridden.
+  // Spec ① (Elo Sales Edits.pdf): In-person is the DEFAULT for Standard — door-to-door
+  // reps live at doorsteps, not on video. The mode is server-read (ExperienceModeProvider
+  // initialMode → `loaded` true from frame 1), so context is initialized directly from it:
+  // a Standard rep sees "in_person" on the FIRST paint. Corrected 2026-07-21 audit — the
+  // old init="video" + effect-flip showed a one-frame "Online video" flicker, so it wasn't
+  // truly the default. Expert keeps video. The effect remains ONLY as a safety for a rare
+  // late mode-load; its deps are stable after load, so a rep's manual pick is never overridden.
   const { isStandard, loaded: modeLoaded } = useExperienceMode();
+  const [context, setContext] = useState<"in_person" | "video">(
+    isStandard ? "in_person" : "video"
+  );
   useEffect(() => {
     if (modeLoaded && isStandard) setContext("in_person");
   }, [modeLoaded, isStandard]);

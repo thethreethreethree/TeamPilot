@@ -102,10 +102,12 @@ function duration(start: string, end: string | null): string {
 }
 
 export default function SalesCoachSessionsPage() {
-  // Spec p2 (founder-confirmed 2026-07-15): the Sessions tab is browse-only in
-  // Standard — growth opportunities, where-sessions-stand, search, history. The
-  // "Start a coaching session" card is removed here; starting a session lives on
-  // Home. Expert keeps the start panel on this tab, unchanged.
+  // Spec ③ (Elo Sales Edits.pdf p.2): the Standard phone Sessions tab shows ONLY the
+  // sessions list + search. The "Start a coaching session" card is removed here
+  // (starting lives on Home); and — corrected 2026-07-21 audit — "growth opportunities"
+  // and "where your sessions stand" are now ALSO gated off Standard (they previously
+  // rendered collapsed on the Standard rep's phone, contradicting the spec). Expert
+  // keeps the start panel + both insight blocks on this tab, unchanged.
   const { isStandard } = useExperienceMode();
   const [sessions, setSessions] = useState<Row[] | null>(null);
   const [isManager, setIsManager] = useState(false);
@@ -454,8 +456,11 @@ export default function SalesCoachSessionsPage() {
         )}
 
         {/* Growth opportunities to practice (§3.6 — visible, specific).
-            Collapsed by default on the mobile app (founder 2026-07-04). */}
-        {stats && stats.recentGrowth.length > 0 && (
+            Collapsed by default on the mobile app (founder 2026-07-04).
+            REMOVED in Standard (founder spec ③, Elo Sales Edits.pdf p.2): the phone
+            Sessions tab should show "only the sessions" — this block still rendered
+            (collapsed) on the Standard rep's phone; gated off now. Expert unchanged. */}
+        {!isStandard && stats && stats.recentGrowth.length > 0 && (
           <MobileCollapsibleSection
             icon={Lightbulb}
             label="Growth opportunities to practice"
@@ -483,7 +488,10 @@ export default function SalesCoachSessionsPage() {
 
         {/* Where your sessions stand — pipeline counts. Collapsed by default
             on the mobile app (founder 2026-07-04). */}
-        {stats && (
+        {/* REMOVED in Standard (founder spec ③): "where your sessions stand" showed
+            collapsed on the Standard rep's phone Sessions tab; spec wants only the
+            sessions list + search. Gated off; Expert keeps it. */}
+        {!isStandard && stats && (
           <MobileCollapsibleSection icon={Mic} label="Where your sessions stand">
             <div className="grid grid-cols-3 gap-2.5">
               <LearningHint
