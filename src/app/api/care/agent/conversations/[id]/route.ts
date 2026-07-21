@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import {
   fetchAgentConversation,
+  fetchEnrichedConversation,
   claimConversation,
   assignConversationToAgent,
   setConversationStatus,
@@ -186,9 +187,17 @@ export async function PATCH(
   // loop). The frontend uses this as the source of truth — never
   // assume an action succeeded just because the HTTP status was
   // 2xx.
-  const fresh = await fetchAgentConversation(id);
+  //
+  // Must be the ENRICHED shape: the client's divergence check reads
+  // `fresh.priority` (and could read tags/customer), but priority is an
+  // enriched-only field absent from the base mapConversation. Returning
+  // the base row made every priority change false-positive as "didn't
+  // stick — DB still reads 'undefined'" and force a reload, because
+  // undefined !== the expected priority. The enriched read-back carries
+  // priority/tags/customer so the §1.6 verification compares like-for-like.
+  const fresh = await fetchEnrichedConversation(id);
   return NextResponse.json({
     ok: true,
-    conversation: fresh?.conversation ?? null,
+    conversation: fresh ?? null,
   });
 }
