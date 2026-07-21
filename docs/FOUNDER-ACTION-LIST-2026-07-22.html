@@ -51,45 +51,33 @@
     <p class="sm" style="margin-top:8px;max-width:160mm;">Everything I built this session is committed, pushed, and gate-verified. These are the steps only you can take — deploy, credentials, and the placeholders I can't invent. Ordered by what unblocks the most.</p>
   </div>
 
-  <div class="card" style="margin-top:18px;padding:6px 16px;">
+  <div class="card" style="margin-top:14px;padding:12px 16px;background:rgba(110,231,183,.05);border-color:rgba(110,231,183,.25);">
+    <p class="sm" style="color:var(--emerald);"><b>✓ Already done:</b> migration <b>0188 applied</b> · everything bundled into one branch (handover-capture folded in — no separate deploy needed).</p>
+  </div>
+  <div class="card" style="margin-top:14px;padding:6px 16px;">
     <div class="item">
       <div class="n">1</div>
       <div>
-        <h2>Deploy the no-migration bundle <span class="pill">unblocks 4 features</span></h2>
-        <p class="sm" style="margin-top:4px;">One branch, no database step — ships C.A.R.E <b style="color:var(--tx)">Dissect</b>, the Sales Coach <b style="color:var(--tx)">Standard letter grade</b>, the <b style="color:var(--tx)">/care/demo</b> page, and the new C.A.R.E <b style="color:var(--tx)">Coach Assessment</b>.</p>
-        <span class="cmd">branch: integration/no-migration-2026-07-22 → deploy on Vercel</span>
+        <h2>Deploy the all-in-one bundle <span class="pill">all 5 features, one deploy</span></h2>
+        <p class="sm" style="margin-top:4px;">Because 0188 is applied, ONE branch now ships everything: C.A.R.E <b style="color:var(--tx)">Dissect</b>, Sales Coach <b style="color:var(--tx)">Standard letter grade</b>, the <b style="color:var(--tx)">/care/demo</b> walkthrough, the new C.A.R.E <b style="color:var(--tx)">Coach Assessment</b>, and <b style="color:var(--tx)">handover-capture</b>.</p>
+        <span class="cmd">branch: integration/all-2026-07-22 → deploy on Vercel · 910 tests + build green</span>
         <p class="xs" style="margin-top:5px;">Note: auto-deploy has been off — trigger the deploy manually and confirm the Vercel Git setting.</p>
       </div>
     </div>
     <div class="item">
       <div class="n">2</div>
       <div>
-        <h2>Give me the Supabase Session-pooler string → I apply migration 0188</h2>
-        <p class="sm" style="margin-top:4px;">I <b style="color:var(--tx)">can</b> apply migrations, but this sandbox can't resolve the direct DB host. Paste the IPv4 <b style="color:var(--tx)">Session pooler</b> connection string (Supabase → Project → Connect) into <span class="mono" style="color:var(--ember-300)">SUPABASE_DB_URL</span> and I'll run it. Or apply it yourself:</p>
-        <span class="cmd">npm run db:check → npm run db:apply</span>
+        <h2>Fill the CTA placeholders</h2>
+        <p class="sm" style="margin-top:4px;">Replace <span class="mono" style="color:var(--ember-300)">[your booking link]</span> with your real booking/contact URL in three places, then it's prospect-ready:</p>
+        <p class="xs" style="margin-top:4px;">· <span class="mono">BOOKING_URL</span> in src/app/care/demo/page.tsx &nbsp; · both Learning-Environment PDFs</p>
+        <p class="xs" style="margin-top:3px;">(or just tell me the link and I'll drop it in everywhere + re-render.)</p>
       </div>
     </div>
     <div class="item">
       <div class="n">3</div>
       <div>
-        <h2>Fill the CTA placeholders</h2>
-        <p class="sm" style="margin-top:4px;">Replace <span class="mono" style="color:var(--ember-300)">[your booking link]</span> with your real booking/contact URL in three places, then it's prospect-ready:</p>
-        <p class="xs" style="margin-top:4px;">· <span class="mono">BOOKING_URL</span> in src/app/care/demo/page.tsx &nbsp; · the Learning-Environment PDF &nbsp; · the C.A.R.E demo sheet PDF</p>
-      </div>
-    </div>
-    <div class="item">
-      <div class="n">4</div>
-      <div>
-        <h2>After 0188 lands — deploy handover-capture</h2>
-        <p class="sm" style="margin-top:4px;">The AI→agent handover capture (name/email/concern/order) needs 0188. Once applied, deploy it.</p>
-        <span class="cmd">branch: feat/care-handover-capture</span>
-      </div>
-    </div>
-    <div class="item">
-      <div class="n">5</div>
-      <div>
         <h2>Live-verify the auth-gated screens</h2>
-        <p class="sm" style="margin-top:4px;">I couldn't screenshot these (login + real data required). Eyeball them after deploy: Sales Coach <b style="color:var(--tx)">Standard letter grade</b>, C.A.R.E <b style="color:var(--tx)">Coach Assessment</b> roster, and the <b style="color:var(--tx)">Dissect</b> panel in the agent inbox.</p>
+        <p class="sm" style="margin-top:4px;">I couldn't screenshot these (login + real data required). Eyeball them after deploy: Sales Coach <b style="color:var(--tx)">Standard letter grade</b>, C.A.R.E <b style="color:var(--tx)">Coach Assessment</b> roster, the <b style="color:var(--tx)">Dissect</b> panel, and the <b style="color:var(--tx)">handover capture card</b> in a real conversation.</p>
       </div>
     </div>
   </div>
