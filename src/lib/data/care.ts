@@ -381,7 +381,7 @@ export async function captureHandoffDetails(args: {
   topic?: string | null;
   topicDetail?: string | null;
   orderNumber?: string | null;
-}): Promise<{ ok: boolean; customerId: string | null }> {
+}): Promise<{ ok: boolean; customerId: string | null; concernDeferred?: boolean }> {
   const sb = createServiceRoleClient();
   const name = args.name?.trim() || null;
   const email = args.email?.trim().toLowerCase() || null;
@@ -391,7 +391,7 @@ export async function captureHandoffDetails(args: {
   if (email) {
     // Dedupe on (company_id, email) — the unique constraint from 0034. Keep the latest
     // name if one was provided, but never wipe an existing name with a blank.
-    const { data: up } = await sb
+    const { data: up, error: upErr } = await sb
       .from("support_customers")
       .upsert(
         { company_id: args.companyId, email, ...(name ? { name } : {}) },
@@ -399,15 +399,30 @@ export async function captureHandoffDetails(args: {
       )
       .select("id")
       .maybeSingle();
+    // §3.4 observability (audit finding F2): a swallowed failure here silently loses the
+    // customer's identity while the endpoint still returns ok. Log it like every other
+    // write in this file, so a real RLS/constraint failure is visible, not invisible.
+    if (upErr) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care.captureHandoffDetails] customer upsert failed companyId=${args.companyId} error=${upErr.message}`
+      );
+    }
     customerId = (up?.id as string | undefined) ?? null;
   } else if (name) {
     // No email to dedupe on — record the name so the agent still sees who they're
     // talking to. One row per capture is acceptable (name-only can't be deduped).
-    const { data: ins } = await sb
+    const { data: ins, error: insErr } = await sb
       .from("support_customers")
       .insert({ company_id: args.companyId, name })
       .select("id")
       .maybeSingle();
+    if (insErr) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care.captureHandoffDetails] customer insert failed companyId=${args.companyId} error=${insErr.message}`
+      );
+    }
     customerId = (ins?.id as string | undefined) ?? null;
   }
 
@@ -418,6 +433,10 @@ export async function captureHandoffDetails(args: {
   if (args.topicDetail?.trim()) full.handoff_topic_detail = args.topicDetail.trim();
   if (args.orderNumber?.trim()) full.order_number = args.orderNumber.trim();
   if (Object.keys(full).length === 0) return { ok: true, customerId };
+
+  const hadConcern = Boolean(
+    full.handoff_topic || full.handoff_topic_detail || full.order_number
+  );
 
   const { error } = await sb
     .from("support_conversations")
@@ -444,6 +463,20 @@ export async function captureHandoffDetails(args: {
         .from("support_conversations")
         .update({ customer_id: customerId })
         .eq("id", args.conversationId);
+    }
+    // Audit finding F1 (A34 #2 / §3.4): pre-0188 the concern/order columns don't exist, so
+    // those fields were silently DROPPED while name/email were kept. A34 says a write that
+    // can't persist must not degrade silently. We can't persist here (no column), but we can
+    // be HONEST about it: log the drop (naming what was lost) and signal it up so the route/
+    // widget can tell the customer "we'll follow up" instead of implying their concern was
+    // captured. The founder-facing card-gating option (hide topic/order until schema-ready)
+    // remains a separate decision; this is the minimal honesty fix.
+    if (hadConcern) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care.captureHandoffDetails] concern/order DROPPED (0188 unapplied) conversationId=${args.conversationId} — apply migration 0188`
+      );
+      return { ok: true, customerId, concernDeferred: true };
     }
   }
   return { ok: true, customerId };

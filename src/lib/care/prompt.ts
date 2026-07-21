@@ -231,7 +231,13 @@ export function buildCareUserMessage(args: {
  * detectHandoffSignal checks the sentinel first; the phrase list below is retained as
  * a fallback for the turn where the model forgets the token (belt-and-suspenders —
  * recall matters more than a rare false positive, since a missed handoff means the AI
- * keeps replying after promising a human). See §A16.
+ * keeps replying after promising a human).
+ *
+ * (Citation note, corrected 2026-07-21 audit F3: this coupling applies A16's *principle*
+ * — "the data flow IS the composition; explicit signal over coincidence" — to a single
+ * generator→detector pair. It is NOT A16's canonical case, which is multiple AI *tools*
+ * composing their outputs on one user-authored surface. Related in spirit, not the same
+ * shape; earlier comments/commits that called this "the §A16 fix" overstated the fit.)
  */
 
 /**

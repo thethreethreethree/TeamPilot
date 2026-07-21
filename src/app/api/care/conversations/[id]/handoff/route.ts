@@ -92,5 +92,8 @@ export async function POST(
       { status: 500 }
     );
   }
-  return NextResponse.json({ ok: true });
+  // concernDeferred is true only in the pre-0188 window (the concern/order columns don't
+  // exist yet, so those fields couldn't persist even though name/email did). Surface it
+  // honestly (A34 #2 / §3.4) rather than implying the concern was captured.
+  return NextResponse.json({ ok: true, concernDeferred: result.concernDeferred ?? false });
 }
