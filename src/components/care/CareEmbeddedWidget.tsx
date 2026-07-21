@@ -82,6 +82,8 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   const [handoffDismissed, setHandoffDismissed] = useState(false);
   const [handoffSubmitting, setHandoffSubmitting] = useState(false);
   const [handoffError, setHandoffError] = useState<string | null>(null);
+  // F1 (A34/§3.4): true when the server couldn't persist the concern (pre-0188 window).
+  const [concernDeferredNote, setConcernDeferredNote] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -327,6 +329,9 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
         setHandoffError(j?.error ?? "Couldn't save those details. Please try again.");
         return;
       }
+      // Audit F1 (A34 #2 / §3.4): honest note when the concern couldn't persist (pre-0188).
+      const j = await res.json().catch(() => null);
+      setConcernDeferredNote(Boolean(j?.concernDeferred));
       setHandoffNeeded(false);
       setHandoffDismissed(true);
       void loadMessages();
@@ -396,6 +401,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     setHandoffNeeded(false);
     setHandoffDismissed(false);
     setHandoffError(null);
+    setConcernDeferredNote(false);
   }, [voiceMode, endCall, storageKey]);
 
   if (!bootstrapped) {
@@ -564,6 +570,14 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
               className="px-4 py-2 text-[11px] text-red-400 border-t border-red-500/30 bg-red-500/5"
             >
               {error}
+            </div>
+          )}
+
+          {/* F1 (A34/§3.4): honest note when the concern couldn't be persisted yet. */}
+          {concernDeferredNote && (
+            <div className="mx-4 my-2 rounded-lg border border-default bg-surface/50 px-3 py-2 text-[11px] text-secondary">
+              Thanks — we&apos;ve got your details. We couldn&apos;t attach your specific
+              concern just now, but a teammate will follow up on it.
             </div>
           )}
 

@@ -105,6 +105,9 @@ export function CareChatWidget() {
   const [businessType, setBusinessType] = useState<BusinessType>(DEFAULT_BUSINESS_TYPE);
   const [handoffSubmitting, setHandoffSubmitting] = useState(false);
   const [handoffError, setHandoffError] = useState<string | null>(null);
+  // F1 (A34/§3.4): true when the server couldn't persist the concern (pre-0188 window) —
+  // we tell the customer honestly rather than implying it was captured.
+  const [concernDeferredNote, setConcernDeferredNote] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -272,6 +275,7 @@ export function CareChatWidget() {
     setHandoffNeeded(false);
     setHandoffDismissed(false);
     setHandoffError(null);
+    setConcernDeferredNote(false);
   }, [voiceMode, endCall]);
 
   const handleSend = async () => {
@@ -471,6 +475,10 @@ export function CareChatWidget() {
         setHandoffError(j?.error ?? "Couldn't save those details. Please try again.");
         return;
       }
+      // Audit F1 (A34 #2 / §3.4): if the server couldn't persist the concern (pre-0188
+      // window), be HONEST to the customer instead of implying it was captured.
+      const j = await res.json().catch(() => null);
+      setConcernDeferredNote(Boolean(j?.concernDeferred));
       setHandoffNeeded(false);
       setHandoffDismissed(true);
       void loadMessages();
@@ -621,6 +629,15 @@ export function CareChatWidget() {
               className="px-4 py-2 text-[11px] text-red-400 border-t border-red-500/30 bg-red-500/5"
             >
               {error}
+            </div>
+          )}
+
+          {/* F1 (A34/§3.4): honest note when the concern couldn't be persisted yet.
+              Only appears in the pre-0188 window; name/email still reached the agent. */}
+          {concernDeferredNote && !conversationClosed && (
+            <div className="mx-4 my-2 rounded-lg border border-default bg-surface/50 px-3 py-2 text-[11px] text-secondary">
+              Thanks — we&apos;ve got your details. We couldn&apos;t attach your specific
+              concern just now, but a teammate will follow up on it.
             </div>
           )}
 
