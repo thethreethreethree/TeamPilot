@@ -30,7 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
-import type { ConversationDissect } from "@/lib/dissect/types";
+import type { ConversationDissect, CoachTurn } from "@/lib/dissect/types";
 import {
   playNewMessageChime,
   hasNewCustomerMessage,
@@ -3689,6 +3689,51 @@ function DissectCarePanel({
   const [dissect, setDissect] = useState<ConversationDissect | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Ask-Coach follow-up (parity with the standalone Dissect, AMD-006 §1.5.1 — don't dead-end
+  // the agent at the diagnosis; let them interrogate it). Ephemeral thread, echoed back each turn.
+  const [turns, setTurns] = useState<CoachTurn[]>([]);
+  const [question, setQuestion] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
+
+  const ask = async () => {
+    const q = question.trim();
+    if (!q || asking) return;
+    setAsking(true);
+    setAskError(null);
+    const history = turns;
+    setTurns((t) => [...t, { role: "user", text: q }]);
+    setQuestion("");
+    try {
+      const res = await fetch(
+        `/api/care/agent/conversations/${conversationId}/dissect/ask`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: q,
+            problemStatement: dissect?.problem.statement ?? undefined,
+            history,
+          }),
+        }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.reply) {
+        setAskError(data?.error ?? "The coach couldn't respond. Try again.");
+        setTurns((t) => t.filter((_, i) => i !== t.length - 1)); // roll back the optimistic user turn
+        setQuestion(q);
+        return;
+      }
+      setTurns((t) => [...t, { role: "coach", text: data.reply as string }]);
+    } catch {
+      setAskError("Couldn't reach the server.");
+      setTurns((t) => t.filter((_, i) => i !== t.length - 1));
+      setQuestion(q);
+    } finally {
+      setAsking(false);
+    }
+  };
+
   useEffect(() => {
     void (async () => {
       try {
@@ -3809,6 +3854,65 @@ function DissectCarePanel({
               </ExpertOnly>
             </div>
           )}
+
+          {/* Ask-Coach follow-up — interrogate the diagnosis (parity with the standalone
+              Dissect). §3.3: the coach asks what you think first, then builds on it. */}
+          <div className="pt-3 border-t border-default">
+            <p className={label}>Dig into it</p>
+            {turns.length > 0 && (
+              <div className="space-y-2 mb-2">
+                {turns.map((t, i) => (
+                  <div
+                    key={i}
+                    className={t.role === "user" ? "flex justify-end" : "flex justify-start"}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-xs leading-relaxed whitespace-pre-wrap ${
+                        t.role === "user"
+                          ? "bg-arc-400/15 text-primary"
+                          : "bg-surface border border-default text-primary"
+                      }`}
+                    >
+                      {t.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {asking && (
+              <p className="text-[11px] text-muted flex items-center gap-2 mb-2">
+                <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
+                Thinking…
+              </p>
+            )}
+            {askError && <p className="text-[11px] text-red-300 mb-2">{askError}</p>}
+            <div className="flex items-end gap-2">
+              <textarea
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void ask();
+                  }
+                }}
+                rows={1}
+                placeholder="Ask about the problem, the root cause, an angle…"
+                aria-label="Ask the coach about this diagnosis"
+                disabled={asking}
+                className="flex-1 min-w-0 bg-base border border-default rounded-lg px-2.5 py-1.5 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none max-h-24"
+              />
+              <button
+                type="button"
+                onClick={() => void ask()}
+                disabled={asking || !question.trim()}
+                className="shrink-0 inline-flex items-center gap-1 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-40 px-2.5 py-1.5 rounded-md"
+              >
+                <Send className="w-3.5 h-3.5" aria-hidden />
+                Ask
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </ToolPanelShell>
