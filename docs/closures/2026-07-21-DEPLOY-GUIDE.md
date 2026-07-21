@@ -53,10 +53,17 @@ card + the agent header chips (verification runbook: `docs/closures/2026-07-21-c
 
 ---
 
-## DEMO SHEET → PDF (`docs/care-demo-sheet` branch)
+## DEMO SHEET → three formats (`docs/care-demo-sheet` branch)
 
-The PDF is already generated: **`docs/CARE-demo-sheet.pdf`** (5 pages, rendered + visually
-verified). To view: open it. To share: it's ready — EXCEPT two placeholders on page 5's CTA:
+The demo exists in three interchangeable, in-sync formats:
+- **PDF** — `docs/CARE-demo-sheet.pdf` (5 pages, rendered + visually verified). Open / print / attach.
+- **HTML source** — `docs/CARE-demo-sheet.html` (edit here; regenerate the PDF with the command below).
+- **Shareable web link (private Artifact)** — **https://claude.ai/code/artifact/8f825335-128f-4e02-b5ec-a35cdd721a9a**
+  — private by default (nobody sees it until you share it from the page's share menu). A prospect
+  clicks the link instead of opening a file. **Fill the CTA placeholders before sharing** (below);
+  to update the link in place, tell the agent and it republishes to the SAME URL.
+
+To share the PDF: it's ready — EXCEPT two placeholders on page 5's CTA:
 
 - **`[your email]`** and **`[your booking link]`** → replace in `docs/CARE-demo-sheet.html`,
   then regenerate the PDF:
