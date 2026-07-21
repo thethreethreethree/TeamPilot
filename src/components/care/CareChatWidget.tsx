@@ -166,6 +166,27 @@ export function CareChatWidget() {
     }
   }, [open, session, loadMessages]);
 
+  // Poll for new messages while the panel is open — this is what lets an AGENT's reply
+  // (after a handoff) land in the customer's open widget without a refresh. Without it the
+  // direct widget went silent post-handoff: the customer sent messages but never saw the
+  // human's response until they reopened the chat — the "no smooth customer interaction"
+  // gap. Mirrors the embedded widget: 4s, paused when the tab is hidden or a send is in
+  // flight (so we never clobber optimistic state), only while open + session. loadMessages
+  // already handles 404/410 by clearing local state.
+  const sendingRef = useRef(false);
+  useEffect(() => {
+    sendingRef.current = sending;
+  }, [sending]);
+  useEffect(() => {
+    if (!open || !session) return;
+    const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (sendingRef.current) return;
+      void loadMessages();
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [open, session, loadMessages]);
+
   const ensureSession = useCallback(async (): Promise<StoredSession | null> => {
     if (session) return session;
     try {
