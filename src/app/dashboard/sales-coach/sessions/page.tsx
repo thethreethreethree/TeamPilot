@@ -102,10 +102,12 @@ function duration(start: string, end: string | null): string {
 }
 
 export default function SalesCoachSessionsPage() {
-  // Spec p2 (founder-confirmed 2026-07-15): the Sessions tab is browse-only in
-  // Standard — growth opportunities, where-sessions-stand, search, history. The
-  // "Start a coaching session" card is removed here; starting a session lives on
-  // Home. Expert keeps the start panel on this tab, unchanged.
+  // Spec ③ (Elo Sales Edits.pdf p.2): the Standard phone Sessions tab shows ONLY the
+  // sessions list + search. The "Start a coaching session" card is removed here
+  // (starting lives on Home); and — corrected 2026-07-21 audit — "growth opportunities"
+  // and "where your sessions stand" are now ALSO gated off Standard (they previously
+  // rendered collapsed on the Standard rep's phone, contradicting the spec). Expert
+  // keeps the start panel + both insight blocks on this tab, unchanged.
   const { isStandard } = useExperienceMode();
   const [sessions, setSessions] = useState<Row[] | null>(null);
   const [isManager, setIsManager] = useState(false);
