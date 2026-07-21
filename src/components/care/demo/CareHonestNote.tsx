@@ -4,9 +4,14 @@
  * The "honest part" note on /care/demo — a DELIBERATE fixed-dark card (founder 2026-07-22).
  *
  * Rendered with fixed ink/zinc colors, not theme tokens, for two reasons:
- *  1. Contrast-safety: as a theme-aware glass-card this note's subtree resolved DARK-mode text tokens on
- *     the light page (text-primary → #FAFAFA → invisible; founder-reported). Root cause not yet isolated
- *     — flagged as an open Layer-4 finding for the audit phase. Fixed colors sidestep it entirely.
+ *  1. Contrast-safety: as a theme-aware glass-card this note rendered INVISIBLE in light mode — empirically
+ *     text-primary/text-secondary came out near-white while text-brand rendered fine, in this box only
+ *     (founder-reported 2026-07-22). ROOT CAUSE IS NOT ISOLATED. A likely-looking hypothesis ("a nested
+ *     dark-theme context") was investigated and RULED OUT — nothing in the code sets data-theme/
+ *     color-scheme/token overrides below the root (only layout.tsx on <html>). The true mechanism
+ *     (probably a CSS build/specificity artifact of glass-card + bg-ember-400/[0.03]) needs live
+ *     computed-style inspection to confirm. Fixed colors are the VERIFIED-legible workaround, not a
+ *     root-cause fix. Open Layer-4 finding (F4).
  *  2. It matches the fixed-dark "product console" aesthetic of the workstation/Jeff above it.
  *
  * Split into its own component so the deliberate fixed-dark palette reads as an intentional dark surface

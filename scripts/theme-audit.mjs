@@ -158,7 +158,7 @@ const FILE_ALLOWLIST = new Map([
   ],
   [
     "src/components/care/demo/CareHonestNote.tsx",
-    "Deliberate fixed-dark demo note — the theme-aware version rendered invisible in light mode (an unresolved theme-context bug, flagged for the audit); fixed colors are the contrast-safe workaround.",
+    "Deliberate fixed-dark demo note — the theme-aware version rendered invisible in light mode (unresolved Layer-4 cause, audit finding F4); fixed colors are the verified-legible workaround.",
   ],
 ]);
 
