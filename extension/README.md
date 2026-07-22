@@ -88,7 +88,8 @@ Grounded in the actual architecture, so you can self-diagnose before pinging me.
 - **One-click connect + silent refresh** — server-side verified; browser round-trip untested (checklist #6). ✅ built / ⏳ verify
 - **Ask Coach / Co-pilot / Formulate / Spawn task** — endpoints not built (blocked on the **A3** control-window decision); shown **SOON**. ⏳
 - **One-click OAuth** (`launchWebAuthFlow`) — now largely unnecessary (the connect handoff works); available later if wanted. ⏳
-- Privacy policy: `/extension/privacy`. Icons reuse the square `elostate-logo.png`.
+- Privacy policy: `/extension/privacy`. Icons are true per-size PNGs (16/48/128 px), LANCZOS-downscaled from the
+  square logo master (2026-07-22 — they were previously all 1024² copies renamed, which rendered soft in the toolbar).
 
 > Note: the old `popup.html` / `popup.js` were **deleted** (2026-07-22) once the on-page panel replaced them —
 > they were dead code (unreferenced by the manifest) and a divergent copy of the panel's logic. The extension is
