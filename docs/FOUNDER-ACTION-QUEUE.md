@@ -1,12 +1,30 @@
 # Founder action queue — as of 2026-07-14
 
-> ## 🚨 CRITICAL — the extension free trial NEVER STARTS (found 2026-07-22, breaks the sales funnel)
-> **Read this before sending the sales pitch.** The pitch promises "Start with a free trial," and the entitlement
-> code has full 14-day trial logic — but **nothing anywhere ever sets `extension_trial_started_at`.** Migration
-> 0189 adds the column with NO default ("null = no trial started"), and a codebase-wide search finds ZERO writes
-> to it. Result: a non-paid tenant is **permanently `locked`** — a new prospect installs, signs in, and hits a
-> dead "your plan doesn't include the extension" wall instead of a trial. The trial is dead code; the trigger was
-> never built. So today the extension only works for tenants you manually set to `pro`/`enterprise`.
+> ## 🚨 CRITICAL — the extension has NO entitlement write-path: it's LOCKED for every tenant (found 2026-07-22)
+> **Read this before selling — it's why the extension can't launch yet.** `computeExtensionEntitlement` unlocks a
+> tenant only if `care_tenant_config.plan` ∈ {pro, enterprise} OR `extension_trial_started_at` is within 14 days.
+> A codebase-wide search shows **NEITHER is ever written by any application flow:**
+>   - **`plan`** is `not null default 'pilot'` (0038); the tenant-bootstrap trigger inserts with no plan (→ pilot),
+>     the care-settings route's schema doesn't include `plan`, no migration/seed sets it to pro/enterprise, and the
+>     **CRM subscription (where you'd mark a customer "pro") is a SEPARATE table that doesn't sync to it.** So plan
+>     is `'pilot'` forever.
+>   - **`extension_trial_started_at`** (0189, no default) is read but **never written** — the 14-day trial logic is
+>     dead code; the start-trigger was never built.
+>   - Net: **every real tenant resolves to `locked`.** A prospect installs → signs in → "your plan doesn't include
+>     the extension." The only current unlock is a raw DB edit. The whole funnel (pitch → download → tools) is built
+>     and works right up to this gate, then stops for everyone.
+>
+> **Two write-paths must exist for the extension to be usable + sellable:**
+>   - **(A) Free trial trigger** — start the 14-day trial (sets `extension_trial_started_at`). Decide the mechanism:
+>     **1** auto-start on first entitlement check (recommended, matches the pitch) · **2** an explicit "Start trial"
+>     button · **3** signup default. This is the self-serve / prospect path.
+>   - **(B) Paid unlock** — a way for a converted customer to become `pro`: either **sync the CRM subscription tier
+>     → `care_tenant_config.plan`** (cleanest — you already set the tier there), or an admin "set plan" action. This
+>     is the revenue path.
+>
+> Both are small, safe, guarded builds. I did NOT auto-implement — granting paid-feature access + the CRM-sync
+> design are billing decisions that are yours (§2). **Tell me the trial mechanism (1/2/3) and whether paid-unlock
+> should be CRM-sync or an admin toggle, and I build both immediately.**
 >
 > **This blocks selling** — send the pitch and prospects can't try it. Decision needed: **how should the trial
 > start?**
@@ -17,10 +35,7 @@
 >   2. **Explicit "Start your 14-day trial" button** — higher intent/consent, one more click.
 >   3. **Start on signup** — crudest; the clock runs whether or not they ever open the extension.
 >
-> **Tell me 1/2/3 and I'll build it immediately** — it's the prerequisite to the whole free-trial funnel. I did
-> NOT auto-implement because granting paid-feature access is a billing/funnel decision that's yours (§2).
->
-> **Two related facets to handle in the same fix (I'll do these with the trial-start build):** (a) the panel's
+> **Two related facets to handle in the same fix (I'll do these with the entitlement build):** (a) the panel's
 > "locked" message tells the user to "start a trial in your workspace" — which doesn't exist; it needs updating to
 > match whichever trigger you pick. (b) **Spawn is §3.4-control-gated**, so a trial tenant (in its month-1 control
 > window) gets Spawn suppressed while the other 5 tools work — decide whether trial tenants should be
