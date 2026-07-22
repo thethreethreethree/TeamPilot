@@ -91,7 +91,24 @@ session cookie).
 explicit app setting. If the founder wants it pinned against a future @supabase/ssr default change, set
 `sameSite: "lax"` explicitly in the cookie options — a one-line hardening, not a fix for a present hole.
 
+## Fifth sweep — SSRF (server-side fetch of a user-controlled URL)
+
+Every `fetch()` in `src/app/api/**` and `src/lib/**` (server side) was checked for a user/tenant-controlled URL.
+
+**Finding — no SSRF.** All server-side outbound fetches target FIXED, trusted hosts:
+- `care/extension/refresh` → `${NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token` (env, fixed).
+- `care/email/outbound` → Postmark API (constant); `care/voice/elevenlabs` → ElevenLabs TTS/STT (constants);
+  `llm/retry` → the LLM provider endpoints (fixed).
+- The only user/tenant-influenced value is `voiceId`, interpolated as a PATH SEGMENT on the fixed ElevenLabs
+  host (`${TTS_ENDPOINT}/${voiceId}/stream`). It cannot change the host, so it's not SSRF — worst case a
+  malformed ElevenLabs path affecting only that tenant's own TTS; and voiceId is tenant-admin-set, not customer.
+- All `fetch("/api/...")` calls are CLIENT-side hooks (relative, app-internal) — not a server SSRF surface.
+
+No route fetches a URL whose HOST is derived from request input. No SSRF hole.
+
 ---
-**Overall audit verdict (4 sweeps):** service-role authz, LLM cost-abuse, prompt injection, and CSRF all
-checked; no vulnerabilities found. The one thing worth a founder glance is the explicit-SameSite hardening note
-above.
+**Overall audit verdict (5 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, and SSRF all
+checked — no vulnerabilities found. The one thing worth a founder glance is the explicit-`SameSite` hardening
+note in the CSRF sweep (a one-line future-proofing, not a present hole). This complements the structural
+guarantees already enforced by the RLS audit and the invariant audit (CSV formula-safety, cross-person read
+gating, upload validation, no client-callable DEFINER tenant-param fns).
