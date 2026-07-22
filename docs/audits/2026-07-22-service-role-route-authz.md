@@ -106,9 +106,25 @@ Every `fetch()` in `src/app/api/**` and `src/lib/**` (server side) was checked f
 
 No route fetches a URL whose HOST is derived from request input. No SSRF hole.
 
+## Sixth sweep — XSS / output-encoding
+
+React auto-escapes, so the risk concentrates in `dangerouslySetInnerHTML` and raw `innerHTML`.
+
+**Finding — no live XSS.**
+- The app has exactly ONE `dangerouslySetInnerHTML` (`layout.tsx` NO_FLASH_THEME_SCRIPT) — a HARDCODED module
+  constant, zero user input (an eslint-disable comment documents this). Everything else renders through React's
+  auto-escaping.
+- The extension `content.js` (the live surface) escapes every user-controlled value (the LLM result text, error
+  strings) via `esc()` (escapes `&`/`<`/`>`) before `innerHTML`, and inserts them in TEXT-NODE context only
+  (never into an attribute, where `"`/`'` would matter) — so `esc()` is sufficient. The panel also lives in a
+  `mode:"closed"` Shadow DOM (defence in depth).
+- `popup.js` DOES build `innerHTML` with unescaped `${data?.error}` / `${tool.label}` — but it is DEAD (the
+  manifest no longer references it), so it cannot run. Not a live hole; it's a latent hygiene issue that is one
+  more reason to delete popup.html/js (already a pending founder keep-or-delete call).
+
 ---
-**Overall audit verdict (5 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, and SSRF all
-checked — no vulnerabilities found. The one thing worth a founder glance is the explicit-`SameSite` hardening
-note in the CSRF sweep (a one-line future-proofing, not a present hole). This complements the structural
-guarantees already enforced by the RLS audit and the invariant audit (CSV formula-safety, cross-person read
-gating, upload validation, no client-callable DEFINER tenant-param fns).
+**Overall audit verdict (6 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, SSRF, and XSS
+all checked — no live vulnerabilities. Two founder-glance items: the explicit-`SameSite` future-proofing (CSRF
+sweep) and deleting the dead `popup.*` (XSS-hygiene + already-flagged). This complements the structural
+guarantees enforced by the RLS audit and the invariant audit (CSV formula-safety, cross-person read gating,
+upload validation, no client-callable DEFINER tenant-param fns).
