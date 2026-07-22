@@ -3,6 +3,7 @@ import {
   detectHandoffSignal,
   stripHandoffSentinel,
   HANDOFF_SENTINEL,
+  buildCareSystemPrompt,
 } from "../prompt";
 
 /**
@@ -106,5 +107,50 @@ describe("handoff sentinel", () => {
   it("is a no-op on ordinary text (idempotent, safe when the token is absent)", () => {
     const plain = "Here's how to reset your password.";
     expect(stripHandoffSentinel(plain)).toBe(plain);
+  });
+});
+
+/**
+ * buildCareSystemPrompt — regression guard for F2 (founder, 2026-07-22): aiTone/aiResponseLength were loaded
+ * from care_tenant_config but never reached the prompt, so the settings silently did nothing (§A5 ripple gap /
+ * AMD-006 Layer-2). The fix appends buildToneLengthDirective. These tests fail loudly if that wiring is ever
+ * dropped again — and pin the per-setting output + the ordering contract (voice addendum must come AFTER the
+ * tone directive so voice's 1-sentence cap wins).
+ */
+describe("buildCareSystemPrompt — tone/length wiring (F2 regression guard)", () => {
+  it("ALWAYS reaches the prompt with a TONE & LENGTH section (the F2 fix)", () => {
+    expect(buildCareSystemPrompt({})).toContain("TONE & LENGTH");
+  });
+
+  it("defaults to warm + medium when unset (reproduces the prior baked-in baseline)", () => {
+    const p = buildCareSystemPrompt({});
+    expect(p).toContain("warm and empathetic");
+    expect(p).toContain("most replies are 1-4 sentences");
+  });
+
+  it("honors a non-default tone (formal replaces warm)", () => {
+    const p = buildCareSystemPrompt({ aiTone: "formal" });
+    expect(p).toContain("professional and precise");
+    expect(p).not.toContain("warm and empathetic");
+  });
+
+  it("honors a non-default length (short vs long)", () => {
+    expect(buildCareSystemPrompt({ aiResponseLength: "short" })).toContain("1-2 sentences");
+    expect(buildCareSystemPrompt({ aiResponseLength: "long" })).toContain("short paragraph is fine");
+  });
+
+  it("interpolates a custom agent name", () => {
+    expect(buildCareSystemPrompt({ agentName: "Dana" })).toContain("Dana");
+  });
+
+  it("injects the product-context string only when provided", () => {
+    expect(buildCareSystemPrompt({ productContext: "We sell widgets." })).toContain("We sell widgets.");
+    expect(buildCareSystemPrompt({})).not.toContain("We sell widgets.");
+  });
+
+  it("voice mode appends its addendum AFTER the tone directive (so the 1-sentence cap wins)", () => {
+    const p = buildCareSystemPrompt({ medium: "voice", aiResponseLength: "long" });
+    expect(p).toContain("VOICE MODE");
+    expect(p.indexOf("TONE & LENGTH")).toBeLessThan(p.indexOf("VOICE MODE"));
   });
 });
