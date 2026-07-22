@@ -11,7 +11,16 @@
 > exercise headlessly — **test the live `@file` picker, then merge.** Known limit: single-token query (a space
 > ends it); multi-word title search is a follow-up.
 >
-> ### ⬆️ 2026-07-22 — TEST COVERAGE PUSH (all on main): +90 tests, suite → ~1030 green
+> ### ⬆️ 2026-07-22 — REFACTOR CANDIDATE (minor, non-urgent): sales-prompt duplication
+> While adding coverage I found `speakerLabel` is **byte-identical** (same md5) across the sales-coach prompt
+> builders, and the transcript-assembly (`buildXUserMessage`: context header + `[n]` segment numbering) is
+> structurally **duplicated across ≥4 files** (salesMoments/Pivot/Intel/Score). Low severity, but a real drift
+> risk — a change to the transcript format must be made in 4 places. Candidate: extract one shared
+> `transcriptPromptParts()` helper. I did NOT refactor (touches 4 files; §1.5.2 "not a license to refactor
+> without explicit need" + surface-don't-overtake). The shared behavior IS tested (salesMomentsPrompt), so a
+> future consolidation would be low-risk.
+>
+> ### ⬆️ 2026-07-22 — TEST COVERAGE PUSH (all on main): +160 tests, suite → ~1099 green
 > Extension surface comprehensively covered (9 → 57 tests: pure/IO/auth-gate/worker/adapters/CORS-invariant/3
 > routes) + both public demo endpoints (soft-fail-never-500, F2 coach-leak). Plus regression guards for
 > previously-broken things: **F2** (aiTone/aiResponseLength must reach the prompt — had NO test), care/prompt
