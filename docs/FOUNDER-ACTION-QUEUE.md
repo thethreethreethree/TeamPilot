@@ -6,13 +6,19 @@
 > 1. **Merge `fix/sharp-cve-override`** — a real HIGH security fix (sharp/libvips CVE). ⚠️ Never run
 >    `npm audit fix --force` (it downgrades to Next 9.3.3 and breaks everything). All 4 branches are verified
 >    conflict-free — merge in any order.
-> 2. **Load-test the extension** — `chrome://extensions` → reload unpacked `extension/` → the 10-step checklist
->    in `extension/README.md`. The ONLY thing not verifiable headlessly. Tell me any step that fails.
+> 2. **Load-test the extension** — `chrome://extensions` → reload unpacked `extension/` → the **14-step** checklist
+>    in `extension/README.md`. The ONLY thing not verifiable headlessly. **NEW (2026-07-22): all 6 tools are now
+>    live** — per your "make them live," I built + wired Ask Coach, AI Co-pilot, Formulate C.A.R.E, and Spawn task
+>    (steps 10-13). Tell me any step that fails.
 > 3. **Merge the other 3 branches** after a quick look: `fix/file-mention-query-capture` (real bug: `@file`
 >    search was dead — live-test the picker), `fix/viewport-a11y-pwa-scale-lock` (WCAG — device-test),
 >    `refactor/shared-speaker-label` (behavior-preserving DRY).
-> 4. **Rule on A3 + the seat model** → unblocks the remaining extension tool endpoints (Coach/Co-Pilot/Formulate/
->    Spawn). A3 is sharpened: only *Spawn-task* touches the internal chain.
+> 4. **A3 — applied per-tool (done for now); one decision remains.** Coach/Co-Pilot/Formulate act on the EXTERNAL
+>    conversation (same class as Summarize/Dissect) → shipped un-gated. Spawn reaches into internal work → shipped
+>    §3.4-control-gated + returns a task DRAFT that is NOT persisted (§3.3). **The one remaining ruling:** do you
+>    want **one-click create-and-persist** from the extension (writing a task into the internal event chain from a
+>    surface that reads external conversations)? That's the governed write A3 named — left as an explicit follow-up
+>    for your yes/no. Also still open: the **seat model** (extensionAuth is tenant-wide vs agent-only).
 > 5. **CWS submission** (when ready): `node extension/store/build-store-package.mjs` → zip → upload; justifications
 >    + listing in `extension/store/CHROME-WEB-STORE-SUBMISSION.md`. **The package now passes every headlessly-checkable
 >    item on your `chrome-web-store-publishing.md` checklist** — valid MV3 JSON, no eval/remote code, all 3 declared

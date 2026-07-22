@@ -61,7 +61,11 @@ Everything server-side is verified (endpoints return 200 for a trial account; re
 | 7 | On a page, highlight text → **Read my selected text** | "Read N characters. Pick a tool." |
 | 8 | Click **Summarize** | Real summary renders |
 | 9 | Click **Dissect** | PROBLEM / ROOT CAUSE / OUTSIDE VIEW / GUIDING QUESTION render |
-| 10 | Open Gmail, open an email thread → **Read this email thread** | Reads the thread without highlighting |
+| 10 | Click **AI Co-pilot** | A drafted reply renders (copyable) with a "Move: …" reasoning note below it |
+| 11 | Click **Ask Coach** → paste a draft reply → **Run** | A classification badge + (if flagged) a book-cited suggested revision render |
+| 12 | Click **Formulate C.A.R.E** → type an intent → **Run** | A customer-ready reply renders from your intent |
+| 13 | Click **Spawn task** | A task draft (title + numbered steps) renders, or the month-1 "control window" note if your team is in its baseline |
+| 14 | Open Gmail, open an email thread → **Read this email thread** | Reads the thread without highlighting |
 
 If #10 (or any adapter) reads nothing, it falls back to manual selection by design — tell me which platform and
 I'll tighten that adapter's selectors (they're reasoned but not yet browser-confirmed).
@@ -86,7 +90,11 @@ Grounded in the actual architecture, so you can self-diagnose before pinging me.
 - **Reads selection + Summarize + Dissect** against live gated endpoints — server-side verified (200/401/402). ✅
 - **Per-site adapters** (10 platforms) — routing + extraction unit-tested; **live selectors untested per platform**. ✅ built / ⏳ verify
 - **One-click connect + silent refresh** — server-side verified; browser round-trip untested (checklist #6). ✅ built / ⏳ verify
-- **Ask Coach / Co-pilot / Formulate / Spawn task** — endpoints not built (blocked on the **A3** control-window decision); shown **SOON**. ⏳
+- **Ask Coach / Co-pilot / Formulate / Spawn task** — **now live** (2026-07-22, founder "make them live"). Text-in
+  mirrors of the in-app C.A.R.E tools, same engines/prompts (no drift). A3 applied per-tool: Coach/Co-pilot/
+  Formulate act on the EXTERNAL conversation → not control-gated; **Spawn** reaches into internal work → §3.4
+  control-gated (month-1 = a `{ suppressed }` note) and returns a task DRAFT only, not persisted (§3.3). ✅ built /
+  ⏳ verify. One-click create-and-persist from the extension (the governed write) is a flagged follow-up.
 - **One-click OAuth** (`launchWebAuthFlow`) — now largely unnecessary (the connect handoff works); available later if wanted. ⏳
 - Privacy policy: `/extension/privacy`. Icons are true per-size PNGs (16/48/128 px), LANCZOS-downscaled from the
   square logo master (2026-07-22 — they were previously all 1024² copies renamed, which rendered soft in the toolbar).
