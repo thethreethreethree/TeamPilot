@@ -1,5 +1,13 @@
 # Founder action queue — as of 2026-07-14
 
+> ### 🔀 4 ready-to-merge branches (2026-07-22) — all verified conflict-free
+> `git merge-tree` confirms all four merge into current `main` with **0 conflicts** — merge in any order:
+> - **`fix/sharp-cve-override`** — HIGH sharp/libvips CVE fix (dep bump; CI rebuilds native module). Do NOT run `npm audit fix --force`.
+> - **`fix/file-mention-query-capture`** — real bug fix: the `@file` autocomplete search was dead. Live-test the picker.
+> - **`fix/viewport-a11y-pwa-scale-lock`** — WCAG 1.4.4: pinch-zoom in browser + PWA-only scale lock. Device-test.
+> - **`refactor/shared-speaker-label`** — behavior-preserving DRY (extract shared `speakerLabel`).
+> They're behind `main` (I kept working on main after branching) but merge cleanly; each was verified in isolation.
+
 > ### ⬆️ 2026-07-22 — DEPENDENCY CVE: HIGH sharp/libvips fixed on a branch; 5 build-time low-risk remain
 > `npm audit` found `sharp <0.35.0` (Next's image optimizer) HIGH — libvips CVEs. **Fixed on branch
 > `fix/sharp-cve-override`** (npm override → sharp 0.35.3; `npm install` + `npm run build` both green). **DO NOT
