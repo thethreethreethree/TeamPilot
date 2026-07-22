@@ -9,7 +9,15 @@
 > 2. **Load-test the extension** — `chrome://extensions` → reload unpacked `extension/` → the **14-step** checklist
 >    in `extension/README.md`. The ONLY thing not verifiable headlessly. **NEW (2026-07-22): all 6 tools are now
 >    live** — per your "make them live," I built + wired Ask Coach, AI Co-pilot, Formulate C.A.R.E, and Spawn task
->    (steps 10-13). Tell me any step that fails.
+>    (steps 10-13). Tell me any step that fails. Adapters are fixed on live evidence, not guessed — **reload to pick
+>    up the WhatsApp fix** (it read empty on the live DOM → re-anchored). Per-platform status table is in the README;
+>    report any "Read this X" that reads empty and I re-anchor it. Full milestone record:
+>    [docs/closures/2026-07-22-care-extension-tools-live.md](closures/2026-07-22-care-extension-tools-live.md).
+> 2b. **Extension is now downloadable from the website** — `/extension/download` (Download button + install steps),
+>    linked from the Care settings nav + a "Get the extension" CTA on `/care/demo`. Package builds fresh on every
+>    deploy (prebuild). **+ Slack** added (11th platform). **Decision:** also add **WhatsApp Business** via Meta
+>    Business Suite (`business.facebook.com`)? — flagged, not built (didn't want to guess selectors under a
+>    different intent).
 > 3. **Merge the other 3 branches** after a quick look: `fix/file-mention-query-capture` (real bug: `@file`
 >    search was dead — live-test the picker), `fix/viewport-a11y-pwa-scale-lock` (WCAG — device-test),
 >    `refactor/shared-speaker-label` (behavior-preserving DRY).
