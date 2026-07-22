@@ -54,11 +54,6 @@ const DEBRIEF = {
     focus: "Lead with the problem, not the product.",
     why: "Your best moment (the handoffs question) is where the call turned. Start there next time instead of recovering to it.",
   },
-  scores: [
-    { category: "Discovery", note: "Weak open, strong recovery — one real question unlocked the actual pain." },
-    { category: "Rapport", note: "Labelling their concern kept a skeptical prospect in the conversation." },
-    { category: "Framing", note: "Value not yet tied to their stated problem — the next turn is where you do it." },
-  ],
 };
 
 const DISSECT = {
@@ -82,13 +77,14 @@ const COACH = {
   why: "You named her emotion ('drowning in tools') to make her feel heard, then replaced your pitch with a calibrated question. That's the move that turns a skeptic into a source. Graded against a competent-call standard — this beats it.",
 };
 
+// The real six skills from skillAnalytics.ts SKILL_LABELS (§3.4 — the readout must name the actual skills).
 const SKILLS = [
-  { name: "Discovery", score: 7, note: "One sharp question, late." },
+  { name: "Talk / Listen", score: 6, note: "Talked 62% early; recovered." },
+  { name: "Questions", score: 7, note: "One sharp question, late — but it landed." },
   { name: "Objection handling", score: 8, note: "Labelled, didn't argue." },
-  { name: "Listening", score: 6, note: "Talked 62% early; recovered." },
-  { name: "Framing", score: 5, note: "Value not yet tied to her problem." },
+  { name: "Tone", score: 8, note: "Stayed warm under a cold, skeptical open." },
+  { name: "Speed of speech", score: 7, note: "Even pace, no rushing." },
   { name: "Closing", score: null as number | null, note: "No ask yet — call still open." },
-  { name: "Rapport", score: 8, note: "Kept a cold prospect engaged." },
 ];
 
 type ToolKey = "cues" | "debrief" | "dissect" | "coach" | "skills";
