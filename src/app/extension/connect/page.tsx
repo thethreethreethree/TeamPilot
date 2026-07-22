@@ -83,8 +83,9 @@ export default function ExtensionConnectPage() {
         <p className="text-[11px] uppercase tracking-[0.2em] text-brand font-semibold mb-3">C.A.R.E Extension</p>
         <h1 className="text-2xl md:text-3xl font-bold text-primary leading-tight mb-2">Connect the extension</h1>
         <p className="text-sm text-secondary mb-8 leading-relaxed">
-          Copy the token below and paste it into the extension&apos;s <strong className="text-primary">Developer
-          connect</strong> field. (One-click sign-in is coming; this is the current connect step.)
+          When you open this page from the extension&apos;s <strong className="text-primary">Sign in</strong>{" "}
+          button, it connects automatically — you can close this tab and use the panel. If it didn&apos;t connect,
+          the token below is a manual fallback.
         </p>
 
         {state === "loading" && <p className="text-sm text-muted">Checking your session…</p>}

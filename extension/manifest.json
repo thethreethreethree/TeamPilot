@@ -9,8 +9,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "C.A.R.E",
+    "default_title": "C.A.R.E — open the panel",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
