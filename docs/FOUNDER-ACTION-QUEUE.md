@@ -30,6 +30,12 @@
 >    way; I'd lean delete to avoid two divergent copies of the tool logic.)
 > 4. **Google OAuth client** — now *optional*: the one-click connect handoff already gives seamless sign-in.
 >    Only needed if you want the fully-native `launchWebAuthFlow`. Give me a client ID if so.
+> 5. **DECIDE the extension's seat model (audit finding, not a bug).** The in-app Care gate (`careAgentAuth`)
+>    is **agent-only** (`is_support_agent` required). The extension gate (`extensionAuth`) is NOT — **any active
+>    member of an entitled (pro/trial) tenant can use it, including non-agents.** Not a data-leak (tools run on
+>    the user's OWN selected text, grounded only in their own tenant's product context). But it's a licensing
+>    choice with revenue impact: *tenant-wide* (current) vs *agent-only* (match in-app Care, one line to add).
+>    The demo positioned this for broad use, so tenant-wide may be intended — flagging so it's conscious.
 
 
 
