@@ -20,6 +20,19 @@
 >    mass-change 117 strings unilaterally (§2 — deliberate content, at scale, your domain).
 >
 > Full list: `grep -rnE "(whatItIs|why|how|category|subtitle)\s*[=:]\s*[\"'\`][^\"'\`]*§|=\{\`[^\`]*§" src/app src/components --include=*.tsx`.
+>
+> **Accurate breakdown of the ~117 (added after categorizing):**
+> - **~41 incidental chrome** — `category="Readout · §3.5"`, `category="Brain · §1.6"`, subtitle/label badges with
+>   a "· §X" suffix. SAME class as the 26 I already stripped (§ adds nothing to a category badge). If you choose
+>   "strip," these are the easy, uncontroversial ones — I do them consistently with the 26.
+> - **~75 deliberate teaching** — `whatItIs`/`why`/`how`/`principle` info-panel content that genuinely EXPLAINS the
+>   methodology to your team ("The §4 readout — the consequence-anchored measurement… per §3.5"). This is the real
+>   decision: it's valuable onboarding/teaching for the customer's own admins, BUT it also reveals the mechanism
+>   (Layer-2 IP concern — a customer who is/becomes a competitor sees how the method works). Keep (teaching value)
+>   vs strip (mechanism-privacy) is a genuine trade only you can weigh.
+> - **Middle option:** strip the 41 chrome suffixes now (cosmetic, consistent with the 26), keep the 75 teaching
+>   panels pending your Layer-2 call. Tell me which of the three and I execute it (as one reviewed sweep, not 117
+>   scattered edits).
 
 
 
