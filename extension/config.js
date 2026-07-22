@@ -4,8 +4,7 @@
 // into ONE persistent global scope per frame, and that scope survives across executeScript calls — so a bare
 // top-level `const` here would throw "already declared" on the SECOND injection and break the toggle. We instead
 // publish to globalThis behind an idempotency guard: safe to re-inject, and content.js reads these as bare
-// names (they resolve via the shared global). Also loaded as a normal <script> by the (now-unused) popup.html —
-// globalThis === window there, so that path still works.
+// names (they resolve via the shared global).
 
 if (!globalThis.__careConfigLoaded) {
   globalThis.__careConfigLoaded = true;
