@@ -219,3 +219,21 @@ a subtle break there is real money error, and tests don't always cover a direct-
 
 The ledger integrity is enforced at the correct layer (the database), not left to application code — no bug, and
 notably robust. Consistent with the invariant audit's finance-schema-reachable / RLS-scoped checks.
+
+## Data-integrity spot-check — the append-only event chain (§3.1, thesis-core)
+
+§3.1: "Everything is an event. Events are append-only. Never update or delete — append." This is the thesis's
+data foundation — if events could be mutated, retrospective identification (§1.2) and data-as-asset (§1.1) lose
+their guarantee. §0 read of the enforcement:
+
+**Finding — DB-enforced immutability across the whole chain:**
+- `events` (migration 0004): `events_no_update` + `events_no_delete` RULES (`on update/delete to events do
+  instead nothing`) — an UPDATE/DELETE literally cannot change or remove an event row.
+- `signals` and `problem_signals` (0002): same `*_no_update` / `*_no_delete` rules.
+- `decision_dialogues` (0003): an immutability TRIGGER (`check_dialogue_immutability`) raises on any change to
+  the user-authored fields (situation / user_diagnosis / user_proposal / system_engagement / suggestion).
+
+So the `events → signals → problems → resolutions` chain is immutable at the database layer — the constitution's
+§3.1 ("enforced, not requested") is literally true in the schema. Together with the finance ledger's balance
+enforcement above, the two highest-stakes data invariants (thesis integrity + money integrity) are both enforced
+at the correct layer (the DB), not left to application code.
