@@ -26,6 +26,9 @@
   }
 
   let currentSelection = "";
+  // Resolved from getApiBase() on each render(); used to link the Spawn draft back to the workspace so the tool
+  // doesn't dead-end (§1.5.1 workflow continuity). Safe default until the first render resolves it.
+  let apiBase = "https://elostate.com";
 
   // ── Shadow host ──────────────────────────────────────────────────────────────────────────────────────────
   const host = document.createElement("div");
@@ -328,7 +331,8 @@
       `<div class="ttitle">${esc(String(task.title || ""))}</div>` +
       `<div class="rnote">${esc(String(task.description || ""))}</div>` +
       (stepsHtml ? `<ol class="tsteps">${stepsHtml}</ol>` : "") +
-      `<div class="rnote">Draft only — open C.A.R.E to create and assign it.</div>`;
+      `<div class="rnote">Draft only — copy it, then finish creating it in C.A.R.E: ` +
+      `<a class="link" href="${esc(apiBase)}/dashboard/operations" target="_blank" rel="noopener noreferrer">Open C.A.R.E →</a></div>`;
     wireCopy(out, copyText);
   }
 
@@ -423,6 +427,7 @@
 
   async function render() {
     const base = await getApiBase();
+    apiBase = base;
     $("apiLabel").textContent = base.replace(/^https?:\/\//, "");
     const token = await getToken();
     if (token) {
