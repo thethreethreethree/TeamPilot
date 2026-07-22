@@ -26,7 +26,12 @@
 > HONEST — verified nothing writes the conversation to our DB or logs (only error metadata is logged, never content).
 >
 > ## 💱 FINANCE BUG — foreign-currency bills/invoices can hard-fail "UNBALANCED" (found 2026-07-23)
-> **Real, reachable, undocumented. HIGH for multi-currency users; ZERO if you only use your base currency.**
+> **Real bug, but LATENT today** — no finance create form exposes a currency picker, so foreign documents are
+> only reachable via direct DB/API calls right now; a normal user posts base-currency docs and never hits it. It
+> ACTIVATES the moment a foreign-currency entry point ships in the UI. So: **not an emergency, but fix it before
+> (or with) exposing multi-currency document entry.** (Same half-built feature also rejects foreign *settlement*
+> — a DB-booked foreign bill couldn't even be paid in-app. Multi-currency needs a completed increment before
+> exposure.)
 > `fin_lines_compute_base` rounds EACH line's base amount independently (`round(face × rate, 4)`), and
 > `fin_assert_balanced` requires the base totals to tie EXACTLY (no tolerance). Rounding doesn't distribute over
 > a sum, so a foreign entry that balances in its FACE currency can have base totals a cent apart and gets rejected.

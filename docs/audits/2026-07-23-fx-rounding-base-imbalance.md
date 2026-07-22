@@ -40,7 +40,19 @@ rate 1 → base = face.)
 — posted through `compute_base` + `fin_assert_balanced`. So **approving a foreign-currency bill with tax or
 multiple lines can hard-fail** for ~1-in-4 amount/rate combinations. Same path: foreign AR invoices
 (`fin_issue_invoice`), expense reports, and any manual foreign journal with split lines. It never affects
-single-currency (base) accounting, which is likely why it hasn't surfaced yet.
+single-currency (base) accounting.
+
+### LATENT today — not reachable via the current UI (refined 2026-07-23)
+
+`fin_bills.currency` (and invoice/expense currency) is a free `char(3)` with no base-currency restriction, so
+foreign documents CAN be booked at the DB/API layer. **But no finance create form exposes a currency picker** —
+the FX-rate *management* page (controls) lets you enter EUR→USD rates, yet nothing can be denominated in a
+foreign currency through the UI. So today this bug is reachable ONLY via direct DB/API calls; a normal user
+posts base-currency documents and never hits it. It becomes ACTIVE the moment a foreign-currency entry point
+ships in the UI. Net: **a real bug, currently latent behind an unbuilt entry path** — fix it before (or with)
+exposing multi-currency document entry, not as an emergency. Related latent gap in the same half-built feature:
+foreign settlement is explicitly rejected (0124/0132), so even a DB-booked foreign bill couldn't be paid in-app
+(a "book-but-can't-settle" dead-end) — another reason multi-currency needs a completed increment before exposure.
 
 ## Fix options (accounting decision — do NOT pick silently)
 
