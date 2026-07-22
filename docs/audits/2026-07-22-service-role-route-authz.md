@@ -155,6 +155,15 @@ project's OWN trusted config/CSS — not the runtime request path — so real-wo
 clean fix is a **Next patch update** when one lands; individual deep overrides risk breaking Next/Tailwind and
 aren't worth it for build-time-only tooling.
 
+**Version-remediation investigation (2026-07-22):** confirmed WHY overrides aren't the path — the HIGH ones need
+MAJOR-version bumps of deep transitive deps, i.e. breaking API changes to the packages that consume them:
+`fast-uri` 3.1.2 → 4.x (ajv's URI parser), `js-yaml` 4.1.1 → 5.x, `brace-expansion` → 5.x (glob/minimatch).
+Forcing those via overrides would risk breaking the consumers. Only `postcss` (next's bundled 8.4.31 → ^8.5.10)
+is a SAFE minor bump — but it's the low-severity build-time XSS, so not worth a standalone override. This is
+exactly why `npm audit fix --force` reaches for the Next 9.3.3 downgrade (no non-breaking patched set exists at
+Next 16.2.6). Recommendation stands: bump Next when a 16.x patch that carries newer transitive deps lands; until
+then these are accepted low-risk (build-time, trusted input).
+
 ---
 ## Ninth sweep — HTTP security headers (clickjacking / MIME / HSTS / CSP)
 
