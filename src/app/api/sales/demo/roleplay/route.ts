@@ -3,6 +3,7 @@ import { z } from "zod";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { generateCareReply } from "@/lib/claude";
+import { parseRoleplayReply, prospectOnlyFallback } from "@/lib/sales/parseRoleplayReply";
 
 /**
  * POST /api/sales/demo/roleplay — the REAL engine behind the /sales/demo "Practice on a live prospect"
@@ -46,25 +47,6 @@ const SYSTEM_PROMPT = `You are running a SALES-COACHING ROLEPLAY for a live prod
 Return ONLY compact JSON, no code fences, no prose around it:
 {"prospect": "<the prospect's in-character reply>", "cue": "<the one coach cue>"}`;
 
-function parseReply(text: string): { prospect: string; cue: string } | null {
-  const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) return null;
-  try {
-    const obj = JSON.parse(cleaned.slice(start, end + 1)) as {
-      prospect?: unknown;
-      cue?: unknown;
-    };
-    const prospect = typeof obj.prospect === "string" ? obj.prospect.trim() : "";
-    const cue = typeof obj.cue === "string" ? obj.cue.trim() : "";
-    if (!prospect) return null;
-    return { prospect, cue };
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(req: NextRequest) {
   const perMin = rateLimit(req, { id: "sales-demo-roleplay", windowMs: 60_000, max: 8 });
   if (perMin) return perMin;
@@ -85,19 +67,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const r = await generateCareReply({ systemPrompt: SYSTEM_PROMPT, userMessage });
-    const parsed = parseReply(r.text);
+    const parsed = parseRoleplayReply(r.text);
     if (!parsed) {
-      // The model answered but not as clean JSON. Still show the prospect line, but STRIP any
-      // "cue:"/"coach:" section so the coaching can never leak into the prospect's mouth (audit L2 fix).
-      const prospectOnly = r.text
-        .trim()
-        .split(/\n(?=\s*(?:cue|coach)\s*[:\-])/i)[0]
-        ?.replace(/^\s*(?:prospect|dana)\s*[:\-]\s*/i, "")
-        .trim();
-      return NextResponse.json({
-        prospect: (prospectOnly || "Sorry — say that again?").slice(0, 600),
-        cue: "",
-      });
+      // The model answered but not as clean JSON. Keep the prospect line, strip any cue/coach section
+      // so the coaching can never leak into the prospect's mouth (audit F2, unit-tested in the lib).
+      return NextResponse.json({ prospect: prospectOnlyFallback(r.text), cue: "" });
     }
     return NextResponse.json(parsed);
   } catch (err) {
