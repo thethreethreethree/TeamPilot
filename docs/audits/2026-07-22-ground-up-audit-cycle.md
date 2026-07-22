@@ -77,8 +77,19 @@ Rendered the real authenticated surfaces via a minted CDP session (see tooling b
   placeholder" banner). 15-tab bar is in an `overflow-x-auto` container (FinanceNav.tsx:46) — scrolls
   and stays reachable on mobile; `scrollWidth == viewport`, no body overflow.
 
-Net: the authed surfaces audited so far are well-built; only V4 surfaced. More surfaces pending
-(Care inbox/conversations, Sales Coach, Team, Problems, Living Diagnosis, Settings, Marketing preview).
+Net: the authed surfaces audited so far are well-built; only V4 surfaced.
+
+### batch 2 — all CLEAN
+- **/dashboard/marketing** — design preview, clearly labeled "illustrative, not derived" + "not wired
+  yet / NOT GA" (§3.4). Funnel, channels, campaigns render well.
+- **/dashboard/sales-coach** — "Your coaching, made visible"; start-session card + helped-with tiles.
+  Clean, focused single-action page.
+- **/dashboard/care** — "What the System noticed this week"; §3.6 auto-refresh, §A11-cited counts,
+  honest empty states. Clean.
+
+Overall authed finding rate is low — the surfaces the founder uses daily are solid. The cycle's bugs
+clustered in PUBLIC/marketing mobile polish (V1–V3) + one copy typo (V4). Still pending: Care
+conversations inbox detail, Patterns, Analytics, Team, Problems, Living Diagnosis, Settings sub-pages.
 
 ---
 
