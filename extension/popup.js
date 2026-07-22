@@ -88,8 +88,18 @@ async function runTool(tool) {
       result.innerHTML = `<div class="rlabel">${tool.label}</div>${data?.error || "Something went wrong."}`;
       return;
     }
-    // Summarize returns { summary }. Future tools return their own shapes — render the first string field.
-    const text = data.summary || data.reply || data.result || JSON.stringify(data, null, 2);
+    // Each tool returns its own shape. Render accordingly (§3.4 — show the real output, honest-empty).
+    let text;
+    if (data.dissect) {
+      const d = data.dissect;
+      text = d.hasSignal
+        ? `PROBLEM: ${d.problem?.statement || ""}\nWhy it matters: ${d.problem?.whyItMatters || ""}\n\n` +
+          `ROOT CAUSE: ${d.rootCause || ""}\n\nOUTSIDE VIEW: ${d.outsideView || ""}\n\n` +
+          `GUIDING QUESTION: ${d.guidingQuestion || ""}`
+        : "Not enough in the selected text to dissect a clear problem yet — select more of the conversation.";
+    } else {
+      text = data.summary || data.reply || data.result || JSON.stringify(data, null, 2);
+    }
     result.innerHTML = `<div class="rlabel">${tool.label}</div>${escapeHtml(text)}`;
   } catch {
     result.innerHTML = `<div class="rlabel">${tool.label}</div>Couldn't reach C.A.R.E. Check the API base URL in Settings, or your connection.`;

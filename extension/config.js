@@ -8,7 +8,7 @@ const DEFAULT_API_BASE = "https://elostate.com";
 // renders the others honestly as "coming" rather than faking them (§3.4).
 const CARE_TOOLS = [
   { key: "summarize", label: "Summarize", desc: "Catch up on the thread", endpoint: "/api/care/extension/summarize" },
-  { key: "dissect", label: "Dissect", desc: "Find the real problem", endpoint: null },
+  { key: "dissect", label: "Dissect", desc: "Find the real problem", endpoint: "/api/care/extension/dissect" },
   { key: "coach", label: "Ask Coach", desc: "Grade a draft vs the books", endpoint: null },
   { key: "copilot", label: "AI Co-pilot", desc: "Draft the reply + name the move", endpoint: null },
   { key: "formulate", label: "Formulate C.A.R.E", desc: "Shape your intent into a reply", endpoint: null },
