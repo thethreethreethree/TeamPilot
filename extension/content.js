@@ -297,6 +297,12 @@
   // to send it; if nothing needs improving, the affirmation is copyable so the panel always has a Copy target.
   function renderCoach(out, label, coach) {
     const cls = String(coach.classification || "");
+    // The classification goes into a CLASS ATTRIBUTE below. esc() escapes <&> but NOT quotes, so it is not
+    // sufficient for attribute context. The server validator already allowlists classification to these four,
+    // but the panel must not RELY on that gate for its own safety — map to a known suffix here so nothing
+    // unexpected can ever reach the attribute (defence in depth). The visible text still shows esc(cls).
+    const KNOWN_CLASS = new Set(["correct", "unclear", "unproductive", "negative"]);
+    const clsSuffix = KNOWN_CLASS.has(cls) ? cls : "";
     const imp = coach.needsImprovement && coach.improvement ? coach.improvement : null;
     const copyText = imp ? String(imp.suggestedRevision || "") : String(coach.affirmation || "Reads well — no change suggested.");
     let body = "";
@@ -312,7 +318,7 @@
     }
     out.innerHTML =
       `<div class="rhead"><span class="rlabel">${esc(label)}</span>` +
-      `<span class="cbadge cb-${esc(cls)}">${esc(cls || "reviewed")}</span>` +
+      `<span class="cbadge cb-${clsSuffix}">${esc(cls || "reviewed")}</span>` +
       `<button class="copybtn" id="copyResult">Copy</button></div>` + body;
     wireCopy(out, copyText);
   }
