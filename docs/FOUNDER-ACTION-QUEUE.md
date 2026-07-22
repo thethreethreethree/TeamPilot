@@ -1,5 +1,29 @@
 # Founder action queue — as of 2026-07-14
 
+> ### ⬆️ 2026-07-22 (latest) — C.A.R.E BROWSER EXTENSION: Phase 0 + unpacked build shipped; 3 things need you
+> Built + verified (spec `docs/feature-specs/CARE-BROWSER-EXTENSION.md`): the extension backend foundation
+> (entitlement D2 pro-or-trial, Bearer auth D3, ephemeral D1), an **unpacked Developer-mode extension** you
+> can load now (`extension/` — see its README), and **two working tools end-to-end: Summarize + Dissect**
+> (verified against the live gated endpoints: 401/402/200, plan reverted). Governed audit done: A1 (per-user
+> rate limit) + A2 (reject removed users) fixed.
+>
+> **YOUR ACTIONS / DECISIONS:**
+> 1. **RATIFY A3 (blocks Co-Pilot / Formulate / Ask-Coach).** Is the extension a product tool EXEMPT from the
+>    §3.4 month-1 control window (it runs on the user's EXTERNAL conversations, like C.A.R.E itself) — or
+>    must it be GATED like the in-app Co-Pilot? Summarize + Dissect I built ungated (a read + a diagnosis);
+>    the GENERATIVE tools are exactly what the control window gates, so I stopped rather than decide the core
+>    thesis for you. **I need your call before building the other three tool endpoints.**
+> 2. **Apply migration `0189`** (`npm run db:apply`) — additive, safe; enables the free trial. Until then the
+>    extension degrades to plan-only (pro/enterprise unlocks; others locked — verified).
+> 3. **Create a Google OAuth client** (Google Cloud console) so one-click sign-in (`launchWebAuthFlow`) works;
+>    until then the extension uses the dev token-paste connect (works, but manual). Give me the client ID and
+>    I'll wire it.
+>
+> Load it now: `chrome://extensions` → Developer mode → Load unpacked → the `extension/` folder. Set your
+> plan to `pro` (or apply 0189 + start a trial) to use it; paste a session token via Developer connect.
+
+
+
 > ### ⬆️ 2026-07-22 (later) — ROOT CAUSE of the recurring invisible-text bug FOUND + demo upgrades
 > **V7 — the big one.** The "invisible text" bug you kept catching (the honest-box, and others) was NOT
 > a component problem — it was a Tailwind CONFIG collision. A color named `base` collided with the core
