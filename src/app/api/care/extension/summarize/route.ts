@@ -4,6 +4,7 @@ import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { SUMMARIZE_SYSTEM } from "@/lib/care/toolPrompts";
+import { LlmError } from "@/lib/llm/errors";
 
 /**
  * POST /api/care/extension/summarize — Summarize, for the C.A.R.E browser extension
@@ -47,7 +48,15 @@ export async function POST(req: NextRequest) {
       userMessage: `Product context the agent is grounded in:\n${productContext}\n\nConversation:\n${body.conversation}\n\nWrite the summary.`,
     });
     return NextResponse.json({ summary: r.text.trim() });
-  } catch {
+  } catch (err) {
+    // A rate-limit from the model maps to 429 so the client backs off correctly
+    // (matching the spawn/coach/copilot/formulate routes); any other failure is a 502.
+    if (err instanceof LlmError) {
+      return NextResponse.json(
+        { error: err.message, kind: err.kind },
+        { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
+      );
+    }
     return NextResponse.json({ error: "Couldn't generate a summary right now." }, { status: 502 });
   }
 }
