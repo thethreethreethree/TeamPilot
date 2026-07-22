@@ -69,6 +69,16 @@ screen, powered by your C.A.R.E account.*
 **Screenshots (1280×800):** founder to capture — the panel open on a Gmail thread with a Summarize result is
 the strongest single shot. (At least one is required.)
 
+## 5b. Security hardening before Public (do at publish time)
+Once the extension has a **fixed published id**, pin it in the connect handoff. Today `/extension/connect?ext=<id>`
+auto-sends the user's session to whatever extension id is in the URL. Attack (high bar): a malicious extension
+that (a) is already installed and (b) declared `externally_connectable` for elostate.com could receive the token
+if a logged-in user is lured to a crafted `?ext=<attacker_id>` URL. Since a malicious installed extension is
+already a severe compromise, this is low marginal risk — but the fix is cheap and a reviewer may flag it:
+- After publishing, add the published extension id to an allowlist in `src/app/extension/connect/page.tsx`, and
+  only auto-send when `ext` matches (unknown ids → show the manual copy fallback instead of auto-sending).
+- The id is random for the unpacked dev build, so this can only be pinned once the store id exists.
+
 ## 6. Visibility
 Start **Unlisted** for beta (installable by direct link, no public search) until the load-test + a real-account
 run confirm it end-to-end; flip to **Public** after.
