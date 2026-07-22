@@ -88,8 +88,36 @@ Net: the authed surfaces audited so far are well-built; only V4 surfaced.
   honest empty states. Clean.
 
 Overall authed finding rate is low — the surfaces the founder uses daily are solid. The cycle's bugs
-clustered in PUBLIC/marketing mobile polish (V1–V3) + one copy typo (V4). Still pending: Care
-conversations inbox detail, Patterns, Analytics, Team, Problems, Living Diagnosis, Settings sub-pages.
+clustered in PUBLIC/marketing mobile polish (V1–V3) + one copy typo (V4).
+
+### batch 3 — all CLEAN
+- **/dashboard/problems** — §3.2 Understanding Gate honestly surfaced + DB-enforced; draft hypothesis
+  card. Clean.
+- **/dashboard/diagnose (Living Diagnosis)** — the 7-step constitutional loop (§1.1→§1.6/§3.2/§3.3)
+  with real signal data + gated advancement. Excellent.
+- **/dashboard/team**, **/dashboard/dissect** (my build; clean input state), **/dashboard/care/
+  conversations** (full agent workstation — the real C.A.R.E toolbar the /care/demo showroom mirrors;
+  §0 Read-Phase gate; Jeff→handoff thread). All clean/well-built.
+
+### mobile-overflow sweep (390px) — all CLEAN
+diagnose, problems, team, care/conversations, care/patterns, care/analytics, settings — every one
+`bodyOverflow: false` (scrollWidth == viewport). offCount>0 cases are contents inside `overflow-x-auto`
+scroll containers (tab bars / rows), not page breaks.
+
+### nav-link integrity — CLEAN
+Extracted every href from Sidebar + CommandPalette; all 29 resolve to real route files. (My earlier
+"/dashboard/living-diagnosis 404" was a wrong URL GUESS on my part — the nav correctly uses
+/dashboard/diagnose. Recorded honestly, not as a bug.)
+
+---
+
+## Cycle verdict (honest)
+Audited ~15 surfaces (3 public + 12 authed) at desktop + mobile, plus an overflow sweep and nav-link
+check. **The app core is genuinely well-built** — honest empty states, §-cited copy, responsive
+sidebar→hamburger, DB-enforced gates, faithful tool composition. The cycle's real defects were 5:
+F2 (dead Care voice setting), V1–V3 (public/marketing mobile visual), V4 (one typo) — all fixed +
+deployed. A low finding-rate here is credible because the search was deep (rendered + measured), not
+shallow. Cycle remains OPEN until the founder says STOP AUDIT CYCLE.
 
 ---
 
