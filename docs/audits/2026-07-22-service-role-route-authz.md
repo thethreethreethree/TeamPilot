@@ -237,3 +237,26 @@ So the `events → signals → problems → resolutions` chain is immutable at t
 §3.1 ("enforced, not requested") is literally true in the schema. Together with the finance ledger's balance
 enforcement above, the two highest-stakes data invariants (thesis integrity + money integrity) are both enforced
 at the correct layer (the DB), not left to application code.
+
+## Data-integrity spot-check — the Understanding Gate is structural (§3.2, the central discipline)
+
+§3.2: "A problem may NOT be surfaced until it links to a minimum threshold of supporting signals. The schema
+itself must prevent half-understood problems from reaching a human... encoded, not left to discretion." This is
+the constitution's CENTRAL mechanism — the structural interrupt against "confident, well-formed failure." §0
+verification:
+
+**Finding — enforced by a DB trigger, exactly as the constitution demands (migration 0002):**
+- `check_understanding_gate()` fires on a problem's status transition out of `draft`. It looks up the per-kind
+  thresholds (`problem_thresholds`: `min_signals` / `min_distinct_sources` / `min_diagnosis_chars`, with a `*`
+  default), counts the problem's supporting signals + distinct sources, and **`raise exception` if
+  `signal_count < min_signals`** — the database REFUSES to surface an under-supported problem.
+- `problems.status` is a CHECK-constrained lifecycle (`draft → surfaceable → surfaced → resolved/dismissed`);
+  the gate controls the draft→surfaceable transition. Application code "may attempt to surface a problem; the
+  database refuses if the gate is not satisfied" (0004's own words) — it cannot be bypassed by a confident agent
+  under pressure.
+
+So the three highest-stakes structural invariants are ALL enforced at the DB layer, not in application code:
+**§3.1 event-chain immutability** (rules), **§3.2 the Understanding Gate** (trigger + thresholds), and **finance
+ledger balance** (deferrable trigger). The constitution's repeated "structural, not discretionary" claim is
+literally true in the schema — which is the strongest possible evidence that the thesis is built, not merely
+documented.
