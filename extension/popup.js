@@ -74,8 +74,9 @@ async function runTool(tool) {
     });
     const data = await res.json().catch(() => ({}));
     if (res.status === 401) {
-      result.innerHTML = `<div class="rlabel">${tool.label}</div>Your session expired. Reconnect.`;
+      result.innerHTML = `<div class="rlabel">${tool.label}</div>Your session expired. Click Sign in to reconnect.`;
       await chrome.storage.local.remove("careToken");
+      clearBadge();
       setTimeout(init, 900);
       return;
     }
@@ -108,6 +109,14 @@ async function runTool(tool) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
+
+function clearBadge() {
+  try {
+    chrome.action.setBadgeText({ text: "" });
+  } catch {
+    /* action API may be unavailable in some contexts */
+  }
 }
 
 async function init() {
@@ -148,6 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("disconnectBtn").addEventListener("click", async () => {
     await chrome.storage.local.remove("careToken");
+    clearBadge();
     init();
   });
 
