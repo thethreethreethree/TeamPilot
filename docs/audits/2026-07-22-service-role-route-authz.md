@@ -70,3 +70,28 @@ leakage**.
 Net: the multi-tenant prompt-injection risk is architecturally contained (per-tenant context loading); the
 within-tenant risks are mitigated by grounding rules + Coach grading. No cross-tenant hole. Deeper adversarial
 red-teaming of within-tenant manipulation is a staging exercise (as the original flag noted), not a code defect.
+
+## Fourth sweep — CSRF on cookie-authed mutations
+
+63 API routes authenticate via the Supabase cookie session (`createServerClient` / `getCurrentCompanyId`).
+Cookie-authed state-changing routes are the classic CSRF target (a malicious site POSTing with the victim's
+session cookie).
+
+**Finding — mitigated, no explicit token needed:**
+- The auth cookie's options pass straight through from `@supabase/ssr` (server.ts / middleware.ts both do
+  `cookieStore.set(name, value, options)` with the library's options — no app override). `@supabase/ssr`'s
+  default is **`SameSite=Lax`**, which withholds the cookie on cross-site POST/PUT/DELETE/PATCH — exactly the
+  CSRF-relevant methods. A cross-site form/fetch to a mutation route therefore arrives unauthenticated.
+- The embeddable **widget and the browser extension use HEADER auth** (`x-care-session`, `Authorization:
+  Bearer`), which is inherently CSRF-immune — headers are never auto-attached on cross-site requests. This is
+  also why the widget doesn't need `SameSite=None` cookies (which would have re-opened CSRF).
+- Mutations are POST (not GET), so `SameSite=Lax`'s allowance of top-level GET navigation doesn't expose them.
+
+**Note (belt-and-suspenders, not a defect):** the protection relies on the library DEFAULT rather than an
+explicit app setting. If the founder wants it pinned against a future @supabase/ssr default change, set
+`sameSite: "lax"` explicitly in the cookie options — a one-line hardening, not a fix for a present hole.
+
+---
+**Overall audit verdict (4 sweeps):** service-role authz, LLM cost-abuse, prompt injection, and CSRF all
+checked; no vulnerabilities found. The one thing worth a founder glance is the explicit-SameSite hardening note
+above.
