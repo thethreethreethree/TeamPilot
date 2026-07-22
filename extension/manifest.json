@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "C.A.R.E — assist the conversation you're viewing",
+  "version": "0.1.0",
+  "description": "Summarize, Dissect, Coach and Co-Pilot the conversation on your screen, powered by your C.A.R.E account.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "C.A.R.E",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "http://localhost:4321/*",
+    "https://elostate.com/*"
+  ]
+}
