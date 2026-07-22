@@ -1,5 +1,25 @@
 # Founder action queue — as of 2026-07-14
 
+> ## 🚨 CRITICAL — the extension free trial NEVER STARTS (found 2026-07-22, breaks the sales funnel)
+> **Read this before sending the sales pitch.** The pitch promises "Start with a free trial," and the entitlement
+> code has full 14-day trial logic — but **nothing anywhere ever sets `extension_trial_started_at`.** Migration
+> 0189 adds the column with NO default ("null = no trial started"), and a codebase-wide search finds ZERO writes
+> to it. Result: a non-paid tenant is **permanently `locked`** — a new prospect installs, signs in, and hits a
+> dead "your plan doesn't include the extension" wall instead of a trial. The trial is dead code; the trigger was
+> never built. So today the extension only works for tenants you manually set to `pro`/`enterprise`.
+>
+> **This blocks selling** — send the pitch and prospects can't try it. Decision needed: **how should the trial
+> start?**
+>   1. **Auto-start on first use (recommended)** — the first time a non-paid tenant's extension checks entitlement,
+>      set `extension_trial_started_at = now()` and grant the 14 days. Seamless; matches the pitch. (~small, safe,
+>      guarded build: UPDATE only-if-null, non-paid-only, idempotent. One caveat: a tenant with no
+>      `care_tenant_config` row yet needs an upsert — I'll handle it.)
+>   2. **Explicit "Start your 14-day trial" button** — higher intent/consent, one more click.
+>   3. **Start on signup** — crudest; the clock runs whether or not they ever open the extension.
+>
+> **Tell me 1/2/3 and I'll build it immediately** — it's the prerequisite to the whole free-trial funnel. I did
+> NOT auto-implement because granting paid-feature access is a billing/funnel decision that's yours (§2).
+
 > ## ▶ START HERE — 2026-07-22 session actions, in priority order
 > A large hardening + audit session. Details are in the dated blocks below; here's what to DO, highest-value first:
 >
