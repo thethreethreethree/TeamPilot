@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: 8.5in 11in; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  :root {
+    --ink-950: #09090B; --ink-900: #18181B; --ink-800: #27272A; --ink-700: #3F3F46;
+    --ink-300: #D4D4D8; --ink-400: #A1A1AA; --white: #FAFAFA;
+    --ember: #FACC15; --ember-600: #CA8A04;
+  }
+  html { font-family: "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; }
+  body { color: var(--white); }
+  .page {
+    width: 8.5in; height: 11in; background: var(--ink-950); position: relative; overflow: hidden;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+  .pad { padding: 0.72in 0.7in; }
+
+  /* ── Hero ─────────────────────────────────────────── */
+  .eyebrow { color: var(--ember); font-size: 10.5px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; }
+  .brandrow { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
+  .bulb { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FDE047, var(--ember-600)); box-shadow: 0 0 22px rgba(250,204,21,0.45); }
+  .brandname { font-weight: 800; letter-spacing: 0.03em; font-size: 15px; }
+  .brandname .care { color: var(--ember); }
+
+  h1 { font-size: 51px; line-height: 1.02; font-weight: 800; letter-spacing: -0.02em; margin: 14px 0 0; }
+  h1 .amber { color: var(--ember); }
+  .lede { font-size: 15.5px; line-height: 1.55; color: var(--ink-300); max-width: 6.1in; margin-top: 20px; }
+  .lede b { color: var(--white); font-weight: 600; }
+
+  /* tool grid */
+  .tools { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 11px; margin-top: 34px; }
+  .tool { background: var(--ink-900); border: 1px solid rgba(255,255,255,0.08); border-radius: 13px; padding: 15px 15px 16px; }
+  .tool .tn { font-weight: 700; font-size: 13.5px; }
+  .tool .td { color: var(--ink-400); font-size: 11px; line-height: 1.4; margin-top: 4px; }
+  .tool .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--ember); margin-right:7px; vertical-align: middle; }
+
+  .stripe { margin-top: 30px; display: flex; gap: 26px; }
+  .stat .n { font-size: 27px; font-weight: 800; color: var(--ember); letter-spacing: -0.01em; }
+  .stat .l { font-size: 10.5px; color: var(--ink-400); margin-top: 2px; line-height: 1.35; max-width: 1.7in; }
+
+  .heroquote { position: absolute; left: 0; right: 0; bottom: 0; background: var(--ink-900); border-top: 1px solid rgba(250,204,21,0.25); padding: 22px 0.7in; }
+  .heroquote p { font-size: 14px; line-height: 1.5; color: var(--ink-300); }
+  .heroquote b { color: var(--white); }
+
+  /* ── Page 2 ─────────────────────────────────────────── */
+  .h2 { font-size: 27px; font-weight: 800; letter-spacing: -0.015em; }
+  .h2 .amber { color: var(--ember); }
+  .sub { color: var(--ink-400); font-size: 12.5px; margin-top: 7px; line-height: 1.5; max-width: 6in; }
+
+  .steps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 13px; margin-top: 22px; }
+  .step { border: 1px solid rgba(255,255,255,0.08); border-radius: 13px; padding: 16px; background: var(--ink-900); }
+  .step .num { width: 26px; height: 26px; border-radius: 50%; background: var(--ember); color: var(--ink-950); font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .step .st { font-weight: 700; font-size: 13px; margin: 11px 0 4px; }
+  .step .sd { color: var(--ink-400); font-size: 11px; line-height: 1.45; }
+
+  .why { margin-top: 30px; }
+  .whygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 26px; margin-top: 16px; }
+  .whyrow { display: flex; gap: 11px; align-items: flex-start; }
+  .check { color: var(--ember); font-weight: 800; font-size: 14px; line-height: 1.4; }
+  .whyrow .wt { font-size: 12.5px; line-height: 1.5; color: var(--ink-300); }
+  .whyrow .wt b { color: var(--white); font-weight: 600; }
+
+  .platforms { margin-top: 30px; padding: 18px 20px; background: var(--ink-900); border-radius: 13px; border: 1px solid rgba(255,255,255,0.07); }
+  .platforms .pl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-400); font-weight: 700; }
+  .platforms .pv { font-size: 13px; color: var(--white); margin-top: 9px; line-height: 1.7; font-weight: 600; }
+  .platforms .pv span { color: var(--ink-700); }
+
+  .cta { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 0.7in 30px; background: linear-gradient(180deg, transparent, rgba(250,204,21,0.06)); }
+  .ctarow { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .cta h3 { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+  .cta h3 .amber { color: var(--ember); }
+  .cta p { color: var(--ink-400); font-size: 12px; margin-top: 6px; }
+  .btn { background: var(--ember); color: var(--ink-950); font-weight: 800; font-size: 14px; padding: 13px 22px; border-radius: 11px; white-space: nowrap; }
+  .url { color: var(--ember); font-weight: 700; }
+  .foot { margin-top: 18px; font-size: 10px; color: var(--ink-700); }
+</style>
+</head>
+<body>
+
+  <!-- ══ PAGE 1 ══ -->
+  <section class="page">
+    <div class="pad">
+      <div class="brandrow">
+        <span class="bulb"></span>
+        <span class="brandname">ELOSTATE <span class="care">· C.A.R.E</span></span>
+      </div>
+
+      <p class="eyebrow">The C.A.R.E Browser Extension</p>
+      <h1>Bring an AI support coach to<br /><span class="amber">every conversation you already have.</span></h1>
+      <p class="lede">
+        Your agents don't work in one place — they work in Gmail, Slack, WhatsApp, and your help desk.
+        The C.A.R.E extension puts <b>six AI tools right on the page they're already looking at</b>: catch up on a
+        thread, find the real problem, draft the reply, and grade it against the world's best communication books —
+        <b>without switching apps or copy-pasting anything.</b>
+      </p>
+
+      <div class="tools">
+        <div class="tool"><div class="tn"><span class="dot"></span>Summarize</div><div class="td">Catch up on a long thread in one glance.</div></div>
+        <div class="tool"><div class="tn"><span class="dot"></span>Dissect</div><div class="td">Surface the real problem under the message.</div></div>
+        <div class="tool"><div class="tn"><span class="dot"></span>Ask Coach</div><div class="td">Grade a draft against the communication books.</div></div>
+        <div class="tool"><div class="tn"><span class="dot"></span>AI Co-Pilot</div><div class="td">Draft the reply — and name the move it made.</div></div>
+        <div class="tool"><div class="tn"><span class="dot"></span>Formulate</div><div class="td">Shape what you want to say into a clear reply.</div></div>
+        <div class="tool"><div class="tn"><span class="dot"></span>Spawn Task</div><div class="td">Turn a conversation into a tracked task.</div></div>
+      </div>
+
+      <div class="stripe">
+        <div class="stat"><div class="n">11</div><div class="l">platforms auto-detected — Gmail, Outlook, Slack, WhatsApp, Zendesk & more</div></div>
+        <div class="stat"><div class="n">0</div><div class="l">apps to switch to. It reads the page you point it at, nothing else.</div></div>
+        <div class="stat"><div class="n">1&nbsp;click</div><div class="l">to install, sign in, and start — no setup, no migration</div></div>
+      </div>
+    </div>
+
+    <div class="heroquote">
+      <p>&ldquo;It sits beside every agent and makes each of them faster, clearer, and sharper on the hard
+      conversations — <b>the ones that decide whether a customer stays.</b>&rdquo;</p>
+    </div>
+  </section>
+
+  <!-- ══ PAGE 2 ══ -->
+  <section class="page">
+    <div class="pad">
+      <p class="eyebrow">How it works</p>
+      <div class="h2">Live in <span class="amber">under a minute.</span></div>
+      <p class="sub">No IT project, no data migration. Your agents keep their existing inbox — the tools come to them.</p>
+
+      <div class="steps">
+        <div class="step"><div class="num">1</div><div class="st">Install &amp; sign in</div><div class="sd">Add the extension, click the icon, sign in with your C.A.R.E account. One click connects it.</div></div>
+        <div class="step"><div class="num">2</div><div class="st">Open any conversation</div><div class="sd">On an email, a Slack thread, a help-desk ticket — click "Read this conversation."</div></div>
+        <div class="step"><div class="num">3</div><div class="st">Run a tool</div><div class="sd">Summarize, draft, or coach the reply. Copy it in, send it — the agent stays in control.</div></div>
+      </div>
+
+      <div class="why">
+        <div class="h2">Not another chatbot. <span class="amber">A coach for your team.</span></div>
+        <div class="whygrid">
+          <div class="whyrow"><span class="check">✓</span><div class="wt"><b>Grades against real books.</b> Coach cites the actual communication masterworks — Never Split the Difference, Made to Stick, NVC — not generic "be nicer" tips.</div></div>
+          <div class="whyrow"><span class="check">✓</span><div class="wt"><b>Names the move.</b> Co-Pilot doesn't just draft — it tells the agent which technique it used, so they get better every week.</div></div>
+          <div class="whyrow"><span class="check">✓</span><div class="wt"><b>Never fabricates.</b> If it can't read the thread, it says so and asks — it never invents details or promises you can't keep.</div></div>
+          <div class="whyrow"><span class="check">✓</span><div class="wt"><b>Nothing is stored.</b> It processes the text you point it at to run the tool, then discards it. Your conversations stay yours.</div></div>
+        </div>
+      </div>
+
+      <div class="platforms">
+        <div class="pl">Works where your team already answers</div>
+        <div class="pv">Gmail <span>·</span> Outlook <span>·</span> Slack <span>·</span> WhatsApp <span>·</span> Instagram <span>·</span> Messenger <span>·</span> LinkedIn <span>·</span> Zendesk <span>·</span> Intercom <span>·</span> Gorgias <span>·</span> Front <span>·</span> <span style="color:var(--ink-400)">and any page, by selection</span></div>
+      </div>
+    </div>
+
+    <div class="cta">
+      <div class="ctarow">
+        <div>
+          <h3>See it on <span class="amber">your</span> support flow.</h3>
+          <p>Install it free and run every tool on a real conversation from your own inbox.</p>
+        </div>
+        <div class="btn">Get the extension →</div>
+      </div>
+      <div class="foot">elostate.com/extension/download &nbsp;·&nbsp; C.A.R.E — Customer Assistance &amp; Response Engine &nbsp;·&nbsp; © 2026 ELOSTATE</div>
+    </div>
+  </section>
+
+</body>
+</html>
