@@ -59,9 +59,36 @@ to right:444 (54px off-screen) and rendered clipped ("Req…acce"). Fixed: hide 
 mobile (`hidden sm:flex`/`sm:inline`), keep ThemeToggle + Request access (both hidden links →/login,
 same as the CTA). Verified: `npm run check` green + CDP re-render shows full CTA, 0 offenders.
 
+### V4 — "learning gapsname" missing space in Coach Assessment intro (LOW, Layer 4 copy) — FIXED `43036d01`
+Found by rendering the AUTHENTICATED page. JSX collapsed the literal space between a bold
+`<span>learning gaps</span>` and the following "name" → "gapsname". Fixed with explicit `{" "}`
+(the same paragraph already used that pattern one line up). Re-render confirms "learning gaps name".
+
+---
+
+## Authed dashboard visual audit (founder-chosen sweep) — batch 1
+Rendered the real authenticated surfaces via a minted CDP session (see tooling below):
+- **/dashboard (Command Center)** — desktop + mobile: CLEAN. Sidebar collapses to a hamburger on
+  mobile, metric tiles stack 2-up, PWA "Install Team Chat" banner is in-flow (no FAB overlap).
+- **/dashboard/care/coach-assessment** — my recent build; renders real data (letter grades D/C-,
+  learning gaps + book citations, trajectory sparkline). One copy bug (V4), fixed.
+- **/dashboard/care/growth ("Your work")** — my recent build; CLEAN, honest trajectory messaging.
+- **/dashboard/finance** — desktop + mobile: CLEAN + honest ($0.00 with an explicit "not a
+  placeholder" banner). 15-tab bar is in an `overflow-x-auto` container (FinanceNav.tsx:46) — scrolls
+  and stays reachable on mobile; `scrollWidth == viewport`, no body overflow.
+
+Net: the authed surfaces audited so far are well-built; only V4 surfaced. More surfaces pending
+(Care inbox/conversations, Sales Coach, Team, Problems, Living Diagnosis, Settings, Marketing preview).
+
 ---
 
 ## Reusable tooling (this session)
+- Authenticated headless render: no server auth-callback route exists, so mint a session via the
+  Supabase admin API (`/auth/v1/admin/generate_link` type=magiclink → `/auth/v1/verify` token_hash →
+  access+refresh tokens; the Auth API over HTTPS IS reachable even though direct Postgres is not),
+  build the `@supabase/ssr` 0.10.3 cookie (`sb-<ref>-auth-token` = `"base64-"+base64url(JSON.stringify(
+  session))`, chunked at 3180 into `.0/.1`), inject via CDP `Network.setCookie`, then navigate. Script:
+  `authshot.mjs` in scratchpad. Pass URL paths with `MSYS_NO_PATHCONV=1` (Git Bash mangles `/dashboard`).
 - `--window-size` headless screenshots are UNRELIABLE for mobile-viewport checks — they don't set a
   true CSS mobile viewport and produce phantom right-edge clipping (this caused the V1 false-positive).
 - Accurate method: drive Edge via CDP (`--remote-debugging-port=9222`), `Emulation.
