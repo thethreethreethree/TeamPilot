@@ -358,12 +358,18 @@
   }
 
   // Set the working text (from a manual selection or a per-site adapter) and reflect it in the UI.
+  // Cap manual selections at the same 20k the adapters (textFrom) and the server schema
+  // (z.string().max(20_000)) use — so highlighting a very long page truncates gracefully here instead of being
+  // sent whole and 400'd by the server (which the user would only see as "Something went wrong").
+  const SELECTION_MAX = 20000;
   function setSelection(text, note) {
-    currentSelection = (text || "").trim();
+    const trimmed = (text || "").trim();
+    const capped = trimmed.length > SELECTION_MAX;
+    currentSelection = capped ? trimmed.slice(0, SELECTION_MAX) : trimmed;
     const info = $("selInfo");
     if (info) {
       info.textContent = currentSelection
-        ? `Read ${currentSelection.length.toLocaleString()} characters. Pick a tool.`
+        ? `Read ${currentSelection.length.toLocaleString()} characters${capped ? " (trimmed to fit)" : ""}. Pick a tool.`
         : note || "Nothing selected — highlight the conversation on the page, then click again.";
     }
     root.querySelectorAll(".tool[data-endpoint]").forEach((b) => { b.disabled = !currentSelection; });
