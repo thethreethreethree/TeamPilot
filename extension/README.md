@@ -70,6 +70,27 @@ Everything server-side is verified (endpoints return 200 for a trial account; re
 If #10 (or any adapter) reads nothing, it falls back to manual selection by design — tell me which platform and
 I'll tighten that adapter's selectors (they're reasoned but not yet browser-confirmed).
 
+### Per-platform adapter status (the load-test asset)
+
+Each "Read this X" button relies on a DOM selector. Attribute/role anchors survive redesigns; exact class names
+are the fragile kind (that's what broke WhatsApp). Test each platform once; when one reads empty, send me the
+platform and I'll re-anchor it (WhatsApp is the worked example). A ⏳ that fails becomes a fix; a ⏳ that reads is
+promoted to ✅.
+
+| Platform | Host | Anchor | Robustness | Live status |
+|---|---|---|---|---|
+| WhatsApp | web.whatsapp.com | `[data-pre-plain-text]` | attribute | ✅ live-confirmed 2026-07-22 |
+| Gmail | mail.google.com | `.a3s` | class (long-stable) | ⏳ |
+| Outlook | outlook.* | `aria-label` + `role` | robust | ⏳ |
+| Instagram | instagram.com | `role=grid` + `dir=auto` | robust | ⏳ |
+| Messenger | messenger/facebook.com | `role=main` + `dir=auto` | robust | ⏳ |
+| Slack | app.slack.com | `.p-rich_text_section` | class (Slack-stable) | ⏳ |
+| LinkedIn | linkedin.com | `.msg-s-event-listitem__body` | class (fragile) | ⏳ |
+| Gorgias | *.gorgias.com | `data-testid` + class | attr + class | ⏳ |
+| Zendesk | *.zendesk.com | `[data-comment-body]` + class | attr + class | ⏳ |
+| Intercom | *.intercom.com | `[class*=…]` partial | partial-class | ⏳ |
+| Front | app.frontapp.com | `[class*=…]` partial | partial-class | ⏳ |
+
 ### Troubleshooting (symptom → why → what to do)
 Grounded in the actual architecture, so you can self-diagnose before pinging me.
 
