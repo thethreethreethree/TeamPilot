@@ -118,10 +118,14 @@ export function InstallPrompt({
 
   if (installed || dismissed) return null;
 
+  // Both banner branches below sit at bottom-24, NOT bottom-4: they must clear the ~72px global
+  // FAB zone (Care chat bottom-4 right-4 + Feedback pill bottom-4 right-20, z-55/z-60). Those FABs
+  // are above this z-50 banner and were rendering over the "Not now" button on both breakpoints
+  // (audit V2 2026-07-22).
   // iOS Safari path — no native event, so link to the manual walkthrough.
   if (!deferred && isIos) {
     return (
-      <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:max-w-sm z-50 glass-card p-4 border border-ember-400/40 shadow-glow mb-[env(safe-area-inset-bottom)]">
+      <div className="fixed bottom-24 left-4 right-4 md:left-auto md:right-6 md:bottom-24 md:max-w-sm z-50 glass-card p-4 border border-ember-400/40 shadow-glow mb-[env(safe-area-inset-bottom)]">
         <div className="flex items-start gap-3">
           <Download
             className="w-4 h-4 text-brand mt-0.5 flex-shrink-0"
@@ -177,7 +181,7 @@ export function InstallPrompt({
   if (!deferred) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:max-w-sm z-50 glass-card p-4 border border-ember-400/40 shadow-glow mb-[env(safe-area-inset-bottom)]">
+    <div className="fixed bottom-24 left-4 right-4 md:left-auto md:right-6 md:bottom-24 md:max-w-sm z-50 glass-card p-4 border border-ember-400/40 shadow-glow mb-[env(safe-area-inset-bottom)]">
       <div className="flex items-start gap-3">
         <Download
           className="w-4 h-4 text-brand mt-0.5 flex-shrink-0"
