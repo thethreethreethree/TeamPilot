@@ -44,6 +44,16 @@
 > non-base currency? If yes, this needs the rounding-difference fix before they hit it.** (If you're base-only
 > for now, it's latent — but it will bite the first multi-currency customer.)
 >
+> ## ⏱️ BEFORE-YOU-SCALE (low priority) — the rate limiter is per-lambda on Vercel (found 2026-07-23)
+> `src/lib/api/rateLimit.ts` is an IN-MEMORY sliding-window limiter — its own comment says "sufficient for
+> single-instance; for horizontally-scaled deployments, swap for Redis." **Vercel is horizontally scaled**, so the
+> extension's paid-LLM rate limits (30/min coach, 20/min others; the pre-auth flood guard) are effectively
+> per-lambda, not per-user-global — under concurrent load a user can exceed them N×. **Accurately scoped:** this
+> is a SECONDARY guard; the PRIMARY cost control is the entitlement gate (only paid/trial tenants reach the LLM at
+> all), so it's bounded abuse by a paying customer, NOT an open-to-the-world cost hole. Fine at launch/low scale;
+> before scaling the paid extension, swap to a distributed limiter (Upstash Redis is the usual Vercel choice). No
+> fail-open risk (in-memory can't error). Low priority, conscious-decision item — not a blocker.
+>
 > ## 🚨 CRITICAL — the extension has NO entitlement write-path: it's LOCKED for every tenant (found 2026-07-22)
 > **Read this before selling — it's why the extension can't launch yet.** `computeExtensionEntitlement` unlocks a
 > tenant only if `care_tenant_config.plan` ∈ {pro, enterprise} OR `extension_trial_started_at` is within 14 days.
