@@ -25,6 +25,20 @@
 > (pass a provider override through `generateCareReply` for the extension routes). The storage claim itself is
 > HONEST — verified nothing writes the conversation to our DB or logs (only error metadata is logged, never content).
 >
+> ## 💱 FINANCE BUG — foreign-currency bills/invoices can hard-fail "UNBALANCED" (found 2026-07-23)
+> **Real, reachable, undocumented. HIGH for multi-currency users; ZERO if you only use your base currency.**
+> `fin_lines_compute_base` rounds EACH line's base amount independently (`round(face × rate, 4)`), and
+> `fin_assert_balanced` requires the base totals to tie EXACTLY (no tolerance). Rounding doesn't distribute over
+> a sum, so a foreign entry that balances in its FACE currency can have base totals a cent apart and gets rejected.
+> **Proof:** rate 1.0001, Dr 0.87 + Dr 1.50 = Cr 2.37 → base_dr 2.3703 vs base_cr 2.3702 → UNBALANCED. An
+> exact-arithmetic sweep shows **~25%** of split-line foreign entries diverge. Reachable via `fin_approve_bill`
+> (foreign bill w/ tax or multiple lines), foreign AR invoices, expense reports, manual foreign journals.
+> **Full analysis + fix options: `docs/audits/2026-07-23-fx-rounding-base-imbalance.md`.** The fix is an
+> ACCOUNTING decision (a named "FX Rounding" residual line is recommended — matches your 0169 "don't plug
+> silently" philosophy), so it's flagged, not built. **Decide: do any target customers invoice/bill in a
+> non-base currency? If yes, this needs the rounding-difference fix before they hit it.** (If you're base-only
+> for now, it's latent — but it will bite the first multi-currency customer.)
+>
 > ## 🚨 CRITICAL — the extension has NO entitlement write-path: it's LOCKED for every tenant (found 2026-07-22)
 > **Read this before selling — it's why the extension can't launch yet.** `computeExtensionEntitlement` unlocks a
 > tenant only if `care_tenant_config.plan` ∈ {pro, enterprise} OR `extension_trial_started_at` is within 14 days.
