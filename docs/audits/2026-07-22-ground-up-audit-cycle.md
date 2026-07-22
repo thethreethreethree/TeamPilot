@@ -138,6 +138,23 @@ shallow. Cycle remains OPEN until the founder says STOP AUDIT CYCLE.
 
 ---
 
+### V5 — Global FABs leaked into the customer-facing embedded widget (MED-HIGH, Layer 3/4) — FIXED `8195046d`
+Rendering the real customer widget (`/widget/care/[embedToken]`) showed ELOSTATE's global Feedback
+button + Jeff chat FAB rendering ON the embed. `/widget/layout.tsx` intends a clean shell but can't
+escape the root layout, and the FABs' hide-lists covered `/dashboard` + landing but NOT `/widget`.
+On a customer's own site that means a DUPLICATE chat bubble over the support widget + a "Feedback"
+button routing to ELOSTATE's `/login` (internal chrome leaking to a prospect's end-users). Fix:
+exclude `/widget` in both (`WIDGET_HIDDEN_PREFIXES` += "/widget"; `pathname.startsWith("/widget")`
+guard in FeedbackButton). Verified by CDP: 0 FABs on the widget URL. **This is the highest-severity
+find of the cycle — it's on the actual product customers embed.** The under-audited surface paid off.
+
+Note: the widget's own "Couldn't load the widget" state in my local render is EXPECTED (the tenant's
+`allowed_origins` is `[]` and I loaded from localhost in production mode → origin correctly rejected),
+not a bug. The widget's internal chat UI couldn't be fully rendered locally without mutating a live
+tenant's `allowed_origins` (declined — real data). Deferred as a code-level review target.
+
+---
+
 ## Open — founder decision
 
 ### A2 — Pre-auth chrome density on /login (LOW, product) — DECISION
