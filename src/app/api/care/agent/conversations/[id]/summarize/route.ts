@@ -9,6 +9,7 @@ import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { getExperienceMode } from "@/lib/experience/mode";
+import { SUMMARIZE_SYSTEM } from "@/lib/care/toolPrompts";
 
 /**
  * POST /api/care/agent/conversations/[id]/summarize
@@ -22,23 +23,11 @@ import { getExperienceMode } from "@/lib/experience/mode";
  * Per §A11 the summary surfaces facts (what was asked, what was
  * tried, what's still open), not verdicts ("the customer is
  * unreasonable" etc.).
+ *
+ * The system prompt now lives in @/lib/care/toolPrompts (SUMMARIZE_SYSTEM) so the browser-extension
+ * summarize endpoint runs the identical prompt — no drift between the two surfaces (§3.4).
  */
-const SYSTEM = `You are summarizing a customer support conversation for an agent who is about to step in. Write a 3-5 sentence read of the thread that helps the agent catch up fast.
-
-Cover, in order:
-  1. What the customer is asking for / what they're stuck on
-  2. What's already been tried or said (briefly)
-  3. What's still open or unresolved
-  4. If relevant: tone or urgency cues the agent should know about
-
-Constraints:
-  - Plain prose, no bullets, no markdown
-  - Don't invent details that aren't in the conversation
-  - Be specific (names, dates, dollar amounts) when the thread has them
-  - Don't editorialize about the customer's character or competence
-  - 3-5 sentences total. No fluff.
-
-If the conversation is too short to need a summary (≤2 messages), say so plainly in one sentence.`;
+const SYSTEM = SUMMARIZE_SYSTEM;
 
 // LLM route: allow a longer LLM/stream budget than Vercel's short default (class-swept
 // 2026-07-09 — 50e4ba1 declared maxDuration on finalize/summarize only; this closes the class).

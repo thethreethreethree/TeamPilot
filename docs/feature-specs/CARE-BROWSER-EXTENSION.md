@@ -141,6 +141,22 @@ Make the tools cooperate and feed the tenant's compounding memory.
 
 ---
 
+## 4b. Chrome Web Store compliance (per chrome-web-store-publishing.md)
+
+Baked into the build from Phase 0, not discovered at submission:
+- **Minimal permissions.** Manifest requests only `activeTab`, `scripting`, `identity`, `storage`. Per-site
+  host permissions (for adapters) are **`optional_permissions`** the user grants when enabling that adapter —
+  never broad `<all_urls>` up front. Fewer permissions = faster review, fewer rejections.
+- **Single-purpose statement:** "C.A.R.E — AI assistance for the conversation you're working on." One narrow
+  purpose; do not describe it as a multi-tool grab-bag in the listing.
+- **No remotely-hosted code / no `eval`/`new Function`** (MV3 CSP) — everything is bundled by Vite+CRXJS. API
+  calls (data, not code) to the C.A.R.E backend are fine.
+- **Privacy policy URL (required — we process conversation text).** Add a public `/extension/privacy` page in
+  the app stating the D1 ephemeral policy: scanned text is processed to generate assistance and is NOT stored
+  unless the user explicitly saves a resolution. Data-usage disclosure certified accordingly.
+- **Distribution:** ship **Unlisted** first (direct-link beta), then Public once stable.
+- **Version discipline:** semver; every upload bumps `version`.
+
 ## 5. Cross-cutting requirements (apply to every phase)
 
 - **Security:** the server enforces auth + entitlement on every call; the client is never trusted (same
