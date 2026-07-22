@@ -39,9 +39,31 @@ header, §1.5).
 Use CDP `Emulation.setDeviceMetricsOverride` + `Page.captureScreenshot` (scripts in scratchpad:
 `measure.mjs` finds overflow offenders, `shot.mjs` captures an accurate device render).
 
+### V2 — PWA install banner overlapped by global FABs (MED, Layer 4) — FIXED `ea33421d`
+The `InstallPrompt` banner (both native-deferred + iOS branches) was `fixed bottom-4 z-50`. The two
+global FABs — Care chat (`bottom-4 right-4 z-55`) + Feedback pill (`bottom-4 right-20 z-60`) — share
+that bottom row at higher z, so they rendered on top of the banner and covered its own "Not now"
+dismiss button, on **both** mobile and desktop (verified by CDP first-viewport render). Fixed: raised
+both branches to `bottom-24` to clear the ~72px FAB zone. Desktop fully clean; mobile FAB overlap
+gone. Residual mobile tradeoff (banner overlays lower part of the login CTA on short pages) folded
+into decision A2.
+
+Note: the native-deferred branch (what fires in Chromium) needed a separate edit — its class string
+differed from the iOS branch, so the first `replace_all` only caught one. Caught by re-rendering and
+seeing no change (§2 — a fix that doesn't change the result means the identification was incomplete).
+
 ---
 
 ## Open — founder decision
+
+### A2 — Pre-auth chrome density on /login (LOW, product) — DECISION
+On the mobile login page a first-time visitor sees the login form + the PWA install banner + the
+Feedback FAB + the Care/Jeff chat FAB — four competing pieces of chrome, three of them bottom-anchored.
+V2 stopped them overlapping, but the density itself is a product question. Notably the Feedback FAB
+pre-auth just routes to /login (per its own comment), so it does little before login. Options:
+(a) hide the PWA install prompt + Feedback FAB on auth pages (keep Jeff, who a prospect might use);
+(b) keep all, accept current stacking; (c) keep install + Jeff, drop Feedback pre-auth (recommended).
+Not decided unilaterally — §3.3.
 
 ### A1 — Per-company `llm_provider_preference` is a dead setting (LOW, §3.4) — DECISION
 Settings → "Preferred provider for this company" writes `companies.llm_provider_preference`, but
