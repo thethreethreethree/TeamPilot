@@ -13,7 +13,7 @@ chrome.action.onClicked.addListener(async (tab) => {
   try {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ["config.js", "content.js"],
+      files: ["config.js", "adapters.js", "content.js"],
     });
   } catch (e) {
     // Injection blocked on this page — nothing we can do; the panel just won't open here.

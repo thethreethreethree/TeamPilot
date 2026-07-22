@@ -62,6 +62,9 @@
       font-size:14px; padding:11px; cursor:pointer; transition:background .12s; }
     .primary:hover { background:#EAB308; }
     .primary:disabled { opacity:.5; cursor:default; }
+    .ghost { width:100%; margin-top:8px; border:1px solid rgba(255,255,255,0.14); border-radius:10px;
+      background:transparent; color:#e4e4e7; font-weight:600; font-size:12.5px; padding:9px; cursor:pointer; }
+    .ghost:hover { background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.24); }
     .selinfo { font-size:11px; color:#a1a1aa; margin:10px 2px 4px; line-height:1.45; }
     .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
     .tool { text-align:left; border:1px solid rgba(255,255,255,0.09); border-radius:10px; background:rgba(255,255,255,0.02);
@@ -229,16 +232,30 @@
     }
   }
 
-  function readSelection() {
-    currentSelection = (window.getSelection ? window.getSelection().toString() : "").trim();
+  // Set the working text (from a manual selection or a per-site adapter) and reflect it in the UI.
+  function setSelection(text, note) {
+    currentSelection = (text || "").trim();
     const info = $("selInfo");
     if (info) {
       info.textContent = currentSelection
-        ? `Selected ${currentSelection.length.toLocaleString()} characters. Pick a tool.`
-        : "Nothing selected — highlight the conversation on the page, then click again.";
+        ? `Read ${currentSelection.length.toLocaleString()} characters. Pick a tool.`
+        : note || "Nothing selected — highlight the conversation on the page, then click again.";
     }
-    // enable/disable the tool buttons that need a selection
     root.querySelectorAll(".tool[data-endpoint]").forEach((b) => { b.disabled = !currentSelection; });
+  }
+
+  function readSelection() {
+    setSelection(window.getSelection ? window.getSelection().toString() : "", null);
+  }
+
+  // Per-site adapter: pull the open conversation from the DOM. Empty result → tell the user to select manually
+  // (§3.4 — never fabricate; degrade to the universal path).
+  function readAdapter(adapter) {
+    const text = adapter.extract();
+    setSelection(
+      text,
+      `Couldn't auto-read this ${adapter.label} — highlight it on the page and use “Read my selected text”.`
+    );
   }
 
   // ── Views ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -249,17 +266,26 @@
       return `<button class="tool" data-i="${i}" ${t.endpoint ? 'data-endpoint="1"' : ""} ${dis}>
         <span class="t-label">${esc(t.label)}${soon}</span><span class="t-desc">${esc(t.desc)}</span></button>`;
     }).join("");
+    // On a known platform, offer one-click "Read this <thread>" (adapter); everywhere else, selection only.
+    const adapter = typeof careAdapterFor === "function" ? careAdapterFor(location.hostname) : null;
+    const adapterBtn = adapter
+      ? `<button class="primary" id="readAdapterBtn">Read this ${esc(adapter.label)}</button>
+         <button class="ghost" id="readSelBtn">Read my selected text instead</button>`
+      : `<button class="primary" id="readSelBtn">Read my selected text</button>`;
     $("body").innerHTML = `
-      <div class="consent">We only read the text you have <b>selected</b> on the page. It's processed to help you and <b>not stored</b>.</div>
-      <button class="primary" id="readSelBtn">Read my selected text</button>
-      <div class="selinfo" id="selInfo">Highlight a conversation on the page, then click above.</div>
+      <div class="consent">We only read the ${adapter ? "conversation you point us at" : "text you have <b>selected</b>"} on the page. It's processed to help you and <b>not stored</b>.</div>
+      ${adapterBtn}
+      <div class="selinfo" id="selInfo">${adapter ? `Click above to read the open ${esc(adapter.label)}, or highlight part of it.` : "Highlight a conversation on the page, then click above."}</div>
       <div class="grid">${grid}</div>
       <div class="result hide" id="result"></div>`;
+    if (adapter) $("readAdapterBtn").addEventListener("click", () => readAdapter(adapter));
     $("readSelBtn").addEventListener("click", readSelection);
     root.querySelectorAll(".tool").forEach((btn) => {
       btn.addEventListener("click", () => runTool(CARE_TOOLS[Number(btn.dataset.i)]));
     });
-    readSelection();
+    // Start empty on adapter sites (the user chooses which to read); on generic sites, seed from any selection.
+    if (adapter) setSelection("", `Click above to read the open ${adapter.label}, or highlight part of it.`);
+    else readSelection();
   }
 
   function connectView() {
