@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { PwaScaleLock } from "@/components/pwa/PwaScaleLock";
 import { FeedbackButton } from "@/components/feedback/FeedbackButton";
 import { CareChatWidget } from "@/components/care/CareChatWidget";
 import { ToastProvider } from "@/components/ui/toast";
@@ -94,19 +95,20 @@ export const metadata: Metadata = {
 // Viewport themeColor reacts per-mode so the mobile chrome (Android URL bar,
 // PWA shell) matches the active surface.
 //
-// PWA scale lock: maximumScale=1 + userScalable=false. iOS PWA standalone
-// mode honors these — pinch-zoom is disabled, and tapping into an input
-// no longer auto-zooms the viewport. This is the expected feel for a
-// PWA (native apps don't pinch-zoom). The textarea text-base (16px) fix
-// in the composer prevents iOS's input auto-zoom on the SAFARI browser
-// tab side, where Apple ignores userScalable=no for accessibility.
-// Together: PWA = locked; browser tab = inputs sized so no auto-zoom
-// fires, but the user can still pinch-zoom for a11y if they need to.
+// Viewport zoom is ALLOWED here (WCAG 1.4.4). Earlier this set maximumScale=1 +
+// userScalable=false globally to get a native-app feel — but that also blocks
+// pinch-zoom in the browser, which locks out low-vision users. (Contrary to the
+// old comment here: Android Chrome HONORS user-scalable=no, so it was a real
+// accessibility defect on the open web, not just an iOS-ignored hint.) iOS input
+// auto-zoom is separately prevented by 16px input sizing, so we don't need the
+// lock for that. The native-app scale lock is re-applied at runtime ONLY in an
+// installed PWA (standalone display-mode) by <PwaScaleLock/> — locked where it
+// belongs, zoomable everywhere else.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   // viewport-fit=cover lets the PWA render edge-to-edge on iOS so the
   // env(safe-area-inset-*) CSS variables become available. We use the
   // bottom inset to keep horizontal-scroll touch targets above the
@@ -137,6 +139,8 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-base text-primary antialiased">
+        {/* Re-applies the native scale lock ONLY in an installed PWA; the browser stays WCAG-zoomable. */}
+        <PwaScaleLock />
         <ThemeProvider>
           {/* ToastProvider here (in addition to dashboard layout) so the
               feedback button — which needs toast — works on public pages
