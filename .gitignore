@@ -43,3 +43,6 @@ extension/store/*.zip
 
 # Extension download package — built fresh by prebuild (scripts/build-extension-download.mjs)
 public/care-extension.zip
+
+# Transient screenshots pasted into .claude/ (not project assets)
+.claude/*.png
