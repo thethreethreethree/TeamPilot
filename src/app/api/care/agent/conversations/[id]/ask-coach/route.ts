@@ -8,11 +8,8 @@ import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { analyzeCoachV5 } from "@/lib/claude";
 import { buildSystemPrompt, buildUserMessage } from "@/lib/coach/v5/prompt";
 import { loadCoachMemory, renderMemoryForPrompt } from "@/lib/coach/v5/memory";
+import { validateCoachAnalysis } from "@/lib/coach/v5/validateAnalysis";
 import { LlmError } from "@/lib/llm/errors";
-import type {
-  CoachAnalysisResponse,
-  CoachClassification,
-} from "@/lib/coach/v5/types";
 
 /**
  * POST /api/care/agent/conversations/[id]/ask-coach
@@ -46,96 +43,6 @@ const Body = z.object({
   draft: z.string().min(1).max(8000),
   mode: z.enum(["auto", "ask", "review_sent"]).default("ask"),
 });
-
-const VALID_CLASSIFICATIONS = new Set<CoachClassification>([
-  "correct",
-  "unclear",
-  "unproductive",
-  "negative",
-]);
-
-function validateResponse(parsed: unknown): CoachAnalysisResponse | null {
-  if (typeof parsed !== "object" || parsed === null) return null;
-  const r = parsed as Record<string, unknown>;
-  if (
-    typeof r.classification !== "string" ||
-    !VALID_CLASSIFICATIONS.has(r.classification as CoachClassification)
-  ) {
-    return null;
-  }
-  if (typeof r.needsImprovement !== "boolean") return null;
-  if (!Array.isArray(r.conversationStarters)) return null;
-  const starters: string[] = [];
-  for (const s of r.conversationStarters) {
-    if (typeof s === "string" && s.length > 0 && s.length <= 200) {
-      starters.push(s);
-    }
-  }
-  const response: CoachAnalysisResponse = {
-    classification: r.classification as CoachClassification,
-    needsImprovement: r.needsImprovement,
-    conversationStarters: starters.slice(0, 3),
-  };
-  if (typeof r.affirmation === "string" && r.affirmation.length <= 600) {
-    response.affirmation = r.affirmation;
-  }
-  if (r.needsImprovement) {
-    const imp = r.improvement;
-    if (typeof imp !== "object" || imp === null) return null;
-    const i = imp as Record<string, unknown>;
-    if (
-      typeof i.suggestedRevision !== "string" ||
-      i.suggestedRevision.length === 0 ||
-      i.suggestedRevision.length > 4000 ||
-      typeof i.whyContext !== "string" ||
-      i.whyContext.length === 0 ||
-      i.whyContext.length > 800 ||
-      typeof i.whySentence !== "string" ||
-      i.whySentence.length === 0 ||
-      i.whySentence.length > 800
-    ) {
-      return null;
-    }
-    const principle = i.principleCited;
-    if (typeof principle !== "object" || principle === null) return null;
-    const p = principle as Record<string, unknown>;
-    if (
-      typeof p.name !== "string" ||
-      typeof p.book !== "string" ||
-      typeof p.sectionRef !== "string"
-    ) {
-      return null;
-    }
-    response.improvement = {
-      suggestedRevision: i.suggestedRevision,
-      whyContext: i.whyContext,
-      whySentence: i.whySentence,
-      principleCited: {
-        name: p.name,
-        book: p.book,
-        sectionRef: p.sectionRef,
-      },
-    };
-    if (
-      typeof i.secondaryPrinciple === "object" &&
-      i.secondaryPrinciple !== null
-    ) {
-      const sp = i.secondaryPrinciple as Record<string, unknown>;
-      if (
-        typeof sp.name === "string" &&
-        typeof sp.book === "string" &&
-        typeof sp.sectionRef === "string"
-      ) {
-        response.improvement.secondaryPrinciple = {
-          name: sp.name,
-          book: sp.book,
-          sectionRef: sp.sectionRef,
-        };
-      }
-    }
-  }
-  return response;
-}
 
 // LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
 export const maxDuration = 60;
@@ -257,7 +164,7 @@ export async function POST(
       );
     }
 
-    const validated = validateResponse(parsed);
+    const validated = validateCoachAnalysis(parsed);
     if (!validated) {
       return NextResponse.json(
         {

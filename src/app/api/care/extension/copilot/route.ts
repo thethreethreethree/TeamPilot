@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { rateLimit } from "@/lib/api/rateLimit";
+import { readBody } from "@/lib/api/validate";
+import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
+import { getProductContextForTenant } from "@/lib/care/config";
+import { generateCareReply } from "@/lib/claude";
+import { CO_PILOT_SYSTEM } from "@/lib/care/toolPrompts";
+
+/**
+ * POST /api/care/extension/copilot — AI Co-Pilot, for the C.A.R.E browser extension.
+ *
+ * Text-in → { reply, reasoning }: the extension sends the SCANNED conversation text and gets back a drafted
+ * next reply (customer-facing) plus a one-line internal reasoning (which communication move, for the agent's
+ * learning — §A18). Runs the SAME draft discipline (CO_PILOT_SYSTEM, shared with the in-app route — §3.4 no
+ * drift) grounded in the tenant's product context. The in-app co-pilot additionally leans on stored precedents
+ * + prior Coach grades; the text-in extension can't see those, so it drafts from the conversation + product
+ * context alone.
+ *
+ * GATES: requireEntitledExtensionUser (Bearer + pro/enterprise-or-trial, server-enforced) → per-user rate limit.
+ *
+ * DATA GOVERNANCE (D1 — ephemeral): the scanned `conversation` is processed to draft the reply, then DISCARDED.
+ *
+ * CONTROL-WINDOW NOTE (§3.4 / A3): like Summarize/Dissect, this is a paid product TOOL acting on the user's
+ * EXTERNAL conversation (their other inbox), NOT the team's internal event chain — so, per the A3-sharpened
+ * decision, it is intentionally NOT gated by the month-1 team-coaching control window. (Only Spawn task, which
+ * writes into the internal chain, carries that gate.) companyId is used only to fetch grounding.
+ */
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const Schema = z
+  .object({
+    conversation: z.string().min(1).max(20_000),
+  })
+  .strict();
+
+const REASONING_MARKER = "===REASONING===";
+
+export async function POST(req: NextRequest) {
+  const preAuth = rateLimit(req, { id: "care-ext", windowMs: 60_000, max: 60 });
+  if (preAuth) return preAuth;
+
+  const gate = await requireEntitledExtensionUser(req);
+  if (!gate.ok) return gate.response;
+
+  const limited = rateLimit(req, {
+    id: `care-ext-copilot:${gate.user.userId}`,
+    windowMs: 60_000,
+    max: 20,
+  });
+  if (limited) return limited;
+
+  const body = await readBody(req, Schema);
+  if (body instanceof NextResponse) return body;
+
+  const productContext = await getProductContextForTenant(gate.user.companyId);
+
+  try {
+    const r = await generateCareReply({
+      systemPrompt: `${CO_PILOT_SYSTEM}
+
+Product context the customer is reaching out about:
+${productContext}`,
+      userMessage: `Conversation so far:\n${body.conversation}\n\nDraft the next reply.`,
+    });
+    const raw = r.text;
+    const idx = raw.indexOf(REASONING_MARKER);
+    const reply = (idx >= 0 ? raw.slice(0, idx) : raw).trim();
+    const reasoning = idx >= 0 ? raw.slice(idx + REASONING_MARKER.length).trim() : "";
+    return NextResponse.json({ reply, reasoning });
+  } catch {
+    return NextResponse.json(
+      { error: "The Co-Pilot couldn't draft a reply right now." },
+      { status: 502 }
+    );
+  }
+}
