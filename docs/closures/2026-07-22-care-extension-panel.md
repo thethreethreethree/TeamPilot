@@ -17,9 +17,12 @@ tested, publish-prepped on-page panel. All commits on `main`, pushed; production
 | Founder queue + memory + sharpened A3 | ea…, 4d6a10eb | — |
 
 **Full gate green this session:** typecheck · lint · theme:audit (0 leaks) · rls:audit (0) · invariant:audit (0)
-· **983 tests** (43 new: adapters/worker/CORS-invariant 27, `getExtensionEntitlement` IO branches 6, `extensionAuth`
-paid-gate branches 10 — the auth+entitlement+CORS security path is now guarded against fail-open regressions).
-**Production** endpoints confirmed live (summarize/dissect 401, refresh 400, privacy/connect 200).
+· **1007 tests** (67 new). Extension coverage went from ~9 → 57 tests: adapters/worker/CORS-invariant 27,
+`getExtensionEntitlement` IO branches 6, `extensionAuth` paid-gate branches 10, and the 3 live routes
+(summarize/dissect/refresh) 14 — the auth+entitlement+CORS security path is guarded against fail-open. Plus the
+two public demo endpoints (care/demo/ask 6, sales/demo/roleplay 4) — rate-limit + soft-fail-never-500 + F2
+coach-leak prevention. **Production** endpoints confirmed live (summarize/dissect 401, refresh 400,
+privacy/connect 200).
 
 ## Findings surfaced (not unilaterally changed — founder decisions)
 1. **A3 (sharpened):** the tool split is by WHAT IT TOUCHES, not generative-vs-not. Summarize/Dissect/Coach/
