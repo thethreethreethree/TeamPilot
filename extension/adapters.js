@@ -67,9 +67,15 @@ if (!globalThis.__careAdaptersLoaded) {
       key: "whatsapp",
       label: "WhatsApp chat",
       match: (h) => h === "web.whatsapp.com",
-      // WhatsApp Web message text is in .selectable-text spans inside .message-in/.message-out bubbles.
-      // (.copyable-text is the wrapper AROUND .selectable-text — selecting the leaf span avoids double-reading.)
-      extract: () => textFrom(".message-in .selectable-text, .message-out .selectable-text"),
+      // LIVE-CONFIRMED 2026-07-22: the old `.message-in/.message-out .selectable-text` returned nothing against
+      // the current WhatsApp Web DOM (founder load-test). Each message's text sits in a `.copyable-text` wrapper
+      // carrying `data-pre-plain-text="[time, date] sender: "` — stable for years, present ONLY on message bubbles
+      // (not the composer), exactly one per message (so no double-reading). That attribute is the reliable anchor;
+      // the old class-scoped selectors stay as a fallback for older builds (they don't nest inside the wrapper
+      // match, so no duplication in practice — a miss just yields "").
+      extract: () =>
+        textFrom("[data-pre-plain-text]") ||
+        textFrom(".message-in .selectable-text, .message-out .selectable-text"),
     },
     {
       key: "linkedin",

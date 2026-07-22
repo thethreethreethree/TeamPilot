@@ -71,6 +71,23 @@ describe("extension per-site adapters", () => {
     expect(loadAdapters({}).careAdapterFor("web.whatsapp.com").extract()).toBe("");
   });
 
+  it("WhatsApp reads message bubbles via [data-pre-plain-text] (live-confirmed 2026-07-22 selector)", () => {
+    const ctx = loadAdapters({
+      "[data-pre-plain-text]": [node("They havent set up the starlink yet"), node("Nice alright thank you brother")],
+    });
+    expect(ctx.careAdapterFor("web.whatsapp.com").extract()).toBe(
+      "They havent set up the starlink yet\n\nNice alright thank you brother"
+    );
+  });
+
+  it("WhatsApp falls back to .message-in/.message-out .selectable-text when the wrapper attr is absent (older builds)", () => {
+    const ctx = loadAdapters({
+      ".message-in .selectable-text, .message-out .selectable-text": [node("older-build message")],
+    });
+    // [data-pre-plain-text] matches nothing here → the || fallback path runs.
+    expect(ctx.careAdapterFor("web.whatsapp.com").extract()).toBe("older-build message");
+  });
+
   it("caps extracted text length to keep payloads bounded", () => {
     const ctx = loadAdapters({ ".a3s": [node("x".repeat(30000))] });
     expect(ctx.careAdapterFor("mail.google.com").extract().length).toBe(20000);
