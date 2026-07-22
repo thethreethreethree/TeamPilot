@@ -24,7 +24,7 @@
  */
 
 import Link from "next/link";
-import { ArrowRight, Repeat, X, Check, MousePointerClick } from "lucide-react";
+import { ArrowRight, Repeat, X, Check, MousePointerClick, Puzzle } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { LightbulbMark } from "@/components/brand/Logo";
 import { CareShowroom } from "@/components/care/demo/CareShowroom";
@@ -207,6 +207,9 @@ export default function CareDemoPage() {
           </a>
           <a href="#workstation" className="flex items-center gap-2 border border-default hover:border-strong text-secondary hover:text-primary font-medium px-5 py-3 rounded-lg transition-all text-sm">
             <Repeat className="w-4 h-4" aria-hidden /> Run the tools again
+          </a>
+          <a href="/extension/download" className="flex items-center gap-2 border border-default hover:border-strong text-secondary hover:text-primary font-medium px-5 py-3 rounded-lg transition-all text-sm">
+            <Puzzle className="w-4 h-4" aria-hidden /> Get the extension
           </a>
         </div>
       </section>
