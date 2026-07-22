@@ -32,7 +32,9 @@
   // Fixed, top-right, above almost everything. The host is a positioning shell; the panel lives in the shadow.
   host.style.cssText =
     "position:fixed;top:16px;right:16px;z-index:2147483646;width:auto;height:auto;margin:0;padding:0;";
-  const root = host.attachShadow({ mode: "open" });
+  // mode:"closed" so the host page can't read the panel's contents via host.shadowRoot (the rendered output is
+  // C.A.R.E analysis the page never had). We keep our own `root` reference regardless.
+  const root = host.attachShadow({ mode: "closed" });
   document.documentElement.appendChild(host);
 
   // ink-950 #09090B ground, ink-900 #18181B panel, ember-400 #FACC15 accent — matches the C.A.R.E surface.
@@ -279,7 +281,13 @@
       <div class="grid">${grid}</div>
       <div class="result hide" id="result"></div>`;
     if (adapter) $("readAdapterBtn").addEventListener("click", () => readAdapter(adapter));
-    $("readSelBtn").addEventListener("click", readSelection);
+    // Capture on mousedown + preventDefault so clicking the button doesn't steal focus and COLLAPSE the page
+    // selection before we read it (the classic rich-text-toolbar problem). Without this, "Read my selected
+    // text" would often read empty on the very flow it exists for.
+    $("readSelBtn").addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      readSelection();
+    });
     root.querySelectorAll(".tool").forEach((btn) => {
       btn.addEventListener("click", () => runTool(CARE_TOOLS[Number(btn.dataset.i)]));
     });
