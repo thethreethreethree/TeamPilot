@@ -7,8 +7,9 @@
 //   • minimizes to a small floating bubble,
 //   • has an explicit ✕ close button.
 //
-// Injected via chrome.scripting.executeScript(["config.js","content.js"]) from the background worker on the
-// toolbar-icon click, so it shares config.js's isolated world (getApiBase/getToken/CARE_TOOLS/DEFAULT_API_BASE).
+// Injected via chrome.scripting.executeScript(["config.js","adapters.js","content.js"]) from the background
+// worker on the toolbar-icon click, sharing their isolated-world globals (getApiBase/getToken/CARE_TOOLS from
+// config.js; careAdapterFor from adapters.js). Network calls go through the worker (CORS) — see runTool.
 // Style-isolated in a Shadow DOM so the host page's CSS can't touch it and vice-versa.
 //
 // §3.4 / D1: the panel reads only the text YOU selected, sends it to run the tool, and stores nothing locally.
