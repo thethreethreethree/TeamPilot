@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { rateLimit } from "@/lib/api/rateLimit";
-import { readBody } from "@/lib/api/validate";
-import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
+import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { spawnTask } from "@/lib/claude";
 import { buildSpawnSystemPrompt, buildSpawnUserMessage } from "@/lib/taskSpawn/prompt";
 import { validateTaskDraft } from "@/lib/taskSpawn/validate";
@@ -42,21 +40,9 @@ const Schema = z
   .strict();
 
 export async function POST(req: NextRequest) {
-  const preAuth = rateLimit(req, { id: "care-ext", windowMs: 60_000, max: 60 });
-  if (preAuth) return preAuth;
-
-  const gate = await requireEntitledExtensionUser(req);
-  if (!gate.ok) return gate.response;
-
-  const limited = rateLimit(req, {
-    id: `care-ext-spawn:${gate.user.userId}`,
-    windowMs: 60_000,
-    max: 12,
-  });
-  if (limited) return limited;
-
-  const body = await readBody(req, Schema);
-  if (body instanceof NextResponse) return body;
+  const guard = await guardExtensionRequest(req, { tool: "spawn", perUserMax: 12, schema: Schema });
+  if (!guard.ok) return guard.response;
+  const { user, body } = guard;
 
   try {
     const systemPrompt = buildSpawnSystemPrompt({
@@ -72,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     // §3.4 control window applies (this reaches into internal work — see header): pass companyId.
     const r = await spawnTask({
-      companyId: gate.user.companyId,
+      companyId: user.companyId,
       systemPrompt,
       userMessage,
     });

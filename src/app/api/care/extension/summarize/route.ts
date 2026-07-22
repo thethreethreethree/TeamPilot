@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { rateLimit } from "@/lib/api/rateLimit";
-import { readBody } from "@/lib/api/validate";
-import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
+import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { SUMMARIZE_SYSTEM } from "@/lib/care/toolPrompts";
@@ -37,26 +35,11 @@ const Schema = z
   .strict();
 
 export async function POST(req: NextRequest) {
-  // Audit A1 (2026-07-22): a coarse per-IP guard BEFORE auth protects the token-validation round-trip
-  // from unauthenticated floods; the real limit below is per-USER (so colleagues on one office IP don't
-  // share a bucket on a paid feature).
-  const preAuth = rateLimit(req, { id: "care-ext", windowMs: 60_000, max: 60 });
-  if (preAuth) return preAuth;
+  const guard = await guardExtensionRequest(req, { tool: "summarize", perUserMax: 20, schema: Schema });
+  if (!guard.ok) return guard.response;
+  const { user, body } = guard;
 
-  const gate = await requireEntitledExtensionUser(req);
-  if (!gate.ok) return gate.response;
-
-  const limited = rateLimit(req, {
-    id: `care-ext-summarize:${gate.user.userId}`,
-    windowMs: 60_000,
-    max: 20,
-  });
-  if (limited) return limited;
-
-  const body = await readBody(req, Schema);
-  if (body instanceof NextResponse) return body;
-
-  const productContext = await getProductContextForTenant(gate.user.companyId);
+  const productContext = await getProductContextForTenant(user.companyId);
 
   try {
     const r = await generateCareReply({

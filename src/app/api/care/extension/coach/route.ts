@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { rateLimit } from "@/lib/api/rateLimit";
-import { readBody } from "@/lib/api/validate";
-import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
+import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { analyzeCoachV5 } from "@/lib/claude";
 import { buildSystemPrompt, buildUserMessage } from "@/lib/coach/v5/prompt";
@@ -37,23 +35,11 @@ const Schema = z
   .strict();
 
 export async function POST(req: NextRequest) {
-  const preAuth = rateLimit(req, { id: "care-ext", windowMs: 60_000, max: 60 });
-  if (preAuth) return preAuth;
+  const guard = await guardExtensionRequest(req, { tool: "coach", perUserMax: 30, schema: Schema });
+  if (!guard.ok) return guard.response;
+  const { user, body } = guard;
 
-  const gate = await requireEntitledExtensionUser(req);
-  if (!gate.ok) return gate.response;
-
-  const limited = rateLimit(req, {
-    id: `care-ext-coach:${gate.user.userId}`,
-    windowMs: 60_000,
-    max: 30,
-  });
-  if (limited) return limited;
-
-  const body = await readBody(req, Schema);
-  if (body instanceof NextResponse) return body;
-
-  const productContext = await getProductContextForTenant(gate.user.companyId);
+  const productContext = await getProductContextForTenant(user.companyId);
 
   try {
     const memory = await loadCoachMemory();

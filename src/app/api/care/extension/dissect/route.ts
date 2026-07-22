@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { rateLimit } from "@/lib/api/rateLimit";
-import { readBody } from "@/lib/api/validate";
-import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
+import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { generateConversationDissect } from "@/lib/dissect/engine";
 
 /**
@@ -25,21 +23,9 @@ export const maxDuration = 60;
 const Schema = z.object({ conversation: z.string().min(1).max(20_000) }).strict();
 
 export async function POST(req: NextRequest) {
-  const preAuth = rateLimit(req, { id: "care-ext", windowMs: 60_000, max: 60 });
-  if (preAuth) return preAuth;
-
-  const gate = await requireEntitledExtensionUser(req);
-  if (!gate.ok) return gate.response;
-
-  const limited = rateLimit(req, {
-    id: `care-ext-dissect:${gate.user.userId}`,
-    windowMs: 60_000,
-    max: 20,
-  });
-  if (limited) return limited;
-
-  const body = await readBody(req, Schema);
-  if (body instanceof NextResponse) return body;
+  const guard = await guardExtensionRequest(req, { tool: "dissect", perUserMax: 20, schema: Schema });
+  if (!guard.ok) return guard.response;
+  const { body } = guard;
 
   const dissect = await generateConversationDissect({ sourceText: body.conversation });
   return NextResponse.json({ dissect });
