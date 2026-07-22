@@ -174,8 +174,14 @@
     });
     window.addEventListener("mousemove", (e) => {
       if (!dragging) return;
-      host.style.left = Math.max(0, ox + (e.clientX - sx)) + "px";
-      host.style.top = Math.max(0, oy + (e.clientY - sy)) + "px";
+      // Clamp to the viewport on ALL sides — the original only did Math.max(0,…) (top-left), so the panel could
+      // be dragged off the right/bottom until its header (drag handle + ✕/minimize) was ungrabbable. Keep at
+      // least a header's worth on-screen so it's always recoverable without re-injecting.
+      const KEEP = 44; // px of the panel that must stay visible
+      const maxLeft = Math.max(0, window.innerWidth - KEEP);
+      const maxTop = Math.max(0, window.innerHeight - KEEP);
+      host.style.left = Math.min(maxLeft, Math.max(0, ox + (e.clientX - sx))) + "px";
+      host.style.top = Math.min(maxTop, Math.max(0, oy + (e.clientY - sy))) + "px";
     });
     window.addEventListener("mouseup", () => { dragging = false; });
   })();
