@@ -13,6 +13,11 @@
 > "where does our data go?", the answer today is "whichever provider the env is set to," and if `DEEPSEEK_API_KEY`
 > is present that's DeepSeek.
 >
+> **Failover nuance (verified):** the LLM layer cascades to the OTHER provider on an `auth`/`quota` failure of the
+> primary (`shouldCascade` — correct, tested, only those two kinds). So the precise data-residency answer is "the
+> primary provider, AND the other provider if the primary's key is revoked / payment-blocked." Both providers can
+> therefore see the data across the failure envelope — worth stating exactly in any customer/compliance answer.
+>
 > **What's verified vs open:** the *code* defaults to DeepSeek-when-configured (confirmed). Whether it's ACTIVE
 > depends on your Vercel env — I can't see it. **Decide + confirm:** (1) which provider SHOULD handle customer
 > extension data (Anthropic-only for the privacy-sensitive extension is a defensible pin); (2) if you want the
