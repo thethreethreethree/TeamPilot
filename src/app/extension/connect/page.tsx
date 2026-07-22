@@ -13,10 +13,23 @@
 import { useEffect, useState } from "react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 
+// Minimal typing for the extension-messaging bridge that externally_connectable exposes on this origin.
+type ChromeRuntime = {
+  runtime?: {
+    sendMessage?: (
+      extensionId: string,
+      message: unknown,
+      callback?: (response?: { ok?: boolean }) => void
+    ) => void;
+    lastError?: unknown;
+  };
+};
+
 export default function ExtensionConnectPage() {
   const [token, setToken] = useState<string | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "signedout">("loading");
   const [copied, setCopied] = useState(false);
+  const [autoConnected, setAutoConnected] = useState(false);
 
   useEffect(() => {
     if (!supabaseEnabled) {
@@ -28,6 +41,22 @@ export default function ExtensionConnectPage() {
       const t = data.session?.access_token ?? null;
       setToken(t);
       setState(t ? "ready" : "signedout");
+
+      // Auto-handoff: the extension opens this page as /extension/connect?ext=<its id>. If that id is
+      // present and the extension exposed chrome.runtime here (externally_connectable), send the token
+      // straight to it — so "Sign in" is a one-click connect with no manual paste.
+      if (!t) return;
+      const ext = new URLSearchParams(window.location.search).get("ext");
+      const chromeApi = (window as unknown as { chrome?: ChromeRuntime }).chrome;
+      if (ext && chromeApi?.runtime?.sendMessage) {
+        try {
+          chromeApi.runtime.sendMessage(ext, { type: "care-connect", token: t }, (resp) => {
+            if (resp?.ok) setAutoConnected(true);
+          });
+        } catch {
+          /* falls back to the copy-paste UI below */
+        }
+      }
     });
   }, []);
 
@@ -66,7 +95,19 @@ export default function ExtensionConnectPage() {
           </div>
         )}
 
-        {state === "ready" && token && (
+        {state === "ready" && autoConnected && (
+          <div className="glass-card p-6 border border-emerald-500/30">
+            <p className="text-lg font-bold text-primary mb-1 flex items-center gap-2">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" /> Connected
+            </p>
+            <p className="text-sm text-secondary leading-relaxed">
+              The C.A.R.E extension is signed in. You can close this tab and start using the tools — highlight a
+              conversation and run Summarize or Dissect.
+            </p>
+          </div>
+        )}
+
+        {state === "ready" && token && !autoConnected && (
           <div className="glass-card p-6">
             <label className="text-[10px] uppercase tracking-widest text-muted font-semibold">Your session token</label>
             <textarea

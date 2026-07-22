@@ -132,11 +132,11 @@ document.addEventListener("DOMContentLoaded", () => {
   $("readSelBtn").addEventListener("click", readSelection);
 
   $("signInBtn").addEventListener("click", async () => {
-    // Opens the app's connect page: it reads your logged-in session and shows a token to copy into
-    // Developer connect below. (One-click OAuth via launchWebAuthFlow, D3, needs a Google client ID — until
-    // then this copy-paste is the connect step. Honest about the state, §3.4.)
+    // One-click connect: open the app's connect page with this extension's id. If you're logged in, that page
+    // sends your session straight back to the extension (externally_connectable) — no token paste. The
+    // Developer-connect field below stays as a fallback if messaging is blocked.
     const base = await getApiBase();
-    chrome.tabs.create({ url: base + "/extension/connect" });
+    chrome.tabs.create({ url: `${base}/extension/connect?ext=${chrome.runtime.id}` });
   });
 
   $("tokenSaveBtn").addEventListener("click", async () => {
