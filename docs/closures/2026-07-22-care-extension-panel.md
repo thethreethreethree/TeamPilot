@@ -17,12 +17,22 @@ tested, publish-prepped on-page panel. All commits on `main`, pushed; production
 | Founder queue + memory + sharpened A3 | ea…, 4d6a10eb | — |
 
 **Full gate green this session:** typecheck · lint · theme:audit (0 leaks) · rls:audit (0) · invariant:audit (0)
-· **1007 tests** (67 new). Extension coverage went from ~9 → 57 tests: adapters/worker/CORS-invariant 27,
-`getExtensionEntitlement` IO branches 6, `extensionAuth` paid-gate branches 10, and the 3 live routes
-(summarize/dissect/refresh) 14 — the auth+entitlement+CORS security path is guarded against fail-open. Plus the
-two public demo endpoints (care/demo/ask 6, sales/demo/roleplay 4) — rate-limit + soft-fail-never-500 + F2
-coach-leak prevention. **Production** endpoints confirmed live (summarize/dissect 401, refresh 400,
-privacy/connect 200).
+· **1066 tests** (~126 new). The session grew from the extension into a broad test-hardening + bug-finding pass.
+
+Extension coverage ~9 → 57: adapters/worker/CORS-invariant 27, entitlement IO 6, auth paid-gate 10, 3 live
+routes 14 — auth+entitlement+CORS guarded against fail-open. + 2 public demo endpoints (soft-fail-never-500, F2
+coach-leak). **Then, hardening beyond the extension:**
+- **Thesis-core**: `canAdvance` (§3.2 Understanding Gate) + the full diagnosis module (gate/retrospective already
+  tested; added closeLoop) — the engine's "refuse to advance without evidence" discipline is now locked.
+- **§3.1 chain**: coach event emission — the "never blocks the draft" property (a throw here would stop a user's
+  message) + guards + bounded payload.
+- **F2 regression guard** (aiTone/aiResponseLength must reach the prompt — had NO test) + care/prompt builders.
+- **Parsing**: mention (`@[name](uuid)`) + file-mention + `autoRouteFile` pure logic (title/tags/care-routing).
+
+**Bugs/mismatches found by this pass:** (1) file-mention autocomplete search was DEAD (fixed on branch
+`fix/file-mention-query-capture`); (2) a flaky invariant-audit test (timeout, fixed); (3+4) two comment/behavior
+mismatches — F2 (a real fixed bug) and autoRoute's iPhone→IPhone (cosmetic). **Production** endpoints confirmed
+live (summarize/dissect 401, refresh 400, privacy/connect 200).
 
 ## Findings surfaced (not unilaterally changed — founder decisions)
 1. **A3 (sharpened):** the tool split is by WHAT IT TOUCHES, not generative-vs-not. Summarize/Dissect/Coach/
