@@ -66,6 +66,21 @@ Everything server-side is verified (endpoints return 200 for a trial account; re
 If #10 (or any adapter) reads nothing, it falls back to manual selection by design — tell me which platform and
 I'll tighten that adapter's selectors (they're reasoned but not yet browser-confirmed).
 
+### Troubleshooting (symptom → why → what to do)
+Grounded in the actual architecture, so you can self-diagnose before pinging me.
+
+| Symptom | Likely cause | Do |
+|---|---|---|
+| Icon does nothing on `chrome://…`, the Web Store, or a PDF | Chrome forbids content-script injection on those pages (by design) | Try a normal `https://` site (Gmail, a news site) |
+| Panel opens but **every tool** errors "Couldn't reach C.A.R.E" | The background service worker isn't reaching the API | `chrome://extensions` → C.A.R.E → **service worker** → Console; look for the failed request. Confirm you're Connected (green dot). |
+| Tools return **"session expired / Sign in"** repeatedly | Refresh token missing or rejected | Click **Sign in** again to re-hand-off; the worker should then silently refresh. If it recurs, the refresh token didn't store — reconnect. |
+| **402 "plan doesn't include the extension"** | Tenant isn't pro/enterprise and has no active trial | Start a trial or set plan to pro (server-enforced — this is correct, not a bug) |
+| **Sign in** opens the tab but panel stays "Not connected" | The connect page couldn't message the extension (externally_connectable) | Make sure you land on `elostate.com` (not localhost) and are logged in; the tab should say "Connected". Reload the extension if you just changed its code (the id changes). |
+| An **adapter** ("Read this thread") reads nothing | That platform's DOM selectors didn't match (they're unverified per-platform) | Use **Read my selected text** instead (always works); tell me the platform so I tighten it |
+| **"Read my selected text"** says nothing selected | Selection was empty when clicked | Highlight first, then click. (Clicking the button no longer collapses the selection — fixed — so a real highlight will register.) |
+| Panel styling looks broken / off | It shouldn't — it's in a closed Shadow DOM, isolated from page CSS | If it happens, screenshot it; that's a real bug to report |
+| After editing `extension/` code, changes don't show | The unpacked extension is cached | `chrome://extensions` → click **↻ reload** on the C.A.R.E card, then re-open the panel |
+
 ## Status (honest)
 - **On-page panel** — minimizable, persistent, ✕/drag. Built; **browser-runtime untested** (checklist above). ✅ built / ⏳ verify
 - **Reads selection + Summarize + Dissect** against live gated endpoints — server-side verified (200/401/402). ✅
