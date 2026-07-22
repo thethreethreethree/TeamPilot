@@ -14,7 +14,7 @@ permission is the #1 rejection reason) and excludes `popup.*`, `README.md`, and 
 ## 1. Pre-submission checklist — verified (build-store-package.mjs + validation)
 - [x] `manifest.json` valid JSON · `manifest_version` 3
 - [x] Description 104 chars (< 132)
-- [x] icon16/48/128 exist; 128 declared
+- [x] icon16/48/128 exist at their **native declared dimensions** (16×16 / 48×48 / 128×128 px, LANCZOS-downscaled from the 1024² master); 128 declared
 - [x] Every declared permission used in code (activeTab, scripting, storage, host elostate.com)
 - [x] No `eval()` / `new Function()` / remotely-hosted code (MV3-compliant)
 - [x] Production manifest is localhost-free
