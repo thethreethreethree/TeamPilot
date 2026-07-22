@@ -1,5 +1,27 @@
 # Founder action queue — as of 2026-07-14
 
+> ## ▶ START HERE — 2026-07-22 session actions, in priority order
+> A large hardening + audit session. Details are in the dated blocks below; here's what to DO, highest-value first:
+>
+> 1. **Merge `fix/sharp-cve-override`** — a real HIGH security fix (sharp/libvips CVE). ⚠️ Never run
+>    `npm audit fix --force` (it downgrades to Next 9.3.3 and breaks everything). All 4 branches are verified
+>    conflict-free — merge in any order.
+> 2. **Load-test the extension** — `chrome://extensions` → reload unpacked `extension/` → the 10-step checklist
+>    in `extension/README.md`. The ONLY thing not verifiable headlessly. Tell me any step that fails.
+> 3. **Merge the other 3 branches** after a quick look: `fix/file-mention-query-capture` (real bug: `@file`
+>    search was dead — live-test the picker), `fix/viewport-a11y-pwa-scale-lock` (WCAG — device-test),
+>    `refactor/shared-speaker-label` (behavior-preserving DRY).
+> 4. **Rule on A3 + the seat model** → unblocks the remaining extension tool endpoints (Coach/Co-Pilot/Formulate/
+>    Spawn). A3 is sharpened: only *Spawn-task* touches the internal chain.
+> 5. **CWS submission** (when ready): `node extension/store/build-store-package.mjs` → zip → upload; justifications
+>    + listing in `extension/store/CHROME-WEB-STORE-SUBMISSION.md`. You provide screenshots + the $5 registration.
+> 6. **Optional hardenings** (none a live hole): explicit cookie `SameSite:"lax"`; HSTS for the standalone deploy
+>    target; a CSP (deferred, needs a nonce strategy).
+>
+> **What I verified so you don't have to:** full `npm run check` gate green (1123 tests) · 10-sweep route-security
+> audit + §1.7 ground-up audit (no live vulns) · the three highest-stakes data invariants (§3.1 event immutability,
+> §3.2 Understanding Gate, finance ledger balance) are DB-enforced. See `docs/audits/2026-07-22-*.md`.
+
 > ### 🔀 4 ready-to-merge branches (2026-07-22) — all verified conflict-free
 > `git merge-tree` confirms all four merge into current `main` with **0 conflicts** — merge in any order:
 > - **`fix/sharp-cve-override`** — HIGH sharp/libvips CVE fix (dep bump; CI rebuilds native module). Do NOT run `npm audit fix --force`.
