@@ -52,6 +52,24 @@ Note: the native-deferred branch (what fires in Chromium) needed a separate edit
 differed from the iOS branch, so the first `replace_all` only caught one. Caught by re-rendering and
 seeing no change (§2 — a fix that doesn't change the result means the identification was incomplete).
 
+### V3 — Mobile home header clipped the "Request access" CTA (MED, Layer 4) — FIXED `a1db8d87`
+The `/` header nav (ThemeToggle + Feedback + Sign in + Request access) was one flex row with no
+responsive collapse. At 390px it measured 318px against ~225px available; the primary CTA overflowed
+to right:444 (54px off-screen) and rendered clipped ("Req…acce"). Fixed: hide Feedback + Sign in on
+mobile (`hidden sm:flex`/`sm:inline`), keep ThemeToggle + Request access (both hidden links →/login,
+same as the CTA). Verified: `npm run check` green + CDP re-render shows full CTA, 0 offenders.
+
+---
+
+## Reusable tooling (this session)
+- `--window-size` headless screenshots are UNRELIABLE for mobile-viewport checks — they don't set a
+  true CSS mobile viewport and produce phantom right-edge clipping (this caused the V1 false-positive).
+- Accurate method: drive Edge via CDP (`--remote-debugging-port=9222`), `Emulation.
+  setDeviceMetricsOverride`, then `Page.captureScreenshot`. Scratchpad scripts:
+  `measure.mjs` (lists elements wider than viewport + reports scrollWidth), `shot.mjs`/`shot2.mjs`
+  (accurate device screenshot, beyond-viewport), `shot-fv.mjs` (true first-viewport, correct `fixed`
+  placement — required to judge FAB/overlay collisions). Node 24 has global `WebSocket`, no deps.
+
 ---
 
 ## Open — founder decision
