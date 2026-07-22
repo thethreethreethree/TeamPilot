@@ -127,8 +127,8 @@ export default function CareCoachAssessmentPage() {
                 <p className="text-xs text-secondary leading-relaxed">
                   Each agent is graded on their own replies against a fixed competent-reply standard —{" "}
                   <span className="text-primary">never against each other</span>. The grade travels with
-                  the raw signal counts, and the <span className="text-primary">learning gaps</span> name
-                  the communication-book principle worth reinforcing next. There is no &ldquo;F&rdquo; — the
+                  the raw signal counts, and the <span className="text-primary">learning gaps</span>{" "}
+                  name the communication-book principle worth reinforcing next. There is no &ldquo;F&rdquo; — the
                   lowest band is a growth area.
                 </p>
               </div>
