@@ -437,8 +437,14 @@ export default function TaskDetailPage() {
                 </ul>
               )}
 
-              {/* Composer with Coach surface (Pillar 3) */}
-              {task.status !== "Completed" && (
+              {/* Composer with Coach surface (Pillar 3). Hidden on ANY terminal task,
+                  not just Completed: a Cancelled task is permanently terminal (the
+                  transition map admits no moves out of it), so a composer for messages
+                  nobody can act on is the same mistake as showing it on a Completed task.
+                  isTaskClosed is the single "no further work expected" predicate — the
+                  staleness badge above (line ~216) already uses it; this was a stray raw
+                  check the helper-migration missed (same Cancelled-blindness class as 0184). */}
+              {!isTaskClosed(task.status) && (
                 <form onSubmit={submitMessage} className="mt-4 pt-3 border-t border-default">
                   {coachEnabled && (
                     <>
