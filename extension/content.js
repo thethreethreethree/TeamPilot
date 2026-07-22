@@ -269,7 +269,7 @@
     out.innerHTML =
       `<div class="rlabel">${esc(tool.label)}</div>` +
       `<label class="ilabel">${esc(inp.label)}</label>` +
-      `<textarea class="tinput" id="toolInput" rows="4" placeholder="${esc(inp.placeholder)}"></textarea>` +
+      `<textarea class="tinput" id="toolInput" rows="4" maxlength="${Number(inp.max) || 8000}" placeholder="${esc(inp.placeholder)}"></textarea>` +
       `<button class="primary" id="toolRun">Run ${esc(tool.label)}</button>`;
     const ta = out.querySelector("#toolInput");
     const runBtn = out.querySelector("#toolRun");
