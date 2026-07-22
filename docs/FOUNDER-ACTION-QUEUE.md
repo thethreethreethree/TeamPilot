@@ -77,9 +77,14 @@
 >   the Feedback FAB pre-auth (it just routes back to /login) and keeping Jeff. I did NOT do this
 >   unilaterally — it touches your "Feedback visible on every page" directive.
 > - **A3** (MED, a11y) — `userScalable:false` in the root viewport disables pinch-zoom on ALL pages
->   incl. public marketing on Android (WCAG 1.4.4 failure). Recommend dropping it app-wide (the 16px
->   input sizing already prevents iOS auto-zoom) OR limiting the lock to the installed PWA. Deliberate
->   current value, so surfaced not changed.
+>   incl. public marketing on Android (WCAG 1.4.4 failure). **NOW BUILT as a ready-to-merge proposal on
+>   branch `fix/viewport-a11y-pwa-scale-lock`** (2026-07-22): global viewport is WCAG-compliant
+>   (maximum-scale=5, user-scalable=yes — verified in the rendered meta) AND the native scale lock is
+>   re-applied at runtime ONLY in an installed PWA via `<PwaScaleLock/>` — dissolves the lock-vs-a11y
+>   tradeoff instead of picking a side. tsc+lint+build green; PWA-standalone path is device-untested.
+>   Built on a branch (not main) because the global viewport was your reserved decision — **merge if you
+>   agree.** (The old code comment was also factually wrong: Android Chrome DOES honor user-scalable=no,
+>   so this was a real defect, not an iOS-only ignored hint.)
 >
 > The app core is genuinely well-built — the real defects clustered in public/marketing polish + the
 > customer widget. Verdict + method detail in the audit doc.
