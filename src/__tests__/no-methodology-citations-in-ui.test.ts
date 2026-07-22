@@ -3,11 +3,12 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Guard: internal methodology (§) citations must never appear in customer-facing
- * product UI. The constitution / methodology docs are sensitive IP — their
- * section labels (§3.1, §3.2, §A11, §4, …) are fine in developer code comments,
- * JSDoc route headers, and internal LLM prompts, but NOT in strings a user or
- * prospect can read.
+ * Guard for BOTH layers of the sensitive-IP rule in user-facing product UI:
+ *   Layer 2 — internal methodology (§) citations (§3.1, §3.2, §A11, §4, …)
+ *   Layer 1 — the methodology-doc filenames (CLAUDE.md, ThinkerThinker.md)
+ * Both are fine in developer code comments, JSDoc route headers, and internal
+ * LLM prompts, but NOT in any string a user or prospect can read. The
+ * constitution / methodology docs are the product's IP moat.
  *
  * This locks the 2026-07-23 sweep that removed 24 such leaks (dashboard
  * subtitles, the sales demo, tooltips, placeholders, an extension panel message,
@@ -32,6 +33,12 @@ const FIELD = /\b(message|error|note|reason|hint)\s*:\s*["'`][^"'`]*§/;
 // § in JSX text between tags, e.g. >… §3.1 chain<  (require a section-like token after §)
 const JSX_TEXT = />[^<>{}]*§[0-9A-Za-z]/;
 
+// Layer 1 of the same IP rule: the methodology-doc FILENAMES must never appear
+// in user-facing strings either (they're fine in developer code comments). Same
+// user-facing contexts as above. No `=>` false-positive risk (plain filenames).
+const DOC = /(subtitle|title|placeholder|aria-label|alt|label|hint|tooltip|description|message|error|note|reason)\s*[=:]\s*["'`][^"'`]*(thinkerthinker|claude\.md)/i;
+const DOC_TEXT = />[^<>{}]*(thinkerthinker|claude\.md)/i;
+
 function walk(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
@@ -52,7 +59,7 @@ function isCommentLine(line: string): boolean {
   return t.startsWith("//") || t.startsWith("*") || t.startsWith("/*");
 }
 
-describe("no methodology (§) citations in user-facing UI", () => {
+describe("no sensitive-IP leaks (§ citations or methodology-doc filenames) in user-facing UI", () => {
   it("finds none across src/app and src/components", () => {
     const offenders: string[] = [];
     for (const root of ROOTS) {
@@ -66,8 +73,10 @@ describe("no methodology (§) citations in user-facing UI", () => {
         const lines = readFileSync(file, "utf8").split("\n");
         lines.forEach((line, i) => {
           if (isCommentLine(line)) return;
-          if (!line.includes("§")) return;
-          if (ATTR.test(line) || FIELD.test(line) || JSX_TEXT.test(line)) {
+          const hasCitation =
+            line.includes("§") && (ATTR.test(line) || FIELD.test(line) || JSX_TEXT.test(line));
+          const hasDocName = DOC.test(line) || DOC_TEXT.test(line);
+          if (hasCitation || hasDocName) {
             offenders.push(`${file}:${i + 1}: ${line.trim()}`);
           }
         });
