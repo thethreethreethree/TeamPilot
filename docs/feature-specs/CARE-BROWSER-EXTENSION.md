@@ -61,17 +61,19 @@ v5, the sales/care knowledge bases).
 
 ---
 
-## 3. Founder decisions (flagged, not assumed — §3.3)
+## 3. Founder decisions — RESOLVED 2026-07-22
 
-- **D1 — Data governance (recommend: ephemeral-by-default).** Scanned conversation text is sent to the
-  C.A.R.E backend to run a tool, then **discarded** — nothing persisted unless the user explicitly saves a
-  resolution/task. This is the honest, GDPR-friendliest default and a selling point. Alternative: persist to
-  the tenant's history by default (richer memory, heavier compliance burden). **Recommend ephemeral.**
-- **D2 — Which plan tier unlocks the extension.** Reuse the existing tiers (`pilot | starter | pro |
-  enterprise`). Recommend: gate behind **pro+** (or a dedicated add-on entitlement), with a limited trial.
-- **D3 — Auth flow.** Recommend **`chrome.identity.launchWebAuthFlow` + PKCE → Supabase session token**
-  (open the app's login once, hand back a token the extension stores and sends). Alternative: read the app's
-  Supabase cookie via a host permission on the app domain (simpler but more fragile across MV3).
+- **D1 — Data governance: EPHEMERAL-BY-DEFAULT.** Scanned conversation text is sent to run a tool, then
+  discarded; nothing persisted unless the user explicitly saves a resolution/task. GDPR-friendliest, honest,
+  a selling point. Implemented as a backend policy (extension endpoints never write the raw scanned text to
+  storage).
+- **D2 — Entitlement: PRO plan OR an active limited free TRIAL; both require a logged-in account.** The
+  extension is unlocked when the tenant is on `pro` (or `enterprise`) OR within an active trial window. The
+  trial is time-boxed and account-gated (no anonymous use). Server-enforced on every call; the client only
+  reflects locked/trial/active state. (Trial window + start need a small entitlement model — see Phase 0.)
+- **D3 — Auth: `chrome.identity.launchWebAuthFlow` + PKCE → Supabase session token.** Open the app's login
+  once; hand back a token the extension stores and sends on every API call. Chosen over cookie-reading
+  (more robust across MV3).
 
 ---
 
