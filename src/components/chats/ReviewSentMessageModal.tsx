@@ -87,7 +87,7 @@ export function ReviewSentMessageModal({
         if (data.suppressed || !data.response) {
           setState({
             kind: "error",
-            message: "Coach is in §3.4 control window — guidance temporarily unavailable",
+            message: "Coach guidance is paused while the System learns your team's baseline.",
           });
           return;
         }

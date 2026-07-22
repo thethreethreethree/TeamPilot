@@ -111,7 +111,7 @@ export function CoachPanelV5({
         if (mode === "ask") {
           setState({
             kind: "error",
-            message: "Coach is in §3.4 control window — guidance suppressed",
+            message: "Coach guidance is paused while the System learns your team's baseline.",
           });
         } else {
           setState({ kind: "idle" });
