@@ -24,7 +24,18 @@ export function evaluateUnderstandingGate(args: {
   diagnosis: string;
   threshold?: Partial<typeof DEFAULT_THRESHOLD>;
 }): GateEvaluation {
-  const threshold = { ...DEFAULT_THRESHOLD, ...args.threshold };
+  // Fail-closed by construction: a spread ({ ...DEFAULT, ...override }) lets an
+  // EXPLICIT `undefined` field in the override clobber the default, after which
+  // `count < undefined` is `false` and that check silently passes — the same
+  // "missing threshold config degrades to allow" class fixed in the DB gate
+  // (migration 0190). Per-field `??` makes an absent OR explicitly-undefined
+  // field fall back to the strict default instead. (§3.2)
+  const t = args.threshold;
+  const threshold = {
+    minSignals: t?.minSignals ?? DEFAULT_THRESHOLD.minSignals,
+    minDistinctSources: t?.minDistinctSources ?? DEFAULT_THRESHOLD.minDistinctSources,
+    minDiagnosisChars: t?.minDiagnosisChars ?? DEFAULT_THRESHOLD.minDiagnosisChars,
+  };
   const signalCount = args.signalCount;
   const distinctSourceCount = new Set(args.distinctSources).size;
   const diagnosisCharCount = (args.diagnosis ?? "").trim().length;

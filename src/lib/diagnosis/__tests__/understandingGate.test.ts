@@ -75,6 +75,34 @@ describe("evaluateUnderstandingGate", () => {
     expect(result.passes).toBe(true);
     expect(result.threshold.minSignals).toBe(1);
   });
+
+  // Fail-closed regression: an EXPLICIT `undefined` field in the threshold
+  // override must NOT clobber the strict default and open the gate. A spread
+  // ({ ...DEFAULT, ...override }) would let `signalCount < undefined` → false
+  // silently pass the signal check — the same "missing config degrades to
+  // allow" class fixed in the DB gate (migration 0190). Under-supported input
+  // must still be REFUSED even when a caller hands us a partial/undefined
+  // threshold object.
+  it("explicit-undefined threshold fields fall back to the strict default (fail-closed)", () => {
+    const result = evaluateUnderstandingGate({
+      signalCount: 0,
+      distinctSources: [],
+      diagnosis: "",
+      threshold: {
+        minSignals: undefined,
+        minDistinctSources: undefined,
+        minDiagnosisChars: undefined,
+      },
+    });
+    expect(result.passes).toBe(false);
+    expect(result.threshold.minSignals).toBe(DEFAULT_THRESHOLD.minSignals);
+    expect(result.threshold.minDistinctSources).toBe(
+      DEFAULT_THRESHOLD.minDistinctSources
+    );
+    expect(result.threshold.minDiagnosisChars).toBe(
+      DEFAULT_THRESHOLD.minDiagnosisChars
+    );
+  });
 });
 
 describe("describeGapToGate", () => {
