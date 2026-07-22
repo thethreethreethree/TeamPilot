@@ -84,7 +84,14 @@ const config: Config = {
         //   border-default · border-strong
         //   text-primary · text-secondary · text-muted
         //   text-brand · text-accent (contrast-aware brand text)
-        base: "rgb(var(--bg-base) / <alpha-value>)",
+        //
+        // NOTE: `base` is DELIBERATELY NOT registered here (in `colors`). The name collides with
+        // Tailwind's core `text-base` FONT-SIZE utility — a color named `base` makes Tailwind emit
+        // `.text-base { color: var(--bg-base) }`, which forced EVERY `text-base` element's text colour
+        // to the page background (invisible: near-white in light, near-black in dark). That was the true
+        // root of the recurring "invisible text" bug (audit F4/V7, 2026-07-22). `base` is registered
+        // ONLY on the specific scales it's actually used on — backgroundColor/borderColor/ringColor —
+        // so `bg-base`/`border-base`/`ring-base` work and `text-base` stays a pure font-size.
         "surface-card": "rgb(var(--bg-surface) / <alpha-value>)",
         "surface-raised": "rgb(var(--bg-surface-raised) / <alpha-value>)",
       },
@@ -92,6 +99,10 @@ const config: Config = {
         DEFAULT: "rgb(var(--border-default) / <alpha-value>)",
         default: "rgb(var(--border-default) / <alpha-value>)",
         strong: "rgb(var(--border-strong) / <alpha-value>)",
+        base: "rgb(var(--bg-base) / <alpha-value>)",
+      },
+      ringColor: {
+        base: "rgb(var(--bg-base) / <alpha-value>)",
       },
       divideColor: {
         DEFAULT: "rgb(var(--border-default) / <alpha-value>)",
