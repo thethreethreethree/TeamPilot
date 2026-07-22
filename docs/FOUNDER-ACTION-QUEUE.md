@@ -1,5 +1,22 @@
 # Founder action queue — as of 2026-07-14
 
+> ### ⬆️ 2026-07-22 — BUG FOUND + FIXED (branch): file-mention autocomplete search never worked
+> While adding test coverage, a §0 empirical probe found a real bug: the `@file` autocomplete's search-as-you-
+> type is dead. `detectFileMentionContext` walked backward from the caret and stopped at the first space — but
+> the trigger is `@file <query>`, so the space ended the token before `@file` was recognized. The query was
+> ALWAYS empty, so `/api/files/search?q=` never filtered: you can open the file picker but can't type to narrow
+> it (directly contradicting the function's own comments). **Fixed on branch `fix/file-mention-query-capture`**
+> (anchors on `@file`, reads the query forward; preserves the Finding #2 / word-boundary / completed-marker
+> guards; 5 new tests that fail on the old code). Built on a branch because it's a runtime UX change I can't
+> exercise headlessly — **test the live `@file` picker, then merge.** Known limit: single-token query (a space
+> ends it); multi-word title search is a follow-up.
+>
+> ### ⬆️ 2026-07-22 — TEST COVERAGE PUSH (all on main): +90 tests, suite → ~1030 green
+> Extension surface comprehensively covered (9 → 57 tests: pure/IO/auth-gate/worker/adapters/CORS-invariant/3
+> routes) + both public demo endpoints (soft-fail-never-500, F2 coach-leak). Plus regression guards for
+> previously-broken things: **F2** (aiTone/aiResponseLength must reach the prompt — had NO test), care/prompt
+> builders, and mention/file parsing. No action needed — informational.
+>
 > ### ⬆️ 2026-07-22 (latest) — C.A.R.E BROWSER EXTENSION: on-page panel + 10 adapters + silent refresh shipped
 > Built + verified this session (spec `docs/feature-specs/CARE-BROWSER-EXTENSION.md`):
 > - **On-page panel** (replaces the popup, per your annotation): minimizable to a bubble, stays open (doesn't
