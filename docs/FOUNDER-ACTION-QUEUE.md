@@ -14,7 +14,13 @@
 > 4. **Rule on A3 + the seat model** → unblocks the remaining extension tool endpoints (Coach/Co-Pilot/Formulate/
 >    Spawn). A3 is sharpened: only *Spawn-task* touches the internal chain.
 > 5. **CWS submission** (when ready): `node extension/store/build-store-package.mjs` → zip → upload; justifications
->    + listing in `extension/store/CHROME-WEB-STORE-SUBMISSION.md`. You provide screenshots + the $5 registration.
+>    + listing in `extension/store/CHROME-WEB-STORE-SUBMISSION.md`. **The package now passes every headlessly-checkable
+>    item on your `chrome-web-store-publishing.md` checklist** — valid MV3 JSON, no eval/remote code, all 3 declared
+>    permissions actually used (nothing missing → avoids the #1 rejection), localhost stripped from the prod build,
+>    and (fixed this pass) real per-size icons: they were all 1024² copies renamed 16/48/128; now true 16/48/128 px.
+>    **Only two items need you** — both fall out of the ONE load-test browser session (#2 above): (a) capture ≥1
+>    **screenshot** at 1280×800 or 640×400 of the live panel on a real conversation page; (b) the **$5** developer
+>    registration. Everything else is paste-ready.
 > 6. **Optional hardenings** (none a live hole): explicit cookie `SameSite:"lax"`; HSTS for the standalone deploy
 >    target; a CSP (deferred, needs a nonce strategy).
 >
