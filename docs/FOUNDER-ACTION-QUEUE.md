@@ -1,26 +1,35 @@
 # Founder action queue — as of 2026-07-14
 
-> ### ⬆️ 2026-07-22 (latest) — C.A.R.E BROWSER EXTENSION: Phase 0 + unpacked build shipped; 3 things need you
-> Built + verified (spec `docs/feature-specs/CARE-BROWSER-EXTENSION.md`): the extension backend foundation
-> (entitlement D2 pro-or-trial, Bearer auth D3, ephemeral D1), an **unpacked Developer-mode extension** you
-> can load now (`extension/` — see its README), and **two working tools end-to-end: Summarize + Dissect**
-> (verified against the live gated endpoints: 401/402/200, plan reverted). Governed audit done: A1 (per-user
-> rate limit) + A2 (reject removed users) fixed.
+> ### ⬆️ 2026-07-22 (latest) — C.A.R.E BROWSER EXTENSION: on-page panel + 10 adapters + silent refresh shipped
+> Built + verified this session (spec `docs/feature-specs/CARE-BROWSER-EXTENSION.md`):
+> - **On-page panel** (replaces the popup, per your annotation): minimizable to a bubble, stays open (doesn't
+>   auto-close), ✕ to close, draggable. Injected on the toolbar-icon click.
+> - **Per-site adapters — 10 platforms** (Gmail, Outlook, Instagram, Messenger/FB, WhatsApp, LinkedIn, Gorgias,
+>   Zendesk, Intercom, Front): one-click "Read this thread" instead of highlighting. Every adapter falls back to
+>   manual selection if its selectors miss (never fabricates). Routing + extraction: **16 unit tests, green.**
+> - **One-click connect** (session handoff — no token paste) + **silent token refresh** (no more hourly
+>   reconnect). Both verified server-side (refresh 200/401).
+> - **3 proactive fixes** caught by audit before you'd hit them: panel-toggle re-injection crash, selection
+>   collapsing on button-click, and shadow-DOM output leaking to the host page.
+> - `0189` — **you applied it.** ✅  Two live tools (Summarize + Dissect) return 200 for your trial account.
 >
 > **YOUR ACTIONS / DECISIONS:**
-> 1. **RATIFY A3 (blocks Co-Pilot / Formulate / Ask-Coach).** Is the extension a product tool EXEMPT from the
->    §3.4 month-1 control window (it runs on the user's EXTERNAL conversations, like C.A.R.E itself) — or
->    must it be GATED like the in-app Co-Pilot? Summarize + Dissect I built ungated (a read + a diagnosis);
->    the GENERATIVE tools are exactly what the control window gates, so I stopped rather than decide the core
->    thesis for you. **I need your call before building the other three tool endpoints.**
-> 2. **Apply migration `0189`** (`npm run db:apply`) — additive, safe; enables the free trial. Until then the
->    extension degrades to plan-only (pro/enterprise unlocks; others locked — verified).
-> 3. **Create a Google OAuth client** (Google Cloud console) so one-click sign-in (`launchWebAuthFlow`) works;
->    until then the extension uses the dev token-paste connect (works, but manual). Give me the client ID and
->    I'll wire it.
->
-> Load it now: `chrome://extensions` → Developer mode → Load unpacked → the `extension/` folder. Set your
-> plan to `pro` (or apply 0189 + start a trial) to use it; paste a session token via Developer connect.
+> 1. **LOAD-AND-TEST the browser behaviors** — the one thing I *cannot* verify headlessly. `chrome://extensions`
+>    → reload the unpacked `extension/` → run the **10-step checklist in `extension/README.md`** (icon opens
+>    panel, minimize/restore, ✕, drag, Sign-in round-trip, Summarize/Dissect, and Gmail "Read this thread").
+>    Tell me any step that fails — especially which adapter reads nothing, so I tighten that platform's selectors.
+> 2. **RATIFY A3 — now sharpened.** The 6 tools split by WHAT THEY TOUCH, not "generative vs not":
+>    - Summarize, Dissect, Ask Coach, Co-Pilot, Formulate all operate on the user's **EXTERNAL** conversation
+>      (their other inbox) — the same class as the in-app messages route, which is intentionally **NOT** control-
+>      gated. By that logic all five are ungate-able and I can build the three missing ones now.
+>    - **Spawn task** is different: it **writes into the team's own C.A.R.E event chain** — that one genuinely
+>      touches the §3.4 internal-baseline boundary and needs your call (gate it during month-1? or allow?).
+>    So the real decision is narrower than before: **"do the 5 read/draft tools follow Summarize (ungated), and
+>    how should Spawn-task behave during the control window?"** I still won't decide the core thesis for you.
+> 3. **popup.html/js** are now unreferenced (the panel replaced them). Keep as fallback, or delete? (Safe either
+>    way; I'd lean delete to avoid two divergent copies of the tool logic.)
+> 4. **Google OAuth client** — now *optional*: the one-click connect handoff already gives seamless sign-in.
+>    Only needed if you want the fully-native `launchWebAuthFlow`. Give me a client ID if so.
 
 
 
