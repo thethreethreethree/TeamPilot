@@ -6,13 +6,18 @@
 > /sales-coach/login) and has no auth check — so it is **publicly reachable**. Its content is methodology help that
 > quotes the EXACT phrases the IP rule forbids on external surfaces: **"single-variable intervention," "no shadow
 > read," "Month 1 control," "override control… the skip is recorded permanently."** A prospect — or a competitor —
-> can read how the method works. The content reads as USER help (not marketing), so it looks **accidentally
-> public**, not intentionally.
-> **Two clean options (your call — routing + copy are both yours):** (A) **auth-gate /help** — add `/help/:path*`
-> to the middleware matcher; instant fix, no copy change, and then /help is the same class as the dashboard
-> teaching below; or (B) **rewrite /help copy** to describe the EXPERIENCE not the MECHANISM (as the sales-demo
-> fix did). I did NOT change routing or copy unilaterally. (A) is the smaller, safer move if /help is meant for
-> logged-in users. Recommend (A).
+> can read how the method works.
+> **CORRECTION (verified after first flagging):** I initially assumed /help was ACCIDENTALLY public and recommended
+> auth-gating it. But `/help` is linked from the **public landing page** (`src/app/page.tsx:562`), so it is
+> **intentionally public** — a help link on the marketing site. That flips the fix:
+> - **(A) auth-gate /help is now WRONG** — it would break the public help link a prospect clicks from the landing page.
+> - **(B) rewrite the /help copy** to describe the EXPERIENCE, not the MECHANISM (exactly the sales-demo fix) is the
+>   CORRECT option. The forbidden phrases ("single-variable intervention," "no shadow read," "Month 1 control," the
+>   override/skip mechanics) become experience language ("a measurement window with guidance held back," "anything
+>   the System forms an opinion about a person, you can see too," etc.).
+> I did NOT rewrite unilaterally (marketing copy is yours), but this is a genuine external leak on an
+> intentionally-public page — worth doing. Say the word and I rewrite /help's methodology sections to
+> experience-language in one reviewed pass.
 >
 > ## ⚠️ HONEST CORRECTION — "IP hygiene complete" was OVERSTATED (found 2026-07-23)
 > Earlier this session I reported "26 §-citation UI leaks swept + CI-guarded, IP hygiene complete." **That was
