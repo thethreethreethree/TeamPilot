@@ -89,6 +89,10 @@ const PRIMARY_NAV: NavItem[] = [
   // aggregate-only stance, carrying the §A18 guardrails (alphabetical, vs a
   // standard, coaching-framed, no F). Gated CEO/COO/admin by the route.
   { label: "Coach Assessment", href: "/dashboard/care/coach-assessment", icon: GraduationCap },
+  // Download + install the browser extension. Promoted to PRIMARY (always-visible) from the Settings sub-nav
+  // 2026-07-22 — the founder couldn't find it buried behind the collapsed Settings expander (§1.5.1
+  // discoverability). Links out to the public /extension/download page.
+  { label: "Browser extension", href: "/extension/download", icon: Puzzle },
 ];
 
 const SETTINGS_NAV: NavItem[] = [
@@ -96,7 +100,6 @@ const SETTINGS_NAV: NavItem[] = [
   { label: "Tags", href: "/dashboard/care/settings/tags", icon: Tag },
   { label: "Shortcuts", href: "/dashboard/care/settings/shortcuts", icon: Zap },
   { label: "Widget", href: "/dashboard/care/settings/widget", icon: MessageCircle },
-  { label: "Browser extension", href: "/extension/download", icon: Puzzle },
   { label: "Account", href: "/dashboard/care/settings/account", icon: Settings },
 ];
 
