@@ -15,10 +15,12 @@
 > While adding coverage I found `speakerLabel` is **byte-identical** (same md5) across the sales-coach prompt
 > builders, and the transcript-assembly (`buildXUserMessage`: context header + `[n]` segment numbering) is
 > structurally **duplicated across ≥4 files** (salesMoments/Pivot/Intel/Score). Low severity, but a real drift
-> risk — a change to the transcript format must be made in 4 places. Candidate: extract one shared
-> `transcriptPromptParts()` helper. I did NOT refactor (touches 4 files; §1.5.2 "not a license to refactor
-> without explicit need" + surface-don't-overtake). The shared behavior IS tested (salesMomentsPrompt), so a
-> future consolidation would be low-risk.
+> risk — a change to the transcript format must be made in 4 places. **The safe part is now DONE on branch
+> `refactor/shared-speaker-label`**: the byte-identical `speakerLabel` (md5-confirmed across 4 files) is
+> extracted into `transcriptFormat.ts` — behavior-preserving, verified by tsc + lint + the FULL suite (1099
+> passed). salesWhy.ts's different mapping is left alone. **Merge if you want the DRY** (it couples the 4
+> engines on one helper). The bigger transcript-body consolidation I did NOT attempt — those files differ
+> (salesIntel/Score don't use the [n] numbering), so it's not a safe mechanical extraction.
 >
 > ### ⬆️ 2026-07-22 — TEST COVERAGE PUSH (all on main): +160 tests, suite → ~1099 green
 > Extension surface comprehensively covered (9 → 57 tests: pure/IO/auth-gate/worker/adapters/CORS-invariant/3
