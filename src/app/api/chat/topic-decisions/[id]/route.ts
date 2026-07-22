@@ -200,26 +200,31 @@ export async function PATCH(
       ]) {
         for (const m of extractFileMentions(text)) cited.add(m.fileId);
       }
-      for (const fileId of cited) {
-        const { data: fileCheck } = await supabase
+      const citedIds = [...cited];
+      if (citedIds.length > 0) {
+        // Batch the visibility + not-deprecated check into ONE query (was an
+        // N+1: a SELECT per cited file). RLS still scopes this .in(), so a file
+        // the user can't SELECT is excluded — the same guarantee as the old
+        // per-file check (2026-06-19 audit Finding #4). Then bulk-insert the
+        // citation events (the append-only trigger still fires per row).
+        const { data: visibleFiles } = await supabase
           .from("files")
           .select("id")
-          .eq("id", fileId)
-          .is("deprecated_at", null)
-          .maybeSingle();
-        if (!fileCheck) continue;
-        await supabase.from("events").insert({
+          .in("id", citedIds)
+          .is("deprecated_at", null);
+        const rows = (visibleFiles ?? []).map((f) => ({
           company_id: row.company_id,
           actor: auth.user.id,
           kind: "asset.file.cited",
-          subject: `file:${fileId}`,
+          subject: `file:${f.id}`,
           payload: {
-            file_id: fileId,
+            file_id: f.id,
             cited_in: `chat_topic_decision:${id}`,
             cited_in_topic: row.topic_id,
             on_phase_advance_to: body.phase,
           },
-        });
+        }));
+        if (rows.length > 0) await supabase.from("events").insert(rows);
       }
     } catch {
       /* non-fatal */
