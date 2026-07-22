@@ -203,3 +203,19 @@ This complements the structural guarantees enforced by the RLS audit and the inv
 safety, cross-person read gating, upload validation, no client-callable DEFINER tenant-param fns). The app's
 security posture is sound across the classes an application-layer audit can reach; deeper assurance (a
 pen-test, adversarial prompt-injection red-teaming) is a staging/external exercise, not a code change.
+
+## Data-integrity spot-check — the double-entry ledger's core invariant
+
+Beyond security, a §0 read of the highest-stakes correctness invariant (finance: debits MUST equal credits) —
+a subtle break there is real money error, and tests don't always cover a direct-write path.
+
+**Finding — airtight, enforced in the DB at multiple layers (migration 0118):**
+- Per-line CHECK constraints: `debit XOR credit` (`(debit>0) <> (credit>0)`) and non-negative.
+- A **DEFERRABLE constraint trigger re-asserts BALANCE at COMMIT** for any posted entry — so even a direct SQL
+  write cannot leave a posted entry unbalanced (the T-8 backstop; the gold-standard place to enforce this).
+- `base_debit`/`base_credit` are **server-computed by trigger**, never client-trusted (closes the "client lies
+  about base currency" hole).
+- Posted entries are immutable (reverse, don't edit); >=2 lines required; approver != creator; open-period gate.
+
+The ledger integrity is enforced at the correct layer (the database), not left to application code — no bug, and
+notably robust. Consistent with the invariant audit's finance-schema-reachable / RLS-scoped checks.
