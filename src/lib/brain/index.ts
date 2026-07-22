@@ -113,7 +113,7 @@ export async function loadControlGate(companyId: string): Promise<ControlGate> {
     reason: enabled
       ? undefined
       : data.ai_guidance_unlock_at
-      ? `§3.4 control window — AI guidance unlocks ${data.ai_guidance_unlock_at}. Manually unlock if you need it sooner.`
+      ? `AI guidance is in its first-month baseline and unlocks ${data.ai_guidance_unlock_at}. Manually unlock if you need it sooner.`
       : "AI guidance not yet enabled for this company.",
   };
 }
