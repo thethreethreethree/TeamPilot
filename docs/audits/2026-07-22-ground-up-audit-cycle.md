@@ -166,6 +166,31 @@ overrides the parent for `/widget/*`. Verified: single `noindex, nofollow` on th
 
 ---
 
+### V7 — `base` color collided with `text-base` font-size → app-wide invisible text (HIGH) — FIXED `646f8b26`
+The true root of the recurring "invisible text" bug (earlier papered over as F4). A color named `base`
+in `tailwind.config.ts` `theme.extend.colors` collides with the core `text-base` FONT-SIZE utility, so
+Tailwind emitted `.text-base { color: var(--bg-base) }` — forcing every `text-base` element's text
+colour to the page background (near-white light / near-black dark; invisible on same-theme surfaces).
+Fix: register `base` only on backgroundColor/borderColor/ringColor, never top-level `colors`. Diagnosed
+by computed-style + `CSS.getMatchedStylesForNode`. Fixes 42 `text-base` sites app-wide.
+
+**Two method failures this exposed (recorded to memory):** (1) I audited in LIGHT mode; the app defaults
+to DARK, where this bug is most visible. (2) I eyeballed contrast instead of measuring it. Both fixed:
+
+### Automated contrast sweep — 0 findings (post-V7)
+Built a CDP contrast scanner (`contrast-batch.mjs`): mints an authed session, loads each surface in a
+theme, walks every text node, computes WCAG contrast vs the effective ancestor background, flags `<2.2`.
+Ran 23 scans — 12 authed dark + 5 authed light + 3 public × 2 themes — **all 0 low-contrast text.** The
+invisible-text class is systematically gone, not just spot-checked.
+
+### Demo work (founder requests, same session)
+- **Jeff wired to the real engine** `e30fc827` — /api/care/demo/ask runs the production Care pipeline;
+  verified live LLM reply.
+- **Agent-benefit section** `55f4e094` — CareAgentBenefits (3 pillars + 5-move complaint walkthrough),
+  business-owner framed; verified desktop + mobile dark.
+
+---
+
 ## Open — founder decision
 
 ### A3 — Global `userScalable: false` disables pinch-zoom on ALL pages (MED, a11y) — DECISION

@@ -1,5 +1,24 @@
 # Founder action queue — as of 2026-07-14
 
+> ### ⬆️ 2026-07-22 (later) — ROOT CAUSE of the recurring invisible-text bug FOUND + demo upgrades
+> **V7 — the big one.** The "invisible text" bug you kept catching (the honest-box, and others) was NOT
+> a component problem — it was a Tailwind CONFIG collision. A color named `base` collided with the core
+> `text-base` FONT-SIZE utility, so Tailwind forced EVERY `text-base` element's text colour to the page
+> background (near-white on light, near-black on dark). It hid on same-theme surfaces, which is why eye
+> audits + component patches never held. Diagnosed by computed-style, fixed at the source (`646f8b26`).
+> **Repairs invisible text on all 42 `text-base` sites app-wide.** Then verified with an AUTOMATED
+> contrast scanner across 23 page-scans (every major surface × light + dark): **0 low-contrast text
+> remaining.** Method lesson recorded: audit in dark mode (the app default) + scan contrast, don't eyeball.
+>
+> **Demo upgrades you asked for (both shipped):**
+> - "Talk to Jeff" on /care/demo is now the REAL engine (`e30fc827`) — a rate-limited /api/care/demo/ask
+>   running the exact production Care pipeline. Verified: returns genuine live LLM replies.
+> - New agent-benefit section on /care/demo (`55f4e094`): "Your customers feel it. Your agents do the
+>   work." — 3 pillars (work effectively / communicate accurately / resolve efficiently) each with a
+>   business outcome, + a 5-move complaint walkthrough. Verified desktop + mobile, dark mode.
+>
+> No action needed from you on these — all deployed. A2/A3 decisions below still stand.
+
 > ### ⬆️ 2026-07-22 — GROUND-UP AUDIT CYCLE: 7 fixes shipped + 916 tests; 3 decisions for you
 > Ran a ground-up §1.7 audit across ~15 surfaces (public + all authed dashboard sections + the
 > customer-facing widget) at desktop + mobile, an 18-page mobile-overflow sweep, and a nav-link check.
