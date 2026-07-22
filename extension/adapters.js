@@ -65,9 +65,10 @@ if (!globalThis.__careAdaptersLoaded) {
     },
     {
       key: "whatsapp",
-      label: "chat",
+      label: "WhatsApp chat",
       match: (h) => h === "web.whatsapp.com",
       // WhatsApp Web message text is in .selectable-text spans inside .message-in/.message-out bubbles.
+      // (.copyable-text is the wrapper AROUND .selectable-text — selecting the leaf span avoids double-reading.)
       extract: () => textFrom(".message-in .selectable-text, .message-out .selectable-text"),
     },
     {
