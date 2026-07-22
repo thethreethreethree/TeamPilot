@@ -90,27 +90,33 @@ describe("no invisible bare color utilities (recurring F4/V7/C4 class)", () => {
       }
     });
 
+    // Only the (prefix,name) combos that DON'T resolve are worth searching for — precompute them
+    // with their regex once, so the file loop below reads each file exactly once (the naive
+    // prefix×name×file re-read is O(100k) file reads and times out under full-suite load).
+    const suspects = Object.keys(PREFIX_NS).flatMap((prefix) =>
+      customNames
+        .filter((name) => !resolvesBare(PREFIX_NS[prefix], name))
+        .map((name) => ({
+          prefix,
+          name,
+          ns: PREFIX_NS[prefix],
+          re: new RegExp(`\\b${prefix}-${esc(name)}(?![-\\w])`),
+        }))
+    );
+
     const offenders: string[] = [];
     const seen = new Set<string>();
 
-    for (const prefix of Object.keys(PREFIX_NS)) {
-      const ns = PREFIX_NS[prefix];
-      for (const name of customNames) {
-        // A BARE usage is `${prefix}-${name}` not followed by another `-segment` or word char
-        // (which would make it a shade like `-400` or a longer color name).
-        const re = new RegExp(`\\b${prefix}-${esc(name)}(?![-\\w])`);
-        if (resolvesBare(ns, name)) continue; // resolves fine — nothing to check
-        for (const file of files) {
-          const src = readFileSync(file, "utf8");
-          if (re.test(src)) {
-            const key = `${prefix}-${name}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              offenders.push(
-                `${prefix}-${name}  (used bare in ${file} — ${ns}.${name} has no flat value/DEFAULT → renders nothing)`
-              );
-            }
-          }
+    for (const file of files) {
+      const src = readFileSync(file, "utf8");
+      for (const s of suspects) {
+        const key = `${s.prefix}-${s.name}`;
+        if (seen.has(key)) continue;
+        if (s.re.test(src)) {
+          seen.add(key);
+          offenders.push(
+            `${s.prefix}-${s.name}  (used bare in ${file} — ${s.ns}.${s.name} has no flat value/DEFAULT → renders nothing)`
+          );
         }
       }
     }
