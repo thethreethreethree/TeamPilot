@@ -122,8 +122,9 @@ export async function PATCH(req: NextRequest) {
         // Batch the visibility + not-deprecated check into ONE query (was an
         // N+1: a SELECT per mention). RLS still scopes this .in(), so a file the
         // user can't SELECT is excluded — same guarantee as the per-file check.
-        // Behavior preserved: one citation event PER MENTION (not deduped), via
-        // a visible-set filter. Same file-cite pattern as topic-decisions + chats.
+        // extractFileMentions already returns UNIQUE fileIds, so this emits one
+        // citation event per unique visible file. Same file-cite pattern as
+        // topic-decisions + chats.
         const ids = [...new Set(mentions.map((m) => m.fileId))];
         const { data: visibleFiles } = await supabase
           .from("files")
