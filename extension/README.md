@@ -36,7 +36,8 @@ the popup and set the API base to e.g. `http://localhost:4321` (the `host_permis
 
 ## Status (honest)
 - **Loads unpacked, valid MV3 manifest, C.A.R.E aesthetic.** ✅
-- **Reads the page selection + runs Summarize against the live gated endpoint.** ✅ (verify end-to-end with a real token.)
-- **Dissect / Ask Coach / Co-pilot / Formulate / Spawn task** — endpoints not built yet; shown as "Coming". ⏳
+- **Reads the page selection + runs Summarize AND Dissect against the live gated endpoints.** ✅ (both verified end-to-end: 401/402/200.)
+- **Ask Coach / Co-pilot / Formulate / Spawn task** — endpoints not built yet (blocked on the A3 control-window decision); shown as "Coming". ⏳
 - **One-click OAuth sign-in** — scaffolded, needs a Google OAuth client ID; use Developer connect meanwhile. ⏳
+- Privacy policy: `/extension/privacy` (host at `https://elostate.com/extension/privacy` for the store listing).
 - Icons reuse the square `elostate-logo.png`; a dedicated extension icon can replace it before store submission.
