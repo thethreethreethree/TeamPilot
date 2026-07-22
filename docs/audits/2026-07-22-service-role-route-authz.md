@@ -122,9 +122,27 @@ React auto-escapes, so the risk concentrates in `dangerouslySetInnerHTML` and ra
   manifest no longer references it), so it cannot run. Not a live hole; it's a latent hygiene issue that is one
   more reason to delete popup.html/js (already a pending founder keep-or-delete call).
 
+## Seventh sweep — mass-assignment (over-posting privileged fields)
+
+The classic vector: a client posts extra fields (`company_id`, `role`, `is_admin`) that get written to the DB
+because the route spreads the raw body into an insert/update. Checked both halves.
+
+**Finding — structurally prevented.**
+- The dangerous pattern `.(insert|update)({ ...body })` is **absent** — a repo-wide grep found zero routes that
+  spread the parsed body into a write. Every write constructs its columns EXPLICITLY (an allowlist).
+- Zod is the second guard: `z.object({...})` **strips unknown keys by default**, so extra client fields never
+  even reach the parsed `body`. `.strict()` (used in 20/80 route files) *rejects* unknown keys with a 400 rather
+  than silently stripping — a defense-in-depth / bug-surfacing choice, NOT a mass-assignment requirement. The
+  60 non-strict schemas are safe because of strip-by-default + explicit-field writes.
+
+No mass-assignment hole. (A consistency pass to add `.strict()` everywhere would surface client bugs earlier but
+changes no security posture.)
+
 ---
-**Overall audit verdict (6 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, SSRF, and XSS
-all checked — no live vulnerabilities. Two founder-glance items: the explicit-`SameSite` future-proofing (CSRF
-sweep) and deleting the dead `popup.*` (XSS-hygiene + already-flagged). This complements the structural
-guarantees enforced by the RLS audit and the invariant audit (CSV formula-safety, cross-person read gating,
-upload validation, no client-callable DEFINER tenant-param fns).
+**Overall audit verdict (7 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, SSRF, XSS, and
+mass-assignment all checked — no live vulnerabilities. Two founder-glance items, both optional/non-hole: the
+explicit-`SameSite` future-proofing (CSRF sweep) and — now done — deleting the dead `popup.*` (XSS-hygiene).
+This complements the structural guarantees enforced by the RLS audit and the invariant audit (CSV formula-
+safety, cross-person read gating, upload validation, no client-callable DEFINER tenant-param fns). The app's
+security posture is sound across the classes an application-layer audit can reach; deeper assurance (a
+pen-test, adversarial prompt-injection red-teaming) is a staging/external exercise, not a code change.
