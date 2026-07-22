@@ -20,11 +20,14 @@ import { join } from "node:path";
  * prompts, which are not product surfaces.
  */
 
-// User-facing strings live in the JSX surfaces (app + components). src/lib is
-// deliberately out of scope: it holds no user-facing § today (verified), and
-// its .ts files carry `=>` arrows + LLM system prompts that would false-positive
-// the JSX-text pattern. The rule for lib is the same, enforced by review.
-const ROOTS = ["src/app", "src/components"];
+// app + components get the FULL pattern set (JSX attrs, response fields, JSX text).
+// src/lib gets FIELD + DOC only: user-facing strings CAN originate there (a route
+// returns a lib-built `reason`/`message` to the client — that's how the §3.4
+// control-gate message leaked, fixed 2026-07-23), but its .ts files carry `=>`
+// arrows + LLM system prompts that would false-positive the JSX-text pattern, and
+// FIELD (`message|reason: "…§"`) has no such risk.
+const FULL_ROOTS = ["src/app", "src/components"];
+const LIB_ROOTS = ["src/lib"];
 
 // § inside a user-facing JSX attribute value, e.g. subtitle="… §3.2 …"
 const ATTR = /\b(subtitle|title|placeholder|aria-label|alt|label|hint|tooltip|description)\s*=\s*["'`][^"'`]*§/;
@@ -59,32 +62,44 @@ function isCommentLine(line: string): boolean {
   return t.startsWith("//") || t.startsWith("*") || t.startsWith("/*");
 }
 
-describe("no sensitive-IP leaks (§ citations or methodology-doc filenames) in user-facing UI", () => {
-  it("finds none across src/app and src/components", () => {
-    const offenders: string[] = [];
-    for (const root of ROOTS) {
-      let files: string[];
-      try {
-        files = walk(root);
-      } catch {
-        continue; // root missing in some environments
-      }
-      for (const file of files) {
-        const lines = readFileSync(file, "utf8").split("\n");
-        lines.forEach((line, i) => {
-          if (isCommentLine(line)) return;
-          const hasCitation =
-            line.includes("§") && (ATTR.test(line) || FIELD.test(line) || JSX_TEXT.test(line));
-          const hasDocName = DOC.test(line) || DOC_TEXT.test(line);
-          if (hasCitation || hasDocName) {
-            offenders.push(`${file}:${i + 1}: ${line.trim()}`);
-          }
-        });
-      }
+function scan(roots: string[], check: (line: string) => boolean): string[] {
+  const offenders: string[] = [];
+  for (const root of roots) {
+    let files: string[];
+    try {
+      files = walk(root);
+    } catch {
+      continue; // root missing in some environments
     }
+    for (const file of files) {
+      const lines = readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, i) => {
+        if (isCommentLine(line)) return;
+        if (check(line)) offenders.push(`${file}:${i + 1}: ${line.trim()}`);
+      });
+    }
+  }
+  return offenders;
+}
+
+describe("no sensitive-IP leaks (§ citations or methodology-doc filenames) in user-facing UI", () => {
+  it("finds none across app/components (full patterns) or lib (field patterns)", () => {
+    const offenders = [
+      // JSX surfaces: attrs, response fields, JSX text, and doc-name variants.
+      ...scan(
+        FULL_ROOTS,
+        (line) =>
+          (line.includes("§") && (ATTR.test(line) || FIELD.test(line) || JSX_TEXT.test(line))) ||
+          DOC.test(line) ||
+          DOC_TEXT.test(line)
+      ),
+      // lib: only FIELD (message/reason/error string values) + doc-name-in-field.
+      // No JSX_TEXT (`>…` matches `=>` arrows) and no ATTR (lib has no JSX props).
+      ...scan(LIB_ROOTS, (line) => (line.includes("§") && FIELD.test(line)) || DOC.test(line)),
+    ];
     expect(
       offenders,
-      `§ methodology citations leaked into user-facing UI (move the rationale to a code comment):\n${offenders.join(
+      `§ methodology citations / doc filenames leaked into user-facing strings (move the rationale to a code comment):\n${offenders.join(
         "\n"
       )}`
     ).toEqual([]);
