@@ -80,6 +80,14 @@ describe("computeExtensionEntitlement (D2)", () => {
   it("defaults a null plan to pilot (locked without trial)", () => {
     expect(computeExtensionEntitlement({ plan: null, trialStartedAt: null, now: NOW }).status).toBe("locked");
   });
+
+  it("plan matching is case-insensitive (a capitalized DB value still unlocks)", () => {
+    // The decision lower-cases `plan` before matching PAID_PLANS, so a stored
+    // "Pro"/"ENTERPRISE" must still resolve to active. Locks that normalization
+    // so a refactor can't silently lock out a capitalized-plan tenant.
+    expect(computeExtensionEntitlement({ plan: "Pro", trialStartedAt: null, now: NOW }).status).toBe("active");
+    expect(computeExtensionEntitlement({ plan: "ENTERPRISE", trialStartedAt: null, now: NOW }).status).toBe("active");
+  });
 });
 
 /**
