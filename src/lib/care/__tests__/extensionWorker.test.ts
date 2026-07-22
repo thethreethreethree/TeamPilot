@@ -121,7 +121,12 @@ describe("extension CORS architecture invariant", () => {
   });
 
   it("content.js dispatches tool runs to the worker via sendMessage", () => {
-    expect(read("content.js")).toMatch(/chrome\.runtime\.sendMessage\(\s*\{\s*[\s\S]*?type:\s*["']care-tool["']/);
+    // The CORS invariant: tool runs reach the worker through chrome.runtime.sendMessage with a "care-tool"
+    // message. Assert the two facts independently (the message may be built as a variable or inline — coupling
+    // to the object-literal syntax made this false-alarm when runTool started forwarding optional tool inputs).
+    const code = read("content.js");
+    expect(code).toMatch(/chrome\.runtime\.sendMessage\(/);
+    expect(code).toMatch(/type:\s*["']care-tool["']/);
   });
 
   it("background.js validates the endpoint before fetching (no open proxy)", () => {
