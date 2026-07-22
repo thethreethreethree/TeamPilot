@@ -59,19 +59,40 @@ describe("POST /api/care/extension/coach", () => {
     expect(body.coach.needsImprovement).toBe(false);
   });
 
-  it("invalid classification → 502 (shared validator rejects it)", async () => {
+  it("invalid classification → 502 invalid_response_shape (shared validator rejects it)", async () => {
     vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
     vi.mocked(analyzeCoachV5).mockResolvedValue({
       text: JSON.stringify({ classification: "bogus", needsImprovement: false, conversationStarters: [] }),
     } as never);
     const res = await POST(req);
+    const body = await res.json();
     expect(res.status).toBe(502);
+    expect(body.code).toBe("invalid_response_shape");
   });
 
-  it("non-JSON → 502 malformed", async () => {
+  it("non-JSON → 502 malformed_response (distinct branch from invalid-shape)", async () => {
     vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
     vi.mocked(analyzeCoachV5).mockResolvedValue({ text: "not json" } as never);
     const res = await POST(req);
+    const body = await res.json();
     expect(res.status).toBe(502);
+    expect(body.code).toBe("malformed_response");
+  });
+
+  // Same error-branch class as the spawn route: a rate_limit LlmError must map to
+  // 429 (client backs off), any other kind to 502.
+  it("LlmError kind=rate_limit → 429; other kinds → 502", async () => {
+    const { LlmError } = await import("@/lib/llm/errors");
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+
+    vi.mocked(analyzeCoachV5).mockRejectedValueOnce(
+      new LlmError({ kind: "rate_limit", message: "slow down", provider: "anthropic" })
+    );
+    expect((await POST(req)).status).toBe(429);
+
+    vi.mocked(analyzeCoachV5).mockRejectedValueOnce(
+      new LlmError({ kind: "server", message: "upstream boom", provider: "anthropic" })
+    );
+    expect((await POST(req)).status).toBe(502);
   });
 });
