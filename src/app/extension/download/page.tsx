@@ -90,7 +90,7 @@ export default function ExtensionDownloadPage() {
           <a
             href="/care-extension.zip"
             download
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand text-black font-semibold px-6 py-3 text-sm hover:opacity-90 transition"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-6 py-3 text-sm transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path
