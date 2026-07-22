@@ -85,6 +85,24 @@
     .copybtn { font-size:10px; font-weight:600; color:#a1a1aa; background:transparent; border:1px solid rgba(255,255,255,0.14);
       border-radius:6px; padding:2px 8px; cursor:pointer; }
     .copybtn:hover { color:#fafafa; border-color:rgba(255,255,255,0.3); }
+    /* Tool input (Coach draft / Formulate intent) + rich result rendering */
+    .ilabel { display:block; font-size:11px; color:#a1a1aa; margin:2px 0 6px; }
+    .tinput { width:100%; min-height:72px; resize:vertical; font-family:inherit; font-size:12.5px; line-height:1.5;
+      color:#fafafa; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.12); border-radius:9px;
+      padding:9px 10px; margin-bottom:9px; }
+    .tinput:focus { outline:none; border-color:rgba(250,204,21,0.5); }
+    .rnote { font-size:11px; line-height:1.5; color:#a1a1aa; margin-top:8px; white-space:pre-wrap; }
+    .cbadge { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; padding:2px 7px;
+      border-radius:999px; margin-right:auto; }
+    .cb-correct { background:rgba(34,197,94,0.15); color:#4ade80; }
+    .cb-unclear { background:rgba(250,204,21,0.15); color:#FACC15; }
+    .cb-unproductive, .cb-negative { background:rgba(248,113,113,0.15); color:#f87171; }
+    .csug { margin-top:8px; padding:9px 10px; border-radius:8px; background:rgba(250,204,21,0.06);
+      border:1px solid rgba(250,204,21,0.18); color:#fafafa; white-space:pre-wrap; }
+    .cprin { font-size:10.5px; color:#71717a; margin-top:8px; font-style:italic; }
+    .ttitle { font-weight:700; font-size:13.5px; color:#fafafa; margin-bottom:2px; }
+    .tsteps { margin:8px 0 0; padding-left:18px; font-size:12px; line-height:1.5; color:#e4e4e7; }
+    .tsteps li { margin-bottom:3px; }
     .ft { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; font-size:11px;
       color:#71717a; border-top:1px solid rgba(255,255,255,0.07); background:#09090B; }
     .link { color:#FACC15; cursor:pointer; text-decoration:none; }
@@ -163,7 +181,10 @@
   // The actual network call happens in the background worker (chrome.runtime.sendMessage → "care-tool"), NOT
   // here: a content-script fetch is subject to CORS and would be refused by elostate.com on every host site.
   // The worker holds the token, calls the API, and does the silent refresh + retry. We just render its result.
-  async function runTool(tool) {
+  // runTool(tool, inputValue): inputValue is the agent's own text for tools that need it (Coach: a draft to
+  // grade; Formulate: an intent to shape). For those tools, the first call (inputValue undefined) renders an
+  // input form; its Run button re-invokes runTool with the typed value. The other tools run on the selection.
+  async function runTool(tool, inputValue) {
     const out = $("result");
     if (!out) return;
     out.classList.remove("hide");
@@ -175,15 +196,18 @@
       out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Highlight the conversation on the page first, then click “Read my selected text”.`;
       return;
     }
+    // Tools that grade/shape the AGENT's OWN words ask for them first (Coach: draft, Formulate: intent).
+    if (tool.input && inputValue == null) {
+      renderInputForm(out, tool);
+      return;
+    }
     out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div><span class="spin"></span>Running…`;
 
     let resp;
     try {
-      resp = await chrome.runtime.sendMessage({
-        type: "care-tool",
-        endpoint: tool.endpoint,
-        conversation: currentSelection,
-      });
+      const msg = { type: "care-tool", endpoint: tool.endpoint, conversation: currentSelection };
+      if (tool.input && inputValue) msg[tool.input.key] = inputValue;
+      resp = await chrome.runtime.sendMessage(msg);
     } catch {
       out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Couldn't reach C.A.R.E. Check your connection.`;
       return;
@@ -210,38 +234,117 @@
       return;
     }
 
-    let text;
+    // §3.4 control window (Spawn during a team's month-1 baseline) — honest, not an error.
+    if (data.suppressed) {
+      renderResult(out, tool.label, data.message || "This tool is in your team's month-1 control window right now.");
+      return;
+    }
     if (data.dissect) {
       const d = data.dissect;
-      text = d.hasSignal
+      const text = d.hasSignal
         ? `PROBLEM: ${d.problem?.statement || ""}\nWhy it matters: ${d.problem?.whyItMatters || ""}\n\n` +
           `ROOT CAUSE: ${d.rootCause || ""}\n\nOUTSIDE VIEW: ${d.outsideView || ""}\n\n` +
           `GUIDING QUESTION: ${d.guidingQuestion || ""}`
         : "Not enough in the selected text to dissect a clear problem yet — select more of the conversation.";
+      renderResult(out, tool.label, text);
+    } else if (data.coach) {
+      renderCoach(out, tool.label, data.coach);
+    } else if (data.task) {
+      renderTask(out, tool.label, data.task);
+    } else if (typeof data.reply === "string" && data.reply) {
+      // Co-Pilot / Formulate: the customer-facing reply is the copyable output; the "move" reasoning is an
+      // internal note shown below and DELIBERATELY excluded from the copy so it never lands in the customer's inbox.
+      renderResult(out, tool.label, data.reply, data.reasoning ? `<div class="rnote">Move: ${esc(data.reasoning)}</div>` : "");
     } else {
-      text = data.summary || data.reply || data.result || JSON.stringify(data, null, 2);
+      renderResult(out, tool.label, data.summary || data.result || JSON.stringify(data, null, 2));
     }
-    renderResult(out, tool.label, text);
   }
 
-  // Render a tool result with a Copy button — after a summary/dissection the user's next move is to paste it
-  // into a reply or a note, so copying out is the workflow-continuity step (§1.5.1).
-  function renderResult(out, label, text) {
+  // Input form for tools that need the agent's own words. Run is disabled logic is simple: empty → refocus.
+  function renderInputForm(out, tool) {
+    const inp = tool.input;
+    out.innerHTML =
+      `<div class="rlabel">${esc(tool.label)}</div>` +
+      `<label class="ilabel">${esc(inp.label)}</label>` +
+      `<textarea class="tinput" id="toolInput" rows="4" placeholder="${esc(inp.placeholder)}"></textarea>` +
+      `<button class="primary" id="toolRun">Run ${esc(tool.label)}</button>`;
+    const ta = out.querySelector("#toolInput");
+    const runBtn = out.querySelector("#toolRun");
+    if (ta) ta.focus();
+    if (runBtn) runBtn.addEventListener("click", () => {
+      const v = ((ta && ta.value) || "").trim();
+      if (!v) { if (ta) ta.focus(); return; }
+      runTool(tool, v);
+    });
+  }
+
+  // Render a plain-text result with a Copy button (the copy is `copyText`); `extraHtml` is appended as an
+  // internal note that is shown but NOT copied. After a result the agent's next move is to paste it into their
+  // reply — copying out is the workflow-continuity step (§1.5.1).
+  function renderResult(out, label, copyText, extraHtml) {
     out.innerHTML =
       `<div class="rhead"><span class="rlabel">${esc(label)}</span>` +
-      `<button class="copybtn" id="copyResult">Copy</button></div>${esc(text)}`;
-    const btn = out.querySelector("#copyResult");
-    if (btn) {
-      btn.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          btn.textContent = "Copied ✓";
-          setTimeout(() => { btn.textContent = "Copy"; }, 1500);
-        } catch {
-          btn.textContent = "Press Ctrl+C"; // some pages block programmatic clipboard; the text is selectable
-        }
-      });
+      `<button class="copybtn" id="copyResult">Copy</button></div>${esc(copyText)}` +
+      (extraHtml || "");
+    wireCopy(out, copyText);
+  }
+
+  // Coach review (grade a draft vs the books): classification badge + affirmation, and when flagged a copyable
+  // suggested revision with the book-grounded WHY. The copyable text is the revision — the agent's next move is
+  // to send it; if nothing needs improving, the affirmation is copyable so the panel always has a Copy target.
+  function renderCoach(out, label, coach) {
+    const cls = String(coach.classification || "");
+    const imp = coach.needsImprovement && coach.improvement ? coach.improvement : null;
+    const copyText = imp ? String(imp.suggestedRevision || "") : String(coach.affirmation || "Reads well — no change suggested.");
+    let body = "";
+    if (coach.affirmation) body += `<div class="rnote">${esc(coach.affirmation)}</div>`;
+    if (imp) {
+      body += `<div class="csug">${esc(imp.suggestedRevision || "")}</div>`;
+      if (imp.whyContext) body += `<div class="rnote">${esc(imp.whyContext)}</div>`;
+      if (imp.whySentence) body += `<div class="rnote">${esc(imp.whySentence)}</div>`;
+      const p = imp.principleCited;
+      if (p && p.name) {
+        body += `<div class="cprin">${esc(p.name)}${p.book ? ` — ${esc(p.book)}` : ""}${p.sectionRef ? ` (${esc(p.sectionRef)})` : ""}</div>`;
+      }
     }
+    out.innerHTML =
+      `<div class="rhead"><span class="rlabel">${esc(label)}</span>` +
+      `<span class="cbadge cb-${esc(cls)}">${esc(cls || "reviewed")}</span>` +
+      `<button class="copybtn" id="copyResult">Copy</button></div>` + body;
+    wireCopy(out, copyText);
+  }
+
+  // Spawn task result — a DRAFT (not yet persisted, §3.3): title + description + numbered steps, copyable as a
+  // block. The agent finalizes it in their C.A.R.E workspace (the honest boundary — see the spawn route header).
+  function renderTask(out, label, task) {
+    const steps = Array.isArray(task.steps) ? task.steps : [];
+    const stepsHtml = steps.map((s) => `<li>${esc(String(s))}</li>`).join("");
+    const copyText =
+      `${task.title || ""}\n\n${task.description || ""}\n\n` +
+      steps.map((s, i) => `${i + 1}. ${s}`).join("\n");
+    out.innerHTML =
+      `<div class="rhead"><span class="rlabel">${esc(label)} — draft</span>` +
+      `<button class="copybtn" id="copyResult">Copy</button></div>` +
+      `<div class="ttitle">${esc(String(task.title || ""))}</div>` +
+      `<div class="rnote">${esc(String(task.description || ""))}</div>` +
+      (stepsHtml ? `<ol class="tsteps">${stepsHtml}</ol>` : "") +
+      `<div class="rnote">Draft only — open C.A.R.E to create and assign it.</div>`;
+    wireCopy(out, copyText);
+  }
+
+  // Wire the Copy button in a rendered result to copy `text` (never the internal notes).
+  function wireCopy(out, text) {
+    const btn = out.querySelector("#copyResult");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied ✓";
+        setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+      } catch {
+        btn.textContent = "Press Ctrl+C"; // some pages block programmatic clipboard; the text is selectable
+      }
+    });
   }
 
   // Set the working text (from a manual selection or a per-site adapter) and reflect it in the UI.

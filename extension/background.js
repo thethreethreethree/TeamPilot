@@ -99,7 +99,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse?.({ status: 400, data: { error: "Unknown tool." } });
       return; // sync response
     }
-    careFetch(message.endpoint, { conversation: String(message.conversation || "") })
+    // Forward only the known tool inputs (defence in depth — never relay arbitrary keys): every tool takes
+    // `conversation`; Coach also takes the agent's `draft`, Formulate also takes their `intent`.
+    const payload = { conversation: String(message.conversation || "") };
+    if (typeof message.draft === "string" && message.draft) payload.draft = message.draft;
+    if (typeof message.intent === "string" && message.intent) payload.intent = message.intent;
+    careFetch(message.endpoint, payload)
       .then((r) => sendResponse(r))
       .catch(() => sendResponse({ status: 0, data: { error: "network" } }));
     return true; // async

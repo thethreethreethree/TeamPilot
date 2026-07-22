@@ -1,0 +1,67 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextResponse } from "next/server";
+
+/**
+ * Formulate extension route: gate ordering + the JSON contract. The prompt asks for strict {reply, reasoning}
+ * JSON; the route must parse it, and degrade gracefully (surface raw text as the reply) rather than erroring the
+ * agent out when the model strays from JSON — an empty reply is the only genuine failure (502).
+ */
+
+vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: vi.fn(() => null) }));
+vi.mock("@/lib/api/validate", () => ({
+  readBody: vi.fn(async () => ({ conversation: "thread", intent: "tell them the refund is approved" })),
+}));
+vi.mock("@/lib/api/extensionAuth", () => ({ requireEntitledExtensionUser: vi.fn() }));
+vi.mock("@/lib/care/config", () => ({ getProductContextForTenant: vi.fn(async () => "PRODUCT CONTEXT") }));
+vi.mock("@/lib/claude", () => ({ generateCareReply: vi.fn() }));
+
+import { POST } from "@/app/api/care/extension/formulate/route";
+import { rateLimit } from "@/lib/api/rateLimit";
+import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
+import { generateCareReply } from "@/lib/claude";
+
+const entitled = { ok: true, user: { userId: "u", companyId: "c" } };
+const req = {} as never;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(rateLimit).mockReturnValue(null);
+});
+
+describe("POST /api/care/extension/formulate", () => {
+  it("unentitled (402) turned away before the LLM", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: "locked" }, { status: 402 }),
+    } as never);
+    const res = await POST(req);
+    expect(res.status).toBe(402);
+    expect(generateCareReply).not.toHaveBeenCalled();
+  });
+
+  it("parses strict JSON into { reply, reasoning }", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(generateCareReply).mockResolvedValue({
+      text: JSON.stringify({ reply: "Good news — your refund is approved.", reasoning: "Led with the outcome." }),
+    } as never);
+    const body = await (await POST(req)).json();
+    expect(body.reply).toBe("Good news — your refund is approved.");
+    expect(body.reasoning).toBe("Led with the outcome.");
+  });
+
+  it("non-JSON output degrades to raw text as the reply (does not error the agent out)", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(generateCareReply).mockResolvedValue({ text: "Your refund is approved." } as never);
+    const res = await POST(req);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.reply).toBe("Your refund is approved.");
+  });
+
+  it("empty reply → 502 (the one genuine failure)", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(generateCareReply).mockResolvedValue({ text: JSON.stringify({ reply: "", reasoning: "x" }) } as never);
+    const res = await POST(req);
+    expect(res.status).toBe(502);
+  });
+});

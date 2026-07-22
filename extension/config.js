@@ -13,15 +13,19 @@ if (!globalThis.__careConfigLoaded) {
   // `apiBase` key in chrome.storage.local (e.g. http://localhost:4321).
   globalThis.DEFAULT_API_BASE = "https://elostate.com";
 
-  // The six tools. `endpoint` null = not yet built server-side (blocked on the A3 control-window decision). The
-  // UI renders those honestly as "SOON" rather than faking them (§3.4).
+  // The six tools. `endpoint` null = not yet built server-side. `input` = an extra field the tool needs from the
+  // agent (Coach grades their DRAFT; Formulate shapes their INTENT) — the panel shows a textarea for those before
+  // running; the other four run on the scanned conversation alone. The UI renders any null-endpoint tool honestly
+  // as "SOON" rather than faking it (§3.4).
   globalThis.CARE_TOOLS = [
     { key: "summarize", label: "Summarize", desc: "Catch up on the thread", endpoint: "/api/care/extension/summarize" },
     { key: "dissect", label: "Dissect", desc: "Find the real problem", endpoint: "/api/care/extension/dissect" },
-    { key: "coach", label: "Ask Coach", desc: "Grade a draft vs the books", endpoint: null },
-    { key: "copilot", label: "AI Co-pilot", desc: "Draft the reply + name the move", endpoint: null },
-    { key: "formulate", label: "Formulate C.A.R.E", desc: "Shape your intent into a reply", endpoint: null },
-    { key: "spawn", label: "Spawn task", desc: "Turn this into a C.A.R.E task", endpoint: null },
+    { key: "coach", label: "Ask Coach", desc: "Grade a draft vs the books", endpoint: "/api/care/extension/coach",
+      input: { key: "draft", label: "Your draft reply", placeholder: "Paste or type the reply you're about to send…" } },
+    { key: "copilot", label: "AI Co-pilot", desc: "Draft the reply + name the move", endpoint: "/api/care/extension/copilot" },
+    { key: "formulate", label: "Formulate C.A.R.E", desc: "Shape your intent into a reply", endpoint: "/api/care/extension/formulate",
+      input: { key: "intent", label: "What do you want to say?", placeholder: "e.g. tell them the refund is approved but it takes 5 days…" } },
+    { key: "spawn", label: "Spawn task", desc: "Turn this into a C.A.R.E task", endpoint: "/api/care/extension/spawn" },
   ];
 
   globalThis.getApiBase = async function getApiBase() {
