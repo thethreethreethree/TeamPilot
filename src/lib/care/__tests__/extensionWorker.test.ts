@@ -103,3 +103,30 @@ describe("extension background worker — careFetch", () => {
     expect(out.status).toBe(401);
   });
 });
+
+/**
+ * Structural invariant guard for the CORS architecture (the session's most critical fix). A content-script
+ * fetch to the API is CORS-refused on host sites, so ALL network must go through the background worker. If a
+ * future change moves a fetch back into content.js, the tools silently break on every site — this catches it.
+ */
+describe("extension CORS architecture invariant", () => {
+  const read = (f: string) => readFileSync(join(__dirname, "../../../../extension", f), "utf8");
+
+  it("content.js makes no direct network calls (all routed through the worker)", () => {
+    const src = read("content.js");
+    // Strip comments so an explanatory mention of fetch in a comment doesn't trip the guard.
+    const code = src.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(code).not.toMatch(/\bfetch\s*\(/);
+    expect(code).not.toMatch(/XMLHttpRequest/);
+  });
+
+  it("content.js dispatches tool runs to the worker via sendMessage", () => {
+    expect(read("content.js")).toMatch(/chrome\.runtime\.sendMessage\(\s*\{\s*[\s\S]*?type:\s*["']care-tool["']/);
+  });
+
+  it("background.js validates the endpoint before fetching (no open proxy)", () => {
+    const src = read("background.js");
+    expect(src).toMatch(/ALLOWED_ENDPOINT|\/\^\\\/api\\\/care\\\/extension/);
+    expect(src).toMatch(/\bfetch\s*\(/); // the worker is where fetch legitimately lives
+  });
+});
