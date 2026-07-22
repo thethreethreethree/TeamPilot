@@ -68,6 +68,22 @@ foreign settlement is explicitly rejected (0124/0132), so even a DB-booked forei
 Option 1 is the cleanest and most consistent with the project's own opening-balance philosophy. It touches the
 ledger, so it needs founder/accountant sign-off + a migration + a test; flagged rather than built.
 
+### Interim stopgap (cheaper than the full fix, if you want cover NOW)
+
+The settlement path ALREADY rejects foreign currency explicitly (0124/0132: "base-currency payments only for
+now"). The BOOKING path (`fin_approve_bill`, `fin_issue_invoice`, `fin_approve_expense_report`) simply MISSED
+the same guard — which is why foreign booking currently succeeds ~75% / hard-fails ~25% / strands the payable.
+A **symmetric fail-closed guard** on those three functions — reject a non-base document currency with a clear
+"foreign-currency documents aren't supported yet — base currency only" message — would:
+- make the half-built feature CONSISTENTLY refuse foreign (matching settlement),
+- turn the confusing UNBALANCED error into an honest, actionable one (§3.4),
+- prevent the book-but-can't-settle dead-end,
+- be trivially reversible when the real multi-currency increment (with the rounding-difference line) ships.
+It applies your ALREADY-MADE "base-currency only for now" decision consistently, rather than introducing a new
+one — so it's low-risk. **Decide:** interim symmetric reject now, or go straight to the full increment (Option 1
+rounding line + foreign settlement)? Either is a small, testable build I do on your word; I did not apply the
+reject unilaterally because it changes finance posting behavior (§2).
+
 ## Verify on a live DB
 
 Enter a rate `EUR→USD = 1.0001`, create a EUR bill with lines summing to 0.87 + 1.50 and no tax (or the tax
