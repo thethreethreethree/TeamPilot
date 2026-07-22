@@ -132,10 +132,11 @@ document.addEventListener("DOMContentLoaded", () => {
   $("readSelBtn").addEventListener("click", readSelection);
 
   $("signInBtn").addEventListener("click", async () => {
-    // Full OAuth (launchWebAuthFlow, D3) needs a configured Google OAuth client — until then, open the app
-    // login and use the developer token connect below. Honest about the state (§3.4).
+    // Opens the app's connect page: it reads your logged-in session and shows a token to copy into
+    // Developer connect below. (One-click OAuth via launchWebAuthFlow, D3, needs a Google client ID — until
+    // then this copy-paste is the connect step. Honest about the state, §3.4.)
     const base = await getApiBase();
-    chrome.tabs.create({ url: base + "/login" });
+    chrome.tabs.create({ url: base + "/extension/connect" });
   });
 
   $("tokenSaveBtn").addEventListener("click", async () => {
