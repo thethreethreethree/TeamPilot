@@ -1,5 +1,25 @@
 # Founder action queue — as of 2026-07-14
 
+> ## 🌐 DATA-GOVERNANCE DECISION — which AI provider processes customer/team data? (found 2026-07-23)
+> **Not a bug — a conscious decision to make, especially before selling the extension.** The LLM layer
+> (`src/lib/llm/index.ts` → `chooseProvider`) **prefers DeepSeek whenever `DEEPSEEK_API_KEY` is set** — it's the
+> PRIMARY provider then, not just a fallback (`if (deepseekProvider.enabled()) return deepseekProvider`). No route
+> pins Anthropic, so **every** AI call routes to the configured provider: the browser extension's processing of
+> **customer conversations pulled from external inboxes** (Gmail/Zendesk/etc.), plus all in-app coach/care/diagnosis.
+>
+> **Why it matters:** DeepSeek is China-based. Sending a *customer's* support conversations (and your teams' internal
+> data) to it has real data-residency / compliance implications — and it sits in tension with (a) the extension's
+> stated D1 privacy posture and (b) the product's "your data is yours" positioning. If an enterprise prospect asks
+> "where does our data go?", the answer today is "whichever provider the env is set to," and if `DEEPSEEK_API_KEY`
+> is present that's DeepSeek.
+>
+> **What's verified vs open:** the *code* defaults to DeepSeek-when-configured (confirmed). Whether it's ACTIVE
+> depends on your Vercel env — I can't see it. **Decide + confirm:** (1) which provider SHOULD handle customer
+> extension data (Anthropic-only for the privacy-sensitive extension is a defensible pin); (2) if you want the
+> extension pinned to Anthropic regardless of the global default, that's a small, safe build I can do on your word
+> (pass a provider override through `generateCareReply` for the extension routes). The storage claim itself is
+> HONEST — verified nothing writes the conversation to our DB or logs (only error metadata is logged, never content).
+>
 > ## 🚨 CRITICAL — the extension has NO entitlement write-path: it's LOCKED for every tenant (found 2026-07-22)
 > **Read this before selling — it's why the extension can't launch yet.** `computeExtensionEntitlement` unlocks a
 > tenant only if `care_tenant_config.plan` ∈ {pro, enterprise} OR `extension_trial_started_at` is within 14 days.
