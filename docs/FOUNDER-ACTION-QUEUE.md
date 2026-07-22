@@ -8,7 +8,7 @@
 
 **Real defects / leaks (fix soon, low effort):**
 3. **`/help` external IP leak** — a publicly-linked page quotes the forbidden mechanism phrases. Rewrite copy to experience-language (I do it on your word). *(§ "IP LEAK ON A PUBLIC PAGE" below.)*
-3b. **🔴 CONFIRM `0112` is applied** (item-12 HIGH — brain prompt-injection). If UNAPPLIED, any member can `UPDATE company_brain.system_prompt_addendum` and steer EVERY company AI call (incl. customer C.A.R.E replies). Fix is written (`0112`); it flips invoker→DEFINER so needs a staging test first. Query `select * from public._agent_migrations where name like '0112%'` — if absent, it's a LIVE HIGH vuln. Details: `docs/audits/2026-07-23-ground-up-audit-session.md`.
+3b. **CONFIRM `0112` applied** (item-12 HIGH — brain prompt-injection) — **very likely already CLOSED, quick confirm.** The fix `0112` restricts member writes to `company_brain`. Evidence it's applied: `db-apply.mjs` applies ALL pending migrations (no skip logic), and the 2026-07-20 full-apply covered 0001→0187 (0112 < 0187); the file's "UNAPPLIED" header is a stale 2026-07-09 write-time note, not a live status. So this is very likely closed. **One-query confirm:** `select * from public._agent_migrations where name like '0112%'`. If present (expected) → closed. If absent (unlikely) → LIVE HIGH (any member could `UPDATE company_brain.system_prompt_addendum` to steer every company AI call), apply after the staging verifier. Details: `docs/audits/2026-07-23-ground-up-audit-session.md`.
 4. **Apply migration `0190`** (§3.2 gate → fail-closed) + run `supabase/tests/verify_0190_*.sql`. Needs the live DB.
 5. **Merge the 4 ready branches** — `fix/sharp-cve-override` FIRST (real HIGH CVE); never `npm audit fix --force`.
 

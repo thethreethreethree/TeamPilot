@@ -39,11 +39,15 @@ Sibling: members could INSERT fabricated `brain_evolution_events` (fake "learnin
 for members, so direct member writes are default-denied while the legit learning cycle still writes. Static
 safety is verified in the migration; it flips invoker→DEFINER so it needs a staging runtime test before promote.
 
-**⚠️ THE OPEN QUESTION I CANNOT ANSWER FROM THE SANDBOX:** `0112`'s header says UNAPPLIED (2026-07-09), but a
-later note claims "all migrations through 0187 applied" (2026-07-20). If `0112` is applied, this HIGH item is
-CLOSED (modulo the residual below). If NOT, it is a **LIVE HIGH vulnerability**. **Action: query the migration
-ledger (`select * from public._agent_migrations where name like '0112%'`) — if absent, run
-`docs/closures/2026-07-09-item12-0112-staging-verification.sql` + the behavioral staging test, then apply.**
+**Applied-state (calibrated after checking the apply tool): VERY LIKELY APPLIED → very likely CLOSED.** `0112`'s
+header says UNAPPLIED, but that is a stale 2026-07-09 *write-time* note. `scripts/db-apply.mjs` applies ALL
+pending migrations (no skip logic — `pendingFiles()` = every file not in the ledger), and the 2026-07-20
+full-apply covered 0001→0187 (0112 < 0187), so the tool would have applied 0112 regardless of the "needs
+staging" comment. So item-12's direct-write vector is very likely closed. **Confirm definitively with one query:**
+`select * from public._agent_migrations where name like '0112%'`. If present (expected) → closed. If absent
+(unlikely) → LIVE HIGH; run `docs/closures/2026-07-09-item12-0112-staging-verification.sql` + the behavioral
+staging test, then apply. (I initially over-flagged this as a probable live vuln before checking the apply
+tool's no-skip behavior — corrected here.)
 
 **Residual even after 0112 (lesser):** `record_brain_learning` stays client-callable and does NOT structurally
 enforce §4 (a `method_validated` with empty `source_resolution_ids`). So a member could still call the RPC
