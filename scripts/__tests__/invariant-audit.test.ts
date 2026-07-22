@@ -16,12 +16,19 @@ import { readFileSync } from "node:fs";
 const SCRIPT = readFileSync("scripts/invariant-audit.mjs", "utf8");
 
 describe("invariant-audit.mjs", () => {
-  it("passes on the current tree (no CSV export unrouted, no finance route on the service role)", () => {
-    const out = execFileSync("node", ["scripts/invariant-audit.mjs"], { encoding: "utf8" });
-    expect(out).toContain("Violations:           0");
-    expect(out).toContain("every upload route validated");
-    expect(out).toContain("every cross-person read gated");
-  });
+  it(
+    "passes on the current tree (no CSV export unrouted, no finance route on the service role)",
+    () => {
+      const out = execFileSync("node", ["scripts/invariant-audit.mjs"], { encoding: "utf8" });
+      expect(out).toContain("Violations:           0");
+      expect(out).toContain("every upload route validated");
+      expect(out).toContain("every cross-person read gated");
+    },
+    // This spawns a subprocess that scans the whole src tree (~640 files). In isolation it's ~1s, but under
+    // full-suite parallelism the subprocess gets CPU-starved and can exceed vitest's 5s default → a flaky
+    // timeout failure (observed 2026-07-22). Give it generous headroom; it's I/O-bound, not a hot loop.
+    30_000
+  );
 
   // The patterns must actually match a real violation. Verified against strings shaped like the code they
   // are meant to catch — a regex that matches nothing would let this audit report green forever.
