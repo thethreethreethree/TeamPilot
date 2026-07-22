@@ -117,24 +117,30 @@ export async function PATCH(req: NextRequest) {
       .maybeSingle();
     const companyId = (profile?.company_id as string | undefined) ?? null;
     if (companyId) {
-      for (const m of extractFileMentions(observedOutcome)) {
-        const { data: fileCheck } = await supabase
+      const mentions = extractFileMentions(observedOutcome);
+      if (mentions.length > 0) {
+        // Batch the visibility + not-deprecated check into ONE query (was an
+        // N+1: a SELECT per mention). RLS still scopes this .in(), so a file the
+        // user can't SELECT is excluded — same guarantee as the per-file check.
+        // Behavior preserved: one citation event PER MENTION (not deduped), via
+        // a visible-set filter. Same file-cite pattern as topic-decisions + chats.
+        const ids = [...new Set(mentions.map((m) => m.fileId))];
+        const { data: visibleFiles } = await supabase
           .from("files")
           .select("id")
-          .eq("id", m.fileId)
-          .is("deprecated_at", null)
-          .maybeSingle();
-        if (!fileCheck) continue;
-        await supabase.from("events").insert({
-          company_id: companyId,
-          actor: auth.user.id,
-          kind: "asset.file.cited",
-          subject: `file:${m.fileId}`,
-          payload: {
-            file_id: m.fileId,
-            cited_in: `resolution:${id}`,
-          },
-        });
+          .in("id", ids)
+          .is("deprecated_at", null);
+        const visible = new Set((visibleFiles ?? []).map((f) => f.id as string));
+        const rows = mentions
+          .filter((m) => visible.has(m.fileId))
+          .map((m) => ({
+            company_id: companyId,
+            actor: auth.user.id,
+            kind: "asset.file.cited",
+            subject: `file:${m.fileId}`,
+            payload: { file_id: m.fileId, cited_in: `resolution:${id}` },
+          }));
+        if (rows.length > 0) await supabase.from("events").insert(rows);
       }
     }
   } catch {

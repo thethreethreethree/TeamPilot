@@ -1183,25 +1183,33 @@ export async function postMessage(args: {
       try {
         const { extractFileMentions } = await import("@/lib/files/fileMention");
         const mentions = extractFileMentions(args.body);
-        for (const m of mentions) {
-          const { data: fileCheck } = await supabase
+        if (mentions.length > 0) {
+          // Batch the visibility + not-deprecated check into ONE query (was an
+          // N+1: a SELECT per mention). RLS still scopes this .in(), so a file
+          // the user can't SELECT is excluded. Behavior preserved: one citation
+          // event PER MENTION via a visible-set filter. Same file-cite pattern
+          // as topic-decisions + resolutions.
+          const ids = [...new Set(mentions.map((m) => m.fileId))];
+          const { data: visibleFiles } = await supabase
             .from("files")
             .select("id")
-            .eq("id", m.fileId)
-            .is("deprecated_at", null)
-            .maybeSingle();
-          if (!fileCheck) continue;
-          await supabase.from("events").insert({
-            company_id: ctx.companyId,
-            actor: ctx.userId,
-            kind: "asset.file.cited",
-            subject: `file:${m.fileId}`,
-            payload: {
-              file_id: m.fileId,
-              cited_in: `chat_topic:${args.topicId}`,
-              cited_in_message: data.id,
-            },
-          });
+            .in("id", ids)
+            .is("deprecated_at", null);
+          const visible = new Set((visibleFiles ?? []).map((f) => f.id as string));
+          const rows = mentions
+            .filter((m) => visible.has(m.fileId))
+            .map((m) => ({
+              company_id: ctx.companyId,
+              actor: ctx.userId,
+              kind: "asset.file.cited",
+              subject: `file:${m.fileId}`,
+              payload: {
+                file_id: m.fileId,
+                cited_in: `chat_topic:${args.topicId}`,
+                cited_in_message: data.id,
+              },
+            }));
+          if (rows.length > 0) await supabase.from("events").insert(rows);
         }
       } catch {
         /* observation failure is non-fatal */
