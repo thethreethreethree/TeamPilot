@@ -79,7 +79,11 @@
       vertical-align:top; margin-left:4px; }
     .result { margin-top:12px; font-size:12.5px; line-height:1.55; color:#e4e4e7; white-space:pre-wrap;
       background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:11px; }
-    .rlabel { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:#FACC15; margin-bottom:6px; }
+    .rhead { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .rlabel { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:#FACC15; }
+    .copybtn { font-size:10px; font-weight:600; color:#a1a1aa; background:transparent; border:1px solid rgba(255,255,255,0.14);
+      border-radius:6px; padding:2px 8px; cursor:pointer; }
+    .copybtn:hover { color:#fafafa; border-color:rgba(255,255,255,0.3); }
     .ft { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; font-size:11px;
       color:#71717a; border-top:1px solid rgba(255,255,255,0.07); background:#09090B; }
     .link { color:#FACC15; cursor:pointer; text-decoration:none; }
@@ -216,7 +220,27 @@
     } else {
       text = data.summary || data.reply || data.result || JSON.stringify(data, null, 2);
     }
-    out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>${esc(text)}`;
+    renderResult(out, tool.label, text);
+  }
+
+  // Render a tool result with a Copy button — after a summary/dissection the user's next move is to paste it
+  // into a reply or a note, so copying out is the workflow-continuity step (§1.5.1).
+  function renderResult(out, label, text) {
+    out.innerHTML =
+      `<div class="rhead"><span class="rlabel">${esc(label)}</span>` +
+      `<button class="copybtn" id="copyResult">Copy</button></div>${esc(text)}`;
+    const btn = out.querySelector("#copyResult");
+    if (btn) {
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = "Copied ✓";
+          setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+        } catch {
+          btn.textContent = "Press Ctrl+C"; // some pages block programmatic clipboard; the text is selectable
+        }
+      });
+    }
   }
 
   // Set the working text (from a manual selection or a per-site adapter) and reflect it in the UI.
