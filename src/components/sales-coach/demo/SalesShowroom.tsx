@@ -92,7 +92,7 @@ const TOOLS: { key: ToolKey; label: string; blurb: string; icon: typeof Radio }[
   { key: "cues", label: "Live Cues", blurb: "Whispered during the call", icon: Radio },
   { key: "debrief", label: "Debrief", blurb: "The one thing to work on", icon: ClipboardList },
   { key: "dissect", label: "Dissect", blurb: "Why the deal is where it is", icon: Stethoscope },
-  { key: "coach", label: "Grade a line", blurb: "vs the communication books", icon: GraduationCap },
+  { key: "coach", label: "Grade a line", blurb: "vs the sales books", icon: GraduationCap },
   { key: "skills", label: "Skills", blurb: "Six skills, out of ten", icon: BarChart3 },
 ];
 

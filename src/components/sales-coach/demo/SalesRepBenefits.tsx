@@ -38,7 +38,7 @@ const PILLARS: Pillar[] = [
     icon: MessageSquareQuote,
     eyebrow: "Sell persuasively",
     title: "Every rep sells like your best one.",
-    body: "The Coach grades a rep's actual lines against proven communication masterworks and names the move — 'label, then ask' — instead of a vague 'be more consultative'. Dissect reads the whole call and finds the real objection under the stated one. It teaches the move; it never puts words in their mouth.",
+    body: "The Coach grades a rep's actual lines against proven sales books — SPIN Selling, The Challenger Sale, Never Split the Difference — and names the move ('label, then ask') instead of a vague 'be more consultative'. Dissect reads the whole call and finds the real objection under the stated one. It teaches the move; it never puts words in their mouth.",
     tools: "Coach grade · Dissect",
     outcome: "Consistent pitch quality across the team, and new reps ramp to it in weeks by seeing exactly what good looks like.",
   },

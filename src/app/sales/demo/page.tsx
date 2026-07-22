@@ -84,7 +84,7 @@ export default function SalesDemoPage() {
         <SalesShowroom />
         <p className="text-[11px] text-muted text-center mt-3">
           Faithful to the real product&apos;s output — cues fire mid-call, the debrief names one focus, the
-          Coach grades against verified communication books, Dissect quotes the moment it turned.
+          Coach grades against verified sales books, Dissect quotes the moment it turned.
         </p>
       </section>
 
