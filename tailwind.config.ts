@@ -1,6 +1,13 @@
 import type { Config } from "tailwindcss";
 import { ember, ink } from "./src/lib/design/tokens";
 
+// ember/ink are raw shade scales (50–900) with NO `DEFAULT` key. Tailwind only emits a bare utility
+// (`bg-brand`, `bg-ember`) when the color has a DEFAULT — so bare `bg-brand` produced NO rule at all, leaving
+// `bg-brand text-black` buttons as invisible black text on the dark ground (download-button bug, founder-caught
+// 2026-07-22; same class as the `arc`-removal C4 finding). Give the scales a DEFAULT = their 400 primary so the
+// bare utilities render. Explicit `-400`/`-300` shades are unaffected; this only ADDS the missing bare form.
+const emberScale = { ...ember, DEFAULT: ember[400] };
+
 /**
  * ELOSTATE Tailwind config — dual-mode (light + dark) Lightbulb identity.
  *
@@ -41,16 +48,16 @@ const config: Config = {
     extend: {
       colors: {
         // Canonical brand scales — the only two that exist now.
-        ember,
+        ember: emberScale,
         ink,
         // Always-dark product chrome (product sidebars / nav / footers / status
         // menus). Static BY DESIGN — the branded shell does not follow the
         // theme (white text lives on it), so it is a named brand token, never a
         // theme-adaptive surface. Replaces scattered bg-[#0B1620] literals.
         "brand-shell": "#0B1620",
-        // Semantic aliases — all pointing at ember.
-        brand: ember,
-        accent: ember,
+        // Semantic aliases — all pointing at ember (with a DEFAULT so bare `bg-brand`/`bg-accent` render).
+        brand: emberScale,
+        accent: emberScale,
         // Back-compat aliases so existing `bg-gold-400`, `text-gold-300`,
         // `text-arc-300`, `border-arc-400/40` etc. render without a sweep.
         // These literally point at the ember scale — they exist for
@@ -59,8 +66,8 @@ const config: Config = {
         // TT.md A21 audit CRITICAL finding C4 (2026-06-18) it's re-aliased
         // here so the UI renders correctly while a token sweep happens
         // gradually.
-        gold: ember,
-        arc: ember,
+        gold: emberScale,
+        arc: emberScale,
         navy: ink,
         surface: ink,
         dark: {
