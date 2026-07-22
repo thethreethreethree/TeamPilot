@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 4321",
+    "build:extension": "node scripts/build-extension-download.mjs",
+    "prebuild": "node scripts/build-extension-download.mjs",
     "build": "next build",
     "start": "next start --port 4321",
     "lint": "eslint . --ext .ts,.tsx",

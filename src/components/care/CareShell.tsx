@@ -19,6 +19,7 @@ import {
   LayoutGrid,
   LifeBuoy,
   MessageCircle,
+  Puzzle,
   Settings,
   Sparkles,
   Tag,
@@ -95,6 +96,7 @@ const SETTINGS_NAV: NavItem[] = [
   { label: "Tags", href: "/dashboard/care/settings/tags", icon: Tag },
   { label: "Shortcuts", href: "/dashboard/care/settings/shortcuts", icon: Zap },
   { label: "Widget", href: "/dashboard/care/settings/widget", icon: MessageCircle },
+  { label: "Browser extension", href: "/extension/download", icon: Puzzle },
   { label: "Account", href: "/dashboard/care/settings/account", icon: Settings },
 ];
 
