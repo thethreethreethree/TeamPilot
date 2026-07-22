@@ -26,6 +26,32 @@ I actually ran the check or read the enforcing code this session; open decisions
 3. **FX rounding** — real bug, latent behind unbuilt multi-currency entry UI. Graded fix menu (interim symmetric reject → full rounding-difference line) in the FX doc.
 4. **Tax credit-note netting** (open since 2026-07-13), **leadership→CFO auto-grant** policy, **5 wrong-namespace dead color classes** (visual), **rate limiter per-lambda** (before-scale), **the 4 ready branches to merge** (sharp-CVE first).
 
+## 🔴 HIGH — item-12 brain-injection fix (0112) may be UNAPPLIED — CONFIRM (found 2026-07-23)
+
+The worst half of item-12 is a **direct-write** vector, not the LLM one: `company_brain.system_prompt_addendum`
+is prepended to EVERY company AI call (incl. customer-facing C.A.R.E replies), and its original RLS (0007) was a
+company-scoped "for all" policy with no role/column gate — so **any authenticated member could
+`UPDATE company_brain SET system_prompt_addendum='<arbitrary instructions>'`** and steer the whole company's AI.
+Sibling: members could INSERT fabricated `brain_evolution_events` (fake "learning" audit rows).
+
+**The fix is already written — `0112_brain_writes_definer_restrict_rls.sql`:** privileges the sanctioned paths
+(`record_brain_learning`, `create_empty_brain_for_company` → DEFINER) then restricts both tables to SELECT-only
+for members, so direct member writes are default-denied while the legit learning cycle still writes. Static
+safety is verified in the migration; it flips invoker→DEFINER so it needs a staging runtime test before promote.
+
+**⚠️ THE OPEN QUESTION I CANNOT ANSWER FROM THE SANDBOX:** `0112`'s header says UNAPPLIED (2026-07-09), but a
+later note claims "all migrations through 0187 applied" (2026-07-20). If `0112` is applied, this HIGH item is
+CLOSED (modulo the residual below). If NOT, it is a **LIVE HIGH vulnerability**. **Action: query the migration
+ledger (`select * from public._agent_migrations where name like '0112%'`) — if absent, run
+`docs/closures/2026-07-09-item12-0112-staging-verification.sql` + the behavioral staging test, then apply.**
+
+**Residual even after 0112 (lesser):** `record_brain_learning` stays client-callable and does NOT structurally
+enforce §4 (a `method_validated` with empty `source_resolution_ids`). So a member could still call the RPC
+directly to inject a fabricated-but-AUDITED validated method for their own company. Lower severity (audited,
+own-company). Fuller fix: revoke the RPC from client roles + run the learning cycle in a service-role/definer
+context, or add a §4 held-backing check in the RPC. Flag, not fix (needs the learn-cycle context change +
+staging).
+
 ## Known flagged-open security item (read-only audit sharpened it — needs staging to close)
 
 **company_brain prompt-injection** (originally flagged 2026-07-07, item 12). CONFIRMED real + mapped the exact

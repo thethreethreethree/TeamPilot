@@ -8,6 +8,7 @@
 
 **Real defects / leaks (fix soon, low effort):**
 3. **`/help` external IP leak** — a publicly-linked page quotes the forbidden mechanism phrases. Rewrite copy to experience-language (I do it on your word). *(§ "IP LEAK ON A PUBLIC PAGE" below.)*
+3b. **🔴 CONFIRM `0112` is applied** (item-12 HIGH — brain prompt-injection). If UNAPPLIED, any member can `UPDATE company_brain.system_prompt_addendum` and steer EVERY company AI call (incl. customer C.A.R.E replies). Fix is written (`0112`); it flips invoker→DEFINER so needs a staging test first. Query `select * from public._agent_migrations where name like '0112%'` — if absent, it's a LIVE HIGH vuln. Details: `docs/audits/2026-07-23-ground-up-audit-session.md`.
 4. **Apply migration `0190`** (§3.2 gate → fail-closed) + run `supabase/tests/verify_0190_*.sql`. Needs the live DB.
 5. **Merge the 4 ready branches** — `fix/sharp-cve-override` FIRST (real HIGH CVE); never `npm audit fix --force`.
 
