@@ -139,9 +139,27 @@ No mass-assignment hole. (A consistency pass to add `.strict()` everywhere would
 changes no security posture.)
 
 ---
-**Overall audit verdict (7 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, SSRF, XSS, and
-mass-assignment all checked — no live vulnerabilities. Two founder-glance items, both optional/non-hole: the
-explicit-`SameSite` future-proofing (CSRF sweep) and — now done — deleting the dead `popup.*` (XSS-hygiene).
+## Eighth sweep — dependency CVEs (`npm audit`)
+
+Unlike the 7 code sweeps, this one found real (transitive) CVEs.
+
+**Fixed (branch `fix/sharp-cve-override`):** `sharp <0.35.0` — **HIGH**, Next's image optimizer, inherited
+libvips CVEs (image-processing DoS/RCE). npm's `audit fix --force` would downgrade to Next 9.3.3 (catastrophic
+— do NOT run). Correct fix applied: an npm override → sharp 0.35.3, API-compatible with Next 16; `npm install`
+clean + `npm run build` green. Exploitability was already low here (`images.remotePatterns: []` → no untrusted
+images reach sharp), but it's patched now regardless.
+
+**Surfaced, not forced (5 remaining, all Next-transitive):** brace-expansion / fast-uri / js-yaml (HIGH DoS/
+parsing) + postcss / next→postcss (moderate XSS-in-CSS-stringify). These run in **build-time tooling** on the
+project's OWN trusted config/CSS — not the runtime request path — so real-world exploitability is ~nil. Their
+clean fix is a **Next patch update** when one lands; individual deep overrides risk breaking Next/Tailwind and
+aren't worth it for build-time-only tooling.
+
+---
+**Overall audit verdict (8 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, SSRF, XSS, and
+mass-assignment — no live code vulnerabilities. Dependency audit — one HIGH (sharp) fixed on a branch; 5
+Next-transitive build-time CVEs surfaced (low real exploitability, fix via Next update). Founder-glance items:
+merge the sharp branch, the optional explicit-`SameSite` future-proofing, and (done) the dead-`popup.*` deletion.
 This complements the structural guarantees enforced by the RLS audit and the invariant audit (CSV formula-
 safety, cross-person read gating, upload validation, no client-callable DEFINER tenant-param fns). The app's
 security posture is sound across the classes an application-layer audit can reach; deeper assurance (a

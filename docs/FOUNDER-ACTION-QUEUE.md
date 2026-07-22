@@ -1,6 +1,15 @@
 # Founder action queue — as of 2026-07-14
 
-> ### ⬆️ 2026-07-22 — SECURITY AUDIT (5 sweeps, all clean) — 1 optional hardening
+> ### ⬆️ 2026-07-22 — DEPENDENCY CVE: HIGH sharp/libvips fixed on a branch; 5 build-time low-risk remain
+> `npm audit` found `sharp <0.35.0` (Next's image optimizer) HIGH — libvips CVEs. **Fixed on branch
+> `fix/sharp-cve-override`** (npm override → sharp 0.35.3; `npm install` + `npm run build` both green). **DO NOT
+> run `npm audit fix --force`** — it would downgrade to Next 9.3.3 and destroy the app. **Merge that branch**
+> (it's a dependency bump → your CI rebuilds the native module). Low current exploitability anyway
+> (`images.remotePatterns: []` → no untrusted images reach sharp). The other 5 audit items (brace-expansion /
+> fast-uri / js-yaml / postcss) are **build-time tooling on trusted input** (~nil runtime risk) — their clean
+> fix is a **Next patch update** when one lands, not risky deep overrides.
+>
+> ### ⬆️ 2026-07-22 — SECURITY AUDIT (8 sweeps: 7 code-clean + dependency) — 2 optional hardenings
 > Ran a §0 route-security audit ([docs/audits/2026-07-22-service-role-route-authz.md](audits/2026-07-22-service-role-route-authz.md))
 > across 5 classes NOT covered by the automated RLS/invariant audits: service-role (admin-client) authz, LLM
 > cost-abuse, prompt injection (cross-tenant leakage is architecturally prevented — per-tenant context loading),
