@@ -199,7 +199,7 @@ export default function CoachReadoutPage() {
     <div className="min-h-screen bg-base">
       <TopBar
         title="Coach readout"
-        subtitle="§4 instrument · raw counts, no verdicts — the reader interprets"
+        subtitle="An instrument, not a verdict · raw counts — the reader interprets"
       />
       <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
         {/* Discipline preamble — explicit so the reader knows what

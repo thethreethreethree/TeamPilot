@@ -280,7 +280,7 @@ export default function CareHomePage() {
                   icon={Sparkles}
                   label="Patterns the System surfaced"
                   count={patternsThisWeek}
-                  subtitle="Crossed §3.2 threshold"
+                  subtitle="Crossed the Understanding Gate threshold"
                   href="/dashboard/care/patterns"
                   tone="brand"
                 />
@@ -306,7 +306,7 @@ export default function CareHomePage() {
                   icon={BookOpen}
                   label="Resolutions captured"
                   count={resolutionsThisWeek}
-                  subtitle="Last 30 days · §1.6"
+                  subtitle="Last 30 days"
                   href={
                     isLeader
                       ? "/dashboard/care/leadership"

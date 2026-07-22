@@ -170,7 +170,7 @@ export function SalesShowroom() {
                     </div>
                   ))}
                 </div>
-                <p className="text-[9px] text-zinc-600 mt-2.5">Short enough to read without breaking eye contact — the coach decides when a cue is worth the interruption (§3.3).</p>
+                <p className="text-[9px] text-zinc-600 mt-2.5">Short enough to read without breaking eye contact — the coach decides when a cue is worth the interruption.</p>
               </div>
             )}
 
@@ -226,7 +226,7 @@ export function SalesShowroom() {
                   <div><p className="text-[11px] text-zinc-100 font-semibold">{COACH.principle.name}</p><p className="text-[10px] text-zinc-500 italic">{COACH.principle.book}</p></div>
                 </div>
                 <p className="text-[11px] text-zinc-300 leading-relaxed">{COACH.why}</p>
-                <p className="text-[9px] text-zinc-600">B is the competent-call standard, not a curve — the grade invites coaching, never a stack-rank (§A11).</p>
+                <p className="text-[9px] text-zinc-600">B is the competent-call standard, not a curve — the grade invites coaching, never a stack-rank.</p>
               </div>
             )}
 
@@ -247,7 +247,7 @@ export function SalesShowroom() {
                     </div>
                   ))}
                 </div>
-                <p className="text-[9px] text-zinc-600 mt-2.5 flex items-center gap-1"><BookOpen className="w-2.5 h-2.5" aria-hidden /> A skill with no data reads &ldquo;—&rdquo;, never 0 (§3.4). Listening scores the talk/listen balance, so talking more lowers it.</p>
+                <p className="text-[9px] text-zinc-600 mt-2.5 flex items-center gap-1"><BookOpen className="w-2.5 h-2.5" aria-hidden /> A skill with no data reads &ldquo;—&rdquo;, never 0. Listening scores the talk/listen balance, so talking more lowers it.</p>
               </div>
             )}
           </div>

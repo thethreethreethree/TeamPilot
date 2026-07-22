@@ -1091,7 +1091,7 @@ export default function TeamChatTopicPage() {
                   type="button"
                   onClick={() => setReviewOpen(true)}
                   className="flex-shrink-0 self-start text-[11px] text-accent-text underline underline-offset-2"
-                  title="Change the outcome label if new evidence makes the prior judgement wrong. Both judgements stay on the §3.1 record."
+                  title="Change the outcome label if new evidence makes the prior judgement wrong. Both judgements stay on the record."
                 >
                   Update
                 </button>

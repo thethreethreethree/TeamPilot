@@ -163,7 +163,7 @@ export default function CareLeadershipPage() {
         <LearningHint
           as="inline-block"
           category="C.A.R.E · Leadership"
-          title="§4 readouts"
+          title="Method evolution readouts"
           whatItIs="A link into the method-evolution readouts — where a change the System made (a new Coach rubric, Co-Pilot, routing) is compared against the alternative on real outcomes."
           why="§4 says the System distrusts its own evolution until results prove it. This link is how you audit that promise: nothing here is called an improvement until the durability numbers earn it."
           how="Open it when you want to check whether a change actually paid off, not just whether it shipped. Read the cohorts, then decide for yourself."

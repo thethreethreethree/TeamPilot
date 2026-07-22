@@ -154,7 +154,7 @@ export default function NotificationsPage() {
     <div className="min-h-screen bg-base">
       <TopBar
         title="Notifications"
-        subtitle="Mentions and Decision Dialogue activity from the §3.1 chain"
+        subtitle="Mentions and Decision Dialogue activity from the event chain"
       />
       <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-4">
         {loading && (

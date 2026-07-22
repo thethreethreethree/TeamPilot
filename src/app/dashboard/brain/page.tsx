@@ -119,7 +119,7 @@ export default function BrainPage() {
     <div className="min-h-screen bg-base">
       <TopBar
         title="Company Brain"
-        subtitle="What the System has learned about this team · §3.4, §3.6"
+        subtitle="What the System has learned about this team"
       />
 
       <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
@@ -134,8 +134,8 @@ export default function BrainPage() {
         <div className="flex items-start gap-3 p-3 rounded-xl bg-ember-400/5 border border-ember-400/20">
           <BrainIcon className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
           <p className="text-xs text-secondary leading-relaxed">
-            The brain accumulates per-company learning from the §3.1 chain. Only
-            outcomes that have <strong>held</strong> (§3.5) and problems explicitly{" "}
+            The brain accumulates per-company learning from the event chain. Only
+            outcomes that have <strong>held</strong> and problems explicitly{" "}
             <strong>dismissed</strong> count toward validated learning. Acceptance is not
             consequence. Every change is on the immutable audit trail below.
           </p>

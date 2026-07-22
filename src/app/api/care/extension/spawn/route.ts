@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
           suppressed: true,
           reason: r.reason,
           message:
-            "Spawn is in the §3.4 month-1 control window for your team — capture the task yourself for now; the System is learning your baseline first.",
+            "Spawn is paused while the System learns your team's first-month baseline — capture the task yourself for now.",
         },
         { status: 200 }
       );

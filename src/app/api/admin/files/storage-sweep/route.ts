@@ -98,6 +98,6 @@ export async function POST(req: NextRequest) {
     candidateCount: candidates.length,
     purged,
     failed,
-    note: "Storage bytes purged; file rows preserved (§3.1).",
+    note: "Storage bytes purged; file rows preserved (append-only).",
   });
 }

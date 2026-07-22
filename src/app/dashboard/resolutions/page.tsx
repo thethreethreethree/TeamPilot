@@ -85,7 +85,7 @@ export default function ResolutionsPage() {
     <div className="min-h-screen bg-base">
       <TopBar
         title="Resolutions"
-        subtitle="Past decisions + their actual outcomes · §3.5 consequence measurement"
+        subtitle="Past decisions + their actual outcomes · consequence measurement"
       />
 
       <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">

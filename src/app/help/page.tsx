@@ -115,7 +115,7 @@ export default function HelpPage() {
             <li>Bug reports (screenshots auto-attached)</li>
             <li>Feature ideas</li>
             <li>Things that read as wrong / unclear</li>
-            <li>Anything you want on the §3.1 chain</li>
+            <li>Anything you want on the event chain</li>
           </ul>
           <p className="mt-2">
             We see every Feedback report. They get triaged and the

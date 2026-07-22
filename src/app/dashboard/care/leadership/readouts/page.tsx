@@ -175,7 +175,7 @@ export default function CareReadoutsPage() {
   return (
     <>
       <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60">
-        <h1 className="text-lg font-semibold text-primary">§4 readouts</h1>
+        <h1 className="text-lg font-semibold text-primary">Method evolution readouts</h1>
         <p className="text-[11px] text-muted">
           Method evolution gated by outcome · counts, never verdicts ·
           you render the verdict
@@ -602,7 +602,7 @@ function ConfidenceTag({ tier }: { tier: ConfidenceTier }) {
   return (
     <span
       className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border ${x.cls}`}
-      title="§A4 sample-size hint. Not a p-value."
+      title="Sample-size hint. Not a p-value."
     >
       <Icon className="w-3 h-3" aria-hidden />
       {x.label}
@@ -706,7 +706,7 @@ function SlaBackstopCard({ data }: { data: SlaWithDurabilityReadout }) {
           total={data.totalConversations}
           rate={data.durabilityHeldRate}
           tone="muted"
-          hint="§1.6 close-the-loop"
+          hint="Close the loop"
         />
         <BackstopStat
           label="Fully honored"

@@ -59,7 +59,7 @@ export default function ProblemsPage() {
     <div className="min-h-screen bg-base">
       <TopBar
         title="Problems"
-        subtitle="Hypotheses waiting on the Understanding Gate · §3.2"
+        subtitle="Hypotheses waiting on the Understanding Gate"
       />
 
       <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">

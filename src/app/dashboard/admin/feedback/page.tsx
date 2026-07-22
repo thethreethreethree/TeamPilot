@@ -158,7 +158,7 @@ export default function AdminFeedbackPage() {
     <div className="min-h-screen bg-base">
       <TopBar
         title="Feedback inbox"
-        subtitle="Triage tester reports — every transition lands on the §3.1 chain"
+        subtitle="Triage tester reports — every transition lands on the event chain"
       />
       <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
         {/* Filters */}

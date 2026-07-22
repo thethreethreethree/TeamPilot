@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "This durability check has already been recorded. Durability outcomes are recorded once (§3.5) and can't be changed.",
+          "This durability check has already been recorded. Durability outcomes are recorded once and can't be changed.",
       },
       { status: 409 }
     );

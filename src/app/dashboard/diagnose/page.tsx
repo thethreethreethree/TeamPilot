@@ -587,7 +587,7 @@ export default function DiagnosePage() {
                 <input
                   value={candidateExpected}
                   onChange={(e) => setCandidateExpected(e.target.value)}
-                  placeholder="Expected outcome (your prediction — recorded for §3.5 measurement)"
+                  placeholder="Expected outcome (your prediction — recorded for measurement)"
                   className="w-full bg-surface border border-default rounded-xl px-4 py-2.5 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-3"
                 />
                 <button

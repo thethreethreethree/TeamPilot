@@ -266,7 +266,7 @@ export default function OperationsPage() {
     <div className="min-h-screen bg-base">
       <TopBar
         title="Tasks"
-        subtitle="Production task management · every mutation emits an event into the §3.1 chain"
+        subtitle="Production task management · every mutation emits an event onto the record"
       />
 
       <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
