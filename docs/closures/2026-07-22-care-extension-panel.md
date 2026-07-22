@@ -65,6 +65,17 @@ because every call site is a text-node context** (the value sits between tags as
 attribute where `"`/`'` would matter) — verified no attribute-context interpolation exists. User-selected page
 text is sent to the API, never rendered directly; it returns as `text` and is esc'd. No injection path found.
 
+**`onMessageExternal` sender check — LOW / optional hardening (not live).** `background.js:118` stores the
+connect token from an external `care-connect` message without an in-handler `sender.origin` allowlist, relying
+solely on the manifest's `externally_connectable.matches`. NOT live-exploitable: Chrome platform-gates the
+handler to the matches list, the prod build strips `localhost` (→ only `https://elostate.com`, the trusted token
+minter), and a bad token fails closed on the first API call (401→refresh→clear). It's a defense-in-depth gap that
+would matter only if the matches list were later broadened (e.g. `*.elostate.com`) or elostate.com itself were
+XSS'd (session-fixation). Deliberately NOT fixed inline pre-load-test — a wrong dev-vs-prod origin matcher could
+reject the legit sender and break the very connect flow about to be tested. Correct fix, when done deliberately:
+derive the allowlist from `chrome.runtime.getManifest().externally_connectable.matches` (auto-tracks the build-
+stripped prod manifest — no dev/prod skew) and reject any `sender.url` whose origin isn't in it, before storing.
+
 ## Open — founder-gated (see docs/FOUNDER-ACTION-QUEUE.md top block)
 1. **Load-test** the browser behaviors — the only thing not headlessly verifiable (README 10-step checklist).
 2. **A3 ruling** (esp. Spawn task) — unblocks the remaining tool endpoints.

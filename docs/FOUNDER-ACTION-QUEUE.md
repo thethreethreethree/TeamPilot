@@ -22,7 +22,9 @@
 >    **screenshot** at 1280×800 or 640×400 of the live panel on a real conversation page; (b) the **$5** developer
 >    registration. Everything else is paste-ready.
 > 6. **Optional hardenings** (none a live hole): explicit cookie `SameSite:"lax"`; HSTS for the standalone deploy
->    target; a CSP (deferred, needs a nonce strategy).
+>    target; a CSP (deferred, needs a nonce strategy); an `onMessageExternal` sender-origin check in the extension
+>    (`background.js:118` — defense-in-depth over the manifest's `externally_connectable` gate; do it AFTER the
+>    load-test so a bad dev/prod origin matcher can't break the connect flow — details in the extension closure).
 >
 > **What I verified so you don't have to:** full `npm run check` gate green (1123 tests) · 10-sweep route-security
 > audit + §1.7 ground-up audit (no live vulns) · the three highest-stakes data invariants (§3.1 event immutability,
