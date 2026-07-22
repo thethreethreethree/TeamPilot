@@ -70,6 +70,25 @@ with its in-app use.
 
 ---
 
+## Thread 4 — Extension privacy + client-security audit (verified clean)
+
+Traced the extension's data-flow and client security end-to-end. All sound; one founder decision surfaced.
+
+- **Storage / D1 privacy claim — HONEST.** No extension route, engine (`claude.ts`, `dissect/engine.ts`),
+  or LLM client writes the scanned conversation to our DB or logs. The LLM client's two `console.warn`s log
+  only provider name + error kind, never message content.
+- **Client security — sound.** `background.js` validates the tool endpoint against an anchored allowlist
+  (`/^\/api\/care\/extension\/[a-z]+$/`) so the token-bearing fetch can't be pointed at an arbitrary URL;
+  `externally_connectable` is origin-locked to localhost + elostate.com (no token injection from other sites);
+  `activeTab` (not broad host permissions) means adapters read a page only on explicit user click.
+- **LLM layer — well-engineered.** Provider cascade (`shouldCascade`) fails over only on operator-fixable
+  `auth`/`quota` errors, never on request-level ones; fully tested.
+- **FOUNDER DECISION surfaced (data-governance):** the LLM layer prefers **DeepSeek (China-based) as the
+  PRIMARY provider whenever `DEEPSEEK_API_KEY` is set** (not just a fallback), and no route pins Anthropic — so
+  customer conversations the extension pulls from external inboxes route there, and on auth/quota failover reach
+  the other provider too. Storage is honest (nothing persisted); *where processing happens* is the open call.
+  Flagged at the top of `docs/FOUNDER-ACTION-QUEUE.md`. Offered build: pin the extension routes to Anthropic.
+
 ## Your queue (all founder-gated)
 
 1. **Apply `0190`** + run its verifier.
