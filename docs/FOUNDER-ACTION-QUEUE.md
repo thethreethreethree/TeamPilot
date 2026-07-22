@@ -1,5 +1,28 @@
 # Founder action queue — as of 2026-07-14
 
+> ## ⚠️ HONEST CORRECTION — "IP hygiene complete" was OVERSTATED (found 2026-07-23)
+> Earlier this session I reported "26 §-citation UI leaks swept + CI-guarded, IP hygiene complete." **That was
+> incomplete.** A broad grep found **~117 § citations in `.tsx` string literals across the dashboard** — the bulk
+> are a DELIBERATE help system: `whatItIs` / `why` / `how` / `principle` info panels that teach each feature WITH
+> methodology citations woven in (e.g. "Per §A18 this surface is leadership-facing…", "grading your own homework
+> (§3.5)"). These are rich, intentional, user-facing help content — NOT accidental leaks like the subtitles I fixed.
+>
+> **Two honest points:**
+> 1. **My guard gives narrow confidence.** `no-methodology-citations-in-ui.test.ts` passes green, but it only
+>    matches specific forms (JSX attrs on a fixed prop list, `message`/`reason` fields, JSX text, toasts). It does
+>    NOT match `whatItIs=`/`why=`/`how=` props or `subtitle={\`…\`}` expression-attrs — so "green" does NOT mean
+>    "no § in the UI." I fixed the forms I'd modeled; this whole class was invisible to it.
+> 2. **This is your call, and it's a big one.** The ~117 citations are deliberate — you (or the design) built a
+>    methodology-teaching help layer for the customer's TEAM. Options: **(A) keep them** (the customer's admins/
+>    agents are close to the method; the teaching is genuine value) — then the guard should ALLOWLIST the help-panel
+>    props so it stops implying they're leaks; or **(B) strip them** for strict IP-hygiene (no § shown to any
+>    customer surface) — then it's a ~117-string sweep + a guard extension, which I do on your word. I did NOT
+>    mass-change 117 strings unilaterally (§2 — deliberate content, at scale, your domain).
+>
+> Full list: `grep -rnE "(whatItIs|why|how|category|subtitle)\s*[=:]\s*[\"'\`][^\"'\`]*§|=\{\`[^\`]*§" src/app src/components --include=*.tsx`.
+
+
+
 > ## 🌐 DATA-GOVERNANCE DECISION — which AI provider processes customer/team data? (found 2026-07-23)
 > **Not a bug — a conscious decision to make, especially before selling the extension.** The LLM layer
 > (`src/lib/llm/index.ts` → `chooseProvider`) **prefers DeepSeek whenever `DEEPSEEK_API_KEY` is set** — it's the
