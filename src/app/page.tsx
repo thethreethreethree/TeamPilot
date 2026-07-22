@@ -132,16 +132,20 @@ export default function Landing() {
                 to /login with feedback intent so the existing
                 auth-gated feedback flow takes over once the
                 visitor signs in. */}
+            {/* Feedback + Sign in are hidden on mobile: at 390px the full nav (theme toggle +
+                these two + the CTA) overflowed and clipped the "Request access" button off the
+                right edge (audit V3 2026-07-22). Both link to /login, same as Request access, so
+                nothing is lost on mobile — they return at sm+. */}
             <Link
               href="/login?intent=feedback&from=%2F"
-              className="flex items-center gap-1 text-secondary hover:text-primary transition-colors"
+              className="hidden sm:flex items-center gap-1 text-secondary hover:text-primary transition-colors"
             >
               <MessageSquarePlus className="w-3.5 h-3.5" aria-hidden="true" />
               Feedback
             </Link>
             <Link
               href="/login"
-              className="text-secondary hover:text-primary transition-colors"
+              className="hidden sm:inline text-secondary hover:text-primary transition-colors"
             >
               Sign in
             </Link>
