@@ -10,7 +10,7 @@ import {
   buildSpawnSystemPrompt,
   buildSpawnUserMessage,
 } from "@/lib/taskSpawn/prompt";
-import type { SpawnedTaskDraft } from "@/lib/taskSpawn/types";
+import { validateTaskDraft } from "@/lib/taskSpawn/validate";
 
 /**
  * POST /api/tasks/spawn
@@ -75,40 +75,6 @@ const SpawnSchema = z.object({
   adjustmentPrompt: z.string().max(2000).optional(),
   previousTaskDraft: PreviousTaskDraftSchema.optional(),
 });
-
-function validateTaskDraft(parsed: unknown): SpawnedTaskDraft | null {
-  if (typeof parsed !== "object" || parsed === null) return null;
-  const r = parsed as Record<string, unknown>;
-  if (
-    typeof r.title !== "string" ||
-    r.title.trim().length === 0 ||
-    r.title.length > 400
-  ) {
-    return null;
-  }
-  if (
-    typeof r.description !== "string" ||
-    r.description.trim().length === 0 ||
-    r.description.length > 8000
-  ) {
-    return null;
-  }
-  if (!Array.isArray(r.steps) || r.steps.length === 0 || r.steps.length > 20) {
-    return null;
-  }
-  const steps: string[] = [];
-  for (const s of r.steps) {
-    if (typeof s !== "string" || s.trim().length === 0 || s.length > 800) {
-      return null;
-    }
-    steps.push(s.trim());
-  }
-  return {
-    title: r.title.trim(),
-    description: r.description.trim(),
-    steps,
-  };
-}
 
 // LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
 export const maxDuration = 60;

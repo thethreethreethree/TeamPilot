@@ -5,7 +5,7 @@ import { readBody } from "@/lib/api/validate";
 import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
 import { spawnTask } from "@/lib/claude";
 import { buildSpawnSystemPrompt, buildSpawnUserMessage } from "@/lib/taskSpawn/prompt";
-import type { SpawnedTaskDraft } from "@/lib/taskSpawn/types";
+import { validateTaskDraft } from "@/lib/taskSpawn/validate";
 import { LlmError } from "@/lib/llm/errors";
 
 /**
@@ -40,27 +40,6 @@ const Schema = z
     conversation: z.string().min(1).max(20_000),
   })
   .strict();
-
-/** Trust nothing from the model: validate the task-draft shape (compact mirror of the in-app spawn validator). */
-function validateTaskDraft(parsed: unknown): SpawnedTaskDraft | null {
-  if (typeof parsed !== "object" || parsed === null) return null;
-  const r = parsed as Record<string, unknown>;
-  if (typeof r.title !== "string" || r.title.trim().length === 0 || r.title.length > 400) return null;
-  if (
-    typeof r.description !== "string" ||
-    r.description.trim().length === 0 ||
-    r.description.length > 8_000
-  ) {
-    return null;
-  }
-  if (!Array.isArray(r.steps) || r.steps.length === 0 || r.steps.length > 20) return null;
-  const steps: string[] = [];
-  for (const s of r.steps) {
-    if (typeof s !== "string" || s.trim().length === 0 || s.length > 800) return null;
-    steps.push(s.trim());
-  }
-  return { title: r.title.trim(), description: r.description.trim(), steps };
-}
 
 export async function POST(req: NextRequest) {
   const preAuth = rateLimit(req, { id: "care-ext", windowMs: 60_000, max: 60 });
