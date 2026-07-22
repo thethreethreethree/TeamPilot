@@ -59,6 +59,9 @@ type NavItem = {
   label: string;
   href: string;
   icon: typeof Home;
+  /** Opens in a new tab (for links that leave the C.A.R.E overlay, e.g. the extension download) so the agent
+   *  keeps their inbox/conversation context. */
+  external?: boolean;
 };
 
 const PRIMARY_NAV: NavItem[] = [
@@ -92,7 +95,7 @@ const PRIMARY_NAV: NavItem[] = [
   // Download + install the browser extension. Promoted to PRIMARY (always-visible) from the Settings sub-nav
   // 2026-07-22 — the founder couldn't find it buried behind the collapsed Settings expander (§1.5.1
   // discoverability). Links out to the public /extension/download page.
-  { label: "Browser extension", href: "/extension/download", icon: Puzzle },
+  { label: "Browser extension", href: "/extension/download", icon: Puzzle, external: true },
 ];
 
 const SETTINGS_NAV: NavItem[] = [
@@ -311,12 +314,15 @@ function NavLink({
   // Active when pathname === href OR (for primary) pathname starts
   // with href but ISN'T a different section (e.g. /care/conversations
   // shouldn't activate /care).
+  // External links (e.g. the extension download) never activate and open in a new tab.
   const active =
-    pathname === item.href ||
-    (item.href !== "/dashboard/care" && pathname.startsWith(item.href + "/"));
+    !item.external &&
+    (pathname === item.href ||
+      (item.href !== "/dashboard/care" && pathname.startsWith(item.href + "/")));
   return (
     <Link
       href={item.href}
+      {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
       className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
         active
           ? "bg-white/10 text-white"
