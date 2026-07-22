@@ -93,13 +93,13 @@ describe("no invisible bare color utilities (recurring F4/V7/C4 class)", () => {
     // Only the (prefix,name) combos that DON'T resolve are worth searching for — precompute them
     // with their regex once, so the file loop below reads each file exactly once (the naive
     // prefix×name×file re-read is O(100k) file reads and times out under full-suite load).
-    const suspects = Object.keys(PREFIX_NS).flatMap((prefix) =>
+    const suspects = Object.entries(PREFIX_NS).flatMap(([prefix, ns]) =>
       customNames
-        .filter((name) => !resolvesBare(PREFIX_NS[prefix], name))
+        .filter((name) => !resolvesBare(ns, name))
         .map((name) => ({
           prefix,
           name,
-          ns: PREFIX_NS[prefix],
+          ns,
           re: new RegExp(`\\b${prefix}-${esc(name)}(?![-\\w])`),
         }))
     );
