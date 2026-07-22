@@ -1,5 +1,19 @@
 # Founder action queue — as of 2026-07-14
 
+> ## 🌍 IP LEAK ON A PUBLIC PAGE — /help is ungated + quotes the forbidden mechanism phrases (found 2026-07-23)
+> **Higher priority than the dashboard-teaching decision below, because this one is EXTERNAL.** `/help`
+> (`src/app/help/page.tsx`) is NOT in the middleware matcher (which gates only /dashboard, /onboarding, /login,
+> /sales-coach/login) and has no auth check — so it is **publicly reachable**. Its content is methodology help that
+> quotes the EXACT phrases the IP rule forbids on external surfaces: **"single-variable intervention," "no shadow
+> read," "Month 1 control," "override control… the skip is recorded permanently."** A prospect — or a competitor —
+> can read how the method works. The content reads as USER help (not marketing), so it looks **accidentally
+> public**, not intentionally.
+> **Two clean options (your call — routing + copy are both yours):** (A) **auth-gate /help** — add `/help/:path*`
+> to the middleware matcher; instant fix, no copy change, and then /help is the same class as the dashboard
+> teaching below; or (B) **rewrite /help copy** to describe the EXPERIENCE not the MECHANISM (as the sales-demo
+> fix did). I did NOT change routing or copy unilaterally. (A) is the smaller, safer move if /help is meant for
+> logged-in users. Recommend (A).
+>
 > ## ⚠️ HONEST CORRECTION — "IP hygiene complete" was OVERSTATED (found 2026-07-23)
 > Earlier this session I reported "26 §-citation UI leaks swept + CI-guarded, IP hygiene complete." **That was
 > incomplete.** A broad grep found **~117 § citations in `.tsx` string literals across the dashboard** — the bulk
