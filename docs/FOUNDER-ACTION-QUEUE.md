@@ -27,6 +27,11 @@
 > control-exempt for Spawn so evaluators can try all six. (Second-order: only matters once trials actually start.)
 > The rest of the new-user flow was audited end-to-end and is SOLID (connect/sign-in handles logged-out gracefully;
 > token handoff + silent refresh work; unconfigured-tenant product context has a safe honest fallback).
+>
+> **To test the tools yourself RIGHT NOW** (before the trial fix): the extension only unlocks for `pro`/
+> `enterprise` tenants, so make sure ELOSTATE's `care_tenant_config.plan` is set to `pro` (or `enterprise`) —
+> otherwise you'll hit "locked" on your own account too. That's the manual workaround until the trial trigger is
+> built; if you saw "your plan doesn't include the extension" while testing, this is why.
 
 > ## ▶ START HERE — 2026-07-22 session actions, in priority order
 > A large hardening + audit session. Details are in the dated blocks below; here's what to DO, highest-value first:
