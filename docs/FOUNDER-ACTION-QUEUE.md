@@ -1,5 +1,25 @@
 # Founder action queue — as of 2026-07-14
 
+## 🧭 PRIORITIZED INDEX (as of 2026-07-23) — do these in order; details in the flags below
+
+**Launch-critical (nothing ships without these):**
+1. **Entitlement write-path** — the extension is `locked` for EVERY tenant; no flow writes `plan=pro` or starts a trial. Decide: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle). I build both on your word. *(§ "CRITICAL — entitlement write-path" below.)*
+2. **Check `DEEPSEEK_API_KEY` in Vercel** — 30 seconds. Tells us whether customer conversations currently route to DeepSeek (China-based). Then decide the provider posture. *(§ "DATA-GOVERNANCE" below.)*
+
+**Real defects / leaks (fix soon, low effort):**
+3. **`/help` external IP leak** — a publicly-linked page quotes the forbidden mechanism phrases. Rewrite copy to experience-language (I do it on your word). *(§ "IP LEAK ON A PUBLIC PAGE" below.)*
+4. **Apply migration `0190`** (§3.2 gate → fail-closed) + run `supabase/tests/verify_0190_*.sql`. Needs the live DB.
+5. **Merge the 4 ready branches** — `fix/sharp-cve-override` FIRST (real HIGH CVE); never `npm audit fix --force`.
+
+**Decisions (no rush, but yours):**
+6. **FX rounding bug** (`0118/0119`) — real but LATENT (no foreign-currency entry UI). Fix before exposing multi-currency. Graded menu in the FX audit doc.
+7. **Dashboard § citations (~117)** — 41 incidental chrome (strip, like the 26) + 75 deliberate teaching (keep or strip — Layer-2 call). *(§ "HONEST CORRECTION" below.)*
+8. **Tax credit-note netting** (open since 2026-07-13) · **leadership→CFO auto-grant** policy · **5 dead-class visual fixes** · **rate limiter → Redis before scaling** · **pricing / per-seat model**.
+
+**What's DONE + verified this session (no action needed):** §3.2 fail-open fixed (0190, awaits apply); 26 chrome IP-leaks + toast + brain-reason fixed & guarded; file-citation N+1 batched; thesis-core §3.1–§3.5, finance calcs + integrity, auth/RLS, extension, external-auth, inbound-email, invite/role all verified sound. See `docs/audits/2026-07-23-ground-up-audit-session.md`.
+
+---
+
 > ## 🌍 IP LEAK ON A PUBLIC PAGE — /help is ungated + quotes the forbidden mechanism phrases (found 2026-07-23)
 > **Higher priority than the dashboard-teaching decision below, because this one is EXTERNAL.** `/help`
 > (`src/app/help/page.tsx`) is NOT in the middleware matcher (which gates only /dashboard, /onboarding, /login,
