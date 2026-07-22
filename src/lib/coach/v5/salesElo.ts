@@ -173,7 +173,16 @@ export function updateElo(
  * until PROVISIONAL_GAMES completed games (§4).
  */
 export function computeAgentElo(games: EloGame[]): AgentElo {
-  const ordered = [...games].sort((a, b) => a.at.localeCompare(b.at));
+  // Total order, not just by `at`: the replay is path-dependent (updateElo folds
+  // games in sequence), so the sort must be DETERMINISTIC. `at` alone leaves ties
+  // (two sessions sharing started_at) to fall through to input order — which comes
+  // from DB reads ordered `created_at desc` with no stable secondary key, i.e.
+  // non-deterministic across runs → a non-reproducible rating. sessionId is unique
+  // per game (one game per session), so it's a stable total-order tie-break. This
+  // completes the path-dependence fix begun by the uniform-`at` key choice below.
+  const ordered = [...games].sort(
+    (a, b) => a.at.localeCompare(b.at) || a.sessionId.localeCompare(b.sessionId)
+  );
   let rating = STARTING_RATING;
   const history: EloHistoryEntry[] = [];
   for (const g of ordered) {

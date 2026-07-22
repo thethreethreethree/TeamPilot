@@ -169,6 +169,28 @@ describe("computeAgentElo — replay against the standard", () => {
     expect(r.history.map((h) => h.sessionId)).toEqual(["early", "late"]);
   });
 
+  it("is deterministic when two sessions share the same `at` — tie-break by sessionId, not input order (§3.5 reproducibility)", () => {
+    const at = "2026-07-01T00:00:00Z";
+    // Same two games, opposite input orders. With an `at`-only sort the tie falls
+    // through to input order — which upstream comes from a non-deterministic DB read —
+    // so two calls could fold differently → different ratings. The sessionId tie-break
+    // makes both calls identical and reproducible.
+    const forward = computeAgentElo([
+      game("aaa", at, { outcome: "sold" }),
+      game("bbb", at, { outcome: "no_sale" }),
+    ]);
+    const reversed = computeAgentElo([
+      game("bbb", at, { outcome: "no_sale" }),
+      game("aaa", at, { outcome: "sold" }),
+    ]);
+    expect(reversed.rating).toBe(forward.rating);
+    expect(reversed.history.map((h) => h.sessionId)).toEqual(
+      forward.history.map((h) => h.sessionId)
+    );
+    // tie resolved by sessionId ascending, independent of input order
+    expect(forward.history.map((h) => h.sessionId)).toEqual(["aaa", "bbb"]);
+  });
+
   it("clears provisional at 5 games", () => {
     const games = Array.from({ length: 5 }, (_, i) =>
       game(`g${i}`, `2026-07-0${i + 1}T00:00:00Z`, { outcome: "sold" })
