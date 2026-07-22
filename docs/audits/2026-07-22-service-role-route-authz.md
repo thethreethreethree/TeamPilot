@@ -177,12 +177,28 @@ mic=self for voice); `X-DNS-Prefetch-Control`; and `poweredByHeader: false` (no 
   because HSTS is a deployment COMMITMENT (a long max-age is hard to walk back) — the max-age/preload policy is
   the founder's call. **Surfaced in the queue.**
 
+## Tenth sweep — open redirect (`?next=` / post-login destination)
+
+Post-auth redirects are the classic open-redirect vector (redirecting to a user-supplied URL enables phishing).
+
+**Finding — no open redirect.** The login page's `buildDestination()` only ever returns HARDCODED internal paths
+(`/dashboard`, `/onboarding`, `/dashboard/feedback`) plus an `intent` query param — it never redirects to a
+user-controlled URL. In fact the login page reads only `intent`, NOT `next`; there is no reflected-URL redirect
+anywhere in the auth flow.
+
+**Minor UX note (not security):** because login ignores `next`, the connect page's `/login?next=/extension/
+connect` link is decorative — after sign-in the user lands on `/dashboard`, not back on the connect page. The
+connect copy already says "Sign in first, then come back here," so users aren't misled — just not auto-returned.
+If auto-return is wanted later, add `next`-handling to login WITH open-redirect validation (accept only a
+leading-`/`, non-`//` relative path). Surfaced, not built (touches the auth flow; current state is honest+safe).
+
 ---
-**Overall audit verdict (9 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, SSRF, XSS,
-mass-assignment, and security headers — no live code vulnerabilities. Dependency audit — one HIGH (sharp) fixed
-on a branch; 5 Next-transitive build-time CVEs surfaced (low real exploitability, fix via Next update).
-Founder-glance items: merge the sharp branch; optional explicit-`SameSite`; optional HSTS (for the standalone
-deploy target); and (done) the dead-`popup.*` deletion.
+**Overall audit verdict (10 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, SSRF, XSS,
+mass-assignment, security headers, and open-redirect — no live code vulnerabilities. Dependency audit — one HIGH
+(sharp) fixed on a branch; 5 Next-transitive build-time CVEs surfaced (low real exploitability, fix via Next
+update). Founder-glance items: merge the sharp branch; optional explicit-`SameSite`; optional HSTS (standalone
+deploy); and (done) the dead-`popup.*` deletion. The application-layer security surface is thoroughly covered;
+what remains is external assurance (pen-test, red-team) — not code changes.
 This complements the structural guarantees enforced by the RLS audit and the invariant audit (CSV formula-
 safety, cross-person read gating, upload validation, no client-callable DEFINER tenant-param fns). The app's
 security posture is sound across the classes an application-layer audit can reach; deeper assurance (a
