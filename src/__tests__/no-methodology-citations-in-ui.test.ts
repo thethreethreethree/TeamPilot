@@ -16,8 +16,18 @@ import { join } from "node:path";
  * user-facing string — move the rationale into a code comment instead.
  *
  * Scope: JSX attribute values for known user-facing props + API/JSON response
- * fields. It deliberately does NOT flag § in `//`/`*` comments or in LLM system
- * prompts, which are not product surfaces.
+ * fields + toast calls. It deliberately does NOT flag § in `//`/`*` comments or
+ * in LLM system prompts, which are not product surfaces.
+ *
+ * ⚠️ LIMITATION — GREEN DOES NOT MEAN "NO § IN THE UI". This is an ALLOWLIST guard:
+ * it only catches the FORMS listed above. It does NOT match custom help-panel props
+ * (`whatItIs=` / `why=` / `how=` / `category=`), `subtitle={`…`}` EXPRESSION attrs,
+ * or plain string constants that get rendered. As of 2026-07-23 there are ~117 §
+ * citations in dashboard `.tsx` help content this guard does NOT see — a DELIBERATE
+ * methodology-teaching layer whose keep-or-strip is a founder decision (see
+ * FOUNDER-ACTION-QUEUE.md). To check the FULL picture, run the broad grep:
+ *   grep -rnE "[\"'`][^\"'`]*§[0-9A-Za-z]" src/app src/components --include=*.tsx | grep -vE "^\s*(//|\*)"
+ * Do NOT read a passing run of this test as "the UI is §-free."
  */
 
 // app + components get the FULL pattern set (JSX attrs, response fields, JSX text).
