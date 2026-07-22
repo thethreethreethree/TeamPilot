@@ -154,7 +154,7 @@ export default function SalesDemoPage() {
       </section>
 
       {/* CTA */}
-      <section className="px-6 py-16 max-w-4xl mx-auto text-center">
+      <section id="book" className="px-6 py-16 max-w-4xl mx-auto text-center scroll-mt-20">
         <h2 className="text-3xl md:text-5xl font-bold text-primary leading-tight mb-4">
           See it on <span className="text-brand">your</span> calls.
         </h2>

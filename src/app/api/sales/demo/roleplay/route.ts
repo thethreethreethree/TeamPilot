@@ -87,8 +87,17 @@ export async function POST(req: NextRequest) {
     const r = await generateCareReply({ systemPrompt: SYSTEM_PROMPT, userMessage });
     const parsed = parseReply(r.text);
     if (!parsed) {
-      // The model answered but not as clean JSON — still give the prospect line, skip the cue.
-      return NextResponse.json({ prospect: r.text.trim().slice(0, 600), cue: "" });
+      // The model answered but not as clean JSON. Still show the prospect line, but STRIP any
+      // "cue:"/"coach:" section so the coaching can never leak into the prospect's mouth (audit L2 fix).
+      const prospectOnly = r.text
+        .trim()
+        .split(/\n(?=\s*(?:cue|coach)\s*[:\-])/i)[0]
+        ?.replace(/^\s*(?:prospect|dana)\s*[:\-]\s*/i, "")
+        .trim();
+      return NextResponse.json({
+        prospect: (prospectOnly || "Sorry — say that again?").slice(0, 600),
+        cue: "",
+      });
     }
     return NextResponse.json(parsed);
   } catch (err) {

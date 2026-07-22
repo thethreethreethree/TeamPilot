@@ -68,6 +68,10 @@ export function SalesRoleplay() {
   }
 
   const suggestions = OPENERS.filter((q) => !msgs.some((m) => m.from === "rep" && m.text === q));
+  // §1.5.1 continuity: after a few turns, surface the next action so the roleplay doesn't dead-end
+  // (audit L3 fix — mirrors how JeffLiveChat converges to a next step).
+  const repTurns = msgs.filter((m) => m.from === "rep").length;
+  const showNudge = repTurns >= 4;
 
   return (
     <div className="rounded-2xl border border-ink-800 bg-ink-950 overflow-hidden flex flex-col max-w-md w-full mx-auto shadow-glow-ember-soft">
@@ -156,6 +160,15 @@ export function SalesRoleplay() {
           <Send className="w-3.5 h-3.5 text-ember-400" aria-hidden />
         </button>
       </form>
+
+      {showNudge && (
+        <a
+          href="#book"
+          className="block text-center text-[10px] text-ember-200/90 bg-ember-400/10 border-t border-ember-400/20 px-3 py-2 hover:bg-ember-400/15 transition-colors"
+        >
+          This is what every rep&apos;s calls could sound like — see it on yours →
+        </a>
+      )}
     </div>
   );
 }
