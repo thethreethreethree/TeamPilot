@@ -155,7 +155,28 @@ tenant's `allowed_origins` (declined — real data). Deferred as a code-level re
 
 ---
 
+### V6 — Conflicting robots meta on the customer widget (LOW-MED, structural/SEO) — FIXED `2377ecc0`
+`/widget/care/[embedToken]` emitted TWO robots directives in one head: `noindex,nofollow` (widget
+layout's hand-rolled `<meta>`) + `index, follow` (root metadata). A nested layout can't own a real
+`<head>`, so the manual tag couldn't override the root. Google takes the most-restrictive (noindex
+likely wins) but it's fragile — other crawlers could index tenant embed-token URLs. Fix: replace the
+manual meta with a Next.js `metadata` export (`robots: {index:false, follow:false}`) which properly
+overrides the parent for `/widget/*`. Verified: single `noindex, nofollow` on the widget; home still
+`index, follow`. Found while auditing the root layout for the V5 class (§1.2 — same surface, sibling bug).
+
+---
+
 ## Open — founder decision
+
+### A3 — Global `userScalable: false` disables pinch-zoom on ALL pages (MED, a11y) — DECISION
+`src/app/layout.tsx` viewport sets `maximumScale: 1` + `userScalable: false` for the whole app,
+including PUBLIC marketing/login pages. The intent is PWA feel + no iOS input auto-zoom. But Android
+Chrome HONORS `userScalable:false`, so Android users cannot zoom any ELOSTATE page — a WCAG 1.4.4
+(Resize Text) failure on the public surfaces prospects land on. (Modern iOS Safari ignores it for a11y;
+Android does not.) Options: (a) drop `userScalable:false`/`maximumScale` app-wide and keep the 16px
+input sizing that already prevents iOS auto-zoom (recommended — a11y-correct, input-zoom already
+handled); (b) keep the lock only inside the installed PWA (standalone display-mode) via a runtime
+check; (c) accept the tradeoff. Not changed unilaterally — the current value was a deliberate choice.
 
 ### A2 — Pre-auth chrome density on /login (LOW, product) — DECISION
 On the mobile login page a first-time visitor sees the login form + the PWA install banner + the
