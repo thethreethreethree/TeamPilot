@@ -4,6 +4,7 @@ import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { CO_PILOT_SYSTEM } from "@/lib/care/toolPrompts";
+import { LlmError } from "@/lib/llm/errors";
 
 /**
  * POST /api/care/extension/copilot — AI Co-Pilot, for the C.A.R.E browser extension.
@@ -63,7 +64,15 @@ ${productContext}`,
       );
     }
     return NextResponse.json({ reply, reasoning });
-  } catch {
+  } catch (err) {
+    // A rate-limit from the model maps to 429 so the client backs off correctly
+    // (matching the spawn/coach routes); any other failure is a 502.
+    if (err instanceof LlmError) {
+      return NextResponse.json(
+        { error: err.message, kind: err.kind },
+        { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
+      );
+    }
     return NextResponse.json(
       { error: "The Co-Pilot couldn't draft a reply right now." },
       { status: 502 }

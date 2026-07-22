@@ -4,6 +4,7 @@ import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { FORMULATE_SYSTEM } from "@/lib/care/toolPrompts";
+import { LlmError } from "@/lib/llm/errors";
 
 /**
  * POST /api/care/extension/formulate — Formulate C.A.R.E, for the browser extension.
@@ -61,7 +62,15 @@ ${productContext}`,
       );
     }
     return NextResponse.json({ reply, reasoning });
-  } catch {
+  } catch (err) {
+    // A rate-limit from the model maps to 429 so the client backs off correctly
+    // (matching the spawn/coach routes); any other failure is a 502.
+    if (err instanceof LlmError) {
+      return NextResponse.json(
+        { error: err.message, kind: err.kind },
+        { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
+      );
+    }
     return NextResponse.json(
       { error: "Formulate couldn't shape a reply right now." },
       { status: 502 }

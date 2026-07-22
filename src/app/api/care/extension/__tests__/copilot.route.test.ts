@@ -79,4 +79,21 @@ describe("POST /api/care/extension/copilot", () => {
     const res = await POST(req);
     expect(res.status).toBe(502);
   });
+
+  // A rate-limit LlmError maps to 429 (client backs off), matching spawn/coach;
+  // a non-rate-limit LlmError is a 502.
+  it("LlmError kind=rate_limit → 429; other kinds → 502", async () => {
+    const { LlmError } = await import("@/lib/llm/errors");
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+
+    vi.mocked(generateCareReply).mockRejectedValueOnce(
+      new LlmError({ kind: "rate_limit", message: "slow down", provider: "anthropic" })
+    );
+    expect((await POST(req)).status).toBe(429);
+
+    vi.mocked(generateCareReply).mockRejectedValueOnce(
+      new LlmError({ kind: "server", message: "boom", provider: "anthropic" })
+    );
+    expect((await POST(req)).status).toBe(502);
+  });
 });
