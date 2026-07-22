@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * "Talk to Jeff" — scripted demo of the AI first-responder (founder 2026-07-22 rebuild).
+ * "Talk to Jeff" — LIVE demo of the AI first-responder (founder 2026-07-22: wired to the real engine).
  *
- * Faithful to the real Jeff (src/lib/care/prompt.ts): plain prose, warm, 1–4 sentences, grounded in the
- * ELOSTATE product context, and it HANDS OFF honestly on account/billing actions (the real prompt appends
- * a [[HANDOFF]] sentinel that the route strips + then posts a handoff notice — modeled here). Scripted, not
- * a live model call (founder chose scripted-interactive). §3.4: Jeff's answers only claim real features.
+ * Calls POST /api/care/demo/ask, which runs the EXACT production Care path (buildCareSystemPrompt with
+ * the ELOSTATE product context + generateCareReply) — the same AI response system as the real widget,
+ * not a script. It hands off honestly on account/billing actions (the real [[HANDOFF]] sentinel is
+ * detected + stripped server-side; the endpoint returns { handoff }). Public + rate-limited server-side.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -14,39 +14,25 @@ import { Bot, Send, User, ArrowRightLeft } from "lucide-react";
 
 type Msg = { from: "customer" | "jeff" | "system"; text: string };
 
-type Canned = { q: string; a: string; handoff?: boolean };
-
-// Faithful scripted answers. The handoff one models the real [[HANDOFF]] behavior (sentinel stripped,
-// ai_responding -> false, handoff notice posted).
-const CANNED: Canned[] = [
-  {
-    q: "does this actually help my team make decisions, or is it just another chat app?",
-    a: "Yeah, it does — that's one of the core things it's built for. There's a guided flow called Decision Dialogues that walks your team through a real decision: laying out the situation, surfacing options, capturing each person's take, and recording both the choice and the reasoning behind it. So the next time a similar call comes up, you can see why you decided what you did.",
-  },
-  {
-    q: "what makes this different from just using ChatGPT?",
-    a: "Fair question. ChatGPT is a smart assistant for one person that forgets you when you close the tab. ELOSTATE is a team-level layer: it captures your team's reasoning as it happens, surfaces patterns across people and time, and coaches individuals to communicate more clearly — grounded in this company's own history, not a blank slate every time.",
-  },
-  {
-    q: "can I get a refund on a double charge?",
-    handoff: true,
-    a: "I'm really sorry about the double charge — that's exactly the kind of thing we make right. A refund needs a teammate who can action your account, so let me bring one in right here. One moment.",
-  },
-  {
-    q: "how much does it cost?",
-    handoff: true,
-    a: "Great question — we're pilot-stage and invite-only right now, so pricing is handled case by case. Let me bring in a teammate who can give you the specifics for your team.",
-  },
+// Starter prompts a prospect can click. These are just examples — Jeff answers ANY typed question live.
+const SUGGESTIONS: string[] = [
+  "What makes this different from just using ChatGPT?",
+  "How does C.A.R.E help my support agents work better?",
+  "Does this actually help my team make decisions?",
+  "Can I get a refund on a double charge?",
 ];
 
 const HANDOFF_NOTICE =
   "You're being connected with a member of our support team. They'll pick up right here and have everything you've shared so far.";
 
+const ERROR_REPLY =
+  "I couldn't reach my brain just then — mind trying that again? A real person on the ELOSTATE team can also pick this up from a booked demo.";
+
 export function JeffLiveChat() {
   const [msgs, setMsgs] = useState<Msg[]>([
     {
       from: "jeff",
-      text: "Hi, I'm Jeff. Ask anything — pricing, how it works, whether we're a fit. A real person sees these too.",
+      text: "Hi, I'm Jeff — the real AI that answers first for teams running C.A.R.E. This is the live engine, not a script. Ask me anything: pricing, how it works, or how it helps your support agents.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -58,35 +44,47 @@ export function JeffLiveChat() {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [msgs, pending]);
 
-  function match(text: string): Canned {
-    const t = text.toLowerCase();
-    if (/(refund|charge|charged|billing|invoice|cancel|account)/.test(t)) return CANNED[2]!;
-    if (/(price|pricing|cost|how much|\$)/.test(t)) return CANNED[3]!;
-    if (/(chatgpt|gpt|different|difference|vs|compare)/.test(t)) return CANNED[1]!;
-    if (/(decision|decide|meeting|make )/.test(t)) return CANNED[0]!;
-    return CANNED[1]!; // sensible default: the differentiation answer
-  }
-
-  function send(text: string) {
+  async function send(text: string) {
     const clean = text.trim();
     if (!clean || pending || handedOff) return;
     setInput("");
+    // Snapshot history BEFORE adding the new turn, mapped to the endpoint's {role, content} shape.
+    const history = msgs
+      .filter((m) => m.from !== "system")
+      .slice(-12)
+      .map((m) => ({
+        role: (m.from === "customer" ? "user" : "assistant") as "user" | "assistant",
+        content: m.text,
+      }));
     setMsgs((m) => [...m, { from: "customer", text: clean }]);
     setPending(true);
-    const reply = match(clean);
-    window.setTimeout(() => {
-      setMsgs((m) => [...m, { from: "jeff", text: reply.a }]);
-      if (reply.handoff) {
-        window.setTimeout(() => {
-          setMsgs((m) => [...m, { from: "system", text: HANDOFF_NOTICE }]);
-          setHandedOff(true);
-        }, 650);
+    try {
+      const res = await fetch("/api/care/demo/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: clean, history }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        reply?: string;
+        handoff?: boolean;
+        error?: string;
+      };
+      const reply = res.ok && data.reply ? data.reply : ERROR_REPLY;
+      setMsgs((m) => [...m, { from: "jeff", text: reply }]);
+      if (res.ok && data.handoff) {
+        setMsgs((m) => [...m, { from: "system", text: HANDOFF_NOTICE }]);
+        setHandedOff(true);
       }
+    } catch {
+      setMsgs((m) => [...m, { from: "jeff", text: ERROR_REPLY }]);
+    } finally {
       setPending(false);
-    }, 720);
+    }
   }
 
-  const suggestions = CANNED.filter((c) => !msgs.some((m) => m.from === "customer" && m.text === c.q));
+  const suggestions = SUGGESTIONS.filter(
+    (q) => !msgs.some((m) => m.from === "customer" && m.text === q)
+  );
 
   return (
     <div className="rounded-2xl border border-ink-800 bg-ink-950 overflow-hidden flex flex-col max-w-md w-full mx-auto shadow-glow-ember-soft">
@@ -149,11 +147,11 @@ export function JeffLiveChat() {
             <button
               key={i}
               type="button"
-              onClick={() => send(s.q)}
+              onClick={() => send(s)}
               disabled={pending}
               className="text-[10px] text-left px-2 py-1 rounded-md border border-ink-700 bg-ink-900/50 text-zinc-400 hover:text-zinc-100 hover:border-ink-600 transition-colors disabled:opacity-50"
             >
-              {s.q}
+              {s}
             </button>
           ))}
         </div>
