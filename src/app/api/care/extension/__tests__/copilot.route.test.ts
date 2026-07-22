@@ -66,6 +66,13 @@ describe("POST /api/care/extension/copilot", () => {
     expect(body.reasoning).toBe("");
   });
 
+  it("empty draft (marker emitted first) → 502, not an empty reply the panel renders as JSON", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(generateCareReply).mockResolvedValue({ text: "===REASONING===\njust reasoning, no draft" } as never);
+    const res = await POST(req);
+    expect(res.status).toBe(502);
+  });
+
   it("LLM throw → 502, no crash", async () => {
     vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
     vi.mocked(generateCareReply).mockRejectedValue(new Error("upstream"));

@@ -68,6 +68,14 @@ ${productContext}`,
     const idx = raw.indexOf(REASONING_MARKER);
     const reply = (idx >= 0 ? raw.slice(0, idx) : raw).trim();
     const reasoning = idx >= 0 ? raw.slice(idx + REASONING_MARKER.length).trim() : "";
+    // Guard an empty draft (e.g. the model emitted the ===REASONING=== marker first) — consistent with the
+    // formulate route. Without this the panel would fall through to rendering the raw JSON.
+    if (!reply) {
+      return NextResponse.json(
+        { error: "The Co-Pilot couldn't draft a reply right now. Try again." },
+        { status: 502 }
+      );
+    }
     return NextResponse.json({ reply, reasoning });
   } catch {
     return NextResponse.json(
