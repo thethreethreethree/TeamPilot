@@ -19,6 +19,14 @@
 >
 > **Tell me 1/2/3 and I'll build it immediately** — it's the prerequisite to the whole free-trial funnel. I did
 > NOT auto-implement because granting paid-feature access is a billing/funnel decision that's yours (§2).
+>
+> **Two related facets to handle in the same fix (I'll do these with the trial-start build):** (a) the panel's
+> "locked" message tells the user to "start a trial in your workspace" — which doesn't exist; it needs updating to
+> match whichever trigger you pick. (b) **Spawn is §3.4-control-gated**, so a trial tenant (in its month-1 control
+> window) gets Spawn suppressed while the other 5 tools work — decide whether trial tenants should be
+> control-exempt for Spawn so evaluators can try all six. (Second-order: only matters once trials actually start.)
+> The rest of the new-user flow was audited end-to-end and is SOLID (connect/sign-in handles logged-out gracefully;
+> token handoff + silent refresh work; unconfigured-tenant product context has a safe honest fallback).
 
 > ## ▶ START HERE — 2026-07-22 session actions, in priority order
 > A large hardening + audit session. Details are in the dated blocks below; here's what to DO, highest-value first:
