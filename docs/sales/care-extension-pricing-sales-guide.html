@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: 8.5in 11in; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  :root {
+    --ink-950:#09090B; --ink-900:#18181B; --ink-850:#1f1f23; --ink-800:#27272A; --ink-700:#3F3F46;
+    --ink-400:#A1A1AA; --ink-300:#D4D4D8; --white:#FAFAFA; --ember:#FACC15; --ember-600:#CA8A04;
+    --green:#4ade80; --red:#f87171;
+  }
+  html { font-family:"Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; }
+  body { color:var(--white); }
+  .page { width:8.5in; height:11in; background:var(--ink-950); position:relative; overflow:hidden; page-break-after:always; padding:0.5in 0.62in; }
+  .page:last-child { page-break-after:auto; }
+
+  .brandrow { display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+  .bulb { width:22px; height:22px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #FDE047, var(--ember-600)); box-shadow:0 0 18px rgba(250,204,21,0.4); }
+  .brandname { font-weight:800; letter-spacing:0.02em; font-size:13px; }
+  .brandname .care { color:var(--ember); }
+  .doclabel { margin-left:auto; font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink-400); font-weight:700; }
+
+  .eyebrow { color:var(--ember); font-size:10px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; }
+  h1 { font-size:33px; line-height:1.05; font-weight:800; letter-spacing:-0.02em; margin:8px 0 0; }
+  h1 .amber { color:var(--ember); }
+  h2 { font-size:19px; font-weight:800; letter-spacing:-0.01em; margin:0 0 3px; }
+  h2 .amber { color:var(--ember); }
+  .sub { color:var(--ink-400); font-size:11.5px; line-height:1.5; margin-top:5px; }
+
+  /* price hero */
+  .pricecard { margin-top:20px; display:flex; gap:16px; align-items:stretch; }
+  .pricebig { flex:1; background:linear-gradient(160deg, rgba(250,204,21,0.14), rgba(250,204,21,0.04)); border:1px solid rgba(250,204,21,0.35); border-radius:16px; padding:20px 22px; }
+  .pricebig .amt { font-size:44px; font-weight:800; letter-spacing:-0.02em; line-height:1; }
+  .pricebig .amt small { font-size:16px; color:var(--ink-300); font-weight:600; }
+  .pricebig .row { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .chip { font-size:10.5px; font-weight:600; color:var(--white); background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:7px; padding:5px 9px; }
+  .chip b { color:var(--ember); }
+  .pricenote { width:2.3in; flex:none; background:var(--ink-900); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px; font-size:11px; line-height:1.55; color:var(--ink-300); }
+  .pricenote b { color:var(--white); }
+
+  /* value equation */
+  .eq { margin-top:22px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:11px; }
+  .eqbox { border:1px solid rgba(255,255,255,0.09); border-radius:13px; padding:15px; background:var(--ink-900); }
+  .eqbox .lab { font-size:9.5px; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-400); font-weight:700; }
+  .eqbox .big { font-size:23px; font-weight:800; margin-top:6px; letter-spacing:-0.01em; }
+  .eqbox .big.g { color:var(--green); } .eqbox .big.r { color:var(--ink-300); } .eqbox .big.a { color:var(--ember); }
+  .eqbox .d { font-size:10.5px; color:var(--ink-400); line-height:1.45; margin-top:5px; }
+
+  .takeaway { margin-top:20px; background:var(--ink-900); border-left:3px solid var(--ember); border-radius:0 12px 12px 0; padding:15px 18px; }
+  .takeaway .t { font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--ember); font-weight:700; }
+  .takeaway p { font-size:13.5px; line-height:1.5; color:var(--white); margin-top:6px; font-weight:600; }
+  .takeaway p .amber { color:var(--ember); }
+
+  /* tables */
+  table { width:100%; border-collapse:collapse; margin-top:14px; font-size:11px; }
+  th { text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:0.09em; color:var(--ink-400); font-weight:700; padding:0 10px 8px; border-bottom:1px solid rgba(255,255,255,0.12); }
+  td { padding:11px 10px; border-bottom:1px solid rgba(255,255,255,0.06); color:var(--ink-300); line-height:1.4; vertical-align:top; }
+  td .p { color:var(--white); font-weight:700; white-space:nowrap; }
+  tr.us td { background:rgba(250,204,21,0.07); }
+  tr.us td .p { color:var(--ember); }
+  td .lack { color:var(--ink-400); font-size:10.5px; }
+
+  .why { margin-top:6px; }
+  .whyrow { display:flex; gap:11px; align-items:flex-start; margin-top:12px; }
+  .whyrow .n { flex:none; width:24px; height:24px; border-radius:7px; background:var(--ember); color:var(--ink-950); font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; }
+  .whyrow .wt { font-size:11.5px; line-height:1.5; color:var(--ink-300); }
+  .whyrow .wt b { color:var(--white); }
+
+  .obj { margin-top:14px; display:grid; grid-template-columns:1fr; gap:9px; }
+  .objrow { border:1px solid rgba(255,255,255,0.08); border-radius:11px; padding:12px 14px; background:var(--ink-900); }
+  .objrow .q { font-size:12px; font-weight:700; color:var(--white); }
+  .objrow .q::before { content:"“"; color:var(--ink-700); }
+  .objrow .q::after { content:"”"; color:var(--ink-700); }
+  .objrow .a { font-size:11px; line-height:1.5; color:var(--ink-300); margin-top:5px; }
+  .objrow .a b { color:var(--ember); }
+
+  .foot { position:absolute; left:0.62in; right:0.62in; bottom:0.4in; font-size:9px; color:var(--ink-700); border-top:1px solid rgba(255,255,255,0.07); padding-top:8px; display:flex; justify-content:space-between; }
+  .disc { margin-top:14px; font-size:9.5px; color:var(--ink-400); line-height:1.5; font-style:italic; }
+</style>
+</head>
+<body>
+
+  <!-- ══ PAGE 1 — PRICE & VALUE ══ -->
+  <section class="page">
+    <div class="brandrow"><span class="bulb"></span><span class="brandname">ELOSTATE <span class="care">· C.A.R.E</span></span><span class="doclabel">Pricing &amp; Sales Guide — Internal</span></div>
+
+    <p class="eyebrow">C.A.R.E Browser Extension</p>
+    <h1>The price, and <span class="amber">why it sells itself.</span></h1>
+    <p class="sub">A one-page justification for the sales team: what to charge, why it's right, and how to defend it against any objection. The extension puts six AI support tools on the conversation the agent is already looking at — Gmail, Slack, WhatsApp, any help desk.</p>
+
+    <div class="pricecard">
+      <div class="pricebig">
+        <div class="amt">$24<small> / agent / month</small></div>
+        <div class="row">
+          <span class="chip"><b>$19</b>/agent billed annually</span>
+          <span class="chip"><b>14-day</b> free trial</span>
+          <span class="chip"><b>Free</b> with full C.A.R.E</span>
+        </div>
+      </div>
+      <div class="pricenote"><b>Why per-seat.</b> Cost scales with agents (each runs live AI), so does value. Per-seat keeps margin healthy and the buyer's math simple: one number, per agent, per month.</div>
+    </div>
+
+    <div class="eq">
+      <div class="eqbox"><div class="lab">What it costs us</div><div class="big r">~$5–40</div><div class="d">per agent/mo in AI compute (the floor). Bounded by fair-use limits.</div></div>
+      <div class="eqbox"><div class="lab">What it saves them</div><div class="big g">~$300+</div><div class="d">per agent/mo in time — 20–30 min/day saved at loaded support wages.</div></div>
+      <div class="eqbox"><div class="lab">What we charge</div><div class="big a">$24</div><div class="d">captures ~8% of the value created. A clear-ROI "yes" for the buyer.</div></div>
+    </div>
+
+    <div class="takeaway">
+      <div class="t">The one-liner for the call</div>
+      <p>&ldquo;Less than a coffee a day per agent for an AI coach on every conversation — it pays for itself the first time it saves an agent <span class="amber">twenty minutes.</span>&rdquo;</p>
+    </div>
+
+    <p class="disc">Figures are the recommended launch pricing and market estimates for sales positioning — confirm final list price and competitor rates before contract. Time-saved is a conservative midpoint; lead with the buyer's own agent count and wage for a tailored ROI.</p>
+    <div class="foot"><span>C.A.R.E Extension — Pricing &amp; Sales Guide</span><span>1 / 3 · Internal use</span></div>
+  </section>
+
+  <!-- ══ PAGE 2 — COMPETITION ══ -->
+  <section class="page">
+    <div class="brandrow"><span class="bulb"></span><span class="brandname">ELOSTATE <span class="care">· C.A.R.E</span></span><span class="doclabel">Pricing &amp; Sales Guide — Internal</span></div>
+
+    <p class="eyebrow">Competitive landscape</p>
+    <h2>Priced between generic writing tools and <span class="amber">the incumbent-suite AI add-ons.</span></h2>
+    <p class="sub">Where $24 sits, and what every alternative is missing. Use this to answer "how are you different from ___?"</p>
+
+    <table>
+      <thead><tr><th style="width:1.5in">Product</th><th style="width:1.1in">Price / seat</th><th>What it is</th><th style="width:2.2in">What it lacks vs C.A.R.E</th></tr></thead>
+      <tbody>
+        <tr><td><span class="p">Grammarly Business</span></td><td>~$15/mo</td><td>Generic writing polish across apps.</td><td class="lack">No support context, no coaching against a method, no problem diagnosis. Fixes grammar, not outcomes.</td></tr>
+        <tr><td><span class="p">Lavender</span></td><td>~$29–59/mo</td><td>AI coaching for sales emails.</td><td class="lack">Sales-only, email-only. Doesn't cover support, chat, or help-desk tickets.</td></tr>
+        <tr><td><span class="p">Zendesk AI</span></td><td>~$35–50/mo add-on</td><td>AI inside the Zendesk suite.</td><td class="lack">Locked to Zendesk. Doesn't touch Gmail, Slack, WhatsApp. No book-grounded coaching of the agent.</td></tr>
+        <tr><td><span class="p">Intercom Fin</span></td><td>~$0.99 / resolution</td><td>A bot that resolves tickets itself.</td><td class="lack">Different philosophy — replaces the agent. Cost scales with volume. Doesn't make YOUR agents better.</td></tr>
+        <tr class="us"><td><span class="p">C.A.R.E Extension</span></td><td><span class="p">$24/mo</span></td><td>6 AI tools on ANY conversation the agent already has.</td><td class="lack">— The sweet spot: support-specialized, multi-channel, coaches the human, and priced below the suites.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="takeaway" style="margin-top:22px;">
+      <div class="t">The positioning in one sentence</div>
+      <p>&ldquo;Grammarly is too generic, Zendesk's AI is locked to Zendesk, and Fin replaces your agents. We make <span class="amber">your</span> agents sharper — on every channel they already use — for less than the suite add-ons.&rdquo;</p>
+    </div>
+
+    <p class="sub" style="margin-top:22px;"><b style="color:var(--white)">Two structural advantages to hammer:</b></p>
+    <div class="why">
+      <div class="whyrow"><span class="n">1</span><div class="wt"><b>It works on their existing inboxes.</b> No migration, no rip-and-replace. Competitors make them move; we come to where they already answer customers — so adoption is instant and the switching cost is zero.</div></div>
+      <div class="whyrow"><span class="n">2</span><div class="wt"><b>It coaches, it doesn't replace.</b> Every draft names the communication move behind it (from the actual books — Never Split the Difference, Made to Stick, NVC), so agents get measurably better over time. That's a compounding asset a resolution-bot can't sell.</div></div>
+    </div>
+
+    <div class="foot"><span>C.A.R.E Extension — Pricing &amp; Sales Guide</span><span>2 / 3 · Internal use</span></div>
+  </section>
+
+  <!-- ══ PAGE 3 — VALUE + OBJECTIONS + CLOSE ══ -->
+  <section class="page">
+    <div class="brandrow"><span class="bulb"></span><span class="brandname">ELOSTATE <span class="care">· C.A.R.E</span></span><span class="doclabel">Pricing &amp; Sales Guide — Internal</span></div>
+
+    <p class="eyebrow">Feature value &amp; objection handling</p>
+    <h2>What they're paying for — and <span class="amber">how to defend the price.</span></h2>
+
+    <p class="sub" style="margin-top:14px;"><b style="color:var(--white)">The $24 buys six tools, on every channel:</b></p>
+    <table style="margin-top:8px;">
+      <tbody>
+        <tr><td style="width:1.3in"><span class="p">Summarize</span></td><td>Catch up on a long thread in one glance — plus similar past resolutions worth reusing.</td></tr>
+        <tr><td><span class="p">Dissect</span></td><td>Diagnose the real problem under the message (problem, evidence, root cause, outside view).</td></tr>
+        <tr><td><span class="p">Ask Coach</span></td><td>Grade a draft against the communication books; get a revision with the named principle and why.</td></tr>
+        <tr><td><span class="p">AI Co-Pilot</span></td><td>Draft the reply AND name the move it made — so the agent learns, not just copies.</td></tr>
+        <tr><td><span class="p">Formulate</span></td><td>Agent types their intent in a line; it's shaped into a warm, on-brand reply. Agent stays in control.</td></tr>
+        <tr><td><span class="p">Spawn task</span></td><td>Turn a conversation into a tracked C.A.R.E task without leaving the page.</td></tr>
+      </tbody>
+    </table>
+
+    <p class="sub" style="margin-top:20px;"><b style="color:var(--white)">Objection handling:</b></p>
+    <div class="obj">
+      <div class="objrow"><div class="q">$24 a seat is a lot on top of our help desk.</div><div class="a">Reframe to ROI: <b>if it saves each agent 20 minutes a day, that's ~$300/mo of time — you're capturing under 10% of that.</b> And it works across every channel your help desk doesn't cover. Start the free trial on your busiest agent and watch one week.</div></div>
+      <div class="objrow"><div class="q">We already have AI in Zendesk / Intercom.</div><div class="a">Those only work inside their own walls. <b>Your agents also live in Gmail, Slack, and WhatsApp</b> — this works everywhere, and it coaches the human instead of just deflecting tickets. It complements the suite; it doesn't compete with it.</div></div>
+      <div class="objrow"><div class="q">Couldn't an agent just use ChatGPT?</div><div class="a">ChatGPT doesn't know your product, invents details, and coaches nothing. <b>C.A.R.E is grounded in the customer's own product context and the communication books, and it never fabricates</b> — if it can't answer, it says so. That's the difference between a demo and a tool you trust in front of customers.</div></div>
+    </div>
+
+    <div class="takeaway" style="margin-top:20px;">
+      <div class="t">The close</div>
+      <p>Lead with the <span class="amber">free trial</span>, land on their existing inboxes, and expand to full C.A.R.E. The extension is the wedge — cheap to say yes to, impossible to give back once agents rely on it.</p>
+    </div>
+
+    <div class="foot"><span>C.A.R.E Extension — Pricing &amp; Sales Guide</span><span>3 / 3 · Internal use</span></div>
+  </section>
+
+</body>
+</html>
