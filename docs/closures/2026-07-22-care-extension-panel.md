@@ -60,3 +60,38 @@ entitlement 402, refresh design (renews auth only; tools re-check entitlement), 
 2. **A3 ruling** (esp. Spawn task) — unblocks the remaining tool endpoints.
 3. **Seat-model decision** (finding 2).
 4. Keep-or-delete `popup.*` (lean delete); crisper per-size icons (cosmetic); CWS screenshots + $5 registration.
+
+---
+
+## Session addendum — the session grew far beyond the extension
+
+What began as the extension rebuild became a comprehensive hardening + audit pass across the whole system. Final
+state (all on `main` unless a branch is named):
+
+**Four ready-to-merge branches (all verified conflict-free via `git merge-tree`):**
+1. `fix/sharp-cve-override` — **HIGH** sharp/libvips CVE fixed (npm override → 0.35.3; `npm install` + build
+   green). Do NOT `npm audit fix --force` (would downgrade to Next 9.3.3).
+2. `fix/file-mention-query-capture` — real bug: the `@file` autocomplete search was dead (found via §0 probe).
+3. `fix/viewport-a11y-pwa-scale-lock` — WCAG 1.4.4 (browser-zoomable + PWA-only scale lock).
+4. `refactor/shared-speaker-label` — behavior-preserving DRY.
+
+**Testing:** ~185 new tests → **suite 1123, full `npm run check` gate green** (typecheck/lint/theme/rls/
+invariant/test). Comprehensive coverage of the codebase's distinct testable logic; stopped at verified
+redundancy. Locked thesis-core `canAdvance` (§3.2), §A18 no-leaderboard, coach-emit never-blocks-draft, all
+prompt builders (F2-class), and `loadUserContext` caching.
+
+**Security — 10-sweep route audit** (`docs/audits/2026-07-22-service-role-route-authz.md`): service-role authz,
+LLM cost-abuse, prompt-injection (cross-tenant leak architecturally prevented), CSRF, SSRF, XSS, mass-assignment,
+security-headers, open-redirect — no live code vulnerabilities. Dependency audit found + fixed the sharp CVE.
+Three optional hardenings surfaced (explicit `SameSite`, HSTS for standalone deploy, CSP).
+
+**Data integrity — the three highest-stakes structural invariants are DB-enforced** (not application code):
+§3.1 event-chain append-only (rules), **§3.2 the Understanding Gate** (`check_understanding_gate()` trigger),
+finance ledger balance (deferrable trigger). The constitution's "structural, not discretionary" is literally
+true in the schema — the thesis is built, not documented.
+
+**§1.7 ground-up structural audit** (`docs/audits/2026-07-22-ground-up-structural-audit.md`): foundation-up,
+all nine layers, answering checklist #9. Foundation solid; flags = the 4 branches + 3 optional hardenings.
+
+**Founder actions (see FOUNDER-ACTION-QUEUE.md):** load-test the extension · merge the 4 branches · A3 + seat-
+model rulings · CWS screenshots + $5 · optional hardenings.
