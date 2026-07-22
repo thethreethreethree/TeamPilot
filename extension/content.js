@@ -154,32 +154,11 @@
     window.addEventListener("mouseup", () => { dragging = false; });
   })();
 
-  // ── Silent token refresh (audit A4) ──────────────────────────────────────────────────────────────────────
-  async function tryRefresh() {
-    try {
-      const { careRefreshToken } = await chrome.storage.local.get("careRefreshToken");
-      if (!careRefreshToken) return false;
-      const base = await getApiBase();
-      const res = await fetch(base + "/api/care/extension/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: careRefreshToken }),
-      });
-      if (!res.ok) return false;
-      const data = await res.json().catch(() => ({}));
-      if (!data.access_token) return false;
-      await chrome.storage.local.set({
-        careToken: data.access_token,
-        careRefreshToken: data.refresh_token || careRefreshToken,
-      });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   // ── Tool run ─────────────────────────────────────────────────────────────────────────────────────────────
-  async function runTool(tool, isRetry) {
+  // The actual network call happens in the background worker (chrome.runtime.sendMessage → "care-tool"), NOT
+  // here: a content-script fetch is subject to CORS and would be refused by elostate.com on every host site.
+  // The worker holds the token, calls the API, and does the silent refresh + retry. We just render its result.
+  async function runTool(tool) {
     const out = $("result");
     if (!out) return;
     out.classList.remove("hide");
@@ -191,47 +170,53 @@
       out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Highlight the conversation on the page first, then click “Read my selected text”.`;
       return;
     }
-    const base = await getApiBase();
-    const token = await getToken();
     out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div><span class="spin"></span>Running…`;
+
+    let resp;
     try {
-      const res = await fetch(base + tool.endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ conversation: currentSelection }),
+      resp = await chrome.runtime.sendMessage({
+        type: "care-tool",
+        endpoint: tool.endpoint,
+        conversation: currentSelection,
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        if (!isRetry && (await tryRefresh())) return runTool(tool, true);
-        out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Your session expired. Click Sign in to reconnect.`;
-        await chrome.storage.local.remove(["careToken", "careRefreshToken"]);
-        setTimeout(render, 800);
-        return;
-      }
-      if (res.status === 402) {
-        const status = data?.entitlement?.status || "locked";
-        out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Your plan doesn't include the C.A.R.E extension (${esc(status)}). Upgrade to Pro or start a trial in your workspace.`;
-        return;
-      }
-      if (!res.ok) {
-        out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>${esc(data?.error || "Something went wrong.")}`;
-        return;
-      }
-      let text;
-      if (data.dissect) {
-        const d = data.dissect;
-        text = d.hasSignal
-          ? `PROBLEM: ${d.problem?.statement || ""}\nWhy it matters: ${d.problem?.whyItMatters || ""}\n\n` +
-            `ROOT CAUSE: ${d.rootCause || ""}\n\nOUTSIDE VIEW: ${d.outsideView || ""}\n\n` +
-            `GUIDING QUESTION: ${d.guidingQuestion || ""}`
-          : "Not enough in the selected text to dissect a clear problem yet — select more of the conversation.";
-      } else {
-        text = data.summary || data.reply || data.result || JSON.stringify(data, null, 2);
-      }
-      out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>${esc(text)}`;
     } catch {
       out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Couldn't reach C.A.R.E. Check your connection.`;
+      return;
     }
+    if (!resp) {
+      out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Couldn't reach C.A.R.E.`;
+      return;
+    }
+
+    const { status, data = {} } = resp;
+    if (status === 401) {
+      // The worker already tried a silent refresh and cleared the session if it truly expired.
+      out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Your session expired. Click Sign in to reconnect.`;
+      setTimeout(render, 600);
+      return;
+    }
+    if (status === 402) {
+      const s = data?.entitlement?.status || "locked";
+      out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Your plan doesn't include the C.A.R.E extension (${esc(s)}). Upgrade to Pro or start a trial in your workspace.`;
+      return;
+    }
+    if (status < 200 || status >= 300) {
+      out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>${esc(data?.error || "Something went wrong.")}`;
+      return;
+    }
+
+    let text;
+    if (data.dissect) {
+      const d = data.dissect;
+      text = d.hasSignal
+        ? `PROBLEM: ${d.problem?.statement || ""}\nWhy it matters: ${d.problem?.whyItMatters || ""}\n\n` +
+          `ROOT CAUSE: ${d.rootCause || ""}\n\nOUTSIDE VIEW: ${d.outsideView || ""}\n\n` +
+          `GUIDING QUESTION: ${d.guidingQuestion || ""}`
+        : "Not enough in the selected text to dissect a clear problem yet — select more of the conversation.";
+    } else {
+      text = data.summary || data.reply || data.result || JSON.stringify(data, null, 2);
+    }
+    out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>${esc(text)}`;
   }
 
   // Set the working text (from a manual selection or a per-site adapter) and reflect it in the UI.

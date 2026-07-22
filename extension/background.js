@@ -21,9 +21,68 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
-// The on-page panel (a content script) can't open tabs itself. When its "Sign in" button asks, open the
-// one-click connect page with this extension's id so the app can hand the session straight back.
+// WHY the tool calls live HERE and not in the content script: a content-script fetch runs in the page's
+// context and is subject to CORS — host_permissions does NOT grant the CORS bypass to content scripts, only to
+// the service worker. elostate.com would see Origin: https://<whatever-site> and (correctly) refuse it, so the
+// tools would fail on essentially every real page. The service worker's fetch, with host_permissions, bypasses
+// CORS. So the panel sends "care-tool" here; the worker holds the token, calls the API, and handles refresh.
+const ALLOWED_ENDPOINT = /^\/api\/care\/extension\/[a-z]+$/; // no arbitrary paths/hosts (defence in depth)
+
+async function careFetch(endpoint, payload) {
+  const { careToken, careRefreshToken, apiBase } = await chrome.storage.local.get([
+    "careToken",
+    "careRefreshToken",
+    "apiBase",
+  ]);
+  const base = apiBase || "https://elostate.com";
+  const call = async (token) => {
+    const res = await fetch(base + endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    let data = {};
+    try {
+      data = await res.json();
+    } catch {
+      /* non-JSON body */
+    }
+    return { status: res.status, data };
+  };
+
+  let out = await call(careToken);
+
+  // Silent refresh on expiry (audit A4), then retry once. Refresh runs here too (same CORS-free worker context).
+  if (out.status === 401 && careRefreshToken) {
+    try {
+      const rr = await fetch(base + "/api/care/extension/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: careRefreshToken }),
+      });
+      if (rr.ok) {
+        const rd = await rr.json().catch(() => ({}));
+        if (rd.access_token) {
+          await chrome.storage.local.set({
+            careToken: rd.access_token,
+            careRefreshToken: rd.refresh_token || careRefreshToken,
+          });
+          out = await call(rd.access_token);
+        }
+      } else {
+        // Refresh itself failed → the session is truly gone; clear so the panel shows Sign in and drop the badge.
+        await chrome.storage.local.remove(["careToken", "careRefreshToken"]);
+        chrome.action.setBadgeText({ text: "" });
+      }
+    } catch {
+      /* leave out as the 401; the panel will prompt Sign in */
+    }
+  }
+  return out;
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // The on-page panel can't open tabs itself. When its "Sign in" button asks, open the one-click connect page.
   if (message?.type === "open-connect") {
     chrome.storage.local.get("apiBase", ({ apiBase }) => {
       const base = apiBase || "https://elostate.com";
@@ -32,6 +91,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     });
     return true; // async
   }
+
+  // Run a C.A.R.E tool on behalf of the panel (CORS-safe here). Validate the endpoint — never a caller-supplied
+  // URL or host (open-proxy hygiene; the page can't reach this listener anyway, but defence in depth).
+  if (message?.type === "care-tool") {
+    if (typeof message.endpoint !== "string" || !ALLOWED_ENDPOINT.test(message.endpoint)) {
+      sendResponse?.({ status: 400, data: { error: "Unknown tool." } });
+      return; // sync response
+    }
+    careFetch(message.endpoint, { conversation: String(message.conversation || "") })
+      .then((r) => sendResponse(r))
+      .catch(() => sendResponse({ status: 0, data: { error: "network" } }));
+    return true; // async
+  }
+});
+
+// Keep the toolbar badge in sync with the session, wherever the token changes (connect handoff, panel
+// disconnect, refresh failure). Content scripts can't call chrome.action, so the badge is owned here.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !("careToken" in changes)) return;
+  const connected = !!changes.careToken.newValue;
+  chrome.action.setBadgeText({ text: connected ? "✓" : "" });
+  if (connected) chrome.action.setBadgeBackgroundColor({ color: "#16a34a" });
 });
 
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
