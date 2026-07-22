@@ -44,9 +44,16 @@ export async function requireExtensionAuth(req: NextRequest): Promise<
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("company_id")
+    .select("company_id, status")
     .eq("id", data.user.id)
     .maybeSingle();
+
+  // Audit A2 (2026-07-22): match the app's own requireCareAgent — a REMOVED/deactivated user must not
+  // reach a paid feature even with a lingering company_id. Fail closed.
+  if ((profile?.status as string | null) === "removed") {
+    return unauth("This account has been deactivated.", 403);
+  }
+
   const companyId = (profile?.company_id as string | null) ?? null;
   if (!companyId) return unauth("No company associated with this account.", 403);
 

@@ -37,10 +37,20 @@ const Schema = z
   .strict();
 
 export async function POST(req: NextRequest) {
+  // Audit A1 (2026-07-22): a coarse per-IP guard BEFORE auth protects the token-validation round-trip
+  // from unauthenticated floods; the real limit below is per-USER (so colleagues on one office IP don't
+  // share a bucket on a paid feature).
+  const preAuth = rateLimit(req, { id: "care-ext", windowMs: 60_000, max: 60 });
+  if (preAuth) return preAuth;
+
   const gate = await requireEntitledExtensionUser(req);
   if (!gate.ok) return gate.response;
 
-  const limited = rateLimit(req, { id: "care-ext-summarize", windowMs: 60_000, max: 20 });
+  const limited = rateLimit(req, {
+    id: `care-ext-summarize:${gate.user.userId}`,
+    windowMs: 60_000,
+    max: 20,
+  });
   if (limited) return limited;
 
   const body = await readBody(req, Schema);
