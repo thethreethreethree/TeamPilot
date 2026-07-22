@@ -1,5 +1,31 @@
 # Founder action queue — as of 2026-07-14
 
+> ### ⬆️ 2026-07-22 — GROUND-UP AUDIT CYCLE: 7 fixes shipped + 916 tests; 3 decisions for you
+> Ran a ground-up §1.7 audit across ~15 surfaces (public + all authed dashboard sections + the
+> customer-facing widget) at desktop + mobile, an 18-page mobile-overflow sweep, and a nav-link check.
+> **Full record:** [docs/audits/2026-07-22-ground-up-audit-cycle.md](audits/2026-07-22-ground-up-audit-cycle.md).
+>
+> **7 fixes, all merged to `main` (auto-deployed):** F2 (Care tone/length settings were dead → wired,
+> +6 regression tests) · V1 (demo mobile comparison hid the C.A.R.E column) · V2 (PWA banner covered by
+> FABs) · V3 (home mobile header clipped "Request access") · V4 (coach-assessment "gapsname" typo) ·
+> **V5 (HIGHEST: ELOSTATE's Feedback + Jeff FABs leaked onto the customer-embedded widget — duplicate
+> chat bubble + a Feedback button routing to ELOSTATE login on a customer's own site)** · V6 (widget had
+> conflicting robots meta — tenant embed-token URLs could be indexed → single noindex now).
+>
+> **NEEDS YOUR CALL (3 decisions, none blocking):**
+> - **A1** — you already chose LEAVE AS-IS (dead `llm_provider_preference` dropdown; the honest
+>   active-provider panel above it already shows the real env-derived truth). Closed.
+> - **A2** (LOW) — mobile `/login` shows form + PWA prompt + Feedback FAB + Jeff FAB. Recommend hiding
+>   the Feedback FAB pre-auth (it just routes back to /login) and keeping Jeff. I did NOT do this
+>   unilaterally — it touches your "Feedback visible on every page" directive.
+> - **A3** (MED, a11y) — `userScalable:false` in the root viewport disables pinch-zoom on ALL pages
+>   incl. public marketing on Android (WCAG 1.4.4 failure). Recommend dropping it app-wide (the 16px
+>   input sizing already prevents iOS auto-zoom) OR limiting the lock to the installed PWA. Deliberate
+>   current value, so surfaced not changed.
+>
+> The app core is genuinely well-built — the real defects clustered in public/marketing polish + the
+> customer widget. Verdict + method detail in the audit doc.
+
 > ### ⬆️ 2026-07-21 — C.A.R.E handover capture BUILT (`feat/care-handover-capture`, `b8791b0c`)
 > When Jeff hands off to a human: the customer is now told, and a compact card captures name/email/concern
 > (+ "Other" free-text, + order # for e-commerce) — visible to the agent in the inbox header.
