@@ -19,6 +19,10 @@ import { join } from "node:path";
  * prompts, which are not product surfaces.
  */
 
+// User-facing strings live in the JSX surfaces (app + components). src/lib is
+// deliberately out of scope: it holds no user-facing § today (verified), and
+// its .ts files carry `=>` arrows + LLM system prompts that would false-positive
+// the JSX-text pattern. The rule for lib is the same, enforced by review.
 const ROOTS = ["src/app", "src/components"];
 
 // § inside a user-facing JSX attribute value, e.g. subtitle="… §3.2 …"
