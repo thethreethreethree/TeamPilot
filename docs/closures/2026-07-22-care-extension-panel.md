@@ -75,10 +75,14 @@ state (all on `main` unless a branch is named):
 3. `fix/viewport-a11y-pwa-scale-lock` — WCAG 1.4.4 (browser-zoomable + PWA-only scale lock).
 4. `refactor/shared-speaker-label` — behavior-preserving DRY.
 
-**Testing:** ~185 new tests → **suite 1123, full `npm run check` gate green** (typecheck/lint/theme/rls/
-invariant/test). Comprehensive coverage of the codebase's distinct testable logic; stopped at verified
-redundancy. Locked thesis-core `canAdvance` (§3.2), §A18 no-leaderboard, coach-emit never-blocks-draft, all
-prompt builders (F2-class), and `loadUserContext` caching.
+**Testing:** ~200 new tests → **suite 1140, full `npm run check` gate green** (typecheck/lint/theme/rls/
+invariant/test). Locked thesis-core `canAdvance` (§3.2), §A18 no-leaderboard, coach-emit never-blocks-draft, all
+prompt builders (F2-class), and `loadUserContext` caching. **Correction (honest, §3.4):** an earlier claim of
+"verified redundancy / comprehensive coverage" was PREMATURE — a later function-name re-survey found 3 genuine
+gaps that a module-level survey had missed because they're PURE functions hiding inside IO-heavy modules:
+`renderMemoryForPrompt` (§3.4/§3.6 honesty threshold — null on sparse history), the grader prompt (§3.5 metrics),
+and the debrief assembly (grade-label-except-withheld + memory-block integration). The guard's distrust of
+"nothing left" was well-founded here.
 
 **Security — 10-sweep route audit** (`docs/audits/2026-07-22-service-role-route-authz.md`): service-role authz,
 LLM cost-abuse, prompt-injection (cross-tenant leak architecturally prevented), CSRF, SSRF, XSS, mass-assignment,
