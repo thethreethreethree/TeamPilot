@@ -31,16 +31,27 @@ export function summarizeTopicDurability(
   msgCountByTopic: Map<string, number>
 ): TopicStats {
   const total = topics.length;
-  const closed = topics.filter((t) => t.status === "closed").length;
+  // "ever closed" via the durable closed_at, not the mutable status (same
+  // §3.4/§3.5 durable-timestamp basis as `unknown` and closeTimesMs below).
+  const closed = topics.filter((t) => t.closed_at != null).length;
   const held = topics.filter((t) => t.close_durability === "held").length;
   const reopened = topics.filter((t) => t.close_durability === "reopened").length;
   const partial = topics.filter((t) => t.close_durability === "partial").length;
-  // unknown = explicitly "unknown" OR closed without a durability mark
-  // (we want to know how many closed topics never got reviewed at all)
+  // unknown = explicitly "unknown" OR closed-without-a-durability-mark
+  // (we want to know how many closed topics never got reviewed at all).
+  // Key the "closed" test on the durable `closed_at` timestamp, NOT the mutable
+  // `status` field. This is the lesson the CARE analytics already learned
+  // (src/app/api/care/agent/analytics/route.ts: counting a mutable status
+  // undercounts resolutions when work is later archived — resolved_at/closed_at
+  // is the honest measure, §3.4/§3.5). Behavior-identical today (closeTopic sets
+  // status='closed' and closed_at together; there is no reopen-to-open flow and
+  // 'archived' is unreachable for topics), but forward-correct if a topic can
+  // ever be archived after closing — and consistent with closeTimesMs below,
+  // which already keys on closed_at.
   const unknown = topics.filter(
     (t) =>
       t.close_durability === "unknown" ||
-      (t.status === "closed" && !t.close_durability)
+      (t.closed_at != null && !t.close_durability)
   ).length;
   const closeTimesMs = topics
     .filter((t) => t.closed_at)

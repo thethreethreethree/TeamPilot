@@ -57,6 +57,27 @@ describe("summarizeTopicDurability — §3.5 consequence measure", () => {
     expect(s.unknown).toBe(2); // a + b, NOT c
   });
 
+  it("counts an archived-after-close topic by its durable closed_at, not the mutable status (§3.4/§3.5 — the CARE lesson)", () => {
+    // The differentiating case: a topic that was closed (closed_at stamped) and LATER
+    // archived (status overwritten to 'archived'). The old status==='closed' basis would
+    // have dropped it from BOTH `closed` and `unknown` — undercounting the moat metric
+    // exactly the way the CARE resolution-rate once did. The durable closed_at is honest.
+    const s = summarizeTopicDurability(
+      [
+        {
+          id: "a",
+          status: "archived",
+          close_durability: null,
+          created_at: iso(T0),
+          closed_at: iso(T0 + 3_600_000),
+        },
+      ],
+      new Map()
+    );
+    expect(s.closed).toBe(1); // ever-closed, despite status now 'archived'
+    expect(s.unknown).toBe(1); // closed but never durability-reviewed
+  });
+
   it("averages close time in HOURS, ignoring non-positive/open durations", () => {
     const s = summarizeTopicDurability(
       [
