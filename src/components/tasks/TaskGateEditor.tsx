@@ -102,7 +102,7 @@ export function TaskGateEditor({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Couldn't save.");
-      toast.success("Gate updated", "The edit is on the §3.1 chain.");
+      toast.success("Gate updated", "The edit is on the event chain.");
       setEditing(false);
       onSaved();
     } catch (err) {

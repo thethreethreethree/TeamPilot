@@ -35,6 +35,9 @@ const ATTR = /\b(subtitle|title|placeholder|aria-label|alt|label|hint|tooltip|de
 const FIELD = /\b(message|error|note|reason|hint)\s*:\s*["'`][^"'`]*§/;
 // § in JSX text between tags, e.g. >… §3.1 chain<  (require a section-like token after §)
 const JSX_TEXT = />[^<>{}]*§[0-9A-Za-z]/;
+// § inside a toast/notify call (user-facing), e.g. toast.success("…", "… §3.1 …")
+// — a function-call arg, so neither ATTR nor FIELD catches it (how a §3.1 toast leaked).
+const TOAST = /\btoast\s*[.(][^;]*§/;
 
 // Layer 1 of the same IP rule: the methodology-doc FILENAMES must never appear
 // in user-facing strings either (they're fine in developer code comments). Same
@@ -89,7 +92,8 @@ describe("no sensitive-IP leaks (§ citations or methodology-doc filenames) in u
       ...scan(
         FULL_ROOTS,
         (line) =>
-          (line.includes("§") && (ATTR.test(line) || FIELD.test(line) || JSX_TEXT.test(line))) ||
+          (line.includes("§") &&
+            (ATTR.test(line) || FIELD.test(line) || JSX_TEXT.test(line) || TOAST.test(line))) ||
           DOC.test(line) ||
           DOC_TEXT.test(line)
       ),
