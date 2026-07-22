@@ -46,6 +46,7 @@ describe("extension per-site adapters", () => {
     ["acme.zendesk.com", "zendesk"],
     ["app.intercom.com", "intercom"],
     ["app.frontapp.com", "front"],
+    ["app.slack.com", "slack"],
   ];
 
   it.each(routes)("routes %s to the %s adapter", (host, key) => {

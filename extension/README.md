@@ -88,7 +88,7 @@ Grounded in the actual architecture, so you can self-diagnose before pinging me.
 ## Status (honest)
 - **On-page panel** — minimizable, persistent, ✕/drag. Built; **browser-runtime untested** (checklist above). ✅ built / ⏳ verify
 - **Reads selection + Summarize + Dissect** against live gated endpoints — server-side verified (200/401/402). ✅
-- **Per-site adapters** (10 platforms) — routing + extraction unit-tested; **live selectors untested per platform**. ✅ built / ⏳ verify
+- **Per-site adapters** (11 platforms — Gmail, Outlook, Instagram, Messenger, WhatsApp, LinkedIn, Gorgias, Zendesk, Intercom, Front, **Slack**) — routing + extraction unit-tested; **live selectors untested per platform**. ✅ built / ⏳ verify
 - **One-click connect + silent refresh** — server-side verified; browser round-trip untested (checklist #6). ✅ built / ⏳ verify
 - **Ask Coach / Co-pilot / Formulate / Spawn task** — **now live** (2026-07-22, founder "make them live"). Text-in
   mirrors of the in-app C.A.R.E tools, same engines/prompts (no drift). A3 applied per-tool: Coach/Co-pilot/

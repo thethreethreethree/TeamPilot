@@ -100,6 +100,18 @@ if (!globalThis.__careAdaptersLoaded) {
       match: (h) => h === "app.frontapp.com",
       extract: () => textFrom('[class*="messageBody"], [class*="message-body"], .message'),
     },
+    {
+      key: "slack",
+      label: "Slack conversation",
+      match: (h) => h === "app.slack.com",
+      // Slack renders each message's text in `.p-rich_text_section` blocks, inside the message list
+      // (`[data-qa="message_content"]` / `.c-message_kit__blocks`). Grab the visible ones in order; the
+      // textFrom hidden-node skip drops the virtualized off-screen rows Slack keeps in the DOM.
+      extract: () =>
+        textFrom(
+          '[data-qa="message_content"] .p-rich_text_section, .c-message_kit__blocks .p-rich_text_section, .c-virtual_list__item .p-rich_text_section'
+        ),
+    },
   ];
 
   // Return the adapter for the current host, or null (→ universal selection-only mode).
