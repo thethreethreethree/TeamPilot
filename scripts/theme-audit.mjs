@@ -160,6 +160,18 @@ const FILE_ALLOWLIST = new Map([
     "src/components/care/demo/CareHonestNote.tsx",
     "Deliberate fixed-dark demo note — the theme-aware version rendered invisible in light mode (unresolved Layer-4 cause, audit finding F4); fixed colors are the verified-legible workaround.",
   ],
+  [
+    "src/components/sales-coach/demo/SalesShowroom.tsx",
+    "Deliberate fixed-dark 'coaching console' on /sales/demo — same rationale as CareShowroom.tsx (a dark call-console inside the theme-aware page, single-theme by design).",
+  ],
+  [
+    "src/components/sales-coach/demo/SalesRoleplay.tsx",
+    "Deliberate fixed-dark live-roleplay console on /sales/demo — same rationale as JeffLiveChat.tsx.",
+  ],
+  [
+    "src/components/sales-coach/demo/SalesHonestNote.tsx",
+    "Deliberate fixed-dark demo note on /sales/demo — matches CareHonestNote.tsx in the /care/demo family.",
+  ],
 ]);
 
 const files = Array.from(
