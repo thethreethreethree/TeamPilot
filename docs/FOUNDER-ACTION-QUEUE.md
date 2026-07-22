@@ -9,7 +9,15 @@
 > fast-uri / js-yaml / postcss) are **build-time tooling on trusted input** (~nil runtime risk) — their clean
 > fix is a **Next patch update** when one lands, not risky deep overrides.
 >
-> ### ⬆️ 2026-07-22 — SECURITY AUDIT (8 sweeps: 7 code-clean + dependency) — 2 optional hardenings
+> ### ⬆️ 2026-07-22 — SECURITY AUDIT (9 sweeps: 8 code-clean + dependency) — 3 optional hardenings
+> Route + header + dependency security audit ([docs/audits/2026-07-22-service-role-route-authz.md](audits/2026-07-22-service-role-route-authz.md)).
+> **No live vulnerabilities in code.** Headers are well-set (X-Frame-Options with the widget correctly exempted,
+> nosniff, Referrer/Permissions-Policy, no X-Powered-By). Three OPTIONAL hardenings (none a present hole):
+> 1. **HSTS** — not in `next.config.ts`; Vercel sets it at the edge (prod covered), but the standalone/Docker
+>    deploy target wouldn't get it. Add `Strict-Transport-Security: max-age=31536000; includeSubDomains` to
+>    `BASE_SECURITY_HEADERS` if you want belt-and-suspenders. (Deployment commitment → your policy call.)
+> 2. **Explicit `SameSite:"lax"`** in the auth cookie options (currently the @supabase/ssr default).
+> 3. **CSP** — consciously deferred in-config (needs a nonce strategy); a dedicated future change.
 > Ran a §0 route-security audit ([docs/audits/2026-07-22-service-role-route-authz.md](audits/2026-07-22-service-role-route-authz.md))
 > across 5 classes NOT covered by the automated RLS/invariant audits: service-role (admin-client) authz, LLM
 > cost-abuse, prompt injection (cross-tenant leakage is architecturally prevented — per-tenant context loading),

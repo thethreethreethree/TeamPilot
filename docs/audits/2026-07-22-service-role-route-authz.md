@@ -156,10 +156,33 @@ clean fix is a **Next patch update** when one lands; individual deep overrides r
 aren't worth it for build-time-only tooling.
 
 ---
-**Overall audit verdict (8 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, SSRF, XSS, and
-mass-assignment — no live code vulnerabilities. Dependency audit — one HIGH (sharp) fixed on a branch; 5
-Next-transitive build-time CVEs surfaced (low real exploitability, fix via Next update). Founder-glance items:
-merge the sharp branch, the optional explicit-`SameSite` future-proofing, and (done) the dead-`popup.*` deletion.
+## Ninth sweep — HTTP security headers (clickjacking / MIME / HSTS / CSP)
+
+`next.config.ts` sets a considered header set on every response.
+
+**Present + correct:** `X-Frame-Options: SAMEORIGIN` (clickjacking) on all routes EXCEPT the embeddable C.A.R.E
+widget (correctly omitted — SAMEORIGIN there would block the cross-origin iframe); `X-Content-Type-Options:
+nosniff`; `Referrer-Policy: strict-origin-when-cross-origin`; a locked-down `Permissions-Policy` (camera/geo off,
+mic=self for voice); `X-DNS-Prefetch-Control`; and `poweredByHeader: false` (no `X-Powered-By` fingerprint).
+
+**Two gaps, neither a live hole:**
+- **CSP** — consciously DEFERRED with a documented reason (a strict CSP breaks Next inline scripts + LLM runtime
+  calls; needs a nonce strategy). Reasonable — React auto-escaping already covers the primary XSS vector; CSP is
+  defense-in-depth. Left as the doc marks it: a dedicated future change.
+- **HSTS (`Strict-Transport-Security`)** — not in the config. On **Vercel** (the primary host) it's set at the
+  edge by default, so production is almost certainly covered. But the config also supports a **standalone/Docker
+  deploy** (`output: "standalone"`), which would NOT get platform HSTS → an SSL-strip gap there. Recommend adding
+  a conservative `Strict-Transport-Security: max-age=31536000; includeSubDomains` to `BASE_SECURITY_HEADERS`
+  (safe: the app is HTTPS-only already; omit `preload` unless committing to the preload list). Not done here
+  because HSTS is a deployment COMMITMENT (a long max-age is hard to walk back) — the max-age/preload policy is
+  the founder's call. **Surfaced in the queue.**
+
+---
+**Overall audit verdict (9 sweeps):** service-role authz, LLM cost-abuse, prompt injection, CSRF, SSRF, XSS,
+mass-assignment, and security headers — no live code vulnerabilities. Dependency audit — one HIGH (sharp) fixed
+on a branch; 5 Next-transitive build-time CVEs surfaced (low real exploitability, fix via Next update).
+Founder-glance items: merge the sharp branch; optional explicit-`SameSite`; optional HSTS (for the standalone
+deploy target); and (done) the dead-`popup.*` deletion.
 This complements the structural guarantees enforced by the RLS audit and the invariant audit (CSV formula-
 safety, cross-person read gating, upload validation, no client-callable DEFINER tenant-param fns). The app's
 security posture is sound across the classes an application-layer audit can reach; deeper assurance (a
