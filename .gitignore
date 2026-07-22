@@ -40,3 +40,6 @@ next-env.d.ts
 # C.A.R.E extension store build artifact
 extension/store/dist/
 extension/store/*.zip
+
+# Extension download package — built fresh by prebuild (scripts/build-extension-download.mjs)
+public/care-extension.zip

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/build-extension-download.mjs",
     "dev": "next dev --port 4321",
     "build:extension": "node scripts/build-extension-download.mjs",
     "prebuild": "node scripts/build-extension-download.mjs",
@@ -53,6 +54,7 @@
     "docx": "^9.7.1",
     "eslint": "^8",
     "eslint-config-next": "15.3.2",
+    "jszip": "^3.10.1",
     "pg": "^8.22.0",
     "postcss": "^8",
     "supabase": "^2.104.0",
