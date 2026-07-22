@@ -62,8 +62,9 @@
 >      touches the §3.4 internal-baseline boundary and needs your call (gate it during month-1? or allow?).
 >    So the real decision is narrower than before: **"do the 5 read/draft tools follow Summarize (ungated), and
 >    how should Spawn-task behave during the control window?"** I still won't decide the core thesis for you.
-> 3. **popup.html/js** are now unreferenced (the panel replaced them). Keep as fallback, or delete? (Safe either
->    way; I'd lean delete to avoid two divergent copies of the tool logic.)
+> 3. **popup.html/js** — **DELETED 2026-07-22** (dead code: unreferenced by the manifest, a divergent duplicate
+>    of content.js carrying the old CORS-broken fetch pattern, and a latent XSS-hygiene issue per the audit).
+>    Reversible via git if a popup surface is ever wanted. No action needed.
 > 4. **Google OAuth client** — now *optional*: the one-click connect handoff already gives seamless sign-in.
 >    Only needed if you want the fully-native `launchWebAuthFlow`. Give me a client ID if so.
 > 5. **DECIDE the extension's seat model (audit finding, not a bug).** The in-app Care gate (`careAgentAuth`)

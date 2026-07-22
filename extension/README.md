@@ -90,5 +90,6 @@ Grounded in the actual architecture, so you can self-diagnose before pinging me.
 - **One-click OAuth** (`launchWebAuthFlow`) — now largely unnecessary (the connect handoff works); available later if wanted. ⏳
 - Privacy policy: `/extension/privacy`. Icons reuse the square `elostate-logo.png`.
 
-> Note: `popup.html` / `popup.js` remain in this folder but are **no longer referenced** by the manifest (the
-> panel replaced them). Kept pending a keep-or-delete call; safe to remove.
+> Note: the old `popup.html` / `popup.js` were **deleted** (2026-07-22) once the on-page panel replaced them —
+> they were dead code (unreferenced by the manifest) and a divergent copy of the panel's logic. The extension is
+> panel-only now. (Recoverable via git history if a popup surface is ever wanted.)
