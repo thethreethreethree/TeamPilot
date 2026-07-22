@@ -1,5 +1,6 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
+import { speakerLabel } from "./transcriptFormat";
 import { methodologyBlock } from "./salesReviewPrompt";
 
 /**
@@ -18,12 +19,6 @@ import { methodologyBlock } from "./salesReviewPrompt";
  * "cut the fabricated stat" decision 2026-07-02): NO statistics, NO
  * "top reps convert X% higher" — that measured data does not exist.
  */
-
-function speakerLabel(speaker: TranscriptSegment["speaker"]): string {
-  if (speaker === "agent") return "REP";
-  if (speaker === "customer") return "CUSTOMER";
-  return "UNKNOWN";
-}
 
 export function buildSalesMomentsSystemPrompt(corpusOverride?: string): string {
   return `You are a Live Sales Coach reducing a diarized sales conversation to

@@ -1,5 +1,6 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
+import { speakerLabel } from "./transcriptFormat";
 import { methodologyBlock } from "./salesReviewPrompt";
 
 /**
@@ -20,12 +21,6 @@ import { methodologyBlock } from "./salesReviewPrompt";
  * grades the five qualitative categories: opener, objection handling, tone,
  * close, and next-step clarity.
  */
-
-function speakerLabel(speaker: TranscriptSegment["speaker"]): string {
-  if (speaker === "agent") return "REP";
-  if (speaker === "customer") return "CUSTOMER";
-  return "UNKNOWN";
-}
 
 export function buildSalesScoreSystemPrompt(corpusOverride?: string): string {
   return `You are a Live Sales Coach producing a PRIVATE self-assessment

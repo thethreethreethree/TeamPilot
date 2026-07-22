@@ -1,5 +1,6 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
+import { speakerLabel } from "./transcriptFormat";
 
 /**
  * Conversation-intelligence prompt (founder 2026-07-07): extract the COMPETITORS
@@ -11,12 +12,6 @@ import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
  * was actually said — an empty list is the right answer when no competitor came
  * up. §A11: this is an extraction (what was named / discussed), not a verdict.
  */
-
-function speakerLabel(speaker: TranscriptSegment["speaker"]): string {
-  if (speaker === "agent") return "REP";
-  if (speaker === "customer") return "CUSTOMER";
-  return "UNKNOWN";
-}
 
 export function buildSalesIntelSystemPrompt(): string {
   return `You extract two things from a sales conversation transcript, for a

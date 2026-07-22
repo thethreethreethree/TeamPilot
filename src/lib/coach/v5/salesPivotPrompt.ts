@@ -1,5 +1,6 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
+import { speakerLabel } from "./transcriptFormat";
 import { methodologyBlock } from "./salesReviewPrompt";
 
 /**
@@ -17,12 +18,6 @@ import { methodologyBlock } from "./salesReviewPrompt";
  * time). No invented statistics. §A11: the pivot is an OBSERVATION grounded in
  * a quoted line + why it mattered, not a naked verdict on the rep.
  */
-
-function speakerLabel(speaker: TranscriptSegment["speaker"]): string {
-  if (speaker === "agent") return "REP";
-  if (speaker === "customer") return "CUSTOMER";
-  return "UNKNOWN";
-}
 
 export function buildSalesPivotSystemPrompt(corpusOverride?: string): string {
   return `You are a Live Sales Coach identifying the ONE PIVOT MOMENT of a
