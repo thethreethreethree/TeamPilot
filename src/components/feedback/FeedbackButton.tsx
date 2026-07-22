@@ -81,6 +81,11 @@ export function FeedbackButton() {
   const isDashboardRoute = pathname.startsWith("/dashboard");
   if (isDashboardRoute) return null;
 
+  // /widget/* is the customer-facing embedded Care widget, rendered on a third party's site. The
+  // global Feedback button must NOT leak into it — it routes to ELOSTATE's /login, which a customer's
+  // end-user should never see (audit V5 2026-07-22). It can't escape the root layout, so suppress here.
+  if (pathname.startsWith("/widget")) return null;
+
   // On the landing page the top-right nav now renders an inline
   // "Feedback" link next to Sign in / Request access per user
   // request ("please move this button up in here"). The floating

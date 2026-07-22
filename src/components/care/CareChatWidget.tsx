@@ -28,6 +28,10 @@ import { DEFAULT_BUSINESS_TYPE, type BusinessType } from "@/lib/care/handoverTop
 const WIDGET_HIDDEN_PREFIXES = [
   "/dashboard/care",
   "/dashboard/chats",
+  // /widget/* is the customer-facing embedded Care widget itself. The global Jeff FAB must NOT
+  // render there — it can't escape the root layout, so without this it appears as a DUPLICATE chat
+  // bubble on top of the embedded widget on a customer's own site (audit V5 2026-07-22).
+  "/widget",
 ];
 
 /**
