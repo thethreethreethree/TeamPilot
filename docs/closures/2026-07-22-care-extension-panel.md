@@ -17,10 +17,14 @@ tested, publish-prepped on-page panel. All commits on `main`, pushed; production
 | Founder queue + memory + sharpened A3 | ea…, 4d6a10eb | — |
 
 **Full gate green this session:** typecheck · lint · theme:audit (0 leaks) · rls:audit (0) · invariant:audit (0)
-· **~1095 tests** (~155 new). The session grew from the extension into a broad test-hardening + bug-finding pass.
-Added F2-class regression protection for the prompt builders (a dropped conditional silently disables a
-behavior, as F2 itself proved): coach v5 system + user message (mode/context/memory reach the prompt; surfaces
-don't bleed) and task-spawn (intent preservation, surface isolation).
+· **1123 tests** (~185 new). The session grew from the extension into a broad test-hardening + bug-finding pass
+that comprehensively covered the codebase's DISTINCT testable logic. Beyond the extension: F2-class prompt-
+builder protection (coach v5 system+user, task-spawn, sales-moments), the thesis-core diagnosis module, coach
+emit/assessment/prep/dissect-backfill, care/prompt + notify, files (mentions/fileMention/autoRoute), and the
+subtle caching in loadUserContext (dedup / cache-hit / retry-on-error). Stopped at verified redundancy:
+diagnosis/persistence is byte-pattern-identical to the tested dialogues/persistence; the sales prompt builders
+share the tested transcript pattern — re-testing those would be churn (§1.5.2), so they were declined, not
+skipped silently. What's genuinely left is redundant, thin IO wrappers, or React hooks needing a DOM env.
 
 Extension coverage ~9 → 57: adapters/worker/CORS-invariant 27, entitlement IO 6, auth paid-gate 10, 3 live
 routes 14 — auth+entitlement+CORS guarded against fail-open. + 2 public demo endpoints (soft-fail-never-500, F2
