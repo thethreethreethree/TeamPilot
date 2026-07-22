@@ -28,6 +28,7 @@ import { ArrowRight, Repeat, X, Check, MousePointerClick } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { LightbulbMark } from "@/components/brand/Logo";
 import { CareShowroom } from "@/components/care/demo/CareShowroom";
+import { CareAgentBenefits } from "@/components/care/demo/CareAgentBenefits";
 import { JeffLiveChat } from "@/components/care/demo/JeffLiveChat";
 import { CareHonestNote } from "@/components/care/demo/CareHonestNote";
 
@@ -105,6 +106,9 @@ export default function CareDemoPage() {
           names its move, Dissect quotes the thread. Interactive, not a video.
         </p>
       </section>
+
+      {/* What your agents actually get — the buyer's real question */}
+      <CareAgentBenefits />
 
       {/* Jeff — the customer side */}
       <section className="px-6 py-10 max-w-5xl mx-auto">
