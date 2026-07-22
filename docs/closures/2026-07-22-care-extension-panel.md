@@ -17,7 +17,10 @@ tested, publish-prepped on-page panel. All commits on `main`, pushed; production
 | Founder queue + memory + sharpened A3 | ea…, 4d6a10eb | — |
 
 **Full gate green this session:** typecheck · lint · theme:audit (0 leaks) · rls:audit (0) · invariant:audit (0)
-· **1066 tests** (~126 new). The session grew from the extension into a broad test-hardening + bug-finding pass.
+· **~1095 tests** (~155 new). The session grew from the extension into a broad test-hardening + bug-finding pass.
+Added F2-class regression protection for the prompt builders (a dropped conditional silently disables a
+behavior, as F2 itself proved): coach v5 system + user message (mode/context/memory reach the prompt; surfaces
+don't bleed) and task-spawn (intent preservation, surface isolation).
 
 Extension coverage ~9 → 57: adapters/worker/CORS-invariant 27, entitlement IO 6, auth paid-gate 10, 3 live
 routes 14 — auth+entitlement+CORS guarded against fail-open. + 2 public demo endpoints (soft-fail-never-500, F2
