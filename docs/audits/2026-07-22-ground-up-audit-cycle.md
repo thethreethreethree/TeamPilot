@@ -191,6 +191,34 @@ invisible-text class is systematically gone, not just spot-checked.
 
 ---
 
+## Sales Coach demo — build + governed audit (founder request)
+Built `/sales/demo` mirroring `/care/demo`, through the AMD-006 four layers (deployed `6e050db5`): route +
+noindex layout, four components, and a live roleplay endpoint `/api/sales/demo/roleplay` (one LLM call →
+prospect reply + coach cue; rate-limited, stateless; verified live end-to-end incl. mobile interaction —
+real prospect reply + rendered coach cue at 390px).
+
+Then audited it against the framework (not general best practice), reading the actual built files:
+- **F1** (§1.5.1/L3, MED, fixed `3cdac000`): roleplay dead-ended (no convergence, vs JeffLiveChat's handoff)
+  → soft nudge to CTA after 4 turns.
+- **F2** (L2, LOW, fixed `3cdac000`): JSON-parse fallback could leak the cue into the prospect's line → strip.
+- **F5** (§3.4, MED, fixed `9c4ce681`): the six-skill readout named "discovery/framing/rapport" — none real;
+  `SKILL_LABELS` = Talk/Listen, Tone, Speed of speech, Questions, Objection handling, Closing. Fixed in BOTH
+  places (SalesShowroom + SalesRepBenefits — class-checked).
+- **F6/F9** (§3.4, MED, fixed `9c4ce681`+`93a95b1f`): claimed grading "against seven communication
+  masterworks" — wrong number AND wrong category. The Sales Coach grounds in 4 SALES books (SPIN Selling,
+  Challenger Sale, Never Split the Difference, Navigate 2.0; `salesKnowledgeBase.ts:8`). Corrected 3 sites.
+- **F7** (L1, LOW, fixed `9c4ce681`): `DEBRIEF.scores` was dead data holding the invented names → removed.
+- **F3/F4** downgraded on evidence (not fabricated): `generateCareReply` naming is pre-existing codebase-wide
+  (10+ sites); hero "actual product" is mitigated by the live-style-demo + "faithful" labels.
+- **Class-check:** `/care/demo`'s "seven communication masterworks" is CORRECT (7 verified communication
+  books, `CareShowroom.tsx:18`) — F5/F6/F9 were sales-only mislabels from mirroring care too literally.
+
+Lesson: F5+F9 were my own fabricated specifics, caught only by re-reading `skillAnalytics.ts` /
+`salesKnowledgeBase.ts` instead of trusting what I'd written — the §3.4/§0.1 "read the source, not memory"
+discipline working as designed.
+
+---
+
 ## Open — founder decision
 
 ### A3 — Global `userScalable: false` disables pinch-zoom on ALL pages (MED, a11y) — DECISION
