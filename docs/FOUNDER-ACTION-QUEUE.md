@@ -48,6 +48,18 @@
 > otherwise you'll hit "locked" on your own account too. That's the manual workaround until the trial trigger is
 > built; if you saw "your plan doesn't include the extension" while testing, this is why.
 
+> ## 🔒 APPLY — migration 0190 hardens the Understanding Gate to fail CLOSED (found 2026-07-23)
+> **Thesis-core (§3.2) hardening — safe, needs a live apply to verify (sandbox can't reach the DB).** Reading the
+> gate trigger (`check_understanding_gate`, orig. 0002) as a detached observer surfaced a **fail-open** weakness:
+> the gate looks up a per-kind threshold, falling back to the global `'*'` row. If **neither exists** (the `'*'`
+> seed deleted, or a partially-seeded DB), `threshold` is NULL, every comparison becomes `count < NULL` → NULL →
+> **no raise → every problem surfaces UNGATED.** A structural invariant built to be un-bypassable silently waved
+> everything through the moment its config went missing. `0190` adds a fail-closed guard: no threshold row **and**
+> no `'*'` default now RAISES (refuse to surface) rather than allowing. Matches the fail-closed discipline the
+> codebase already enforces on every auth/paid gate. **When the `'*'` row exists (normal state — it's seeded
+> idempotently in 0002) behavior is byte-for-byte unchanged**; this only flips the pathological missing-config case
+> from silent-allow to loud-refuse. `create or replace`, append-only (0002 untouched). Apply with the rest.
+>
 > ## ▶ START HERE — 2026-07-22 session actions, in priority order
 > A large hardening + audit session. Details are in the dated blocks below; here's what to DO, highest-value first:
 >
