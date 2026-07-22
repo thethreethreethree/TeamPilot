@@ -69,12 +69,43 @@ describe("POST /api/care/extension/spawn", () => {
     expect(body.task.steps).toEqual(["step 1", "step 2"]);
   });
 
-  it("invalid shape (no steps) → 502", async () => {
+  it("invalid shape (no steps) → 502 invalid_response_shape", async () => {
     vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
     vi.mocked(spawnTask).mockResolvedValue({
       text: JSON.stringify({ title: "t", description: "d", steps: [] }),
     } as never);
     const res = await POST(req);
+    const body = await res.json();
     expect(res.status).toBe(502);
+    expect(body.code).toBe("invalid_response_shape");
+  });
+
+  // Distinct 502 branch from invalid-shape: the model returned text that isn't
+  // JSON at all. JSON.parse throws → the malformed_response guard, not the
+  // shape validator. Locking that the two 502 modes stay distinct + both handled.
+  it("malformed (non-JSON) engine text → 502 malformed_response", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(spawnTask).mockResolvedValue({ text: "not json at all {" } as never);
+    const res = await POST(req);
+    const body = await res.json();
+    expect(res.status).toBe(502);
+    expect(body.code).toBe("malformed_response");
+  });
+
+  // The engine throwing an LlmError must map to the right status: a rate_limit
+  // kind → 429 (so the client backs off), any other kind → 502.
+  it("LlmError kind=rate_limit → 429; other kinds → 502", async () => {
+    const { LlmError } = await import("@/lib/llm/errors");
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+
+    vi.mocked(spawnTask).mockRejectedValueOnce(
+      new LlmError({ kind: "rate_limit", message: "slow down", provider: "anthropic" })
+    );
+    expect((await POST(req)).status).toBe(429);
+
+    vi.mocked(spawnTask).mockRejectedValueOnce(
+      new LlmError({ kind: "server", message: "upstream boom", provider: "anthropic" })
+    );
+    expect((await POST(req)).status).toBe(502);
   });
 });
