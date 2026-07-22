@@ -11,9 +11,9 @@ import { FORMULATE_SYSTEM } from "@/lib/care/toolPrompts";
  * POST /api/care/extension/formulate — Formulate C.A.R.E, for the browser extension.
  *
  * Text-in ({ conversation, intent }) → { reply, reasoning }: the agent says WHAT they want to communicate
- * (their intent); the tool shapes it into a warm, grounded, customer-facing reply. Runs the SAME prompt
- * (FORMULATE_SYSTEM, shared with the in-app route — §3.4 no drift) grounded in the tenant's product context.
- * Per §A8 it shapes the agent's intent, it does NOT render a verdict on it.
+ * (their intent); the tool shapes it into a warm, grounded, customer-facing reply. Uses FORMULATE_SYSTEM (the
+ * extension variant — see toolPrompts.ts; returns `{reply}` where the in-app route returns `{draft}`), grounded
+ * in the tenant's product context. Per §A8 it shapes the agent's intent, it does NOT render a verdict on it.
  *
  * GATES: requireEntitledExtensionUser → per-user rate limit.
  * DATA GOVERNANCE (D1 — ephemeral): conversation + intent are processed then DISCARDED.

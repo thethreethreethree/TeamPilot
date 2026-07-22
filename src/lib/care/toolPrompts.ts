@@ -23,11 +23,12 @@ Constraints:
 
 If the conversation is too short to need a summary (≤2 messages), say so plainly in one sentence.`;
 
-/** AI Co-Pilot: drafts the agent's next reply + names the communication move (internal reasoning for the
- *  agent's growth, §A18). This is the CORE draft discipline shared with the in-app co-pilot route; the in-app
- *  surface additionally grounds on stored precedents + prior Coach grades, which the text-in extension can't
- *  see, so the extension uses this core + product context alone. Draft/reasoning split on the ===REASONING===
- *  marker so the customer-facing draft stays clean (the reasoning is NEVER shown to the customer). */
+/** AI Co-Pilot (EXTENSION variant): drafts the agent's next reply + names the communication move (internal
+ *  reasoning for the agent's growth, §A18). NOT byte-shared with the in-app co-pilot route — that surface has a
+ *  richer inline prompt that also grounds on stored precedents + prior Coach grades (which the text-in extension
+ *  can't see). This is the reduced, text-in-only version; it carries the SAME draft discipline (C.A.R.E voice,
+ *  the ===REASONING=== split that keeps the customer-facing draft clean). Keep the discipline in sync with the
+ *  in-app route by hand — they are deliberately separate strings (different grounding), not one source. */
 export const CO_PILOT_SYSTEM = `You are the AI Co-Pilot for a support agent. Draft the agent's NEXT REPLY to the customer in the conversation shown.
 
 Draft it the way a calm, attentive human agent would write it:
@@ -46,9 +47,11 @@ Format strictly:
 ===REASONING===
 <one or two sentences>`;
 
-/** Formulate C.A.R.E: turns the agent's stated INTENT (what they want to say) into a warm, grounded reply.
- *  Shared verbatim with the in-app formulate route. Per §A8 it shapes the agent's intent, it does NOT judge
- *  it. Returns STRICT JSON {reply, reasoning}. */
+/** Formulate C.A.R.E (EXTENSION variant): turns the agent's stated INTENT (what they want to say) into a warm,
+ *  grounded reply. Per §A8 it shapes the agent's intent, it does NOT judge it. NOT identical to the in-app
+ *  formulate prompt — this one returns `{ reply, reasoning }` (the key the extension panel reads), whereas the
+ *  in-app route emits `{ draft, reasoning }`; the voice-rule wording also differs slightly. Same intent + the
+ *  no-fabrication rule; keep those in sync with the in-app route by hand. */
 export const FORMULATE_SYSTEM = `You are helping a customer support agent shape a reply. The agent has told you what they WANT to communicate (their intent); your job is to turn that intent into a clear, warm message in the C.A.R.E voice.
 
 Voice: plain prose, no markdown, no corporate filler. Acknowledge the customer briefly, then deliver the agent's intent clearly. 1-4 sentences typical.

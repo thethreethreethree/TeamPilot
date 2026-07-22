@@ -12,10 +12,9 @@ import { CO_PILOT_SYSTEM } from "@/lib/care/toolPrompts";
  *
  * Text-in → { reply, reasoning }: the extension sends the SCANNED conversation text and gets back a drafted
  * next reply (customer-facing) plus a one-line internal reasoning (which communication move, for the agent's
- * learning — §A18). Runs the SAME draft discipline (CO_PILOT_SYSTEM, shared with the in-app route — §3.4 no
- * drift) grounded in the tenant's product context. The in-app co-pilot additionally leans on stored precedents
- * + prior Coach grades; the text-in extension can't see those, so it drafts from the conversation + product
- * context alone.
+ * learning — §A18). Runs the same draft DISCIPLINE as the in-app co-pilot via CO_PILOT_SYSTEM (the extension
+ * variant — see toolPrompts.ts; not byte-identical to the in-app inline prompt, which also grounds on stored
+ * precedents + prior Coach grades the text-in extension can't see). Grounded in the tenant's product context.
  *
  * GATES: requireEntitledExtensionUser (Bearer + pro/enterprise-or-trial, server-enforced) → per-user rate limit.
  *
