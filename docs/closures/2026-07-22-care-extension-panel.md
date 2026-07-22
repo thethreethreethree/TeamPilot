@@ -55,6 +55,16 @@ Token validation, removed-user block (status DB-constrained to active|removed, s
 entitlement 402, refresh design (renews auth only; tools re-check entitlement), CORS (fixed), endpoint regex
 (no open-proxy), tokens in extension-only storage, shadow DOM closed.
 
+**Panel XSS audit (2026-07-22, pre-publish) — CLEAN.** The panel renders untrusted content (API responses,
+plan status, and — indirectly — user-selected page text), so injection is the top-severity concern for a
+content-injecting extension. Traced EVERY `innerHTML` site in `content.js`: the three shell templates (panel
+markup, connect view, disconnect link) are fully static; the two dynamic views interpolate only (a) extension-
+owned config constants (tool/adapter labels) and (b) genuinely untrusted API data (`text`, `data.error`, plan
+`s`) — and every untrusted value is `esc()`'d. `esc()` escapes `&<>` only, which is **correct and sufficient
+because every call site is a text-node context** (the value sits between tags as content, never inside an
+attribute where `"`/`'` would matter) — verified no attribute-context interpolation exists. User-selected page
+text is sent to the API, never rendered directly; it returns as `text` and is esc'd. No injection path found.
+
 ## Open — founder-gated (see docs/FOUNDER-ACTION-QUEUE.md top block)
 1. **Load-test** the browser behaviors — the only thing not headlessly verifiable (README 10-step checklist).
 2. **A3 ruling** (esp. Spawn task) — unblocks the remaining tool endpoints.
