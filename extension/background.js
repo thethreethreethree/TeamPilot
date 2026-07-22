@@ -14,7 +14,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     sendResponse?.({ ok: false, error: "empty token" });
     return;
   }
-  chrome.storage.local.set({ careToken: token }, () => {
+  const refresh = typeof message.refreshToken === "string" ? message.refreshToken : null;
+  chrome.storage.local.set({ careToken: token, careRefreshToken: refresh }, () => {
     // Small badge so the toolbar reflects the connected state at a glance.
     chrome.action.setBadgeText({ text: "✓" });
     chrome.action.setBadgeBackgroundColor({ color: "#16a34a" });

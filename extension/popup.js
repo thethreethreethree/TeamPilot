@@ -54,7 +54,31 @@ async function readSelection() {
   renderToolGrid();
 }
 
-async function runTool(tool) {
+// Exchange the stored refresh token for a fresh access token (audit A4 — silent renew, no reconnect).
+async function tryRefresh() {
+  try {
+    const { careRefreshToken } = await chrome.storage.local.get("careRefreshToken");
+    if (!careRefreshToken) return false;
+    const base = await getApiBase();
+    const res = await fetch(base + "/api/care/extension/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: careRefreshToken }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => ({}));
+    if (!data.access_token) return false;
+    await chrome.storage.local.set({
+      careToken: data.access_token,
+      careRefreshToken: data.refresh_token || careRefreshToken,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function runTool(tool, isRetry) {
   const result = $("result");
   if (!tool.endpoint) {
     result.innerHTML = `<div class="rlabel">${tool.label}</div>This tool isn't wired up yet — it's shipping in a later build phase.`;
@@ -74,8 +98,12 @@ async function runTool(tool) {
     });
     const data = await res.json().catch(() => ({}));
     if (res.status === 401) {
+      // Try a silent refresh once before giving up (A4). If it works, re-run the tool with the new token.
+      if (!isRetry && (await tryRefresh())) {
+        return runTool(tool, true);
+      }
       result.innerHTML = `<div class="rlabel">${tool.label}</div>Your session expired. Click Sign in to reconnect.`;
-      await chrome.storage.local.remove("careToken");
+      await chrome.storage.local.remove(["careToken", "careRefreshToken"]);
       clearBadge();
       setTimeout(init, 900);
       return;
@@ -156,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   $("disconnectBtn").addEventListener("click", async () => {
-    await chrome.storage.local.remove("careToken");
+    await chrome.storage.local.remove(["careToken", "careRefreshToken"]);
     clearBadge();
     init();
   });

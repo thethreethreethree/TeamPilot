@@ -39,20 +39,26 @@ export default function ExtensionConnectPage() {
     const sb = createClient();
     sb.auth.getSession().then(({ data }) => {
       const t = data.session?.access_token ?? null;
+      const refresh = data.session?.refresh_token ?? null;
       setToken(t);
       setState(t ? "ready" : "signedout");
 
       // Auto-handoff: the extension opens this page as /extension/connect?ext=<its id>. If that id is
-      // present and the extension exposed chrome.runtime here (externally_connectable), send the token
-      // straight to it — so "Sign in" is a one-click connect with no manual paste.
+      // present and the extension exposed chrome.runtime here (externally_connectable), send the tokens
+      // straight to it — so "Sign in" is a one-click connect with no manual paste. The refresh token lets
+      // the extension renew silently instead of dropping you after ~1h (audit A4).
       if (!t) return;
       const ext = new URLSearchParams(window.location.search).get("ext");
       const chromeApi = (window as unknown as { chrome?: ChromeRuntime }).chrome;
       if (ext && chromeApi?.runtime?.sendMessage) {
         try {
-          chromeApi.runtime.sendMessage(ext, { type: "care-connect", token: t }, (resp) => {
-            if (resp?.ok) setAutoConnected(true);
-          });
+          chromeApi.runtime.sendMessage(
+            ext,
+            { type: "care-connect", token: t, refreshToken: refresh },
+            (resp) => {
+              if (resp?.ok) setAutoConnected(true);
+            }
+          );
         } catch {
           /* falls back to the copy-paste UI below */
         }
