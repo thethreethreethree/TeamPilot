@@ -36,3 +36,7 @@ Thumbs.db
 *.tsbuildinfo
 next-env.d.ts
 .tmp-*.json
+
+# C.A.R.E extension store build artifact
+extension/store/dist/
+extension/store/*.zip
