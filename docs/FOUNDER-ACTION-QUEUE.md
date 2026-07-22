@@ -1,5 +1,13 @@
 # Founder action queue — as of 2026-07-14
 
+> ### ⬆️ 2026-07-22 — SECURITY AUDIT (5 sweeps, all clean) — 1 optional hardening
+> Ran a §0 route-security audit ([docs/audits/2026-07-22-service-role-route-authz.md](audits/2026-07-22-service-role-route-authz.md))
+> across 5 classes NOT covered by the automated RLS/invariant audits: service-role (admin-client) authz, LLM
+> cost-abuse, prompt injection (cross-tenant leakage is architecturally prevented — per-tenant context loading),
+> CSRF, SSRF. **No vulnerabilities found.** One OPTIONAL hardening (not a hole): the CSRF defense relies on
+> `@supabase/ssr`'s `SameSite=Lax` DEFAULT — pinning `sameSite: "lax"` explicitly in the cookie options
+> (server.ts + middleware.ts) future-proofs it against a library default change. One line each; your call.
+>
 > ### ⬆️ 2026-07-22 — BUG FOUND + FIXED (branch): file-mention autocomplete search never worked
 > While adding test coverage, a §0 empirical probe found a real bug: the `@file` autocomplete's search-as-you-
 > type is dead. `detectFileMentionContext` walked backward from the caret and stopped at the first space — but
