@@ -4,6 +4,7 @@ import {
   stripHandoffSentinel,
   HANDOFF_SENTINEL,
   buildCareSystemPrompt,
+  buildCareUserMessage,
 } from "../prompt";
 
 /**
@@ -152,5 +153,54 @@ describe("buildCareSystemPrompt — tone/length wiring (F2 regression guard)", (
     const p = buildCareSystemPrompt({ medium: "voice", aiResponseLength: "long" });
     expect(p).toContain("VOICE MODE");
     expect(p.indexOf("TONE & LENGTH")).toBeLessThan(p.indexOf("VOICE MODE"));
+  });
+});
+
+/**
+ * buildCareUserMessage — the user-turn builder feeding every Care reply. Its speaker labeling is a correctness
+ * property: the three roles must render as distinct labels so the AI never confuses who said what (customer vs
+ * a human agent's earlier message vs the AI's own earlier reply). Also: customer context is woven in only when
+ * present, and the latest message + response instruction are always there.
+ */
+describe("buildCareUserMessage", () => {
+  const base = { newMessage: "Where is my order?" };
+
+  it("always includes the latest message and the response instruction", () => {
+    const m = buildCareUserMessage({ ...base, context: {} });
+    expect(m).toContain("Where is my order?");
+    expect(m).toContain("Respond to the customer");
+  });
+
+  it("labels the three turn roles distinctly (no who-said-what confusion)", () => {
+    const m = buildCareUserMessage({
+      ...base,
+      context: {
+        recentTurns: [
+          { role: "customer", body: "hi" },
+          { role: "agent", body: "let me check" },
+          { role: "ai", body: "one moment" },
+        ],
+      },
+    });
+    expect(m).toContain("Customer: hi");
+    expect(m).toContain("Human agent (earlier): let me check");
+    expect(m).toContain("You (earlier reply): one moment");
+  });
+
+  it("includes the customer name when present", () => {
+    expect(buildCareUserMessage({ ...base, context: { customer: { name: "Alice" } } })).toContain("Customer: Alice");
+  });
+
+  it("weaves customer metadata only when non-empty", () => {
+    expect(
+      buildCareUserMessage({ ...base, context: { customer: { metadata: { plan: "pro" } } } })
+    ).toContain("plan");
+    expect(buildCareUserMessage({ ...base, context: { customer: { metadata: {} } } })).not.toContain(
+      "What we know about this customer"
+    );
+  });
+
+  it("omits the recent-conversation section when there are no turns", () => {
+    expect(buildCareUserMessage({ ...base, context: {} })).not.toContain("Recent conversation so far");
   });
 });
