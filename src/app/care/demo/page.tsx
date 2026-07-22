@@ -65,8 +65,12 @@ export default function CareDemoPage() {
         </div>
       </header>
 
-      {/* Hero — tight, points straight at the interactive proof */}
-      <section className="relative px-6 pt-16 pb-8 max-w-5xl mx-auto text-center">
+      {/* Hero — tight, points straight at the interactive proof.
+          overflow-hidden clips the decorative 600px glow below so it can't extend the page's
+          horizontal scroll width on narrow viewports (mobile overflow bug, audit V1 2026-07-22).
+          Scoped to the hero section, NOT the root — root overflow-x-hidden would make the root a
+          scroll container and break the sticky header (§1.5 ripple-traced). */}
+      <section className="relative overflow-hidden px-6 pt-16 pb-8 max-w-5xl mx-auto text-center">
         <div aria-hidden className="pointer-events-none absolute inset-0 flex items-start justify-center -z-10">
           <div className="w-[600px] h-[600px] bulb-glow" />
         </div>
@@ -121,7 +125,10 @@ export default function CareDemoPage() {
         <h2 className="text-2xl md:text-4xl font-bold text-primary text-center mb-8 max-w-3xl mx-auto leading-tight">
           Why we&apos;re a league of our own.
         </h2>
-        <div className="glass-card p-2 md:p-4 overflow-x-auto">
+        {/* Desktop: comparison table. Hidden on mobile because a min-w-[640px] table forced the
+            C.A.R.E column (the punchline) off-screen inside its scroll container — a prospect on a
+            phone never saw it (audit V1 2026-07-22, verified by CDP render). */}
+        <div className="glass-card p-4 overflow-x-auto hidden md:block">
           <table className="w-full min-w-[640px] text-left border-collapse">
             <thead>
               <tr className="border-b border-default">
@@ -148,6 +155,30 @@ export default function CareDemoPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile: stacked cards from the same data, so the C.A.R.E answer is always on-screen and
+            emphasized — no horizontal scroll needed. */}
+        <div className="md:hidden flex flex-col gap-3">
+          {compareRows.map((r) => (
+            <div key={r.dim} className="glass-card p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-primary mb-3">{r.dim}</p>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-start gap-2">
+                  <X className="w-3.5 h-3.5 mt-0.5 shrink-0 text-ink-500" aria-hidden />
+                  <span className="text-xs text-muted"><span className="text-secondary font-medium">Chatbot:</span> {r.chatbot}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <X className="w-3.5 h-3.5 mt-0.5 shrink-0 text-ink-500" aria-hidden />
+                  <span className="text-xs text-muted"><span className="text-secondary font-medium">Support inbox:</span> {r.inbox}</span>
+                </div>
+                <div className="flex items-start gap-2 rounded-lg bg-ember-400/10 border border-ember-400/25 p-2.5 -mx-0.5">
+                  <Check className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-400" aria-hidden />
+                  <span className="text-xs text-primary"><span className="text-brand font-bold">C.A.R.E:</span> {r.care}</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
