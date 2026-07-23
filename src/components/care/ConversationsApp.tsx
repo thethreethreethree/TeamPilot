@@ -2264,9 +2264,12 @@ function DetailHeader({
           </LearningHint>
           {/* Open as Decision Dialogue — escalates a tough
               customer case to the §3.1 structured internal call.
-              For v1 routes to /dashboard/decisions/new with the
-              conversation context as the seed; full inline-in-
-              thread integration is queued for a follow-up. */}
+              Routes to /dashboard/decisions?fromCareConversation=<id>;
+              that page fetches the decision-seed endpoint and pre-loads
+              the Situation phase with the customer's actual words. (Was a
+              dead link to a non-existent /dashboard/decisions/new — fixed
+              2026-07-24.) Full inline-in-thread integration remains a
+              follow-up. */}
           {conversation.status !== "closed" && (
             <LearningHint
               category="C.A.R.E · §3.3"
@@ -2277,7 +2280,7 @@ function DetailHeader({
               principle="If you're about to reply to a customer with a decision you haven't actually made, escalate. The Dialogue exists for the calls that deserve more than an in-the-moment response."
             >
               <Link
-                href={`/dashboard/decisions/new?fromCareConversation=${conversation.id}`}
+                href={`/dashboard/decisions?fromCareConversation=${conversation.id}`}
                 className="inline-flex items-center gap-1.5 text-xs text-brand border border-ember-400/40 hover:border-ember-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
               >
                 <Brain className="w-3.5 h-3.5" aria-hidden />

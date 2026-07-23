@@ -102,6 +102,9 @@ export default function DecisionsPage() {
   // their diagnosis as to a message they send someone else.
   const { enabled: coachEnabled } = useCoachEnabled();
   const [restoredFrom, setRestoredFrom] = useState<string | null>(null);
+  // Set when this dialogue was seeded from a C.A.R.E conversation
+  // (?fromCareConversation=<id>). Drives the "seeded from…" banner.
+  const [seededFrom, setSeededFrom] = useState<string | null>(null);
   // Task Spawn Engine — set when the user persists the dialogue.
   // Required to wire the spawn panel to the source decision row so
   // the resulting task gets linked_decision_id and the §3.1 chain
@@ -132,6 +135,61 @@ export default function DecisionsPage() {
       setDecisions(decisions);
       setDecisionsAreMock(isMock);
     });
+  }, []);
+
+  // Seed from a C.A.R.E conversation when arriving via
+  // "Open as Decision Dialogue" (?fromCareConversation=<id>).
+  //
+  // The explicit click means "start a dialogue about THIS conversation," so the
+  // seed wins over any restored draft: we clear the persisted dialogue and pre-load
+  // the Situation phase with the customer's actual words (§3.3 — the decision stays
+  // grounded in what was asked, not a paraphrase). We strip the query param afterward
+  // (replaceState) so a later refresh doesn't re-seed over the agent's own edits, and
+  // run the fetch only once on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const convId = new URLSearchParams(window.location.search).get(
+      "fromCareConversation"
+    );
+    if (!convId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/care/conversations/${encodeURIComponent(convId)}/decision-seed`
+        );
+        if (!res.ok) {
+          if (!cancelled)
+            setError(
+              "Couldn't load that conversation's context — starting a blank dialogue."
+            );
+          return;
+        }
+        const seed = (await res.json()) as {
+          situation: string;
+          sourceLabel: string;
+        };
+        if (cancelled) return;
+        clearDialogue("decision");
+        setPhase("situation");
+        setSituation(seed.situation);
+        setUserDiagnosis("");
+        setUserProposal("");
+        setResponse(null);
+        setDecision(null);
+        setRestoredFrom(null);
+        setSeededFrom(seed.sourceLabel || "a C.A.R.E conversation");
+      } catch {
+        if (!cancelled)
+          setError("Couldn't reach the server — starting a blank dialogue.");
+      } finally {
+        // Drop the param either way so refresh doesn't clobber later edits.
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Auto-save once the user has typed anything beyond the example situation.
@@ -264,6 +322,20 @@ export default function DecisionsPage() {
           </p>
         </div>
 
+        {seededFrom && (
+          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-ember-400/5 border border-ember-400/20">
+            <p className="text-xs text-primary">
+              Seeded from a C.A.R.E conversation — <span className="text-secondary">{seededFrom}</span>.
+              The Situation below carries the customer&apos;s own words; edit before you weigh in.
+            </p>
+            <button
+              onClick={reset}
+              className="text-xs text-primary hover:text-primary border border-ember-400/30 hover:border-ember-400/60 px-3 py-1 rounded-lg flex-shrink-0"
+            >
+              Clear
+            </button>
+          </div>
+        )}
         {restoredFrom && (
           <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
             <p className="text-xs text-primary">
