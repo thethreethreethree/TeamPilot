@@ -5,6 +5,33 @@ presentation), consolidating what THIS session verified. Compare against the pri
 `docs/audits/2026-07-22-ground-up-structural-audit.md`. Outside-view stance (§1.3): stated as verified only where
 I actually ran the check or read the enforcing code this session; open decisions are listed as flags, not hidden.
 
+## Executive verdict (scan this first)
+
+Every surface below was checked by reading the enforcing code this session (not assumed). Verdicts:
+
+| Surface | Verdict | Open item |
+|---|---|---|
+| Thesis-core §3.1 event immutability | ✅ sound (DB-enforced) + chat-edit exception preserves history | — |
+| Thesis-core §3.2 Understanding Gate | ⚠️→✅ **fail-OPEN found & FIXED** (`0190`) | apply `0190` live + run verifier |
+| Thesis-core §3.3 guide-don't-overtake | ✅ sound (both paths) + gate extracted & tested | (opt) promote chat-path to schema-level |
+| Thesis-core §3.4 / §3.5 | ✅ sound + test-covered | — |
+| Finance ledger balance + calcs | ✅ sound (SQL-vs-mirror) | — |
+| Finance FX per-line rounding | 🟡 **real bug, latent** (no multi-currency UI) | accounting decision (fix menu in FX doc) |
+| RLS / tenant isolation | ✅ green (`rls:audit`) | — |
+| Public widget (origin, rate, bootstrap, file up/down) | ✅ sound; IDOR + traversal closed; fields whitelisted | — |
+| **AI cost metering** (widget messages + inbound email) | 🟡 **MEDIUM ×2, same root cause** — no per-tenant aggregate cap | one fix, awaits per-plan cap NUMBER |
+| Inbound email (auth, dedup, intake) | ✅ sound (constant-time, text-only) | (the cost cap above) |
+| Extension tool routes + auth + entitlement | ✅ EARNED clean, fail-closed, comprehensively tested | **entitlement WRITE-path (launch blocker)** |
+| Auth status denylist (extension + care-agent) | ✅ safe today (2-valued enum) | flip to allowlist IF a 3rd status is added |
+| Agent + coach recording uploads | ✅ clean (IDOR closed via verified RLS-scoping) | — |
+| Onboarding / tenant-bootstrap / role grant | ✅ sound (idempotent, no hijack, no self-elevation) | — |
+| Presentation (IP-leak §-citations, invisible-color) | ✅ 26 leaks fixed + both classes CI-guarded | (opt) ~117 dashboard teaching-citations keep/strip |
+
+**Bottom line:** the security surface is sound across the board; the only code-level open items are the §3.2
+apply, the FX latent bug, and the AI-cost-metering class (one fix, one number). Everything else open is a founder
+decision — the biggest being the entitlement write-path (the launch blocker), whose read/auth/degradation side is
+verified + fully tested.
+
 ## Layer map
 
 | # | Layer | State | Evidence (this session) |
