@@ -436,6 +436,21 @@ gate exists, but that it's fail-closed, a real chokepoint, and coherent across e
     who-sets-it map (SET / DO-NOT-SET / MOOT by companyId presence, not URL prefix) so a maintainer can't wrongly
     strip the exemption and gate day-1 coaching. Comment-only, no behavior change.
 
+## ✅ Public C.A.R.E widget — multi-tenant IDOR verified closed (2026-07-23)
+
+The widget is the most exposed surface (public, customer-facing, no auth user). Model: per-CONVERSATION
+`session_token` (x-care-session header), NOT a company token; company derives from the token-resolved
+conversation. Checked all three public routes for the classic token-vs-URL-id IDOR (present conv A's token, pass
+id=B) + (for files) the file-vs-conversation IDOR:
+  - `conversations/[id]/messages` (GET+POST) — `getCareConversationByToken(token)` then `conversation.id !== id
+    → 404` on BOTH branches (lines 84, 153). Company context scoped to `conversation.companyId`.
+  - `conversations/[id]/handoff` — same guard (line 54).
+  - `conversations/[id]/file/[fileId]` — same token↔id guard (line 33) PLUS `getFileForCustomer(fileId, conv.id)`
+    scopes the file to the conversation (`linked_conversation_id` match → no cross-conversation/cross-tenant file
+    leak); signed URL short-lived (600s).
+Verdict: token↔conversation↔company↔file all bound; no IDOR path. The service-role (admin-client) file read is
+safe BECAUSE the conversation-id match is the explicit authz gate (documented in `getFileForCustomer`). No finding.
+
 ## ✅ §3.6 make-learning-visible — honesty verified (NOT fabricated learning) (2026-07-23)
 
 Checked the core §0/§3.4 risk: does the "we're learning how your team/rep works" surface manufacture confidence?
