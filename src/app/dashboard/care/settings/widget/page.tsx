@@ -348,8 +348,8 @@ export default function CareWidgetSettingsPage() {
           <div className="text-[11px] text-muted mt-2 space-y-1">
             <p className="flex items-center gap-1">
               <ShieldCheck className="w-3 h-3 text-brand" aria-hidden />
-              Origin mismatch attempts are logged. Visible to you at
-              /dashboard/care/settings/widget &gt; load events (Sprint 7).
+              Origin mismatch attempts are logged and shown in{" "}
+              <strong className="text-secondary">Widget traffic</strong> below.
             </p>
             <p className="leading-relaxed">
               <strong className="text-secondary">Format:</strong> include
@@ -361,6 +361,8 @@ export default function CareWidgetSettingsPage() {
           </div>
         </Section>
         </LearningHint>
+
+        <WidgetLoadEvents />
 
         {/* Email channel — Phase 4 */}
         <LearningHint
@@ -931,6 +933,115 @@ function Section({
       )}
       {children}
     </div>
+  );
+}
+
+// Widget traffic — recent load events + wrong-origin attempts (was a "Sprint 7" stub). Self-contained:
+// fetches its own admin-only telemetry; degrades to an empty state on any error.
+type WidgetLoadResult =
+  | "ok"
+  | "origin_rejected"
+  | "tenant_inactive"
+  | "tenant_unknown"
+  | "quota_exceeded";
+type LoadEventsSummary = {
+  events: Array<{
+    id: string;
+    origin: string | null;
+    result: WidgetLoadResult;
+    userAgent: string | null;
+    createdAt: string;
+  }>;
+  total: number;
+  okCount: number;
+  rejectedCount: number;
+  rejectedOrigins: string[];
+};
+const RESULT_LABEL: Record<WidgetLoadResult, string> = {
+  ok: "Loaded",
+  origin_rejected: "Wrong origin",
+  tenant_inactive: "Inactive",
+  tenant_unknown: "Unknown token",
+  quota_exceeded: "Quota hit",
+};
+
+function WidgetLoadEvents() {
+  const [summary, setSummary] = useState<LoadEventsSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/care/settings/widget/load-events");
+        if (res.ok && !cancelled) setSummary(await res.json());
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <Section
+      title="Widget traffic"
+      subtitle="Recent widget loads + wrong-origin attempts on your embed token."
+    >
+      {loading ? (
+        <div className="flex items-center gap-2 text-xs text-muted py-4">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+        </div>
+      ) : !summary || summary.total === 0 ? (
+        <p className="text-[11px] text-muted italic">
+          No widget loads recorded yet.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-3 text-[11px]">
+            <span className="text-secondary">
+              <span className="text-primary font-semibold">{summary.okCount}</span> loaded
+            </span>
+            {summary.rejectedCount > 0 && (
+              <span className="text-red-300">
+                <span className="font-semibold">{summary.rejectedCount}</span> wrong-origin
+              </span>
+            )}
+          </div>
+          {summary.rejectedOrigins.length > 0 && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+              <p className="text-[11px] text-red-300 flex items-center gap-1 mb-1">
+                <ShieldCheck className="w-3 h-3" aria-hidden /> Your embed token was used
+                from these non-allowed origins:
+              </p>
+              <ul className="text-[11px] text-secondary font-mono space-y-0.5">
+                {summary.rejectedOrigins.map((o) => (
+                  <li key={o}>{o}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <ul className="space-y-1 max-h-64 overflow-y-auto">
+            {summary.events.map((e) => (
+              <li
+                key={e.id}
+                className="flex items-center justify-between gap-2 text-[11px] border-b border-default/50 py-1"
+              >
+                <span className={e.result === "ok" ? "text-secondary" : "text-red-300"}>
+                  {RESULT_LABEL[e.result]}
+                </span>
+                <span className="text-muted truncate flex-1 mx-2 font-mono">
+                  {e.origin ?? "—"}
+                </span>
+                <span className="text-muted flex-shrink-0">
+                  {new Date(e.createdAt).toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Section>
   );
 }
 
