@@ -63,7 +63,7 @@
 <div class="grid2">
   <div class="card avoidbreak">
     <span class="kicker">Cycle-1 result</span>
-    <p style="margin:4px 0 0;"><strong>4 features built</strong>, type-safe project-wide, 20 new unit tests. 5 audit findings (1 MEDIUM, 4 LOW); 3 fixed, 2 documented. All committed + pushed to <code>main</code>.</p>
+    <p style="margin:4px 0 0;"><strong>4 features built</strong> + a continued proactive audit (§1.5.2) that <strong>closed the role-attribution class (6/6 tools, founder-verified)</strong> and fixed real defects in the least-exercised channels (email, extension). Type-safe project-wide, full suite green. All on <code>main</code>.</p>
   </div>
   <div class="card avoidbreak">
     <span class="kicker">The one thing between "built" and "customers using it"</span>
@@ -119,6 +119,45 @@
 </table>
 <p class="muted"><strong>Verified-sound on inspection</strong> (not just assumed): tenant-scoping on all 3 new read endpoints (no cross-tenant leak); the presence table is ephemeral infra state, not a §3.1 domain event (matches <code>care_agent_state</code>); the aggregator is counts-only + threshold-gated; every new data-layer function degrades gracefully if its migration is unapplied (A34).</p>
 
+<h2>2b · Continued audit &amp; fixes — role attribution + the quiet channels</h2>
+<p class="sub">After the cycle above, a proactive AMD-006 §1.5.2 sweep (THINK-then-search across shared logic) found real, customer-facing defects in the code paths that get less traffic than the widget. These were fixed, not just flagged. The role-attribution item is the one you reported and verified in-session.</p>
+<table>
+  <thead><tr><th style="width:22%">Area</th><th style="width:50%">Finding &amp; fix</th><th style="width:12%">Status</th><th style="width:16%">Commits</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Role attribution</strong><br><span class="muted">you reported: Spawn called you (the C.A.R.E user) the customer</span></td>
+      <td>Root cause (§2): write-as-agent tools received the scanned thread as one unlabeled blob with no "who is the agent" anchor, so the LLM couldn't attribute roles. The 2026-07-23 "universal" fix was <em>not</em> universal (memory corrected). Fix: agent-name lookup + a WHO-IS-WHO anchor injected at the route layer, then <strong>swept across the whole class — all 6 tools</strong> (co-pilot, spawn, formulate, coach, summarize, dissect) — and locked with regression tests.</td>
+      <td><span class="pill done">CLASS CLOSED 6/6</span><br><span class="pill done">FOUNDER-VERIFIED (spawn)</span></td>
+      <td><code>86bc7254</code> <code>2a269afb</code> <code>2248a188</code> <code>3a707f51</code> <code>56b4482a</code></td>
+    </tr>
+    <tr>
+      <td><strong>Email channel</strong><br><span class="muted">least-exercised parallel of the widget — 3 real bugs</span></td>
+      <td>(1) The AI responder ran <strong>context-blind</strong> — it was passed <code>recentTurns:[]</code>, so it never saw the thread history → shared <code>buildRecentTurns</code> helper (widget + email now identical). (2) AI replies were <strong>stored but never emailed</strong> → <code>dispatchOutboundEmailReply</code> wired (dormant-safe: no-ops until Postmark is set). (3) A handoff with an empty AI reply left the customer in <strong>silence</strong> → <code>resolveEmailReplyBody</code> emits the handoff notice.</td>
+      <td><span class="pill done">FIXED ×3</span><br><span class="pill part">needs Postmark + browser</span></td>
+      <td><code>2c22d279</code> <code>80bc1b5a</code> <code>78bbce10</code> <code>dc9eac88</code></td>
+    </tr>
+    <tr>
+      <td><strong>Chrome extension</strong><br><span class="muted">stale-context truncation</span></td>
+      <td>The scanned-thread cap kept the <strong>oldest</strong> 20k chars, not the most recent (<code>slice(0,N)</code> → <code>slice(-N)</code>) — so on a long thread the tools reasoned from the top of the page, not the live exchange.</td>
+      <td><span class="pill done">FIXED</span></td>
+      <td><code>9ae8cd2d</code></td>
+    </tr>
+    <tr>
+      <td><strong>Sales Coach</strong></td>
+      <td>Attribution verified sound (no rep/customer inversion). Separately: the attribute route leaked an internal <strong>debug string</strong> (flags + error text + raw LLM output) into every production response → gated to non-production.</td>
+      <td><span class="pill done">FIXED</span></td>
+      <td><code>c4097237</code></td>
+    </tr>
+    <tr>
+      <td><strong>Live Monitor</strong><br><span class="muted">follow-on to the cycle build</span></td>
+      <td>Added session duration ("on site 4m") next to last-active — the "someone's been stuck on this page a while" signal, which is the whole point of the monitor.</td>
+      <td><span class="pill done">BUILT</span><br><span class="pill part">needs browser</span></td>
+      <td><code>f87227f1</code></td>
+    </tr>
+  </tbody>
+</table>
+<p class="muted"><strong>Verified-sound in the same sweep</strong> (inspected, not assumed): §3.1 event-immutability system-wide, §3.2 understanding gate, CSV formula-injection neutralisation, CRM/admin authz gating, care-config prompt-injection (admin-only writes), embed snippet + multi-tenant routing, LLM-route rate-limiting, voice per-call cost caps, migration sequence 0001–0192 + idempotency, double-entry balance (DB constraint trigger, deferred). The one money-bug held for your decision: FX per-line base rounding vs the exact-equality balance check (latent — no currency picker ships yet).</p>
+
 <h2>3 · What's left to build — the whole C.A.R.E map</h2>
 <p class="sub">Legend: <span class="pill block">BLOCKER</span> nothing launches without it &nbsp; <span class="pill gated">FOUNDER-GATED</span> needs your decision &nbsp; <span class="pill part">ENHANCEMENT</span> works today, better later &nbsp; <span class="pill ops">OPS</span> config/apply</p>
 <table>
@@ -157,7 +196,7 @@
 <p class="sub"><strong>Honesty note (§5 / verification discipline):</strong> every "BUILT" item above is verified only to the level stated — <code>tsc</code> clean and unit tests green. The end-to-end behaviour is <strong>untested</strong> until run in a live browser against an applied DB; completion is your confirmation, not mine.</p>
 
 <div class="foot">
-  Commits this cycle: <code>b0fae5fa</code> Monitor · <code>203d3ad5</code> Decision Dialogue · <code>7fb4f307</code> read-receipts + aggregator · <code>e2f3103e</code> remediation. &nbsp; Governed by the project framework (§0, AMD-006, §2, §3.1–§3.6). &nbsp; Internal document.
+  Commits — cycle: <code>b0fae5fa</code> Monitor · <code>203d3ad5</code> Decision Dialogue · <code>7fb4f307</code> read-receipts + aggregator · <code>e2f3103e</code> remediation. &nbsp; Continued audit (§2b): <code>86bc7254</code>…<code>56b4482a</code> role-attribution class · <code>2c22d279</code>/<code>80bc1b5a</code>/<code>dc9eac88</code> email · <code>9ae8cd2d</code> extension · <code>c4097237</code> coach · <code>f87227f1</code> Monitor duration. &nbsp; Governed by the project framework (§0, AMD-006, §2, §3.1–§3.6). &nbsp; Internal document.
 </div>
 </body>
 </html>
