@@ -96,6 +96,39 @@ sustained number):** add a second longer-window `rateLimit` on `messages` POST m
 decided. Still a small judgment call on the number (a rapid voice exchange could legitimately be chatty), so
 proposed, not unilaterally applied — say the sustained cap and I wire it in minutes.
 
+## 🟡 MEDIUM — inbound-email AI reply lacks a per-TENANT cost cap (2nd instance of the cost-metering class, 2026-07-23)
+
+Followed the cost-metering class from the widget into the other public ingress — inbound email
+(`care/inbound/email`) — and found the same shape, arguably MORE exposed (email has no IP to throttle and the
+sender address is trivially varied). The inbound AI-reply path has real, considered cost guards:
+
+- **Per-conversation loop breaker** (`AI_LOOP_BREAKER_MAX = 5` / 5 min) — catches bot↔bot auto-reply ping-pong on one thread; flips `ai_responding` off.
+- **Per-sender flood guard** (`AI_SENDER_MAX = 12` / 10 min) — catches ONE sender opening many threads; explicitly written for that case.
+- **Retry dedup** on `external_message_id` (webhook retries don't double-charge).
+- **Webhook auth** (`CARE_INBOUND_EMAIL_SECRET`, constant-time) — only the configured provider (Postmark) can POST, so the attacker must send real emails, not hit the webhook directly (upstream friction).
+
+**The gap — no per-tenant aggregate cap.** The per-sender guard is keyed on `customerId`, and a new sender gets a
+NEW `support_customers` row (a distinct `customerId`) — so N distinct/forged From addresses yield N independent
+per-sender counters, each allowing up to 12 replies/10 min, and nothing sums them at the tenant level. After the
+per-sender check, control falls straight to `generateCareReply` (line 592). A spammer rotating From addresses
+(throwaways, or `a1@d.com, a2@d.com …`) runs up that tenant's LLM bill unbounded. Same root cause as the widget
+MEDIUM: **cost guards keyed BELOW the tenant level (per-conversation, per-sender) miss distributed abuse; only a
+per-tenant aggregate cap bounds total spend.**
+
+**Severity MEDIUM** (cost / wallet-DoS; no data/auth impact). More exposed than the widget in one way (no IP
+throttle, sender trivially varied); less in another (requires sending real email through Postmark, which has its
+own inbound processing — but that protects Postmark, not the tenant's LLM bill, and is not a designed cost
+control). **Fix (same shape as the widget, NOT built — the cap number is a product decision):** a per-tenant
+windowed/monthly AI-reply cap — count `author_type='ai'` support_messages for the company across ALL conversations
+in a window; past the cap, suppress the AI (route to the agent inbox, exactly as the existing guards do) and log a
+`§3.1` suppression event. The mechanism mirrors the per-sender guard one level up; the number (per-plan
+tenant AI-reply allowance) is founder's.
+
+**Class-level recommendation (updated):** the cost model needs ONE per-tenant aggregate cap covering ALL AI ingress
+(widget messages + inbound email), not just narrower per-conversation/per-sender guards. Both instances share the
+root cause; a single `countTenantAiRepliesInWindow`-style backstop wired into both the `messages` POST and the
+inbound-email responder closes the class. Numbers per plan are the only founder input needed.
+
 ## ✅ Widget file upload/download — audited, EARNED clean (2026-07-23)
 
 Traced the specific attack vectors on the public widget's file path (not assumed clean — §1.7.3):
