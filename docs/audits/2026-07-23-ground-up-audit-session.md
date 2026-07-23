@@ -459,7 +459,10 @@ role-inversion bug, then applied its lens across ALL AI-prompt subsystems (§1.2
     salesSummary) — all carry per-turn labels (`speakerLabel` / `m.author` / `speaker.toUpperCase`). ✅
   - **care in-app** (`care/prompt.ts` recentTurns) — labels each turn Customer / Human agent (earlier) / You
     (earlier reply) from the DB `role`. ✅
-  - **dissect** (`engine.ts` User/Coach), **taskSpawn** (`m.author`). ✅
+  - **dissect** (`engine.ts` User/Coach), **taskSpawn** (`m.author`), **ask-jeff** (`me/ask-jeff` User/Jeff). ✅
+  - **Completeness (A39's own "name the exclusions" rule):** swept every file building a prompt from
+    conversation/transcript/history input. The coach/sales-session ROUTES call the checked builders (inherit
+    labeling); `claude.ts` + `data/*` are transport/data layers, not message-formatters (N/A). No subsystem missed.
   - **Correctly-bare (attribution-agnostic)**: `grounding.groundQuote` (substring-existence anti-hallucination
     check), `salesIntel` (lowercased keyword haystack) — labels would HARM these. ✅
 Verdict: the A39 defect existed in exactly ONE surface — the **extension** — because it is the only AI surface that
