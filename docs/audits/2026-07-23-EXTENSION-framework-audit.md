@@ -191,6 +191,23 @@ Gorgias, Zendesk, Intercom, Front, Slack) — the labeling *approach* is reasone
 DOM; replicating it to 9 platforms before the founder confirms it works on Gmail/WhatsApp would fabricate
 confidence at scale (§3.4). Rolls out in one pass once the approach is browser-validated on one channel.
 
+**"Check ALL channels" — DEFINITIVE architecture-level answer (verified 2026-07-23).** The founder asked whether
+any channel (WhatsApp, Gmail, Slack, …) exhibits the role issue. Traced the injection mechanism: the manifest has
+NO declarative `content_scripts` and host_permissions only for `elostate.com` — injection is `activeTab` +
+`scripting` on icon-click. `background.js:11-19` registers `chrome.action.onClicked` → `executeScript(config.js,
+adapters.js, content.js)` on the clicked tab with **NO URL/host/allowlist gate** (only a graceful catch for
+chrome://, the Web Store, PDFs). So injection is SITE-AGNOSTIC — the panel opens on EVERY channel, not a hardcoded
+list; `adapters.js` picks the scraper by hostname and falls back to generic text extraction when none matches.
+This tiers the channel question cleanly:
+  - **Injection (panel appears):** universal — no channel omitted structurally.
+  - **Role-correctness (the reported bug):** universal — the 2b server-side agent-name anchor fixes attribution
+    regardless of which adapter (or the generic fallback) supplied the text → NO channel shows the "Hi John"
+    inversion. This is why 2b, not per-adapter labeling, is the correctness fix.
+  - **Scrape quality (structured turn-labels):** per-adapter — mapped platforms get 2a labels; unmapped ones get
+    generic text but still-correct roles via 2b. The only per-channel variable, and it degrades gracefully.
+So the founder's "audit all channels + apply the remediation" is answered: the remediation (2b) already covers
+all channels universally by construction; 2a is per-channel polish that rolls out post browser-validation.
+
 **Dissect — RESOLVED by 2a, no change needed (corrected 2026-07-23 after reading the actual engine).** I initially
 flagged the shared `generateConversationDissect` engine for a role-awareness pass. Reading `src/lib/dissect/engine.ts`:
 `DISSECT_SYSTEM` is GENERIC ("the user has pasted a CONVERSATION … understand the PROBLEM inside it" — not
