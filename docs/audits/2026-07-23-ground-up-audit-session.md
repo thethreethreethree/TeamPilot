@@ -50,9 +50,44 @@ behavior IS enforced (API layer); the constitution does not *require* §3.3 to b
 explicitly is. Surfacing the layer difference so the founder can decide whether to promote it, not silently
 "fixing" a non-defect.
 
+## 🟡 MEDIUM — public widget cost model meters CONVERSATIONS, not MESSAGES (the LLM cost) (found 2026-07-23)
+
+Audited the highest-exposure surface — the public C.A.R.E embed widget, whose `embed_token` sits in customer
+page source (`<script data-token="…">`) and is therefore **not a secret**. The security model is otherwise
+sound and layered:
+
+- **Origin validation** (`isOriginAllowed`, `src/lib/care/config.ts`): exact-match required, wildcard `*` honored
+  ONLY in non-production, fail-closed, every attempt logged. Stops unauthorized *websites* from embedding.
+- **Per-IP rate limits**: conversation-create 10/min, message-send 30/min.
+- **DB-backed monthly quota** on conversation creation (`countCareConversationsThisMonth` → 429 `quota_exceeded`)
+  — a real global cap, not per-lambda.
+- **Session-token gate** on messages (`x-care-session`): can't hit arbitrary conversation IDs; must create one
+  (costing 1 quota unit) to get a token. Per-call LLM context is capped (`VISIBLE_TURNS_IN_CONTEXT`).
+
+**The gap:** the monthly quota counts **conversations**, but the operation that actually costs money is the
+**LLM call per message**, and there is **no per-tenant monthly message/LLM quota and no per-conversation message
+cap** — message-send is bounded ONLY by the 30/min/IP rate limit. Because that limiter is per-lambda-instance
+(known pre-scale limitation) and per-IP (IP rotation dilutes it), and browsers set `Origin` honestly but a
+non-browser client (curl) can spoof the `Origin` header, an attacker holding a tenant's public token can create
+one in-quota conversation and then flood it with messages, running up that tenant's LLM bill largely unbounded
+over time. The quota's whole PURPOSE — bound tenant cost — is undercut by not metering the expensive operation.
+
+**Severity: MEDIUM (cost / wallet-DoS, not data-leak or auth-bypass).** Barriers reduce it: valid tenant token +
+origin pass/spoof + conversation creation + session token + 30/min/IP throttle + the tenant can pause
+(`active=false` → 410) once they notice a spike. There is no AUTOMATED backstop on tenant LLM spend, though.
+
+**Recommended fix (NOT built — the cap value per plan is a pricing decision, founder's call):** mirror
+`countCareConversationsThisMonth` with a `countCareMessagesThisMonth` (or per-conversation message cap) checked in
+`conversations/[id]/messages` POST before `generateCareReply`, returning 429 `quota_exceeded` past a
+plan-configured monthly message allowance. Needs: (a) the per-plan message-limit numbers (pilot/starter/pro/
+enterprise), (b) likely a migration to store the limit, (c) live-DB verification. I can implement the MECHANISM
+in one pass once the numbers are set — flagged rather than built because inventing the cap numbers would be
+manufacturing a product/pricing decision (§2 surface-don't-overtake, §3.5-adjacent).
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
+1b. **Widget message quota** (MEDIUM, see section above) — public widget meters conversations not messages; add a monthly message cap. Needs per-plan numbers; mechanism ready to build on request.
 2. **DeepSeek data-governance** — the LLM layer prefers DeepSeek (China-based) as PRIMARY when `DEEPSEEK_API_KEY` is set; customer extension conversations route there. Storage is honest (nothing persisted). Decide the provider posture; check whether the env var is set.
 3. **FX rounding** — real bug, latent behind unbuilt multi-currency entry UI. Graded fix menu (interim symmetric reject → full rounding-difference line) in the FX doc.
 4. **Tax credit-note netting** (open since 2026-07-13), **leadership→CFO auto-grant** policy, **5 wrong-namespace dead color classes** (visual), **rate limiter per-lambda** (before-scale), **the 4 ready branches to merge** (sharp-CVE first).
