@@ -3601,6 +3601,10 @@ function renderEventLabel(e: ConversationEvent): string {
       return `AI paused — reply loop detected (${(e.metadata.recent_ai_replies as number) ?? "?"} auto-replies in a row)`;
     case "ai_suppressed_flood":
       return `AI paused — too many auto-replies to this sender (${(e.metadata.sender_ai_replies as number) ?? "?"} recently)`;
+    case "ai_suppressed_automated":
+      // The inbound was machine-generated (out-of-office, bounce, bulk/list) — the AI
+      // deliberately didn't reply (RFC 3834). The reason is the greppable signal that fired.
+      return `AI paused — automated sender, no auto-reply sent (${(e.metadata.reason as string) ?? "?"})`;
     default:
       return e.eventType;
   }
