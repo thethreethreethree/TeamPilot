@@ -47,5 +47,10 @@ export function copilotModeInstruction(
   if (lastSpeaker === "customer") {
     return `RESPONSE MODE — REPLY. The last message in the thread is from the customer. Reply directly to what the customer said, written as ${agentName}.`;
   }
-  return `RESPONSE MODE — DETERMINE FIRST. Work out who sent the LAST message in the thread. If it is from ${agentName} (you, the agent) and the customer has not since replied, draft a FOLLOW-UP that continues ${agentName}'s side (a brief, polite check-in or nudge), NOT a reply to your own message. If the last message is from the customer, reply directly to it as ${agentName}. If you genuinely cannot tell who spoke last, default to replying to the most recent customer message.`;
+  // "unknown" must COMPOSE with the role-identity gate (extension CO_PILOT_SYSTEM's WHO-IS-WHO rule:
+  // if you can't tell which side is the customer, ask — don't draft in the wrong voice). So the
+  // default-to-reply only applies when the customer's messages ARE identifiable; if even the sides
+  // are unclear, defer to asking rather than guessing (A16). In-app roles are always labelled, so the
+  // "can't tell which side" clause never fires there — it just defaults to reply.
+  return `RESPONSE MODE — DETERMINE FIRST. Work out who sent the LAST message in the thread. If it is from ${agentName} (you, the agent) and the customer has not since replied, draft a FOLLOW-UP that continues ${agentName}'s side (a brief, polite check-in or nudge), NOT a reply to your own message. If the last message is from the customer, reply directly to it as ${agentName}. If you can identify the customer's messages but simply can't tell who spoke last, default to replying to the most recent customer message — but if you cannot even tell which messages are the customer's versus ${agentName}'s, do NOT guess a draft: follow the identity guidance and ask the agent to point out the customer's messages instead.`;
 }

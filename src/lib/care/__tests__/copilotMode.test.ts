@@ -38,6 +38,14 @@ describe("copilotModeInstruction", () => {
     expect(out).toMatch(/default to replying/i);
   });
 
+  it("unknown → composes with the role-identity gate: if sides are unclear, ASK not guess (A16)", () => {
+    const out = copilotModeInstruction("unknown", AGENT);
+    // the default-to-reply must be conditioned on being able to identify the customer's messages;
+    // if not even the sides are clear, defer to asking rather than drafting in the wrong voice.
+    expect(out).toMatch(/do not guess/i);
+    expect(out).toMatch(/ask the agent to point out/i);
+  });
+
   it("always weaves in the agent name (composition with the 2b anchor — A16)", () => {
     for (const s of ["agent", "customer", "unknown"] as LastSpeaker[]) {
       expect(copilotModeInstruction(s, "Alice")).toContain("Alice");
