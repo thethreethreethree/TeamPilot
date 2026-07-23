@@ -229,6 +229,23 @@ script (so the download zip regenerates from the same fresh dist) and runs on th
 So both shipping paths carry the can't-type fix and the role-label defense-in-depth — no stale-artifact risk. The
 fix John confirmed in-browser is the fix that ships.
 
+## 3b. Extension network/auth security — confused-deputy vector CHECKED + closed (2026-07-23)
+
+The one CORS-bypassing, token-bearing fetch (`background.js careFetch`) is the classic extension attack surface
+(open-proxy / token-exfil / confused-deputy). Analyzed all four levers; all locked:
+  1. **Host not caller-supplied** — `base = apiBase (chrome.storage.local) || "https://elostate.com"` (line 37);
+     storage is writable only by the extension's own scripts, never by a page. The `endpoint` IS from the message
+     but regex-locked `^\/api\/care\/extension\/[a-z]+$` (line 98) — anchored, `[a-z]+` only → no path traversal,
+     no `//host` injection, no `@`/`:` tricks.
+  2. **Token destination fixed** — the `Authorization: Bearer` header (line 41) is sent only to `base`, never to a
+     caller-supplied host; cross-origin redirects strip `Authorization` (browser-enforced) as a bonus layer.
+  3. **Listener unreachable from untrusted pages** — `chrome.runtime.onMessage` accepts only the extension's own
+     content scripts; `externally_connectable` is limited to `elostate.com` + `localhost`, so an arbitrary page
+     (the very sites the panel injects on) cannot send `care-tool` messages.
+  4. **Connect-token handoff** — separately hardened this session (`isExtensionHandoffAllowed` env-pin on
+     `NEXT_PUBLIC_CARE_EXTENSION_ID`, commits `a5f9abf3`/`be6c828e`).
+Verdict: the extension's network + auth layer is defense-in-depth sound. No finding.
+
 ## 4. What I did NOT do
 - Did not inspect the 5 non-copilot server routes in full, nor the dissect/coach/spawn prompts, nor the in-app tools (so I have NOT verified the §3.4 "no-drift" claim, nor whether Summarize/Dissect have their own role handling). Listed, not assumed clean.
 - Did not run the extension (cannot, from here) — Findings 1 & 2 mechanisms are code-evidenced + screenshot-corroborated but the *fixes* need John's browser confirmation.
