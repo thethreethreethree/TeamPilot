@@ -16,6 +16,7 @@ import {
 import { generateCareReply } from "@/lib/claude";
 import { buildRecentTurns } from "@/lib/care/recentTurns";
 import { dispatchOutboundEmailReply } from "@/lib/care/email/outbound";
+import { HANDOFF_NOTICE } from "@/lib/care/handoverNotice";
 import { LlmError } from "@/lib/llm/errors";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 
@@ -615,16 +616,22 @@ async function runAiFirstResponder(args: {
     const aiHandsOff = detectHandoffSignal(reply.text);
     const body = stripHandoffSentinel(reply.text);
 
-    // Never persist a blank AI message (empty reply, or sentinel-only → "" after strip).
+    // On a handoff where the AI emitted ONLY the sentinel (empty after strip), the customer would
+    // otherwise get silence on email — the widget posts HANDOFF_NOTICE regardless, so email must too.
+    // Fall back to the notice so a handoff ALWAYS tells the customer a human is coming (§3.3 req #1).
+    // A non-empty reply already says it warmly, so we don't ALSO send the notice — that would
+    // double-email the customer. Empty + no-handoff → send nothing (nothing to say; not a handoff).
+    const outboundBody = body || (aiHandsOff ? HANDOFF_NOTICE : "");
+
     let insertedAiId: string | null = null;
-    if (body) {
+    if (outboundBody) {
       const { data: aiMsg } = await admin
         .from("support_messages")
         .insert({
           conversation_id: args.conversationId,
           author_type: "ai",
           author_id: null,
-          body,
+          body: outboundBody,
           is_internal_note: false,
         })
         .select("id")
