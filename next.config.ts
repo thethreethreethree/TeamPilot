@@ -134,7 +134,17 @@ export default HAS_SENTRY_AUTH
       // Source-map upload is the value-add of the wrapper. Hide
       // them from the client bundle so customers don't get them
       // in DevTools.
-      widenClientFileUpload: true,
+      //
+      // widenClientFileUpload was `true` and is the documented cause of the
+      // recurring 45-min Vercel build TIMEOUT (2026-07-24): it widens the
+      // source-map upload to the whole client output, and that upload runs
+      // ONLY when SENTRY_AUTH_TOKEN is set (Vercel prod) — never locally,
+      // which is exactly why the build is 30s local / 45-min-timeout on
+      // Vercel. Narrowing it to the default upload set restores a fast build
+      // while keeping runtime error capture (DSN, independent of this) AND
+      // symbolication of the main bundles. If a future build still times out,
+      // the next lever is disabling the upload entirely (runtime Sentry stays).
+      widenClientFileUpload: false,
       hideSourceMaps: true,
       disableLogger: true,
       // Tunneling routes Sentry traffic through our domain so ad
