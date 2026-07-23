@@ -56,11 +56,25 @@ working reference. §3.4 no-drift is accurate: the copilot prompts intentionally
 toolPrompts.ts — the in-app grounds on precedents + Coach grades the text-in extension can't see), but the
 load-bearing difference was input-labeling, now addressed.
 
-**Still NOT inspected (no clean bill claimed):**
-- The OTHER in-app tools (summarize/dissect/formulate/ask-coach) — the co-pilot confirms the in-app PATTERN
-  (structured DB input carries `authorType`), so they're structurally positioned to be role-labeled, but I read
-  only the co-pilot in full.
-- `/extension/connect` page, the icons, the download/prebuild script (build path was validated, page content not read).
+**All 5 in-app tools inspected — SOUND (class-check complete across BOTH surfaces, 2026-07-23):**
+- co-pilot — role-labeled from `authorType` (`Agent (you, earlier)` etc.).
+- summarize — shared "Role: body" thread formatter (A13 author-once).
+- dissect/ask — `formatVisibleThreadForPrompt` (shared role-labeled formatter).
+- formulate — intent-driven (agent states what to say), not thread-role-dependent.
+- ask-coach — extracts the ACTUAL last customer message (`.find(m => m.authorType === "customer")`) for
+  `supportCustomerLastMessage` AND builds a role-labeled `recentThread` `{author, body, timestamp}`. **This is the
+  reference for the extension Coach fix** — my fix passes the thread as `recentThread` with the same shape (the
+  extension can't cleanly extract "the last customer message" from unstructured text, so it hands the labeled
+  thread and lets the coach find it). Confirms the fix is aligned, not invented.
+
+**Conclusion of the class-check (11 tool routes: 6 extension + 5 in-app):** the role-blindness class is
+**extension-specific** — it arises only where the tool consumes UNLABELED SCANNED TEXT instead of structured DB
+messages with `authorType`. Every in-app tool is sound. The extension fixes (2a role-labels + 2b agent anchor +
+Coach→recentThread + Summarize note) bring the extension to parity with the in-app's inherent role-labeling. No
+site of the class remains unaddressed in code.
+
+**Still NOT inspected (minor, non-tool):** `/extension/connect` page content, the icons, the download/prebuild
+script internals (the build PATH was validated end-to-end; the connect page's own logic was not read).
 
 ---
 
