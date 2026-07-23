@@ -38,12 +38,17 @@ draft reads in the wrong voice / "not reading the context properly" (it addresse
 - `docs/amendments/AMD-006-system-and-user-flow-tracing.md` (full)
 - `ThinkerThinker.md` assets A8, A16, A18, A19 (grep-located + read)
 
-**NOT yet inspected (no clean bill of health claimed for these):**
-- Server routes: `summarize`, `dissect`, `coach`, `spawn`, `formulate` `route.ts` (only `copilot` read in full this pass; others seen at grep level earlier in the session)
-- The `dissect` / `coach` / `spawn` system prompts (not in toolPrompts.ts — located elsewhere; not read)
-- The in-app equivalents (needed to verify the §3.4 "no drift" claim)
-- `extension/store/dist/*` (the built/zipped copy — not verified in sync with source)
-- `/extension/connect` page, the icons, the download/prebuild script
+**Tool routes — ALL 6 now read this session (class-check complete, per the founder protocol):**
+- `copilot` — role inversion → **FIXED** (2b).
+- `summarize` — "what the customer is asking" role-dependent → **FIXED** (role-awareness note).
+- `coach` — passed whole thread as `supportCustomerLastMessage {author:"Customer"}` → **FIXED** (→ `recentThread`, `5d942446`). *This was a 4th class site my first pass wrongly assumed safe — caught by reading the route.*
+- `dissect` — generic engine prompt + honest degradation + impersonal output → **RESOLVED by 2a** (no change).
+- `formulate` — driven by the agent's explicit `intent`, not thread roles → **SOUND**.
+- `spawn` — labels the thread `"Customer conversation"` (accurate framing, not a mislabel) + task extraction is role-agnostic → **SOUND**; §3.4 control-gated, draft-only.
+
+**Still NOT inspected (no clean bill claimed):**
+- The in-app equivalents of each tool (needed to fully verify the §3.4 "no drift" claim — I verified the extension side only).
+- `/extension/connect` page, the icons, the download/prebuild script (build path was validated, page content not read).
 
 ---
 
