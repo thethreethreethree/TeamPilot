@@ -6,6 +6,16 @@
 > carries a `plan` field on a SEPARATE CRM subscription table — B1 adds the one-line `care_tenant_config.plan` sync
 > into this already-authz'd route). Prerequisite `0189` verified idempotent/additive. So "A1 + B1" → immediate,
 > low-surprise build: two small guarded writes + the panel-copy + Spawn-trial facets (Section C). Nothing stale.
+>
+> **✅ RE-VERIFIED 2026-07-24 (still no drift).** Independently re-checked every load-bearing claim against
+> current code: A1 read logic (`extensionEntitlement.ts` — `PAID_PLANS={pro,enterprise}`, `EXTENSION_TRIAL_DAYS=14`,
+> `.toLowerCase()` case-insensitivity, `?? "pilot"` default, missing-column graceful degrade; unchanged since
+> 2026-07-22); care `plan` column (`0038:52-53` — `default 'pilot'`, `check in (pilot,starter,pro,enterprise)`);
+> CRM tier enum (`0049:125` — `pilot,team_small,team_medium,team_large,enterprise`); the two are SEPARATE tables;
+> B1's target route (`admin/crm/accounts/[id]/subscription/route.ts` — exists, PATCH, `requireVendorAdmin`-gated,
+> `plan` in body schema); panel copy (`content.js:262` — honest "plan doesn't include… contact your admin"). All
+> match. The plan is trustworthy to act on. (DB migration state — `0189` pending — not re-checkable from the
+> sandbox; apply per the runbook before the write-path build.)
 
 The extension is `locked` for every tenant because nothing writes `care_tenant_config.plan=pro/enterprise` or
 `extension_trial_started_at` (re-verified 2026-07-23: neither is written by any flow; `plan` defaults to `pilot`
