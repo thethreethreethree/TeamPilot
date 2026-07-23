@@ -3,7 +3,7 @@
 ## 🧭 PRIORITIZED INDEX (as of 2026-07-23) — do these in order; details in the flags below
 
 **Launch-critical (nothing ships without these):**
-1. **Entitlement write-path** — the extension is `locked` for EVERY tenant; no flow writes `plan=pro` or starts a trial. Decide: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle). I build both on your word. *(§ "CRITICAL — entitlement write-path" below.)*
+1. **Entitlement write-path** — the extension is `locked` for EVERY tenant; no flow writes `plan=pro` or starts a trial. Decide: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle). **Exact implementation for each option (say the combo, e.g. `A1 + B1`, and I build + test in one pass): `docs/feature-specs/ENTITLEMENT-WRITE-PATH-PLAN.md`.** *(§ "CRITICAL — entitlement write-path" below.)*
 2. **Check `DEEPSEEK_API_KEY` in Vercel** — 30 seconds. Tells us whether customer conversations currently route to DeepSeek (China-based). Then decide the provider posture. *(§ "DATA-GOVERNANCE" below.)*
 
 **Real defects / leaks (fix soon, low effort):**
