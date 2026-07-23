@@ -436,6 +436,24 @@ gate exists, but that it's fail-closed, a real chokepoint, and coherent across e
     who-sets-it map (SET / DO-NOT-SET / MOOT by companyId presence, not URL prefix) so a maintainer can't wrongly
     strip the exemption and gate day-1 coaching. Comment-only, no behavior change.
 
+## ✅ §3.6 make-learning-visible — honesty verified (NOT fabricated learning) (2026-07-23)
+
+Checked the core §0/§3.4 risk: does the "we're learning how your team/rep works" surface manufacture confidence?
+`salesWhyPatterns.ts` (the deepening-model surface) enforces the anti-fabrication discipline IN CODE:
+  - **Data-sufficiency gate `MIN_WHYS=4`** (line 202) — no pattern surfaced below 4 why→outcome pairs; below-gate
+    returns an honest "needs a few more sessions before patterns can be trusted (not guessed)" note. §3.2 discipline
+    applied to §3.6.
+  - **Outcome-anchoring is a CODE invariant** (`parsePatterns` line 111) — a pattern with no `outcomeAssociation`
+    is DROPPED, not just discouraged. §3.5 "anchor to consequence, not agreement" enforced, not merely prompted.
+  - **Honest failure ≠ below-gate** (F3, lines 226/237) — parse/error → `failed:true`, never masked as "not enough
+    data"; a transient DB read error is logged, not silently returned as `[]` (so a rep with many sessions isn't
+    wrongly told "keep going").
+  - **Held as hypothesis, not claimed validated** (lines 13-17) — patterns are "observations-with-evidence… held as
+    hypotheses; the full validation is longitudinal, not claimed" (§4 honesty).
+  - **Only real sets cached** (line 252) — never stores a gate/failed state as learning.
+Verdict: the "honesty is the moat" thesis is implemented, not documented — the confident-claim-not-earned failure
+mode is structurally prevented. No finding.
+
 ## 🟢 LOW — conversation CLAIM is unguarded (silent-overwrite race) + intent question (found 2026-07-23)
 
 `claimConversation` (`src/lib/data/care.ts:701`) sets `assigned_agent_id = me` UNCONDITIONALLY — `.eq("id", id)`
