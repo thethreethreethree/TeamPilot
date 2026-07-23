@@ -414,6 +414,28 @@ and (
 I'll write the migration (0191) + a mirror test on your nod — it's a clean create-or-replace of the view; the only
 reason I'm surfacing rather than shipping is that it alters reported finance figures and needs a live-DB verify.
 
+## ✅ §3.4 control-gate — DEEP enforcement verification (2026-07-23)
+
+Re-verified the "Month-1 control / no-instant-results" mechanism end-to-end (the honesty moat) — not just that a
+gate exists, but that it's fail-closed, a real chokepoint, and coherent across every surface type:
+  - **Fail-closed by construction:** `evaluateControlGate` returns `guidanceEnabled = manualEnabled || autoUnlocked`
+    (`brain/index.ts:84`) — default (neither) = suppressed; `loadControlGate` THROWS on company-not-found (line 101),
+    never silently enables. The comment at line 72 names the §3.4 "builder-under-pressure default = suppressed".
+  - **Enforced at both chokepoints:** `runBrainCall` (line 286) returns a `(suppressed)` empty placeholder when
+    `!guidanceEnabled && !controlExempt`; `runBrainStream` (line 332) yields empty. Guidance CANNOT leak into control.
+  - **Coherent across surfaces (no leak, no wrong-suppression):** Elostate diagnostic surfaces pass companyId →
+    gated (chat/guide, briefing, formulate, summarize — all via runBrainStream, no exemption). Sales Coach +
+    C.A.R.E agent-coaching pass companyId + `controlExempt` → brain-composed, day-1. C.A.R.E CUSTOMER replies
+    (widget `messages:274`, inbound `email:592`) pass NO companyId → `call()` (claude.ts:40) skips runBrainCall
+    entirely → plain llmCall, gate never runs (so a new C.A.R.E company's support AI is NOT suppressed in month 1).
+  - **Latent trap noted (not a live bug):** `runBrainStream` has no `controlExempt` param; today every streaming
+    caller is a gated Elostate surface, but a future *streaming Sales Coach* would be silently suppressed. Flagged
+    for whenever a day-1 coaching surface needs streaming.
+  - **Doc fix applied:** the `controlExempt` param comment claimed "Elostate + C.A.R.E callers must NOT set this",
+    contradicted by the legitimately-exempt C.A.R.E agent-coaching dissect routes. Rewrote it to the accurate
+    who-sets-it map (SET / DO-NOT-SET / MOOT by companyId presence, not URL prefix) so a maintainer can't wrongly
+    strip the exemption and gate day-1 coaching. Comment-only, no behavior change.
+
 ## 🟢 LOW — conversation CLAIM is unguarded (silent-overwrite race) + intent question (found 2026-07-23)
 
 `claimConversation` (`src/lib/data/care.ts:701`) sets `assigned_agent_id = me` UNCONDITIONALLY — `.eq("id", id)`

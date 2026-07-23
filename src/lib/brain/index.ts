@@ -265,13 +265,22 @@ export async function runBrainCall(args: {
   maxTokens?: number;
   expectJson?: boolean;
   /**
-   * Exempt this call from the §3.4 month-1 control window. Set ONLY by the
-   * Sales Coach (founder decision 2026-06-30): the control window governs
-   * the Elostate diagnostic system that LEARNS a team over a month; the
-   * Sales Coach coaches from a methodology corpus (not a learned baseline),
-   * so it runs from day 1. Still composes with the brain — it skips only the
-   * suppression, not the composer. Elostate + C.A.R.E callers must NOT set
-   * this.
+   * Exempt this call from the §3.4 month-1 control window. The control window
+   * governs the Elostate DIAGNOSTIC system that LEARNS a team over a month;
+   * methodology-corpus COACHING (not a learned baseline) runs from day 1
+   * (founder decision 2026-06-30). Still composes with the brain — it skips
+   * only the suppression, not the composer.
+   *
+   * WHO SETS IT (accurate map — a route living under /api/care/ can legitimately
+   * set it, so don't judge by URL prefix):
+   *   - SET: day-1 coaching surfaces that pass companyId to compose company
+   *     context — the Sales Coach (liveSalesCue/dissect/ask-coach/summary) AND
+   *     the C.A.R.E *agent-coaching* dissect surfaces (dissect/ask, ask-coach).
+   *   - DO NOT SET: Elostate diagnostic callers (chat/guide, briefing, …) — they
+   *     ARE the gated system.
+   *   - MOOT: C.A.R.E *customer-facing* replies (widget messages, inbound email)
+   *     pass NO companyId, so the gate never runs for them — the flag is
+   *     irrelevant there; leave it unset.
    */
   controlExempt?: boolean;
   /** The acting user's Experience Mode (0110). Forwarded to llmCall so the
