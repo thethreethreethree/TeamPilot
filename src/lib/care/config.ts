@@ -62,6 +62,40 @@ export type CareTenantConfig = {
   businessType: BusinessType;
 };
 
+/** The ONLY fields safe to expose on the PUBLIC widget bootstrap endpoint (no auth). */
+export type WidgetSafeConfig = {
+  color: string;
+  greeting: string;
+  subtitle: string;
+  position: "bottom-right" | "bottom-left";
+  logoUrl: string | null;
+  displayName: string | null;
+  aiName: string;
+  businessType: BusinessType;
+};
+
+/**
+ * Project a resolved tenant config down to the fields the public widget may see. This is an EXPLICIT
+ * whitelist, never a spread — so internal fields (`allowedOrigins`, `plan`, `monthlyConversationQuota`,
+ * `companyId`, `active`, `replySignature`, `aiProductContext`, `aiTone`, `aiResponseLength`, and any
+ * `embed_token`) can NEVER leak to an unauthenticated caller, AND a NEW internal field added to
+ * `CareTenantConfig` does not silently appear in the public response (the failure mode a spread creates).
+ * `aiProductContext` in particular is a tenant's internal product playbook fed to the AI system prompt —
+ * leaking it would hand a competitor that playbook. Locked by `config.widgetSafe.test.ts`.
+ */
+export function toWidgetSafeConfig(c: CareTenantConfig): WidgetSafeConfig {
+  return {
+    color: c.widgetColor,
+    greeting: c.widgetGreeting,
+    subtitle: c.widgetSubtitle,
+    position: c.widgetPosition,
+    logoUrl: c.widgetLogoUrl,
+    displayName: c.companyDisplayName,
+    aiName: c.aiName,
+    businessType: c.businessType,
+  };
+}
+
 function mapConfig(row: Record<string, unknown>): CareTenantConfig {
   return {
     companyId: row.company_id as string,

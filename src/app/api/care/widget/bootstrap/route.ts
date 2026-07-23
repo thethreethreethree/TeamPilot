@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveCareTenantByEmbedToken } from "@/lib/care/config";
+import { resolveCareTenantByEmbedToken, toWidgetSafeConfig } from "@/lib/care/config";
 
 /**
  * GET /api/care/widget/bootstrap?token=...
@@ -49,21 +49,12 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Only the widget-safe subset goes back.
-  const c = resolution.config;
+  // Only the widget-safe subset goes back — an explicit whitelist projection (toWidgetSafeConfig)
+  // so no internal field (embed_token, allowedOrigins, plan, aiProductContext, …) can ever leak to
+  // this unauthenticated endpoint, and a new CareTenantConfig field cannot silently appear here.
+  // The projection is locked by config.widgetSafe.test.ts.
   return NextResponse.json({
     ok: true,
-    widget: {
-      color: c.widgetColor,
-      greeting: c.widgetGreeting,
-      subtitle: c.widgetSubtitle,
-      position: c.widgetPosition,
-      logoUrl: c.widgetLogoUrl,
-      displayName: c.companyDisplayName,
-      aiName: c.aiName,
-      // Handover capture (0188): the widget uses this to pick the concern-topic list
-      // (handoverTopicsFor) and whether to show the order-number field. Customer-safe.
-      businessType: c.businessType,
-    },
+    widget: toWidgetSafeConfig(resolution.config),
   });
 }
