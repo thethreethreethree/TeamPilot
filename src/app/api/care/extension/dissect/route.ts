@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { generateConversationDissect } from "@/lib/dissect/engine";
 
 /**
@@ -25,8 +26,27 @@ const Schema = z.object({ conversation: z.string().min(1).max(20_000) }).strict(
 export async function POST(req: NextRequest) {
   const guard = await guardExtensionRequest(req, { tool: "dissect", perUserMax: 20, schema: Schema });
   if (!guard.ok) return guard.response;
-  const { body } = guard;
+  const { user, body } = guard;
 
-  const dissect = await generateConversationDissect({ sourceText: body.conversation });
+  // Agent identity anchor (A26 sweep — completes the tool class). The scanned thread is unlabeled, so
+  // name the agent to keep the diagnosis from mis-attributing who raised each concern. Best-effort.
+  let agentName = "the support agent";
+  try {
+    const admin = createAdminClient();
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.userId)
+      .maybeSingle();
+    if (typeof prof?.full_name === "string" && prof.full_name.trim())
+      agentName = prof.full_name.trim();
+  } catch {
+    /* best-effort */
+  }
+
+  const dissect = await generateConversationDissect({
+    sourceText: body.conversation,
+    agentName,
+  });
   return NextResponse.json({ dissect });
 }

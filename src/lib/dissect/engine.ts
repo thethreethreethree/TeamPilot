@@ -244,14 +244,24 @@ export function parseConversationDissect(
 export async function generateConversationDissect(args: {
   companyId?: string;
   sourceText: string;
+  /**
+   * The support agent (A26 role-attribution sweep, 2026-07-24). When the source is an UNLABELED
+   * scanned thread (the extension case), naming the agent lets the diagnosis attribute who raised
+   * each concern instead of mistaking the agent's own words for the customer's. Optional — in-app
+   * dissect passes role-labeled sourceText, so it omits this.
+   */
+  agentName?: string;
 }): Promise<ConversationDissect> {
   const source = args.sourceText.trim();
   // Guard: too little to diagnose. Honest empty, not a fabricated problem.
   if (source.length < 40) return EMPTY_DISSECT;
   try {
+    const systemPrompt = args.agentName
+      ? `${DISSECT_SYSTEM}\n\nWHO IS WHO: in the pasted conversation, ${args.agentName} is the support agent; the other participant is the customer. Attribute who raised each concern on that basis — do not mistake ${args.agentName}'s own words for the customer's.`
+      : DISSECT_SYSTEM;
     const r = await dissectCoachV5({
       companyId: args.companyId,
-      systemPrompt: DISSECT_SYSTEM,
+      systemPrompt,
       userMessage: source.slice(0, MAX_SOURCE_CHARS),
     });
     return parseConversationDissect(r.text, source);
