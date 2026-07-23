@@ -7,7 +7,7 @@ import {
 } from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
-import { copilotModeInstruction, type LastSpeaker } from "@/lib/care/copilotMode";
+import { copilotModeInstruction, lastSpeakerFromAuthorType } from "@/lib/care/copilotMode";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
@@ -136,12 +136,7 @@ export async function POST(
   // model determines it and defaults to reply, so no regression). Reuses copilotMode.ts (same helper).
   const visibleTurns = detail.messages.filter((m) => !m.isInternalNote);
   const lastTurn = visibleTurns[visibleTurns.length - 1];
-  const lastSpeaker: LastSpeaker =
-    lastTurn?.authorType === "customer"
-      ? "customer"
-      : lastTurn?.authorType === "agent" || lastTurn?.authorType === "ai"
-        ? "agent"
-        : "unknown";
+  const lastSpeaker = lastSpeakerFromAuthorType(lastTurn?.authorType);
   const modeInstruction = copilotModeInstruction(lastSpeaker, "the agent");
 
   // Two-pass: ask for draft + reasoning in a single call but

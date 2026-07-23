@@ -21,6 +21,22 @@
  */
 export type LastSpeaker = "agent" | "customer" | "unknown";
 
+/**
+ * Map a stored message `authorType` to the last-speaker signal (in-app Co-Pilot, which knows the
+ * author of every turn from the DB — no guessing). The non-obvious decision this pins: an `"ai"`
+ * message is an auto-reply sent on the AGENT's behalf, so it counts as OUR side — the customer
+ * hasn't replied to it yet, so it triggers FOLLOW-UP mode exactly like an agent message. Only a
+ * `"customer"` turn is the customer speaking. Anything else (e.g. a "system" handoff notice, or an
+ * unrecognised type) → "unknown", which the model resolves and DEFAULTS TO REPLY (no regression).
+ */
+export function lastSpeakerFromAuthorType(
+  authorType: string | null | undefined
+): LastSpeaker {
+  if (authorType === "customer") return "customer";
+  if (authorType === "agent" || authorType === "ai") return "agent";
+  return "unknown";
+}
+
 export function copilotModeInstruction(
   lastSpeaker: LastSpeaker,
   agentName: string

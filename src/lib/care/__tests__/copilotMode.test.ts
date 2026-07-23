@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { copilotModeInstruction, type LastSpeaker } from "../copilotMode";
+import {
+  copilotModeInstruction,
+  lastSpeakerFromAuthorType,
+  type LastSpeaker,
+} from "../copilotMode";
 
 /**
  * Locks the Co-Pilot response-mode selector (founder request 2026-07-23). The load-bearing
@@ -38,5 +42,29 @@ describe("copilotModeInstruction", () => {
     for (const s of ["agent", "customer", "unknown"] as LastSpeaker[]) {
       expect(copilotModeInstruction(s, "Alice")).toContain("Alice");
     }
+  });
+});
+
+describe("lastSpeakerFromAuthorType — in-app authorType → last-speaker", () => {
+  it("customer turn → customer (reply mode)", () => {
+    expect(lastSpeakerFromAuthorType("customer")).toBe("customer");
+  });
+
+  it("agent turn → agent (follow-up mode)", () => {
+    expect(lastSpeakerFromAuthorType("agent")).toBe("agent");
+  });
+
+  it("ai auto-reply → agent (OUR side spoke last — the non-obvious pin)", () => {
+    // an AI auto-reply is sent on the agent's behalf; the customer hasn't replied to it, so it must
+    // trigger follow-up mode exactly like an agent message, NOT be treated as the customer.
+    expect(lastSpeakerFromAuthorType("ai")).toBe("agent");
+  });
+
+  it("system / unrecognised / missing → unknown (determine + default reply, no regression)", () => {
+    expect(lastSpeakerFromAuthorType("system")).toBe("unknown");
+    expect(lastSpeakerFromAuthorType("bot")).toBe("unknown");
+    expect(lastSpeakerFromAuthorType(null)).toBe("unknown");
+    expect(lastSpeakerFromAuthorType(undefined)).toBe("unknown");
+    expect(lastSpeakerFromAuthorType("")).toBe("unknown");
   });
 });
