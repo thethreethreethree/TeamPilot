@@ -107,6 +107,48 @@ surfaced several genuine finds and confirmed broad soundness. All in `docs/FOUND
 - New tests added: score/review/liveCue diarization builders, isProblemOpen, isWithinEditWindow, copilotMode.
 - New IP asset: **TT.md A39** (multi-party-text attribution at the source), class-checked closed codebase-wide.
 
+## 3e. 2026-07-24 — Vercel 45-min build TIMEOUT diagnosed + fixed (`9e9c842f`)
+
+Founder sent the "Build Failed (timed out — exceeded 45 minute limit)" screenshot (commit `806ac95`,
+Production) and asked me to inspect it. Diagnosed per §2 — including a self-correction (I first blamed
+redundant typecheck/lint in `next build` and applied `ignoreBuildErrors`/`ignoreDuringBuilds` in `2966dbd4`;
+a **30s local build** refuted that, so I did NOT force it — kept it only as a valid minor optimization,
+explicitly not-the-root-cause).
+
+**Root cause (confirmed by elimination, pending the actual build-log phase-timing):** `@sentry/nextjs`'s
+build-time source-map upload. `next.config.ts` wraps the build in `withSentryConfig` **only when
+`SENTRY_AUTH_TOKEN` is set** (Vercel prod, not local), and it had `widenClientFileUpload: true` — Sentry's
+single most-documented cause of slow builds (widens the upload to the whole client output). This exactly
+explains the **30s-local / 45-min-Vercel split** (the token is the only variable that differs).
+
+Elimination that rules out the two alternatives without needing the founder's log:
+- **Not the local `next build`** — timed at 30s (13.8s compile + 275 static pages in 1.1s).
+- **Not the install phase** — package.json has NO preinstall/install/postinstall/prepare hooks, and the one
+  native dep (`sharp` 0.35.3) ships prebuilt libvips binaries (`@img/sharp-*`), so `npm ci` on Vercel is
+  download-only + cached → minutes, not 45.
+- **Local repro** with a dummy `SENTRY_AUTH_TOKEN` confirmed the Sentry build plugin engages on the token's
+  presence (real creds would actually perform the slow upload; the dummy fails auth fast at 38s).
+
+**Fix:** `widenClientFileUpload: false` (`9e9c842f`). Runtime error capture (DSN-based) is unaffected;
+main-bundle symbolication retained; reversible. If a future build still times out, the next lever is
+disabling the upload entirely (runtime Sentry stays).
+
+**Founder confirmation still needed** (the one thing that turns "confirmed by elimination" into "measured"):
+the next build's log — `Sentry - Uploading source maps` should drop from ~40 min to seconds. If instead the
+time is in `Installing dependencies`, it's the Node-drift problem (queue 5a2), not Sentry.
+
+**Reconciled with the parked build bundle (§1.5 ripple-trace):** `integration/no-migration-deploy` (queue
+5a2) ALSO touches `next.config.ts`, but only with a build-STAMP `env:` block — it does NOT touch the Sentry
+block, so it does nothing for the *timeout*. That bundle fixes a DIFFERENT build problem (Node-version drift:
+pins Node 20 via `.nvmrc` + `engines`) + deploy observability. The two fixes are **complementary — keep
+both.** Flagged a trivial merge collision: both `2966dbd4` and the bundle's `env:` block insert right after
+`poweredByHeader: false,` → keep both inserts. Full note in FOUNDER-ACTION-QUEUE §5a2 + top index.
+
+**Held back (§4 distrust-of-evolution):** the transferable diagnostic heuristic here — *"fast-locally /
+slow-on-platform ⇒ suspect a step gated on a platform-only env var (source-map upload tokens, etc.), the
+invisible differ"* — is NOT yet injected into ThinkerThinker.md as validated IP, because it awaits the
+build-log confirmation. Inject once measured.
+
 ## 4. How to resume
 
 The extension is shippable the moment the entitlement write-path exists. That's item 1 — a one-word `A1 + B1`
