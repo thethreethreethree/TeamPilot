@@ -451,6 +451,21 @@ id=B) + (for files) the file-vs-conversation IDOR:
 Verdict: token↔conversation↔company↔file all bound; no IDOR path. The service-role (admin-client) file read is
 safe BECAUSE the conversation-id match is the explicit authz gate (documented in `getFileForCustomer`). No finding.
 
+## ✅ A39 attribution class — CODEBASE-WIDE class-check, CLOSED (2026-07-23)
+
+Captured TT.md A39 (multi-party-text must carry per-party attribution at the source) from the founder's
+role-inversion bug, then applied its lens across ALL AI-prompt subsystems (§1.2 — sweep the class, not one module):
+  - **coach** (11 role-sensitive builders: score/review/liveCue/intel/pivot/moments/why/afterPitch/grader/prompt/
+    salesSummary) — all carry per-turn labels (`speakerLabel` / `m.author` / `speaker.toUpperCase`). ✅
+  - **care in-app** (`care/prompt.ts` recentTurns) — labels each turn Customer / Human agent (earlier) / You
+    (earlier reply) from the DB `role`. ✅
+  - **dissect** (`engine.ts` User/Coach), **taskSpawn** (`m.author`). ✅
+  - **Correctly-bare (attribution-agnostic)**: `grounding.groundQuote` (substring-existence anti-hallucination
+    check), `salesIntel` (lowercased keyword haystack) — labels would HARM these. ✅
+Verdict: the A39 defect existed in exactly ONE surface — the **extension** — because it is the only AI surface that
+scrapes external DOM into a flat blob instead of reading labelled DB rows. Fixed (2b agent anchor + 2a adapter
+labels + the follow-up mode). Every in-app surface is immune BY CONSTRUCTION (DB attribution). Class closed.
+
 ## ✅ §3.6 make-learning-visible — honesty verified (NOT fabricated learning) (2026-07-23)
 
 Checked the core §0/§3.4 risk: does the "we're learning how your team/rep works" surface manufacture confidence?
