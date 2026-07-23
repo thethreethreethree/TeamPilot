@@ -43,8 +43,12 @@ WRITE side is missing.
 - **Change:** in `getExtensionEntitlement(companyId)` (`src/lib/care/extensionEntitlement.ts`), after the read,
   if the tenant is non-paid AND `extension_trial_started_at` is null → `UPSERT care_tenant_config` set
   `extension_trial_started_at = now()`, then treat the trial as started for this response.
-- **Gotchas (decide-relevant):** (1) must be an UPSERT — a tenant may have no `care_tenant_config` row yet
-  (bootstrap trigger inserts one, but not guaranteed for every path); (2) idempotent — write only when null, never
+- **Gotchas (decide-relevant):** (1) ~~must be an UPSERT — a tenant may have no `care_tenant_config` row yet~~
+  **RESOLVED (verified 2026-07-23): the row is GUARANTEED present** — `0045_tenant_bootstrap_triggers.sql` asserts
+  the invariant "∀ company → ∃ care_tenant_config row" (bootstrap trigger). AND every column has a default (`plan`
+  `'pilot'`, `embed_token` gen_random, quotas/colors/tone/timestamps all defaulted, `0038`), so even a hypothetical
+  missing row upserts cleanly. So A1's write is safe as a plain UPDATE or an UPSERT — no missing-row or
+  NOT-NULL-constraint failure. (2) idempotent — write only when null, never
   overwrite; (3) non-paid only — never touch a pro/enterprise tenant; (4) the write happens inside a READ path, so
   it must fail-soft (a write error must not break the entitlement read — log + treat as trial-started-now for the
   response, reconcile next call). (5) UX truth: the 14-day clock starts the first time their extension pings the
