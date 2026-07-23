@@ -12,11 +12,20 @@ vi.mock("@/lib/api/validate", () => ({ readBody: vi.fn(async () => ({ conversati
 vi.mock("@/lib/api/extensionAuth", () => ({ requireEntitledExtensionUser: vi.fn() }));
 vi.mock("@/lib/care/config", () => ({ getProductContextForTenant: vi.fn(async () => "PRODUCT CONTEXT") }));
 vi.mock("@/lib/claude", () => ({ generateCareReply: vi.fn() }));
+// Default: the name lookup yields nothing → the route falls back to the generic label (this matches the
+// prior behaviour, where createAdminClient wasn't mocked at all and threw → caught → generic). Individual
+// tests override to return a real name.
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn(() => ({
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) }),
+  })),
+}));
 
 import { POST } from "@/app/api/care/extension/copilot/route";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
 import { generateCareReply } from "@/lib/claude";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const entitled = { ok: true, user: { userId: "u", companyId: "c" } };
 const req = {} as never;
@@ -78,6 +87,38 @@ describe("POST /api/care/extension/copilot", () => {
     vi.mocked(generateCareReply).mockRejectedValue(new Error("upstream"));
     const res = await POST(req);
     expect(res.status).toBe(502);
+  });
+
+  // Role-attribution anchor (Fix 2b, the founder-reported "Hi John" inversion). Co-Pilot was the ONLY one of
+  // the 6 write/read-as-agent tools whose WHO-IS-WHO anchor had no test — and its anchor wording is duplicated
+  // across routes, so it's drift-prone (the same class of copy-paste divergence that shipped the email
+  // recentTurns:[] bug). These lock (a) the name is injected AS the drafting identity and (b) the graceful
+  // fallback still carries the anchor — so a future edit can't silently drop either.
+  it("injects the agent-name anchor — the draft is written AS the agent, never addressed TO them ('Hi John' bug)", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(createAdminClient).mockReturnValueOnce({
+      from: () => ({
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { full_name: "John Ramos" } }) }) }),
+      }),
+    } as never);
+    vi.mocked(generateCareReply).mockResolvedValue({ text: "Hi Sam — all set." } as never);
+    await POST(req);
+    const arg = vi.mocked(generateCareReply).mock.calls[0]![0] as { systemPrompt: string; userMessage: string };
+    expect(arg.systemPrompt).toContain("drafting AS: John Ramos");
+    expect(arg.systemPrompt).toContain("agent's own words");
+    // The exact anti-inversion property: the draft is FROM the agent's side, not a message TO the agent.
+    expect(arg.systemPrompt).toContain("never addressed to John Ramos");
+    expect(arg.userMessage).toContain("Draft John Ramos's next message");
+  });
+
+  it("name lookup yields nothing → generic label, but the anchor is STILL present (never blocks the draft)", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    // default admin mock returns { data: null } → fallback to "the support agent"
+    vi.mocked(generateCareReply).mockResolvedValue({ text: "Hi Sam — all set." } as never);
+    await POST(req);
+    const arg = vi.mocked(generateCareReply).mock.calls[0]![0] as { systemPrompt: string };
+    expect(arg.systemPrompt).toContain("drafting AS: the support agent");
+    expect(arg.systemPrompt).toContain("agent's own words");
   });
 
   // A rate-limit LlmError maps to 429 (client backs off), matching spawn/coach;
