@@ -3606,6 +3606,12 @@ function renderEventLabel(e: ConversationEvent): string {
       // deliberately didn't reply (RFC 3834). The reason is the greppable signal that fired.
       return `AI paused — automated sender, no auto-reply sent (${(e.metadata.reason as string) ?? "?"})`;
     default:
+      // NOTE (verified 2026-07-24): the cases above are COMPLETE for every event_type actually
+      // written to support_conversation_events — the 8 from the SQL triggers (0035/0039) plus the
+      // 3 ai_suppressed_* from the inbound-email route. No current event reaches this default; it's
+      // a defensive fallback for a future type someone forgets to label. (An earlier commit message
+      // flagged resolved/reopened/closed/ai_assisted as falling through here — that was a grep
+      // false-positive; those are not inserted into this table.)
       return e.eventType;
   }
 }
