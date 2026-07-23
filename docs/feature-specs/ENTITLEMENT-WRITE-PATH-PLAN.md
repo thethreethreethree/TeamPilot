@@ -1,5 +1,12 @@
 # Entitlement write-path — implementation plan (the #1 launch blocker)
 
+> **✅ TARGETS VERIFIED EXECUTION-READY (2026-07-23, no drift).** Both build targets confirmed present + as
+> described: A1's `getExtensionEntitlement` (`src/lib/care/extensionEntitlement.ts`, read side 16-tested) and B1's
+> `src/app/api/admin/crm/accounts/[id]/subscription/route.ts` (exists, `PATCH`, `requireVendorAdmin`-gated, already
+> carries a `plan` field on a SEPARATE CRM subscription table — B1 adds the one-line `care_tenant_config.plan` sync
+> into this already-authz'd route). Prerequisite `0189` verified idempotent/additive. So "A1 + B1" → immediate,
+> low-surprise build: two small guarded writes + the panel-copy + Spawn-trial facets (Section C). Nothing stale.
+
 The extension is `locked` for every tenant because nothing writes `care_tenant_config.plan=pro/enterprise` or
 `extension_trial_started_at` (re-verified 2026-07-23: neither is written by any flow; `plan` defaults to `pilot`
 forever). Two write-paths must exist. This is the exact plan for each option so that once you pick, I execute
