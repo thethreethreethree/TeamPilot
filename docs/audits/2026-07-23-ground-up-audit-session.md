@@ -16,6 +16,7 @@ Every surface below was checked by reading the enforcing code this session (not 
 | Thesis-core §3.3 guide-don't-overtake | ✅ sound (both paths) + gate extracted & tested | (opt) promote chat-path to schema-level |
 | Thesis-core §3.4 / §3.5 | ✅ sound + test-covered | — |
 | Finance ledger balance + calcs | ✅ sound (SQL-vs-mirror) | — |
+| Finance **routes** authz | ✅ sound + **CI-enforced** (invariant 2: no service-role in finance routes) | — |
 | Finance FX per-line rounding | 🟡 **real bug, latent** (no multi-currency UI) | accounting decision (fix menu in FX doc) |
 | RLS / tenant isolation | ✅ green (`rls:audit`) | — |
 | Public widget (origin, rate, bootstrap, file up/down) | ✅ sound; IDOR + traversal closed; fields whitelisted | — |
