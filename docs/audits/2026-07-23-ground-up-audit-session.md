@@ -96,6 +96,29 @@ sustained number):** add a second longer-window `rateLimit` on `messages` POST m
 decided. Still a small judgment call on the number (a rapid voice exchange could legitimately be chatty), so
 proposed, not unilaterally applied — say the sustained cap and I wire it in minutes.
 
+## ✅ Widget file upload/download — audited, EARNED clean (2026-07-23)
+
+Traced the specific attack vectors on the public widget's file path (not assumed clean — §1.7.3):
+
+- **Cross-tenant / cross-conversation IDOR (download `conversations/[id]/file/[fileId]`): CLOSED.**
+  `getFileForCustomer(fileId, conv.id)` requires `linked_conversation_id === conversationId` (a conversation
+  belongs to one tenant → closes cross-tenant too) AND `access_role === 'everyone'` (a customer cannot pull an
+  admins-only file an agent attached) AND `deprecated_at is null`; returns a 600s-expiry signed URL, not a
+  permanent public link. `fileId` is `randomUUID()` (non-enumerable) and wouldn't pass the linkage check even if
+  guessed.
+- **Path traversal (upload `conversations/[id]/upload`): CLOSED.** `buildStoragePath` sanitizes the
+  user-controlled filename — `rawExt.replace(/[^a-z0-9]/gi, "")` strips `/`, `..`, `.`; final path is
+  `companyId/year/month/fileId.ext` with NO user-controlled segment. The code comment names the exact attack
+  (`evil.x/../secret`).
+- **Upload abuse: bounded.** 6/min rate limit, session-token + conv-match, 10 MB cap, image/PDF MIME allow-list
+  PLUS filename extension block-list (defends the spoofable-MIME case — evil.exe as image/png).
+
+This surface carries multiple past-incident references (founder red-pen 2026-06-19, Audit F2 2026-07-09,
+inspection closure asset-system-v1 Finding 3) — it was hardened by prior adversarial passes. That contrast is the
+lesson: the file surface got adversarial attention and is solid; the cost-metering surface (the MEDIUM above)
+never did, which is why the message-quota gap slipped through. **Recommendation: give the cost model the same
+adversarial pass the security surface already received.**
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
