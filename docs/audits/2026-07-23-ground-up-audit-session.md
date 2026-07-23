@@ -398,9 +398,12 @@ The variance ALERTS (`0182_fin_variance_alerts`) build on this view, so monthly-
 numbers too. **Severity MEDIUM** — it's a reachable correctness defect (monthly granularity is creatable via the
 API), producing wrong finance numbers; not latent behind an unbuilt UI like the FX bug.
 
-**Fix (clear + mechanical — NOT an accounting judgment; NOT built because it's a finance-view migration that
-changes reported numbers + can't be tested against a live DB from here):** recreate the view to align by the
-budget's OWN granularity (the view already joins `fin_budgets b` which has `granularity`):
+**✅ FIX BUILT — migration `0191` (`b57fe735`), awaits founder live-apply.** Recreates `fin_budget_variance` to
+branch the period match on `b.granularity` (annual→period 0, quarterly→extract(quarter), monthly→extract(month)).
+Additive + reversible (create-or-replace of a derived view; quarterly/annual unchanged byte-for-byte, only monthly
+corrected). Alignment logic mirror-locked in `src/lib/finance/__tests__/budgetVarianceAlignment.test.ts` (4 tests
+incl. the 0149 bug cases). Static-only here — apply via `npm run db:apply` + confirm a monthly line's `actual`
+sums only that month's postings. Original fix sketch:
 ```sql
 and (
   bl.period_index = 0
