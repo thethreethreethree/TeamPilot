@@ -24,6 +24,14 @@ function ago(iso: string): string {
   return `${mins}m ago`;
 }
 
+/** Elapsed span, no "ago" suffix — for "on site 4m" (how long the visitor has been present). */
+function duration(iso: string): string {
+  const secs = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.round(secs / 60);
+  return `${mins}m`;
+}
+
 /** Host page shown as a readable label: path + host, falling back to the raw string. */
 function pageLabel(page: string | null): string {
   if (!page) return "Unknown page";
@@ -153,7 +161,8 @@ export default function CareMonitorPage() {
                     </span>
                   </div>
                   <p className="text-[11px] text-muted mt-0.5 pl-4">
-                    Anonymous visitor · active {ago(v.lastSeenAt)}
+                    Anonymous visitor · on site {duration(v.firstSeenAt)} · active{" "}
+                    {ago(v.lastSeenAt)}
                   </p>
                 </div>
                 {v.conversationId ? (
