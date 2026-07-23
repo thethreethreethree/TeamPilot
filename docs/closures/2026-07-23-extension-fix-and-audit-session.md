@@ -112,8 +112,11 @@ surfaced several genuine finds and confirmed broad soundness. All in `docs/FOUND
 Founder sent the "Build Failed (timed out — exceeded 45 minute limit)" screenshot (commit `806ac95`,
 Production) and asked me to inspect it. Diagnosed per §2 — including a self-correction (I first blamed
 redundant typecheck/lint in `next build` and applied `ignoreBuildErrors`/`ignoreDuringBuilds` in `2966dbd4`;
-a **30s local build** refuted that, so I did NOT force it — kept it only as a valid minor optimization,
-explicitly not-the-root-cause).
+a **30s local build** refuted that). I then **fully reverted `2966dbd4`** (`1a37e36e`) rather than keep it to
+save face: verifying the real fix surfaced that `eslint: { ignoreDuringBuilds }` is an **unrecognized key on
+Next.js 16.2.6** (Next 16 removed built-in ESLint-during-build → dead no-op + config warning) and
+`ignoreBuildErrors` removed the build-time typecheck safety net for ~no speedup (typecheck is inside the 30s;
+the 45-min cost is Sentry). §2 applied fully: don't keep a misdiagnosis-driven change.
 
 **Root cause (confirmed by elimination, pending the actual build-log phase-timing):** `@sentry/nextjs`'s
 build-time source-map upload. `next.config.ts` wraps the build in `withSentryConfig` **only when
@@ -141,8 +144,9 @@ time is in `Installing dependencies`, it's the Node-drift problem (queue 5a2), n
 5a2) ALSO touches `next.config.ts`, but only with a build-STAMP `env:` block — it does NOT touch the Sentry
 block, so it does nothing for the *timeout*. That bundle fixes a DIFFERENT build problem (Node-version drift:
 pins Node 20 via `.nvmrc` + `engines`) + deploy observability. The two fixes are **complementary — keep
-both.** Flagged a trivial merge collision: both `2966dbd4` and the bundle's `env:` block insert right after
-`poweredByHeader: false,` → keep both inserts. Full note in FOUNDER-ACTION-QUEUE §5a2 + top index.
+both.** (After reverting `2966dbd4`, the bundle's `next.config.ts` now merges cleanly at `poweredByHeader` —
+only its build-stamp `env:` block lands there; no both-added conflict.) Full note in FOUNDER-ACTION-QUEUE
+§5a2 + top index.
 
 **Held back (§4 distrust-of-evolution):** the transferable diagnostic heuristic here — *"fast-locally /
 slow-on-platform ⇒ suspect a step gated on a platform-only env var (source-map upload tokens, etc.), the
