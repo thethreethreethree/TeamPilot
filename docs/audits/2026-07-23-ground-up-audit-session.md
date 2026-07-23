@@ -343,15 +343,19 @@ error messages can leak SCHEMA internals — constraint names, column names, typ
 API consumer. This is a LOW-severity **information-disclosure** class (schema structure, not data or credentials;
 the schema is partly inferable anyway), but it's the kind of thing that hands an attacker a free map.
 
-**Severity LOW, exposure-dependent:** higher concern on PUBLIC/unauthed routes (care widget, demo, connect) than
-on admin-authed ones (finance, team-check) where the caller is already trusted. Not a data/credential leak.
+**Severity LOW → refined to VERY LOW after checking exposure (2026-07-23):** I checked whether the leak hits the
+high-exposure surface — **it does NOT.** The genuinely-PUBLIC/low-trust routes (care widget `conversations/*`,
+`demo/ask`, `widget/bootstrap`, `inbound/email`, `stt`/`tts`) already return GENERIC messages — no raw DB error.
+The only low-trust hits are the 5 extension routes returning `LlmError.message` (an operational "rate limited"
+string, NOT a DB/schema error) and those are Bearer+entitlement gated. So all ~104 raw-DB-error sites are on
+**authed** routes (finance, coach, admin, files) where the caller is a trusted authenticated user — schema-leak
+risk there is minimal. **The exposed surface is already clean.**
 
-**Fix (NOT built — it's a ~104-site mechanical refactor; founder's call whether the churn is worth a LOW finding):**
-adopt the standard pattern — LOG the raw `error.message` server-side (for debugging), return a GENERIC message to
-the client (e.g. "Couldn't save right now."). Could be a small helper (`jsonError(status, publicMsg, err)` that
-logs `err` + returns `publicMsg`) applied first to the PUBLIC routes (highest exposure), then the rest. I can do
-the public-route subset in one pass on request, or the full sweep if you want it. Flagged, not unilaterally
-refactored across 104 sites.
+**Fix (NOT built — now optional cleanup, not a security priority):** the standard pattern (log server-side, return
+a generic client message via a `jsonError` helper) is still nicer hygiene for the authed routes, but with the
+public surface already clean this is low-value polish, not worth a 104-site refactor unless done incidentally. No
+urgent action. (Honest calibration: found a real systemic pattern, then downgraded it when checking showed the
+high-exposure surface is already handled — not inflating a LOW finding into something it isn't.)
 
 ## Open flags (founder decisions — none are code defects I can close alone)
 
