@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
+import {
+  hasSituation,
+  hasUserDiagnosisAndProposal,
+} from "@/lib/diagnosis/decisionDialogueGate";
 
 /**
  * PATCH /api/chat/topic-decisions/[id]
@@ -107,16 +111,18 @@ export async function PATCH(
   };
   const targetPhase = body.phase ?? row.phase;
 
-  if (targetPhase === "elicit" && !next.situation.trim()) {
+  const draft = {
+    situation: next.situation,
+    userDiagnosis: next.user_diagnosis,
+    userProposal: next.user_proposal,
+  };
+  if (targetPhase === "elicit" && !hasSituation(draft)) {
     return NextResponse.json(
       { error: "Cannot advance to 'Your read' without a Situation." },
       { status: 400 }
     );
   }
-  if (
-    targetPhase === "respond" &&
-    (!next.user_diagnosis.trim() || !next.user_proposal.trim())
-  ) {
+  if (targetPhase === "respond" && !hasUserDiagnosisAndProposal(draft)) {
     return NextResponse.json(
       {
         error:

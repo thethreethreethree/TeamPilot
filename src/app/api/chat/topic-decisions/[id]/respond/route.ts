@@ -4,6 +4,7 @@ import { supabaseEnabled } from "@/lib/supabase/config";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { proposeDecisionDialogue } from "@/lib/claude";
 import { LlmError } from "@/lib/llm/errors";
+import { readyForSystemResponse } from "@/lib/diagnosis/decisionDialogueGate";
 
 /**
  * POST /api/chat/topic-decisions/[id]/respond
@@ -90,7 +91,13 @@ export async function POST(
       { status: 409 }
     );
   }
-  if (!row.situation?.trim() || !row.user_diagnosis?.trim() || !row.user_proposal?.trim()) {
+  if (
+    !readyForSystemResponse({
+      situation: row.situation,
+      userDiagnosis: row.user_diagnosis,
+      userProposal: row.user_proposal,
+    })
+  ) {
     return NextResponse.json(
       {
         error:
