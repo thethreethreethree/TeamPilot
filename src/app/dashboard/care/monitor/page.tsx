@@ -58,9 +58,19 @@ export default function CareMonitorPage() {
 
   useEffect(() => {
     void load();
-    timerRef.current = window.setInterval(() => void load(), POLL_MS);
+    // Audit A3 (2026-07-24, AMD-006 Layer 1): don't poll while the tab is hidden — it's wasted
+    // work and server load for a view nobody's watching. Poll only when visible, and refresh
+    // immediately when the operator returns to the tab.
+    timerRef.current = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       if (timerRef.current !== null) window.clearInterval(timerRef.current);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [load]);
 

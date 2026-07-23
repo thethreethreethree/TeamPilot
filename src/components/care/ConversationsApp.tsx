@@ -3381,6 +3381,12 @@ function CollapsedRail({
   );
 }
 
+/** Machine concern value → readable label (audit A5, AMD-006 Layer 4). "account_login" → "Account login". */
+function humanizeConcern(topic: string): string {
+  const t = topic.replace(/_/g, " ").trim();
+  return t.length === 0 ? t : t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 function CustomerPanel({
   conversation,
   events,
@@ -3507,7 +3513,7 @@ function CustomerPanel({
                       key={c.topic}
                       className="text-[10px] text-secondary bg-white/[0.04] border border-default rounded-full px-2 py-0.5"
                     >
-                      {c.topic} · {c.count}
+                      {humanizeConcern(c.topic)} · {c.count}
                     </li>
                   ))}
                 </ul>

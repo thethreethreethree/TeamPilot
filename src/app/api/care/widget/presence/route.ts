@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveCareTenantByEmbedToken } from "@/lib/care/config";
 import { touchVisitorPresence } from "@/lib/data/care";
 
@@ -25,6 +26,17 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Audit A1 (2026-07-24): every sibling public widget route (conversations-create, messages,
+  // handoff) rate-limits; presence must too. Generous max because presence is a legitimate
+  // heartbeat (~3/min per visitor) and many real visitors can share one NAT IP — this bounds a
+  // flood (rotating visitorId) without blocking normal traffic. Matches the sibling pattern.
+  const limited = rateLimit(req, {
+    id: "care-widget-presence",
+    windowMs: 60_000,
+    max: 120,
+  });
+  if (limited) return limited;
+
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 
