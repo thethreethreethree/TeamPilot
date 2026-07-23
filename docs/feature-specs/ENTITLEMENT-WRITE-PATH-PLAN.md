@@ -85,6 +85,12 @@ WRITE side is missing.
   (locked) and the rest→pro. **This is your pricing call — it decides which paying customers get the extension.**
   Also handle the downgrade path (tier drops to `pilot` → plan drops → re-locks). Vendor-admin-only (the route
   already gates on `requireVendorAdmin`).
+- **Build-clarity (verified 2026-07-23 — don't conflate two "control month" concepts):** the CRM subscription has a
+  `control_month` STATUS (a sales-lifecycle label, `0049`) and the care/companies control gate uses
+  `ai_guidance_unlock_at` (the actual §3.4 auto 30-day timer). They are INDEPENDENT (nothing wires one to the
+  other) and should stay so — §3.4's control month is a fixed honest baseline, deliberately not billing-tied. So
+  **B1 syncs `plan` ONLY; it must NOT touch `ai_guidance_unlock_at`/the control gate.** (The Spawn-during-trial
+  facet in Section C is the ONLY intended trial↔gate interaction, and that's a separate deliberate decision.)
 - **Effort:** small — one write added to an existing, already-authz'd route.
 - **⚠️ Also needs a one-time BACKFILL (or it misses existing customers):** the sync fires on the tier-SET action
   (PATCH), so it only covers FUTURE changes. Any customer already on a paid CRM tier (set before B1 ships) never
