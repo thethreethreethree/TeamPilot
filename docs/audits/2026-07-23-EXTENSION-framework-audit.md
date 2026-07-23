@@ -121,6 +121,36 @@ Both Finding 2's route header and multiple `content.js` comments cite `§3.4 / �
 
 **Recommended order:** Finding 1 (CRITICAL, ~small, unblocks 2 tools) → 2b (cheap anchor, stops the inversion) → 2a (structural labeling) → 3 (copy). 1 and 2b are both low-risk and I can implement immediately on John's go-ahead; **the completion signal is John's live browser test**, not my checks (§3.4 / verification discipline — I cannot confirm a browser fix from here).
 
+## 🔒 SECURITY — MEDIUM — connect page hands the refresh token to an UNVALIDATED extension id (found 2026-07-23)
+
+`src/app/extension/connect/page.tsx:51-57` reads the target extension id from the URL query param `ext` and,
+**without validating it**, calls `chrome.runtime.sendMessage(ext, { type:"care-connect", token, refreshToken })`
+— silently on page load, no user confirmation. So the page will hand the logged-in user's **session token AND
+long-lived refresh token** to WHATEVER extension id is in the URL.
+
+**Attack:** a victim who (1) is logged into elostate.com, (2) has a malicious extension installed that declares
+`externally_connectable` for `elostate.com` and listens for `care-connect`, and (3) is lured to
+`elostate.com/extension/connect?ext=<attacker-ext-id>` → the attacker's extension receives the refresh token →
+**full, durable account takeover** (the refresh token silently renews, unlike the ~1h access token). This is the
+unvalidated-parameter → sensitive-sink class (open-redirect-shaped), on the auth handoff.
+
+**Severity MEDIUM:** requires a malicious extension already installed + a lure to a crafted URL — but the payoff
+is durable account takeover, and the handoff is silent (no confirmation gate). Reduced by: the attacker's
+extension must specifically target this protocol; raised by: the refresh token is long-lived and it's zero-click
+once the URL is opened.
+
+**Fix (NOT built — has a UX/timing tradeoff that is the founder's call):**
+- **Preferred (Web Store):** once the extension has a fixed Web Store id, gate `ext` against an allowlist
+  (`NEXT_PUBLIC_CARE_EXTENSION_ID` env) — only hand tokens to the official id. Clean, zero UX change.
+- **Interim (works now, unpacked dev has dynamic ids):** require an explicit user confirmation before the handoff
+  ("An extension (id: …) is asking to sign in as you — Connect?"). Costs one click, defeats the silent lure.
+- Do NOT unilaterally change the one-click connect UX — the security-vs-friction + Web-Store-timing tradeoff is
+  yours. Say which and I build it.
+
+(Everything ELSE on the connect page is fine: it requires being logged in, reads only the user's own session,
+`state` machine + copy-fallback are sound, `bg-base`/`border-default` are the correct theme tokens — the
+`text-base` color-collision class does not apply to background utilities.)
+
 ## 3.5 Remediation APPLIED — status (updated as built)
 
 | Fix | Status | Where | Commit | Verified by me | UNVERIFIED (needs founder browser) |
