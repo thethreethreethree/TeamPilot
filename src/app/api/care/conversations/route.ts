@@ -22,9 +22,11 @@ import {
  * widget stores the session_token in localStorage and uses it for
  * every subsequent request as its bearer.
  *
- * Tenant resolution: Sprint 1 always uses the default tenant
- * (ELOSTATE). Sprint 3 will accept an embed token and route to the
- * white-label customer's tenant.
+ * Tenant resolution: if the caller supplies an `embedToken` (the embedded white-label widget does —
+ * see CareEmbeddedWidget.ensureSession), it's resolved through resolveCareTenantByEmbedToken
+ * (validates active + allowed_origins, logs the load event) so the conversation is created under the
+ * CUSTOMER's tenant. With no token (the ELOSTATE-hosted widget), it falls back to the default tenant.
+ * (Verified 2026-07-24: the earlier "Sprint 3 will accept an embed token" note was stale — it's built.)
  *
  * Rate-limited (10/min/IP) since this is a public unauthenticated
  * endpoint. Real-world traffic should be well under this; the limit
