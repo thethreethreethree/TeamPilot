@@ -65,10 +65,12 @@ function fromLocalPart(from: string): string | null {
   return addr.slice(0, at);
 }
 
-// Outlook/Exchange out-of-office subjects. Anchored at the start — a human's subject does not begin
-// with these. This is the single most common business auto-reply and it does NOT reliably set
-// Auto-Submitted, so without a subject check the detector would miss the majority of real OOO mail.
-const OOO_SUBJECT_RE = /^\s*(automatic reply|auto-?reply|out of office autoreply|out of office reply|out of office:)/i;
+// Outlook/Exchange out-of-office subjects. Anchored at the start AND requiring the trailing colon —
+// real OOO subjects are "Automatic reply: <original subject>" / "Out of Office: …", always with the
+// colon. Requiring it is what keeps a genuine customer subject like "Auto-reply not working on my
+// account" from being falsely suppressed (no colon → no match): never silence a real customer. This is
+// the dominant real-world OOO signal and the one most likely to arrive without Auto-Submitted set.
+const OOO_SUBJECT_RE = /^\s*(automatic reply|auto-?reply|out of office(?:\s+autoreply)?)\s*:/i;
 
 export function detectAutomatedSender(
   headers: EmailHeader[] | undefined,

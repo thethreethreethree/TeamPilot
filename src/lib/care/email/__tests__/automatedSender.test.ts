@@ -106,12 +106,17 @@ describe("detectAutomatedSender — NEVER silences a human (the load-bearing hal
     );
   });
 
-  it("a normal subject is NOT flagged as OOO (the prefix regex is anchored at the start)", () => {
+  it("a normal subject is NOT flagged as OOO (anchored at start AND requires the trailing colon)", () => {
     for (const s of [
       "Question about my order",
       "Re: refund status",
       "I need to reply to your automatic system", // contains 'automatic' but not as a prefix
       "Where is my out of office parcel?", // contains 'out of office' mid-subject, not a prefix
+      // Load-bearing: a real customer ASKING about an auto-reply / OOO feature starts with the word but
+      // has NO colon — must not be suppressed (the colon is what distinguishes the Outlook OOO subject).
+      "Auto-reply not working on my account",
+      "Automatic reply feature is broken",
+      "Out of office setting won't save",
       undefined, // no subject at all
     ]) {
       expect(detectAutomatedSender([], "jane@customer.com", s).automated, String(s)).toBe(false);
