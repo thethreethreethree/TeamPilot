@@ -11,13 +11,44 @@ I actually ran the check or read the enforcing code this session; open decisions
 |---|---|---|---|
 | 0 | Environment / toolchain | **solid** | CI (`.github/workflows/ci.yml`) runs typecheck·lint·rls:audit·theme:audit·invariant:audit·test·build on every PR + push to main. All re-verified green on HEAD. |
 | 1 | Types | **solid (1 regression fixed)** | `tsc --noEmit` exit 0 on HEAD. Caught + fixed a real typecheck regression I had introduced in the invisible-color guard (`35a760e0`) — CI's typecheck gate had been red for several commits; vitest hid it (esbuild strips types). |
-| 2 | Schema (highest consequence) | **solid (1 fail-open FIXED)** | Thesis-core enforced in schema, not prose: §3.1 event append-only (`events_no_update`/`no_delete` rules); §3.2 Understanding Gate (`check_understanding_gate` trigger) — found **fail-OPEN** on missing threshold, fixed to fail-closed (`0190`, awaits live apply + `verify_0190` script); §3.3 guide-don't-overtake (mandatory `user_diagnosis`/`user_proposal` NOT NULL columns + immutability trigger + API min-length validation + prompt); finance ledger balance (deferred constraint trigger). |
+| 2 | Schema (highest consequence) | **solid (1 fail-open FIXED)** | Thesis-core enforced in schema, not prose: §3.1 event append-only (`events_no_update`/`no_delete` rules); §3.2 Understanding Gate (`check_understanding_gate` trigger) — found **fail-OPEN** on missing threshold, fixed to fail-closed (`0190`, awaits live apply + `verify_0190` script); §3.3 guide-don't-overtake — **enforced in BOTH decision paths, but at different layers (see §3.3 note below)**; finance ledger balance (deferred constraint trigger). |
 | 3 | RLS / tenant isolation | **solid** | `rls:audit` green: every table RLS-enabled, every op covered, every update/all policy pins the tenant on write, every view `security_invoker`. Derivation verified too: `getCurrentCompanyId` uses `auth.getUser()` (server-validated) + own-profile `company_id`, fail-closed. |
 | 4 | Data integrity | **solid** | Event immutability (append-only rules, no app mutation path); external-message-id dedup on inbound; `invariant:audit` green (CSV formula-safety, no service-role in finance routes, reachable schema, no client-callable DEFINER tenant-param fn, upload validation, cross-person gate). |
 | 5 | Finance calculations | **sound (+ 1 real latent bug)** | Verified correct by SQL-vs-mirror or trace: depreciation (0166), recurrence anchor (0186), **year-end close RE-roll (0151, now locked by a new mirror test)**, approval-limit (0157/0168, defended by RLS+authz), ledger balance (0118). Tax report (0150): known limitation, honestly UI-warned + tracked. **FX per-line rounding (0118/0119): a REAL bug** — foreign split-line entries can fail "UNBALANCED"; currently LATENT (no foreign-currency entry UI). Doc: `2026-07-23-fx-rounding-base-imbalance.md`. |
 | 6 | API / routes | **solid** | Extension tool routes: entitlement gate + rate limit + control-window, uniform error handling (rate_limit→429 across all 6), full branch coverage. External-auth class uniform: `constantTimeEqual` + fail-closed on every webhook/cron. Inbound email: constant-time secret, text-only storage (no HTML/XSS), bounded fields, dedup. File-citation N+1 batched in all 3 sites (§A26). |
 | 7 | Discipline / measurement | **solid** | §3.5 keys on the durable `durability` field (held/reopened), not mutable status or adoption — "consequence, not acceptance," and regression-tested (`readoutSummary.test.ts` CARE-lesson case). LLM cascade fails over only on operator-fixable auth/quota, tested. |
 | 8 | Presentation | **solid (26 leaks fixed + guarded)** | 26 internal §-methodology citations were leaking into customer-facing UI (incl. the sales demo) — stripped + CI-guarded (both the citations AND the doc filenames). Recurring invisible-bare-color class (F4/V7/C4/bg-brand) now CI-guarded. |
+
+## §3.3 note — the two decision paths enforce guide-don't-overtake at DIFFERENT layers (re-validated 2026-07-23)
+
+Applying the "read the current state, don't trust the label" discipline to §3.3 surfaced a nuance the one-line
+table entry hid. There are **two** decision surfaces and they enforce "user diagnoses BEFORE the System asserts"
+at different layers — both sound today, but not equally structural:
+
+- **`decision_dialogues` (0003) — schema-structural.** `user_diagnosis` / `user_proposal` are `NOT NULL` columns
+  + a per-column immutability trigger. The DB itself forbids a decision without the user's own diagnosis+proposal.
+  This is the strong form (same shape as §3.2).
+- **`chat_topic_decisions` (0022) — API-layer + phase machine.** This is the path users actually hit in team
+  chat. The columns are **nullable** by necessity (a progressive `phase` machine: situation→elicit→respond→
+  decide→decided; the row exists before the user has answered). §3.3's ordering is therefore enforced ABOVE the
+  schema: `respond/route.ts:93` refuses to invoke the AI / write `system_response` unless
+  `situation`/`user_diagnosis`/`user_proposal` are all non-empty (`.trim()`); the decide fn (0027) refuses to
+  finalize before `system_response` exists; the trigger freezes the row once `phase='decided'`. Ordering holds
+  end-to-end.
+
+**The honest caveat (a flag, not a defect):** when the atomic decide fn (`0027:120-121`) writes the finalized
+immutable `decision_dialogues` record from a chat dialogue, it uses `coalesce(v_row.user_diagnosis, '')`. Because
+`decision_dialogues.user_diagnosis` is `NOT NULL`, an **empty string satisfies the constraint** — so the strong
+schema guarantee on `decision_dialogues` does NOT structurally backstop the chat path; the API `.trim()` check is
+the real gate. Today that gate is sound because (a) `respond/route.ts` is the ONLY writer of `system_response`,
+(b) RLS scopes writes to active participants, and (c) the phase machine + immutability trigger constrain
+transitions. So there is no live way to land an empty-diagnosis decision. **Candidate hardening (founder-decidable,
+consistent with making §3.3 as structural as §3.2):** add a `check (length(trim(user_diagnosis)) > 0 and
+length(trim(user_proposal)) > 0)` on `decision_dialogues`, OR make the decide fn raise instead of coalescing when
+the source dialogue's user input is null/empty. Not applied — §3.3 is "non-negotiable product behavior" and the
+behavior IS enforced (API layer); the constitution does not *require* §3.3 to be schema-enforced the way §3.2
+explicitly is. Surfacing the layer difference so the founder can decide whether to promote it, not silently
+"fixing" a non-defect.
 
 ## Open flags (founder decisions — none are code defects I can close alone)
 
