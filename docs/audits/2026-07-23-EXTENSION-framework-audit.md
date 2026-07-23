@@ -46,8 +46,20 @@ draft reads in the wrong voice / "not reading the context properly" (it addresse
 - `formulate` — driven by the agent's explicit `intent`, not thread roles → **SOUND**.
 - `spawn` — labels the thread `"Customer conversation"` (accurate framing, not a mislabel) + task extraction is role-agnostic → **SOUND**; §3.4 control-gated, draft-only.
 
+**In-app Co-Pilot — inspected, SOUND, and it VALIDATES the fix (2026-07-23).** `co-pilot/route.ts:72-86` labels
+every turn from the DB `authorType` ("Customer" / "Agent (you, earlier)" / "AI (earlier auto-reply)" / "System"),
+so the in-app tool is structurally immune to the role inversion — it always knows who's who. It even ends with the
+SAME `"Draft the next reply."` phrasing (line 179) the old extension copilot used — proving the bug was never the
+prompt wording, it was the MISSING ROLE LABELS. The extension gets an unlabeled scanned blob instead; **Fix 2a
+reconstructs exactly what the in-app gets for free from the DB.** So the fix direction is confirmed against the
+working reference. §3.4 no-drift is accurate: the copilot prompts intentionally differ (documented in
+toolPrompts.ts — the in-app grounds on precedents + Coach grades the text-in extension can't see), but the
+load-bearing difference was input-labeling, now addressed.
+
 **Still NOT inspected (no clean bill claimed):**
-- The in-app equivalents of each tool (needed to fully verify the §3.4 "no drift" claim — I verified the extension side only).
+- The OTHER in-app tools (summarize/dissect/formulate/ask-coach) — the co-pilot confirms the in-app PATTERN
+  (structured DB input carries `authorType`), so they're structurally positioned to be role-labeled, but I read
+  only the co-pilot in full.
 - `/extension/connect` page, the icons, the download/prebuild script (build path was validated, page content not read).
 
 ---
