@@ -83,6 +83,10 @@ export async function requireCareAgent(): Promise<CareAgentAuthResult> {
   const { isAdmin, isAgent } = deriveCareAccess({
     role: (profile?.role as string | null) ?? null,
     isSupportAgent: profile?.is_support_agent as boolean | null | undefined,
+    // INVARIANT DEPENDENCY (2026-07-23 audit): this denylist ('removed' → block) is safe ONLY because
+    // profiles.status is CHECK-constrained to exactly ('active','removed') in migration 0008. If a status is
+    // ever added (e.g. 'suspended'), this AND the extension gate (extensionAuth.ts) both silently FAIL OPEN.
+    // Then flip both to an allowlist (status === 'active'). Kept as a denylist here to match the extension gate.
     isRemoved: (profile?.status as string | null) === "removed",
   });
   if (!isAgent) {

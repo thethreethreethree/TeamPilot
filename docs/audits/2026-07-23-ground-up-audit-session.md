@@ -129,6 +129,36 @@ tenant AI-reply allowance) is founder's.
 root cause; a single `countTenantAiRepliesInWindow`-style backstop wired into both the `messages` POST and the
 inbound-email responder closes the class. Numbers per plan are the only founder input needed.
 
+## ✅ Extension tool routes + auth gate — EARNED clean, fail-closed (the launch product) (2026-07-23)
+
+Audited the 4 extension tool routes (`copilot`/`formulate`/`coach`/`spawn`) — the actual launch product,
+external-facing + LLM-backed — and their shared guard. All sound and fail-closed:
+
+- **Shared guard `guardExtensionRequest`** (`src/lib/api/extensionGuard.ts`): correct order (route tests assert
+  it) — (1) coarse per-IP pre-auth flood guard 60/min (the exact layer the widget `messages` route LACKS),
+  (2) Bearer + entitlement, (3) per-USER rate limit (copilot/formulate 20, coach 30, spawn 12), (4) schema.
+  Every step returns the rejection response; fail-closed throughout.
+- **`requireEntitledExtensionUser` / `requireExtensionAuth`** (`extensionAuth.ts`): Bearer token validated
+  server-side (`admin.auth.getUser(token)`); missing/invalid/expired → 401; removed user → 403; no company → 403;
+  even an unchecked profile-query DB error yields `profile=null` → `companyId=null` → 403 (downstream null-check
+  catches it); `locked` entitlement → 402. Server is the source of truth (never trusts client-claimed plan).
+- **Threat model is tight**: only authenticated, entitled, PAYING users can call these — so the per-tenant-cap
+  concern (the cost-metering class above) is here "insider abuse of own paid tenant," appropriately covered by the
+  per-user rate limit, NOT the external wallet-DoS the public widget faces.
+- **§3.4 correctly applied**: `spawn` routes through the control window (reaches internal work); coach/copilot/
+  formulate don't (external conversation).
+
+**Forward-looking fragility (NOT a current defect — a documented invariant-dependency):** the status check is a
+DENYLIST (`status === 'removed'` → block), which is safe ONLY because `profiles.status` is CHECK-constrained to
+exactly `('active','removed')` (migration `0008`). It is currently equivalent to an allowlist. BUT if a future
+migration ever adds a third status (e.g. `suspended`, `pending`), BOTH this gate AND `requireCareAgent` would
+SILENTLY become fail-open — a suspended user is `!== 'removed'` and would pass. The safety invariant (2-valued
+enum) is not co-located with the two gates that depend on it. **Recommendation (flag, not unilaterally applied —
+it changes auth semantics across two broadly-used gates):** when/if a status is ever added, flip both gates to an
+ALLOWLIST (`status === 'active'`) so a new status defaults to no-access (fail-closed). Recording it now so a
+future status-adding migration doesn't open both gates unnoticed. Also worth a co-located comment on the `0008`
+CHECK constraint pointing at the two gates.
+
 ## ✅ Widget file upload/download — audited, EARNED clean (2026-07-23)
 
 Traced the specific attack vectors on the public widget's file path (not assumed clean — §1.7.3):

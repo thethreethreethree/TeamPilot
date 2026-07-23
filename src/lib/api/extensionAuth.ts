@@ -50,6 +50,12 @@ export async function requireExtensionAuth(req: NextRequest): Promise<
 
   // Audit A2 (2026-07-22): match the app's own requireCareAgent — a REMOVED/deactivated user must not
   // reach a paid feature even with a lingering company_id. Fail closed.
+  //
+  // INVARIANT DEPENDENCY (2026-07-23 audit): this denylist ('removed' → block) is safe ONLY because
+  // profiles.status is CHECK-constrained to exactly ('active','removed') in migration 0008 — so blocking
+  // 'removed' is equivalent to allowlisting 'active'. If a status is EVER added to that CHECK (e.g.
+  // 'suspended'), this gate AND requireCareAgent both silently FAIL OPEN (a suspended user is !== 'removed').
+  // In that case flip BOTH to an allowlist (status === 'active') so a new status defaults to no-access.
   if ((profile?.status as string | null) === "removed") {
     return unauth("This account has been deactivated.", 403);
   }
