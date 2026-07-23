@@ -35,6 +35,29 @@ describe("detectAutomatedSender — fires on automated signals", () => {
     ).toBe("list-unsubscribe");
   });
 
+  it("Exchange/Outlook X-Auto-Response-Suppress marker (any value)", () => {
+    for (const v of ["All", "OOF", "AutoReply", "DR, RN, NRN, OOF, AutoReply"]) {
+      const r = detectAutomatedSender([{ Name: "X-Auto-Response-Suppress", Value: v }], "x@y.com");
+      expect(r.automated, v).toBe(true);
+      expect(r.reason).toBe("x-auto-response-suppress");
+    }
+  });
+
+  it("out-of-office SUBJECT prefix (the dominant real-world OOO, often header-less)", () => {
+    for (const s of [
+      "Automatic reply: Re: your inquiry",
+      "Auto-Reply: I'm away",
+      "AutoReply: out until Monday",
+      "Out of Office AutoReply: back next week",
+      "Out of Office: on leave",
+      "  automatic reply: (leading space, case-insensitive)",
+    ]) {
+      const r = detectAutomatedSender([], "jane@customer.com", s);
+      expect(r.automated, s).toBe(true);
+      expect(r.reason).toBe("ooo-subject");
+    }
+  });
+
   it("non-monitored From mailboxes (daemon / no-reply / bounce)", () => {
     for (const from of [
       "mailer-daemon@host.com",
@@ -81,5 +104,17 @@ describe("detectAutomatedSender — NEVER silences a human (the load-bearing hal
     expect(detectAutomatedSender([{ Name: "Precedence", Value: "first-class" }], "x@customer.com").automated).toBe(
       false
     );
+  });
+
+  it("a normal subject is NOT flagged as OOO (the prefix regex is anchored at the start)", () => {
+    for (const s of [
+      "Question about my order",
+      "Re: refund status",
+      "I need to reply to your automatic system", // contains 'automatic' but not as a prefix
+      "Where is my out of office parcel?", // contains 'out of office' mid-subject, not a prefix
+      undefined, // no subject at all
+    ]) {
+      expect(detectAutomatedSender([], "jane@customer.com", s).automated, String(s)).toBe(false);
+    }
   });
 });

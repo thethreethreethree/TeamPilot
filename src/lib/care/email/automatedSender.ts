@@ -65,9 +65,15 @@ function fromLocalPart(from: string): string | null {
   return addr.slice(0, at);
 }
 
+// Outlook/Exchange out-of-office subjects. Anchored at the start — a human's subject does not begin
+// with these. This is the single most common business auto-reply and it does NOT reliably set
+// Auto-Submitted, so without a subject check the detector would miss the majority of real OOO mail.
+const OOO_SUBJECT_RE = /^\s*(automatic reply|auto-?reply|out of office autoreply|out of office reply|out of office:)/i;
+
 export function detectAutomatedSender(
   headers: EmailHeader[] | undefined,
-  from: string
+  from: string,
+  subject?: string
 ): AutomatedSenderVerdict {
   const hs = headers ?? [];
 
@@ -77,13 +83,20 @@ export function detectAutomatedSender(
     return { automated: true, reason: `auto-submitted:${autoSubmitted.toLowerCase()}` };
   }
 
-  // 2. Bulk / list / junk mail via Precedence.
+  // 2. Exchange/Outlook auto-reply marker. Its PRESENCE (any value — "All", "OOF", …) means the
+  //    sender's system flagged this as mail we should not auto-respond to; humans never set it.
+  //    Catches the common Exchange OOO that omits Auto-Submitted.
+  if (headerValue(hs, "X-Auto-Response-Suppress") !== null) {
+    return { automated: true, reason: "x-auto-response-suppress" };
+  }
+
+  // 3. Bulk / list / junk mail via Precedence.
   const precedence = headerValue(hs, "Precedence");
   if (precedence && ["bulk", "list", "junk"].includes(precedence.toLowerCase())) {
     return { automated: true, reason: `precedence:${precedence.toLowerCase()}` };
   }
 
-  // 3. Mailing-list markers — a 1:1 human email carries neither.
+  // 4. Mailing-list markers — a 1:1 human email carries neither.
   if (headerValue(hs, "List-Id") !== null) {
     return { automated: true, reason: "list-id" };
   }
@@ -91,7 +104,13 @@ export function detectAutomatedSender(
     return { automated: true, reason: "list-unsubscribe" };
   }
 
-  // 4. Non-monitored From mailbox (mailer-daemon@, no-reply@, …).
+  // 5. Out-of-office SUBJECT prefix (Outlook/Exchange "Automatic reply: …"). The dominant real-world
+  //    OOO signal, and the one most likely to arrive without any of the headers above.
+  if (subject && OOO_SUBJECT_RE.test(subject)) {
+    return { automated: true, reason: "ooo-subject" };
+  }
+
+  // 6. Non-monitored From mailbox (mailer-daemon@, no-reply@, …).
   const local = fromLocalPart(from);
   if (local && NO_REPLY_LOCALPARTS.has(local)) {
     return { automated: true, reason: `no-reply-sender:${local}` };

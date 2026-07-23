@@ -107,6 +107,17 @@ describe("runAiFirstResponder — short-circuit guard chain (no LLM before a gat
     expect(eventOfType("ai_suppressed_automated")!.metadata.reason).toBe("no-reply-sender:mailer-daemon");
   });
 
+  it("Outlook OOO subject (no automated headers) → suppressed via the subject wiring, no LLM", async () => {
+    await runAiFirstResponder({
+      ...base,
+      customerMessage: "Automatic reply body text.",
+      headers: [],
+      subject: "Automatic reply: Re: your support request",
+    });
+    expect(generateCareReply).not.toHaveBeenCalled();
+    expect(eventOfType("ai_suppressed_automated")!.metadata.reason).toBe("ooo-subject");
+  });
+
   it("loop breaker: >=5 AI replies in the window → suppressed + ai_suppressed_loop, no LLM", async () => {
     recentAiReplyCount = 5; // AI_LOOP_BREAKER_MAX
     await runAiFirstResponder({ ...base, customerMessage: "Thanks, received your note." });

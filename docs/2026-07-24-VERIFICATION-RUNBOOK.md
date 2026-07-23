@@ -62,9 +62,11 @@ out-of-office auto-responder on, or from a `no-reply@`/`mailer-daemon@` mailbox.
   lands in the agent inbox, and the thread shows an `ai_suppressed_automated` event with the reason.
 - **Why:** an AI reply to an out-of-office responder can ping-pong machine-to-machine. The count-based loop
   breaker already caps that at ~5 hops; this stops it at hop 0. It's **conservative** — only well-established
-  automated signals trip it (`Auto-Submitted`, `Precedence: bulk/list`, `List-Id`/`List-Unsubscribe`,
-  no-reply/daemon senders), so a normal human email is never silenced. **Veto:** say the word to disable it
-  and rely on the loop breaker alone.
+  automated signals trip it (`Auto-Submitted`, **`X-Auto-Response-Suppress`** + an **"Automatic reply:"
+  subject** — the common Outlook/Exchange OOO, which often omits `Auto-Submitted`; `Precedence: bulk/list`,
+  `List-Id`/`List-Unsubscribe`, no-reply/daemon senders), so a normal human email is never silenced (the
+  subject match is anchored at the start, so "Where is my out-of-office parcel?" is not flagged). **Veto:**
+  say the word to disable it and rely on the loop breaker alone.
 
 > ⚠️ **One posture decision (E2):** once Postmark is set, the AI **auto-emails** inbound-email customers.
 > That's what an AI first-responder does and matches the widget (the loop breaker confirms it was the

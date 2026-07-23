@@ -406,6 +406,7 @@ export async function POST(req: NextRequest) {
       customerMessageId: insertedMsg.id,
       headers: body.Headers ?? [],
       from: body.From,
+      subject: body.Subject,
     })
   );
 
@@ -458,9 +459,10 @@ export async function runAiFirstResponder(args: {
   customerMessage: string;
   /** The just-inserted customer message — excluded from history (it goes in as newMessage). */
   customerMessageId: string;
-  /** Raw inbound headers + From — read to suppress AI replies to automated senders (RFC 3834). */
+  /** Raw inbound headers + From + Subject — read to suppress AI replies to automated senders (RFC 3834). */
   headers: { Name: string; Value: string }[];
   from: string;
+  subject?: string;
 }): Promise<void> {
   const admin = createAdminClient();
   try {
@@ -496,7 +498,7 @@ export async function runAiFirstResponder(args: {
     // near-zero false positive. Deliberately does NOT flip ai_responding — a single OOO/bounce on a
     // thread must not disable the AI for a human who replies next; each automated inbound is skipped
     // on its own merit (§A16 composes with the loop breaker; §3.4 — don't burn spend on a machine).
-    const autoSender = detectAutomatedSender(args.headers, args.from);
+    const autoSender = detectAutomatedSender(args.headers, args.from, args.subject);
     if (autoSender.automated) {
       console.warn(
         `[care] email AI suppressed — automated sender (${autoSender.reason}) conv=${args.conversationId}`
