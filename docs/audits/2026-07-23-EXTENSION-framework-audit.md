@@ -139,9 +139,11 @@ is durable account takeover, and the handoff is silent (no confirmation gate). R
 extension must specifically target this protocol; raised by: the refresh token is long-lived and it's zero-click
 once the URL is opened.
 
-**Fix (NOT built — has a UX/timing tradeoff that is the founder's call):**
-- **Preferred (Web Store):** once the extension has a fixed Web Store id, gate `ext` against an allowlist
-  (`NEXT_PUBLIC_CARE_EXTENSION_ID` env) — only hand tokens to the official id. Clean, zero UX change.
+**Fix — part (a) BUILT `a5f9abf3` (env-gated, dev unchanged); part (b) is the founder's UX call:**
+- **✅ BUILT — Preferred (Web Store):** the connect page now gates `ext` against `NEXT_PUBLIC_CARE_EXTENSION_ID`
+  — when set (to the Web Store id in prod), it only hands tokens to the official id; a lure to a malicious id is
+  refused. When UNSET (unpacked dev), behavior is unchanged + it logs the missing pin. Zero UX change. **Operator
+  must set the env in production** (added to OPERATOR-CONFIG-CHECKLIST). This closes the vector for prod once set.
 - **Interim (works now, unpacked dev has dynamic ids):** require an explicit user confirmation before the handoff
   ("An extension (id: …) is asking to sign in as you — Connect?"). Costs one click, defeats the silent lure.
 - Do NOT unilaterally change the one-click connect UX — the security-vs-friction + Web-Store-timing tradeoff is
