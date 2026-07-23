@@ -17,6 +17,7 @@ Every surface below was checked by reading the enforcing code this session (not 
 | Thesis-core §3.4 / §3.5 | ✅ sound + test-covered | — |
 | Finance ledger balance + calcs | ✅ sound (SQL-vs-mirror) | — |
 | Finance **routes** authz | ✅ sound + **CI-enforced** (invariant 2: no service-role in finance routes) | — |
+| **Admin / CRM routes authz** | ✅ sound — CRM (cross-tenant) = `requireVendorAdmin`; readout/team-check/storage-sweep (own-tenant) = company-admin + explicit `company_id` scope. Prior-CRITICAL CRM area fixed; storage-sweep RLS-bypass is company-scoped (verified). | — |
 | Finance FX per-line rounding | 🟡 **real bug, latent** (no multi-currency UI) | accounting decision (fix menu in FX doc) |
 | RLS / tenant isolation | ✅ green (`rls:audit`) | — |
 | Public widget (origin, rate, bootstrap, file up/down) | ✅ sound; IDOR + traversal closed; fields whitelisted | — |
