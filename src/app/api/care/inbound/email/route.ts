@@ -447,7 +447,11 @@ const AI_SENDER_MAX = 12; // ≥12 AI replies to one sender in the window = floo
  * the customer doesn't see an auto-reply, but an agent picks
  * up the conversation from the inbox same as a widget message.
  */
-async function runAiFirstResponder(args: {
+// Exported for the route-integration test that locks the automated-sender suppression wiring
+// (the pure detector is tested separately; this pins that the route actually SHORT-CIRCUITS the
+// LLM for an automated sender and records the event — a regression that reordered/removed the
+// guard would otherwise pass silently, since the rest of the AI-decision path has no route test).
+export async function runAiFirstResponder(args: {
   conversationId: string;
   companyId: string;
   customerId: string | null;
