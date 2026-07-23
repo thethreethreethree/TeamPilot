@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { FORMULATE_SYSTEM } from "@/lib/care/toolPrompts";
@@ -36,9 +37,28 @@ export async function POST(req: NextRequest) {
 
   const productContext = await getProductContextForTenant(user.companyId);
 
+  // Agent identity anchor (A26 sweep of the Spawn/Co-Pilot role-attribution class, 2026-07-24).
+  // FORMULATE_SYSTEM's WHO-IS-WHO rule expects the caller to name the agent, but the route never
+  // did — so the scanned thread's roles were left to the model to guess. Supply the name.
+  let agentName = "the support agent";
+  try {
+    const admin = createAdminClient();
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.userId)
+      .maybeSingle();
+    if (typeof prof?.full_name === "string" && prof.full_name.trim())
+      agentName = prof.full_name.trim();
+  } catch {
+    /* best-effort; the WHO-IS-WHO rule still applies with the generic label */
+  }
+
   try {
     const r = await generateCareReply({
       systemPrompt: `${FORMULATE_SYSTEM}
+
+You are shaping the reply AS: ${agentName}. In the conversation, messages from ${agentName} are the agent's own words — continue ${agentName}'s side, and never address the reply to ${agentName}.
 
 Product context the customer is reaching out about:
 ${productContext}`,
