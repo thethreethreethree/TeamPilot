@@ -49,6 +49,7 @@ the code path this session; "inferred" = from the var name + where it's read (co
 |---|---|---|
 | `CARE_DEFAULT_TENANT_ID` | Overrides the vendor/home company (else `ELOSTATE_COMPANY_ID`) | verified — `vendorAuth`, `care/config`. Keeps vendor-admin + "our own company" consistent. |
 | `NEXT_PUBLIC_SITE_URL` | Absolute URLs (emails, links) | inferred. |
+| `NEXT_PUBLIC_CARE_EXTENSION_ID` | Pins the extension token hand-off (`/extension/connect`) to the OFFICIAL extension id | verified 2026-07-23. **SECURITY:** set to the Web Store extension id in production. Until set, the connect page hands the session+refresh token to whatever `?ext=` id is in the URL (token-theft vector — see the extension audit doc's connect-page finding). Unset is only acceptable for unpacked local dev. |
 | `EXECOS_ALLOW_SEED` / `EXECOS_INTEGRATION_TEST` | Dev/test flags | verified — gate seed + the live-DB integration tests. Leave unset in prod. |
 
 ## Fastest activation for launch
