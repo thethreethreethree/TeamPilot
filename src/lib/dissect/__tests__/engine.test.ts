@@ -2,10 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   parseConversationDissect,
   askCoachSystemPrompt,
+  dissectSystemPrompt,
   userHasSharedThinking,
   buildCoachUserMessage,
   EMPTY_DISSECT,
 } from "../engine";
+
+describe("dissectSystemPrompt — agent anchor (A26 role-attribution sweep 2026-07-24)", () => {
+  it("appends a WHO-IS-WHO anchor naming the agent when provided", () => {
+    const out = dissectSystemPrompt("John Ramos");
+    expect(out).toContain("WHO IS WHO");
+    expect(out).toContain("John Ramos");
+    expect(out).toMatch(/John Ramos[^]*support agent/i);
+  });
+
+  it("returns the base prompt unchanged when no agent is given (in-app labeled context)", () => {
+    expect(dissectSystemPrompt()).not.toContain("WHO IS WHO");
+  });
+});
 
 const SOURCE = `Alex: The deploy keeps failing at the migration step.
 Sam: Did you check the DB creds? Last time it was a stale password.

@@ -241,6 +241,16 @@ export function parseConversationDissect(
  * failure/sparse input (§3.4 honest degradation). companyId is passed for the
  * LLM cost/routing context only.
  */
+/**
+ * DISSECT_SYSTEM, plus a WHO-IS-WHO anchor when the agent is known (A26 role-attribution sweep).
+ * Pure + exported so the anchor is unit-tested directly (the engine itself calls the LLM).
+ */
+export function dissectSystemPrompt(agentName?: string): string {
+  return agentName
+    ? `${DISSECT_SYSTEM}\n\nWHO IS WHO: in the pasted conversation, ${agentName} is the support agent; the other participant is the customer. Attribute who raised each concern on that basis — do not mistake ${agentName}'s own words for the customer's.`
+    : DISSECT_SYSTEM;
+}
+
 export async function generateConversationDissect(args: {
   companyId?: string;
   sourceText: string;
@@ -256,12 +266,9 @@ export async function generateConversationDissect(args: {
   // Guard: too little to diagnose. Honest empty, not a fabricated problem.
   if (source.length < 40) return EMPTY_DISSECT;
   try {
-    const systemPrompt = args.agentName
-      ? `${DISSECT_SYSTEM}\n\nWHO IS WHO: in the pasted conversation, ${args.agentName} is the support agent; the other participant is the customer. Attribute who raised each concern on that basis — do not mistake ${args.agentName}'s own words for the customer's.`
-      : DISSECT_SYSTEM;
     const r = await dissectCoachV5({
       companyId: args.companyId,
-      systemPrompt,
+      systemPrompt: dissectSystemPrompt(args.agentName),
       userMessage: source.slice(0, MAX_SOURCE_CHARS),
     });
     return parseConversationDissect(r.text, source);
