@@ -13,6 +13,12 @@ vi.mock("@/lib/api/validate", () => ({ readBody: vi.fn(async () => ({ conversati
 vi.mock("@/lib/api/extensionAuth", () => ({ requireEntitledExtensionUser: vi.fn() }));
 vi.mock("@/lib/care/config", () => ({ getProductContextForTenant: vi.fn(async () => "PRODUCT CONTEXT") }));
 vi.mock("@/lib/claude", () => ({ generateCareReply: vi.fn() }));
+// Agent-name lookup falls back to the generic label (deterministic + no network in test).
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn(() => {
+    throw new Error("no db in test");
+  }),
+}));
 
 import { POST } from "@/app/api/care/extension/summarize/route";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -56,6 +62,16 @@ describe("POST /api/care/extension/summarize — gate ordering", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).summary).toBe("A crisp summary.");
     expect(generateCareReply).toHaveBeenCalledOnce();
+  });
+
+  it("passes a WHO-IS-WHO agent anchor to the model (role-attribution fix, founder 2026-07-24)", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(generateCareReply).mockResolvedValue({ text: "summary" } as never);
+    await POST(req);
+    const arg = vi.mocked(generateCareReply).mock.calls[0]![0] as { systemPrompt: string };
+    // A summary that swaps who-said-what is wrong; the anchor must tell the model which side is the agent.
+    expect(arg.systemPrompt).toContain("WHO IS WHO");
+    expect(arg.systemPrompt).toContain("do not swap the roles");
   });
 
   it("engine failure → 502 (handled, not a crash)", async () => {

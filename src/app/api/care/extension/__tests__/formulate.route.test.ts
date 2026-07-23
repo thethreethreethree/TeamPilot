@@ -14,6 +14,12 @@ vi.mock("@/lib/api/validate", () => ({
 vi.mock("@/lib/api/extensionAuth", () => ({ requireEntitledExtensionUser: vi.fn() }));
 vi.mock("@/lib/care/config", () => ({ getProductContextForTenant: vi.fn(async () => "PRODUCT CONTEXT") }));
 vi.mock("@/lib/claude", () => ({ generateCareReply: vi.fn() }));
+// Agent-name lookup falls back to the generic label (deterministic + no network in test).
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn(() => {
+    throw new Error("no db in test");
+  }),
+}));
 
 import { POST } from "@/app/api/care/extension/formulate/route";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -47,6 +53,18 @@ describe("POST /api/care/extension/formulate", () => {
     const body = await (await POST(req)).json();
     expect(body.reply).toBe("Good news — your refund is approved.");
     expect(body.reasoning).toBe("Led with the outcome.");
+  });
+
+  it("passes an agent-identity anchor to the model (role-attribution fix, founder 2026-07-24)", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(generateCareReply).mockResolvedValue({
+      text: JSON.stringify({ reply: "ok", reasoning: "x" }),
+    } as never);
+    await POST(req);
+    const arg = vi.mocked(generateCareReply).mock.calls[0]![0] as { systemPrompt: string };
+    // The system prompt must anchor WHO the agent is so the model doesn't misattribute sender/receiver.
+    expect(arg.systemPrompt).toContain("shaping the reply AS");
+    expect(arg.systemPrompt).toContain("agent's own words");
   });
 
   it("non-JSON output degrades to raw text as the reply (does not error the agent out)", async () => {
