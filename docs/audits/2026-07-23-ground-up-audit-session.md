@@ -304,6 +304,33 @@ threshold-exists path. So the tests target today's schema — the CI job would m
 provide real coverage, not demand a test-repair pass first. (Caveat: this is a STATIC schema check; runtime
 details — REST auth setup, the persistent test-company assumptions — can only be confirmed by an actual run.)
 
+## 🔵 PRODUCT (§1.5.1 layer-3) — decision→action bridge: a design question, not a defect (2026-07-23)
+
+Exercised the AMD-006 four-layer PRODUCT lens (distinct from the security audit) on the in-thread Decision
+Dialogue completion — specifically layer 3 (workflow continuity), the class of the CLAUDE.md-cited
+"Close-without-auto-advance" incident. **Verdict: the completion UX is SOUND at layer 3 — NOT a dead-end.** After
+`decide`, `FoldedDecided` renders a receipt ("Decision Dialogue closed · {chosen path}" + note snippet + green
+check), offers admin-only "New dialogue" (re-decide when the situation materially changes — honestly append-only,
+not an edit) and a dismiss affordance that guarantees "the decision stays on the §3.1 chain." The user is left
+flowing (decision visible, next actions obvious), and the reasoning stays lightly visible so the team doesn't
+silently re-decide. Good layer-3 design.
+
+**The one genuine layer-3 observation (a design QUESTION for the founder, NOT a defect, NOT built):** the dialogue
+records WHAT was decided (`chosen_path`, `chosen_note`) but there is **no decision→action bridge**. When the team
+picks `chosen_path='system'` — whose `system_response.suggestion.action` is a concrete next step — nothing creates
+a task, and `FoldedDecided` offers no "turn this into a task / track it" affordance; the only forward actions are
+re-decide or dismiss. So the team must manually re-key the decided action into whatever task flow they use,
+carrying it in their heads across surfaces — a small continuity seam (not a break: the decision is persisted and
+the chat continues).
+
+**Why it's a QUESTION, not a fix I should build (§1.5.2 propose + §2 don't-overtake + §3.3 guide-don't-overtake):**
+auto-creating a task from a decision could OVERTAKE — not every decision wants a task (`defer` explicitly means
+"understanding not yet earned"; a decision can be "we will NOT do X"). The right shape is likely an OPTIONAL,
+user-initiated "Create task from this decision" button on the `{user, system, hybrid}` paths (prefilled from
+`chosen_note` / the chosen action, editable — the user stays the author), never an automatic write. That respects
+guide-don't-overtake while closing the seam. Founder call on whether the seam is worth a surface; I build the
+optional affordance on request.
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
