@@ -22,6 +22,11 @@ WRITE side is missing.
 > `npm run db:apply` (see FOUNDER-ACTION-QUEUE item 4) BEFORE I build the trial-start write, or the write hits a
 > missing-column error. The read side already degrades gracefully if the column is absent (migration-coupling
 > fallback), but the WRITE needs the real column.
+>
+> **✅ 0189 verified sound + zero-risk to apply (2026-07-23):** it is ADDITIVE-ONLY — a single nullable
+> `timestamptz` column with `add column if not exists` (idempotent, re-runnable), changing NO existing column,
+> read, write, policy, or trigger. No data migration, no backfill, no outage window. Applying it is a clean,
+> low-risk step; the only thing it does is enable the trial the write-path will start.
 
 ---
 
