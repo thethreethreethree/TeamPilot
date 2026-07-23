@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { SUMMARIZE_SYSTEM } from "@/lib/care/toolPrompts";
@@ -42,9 +43,28 @@ export async function POST(req: NextRequest) {
 
   const productContext = await getProductContextForTenant(user.companyId);
 
+  // Agent identity anchor (A26 sweep of the role-attribution class, 2026-07-24). A summary that swaps
+  // who-said-what is wrong, and the scanned thread has no per-message role labels — so tell the model
+  // which side is the agent. Best-effort; the anchor is a no-op with the generic label.
+  let agentName = "the support agent";
+  try {
+    const admin = createAdminClient();
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.userId)
+      .maybeSingle();
+    if (typeof prof?.full_name === "string" && prof.full_name.trim())
+      agentName = prof.full_name.trim();
+  } catch {
+    /* best-effort */
+  }
+
   try {
     const r = await generateCareReply({
-      systemPrompt: SUMMARIZE_SYSTEM,
+      systemPrompt: `${SUMMARIZE_SYSTEM}
+
+WHO IS WHO: the C.A.R.E user (the support agent) is ${agentName}. In the conversation, messages from ${agentName} are the agent's side; the other participant is the customer. Attribute who said what on that basis — do not swap the roles.`,
       userMessage: `Product context the agent is grounded in:\n${productContext}\n\nConversation:\n${body.conversation}\n\nWrite the summary.`,
     });
     return NextResponse.json({ summary: r.text.trim() });
