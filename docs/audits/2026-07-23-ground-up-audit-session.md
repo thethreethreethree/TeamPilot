@@ -84,6 +84,18 @@ enterprise), (b) likely a migration to store the limit, (c) live-DB verification
 in one pass once the numbers are set — flagged rather than built because inventing the cap numbers would be
 manufacturing a product/pricing decision (§2 surface-don't-overtake, §3.5-adjacent).
 
+**Why this is the weak endpoint (the sweep that sharpened it):** the neighboring cost-sensitive C.A.R.E routes
+are BETTER bounded — `demo/ask` (fully public, no token) uses a **dual-window** rate limit (8/min AND 40/10min)
+plus input bounds (msg ≤1000, history ≤12×2000, stateless); `stt` 8/min + session-token; `tts` 30/min +
+session-token + input ≤2000. The team already reasoned "public + unauthenticated → hard rate-limit" for the demo.
+So the codebase ALREADY contains the mitigation pattern (a dual per-min + per-10min window); the per-tenant
+`messages` route — the one actually tied to a tenant's bill — is the only cost endpoint that uses a single 30/min
+window and no sustained/monthly cap. **Low-cost INTERIM (no migration, no pricing decision — just one chosen
+sustained number):** add a second longer-window `rateLimit` on `messages` POST matching the `demo/ask` pattern
+(e.g. a per-10min cap), which tightens sustained abuse immediately while the proper per-plan monthly quota is
+decided. Still a small judgment call on the number (a rapid voice exchange could legitimately be chatty), so
+proposed, not unilaterally applied — say the sustained cap and I wire it in minutes.
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
