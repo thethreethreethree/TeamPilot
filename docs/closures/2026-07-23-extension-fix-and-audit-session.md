@@ -86,6 +86,27 @@ Followed the §3.4-honesty thread on the customer-facing widget/email surface �
   mirror the widget (detect handoff on the AI reply, strip, skip-empty, flip ai_responding). Found via §1.2
   class-check of the widget fix. `9dd45bf3`.
 
+## 3d. 2026-07-24 continuation — branch / dependency / compliance / class-check sweep
+
+After the customer-facing work, a broad new-angle sweep (branches, dependencies, compliance, infra, class-checks)
+surfaced several genuine finds and confirmed broad soundness. All in `docs/FOUNDER-ACTION-QUEUE.md`:
+- **Branches (found 2):** `integration/no-migration-deploy` (superset bundle, ~19 commits) is the PARKED FIX for the
+  recurring "Vercel builds failing" issue — Node version-pin (confirmed drift CI=20/local=24), build-stamp, deploy
+  runbook; rebase-then-merge (§ 5a2). And `refactor/shared-speaker-label` has a BUG — it relabels review/liveCue
+  REP↔AGENT (caught by this session's new diarization tests); don't merge as-is (§ 5). Other 3 ready branches clean.
+- **Dependencies:** 5 HIGH npm vulns (3 Next.js SSRF/DoS/endpoint-disclosure + 2 postcss), but reachability-verified
+  LOW (paths unused here) → `npm audit fix` for hygiene, not urgent (§ 2b).
+- **Compliance (EU/CA, not US-blocking):** privacy page names no LLM sub-processor (ties to DeepSeek posture, § 2);
+  no GDPR/CCPA erasure mechanism (§3.1 append-only → anonymize-not-delete, offered `anonymizeCustomer()`, § 2c).
+- **Finance class-check:** the calendar-fiscal-year assumption is SYSTEMIC — budget-variance + YEAR-END-CLOSE +
+  variance-alerts (§ 6a3). Latent (only calendar FY supported today).
+- **Confirmed SOUND** (honestly graded clean): 9+ security classes (widget-embed origin wired+tested, IDOR, auth,
+  webhook, XSS, SSRF, CSRF, confused-deputy, secret-compare), CI config, middleware auth, security headers (HSTS/CSP
+  optional, § 8e), rate-limiter logic, N+1 (batched), technical-debt (zero @ts-ignore/FIXME), skipped-tests, A34
+  migration-coupling (structurally enforced), enum-consistency (bounded), widget a11y (excellent), no user-tracking.
+- New tests added: score/review/liveCue diarization builders, isProblemOpen, isWithinEditWindow, copilotMode.
+- New IP asset: **TT.md A39** (multi-party-text attribution at the source), class-checked closed codebase-wide.
+
 ## 4. How to resume
 
 The extension is shippable the moment the entitlement write-path exists. That's item 1 — a one-word `A1 + B1`
