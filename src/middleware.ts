@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseEnabled } from "@/lib/supabase/config";
+import { decideAuthRedirect } from "@/lib/auth/routeGuard";
 
 /**
  * Refreshes the Supabase session on every request and guards routes:
@@ -35,29 +36,15 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
-  const isProtected =
-    path.startsWith("/dashboard") || path.startsWith("/onboarding");
-
-  if (!user && isProtected) {
-    // Sales Coach deep-links bounce to the BRANDED login, not the
-    // Elostate one, so the product keeps its own entry.
-    const dest = path.startsWith("/dashboard/sales-coach")
-      ? "/sales-coach/login"
-      : "/login";
+  // Route-protection decision extracted to a pure, unit-tested function
+  // (src/lib/auth/routeGuard.ts) so its security invariants can't silently
+  // regress — including through the pending middleware→proxy migration (8f).
+  const dest = decideAuthRedirect({
+    hasUser: !!user,
+    path: request.nextUrl.pathname,
+  });
+  if (dest) {
     return NextResponse.redirect(new URL(dest, request.url));
-  }
-
-  if (user && path === "/login") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
-  // Authenticated users shouldn't see the branded login form — send them
-  // into the Sales Coach shell.
-  if (user && path === "/sales-coach/login") {
-    return NextResponse.redirect(
-      new URL("/dashboard/sales-coach", request.url)
-    );
   }
 
   return response;
