@@ -414,6 +414,21 @@ and (
 I'll write the migration (0191) + a mirror test on your nod — it's a clean create-or-replace of the view; the only
 reason I'm surfacing rather than shipping is that it alters reported finance figures and needs a live-DB verify.
 
+## 🟢 LOW — conversation CLAIM is unguarded (silent-overwrite race) + intent question (found 2026-07-23)
+
+`claimConversation` (`src/lib/data/care.ts:701`) sets `assigned_agent_id = me` UNCONDITIONALLY — `.eq("id", id)`
+with no `.is("assigned_agent_id", null)` guard. Two agents claiming the same conversation within the same tiny
+window both see success (both updates commit; last-writer-wins), so the first claimer is SILENTLY OVERWRITTEN —
+their UI says "claimed" but the row is assigned to the second. Inconsistent with the sibling ASSIGN action
+(`[id]/route.ts:116`) which DOES guard on `isUnclaimed`.
+
+**Severity LOW** — rare (needs two agents on the same conversation ~simultaneously); consequence is minor
+confusion, not data loss/security. **Design-intent question (founder's call):** is CLAIM a *guarded grab*
+(then fix: add `.is("assigned_agent_id", null)` to the update + treat a 0-row result as "already claimed by
+another agent — refresh" so the loser is told honestly) or an intentional *take-over from anyone* (then it's
+working as designed; only make the first claimer's success honest)? A clear mechanical fix exists for the
+guarded-grab interpretation; NOT built because it changes CLAIM's semantics = your decision.
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
