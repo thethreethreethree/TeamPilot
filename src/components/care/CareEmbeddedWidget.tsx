@@ -126,6 +126,22 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     setVisitorId(v);
   }, [embedToken]);
 
+  // Audit A4 (2026-07-24): the host script (public/care-widget.js) posts the current host page
+  // (on load + SPA navigation), which is more accurate than document.referrer (load-time only).
+  // Held in a ref so updates don't reset the heartbeat interval. Only accepted from our parent.
+  const hostPageRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== window.parent) return;
+      const d = e.data;
+      if (!d || d.type !== "care:host:page" || typeof d.url !== "string") return;
+      hostPageRef.current = d.url.slice(0, 512);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   // Heartbeat while the widget is mounted so the tenant's Live Monitor
   // sees this visitor + the host page they're on. Best-effort: a failed
   // beat never touches the chat. The iframe can only learn the host page
@@ -142,7 +158,8 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
         body: JSON.stringify({
           token: embedToken,
           visitorId,
-          page: document.referrer || null,
+          // Prefer the host-reported page (accurate on SPA nav); fall back to referrer.
+          page: hostPageRef.current || document.referrer || null,
           conversationId: session?.conversationId ?? null,
         }),
         keepalive: true,

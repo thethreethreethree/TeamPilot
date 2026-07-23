@@ -114,7 +114,7 @@
     <tr><td>A3</td><td><span class="sev-low">LOW</span></td><td>Monitor polled every 5s even when the tab was hidden (AMD-006 L1 efficiency).</td><td><span class="pill done">FIXED</span> Polls only while visible; refreshes on return.</td></tr>
     <tr><td>A5</td><td><span class="sev-low">LOW</span></td><td>Aggregator rendered raw machine topic values (<code>account_login</code>) — AMD-006 L4.</td><td><span class="pill done">FIXED</span> <code>humanizeConcern</code> → "Account login".</td></tr>
     <tr><td>A2</td><td><span class="sev-low">LOW</span></td><td>Presence stores an unvalidated <code>conversationId</code>.</td><td><span class="pill ops">DOCUMENTED</span> "Open chat" target is agent-auth + tenant-scoped (cross-tenant → 404) → no leak; fix cost (per-heartbeat query) &gt; risk (A15).</td></tr>
-    <tr><td>A4</td><td><span class="sev-low">LOW</span></td><td><code>document.referrer</code> host-page accuracy is imperfect (AMD-006 L2).</td><td><span class="pill ops">FOLLOW-UP</span> Inherent iframe limit; a precise fix needs a host-script <code>postMessage</code> signal.</td></tr>
+    <tr><td>A4</td><td><span class="sev-low">LOW</span></td><td><code>document.referrer</code> host-page accuracy is imperfect (AMD-006 L2).</td><td><span class="pill done">FIXED</span> Host script (<code>care-widget.js</code>) now postMessages the current page on load + SPA nav; the widget prefers it over <code>document.referrer</code>. Non-breaking; auto-propagates to existing embeds.</td></tr>
   </tbody>
 </table>
 <p class="muted"><strong>Verified-sound on inspection</strong> (not just assumed): tenant-scoping on all 3 new read endpoints (no cross-tenant leak); the presence table is ephemeral infra state, not a §3.1 domain event (matches <code>care_agent_state</code>); the aggregator is counts-only + threshold-gated; every new data-layer function degrades gracefully if its migration is unapplied (A34).</p>
@@ -131,7 +131,6 @@
     <tr><td><strong>Durability auto-resolve worker</strong></td><td>A background worker that auto-resolves "held" problems and re-opens reopened ones (the §3.5 moat loop). The hourly sweep exists; the auto-resolve worker doesn't.</td><td><span class="pill part">ENHANCE</span> <span class="pill ops">OPS</span></td><td>durability:14 ("Sprint 5"); needs CRON_SECRET</td></tr>
     <tr><td><strong>Widget load-events analytics</strong></td><td>Traffic / wrong-origin analytics surfaced in widget settings.</td><td><span class="pill part">ENHANCE</span></td><td>settings/widget:352 ("Sprint 7")</td></tr>
     <tr><td><strong>Inline Decision Dialogue in thread</strong></td><td>Today "Open as Decision Dialogue" routes to the decisions page (seeded). Full inline-in-thread dialogue (like the chats surface) remains a follow-up.</td><td><span class="pill part">ENHANCE</span></td><td>ConversationsApp comment</td></tr>
-    <tr><td><strong>Monitor host-page accuracy (A4)</strong></td><td>Host-script <code>postMessage</code> so the Monitor shows the exact page on SPA navigations, not just <code>document.referrer</code>.</td><td><span class="pill part">ENHANCE</span></td><td>Audit A4</td></tr>
   </tbody>
 </table>
 

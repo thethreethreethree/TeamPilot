@@ -128,4 +128,45 @@
       iframe.style.height = "88px";
     }
   });
+
+  // Tell the widget which page the visitor is on, for the tenant's Live Monitor
+  // ("what they're looking at"). The iframe on its own can only read
+  // document.referrer — the host page at LOAD time — so it misses SPA route
+  // changes. This sends the current URL on iframe load and on every client-side
+  // navigation. Non-sensitive (just the URL the visitor is already viewing); the
+  // widget verifies the message came from this parent window. Old widget builds
+  // simply ignore an unrecognized message type, so this is safe to ship ahead.
+  function sendPage() {
+    try {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          { type: "care:host:page", url: String(location.href) },
+          widgetOrigin
+        );
+      }
+    } catch (e) {
+      /* iframe not ready / cross-origin timing — the next nav or heartbeat covers it */
+    }
+  }
+  iframe.addEventListener("load", sendPage);
+  // Detect SPA navigations without clobbering the host's own history usage:
+  // wrap pushState/replaceState (calling the original first), plus popstate/hashchange.
+  try {
+    var _push = history.pushState;
+    var _replace = history.replaceState;
+    history.pushState = function () {
+      var r = _push.apply(this, arguments);
+      sendPage();
+      return r;
+    };
+    history.replaceState = function () {
+      var r = _replace.apply(this, arguments);
+      sendPage();
+      return r;
+    };
+  } catch (e) {
+    /* some environments freeze history — fall back to the events below */
+  }
+  window.addEventListener("popstate", sendPage);
+  window.addEventListener("hashchange", sendPage);
 })();
