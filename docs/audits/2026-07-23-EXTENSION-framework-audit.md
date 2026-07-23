@@ -173,10 +173,15 @@ open-redirect that's currently absent. Recommended, founder's call.
 
 ## 3.5 Remediation APPLIED — status (updated as built)
 
-| Fix | Status | Where | Commit | Verified by me | UNVERIFIED (needs founder browser) |
+> **✅ FOUNDER-VERIFIED 2026-07-23 (live browser test):** *"I can type on the box now, and the co-pilot is
+> addressing the response properly."* — Fix 1 (typing) and Fix 2b (role attribution) CONFIRMED working on Gmail.
+> Per the verification discipline, the founder's confirmation is completion. 2b is route-layer/universal, so the
+> role-correctness fix covers ALL channels; per-channel 2a labels are a bonus (Gmail + WhatsApp done).
+
+| Fix | Status | Where | Commit | Verified by me | Founder-verified |
 |---|---|---|---|---|---|
-| **1** keyboard `stopPropagation` (never preventDefault) | ✅ applied | `content.js` (shadow-root listeners) | `35e8ab09` | node --check, store re-validated | typing works on live host; capture-phase hosts (caveat in code) |
-| **2b** agent-identity anchor + WHO-IS-WHO rule | ✅ applied (Co-Pilot) | `copilot/route.ts`, `CO_PILOT_SYSTEM` | `35e8ab09` | tsc 0, eslint 0, 1244 tests | stops the "Hi John" inversion |
+| **1** keyboard `stopPropagation` (never preventDefault) | ✅ **VERIFIED** | `content.js` (shadow-root listeners) | `35e8ab09` | node --check, store re-validated | ✅ "I can type on the box now" (2026-07-23) |
+| **2b** agent-identity anchor + WHO-IS-WHO rule | ✅ **VERIFIED** (universal) | `copilot/route.ts`, `CO_PILOT_SYSTEM` | `35e8ab09` | tsc 0, eslint 0, 1248 tests | ✅ "co-pilot is addressing the response properly" (2026-07-23) |
 | **2a** role-labeled turns | ✅ **WhatsApp + Gmail** · ⏸ other 9 held | `adapters.js` (`labeledFrom` + both adapters) | `35e8ab09`, `4c769fc8` | node --check, store re-validated | labels resolve the right sender on live DOM |
 | **2b-adjacent** Summarize role-awareness | ✅ applied | `SUMMARIZE_SYSTEM` | `f32c564f` | tsc 0, 182 care tests | correct attribution on live labeled thread |
 | **3** 402 copy (no phantom trial) | ✅ applied | `content.js` | `35e8ab09` | — (copy change) | — |
