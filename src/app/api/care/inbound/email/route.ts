@@ -16,6 +16,7 @@ import {
 import { generateCareReply } from "@/lib/claude";
 import { buildRecentTurns } from "@/lib/care/recentTurns";
 import { dispatchOutboundEmailReply } from "@/lib/care/email/outbound";
+import { detectAutomatedSender } from "@/lib/care/email/automatedSender";
 import { HANDOFF_NOTICE } from "@/lib/care/handoverNotice";
 import { resolveEmailReplyBody } from "@/lib/care/emailReplyDelivery";
 import { LlmError } from "@/lib/llm/errors";
@@ -403,6 +404,8 @@ export async function POST(req: NextRequest) {
       customerId,
       customerMessage: body.TextBody,
       customerMessageId: insertedMsg.id,
+      headers: body.Headers ?? [],
+      from: body.From,
     })
   );
 
@@ -451,6 +454,9 @@ async function runAiFirstResponder(args: {
   customerMessage: string;
   /** The just-inserted customer message — excluded from history (it goes in as newMessage). */
   customerMessageId: string;
+  /** Raw inbound headers + From — read to suppress AI replies to automated senders (RFC 3834). */
+  headers: { Name: string; Value: string }[];
+  from: string;
 }): Promise<void> {
   const admin = createAdminClient();
   try {
@@ -476,6 +482,30 @@ async function runAiFirstResponder(args: {
         .from("support_conversations")
         .update({ ai_responding: false })
         .eq("id", args.conversationId);
+      return;
+    }
+
+    // Automated-sender suppression (RFC 3834) — BEFORE spending an LLM call, check whether THIS
+    // inbound is itself machine-generated: an out-of-office responder, a bounce/daemon, or bulk/list
+    // mail. The count-based loop breaker below BOUNDS a machine ping-pong, but only after ~5 hops
+    // (5 LLM calls now, plus 5 unwanted emails once Postmark is live); this stops it at hop 0 with
+    // near-zero false positive. Deliberately does NOT flip ai_responding — a single OOO/bounce on a
+    // thread must not disable the AI for a human who replies next; each automated inbound is skipped
+    // on its own merit (§A16 composes with the loop breaker; §3.4 — don't burn spend on a machine).
+    const autoSender = detectAutomatedSender(args.headers, args.from);
+    if (autoSender.automated) {
+      console.warn(
+        `[care] email AI suppressed — automated sender (${autoSender.reason}) conv=${args.conversationId}`
+      );
+      // §3.1 append-only: an agent viewing the thread sees WHY the AI stayed quiet (§3.6), and the
+      // reason is greppable for operators tuning the signal set.
+      await admin.from("support_conversation_events").insert({
+        conversation_id: args.conversationId,
+        actor_id: null,
+        actor_type: "system",
+        event_type: "ai_suppressed_automated",
+        metadata: { reason: autoSender.reason },
+      });
       return;
     }
 

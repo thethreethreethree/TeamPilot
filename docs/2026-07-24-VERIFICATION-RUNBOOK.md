@@ -56,6 +56,16 @@ Send a real email **into** your C.A.R.E inbound address, as a customer.
 - **Expect:** the customer receives either the AI's warm hand-off line **or** the "connecting you with a
   member of our support team" notice — **never nothing.**
 
+**E4 — Automated-sender suppression (new; RFC 3834).** Reply to a C.A.R.E email from an address with an
+out-of-office auto-responder on, or from a `no-reply@`/`mailer-daemon@` mailbox.
+- **Expect:** the AI does **not** auto-reply (no LLM call, no email once Postmark is live); the message still
+  lands in the agent inbox, and the thread shows an `ai_suppressed_automated` event with the reason.
+- **Why:** an AI reply to an out-of-office responder can ping-pong machine-to-machine. The count-based loop
+  breaker already caps that at ~5 hops; this stops it at hop 0. It's **conservative** — only well-established
+  automated signals trip it (`Auto-Submitted`, `Precedence: bulk/list`, `List-Id`/`List-Unsubscribe`,
+  no-reply/daemon senders), so a normal human email is never silenced. **Veto:** say the word to disable it
+  and rely on the loop breaker alone.
+
 > ⚠️ **One posture decision (E2):** once Postmark is set, the AI **auto-emails** inbound-email customers.
 > That's what an AI first-responder does and matches the widget (the loop breaker confirms it was the
 > intended design). If you'd rather email be *draft-for-human-review*, say so and I'll gate it.
