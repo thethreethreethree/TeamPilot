@@ -20,11 +20,13 @@ lists the **exact steps**, the **expected result**, and **what a failure means**
 
 ## 1. Extension (your active surface — where the reported bugs were)
 
-**X1 — Role attribution (Spawn ✅ already confirmed; verify the siblings).**
-Open a real support thread (Gmail/WhatsApp/etc.) where *you* are the agent. Run **Coach**, **Formulate**,
-**Summarize** in turn.
+**X1 — Role attribution (Spawn ✅ already confirmed; verify the other 5 to cover the whole class).**
+Open a real support thread (Gmail/WhatsApp/etc.) where *you* are the agent. Run **Co-Pilot**, **Coach**,
+**Formulate**, **Summarize**, and **Dissect** in turn — all 6 write/read-as-agent tools now carry the same
+WHO-IS-WHO anchor, so if the fix holds it holds for every one.
 - **Expect:** each treats **you** as the agent and the other party as the customer — no "Hi <your name>",
-  no summary that swaps who-said-what. (Spawn you already confirmed: "more appropriate".)
+  no summary that swaps who-said-what, no Dissect that grades *your* line as the customer's. (Spawn you
+  already confirmed: "more appropriate".)
 - **Fails if:** any tool still calls you the customer → the agent-name lookup (`profiles.full_name`) returned
   empty; confirm your profile has a full name set.
 
@@ -64,8 +66,9 @@ Send a real email **into** your C.A.R.E inbound address, as a customer.
 
 **C1 — Live Monitor (needs 0192).** Open your site (with the widget embedded) in one tab; open
 `/dashboard/care/monitor` in another.
-- **Expect:** an anonymous visitor row appears with the page you're on, updating every few seconds; if you
-  start a chat, an "Open chat" link appears.
+- **Expect:** an anonymous visitor row appears with the page you're on, updating every few seconds, showing
+  how long they've been present ("on site 4m" — the "stuck on a page" signal); if you start a chat, an
+  "Open chat" link appears.
 - **Fails if:** always "No active visitors" → confirm 0192 applied and the widget's presence heartbeat isn't
   blocked; host-page label uses `document.referrer` (may show the host root on some sites — known limit).
 
