@@ -14,6 +14,7 @@ import {
   stripHandoffSentinel,
 } from "@/lib/care/prompt";
 import { generateCareReply } from "@/lib/claude";
+import { buildRecentTurns } from "@/lib/care/recentTurns";
 import { LlmError } from "@/lib/llm/errors";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 
@@ -440,9 +441,6 @@ const AI_SENDER_MAX = 12; // ≥12 AI replies to one sender in the window = floo
  * the customer doesn't see an auto-reply, but an agent picks
  * up the conversation from the inbox same as a widget message.
  */
-/** Turns of prior thread the email AI sees as context — matches the widget messages route. */
-const EMAIL_VISIBLE_TURNS_IN_CONTEXT = 12;
-
 async function runAiFirstResponder(args: {
   conversationId: string;
   companyId: string;
@@ -588,25 +586,13 @@ async function runAiFirstResponder(args: {
       aiTone: tenant?.aiTone,
       aiResponseLength: tenant?.aiResponseLength,
     });
-    // Pull the visible thread so far so the email AI sees the conversation context —
-    // its own prior replies AND the customer's earlier emails — exactly like the widget
-    // messages route. Previously recentTurns was [], so on a multi-email thread the AI
-    // replied context-blind: it re-introduced itself every time and couldn't build on what
-    // was already said (A21 — same prompt, different surface, one was broken). Exclude the
-    // just-inserted customer message; it goes in as newMessage.
+    // Pull the visible thread so the email AI sees the conversation context — its own prior
+    // replies AND the customer's earlier emails — via the SAME shared helper the widget messages
+    // route uses (buildRecentTurns). Previously this was `recentTurns: []`, so on a multi-email
+    // thread the AI replied context-blind (re-introduced itself every time). The just-inserted
+    // customer message is excluded (it goes in as newMessage).
     const priorMessages = await listCareMessagesForCustomer(args.conversationId);
-    const recentTurns = priorMessages
-      .slice(-EMAIL_VISIBLE_TURNS_IN_CONTEXT)
-      .filter((m) => m.id !== args.customerMessageId)
-      .map((m) => ({
-        role:
-          m.authorType === "customer"
-            ? ("customer" as const)
-            : m.authorType === "agent"
-              ? ("agent" as const)
-              : ("ai" as const),
-        body: m.body,
-      }));
+    const recentTurns = buildRecentTurns(priorMessages, args.customerMessageId);
 
     const userMessage = buildCareUserMessage({
       newMessage: args.customerMessage,

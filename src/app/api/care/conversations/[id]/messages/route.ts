@@ -22,6 +22,7 @@ import {
   stripHandoffSentinel,
 } from "@/lib/care/prompt";
 import { HANDOFF_NOTICE } from "@/lib/care/handoverNotice";
+import { buildRecentTurns } from "@/lib/care/recentTurns";
 import { generateCareReply } from "@/lib/claude";
 import { LlmError } from "@/lib/llm/errors";
 
@@ -50,7 +51,6 @@ const Body = z.object({
   medium: z.enum(["text", "voice"]).optional(),
 });
 
-const VISIBLE_TURNS_IN_CONTEXT = 12;
 
 function authedConversationId(req: NextRequest, paramsId: string) {
   return { paramsId, token: req.headers.get("x-care-session") };
@@ -232,21 +232,10 @@ export async function POST(
   // Generate the AI reply inline. Pull the visible thread so far
   // (capped to the last N turns) so the AI sees the full context
   // it has access to — including its own prior replies.
+  // Shared with the inbound-email route (buildRecentTurns) so the two customer-facing AI paths
+  // can't drift apart again — excludes the just-inserted customer message (it goes in as newMessage).
   const priorMessages = await listCareMessagesForCustomer(conversation.id);
-  const recentTurns = priorMessages
-    .slice(-VISIBLE_TURNS_IN_CONTEXT)
-    // Filter out the just-inserted customer message — it goes in as
-    // the newMessage field separately so the prompt is clean.
-    .filter((m) => m.id !== customerMsg.id)
-    .map((m) => ({
-      role:
-        m.authorType === "customer"
-          ? ("customer" as const)
-          : m.authorType === "agent"
-            ? ("agent" as const)
-            : ("ai" as const),
-      body: m.body,
-    }));
+  const recentTurns = buildRecentTurns(priorMessages, customerMsg.id);
 
   const productContext = await getProductContextForTenant(conversation.companyId);
   const medium = body.medium ?? "text";
