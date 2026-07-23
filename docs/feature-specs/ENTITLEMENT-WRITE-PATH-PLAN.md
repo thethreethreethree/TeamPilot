@@ -75,8 +75,16 @@ WRITE side is missing.
   (`src/app/api/admin/crm/accounts/[id]/subscription/route.ts` — vendor-admin gated), also write
   `care_tenant_config.plan = 'pro'|'enterprise'` for that account's company. (The CRM subscription is a SEPARATE
   table today — this adds the one-line sync so "mark them pro in the CRM" actually unlocks the extension.)
-- **Gotcha:** map CRM tier names → the `plan` enum (`pilot|starter|pro|enterprise`); downgrade path too (tier
-  drops → plan drops). Vendor-admin-only (the route already gates on `requireVendorAdmin`).
+- **Gotcha — NOT a rename, a PRICING DECISION (verified 2026-07-23):** the two enums DON'T match. CRM subscription
+  tiers are `pilot | team_small | team_medium | team_large | enterprise`; care `plan` is `pilot | starter | pro |
+  enterprise`. There is NO 1:1 map, AND the extension unlocks ONLY on `plan ∈ {pro, enterprise}` — so a paid CRM
+  tier that maps to care `starter` (or `pilot`) stays **LOCKED**. So B1 needs an explicit tier→plan map that
+  encodes WHICH CRM tiers include the extension. **Recommended default (confirm/adjust):** `pilot→pilot` (locked),
+  `team_small→pro`, `team_medium→pro`, `team_large→pro`, `enterprise→enterprise` (i.e. every *paid team tier*
+  unlocks). If instead the extension is a premium add-on (only larger tiers get it), map `team_small→starter`
+  (locked) and the rest→pro. **This is your pricing call — it decides which paying customers get the extension.**
+  Also handle the downgrade path (tier drops to `pilot` → plan drops → re-locks). Vendor-admin-only (the route
+  already gates on `requireVendorAdmin`).
 - **Effort:** small — one write added to an existing, already-authz'd route.
 
 ### B2. Admin "set plan" toggle
