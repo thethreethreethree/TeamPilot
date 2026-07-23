@@ -51,6 +51,9 @@ const WIDGET_HIDDEN_PREFIXES = [
  */
 
 const STORAGE_KEY = "elostate-care-session";
+// Read-receipt: ms timestamp of when the customer last VIEWED the conversation (widget open).
+// Persisted so a returning visitor who already read a reply doesn't see a false unread dot.
+const LASTVIEW_KEY = "elostate-care-lastview";
 
 type StoredSession = {
   conversationId: string;
@@ -98,6 +101,9 @@ export function CareChatWidget() {
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState<StoredSession | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  // Read-receipt: when the customer last viewed the conversation (ms). Restored from
+  // localStorage so a prior read isn't forgotten; drives the unread dot on the bubble.
+  const [lastViewedAt, setLastViewedAt] = useState<number>(0);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [aiThinking, setAiThinking] = useState(false);
@@ -124,6 +130,25 @@ export function CareChatWidget() {
     const existing = loadSession();
     if (existing) setSession(existing);
   }, []);
+
+  // Read-receipt: restore the last-viewed timestamp on mount so a returning visitor who
+  // already read a reply doesn't get a false unread dot.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(LASTVIEW_KEY);
+    if (raw) setLastViewedAt(Number(raw) || 0);
+  }, []);
+
+  // Read-receipt: while the widget is open the customer is looking, so everything up to now
+  // counts as seen — mark viewed on open and as new messages arrive during an open session.
+  // When closed, lastViewedAt is frozen, so a later agent/AI reply lights the unread dot.
+  useEffect(() => {
+    if (!open) return;
+    const now = Date.now();
+    setLastViewedAt(now);
+    if (typeof window !== "undefined")
+      window.localStorage.setItem(LASTVIEW_KEY, String(now));
+  }, [open, messages.length]);
 
   // Auto-focus the composer when the panel opens.
   useEffect(() => {
@@ -517,7 +542,7 @@ export function CareChatWidget() {
         >
           <MessageCircle className="w-6 h-6" aria-hidden />
           {messages.some(
-            (m) => m.authorType !== "customer" && !messageWasSeen(m)
+            (m) => m.authorType !== "customer" && !messageWasSeen(m, lastViewedAt)
           ) && (
             <span
               aria-hidden
@@ -925,10 +950,12 @@ function CustomerAttachmentBubble({
   );
 }
 
-// Stub for read-receipt tracking; Sprint 2 hooks this to the
-// "last seen" timestamp the agent inbox surfaces.
-function messageWasSeen(_m: Message): boolean {
-  return true;
+// Read-receipt (customer side): a non-customer message counts as "seen" once the customer has
+// viewed the conversation (widget open) at or after that message arrived. lastViewedAt is a ms
+// timestamp; 0 = never viewed → everything unseen. Client-only — this is the CUSTOMER's own
+// unread indicator (the red dot on the collapsed bubble), no server round-trip needed.
+function messageWasSeen(m: Message, lastViewedAt: number): boolean {
+  return Date.parse(m.createdAt) <= lastViewedAt;
 }
 
 

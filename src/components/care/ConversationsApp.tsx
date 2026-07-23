@@ -3393,6 +3393,31 @@ function CustomerPanel({
   onCollapse: () => void;
 }) {
   const customer = conversation.customer;
+  // §A11 mirror — counts observed across this customer's conversations (3c aggregator).
+  // Counts only, never verdicts; threshold-gated server-side (§3.2). Null until loaded.
+  const [patterns, setPatterns] = useState<{
+    totalConversations: number;
+    resolvedConversations: number;
+    topConcerns: Array<{ topic: string; count: number }>;
+    enoughData: boolean;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setPatterns(null);
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/care/conversations/${conversation.id}/customer-patterns`
+        );
+        if (res.ok && !cancelled) setPatterns(await res.json());
+      } catch {
+        /* leave null → honest 'need more data' fallback renders */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversation.id]);
   return (
     <aside
       // Mobile: full-width drawer. md+: persisted user width via
@@ -3449,19 +3474,57 @@ function CustomerPanel({
         </div>
       )}
 
-      {/* §A11 mirror panel — counts and patterns the System has
-          observed about this customer. Never verdicts. The data
-          source is the customer's full conversation history
-          (Sprint 3c wires this to a real aggregator). */}
+      {/* §A11 mirror panel — counts the System has observed about this
+          customer across their conversation history. Never verdicts;
+          withheld until enough conversations exist (§3.2). Wired to the
+          real aggregator 2026-07-24 (GET .../customer-patterns). */}
       <div className="px-5 py-3 border-b border-default">
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2">
           What we&apos;ve noticed
         </p>
-        <p className="text-[11px] text-secondary leading-relaxed italic">
-          We need a few more conversations with this customer before
-          surfacing patterns. The System refuses to assert about
-          someone it hasn&apos;t observed enough.
-        </p>
+        {patterns && patterns.enoughData ? (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-3">
+              <span className="text-[11px] text-secondary">
+                <span className="text-primary font-semibold">
+                  {patterns.totalConversations}
+                </span>{" "}
+                conversations
+              </span>
+              <span className="text-[11px] text-secondary">
+                <span className="text-primary font-semibold">
+                  {patterns.resolvedConversations}
+                </span>{" "}
+                resolved
+              </span>
+            </div>
+            {patterns.topConcerns.length > 0 && (
+              <div>
+                <p className="text-[10px] text-muted mb-1">Recurring concerns</p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {patterns.topConcerns.map((c) => (
+                    <li
+                      key={c.topic}
+                      className="text-[10px] text-secondary bg-white/[0.04] border border-default rounded-full px-2 py-0.5"
+                    >
+                      {c.topic} · {c.count}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="text-[10px] text-muted italic leading-relaxed">
+              Counts across this customer&apos;s history — not a verdict about
+              them.
+            </p>
+          </div>
+        ) : (
+          <p className="text-[11px] text-secondary leading-relaxed italic">
+            We need a few more conversations with this customer before
+            surfacing patterns. The System refuses to assert about someone it
+            hasn&apos;t observed enough.
+          </p>
+        )}
       </div>
 
       {/* Activity timeline */}

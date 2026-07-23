@@ -7,6 +7,10 @@ import { notifyAssignedAgentOfCustomerMessage } from "@/lib/notifications/careNo
 import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 import { HANDOFF_NOTICE } from "@/lib/care/handoverNotice";
+import {
+  aggregateCustomerPatterns,
+  type CustomerPatterns,
+} from "@/lib/care/customerPatterns";
 
 /**
  * ELOSTATE Care — data layer.
@@ -2897,6 +2901,55 @@ export async function touchAgentHeartbeat(agentId: string): Promise<void> {
     .from("care_agent_state")
     .update({ last_seen_at: new Date().toISOString() })
     .eq("agent_id", agentId);
+}
+
+/**
+ * Aggregate a customer's cross-conversation patterns for the §A11 "What we've noticed" panel.
+ * Counts only (never verdicts); threshold-gated inside aggregateCustomerPatterns (§3.2).
+ * Tenant-scoped by companyId. "resolved" uses the durable resolved_at, not mutable status (§3.5).
+ *
+ * A34 migration-coupling: handoff_topic (0188) may be unapplied. We try the full select; if that
+ * column is missing we retry WITHOUT it so the counts (total/resolved) still work — topics just
+ * stay empty until 0188 lands. Any other failure returns an honest empty aggregate (→ "need more
+ * data"), never a crash.
+ */
+export async function fetchCustomerPatterns(
+  companyId: string,
+  customerId: string
+): Promise<CustomerPatterns> {
+  const sb = await createServerClient();
+  const { data, error } = await sb
+    .from("support_conversations")
+    .select("resolved_at, handoff_topic")
+    .eq("company_id", companyId)
+    .eq("customer_id", customerId);
+
+  if (!error) {
+    return aggregateCustomerPatterns(
+      (data ?? []).map((r) => {
+        const row = r as { resolved_at: string | null; handoff_topic: string | null };
+        return { resolvedAt: row.resolved_at, handoffTopic: row.handoff_topic };
+      })
+    );
+  }
+
+  // 0188 not applied — keep the counts, drop the (missing) topic column.
+  if (isMissingColumnError(error, "handoff_topic")) {
+    const { data: countsOnly } = await sb
+      .from("support_conversations")
+      .select("resolved_at")
+      .eq("company_id", companyId)
+      .eq("customer_id", customerId);
+    return aggregateCustomerPatterns(
+      (countsOnly ?? []).map((r) => ({
+        resolvedAt: (r as { resolved_at: string | null }).resolved_at,
+        handoffTopic: null,
+      }))
+    );
+  }
+
+  // Any other error → honest empty aggregate ("need more data"), never a crash.
+  return aggregateCustomerPatterns([]);
 }
 
 // ─────────────────────────────────────────────────────────────
