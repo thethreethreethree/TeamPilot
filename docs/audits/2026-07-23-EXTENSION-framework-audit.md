@@ -246,6 +246,21 @@ The one CORS-bypassing, token-bearing fetch (`background.js careFetch`) is the c
      `NEXT_PUBLIC_CARE_EXTENSION_ID`, commits `a5f9abf3`/`be6c828e`).
 Verdict: the extension's network + auth layer is defense-in-depth sound. No finding.
 
+## 3c. Reply-vs-follow-up class boundary — VERIFIED not asserted (Lesson 7, 2026-07-23)
+
+Founder request: when the LAST message is the agent's own, draft a FOLLOW-UP not a reply-to-self. Fixed on
+both Co-Pilots (extension + in-app, shared `copilotMode.ts`). Verified the class boundary by READING each
+draft-producing prompt (not assuming):
+  - **Co-Pilot (extension + in-app)** — the real bug: auto-drafts a reply with no agent intent to steer it →
+    FIXED (mode branches on `lastSpeaker`).
+  - **Formulate** — INTENT-driven (`FORMULATE_SYSTEM`: "turn that intent into a message"), so the agent's own
+    intent controls reply-vs-follow-up → substantially immune. ONE mild residual: the soft line "Acknowledge the
+    customer briefly" assumes a new customer message; the agent's intent overrides it. NOT changed (Co-Pilot-only
+    scope + minor). Founder's call if worth a one-line tighten.
+  - **Summarize / Dissect / Coach** — no reply/follow-up concept (summarize thread / find problem / grade the
+    agent's PROVIDED draft). Structurally unaffected.
+Boundary: the class is confined to auto-drafting-a-reply = the two Co-Pilots. Both fixed.
+
 ## 4. What I did NOT do
 - Did not inspect the 5 non-copilot server routes in full, nor the dissect/coach/spawn prompts, nor the in-app tools (so I have NOT verified the §3.4 "no-drift" claim, nor whether Summarize/Dissect have their own role handling). Listed, not assumed clean.
 - Did not run the extension (cannot, from here) — Findings 1 & 2 mechanisms are code-evidenced + screenshot-corroborated but the *fixes* need John's browser confirmation.
