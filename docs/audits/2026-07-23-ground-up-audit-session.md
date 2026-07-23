@@ -27,6 +27,7 @@ Every surface below was checked by reading the enforcing code this session (not 
 | Agent + coach recording uploads | ✅ clean (IDOR closed via verified RLS-scoping) | — |
 | Onboarding / tenant-bootstrap / role grant | ✅ sound (idempotent, no hijack, no self-elevation) | — |
 | Presentation (IP-leak §-citations, invisible-color) | ✅ 26 leaks fixed + both classes CI-guarded | (opt) ~117 dashboard teaching-citations keep/strip |
+| **CI coverage of thesis-core DB enforcement** | 🟡 **MEDIUM — §3.1/§3.2 integration tests never run in CI** (always skipped) | add an ephemeral-DB integration CI job (would've caught the 0190 fail-open) |
 
 **Bottom line:** the security surface is sound across the board; the only code-level open items are the §3.2
 apply, the FX latent bug, and the AI-cost-metering class (one fix, one number). Everything else open is a founder
@@ -261,6 +262,36 @@ legit `.webm`/`.mp4`; the exec-ext block is the spoofable-MIME defense). Tenant-
 (IDOR + traversal closed), bootstrap field exposure (whitelisted), inbound-email intake (text-only, dedup,
 bounded), extension tool routes + auth gate (fail-closed, entitlement server-enforced, comprehensively tested).
 The ONLY open items on the whole surface are the two cost-metering MEDIUMs above — same root cause, one fix.
+
+## 🟡 MEDIUM — the thesis-core DB-integration tests never run in CI (found 2026-07-23)
+
+The §3.1 event-chain integration tests (`src/lib/data/__tests__/chain.integration.test.ts`) — which exercise the
+thesis core against a REAL Postgres: the append-only rules, the `check_understanding_gate` trigger, RLS, and the
+actual events→signals→problems derivation — are gated by `enabled = process.env.EXECOS_INTEGRATION_TEST === "1"`
+(+ live `SUPABASE_URL`/`SERVICE_KEY`). CI (`.github/workflows/ci.yml`) runs `npm run test` with NO such env and NO
+Supabase secrets (there is only ONE workflow file — no nightly/integration job). So **these tests are ALWAYS
+skipped in CI**; they run only if a developer manually sets the flag + live creds locally.
+
+**Why this matters (corroborated by THIS session):** CI's `rls:audit` + `invariant:audit` DO run, but they are
+STATIC — they parse `supabase/migrations/*.sql`, they do not EXECUTE triggers. A trigger-LOGIC bug slips straight
+through. The §3.2 fail-open I found this session (`check_understanding_gate` failing OPEN on a missing threshold,
+`0002` → fixed in `0190`) is exactly that shape: a live executing test of the no-threshold case would have caught
+it; static analysis and the unit tests did not. So the single most important invariants — the ones the memory and
+constitution celebrate as "DB-enforced, the moat is built not documented" — are NOT continuously guarded against a
+migration that silently breaks their DB enforcement.
+
+**Severity MEDIUM** (a verification/regression gap on the thesis core, not a live vuln — the enforcement IS in
+place today; it is just not CI-protected against future regression). It is the worst *silent* failure mode,
+though: a broken append-only rule or a re-broken gate would ship green.
+
+**Recommended fix (needs founder decision on CI complexity — NOT built; adding an untested CI job unilaterally is
+§2 overtaking, and I can't run GitHub Actions from here to verify it):** add a CI job that stands up an EPHEMERAL
+local Postgres — either `supabase start` (dockerized, no external secrets) or a `postgres:` service container —
+applies the migrations (`npm run db:apply` against the local URL), then runs the suite with
+`EXECOS_INTEGRATION_TEST=1`. No production secrets required (ephemeral DB). This closes the gap for the §3.1/§3.2
+DB enforcement specifically. Could be a separate `integration.yml` (on push to main + nightly) to keep PR CI fast.
+Corroborating value is high: it would have caught the 0190 fail-open automatically. Once the founder green-lights
+the CI-cost/complexity tradeoff, I build + verify it against a real Actions run.
 
 ## Open flags (founder decisions — none are code defects I can close alone)
 
