@@ -146,6 +146,20 @@
   const $ = (id) => root.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
+  // ── Keep keystrokes INSIDE the panel (founder report 2026-07-23: "can't type") ───────────────────────────
+  // The panel lives in a CLOSED shadow DOM injected into the host page. Keyboard/input events are composed:true,
+  // so without this they bubble OUT of the shadow to the host document — where shadow retargeting makes the
+  // event target our host <div> (NOT the textarea). Host apps (Gmail/Outlook and every keyboard-shortcut site)
+  // therefore do NOT exempt it from their single-key shortcuts and preventDefault() the character: you can focus
+  // the box but nothing types. Fix: stop these events from leaving the shadow root so the host never sees them.
+  // We ONLY stopPropagation — NEVER preventDefault — so the textarea's own default (insert the character) is
+  // untouched. Attached to the shadow root; the tools' own listeners still fire (they're deeper in the tree).
+  // NOTE: this blocks host BUBBLE-phase shortcut handlers (the common case, incl. Gmail). If a host is found to
+  // use CAPTURE-phase document shortcuts, escalate to a capture-phase host-element guard — flagged, not assumed.
+  ["keydown", "keypress", "keyup", "beforeinput", "input", "paste", "cut"].forEach((type) => {
+    root.addEventListener(type, (e) => { e.stopPropagation(); });
+  });
+
   // ── Minimize / close ─────────────────────────────────────────────────────────────────────────────────────
   $("minBtn").addEventListener("click", () => {
     $("panel").classList.add("hide");
@@ -235,7 +249,10 @@
     }
     if (status === 402) {
       const s = data?.entitlement?.status || "locked";
-      out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Your plan doesn't include the C.A.R.E extension (${esc(s)}). Upgrade to Pro or start a trial in your workspace.`;
+      // §1.5.1 / §3.4 (founder audit 2026-07-23 — Finding 3): the old copy promised "start a trial in your
+      // workspace" — a self-serve flow that does not exist yet (the entitlement write-path is unbuilt). Don't
+      // point the user at a door that isn't there; name the real next step (their admin enables it).
+      out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Your plan doesn't include the C.A.R.E extension (${esc(s)}). Contact your workspace admin to enable it.`;
       return;
     }
     if (status < 200 || status >= 300) {

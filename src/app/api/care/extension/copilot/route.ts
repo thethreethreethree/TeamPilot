@@ -5,6 +5,7 @@ import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { CO_PILOT_SYSTEM } from "@/lib/care/toolPrompts";
 import { LlmError } from "@/lib/llm/errors";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * POST /api/care/extension/copilot — AI Co-Pilot, for the C.A.R.E browser extension.
@@ -43,13 +44,32 @@ export async function POST(req: NextRequest) {
 
   const productContext = await getProductContextForTenant(user.companyId);
 
+  // Agent identity anchor (Fix 2b, founder audit 2026-07-23 — Finding 2, role inversion). Without telling the
+  // model WHO the agent is, an unlabeled thread makes it guess who's who — and it addressed the draft TO the
+  // agent ("Hi John"). Look up the signed-in agent's name; fall back to a generic label so the draft never
+  // blocks on the lookup. The WHO-IS-WHO rule in CO_PILOT_SYSTEM references this identity.
+  let agentName = "the support agent";
+  try {
+    const admin = createAdminClient();
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.userId)
+      .maybeSingle();
+    if (typeof prof?.full_name === "string" && prof.full_name.trim()) agentName = prof.full_name.trim();
+  } catch {
+    /* best-effort; the WHO-IS-WHO discipline still applies with the generic label */
+  }
+
   try {
     const r = await generateCareReply({
       systemPrompt: `${CO_PILOT_SYSTEM}
 
+You are drafting AS: ${agentName}. Messages from ${agentName} in the conversation are the agent's own words — write the next message from ${agentName}'s side, never addressed to ${agentName}.
+
 Product context the customer is reaching out about:
 ${productContext}`,
-      userMessage: `Conversation so far:\n${body.conversation}\n\nDraft the next reply.`,
+      userMessage: `Conversation so far:\n${body.conversation}\n\nDraft ${agentName}'s next reply to the customer.`,
     });
     const raw = r.text;
     const idx = raw.indexOf(REASONING_MARKER);

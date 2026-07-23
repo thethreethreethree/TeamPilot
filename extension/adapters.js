@@ -35,6 +35,45 @@ if (!globalThis.__careAdaptersLoaded) {
     }
   };
 
+  // labeledFrom — like textFrom, but PER MESSAGE: prefixes each message with a role/sender label when
+  // roleOf(node) can resolve one, so the tools can tell the AGENT's turns from the CUSTOMER's (founder audit
+  // 2026-07-23, Finding 2 — the model was addressing the reply TO the agent because the thread was an unlabeled
+  // blob). `msgSel` selects message CONTAINERS; `roleOf(node)` returns a short label ("You"/"Customer"/a sender
+  // name) or "" if unknown (that message stays unlabeled). Best-effort + UNVERIFIED per platform, same honesty
+  // caveat as the selectors themselves: a miss degrades, never fabricates. Callers MUST `|| textFrom(...)` so a
+  // labeling miss can never regress a working unlabeled extraction (§1.5 don't break what works; §3.4 degrade).
+  globalThis.labeledFrom = function labeledFrom(msgSel, roleOf) {
+    try {
+      const nodes = Array.from(document.querySelectorAll(msgSel));
+      const parts = [];
+      for (const n of nodes) {
+        if (n.offsetParent === null && n.getClientRects().length === 0) continue;
+        const body = (n.innerText || n.textContent || "").replace(/\s+\n/g, "\n").replace(/[ \t]{2,}/g, " ").trim();
+        if (!body) continue;
+        let label = "";
+        try {
+          label = (roleOf && roleOf(n)) || "";
+        } catch {
+          label = "";
+        }
+        parts.push(label ? `${label}: ${body}` : body);
+      }
+      const joined = parts.join("\n\n").trim();
+      return joined.length > 20000 ? joined.slice(0, 20000) : joined;
+    } catch {
+      return "";
+    }
+  };
+
+  // ROLE-LABELING STATUS (Fix 2a, founder audit 2026-07-23). The tools need to know who's the agent vs the
+  // customer. Coverage:
+  //   • WhatsApp — LABELED (below) via `.message-out/.message-in` + `data-pre-plain-text` sender (reliable).
+  //   • The other 10 — still UNLABELED (plain textFrom). Their per-message SENDER selectors are UNVERIFIED (see
+  //     the file header), and shipping unverified sender-parsing for each would fabricate confidence + risk
+  //     regressions (§3.4). The cross-channel safety net is the ROUTE-LAYER anchor (Fix 2b): the copilot route
+  //     passes the signed-in agent's identity and CO_PILOT_SYSTEM refuses to guess who's who. To LABEL another
+  //     platform, confirm its per-message container + a role/sender signal live, then switch it to labeledFrom(…)
+  //     || textFrom(…) exactly as WhatsApp does. Each such change needs a browser confirmation.
   globalThis.CARE_ADAPTERS = [
     {
       key: "gmail",
@@ -73,9 +112,24 @@ if (!globalThis.__careAdaptersLoaded) {
       // (not the composer), exactly one per message (so no double-reading). That attribute is the reliable anchor;
       // the old class-scoped selectors stay as a fallback for older builds (they don't nest inside the wrapper
       // match, so no duplication in practice — a miss just yields "").
-      extract: () =>
-        textFrom("[data-pre-plain-text]") ||
-        textFrom(".message-in .selectable-text, .message-out .selectable-text"),
+      // Fix 2a (founder audit 2026-07-23): role-label each message so the tools know who's the agent vs the
+      // customer. `.message-out` = "You" (the agent), `.message-in` = "Customer" — WhatsApp's most reliable
+      // signal; `data-pre-plain-text="[time, date] Sender: "` carries the sender name as a fallback label.
+      // Falls back to the LIVE-CONFIRMED unlabeled textFrom so labeling can NEVER regress working extraction.
+      extract: () => {
+        const labeled = labeledFrom("[data-pre-plain-text]", (n) => {
+          const w = n.closest(".message-out, .message-in");
+          if (w) return w.classList.contains("message-out") ? "You" : "Customer";
+          const pre = n.getAttribute("data-pre-plain-text") || "";
+          const m = pre.match(/\]\s*([^:]+):\s*$/);
+          return m ? m[1].trim() : "";
+        });
+        return (
+          labeled ||
+          textFrom("[data-pre-plain-text]") ||
+          textFrom(".message-in .selectable-text, .message-out .selectable-text")
+        );
+      },
     },
     {
       key: "linkedin",
