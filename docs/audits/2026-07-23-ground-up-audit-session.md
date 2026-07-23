@@ -152,6 +152,18 @@ lesson: the file surface got adversarial attention and is solid; the cost-meteri
 never did, which is why the message-quota gap slipped through. **Recommendation: give the cost model the same
 adversarial pass the security surface already received.**
 
+**Also verified clean — `widget/bootstrap` field exposure (public, no auth).** The docstring claims it returns
+"only customer-safe fields — NEVER the embed_token, allowed_origins, or plan/quota internals." Verified: the route
+explicitly WHITELISTS eight display fields (`color, greeting, subtitle, position, logoUrl, displayName, aiName,
+businessType`) rather than spreading `resolution.config` — the fail-safe pattern. Even if the config object carries
+sensitive fields they cannot leak, AND a future internal field added to config won't auto-appear in the public
+response (the failure mode a spread would create). Input bounded (token ≤64, trimmed). No exposure.
+
+**Public C.A.R.E surface — audit coverage this session:** origin validation (sound), webhook auth (constant-time,
+fail-closed), rate limits (present on every route), file upload/download (IDOR + traversal closed), bootstrap
+field exposure (whitelisted), inbound-email intake (text-only, dedup, bounded). The ONLY open items on the whole
+public surface are the two cost-metering MEDIUMs above — same root cause, one fix.
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
