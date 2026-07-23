@@ -1,26 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * Locks the WIRING of the RFC-3834 automated-sender suppression inside the email first-responder.
- * The pure detector (detectAutomatedSender) is unit-tested separately; this pins that the ROUTE
- * actually short-circuits — an automated inbound (out-of-office / bounce / bulk-list) triggers NO
- * LLM call and records an `ai_suppressed_automated` event, BEFORE the paid compute.
+ * Route-level coverage for runAiFirstResponder's SHORT-CIRCUIT guard chain — the cost/abuse/handoff
+ * gates that decide whether the email AI replies at all. Every one of these must turn the AI away
+ * BEFORE the paid generateCareReply call; a regression that removed a gate or moved it after the LLM
+ * would leak spend (or, for handoff/takeover, talk over a human). This responder previously had ZERO
+ * route-level test (only extractLocalPart), so the whole chain was unprotected.
  *
- * Why this matters: the rest of runAiFirstResponder's AI-decision path (loop breaker, flood guard)
- * has no route-level test, so a regression that removed the guard or moved it AFTER the
- * generateCareReply call would pass silently. This test is the guard on the guard. The automated
- * path short-circuits before the loop-breaker's DB queries, so it needs only a minimal admin mock.
+ * Each case here short-circuits at or before the loop breaker, so a minimal, configurable admin mock
+ * suffices — no need to scaffold the full happy path (buildRecentTurns → LLM), which the pure helpers
+ * already cover. The guard ORDER in the route is: ai_responding → handoff → automated-sender →
+ * loop-breaker → flood.
  */
+let aiResponding = true;
+let recentAiReplyCount = 0;
 const insertSpy = vi.fn().mockResolvedValue({ error: null });
+const updateEqSpy = vi.fn().mockResolvedValue({ error: null });
+
 const adminMock = {
   from: (table: string) => {
     if (table === "support_conversations") {
       return {
-        // The AI-takeover check: ai_responding is still true, so the responder proceeds to the guards.
+        // takeover check: .select("ai_responding").eq("id").maybeSingle()
         select: () => ({
-          eq: () => ({ maybeSingle: () => Promise.resolve({ data: { ai_responding: true } }) }),
+          eq: () => ({ maybeSingle: () => Promise.resolve({ data: { ai_responding: aiResponding } }) }),
         }),
-        update: () => ({ eq: () => Promise.resolve({ error: null }) }),
+        // handoff / loop-breaker flip: .update({...}).eq("id")
+        update: () => ({ eq: updateEqSpy }),
+      };
+    }
+    if (table === "support_messages") {
+      // loop breaker count: .select("id",{count,head}).eq().eq().gte()
+      return {
+        select: () => ({
+          eq: () => ({ eq: () => ({ gte: () => Promise.resolve({ count: recentAiReplyCount }) }) }),
+        }),
       };
     }
     if (table === "support_conversation_events") return { insert: insertSpy };
@@ -34,53 +48,71 @@ vi.mock("@/lib/claude", () => ({ generateCareReply: vi.fn() }));
 import { runAiFirstResponder } from "@/app/api/care/inbound/email/route";
 import { generateCareReply } from "@/lib/claude";
 
+const base = {
+  conversationId: "conv-1",
+  companyId: "co-1",
+  customerId: "cust-1",
+  customerMessageId: "msg-1",
+  headers: [] as { Name: string; Value: string }[],
+  from: "jane@customer.com",
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  aiResponding = true;
+  recentAiReplyCount = 0;
   insertSpy.mockResolvedValue({ error: null });
+  updateEqSpy.mockResolvedValue({ error: null });
 });
 
-describe("runAiFirstResponder — automated-sender suppression wiring (RFC 3834)", () => {
-  it("an out-of-office (Auto-Submitted) inbound → NO LLM call, records ai_suppressed_automated with the reason", async () => {
-    await runAiFirstResponder({
-      conversationId: "conv-1",
-      companyId: "co-1",
-      customerId: "cust-1",
-      customerMessage: "Out of office until Monday.", // benign — does not trip the handoff heuristic
-      customerMessageId: "msg-1",
-      headers: [{ Name: "Auto-Submitted", Value: "auto-generated" }],
-      from: "person@customer.com",
-    });
+const eventOfType = (t: string) =>
+  insertSpy.mock.calls.find((c) => (c[0] as { event_type?: string })?.event_type === t)?.[0] as
+    | { event_type: string; actor_type: string; metadata: Record<string, unknown> }
+    | undefined;
 
-    // The core property: the paid model was never invoked for a machine sender.
+describe("runAiFirstResponder — short-circuit guard chain (no LLM before a gate passes)", () => {
+  it("human takeover (ai_responding=false) → returns immediately, no LLM", async () => {
+    aiResponding = false;
+    await runAiFirstResponder({ ...base, customerMessage: "Hi, still need help with my order." });
     expect(generateCareReply).not.toHaveBeenCalled();
-
-    // And the suppression is recorded on the timeline (§3.6) with the greppable reason (§3.1).
-    const call = insertSpy.mock.calls.find(
-      (c) => (c[0] as { event_type?: string })?.event_type === "ai_suppressed_automated"
-    );
-    expect(call, "expected an ai_suppressed_automated event insert").toBeTruthy();
-    const row = call![0] as { actor_type: string; metadata: { reason: string } };
-    expect(row.actor_type).toBe("system");
-    expect(row.metadata.reason).toBe("auto-submitted:auto-generated");
   });
 
-  it("a no-reply/daemon From (no headers) → still suppressed before the LLM", async () => {
+  // NOTE: no "customer asks for a human" case here on purpose. The route's PRE-LLM handoff gate
+  // (line 484) calls detectHandoffSignal(customerMessage), but that function detects AGENT-side
+  // handoff language / the [[HANDOFF]] sentinel (param is named `aiResponse`), so it does NOT fire
+  // on a customer saying "speak to a human." A genuine human-request is instead caught POST-LLM by
+  // the detectHandoffSignal(reply.text) at line 651 (warmer UX than a pre-LLM silent handoff). This
+  // misapplication is flagged for founder judgment (queue), not locked by a test.
+
+  it("automated sender (RFC 3834 Auto-Submitted) → suppressed + ai_suppressed_automated, no LLM", async () => {
     await runAiFirstResponder({
-      conversationId: "conv-2",
-      companyId: "co-1",
-      customerId: "cust-2",
+      ...base,
+      customerMessage: "Out of office until Monday.",
+      headers: [{ Name: "Auto-Submitted", Value: "auto-generated" }],
+    });
+    expect(generateCareReply).not.toHaveBeenCalled();
+    const e = eventOfType("ai_suppressed_automated");
+    expect(e).toBeTruthy();
+    expect(e!.actor_type).toBe("system");
+    expect(e!.metadata.reason).toBe("auto-submitted:auto-generated");
+  });
+
+  it("daemon/no-reply From → suppressed as automated, no LLM", async () => {
+    await runAiFirstResponder({
+      ...base,
       customerMessage: "Delivery Status Notification (Failure)",
-      customerMessageId: "msg-2",
-      headers: [],
       from: "mailer-daemon@mail.customer.com",
     });
     expect(generateCareReply).not.toHaveBeenCalled();
-    const call = insertSpy.mock.calls.find(
-      (c) => (c[0] as { event_type?: string })?.event_type === "ai_suppressed_automated"
-    );
-    expect(call, "a daemon sender must be suppressed before the LLM").toBeTruthy();
-    expect((call![0] as { metadata: { reason: string } }).metadata.reason).toBe(
-      "no-reply-sender:mailer-daemon"
-    );
+    expect(eventOfType("ai_suppressed_automated")!.metadata.reason).toBe("no-reply-sender:mailer-daemon");
+  });
+
+  it("loop breaker: >=5 AI replies in the window → suppressed + ai_suppressed_loop, no LLM", async () => {
+    recentAiReplyCount = 5; // AI_LOOP_BREAKER_MAX
+    await runAiFirstResponder({ ...base, customerMessage: "Thanks, received your note." });
+    expect(generateCareReply).not.toHaveBeenCalled();
+    const e = eventOfType("ai_suppressed_loop");
+    expect(e, "loop breaker must record its suppression").toBeTruthy();
+    expect(updateEqSpy).toHaveBeenCalled(); // ai_responding flipped off — a human takes the looping thread
   });
 });
