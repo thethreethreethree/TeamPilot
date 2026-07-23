@@ -11,6 +11,7 @@ import {
   buildCareSystemPrompt,
   buildCareUserMessage,
   detectHandoffSignal,
+  stripHandoffSentinel,
 } from "@/lib/care/prompt";
 import { generateCareReply } from "@/lib/claude";
 import { LlmError } from "@/lib/llm/errors";
@@ -594,13 +595,32 @@ async function runAiFirstResponder(args: {
       userMessage,
     });
 
-    await admin.from("support_messages").insert({
-      conversation_id: args.conversationId,
-      author_type: "ai",
-      author_id: null,
-      body: reply.text,
-      is_internal_note: false,
-    });
+    // Mirror the widget's AI-reply handoff handling (audit 2026-07-23 — §1.2 class-check of the widget
+    // blank-bubble/leak fix). Before this, the email path inserted reply.text RAW: (1) the [[HANDOFF]]
+    // sentinel LEAKED into the customer's email, and (2) when the AI itself handed off it did NOT flip
+    // ai_responding, so the AI kept auto-replying to the next email instead of ceding to a human (§3.3).
+    const aiHandsOff = detectHandoffSignal(reply.text);
+    const body = stripHandoffSentinel(reply.text);
+
+    // Never persist a blank AI message (empty reply, or sentinel-only → "" after strip).
+    if (body) {
+      await admin.from("support_messages").insert({
+        conversation_id: args.conversationId,
+        author_type: "ai",
+        author_id: null,
+        body,
+        is_internal_note: false,
+      });
+    }
+
+    // §3.3 — when the AI says it's bringing in a human, it must actually cede the thread so the next
+    // inbound email routes to the agent inbox, not another AI reply. (Same flip the pre-check uses.)
+    if (aiHandsOff) {
+      await admin
+        .from("support_conversations")
+        .update({ ai_responding: false })
+        .eq("id", args.conversationId);
+    }
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
       console.warn("[care] email AI first responder failed", e);
