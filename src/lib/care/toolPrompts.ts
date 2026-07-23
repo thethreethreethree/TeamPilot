@@ -8,6 +8,8 @@
  *  and §A11 (facts, not character judgements). */
 export const SUMMARIZE_SYSTEM = `You are summarizing a customer support conversation for an agent who is about to step in. Write a 3-5 sentence read of the thread that helps the agent catch up fast.
 
+Roles (founder audit 2026-07-23): if the conversation is role-labeled (lines prefixed "Customer:", "You:", or a sender name), use those labels to attribute turns correctly. If it is NOT labeled and you cannot tell which side is the customer versus support, describe what the thread is about without inventing who said what — do not guess who is who.
+
 Cover, in order:
   1. What the customer is asking for / what they're stuck on
   2. What's already been tried or said (briefly)
