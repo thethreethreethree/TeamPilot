@@ -189,10 +189,22 @@ businessType`) rather than spreading `resolution.config` — the fail-safe patte
 sensitive fields they cannot leak, AND a future internal field added to config won't auto-appear in the public
 response (the failure mode a spread would create). Input bounded (token ≤64, trimmed). No exposure.
 
-**Public C.A.R.E surface — audit coverage this session:** origin validation (sound), webhook auth (constant-time,
-fail-closed), rate limits (present on every route), file upload/download (IDOR + traversal closed), bootstrap
-field exposure (whitelisted), inbound-email intake (text-only, dedup, bounded). The ONLY open items on the whole
-public surface are the two cost-metering MEDIUMs above — same root cause, one fix.
+**Also verified clean — AGENT-side upload (`conversations/[id]/agent-upload`, authed).** Wider profile than the
+customer path (25 MB, fuller allow-list) but equally sound: cross-tenant IDOR CLOSED (`fetchAgentConversation` +
+`companyId !== auth.companyId → 404`, explicitly defense-in-depth above RLS with the §3.4 no-dishonest-partial
+rationale); validation wired (`filename` → extension block-list + 25 MB cap + agent allow-list); tenant-scoped
+traversal-safe path; honest partial (postAgentMessage fail → 502, not a fake 200); §3.1 event. **Observation
+(contained, not a finding):** the agent allow-list permits `application/javascript`/`json`/`xml` (founder-approved
+2026-07-01) and agent files default `access_role='everyone'` (customer-downloadable, correct — the agent is
+sending the file TO the customer). A `.js` would execute if opened, BUT Supabase signed URLs serve from the
+storage origin (`*.supabase.co`), not the app origin — so no app-session/cookie access — and `text/html` is NOT in
+the allow-list, so there is no stored-XSS-in-app-origin vector. Contained by the cross-origin serving boundary.
+
+**Public + agent C.A.R.E surface — audit coverage this session:** origin validation (sound), webhook auth
+(constant-time, fail-closed), rate limits (present on every route), file upload/download — customer AND agent —
+(IDOR + traversal closed), bootstrap field exposure (whitelisted), inbound-email intake (text-only, dedup,
+bounded), extension tool routes + auth gate (fail-closed, entitlement server-enforced, comprehensively tested).
+The ONLY open items on the whole surface are the two cost-metering MEDIUMs above — same root cause, one fix.
 
 ## Open flags (founder decisions — none are code defects I can close alone)
 
