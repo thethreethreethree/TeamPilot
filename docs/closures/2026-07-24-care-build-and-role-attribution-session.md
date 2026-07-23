@@ -38,6 +38,28 @@ the 2026-07-23 "universal" fix (which was NOT universal; that memory claim corre
 (copilot/spawn/formulate) now anchored. Coach/summarize/dissect (describe/grade, lower risk) surfaced
 as a lower-priority follow-up. Anchor locked by tests (`56b4482a`).
 
+## 3b. Continued audit + fixes (after this closure was first written)
+A long proactive-audit continuation (AMD-006) traced shared logic surface-by-surface and found real
+defects in the less-exercised code, then verified the well-trodden paths sound:
+- **Email channel — 3 real bugs** (least-exercised parallel of the widget): context-blind AI
+  (`recentTurns:[]` → thread history + shared `buildRecentTurns` helper `2c22d279`); AI replies
+  **stored but never emailed** (`dispatchOutboundEmailReply` wired `80bc1b5a` — needs Postmark +
+  founder auto-email-posture confirm); empty-handoff silence (`78bbce10`, locked `dc9eac88`).
+- **Extension** — stale-context truncation (`slice(0,N)`→`slice(-N)`, kept oldest not recent,
+  `9ae8cd2d`); **role-attribution class FULLY closed** — Dissect added (`2248a188`/`3a707f51`), all
+  6 tools now anchored + regression-tested.
+- **Sales Coach** — attribution verified sound (no REP/CUSTOMER inversion); **debug-leak fixed**
+  (`c4097237`, internal/error strings in prod responses, class-swept isolated).
+- **Built:** widget traffic + wrong-origin (token-abuse) visibility (`e0af75af`, was a Sprint-7 stub);
+  Monitor session-duration ("on site 4m", `f87227f1`).
+- **Correctly REJECTED** (§2/§5): the "no-numbers" widget cost-cap interim — it's per-IP, would throttle
+  shared-NAT tenants; needs volume data like the per-tenant cap (`756d5aa5`).
+- **Verified sound** (launch invariants, both products): §3.1 event-immutability system-wide, §3.2 gate,
+  CSV injection, CRM authz, care-config prompt-injection (admin-only writes), embed snippet, multi-tenant
+  routing, LLM-route rate-limiting, voice per-call cost caps, onboarding continuity, CWS store-package
+  freshness, all-6-tools-wired. Authz tests added for all 4 new endpoints.
+- Full suite green throughout (1356); `tsc` + `next build` clean.
+
 ## 4. OPEN — founder's calls (nothing else blocking)
 1. **Apply migrations `0188`–`0192`** + **browser-verify** all cycle-1 features AND the Spawn draft
    (all `tsc`+unit-tested but end-to-end UNTESTED — §5, completion is the founder's confirmation).
