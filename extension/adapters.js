@@ -67,8 +67,9 @@ if (!globalThis.__careAdaptersLoaded) {
 
   // ROLE-LABELING STATUS (Fix 2a, founder audit 2026-07-23). The tools need to know who's the agent vs the
   // customer. Coverage:
-  //   • WhatsApp — LABELED (below) via `.message-out/.message-in` + `data-pre-plain-text` sender (reliable).
-  //   • The other 10 — still UNLABELED (plain textFrom). Their per-message SENDER selectors are UNVERIFIED (see
+  //   • WhatsApp — LABELED via `.message-out/.message-in` + `data-pre-plain-text` sender (reliable).
+  //   • Gmail — LABELED via per-message `span.gD` sender (conservative + fallback; UNVERIFIED, needs browser).
+  //   • The other 9 — still UNLABELED (plain textFrom). Their per-message SENDER selectors are UNVERIFIED (see
   //     the file header), and shipping unverified sender-parsing for each would fabricate confidence + risk
   //     regressions (§3.4). The cross-channel safety net is the ROUTE-LAYER anchor (Fix 2b): the copilot route
   //     passes the signed-in agent's identity and CO_PILOT_SYSTEM refuses to guess who's who. To LABEL another
@@ -79,8 +80,24 @@ if (!globalThis.__careAdaptersLoaded) {
       key: "gmail",
       label: "email thread",
       match: (h) => h === "mail.google.com",
-      // Gmail message bodies render in `.a3s`; the open thread stacks them. Grab visible ones in order.
-      extract: () => textFrom(".a3s"),
+      // Gmail message bodies render in `.a3s`; the open thread stacks them. Fix 2a (founder audit 2026-07-23):
+      // label each body with its SENDER so the tools can attribute turns (the role-inversion bug reproduced on
+      // Gmail). The sender lives in the message header as `span.gD` (carries `name`/`email`); walk up from the
+      // body to its message container and read it. CONSERVATIVE + fallback-protected: if no sender is confidently
+      // found the message stays UNLABELED (labeledFrom leaves label=""), and if the whole labeled pass yields
+      // nothing we fall back to the plain `.a3s` extraction — so this can NEVER regress today's behavior or
+      // confidently mislabel a whole thread. UNVERIFIED against the live Gmail DOM (per this file's header) —
+      // needs a browser confirm. With the copilot agent-name anchor (2b), "SenderName: body" lets the model
+      // match the agent's own turns and stop addressing the reply to them.
+      extract: () => {
+        const labeled = labeledFrom(".a3s", (body) => {
+          const container = body.closest(".gs, .adn, [role='listitem'], .h7") || body.parentElement;
+          const s = container ? container.querySelector("span.gD[email], span.gD[name], .gD[email]") : null;
+          if (!s) return "";
+          return (s.getAttribute("name") || s.getAttribute("email") || s.textContent || "").trim();
+        });
+        return labeled || textFrom(".a3s");
+      },
     },
     {
       key: "outlook",
