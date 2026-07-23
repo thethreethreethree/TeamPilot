@@ -314,11 +314,17 @@ export async function POST(
     await markConversationHandedOff(conversation.id);
   }
 
-  // Persist the (sentinel-stripped) AI reply.
-  const aiMsg = await postAiMessage({
-    conversationId: conversation.id,
-    body: aiText,
-  });
+  // Persist the (sentinel-stripped) AI reply — but NEVER a blank bubble. If the model returned nothing
+  // usable (an empty reply, or ONLY the sentinel → "" after strip), skip the post: on a handoff the notice
+  // below still carries the message; otherwise `aiReplied:false` tells the widget the AI didn't answer.
+  // This guards the empty-SUCCESS case (the reply-FAILED path above already handles errors). Safe because
+  // aiMsg is only read as `!!aiMsg` (aiReplied). (hardening 2026-07-23)
+  const aiMsg = aiText
+    ? await postAiMessage({
+        conversationId: conversation.id,
+        body: aiText,
+      })
+    : null;
 
   // On hand-off, post the customer-facing notice AFTER Jeff's message so the thread
   // reads: Jeff's warm "bringing in a teammate" line, then the system notice. This is
