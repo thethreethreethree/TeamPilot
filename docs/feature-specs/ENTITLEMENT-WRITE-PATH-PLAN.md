@@ -86,6 +86,12 @@ WRITE side is missing.
   Also handle the downgrade path (tier drops to `pilot` → plan drops → re-locks). Vendor-admin-only (the route
   already gates on `requireVendorAdmin`).
 - **Effort:** small — one write added to an existing, already-authz'd route.
+- **⚠️ Also needs a one-time BACKFILL (or it misses existing customers):** the sync fires on the tier-SET action
+  (PATCH), so it only covers FUTURE changes. Any customer already on a paid CRM tier (set before B1 ships) never
+  gets a PATCH → their `care_tenant_config.plan` stays `pilot` → **they stay locked on launch day.** So B1 must
+  include a one-time backfill: for every account with a currently-paid CRM subscription, apply the same tier→plan
+  map to `care_tenant_config.plan`. (If there are zero existing paid customers pre-launch, this is a no-op — but
+  confirm, don't assume.) I fold this into the B1 build automatically unless you say there are no existing paids.
 
 ### B2. Admin "set plan" toggle
 - **Change:** a vendor-admin action/endpoint to set `care_tenant_config.plan` directly.
