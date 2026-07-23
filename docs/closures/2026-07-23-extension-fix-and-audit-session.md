@@ -69,6 +69,23 @@ control-gate verified → **completes the 6-tool extension audit**; deployment-c
 LOW finding: the CARE conversation CLAIM is unguarded (silent-overwrite race) — founder intent decision (queue 8b).
 New regression tests: `isProblemOpen` (§3.5), `isWithinEditWindow` (§3.1).
 
+## 3c. Customer-facing C.A.R.E robustness (late continuation)
+
+Followed the §3.4-honesty thread on the customer-facing widget/email surface — the most productive late vein:
+- **8d (MEDIUM, surfaced):** the customer AI has no "honest if asked human/AI" instruction while told to "sound
+  like a real person" → deception + bot-disclosure (SB 1001 / EU AI Act) risk. Class-checked (demo already
+  discloses; internal AIs known-AI); confined to the production widget. Founder/legal decision — queue 8d.
+- **Anti-fabrication VERIFIED sound** — the three-allowed-answers structure (YES only if in context / HAND OFF /
+  NO) correctly treats both false-yes and false-no as dishonest.
+- **Sentinel tolerance (BUILT + tested):** `stripHandoffSentinel`/`detectHandoffSignal` now tolerate LLM
+  casing/whitespace variants so `[[ Handoff ]]` can't leak; +5 tests. `05c58b90`.
+- **Widget blank-bubble guard (BUILT):** never persist an empty/sentinel-only AI reply as a blank bubble. `31ba3b7b`.
+- **Email handoff LEAK + §3.3 fix (BUILT — the important one):** the inbound-email AI path inserted `reply.text`
+  RAW → the `[[HANDOFF]]` token leaked into the customer's email AND the AI never flipped `ai_responding` on its
+  own handoff, so it kept auto-replying instead of ceding to a human (§3.3 broken on a shipped path). Fixed to
+  mirror the widget (detect handoff on the AI reply, strip, skip-empty, flip ai_responding). Found via §1.2
+  class-check of the widget fix. `9dd45bf3`.
+
 ## 4. How to resume
 
 The extension is shippable the moment the entitlement write-path exists. That's item 1 — a one-word `A1 + B1`
