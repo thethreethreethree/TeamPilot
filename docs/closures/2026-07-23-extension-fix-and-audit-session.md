@@ -46,6 +46,29 @@ Founder browser test: *"I can type on the box now, and the co-pilot is addressin
 5. **Lower:** FX fix (accounting), §3.3 schema-hardening, connect-(b) confirmation, login-`next` continuity,
    error-leakage authed-route cleanup (VERY LOW), per-channel 2a labels on request, 5 dead-class visual fixes.
 
+## 3b. Same-day continuation (after this closure was first written)
+
+**Co-Pilot reply-vs-follow-up mode (founder request, strict ThinkerThinker+CLAUDE protocol).** When the LAST
+message is the AGENT's own, the Co-Pilot drafted a *reply* to the agent's own words. Fix: branch response mode on
+who spoke last — customer-last → REPLY, agent-last → FOLLOW-UP, unknown → determine + default-reply (no
+regression). Shared `src/lib/care/copilotMode.ts` (`copilotModeInstruction` + `lastSpeakerFromAuthorType`, the
+`ai`=our-side pin), **9 tests**. Built on BOTH surfaces (founder-approved the in-app parity, Lesson 5 / A21):
+- **Extension**: optional `lastSpeaker` in schema; WhatsApp `adapter.lastSpeaker()` (deterministic); `content.js`
+  sends it only on copilot; `background.js` allowlists it (would've died in the worker — AMD-006 L2 catch);
+  Gmail/others → unknown → LLM path. `CO_PILOT_SYSTEM` opener made mode-neutral + unknown-mode composed with the
+  WHO-IS-WHO gate (A16). Commits `88a1826f`, `de4cb2d9`, `d3c4ed11`.
+- **In-app**: deterministic via `authorType`, fully server-verified. `70fe917e`, `03d2ee99`.
+- **VERIFIED:** tsc, node --check ×3, store rebuild, **full suite 1272 tests green**. **UNTESTED (founder browser):**
+  the extension DOM read + actual LLM draft prose. **Optional pending:** tighten Formulate's mild "acknowledge the
+  customer" soft-bias (surfaced, not built — your call).
+
+**Additional audit this continuation (all clean-positive):** public-widget multi-tenant IDOR (messages/handoff/
+file — all bind token↔conversation↔company); §3.4 control-gate deep-verify (+ fixed an inaccurate `controlExempt`
+doc-comment); §3.6 make-learning-visible honesty (no fabricated learning); SW network-first (no staleness); Spawn
+control-gate verified → **completes the 6-tool extension audit**; deployment-correctness (the fix ships). One new
+LOW finding: the CARE conversation CLAIM is unguarded (silent-overwrite race) — founder intent decision (queue 8b).
+New regression tests: `isProblemOpen` (§3.5), `isWithinEditWindow` (§3.1).
+
 ## 4. How to resume
 
 The extension is shippable the moment the entitlement write-path exists. That's item 1 — a one-word `A1 + B1`
