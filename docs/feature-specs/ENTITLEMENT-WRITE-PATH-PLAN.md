@@ -9,6 +9,12 @@ The read side is DONE and tested: `computeExtensionEntitlement` (pure, 16 tests 
 case-insensitivity) unlocks on `plan∈{pro,enterprise}` OR `extension_trial_started_at` within 14 days. Only the
 WRITE side is missing.
 
+> ⚠️ **PREREQUISITE: migration `0189` must be applied first.** It adds the `extension_trial_started_at` column
+> that A1/A2 write. `0189` is pending (the 2026-07-20 full-apply went through `0187`) — apply it via
+> `npm run db:apply` (see FOUNDER-ACTION-QUEUE item 4) BEFORE I build the trial-start write, or the write hits a
+> missing-column error. The read side already degrades gracefully if the column is absent (migration-coupling
+> fallback), but the WRITE needs the real column.
+
 ---
 
 ## A. Trial start — pick ONE
