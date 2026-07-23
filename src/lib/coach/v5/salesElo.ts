@@ -130,8 +130,11 @@ function quality01(strengths: number, growthAreas: number): number {
 export function gameScoreFromFactors(f: EloFactors): number | null {
   if (f.outcome === "no_contact") return null; // no conversation → not a game
 
-  const rating = meanScore01(f.scores); // after-pitch graded scores, or null
-  const quality =
+  // NB: these are NORMALIZED [0,1] game-score components — NOT ELO ratings (the ELO scale lives in
+  // updateElo's `rating`/`opponent`). Named `...Score01` so `0.5*a + 0.5*b` is never misread as blending
+  // ELO ratings (which would be a real bug). meanScore01 / quality01 both return [0,1] or null.
+  const processScore01 = meanScore01(f.scores); // after-pitch graded delivery scores, or null
+  const qualityScore01 =
     f.strengths + f.growthAreas > 0
       ? quality01(f.strengths, f.growthAreas) // dissect strengths vs growth
       : null;
@@ -139,8 +142,9 @@ export function gameScoreFromFactors(f: EloFactors): number | null {
   // Performance = the conversation-quality signal. Prefer both; else whichever
   // exists. No signal at all → not a gradeable game.
   let performance: number | null;
-  if (rating !== null && quality !== null) performance = 0.5 * rating + 0.5 * quality;
-  else performance = rating ?? quality;
+  if (processScore01 !== null && qualityScore01 !== null)
+    performance = 0.5 * processScore01 + 0.5 * qualityScore01;
+  else performance = processScore01 ?? qualityScore01;
   if (performance === null) return null;
 
   const outcome = outcomeValue(f.outcome); // number if recorded, else null
