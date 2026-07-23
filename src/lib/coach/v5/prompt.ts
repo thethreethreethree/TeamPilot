@@ -162,8 +162,18 @@ export function buildSystemPrompt(args: {
    *  conversations (§1.6 close-the-loop applied to itself). Null
    *  when the user has insufficient history — see memory.ts. */
   memoryBlock?: string | null;
+  /** The agent being coached (A26 role-attribution sweep, 2026-07-24). Anchors WHO IS WHO when the
+   *  surrounding conversation is a scanned external thread with no per-message role labels (the
+   *  extension support_reply case): without it the Coach can mis-attribute the agent's OWN prior
+   *  turns to the customer and grade the draft against a distorted context. Optional — in-app coaching
+   *  has role-labeled context, so omit it there. */
+  agentName?: string;
 }): string {
   const knowledgeBase = getKnowledgeBase();
+  const whoIsWho =
+    args.agentName && args.contextType === "support_reply"
+      ? `\nWHO IS WHO (role attribution): the person you are coaching — the support agent — is ${args.agentName}. In the surrounding conversation, messages from ${args.agentName} are the agent's OWN prior turns (NOT the customer's); the other party is the customer. Read the context on that basis so you don't grade the draft against a mis-attributed thread. The DRAFT you are analyzing is ${args.agentName}'s.\n`
+      : "";
   return [
     IDENTITY_SECTION,
     KNOWLEDGE_REFERENCE_PREAMBLE,
@@ -172,6 +182,7 @@ export function buildSystemPrompt(args: {
     BEHAVIORAL_RULES,
     MODE_INSTRUCTIONS[args.mode],
     `\nSURFACE CONTEXT NOTE:\n${CONTEXT_TYPE_NOTES[args.contextType]}\n`,
+    whoIsWho,
     args.memoryBlock ? `\n${args.memoryBlock}\n` : "",
   ].join("");
 }

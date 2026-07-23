@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { analyzeCoachV5 } from "@/lib/claude";
 import { buildSystemPrompt, buildUserMessage } from "@/lib/coach/v5/prompt";
@@ -41,6 +42,24 @@ export async function POST(req: NextRequest) {
 
   const productContext = await getProductContextForTenant(user.companyId);
 
+  // Agent identity anchor (A26 sweep of the role-attribution class, 2026-07-24). The scanned thread
+  // has no per-message role labels, so tell the Coach whose prior turns are the agent's (the person
+  // it's coaching) vs the customer's — otherwise it can grade the draft against a mis-attributed
+  // context. Best-effort lookup; the anchor is a no-op with the generic label.
+  let agentName = "the support agent";
+  try {
+    const admin = createAdminClient();
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.userId)
+      .maybeSingle();
+    if (typeof prof?.full_name === "string" && prof.full_name.trim())
+      agentName = prof.full_name.trim();
+  } catch {
+    /* best-effort */
+  }
+
   try {
     const memory = await loadCoachMemory();
     const memoryBlock = renderMemoryForPrompt(memory);
@@ -49,6 +68,7 @@ export async function POST(req: NextRequest) {
       mode: "ask",
       contextType: "support_reply",
       memoryBlock,
+      agentName,
     });
     const userMessage = buildUserMessage({
       draft: body.draft,
