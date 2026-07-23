@@ -74,18 +74,6 @@ const SECURITY_HEADERS = [X_FRAME_OPTIONS, ...BASE_SECURITY_HEADERS];
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // ── Build-time performance (2026-07-24 — fixes the recurring Vercel 45-min build TIMEOUT) ──────────
-  // This app is large (652 TS files, 345 routes) and `next build` runs `tsc` typecheck + ESLint by
-  // default. That is REDUNDANT here: CI (.github/workflows/ci.yml) already runs `npm run typecheck` and
-  // `npm run lint` as separate BLOCKING gates on every push to main. Paying that cost again inside the
-  // Vercel build pushed it over the 45-minute limit (intermittently — the recurring "builds failing").
-  // Skipping the duplicate pass IN THE BUILD removes a large chunk of build time and does NOT change the
-  // compiled output (the code still compiles identically; only the separate check passes are skipped).
-  // SAFETY: CI is the typecheck/lint gate and keeps main clean. Trade-off: a type/lint error that reached
-  // main would still DEPLOY (build succeeds) while CI goes red — acceptable, because the prior behaviour
-  // was a build that deployed NOTHING (timed out). Revert both flags to move the checks back into the build.
-  typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
   // Output a standalone server bundle for container deploys (Vercel ignores
   // this and uses its own runtime; Docker / Fly / Render benefit).
   output: "standalone",
