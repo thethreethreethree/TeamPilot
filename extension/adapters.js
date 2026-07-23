@@ -29,7 +29,11 @@ if (!globalThis.__careAdaptersLoaded) {
         if (t) parts.push(t);
       }
       const joined = parts.join("\n\n").trim();
-      return joined.length > 20000 ? joined.slice(0, 20000) : joined;
+      // Cap to the RECENT tail, not the oldest head: the conversation is in document order
+      // (oldest → newest), and the tools (Co-Pilot / Coach / Summarize) need the MOST RECENT
+      // context — what the customer just said. slice(0, N) kept the oldest and dropped the
+      // recent, so a long thread (> ~20k chars) fed the tools stale context. slice(-N) fixes it.
+      return joined.length > 20000 ? joined.slice(-20000) : joined;
     } catch {
       return "";
     }
@@ -59,7 +63,11 @@ if (!globalThis.__careAdaptersLoaded) {
         parts.push(label ? `${label}: ${body}` : body);
       }
       const joined = parts.join("\n\n").trim();
-      return joined.length > 20000 ? joined.slice(0, 20000) : joined;
+      // Cap to the RECENT tail, not the oldest head: the conversation is in document order
+      // (oldest → newest), and the tools (Co-Pilot / Coach / Summarize) need the MOST RECENT
+      // context — what the customer just said. slice(0, N) kept the oldest and dropped the
+      // recent, so a long thread (> ~20k chars) fed the tools stale context. slice(-N) fixes it.
+      return joined.length > 20000 ? joined.slice(-20000) : joined;
     } catch {
       return "";
     }

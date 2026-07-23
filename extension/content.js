@@ -395,7 +395,9 @@
   function setSelection(text, note, lastSpeaker) {
     const trimmed = (text || "").trim();
     const capped = trimmed.length > SELECTION_MAX;
-    currentSelection = capped ? trimmed.slice(0, SELECTION_MAX) : trimmed;
+    // Keep the RECENT tail, not the oldest head (matches the adapters): a highlighted conversation
+    // runs oldest → newest, and the tools need the most recent context. slice(0, …) dropped it.
+    currentSelection = capped ? trimmed.slice(-SELECTION_MAX) : trimmed;
     // Manual selection can't know who spoke last → "unknown" (the server then determines it and
     // defaults to reply, so nothing regresses). An adapter may pass a reliable value.
     currentLastSpeaker =
