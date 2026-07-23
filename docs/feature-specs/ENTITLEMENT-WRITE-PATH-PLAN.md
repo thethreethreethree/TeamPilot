@@ -87,9 +87,16 @@ WRITE side is missing.
    your workspace admin to enable it."* (`content.js:262`). So today it's honest, not misleading. When A1/A2 ships,
    update it to the chosen mechanism (A1 → "your trial starts automatically"; A2 → wire the button). Not a blocker
    now — just the final copy pass alongside the write-path.
-2. **Spawn during a trial:** Spawn is §3.4-control-gated, so a brand-new trial tenant (month-1 control window)
-   gets Spawn suppressed while the other 5 tools work. Decide whether trial tenants should be control-exempt for
-   Spawn so evaluators can try all six tools. (Second-order — only bites once trials actually start.)
+2. **Spawn during a trial — SHARPER THAN "some suppression" (verified 2026-07-23):** Spawn is §3.4-control-gated,
+   and a new company's control window defaults to **30 days** (`companies.ai_guidance_unlock_at default now() +
+   interval '30 days'`, migration `0007`). The C.A.R.E trial is **14 days** (`EXTENSION_TRIAL_DAYS`). Since 14 < 30,
+   the ENTIRE trial sits inside the control window → **Spawn is 100% suppressed for every trial evaluator, the whole
+   trial** — they get 5 of 6 tools and *never* see Spawn work. So the "control-exempt trial tenants for Spawn"
+   decision isn't cosmetic: without it, no evaluator can ever try the one tool that writes into their workspace.
+   Options: (a) control-exempt Spawn for active-trial tenants; (b) accept it (Spawn is "the paid/graduated tool");
+   (c) shorten the control window for trial tenants. Your call — but decide it WITH the write-path, since A1 is what
+   creates these month-1 trial tenants. (Verified: `evaluateControlGate` = `manualEnabled || autoUnlocked`; a new
+   tenant is neither for 30 days.)
 
 ## Recommended combination
 **A1 + B1** — auto-start trial on first check (seamless, matches the pitch) + CRM-tier→plan sync (you already set
