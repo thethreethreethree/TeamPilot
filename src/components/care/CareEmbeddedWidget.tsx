@@ -87,6 +87,9 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   // Proactive (§1.5.2): handed off to a human — drives the standing "an agent will reply"
   // indicator so the customer isn't left in silence after the one-time notice scrolls away.
   const [handedOff, setHandedOff] = useState(false);
+  // Read-receipt (A21 parity with CareChatWidget): when the customer last viewed the
+  // conversation (ms). Drives the unread dot on the collapsed bubble.
+  const [lastViewedAt, setLastViewedAt] = useState<number>(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -307,6 +310,33 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     return () => window.clearInterval(id);
   }, [open, session, loadMessages]);
 
+  // ─── Read-receipt (A21 parity with CareChatWidget) ─────────
+  // Restore last-viewed on mount so a returning visitor who already read a reply doesn't see a
+  // false unread dot.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(`care-widget-lastview:${embedToken}`);
+    if (raw) setLastViewedAt(Number(raw) || 0);
+  }, [embedToken]);
+  // While open the customer is looking → mark everything seen (on open + as messages arrive).
+  useEffect(() => {
+    if (!open) return;
+    const now = Date.now();
+    setLastViewedAt(now);
+    if (typeof window !== "undefined")
+      window.localStorage.setItem(`care-widget-lastview:${embedToken}`, String(now));
+  }, [open, messages.length, embedToken]);
+  // Gentle collapsed-state poll (active session only, 30s, tab-paused) so a reply that lands
+  // while closed is fetched and lights the dot. Without it the dot could never light.
+  useEffect(() => {
+    if (open || !session) return;
+    const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      void loadMessages();
+    }, 30000);
+    return () => window.clearInterval(id);
+  }, [open, session, loadMessages]);
+
   const ensureSession = useCallback(async (): Promise<StoredSession | null> => {
     if (session) return session;
     try {
@@ -507,29 +537,44 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   return (
     <>
       {!open && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Open support chat"
-          style={{ backgroundColor: config.color }}
-          className={`fixed ${posClass} w-14 h-14 rounded-full text-[#09090B] shadow-lg hover:scale-105 transition-transform flex items-center justify-center overflow-hidden`}
-        >
-          {/* Per audit H4 (2026-06-24): the launcher bubble is the
-              MOST prominent brand surface (always visible on the
-              customer's site). Show the tenant logo here when set;
-              fall back to the generic chat icon. SECURITY: <img src>
-              only — never <object>/inline SVG (sandbox preserved). */}
-          {config.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={config.logoUrl}
-              alt=""
-              className="w-9 h-9 rounded-full object-contain"
+        // Wrapper carries the fixed position so the unread dot can sit OUTSIDE the button's
+        // overflow-hidden (which clips the logo to the circle and would otherwise clip the dot).
+        <div className={`fixed ${posClass} w-14 h-14`}>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Open support chat"
+            style={{ backgroundColor: config.color }}
+            className="w-14 h-14 rounded-full text-[#09090B] shadow-lg hover:scale-105 transition-transform flex items-center justify-center overflow-hidden"
+          >
+            {/* Per audit H4 (2026-06-24): the launcher bubble is the
+                MOST prominent brand surface (always visible on the
+                customer's site). Show the tenant logo here when set;
+                fall back to the generic chat icon. SECURITY: <img src>
+                only — never <object>/inline SVG (sandbox preserved). */}
+            {config.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={config.logoUrl}
+                alt=""
+                className="w-9 h-9 rounded-full object-contain"
+              />
+            ) : (
+              <MessageCircle className="w-6 h-6" aria-hidden />
+            )}
+          </button>
+          {/* Read-receipt unread dot (A21 parity): a reply arrived while collapsed. */}
+          {messages.some(
+            (m) =>
+              m.authorType !== "customer" &&
+              Date.parse(m.createdAt) > lastViewedAt
+          ) && (
+            <span
+              aria-hidden
+              className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-base rounded-full"
             />
-          ) : (
-            <MessageCircle className="w-6 h-6" aria-hidden />
           )}
-        </button>
+        </div>
       )}
 
       {open && (

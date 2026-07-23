@@ -226,6 +226,20 @@ export function CareChatWidget() {
     return () => window.clearInterval(id);
   }, [open, session, loadMessages]);
 
+  // Read-receipt (2026-07-24): a GENTLE poll while COLLAPSED with an active session, so a reply
+  // that lands while the widget is closed is fetched and lights the unread dot. Without this the
+  // dot could never light (the 4s poll above only runs while open, and opening marks everything
+  // seen). Slower (30s) + tab-paused to stay cheap; only runs when a conversation already exists,
+  // so it never polls for an anonymous visitor who hasn't messaged.
+  useEffect(() => {
+    if (open || !session) return;
+    const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      void loadMessages();
+    }, 30000);
+    return () => window.clearInterval(id);
+  }, [open, session, loadMessages]);
+
   const ensureSession = useCallback(async (): Promise<StoredSession | null> => {
     if (session) return session;
     try {
