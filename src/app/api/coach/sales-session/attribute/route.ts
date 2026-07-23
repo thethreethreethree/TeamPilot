@@ -141,6 +141,11 @@ Respond with ONLY this JSON: {"speaker":"salesperson"} or {"speaker":"prospect"}
     err = e instanceof Error ? e.message : String(e);
   }
 
-  const debug = `suppressed=${suppressed} product=${productFound} err=${err || "none"} raw=${JSON.stringify(raw)}`;
-  return NextResponse.json({ speaker, debug });
+  // Debug string (internal flags + error text + raw LLM output) is a dev aid — never ship it to the
+  // client in production, where it would leak internals/error details into every attribution response.
+  const payload: { speaker: typeof speaker; debug?: string } = { speaker };
+  if (process.env.NODE_ENV !== "production") {
+    payload.debug = `suppressed=${suppressed} product=${productFound} err=${err || "none"} raw=${JSON.stringify(raw)}`;
+  }
+  return NextResponse.json(payload);
 }
