@@ -30,6 +30,34 @@ describe("buildSpawnSystemPrompt", () => {
   });
 });
 
+describe("buildSpawnSystemPrompt — agent-identity anchor (role attribution, founder report 2026-07-24)", () => {
+  it("injects a WHO-IS-WHO anchor naming the agent for a scanned chat thread", () => {
+    const out = buildSpawnSystemPrompt({
+      contextType: "chat_messages",
+      isRefinement: false,
+      agentName: "John Ramos",
+    });
+    expect(out).toContain("WHO IS WHO");
+    expect(out).toContain("John Ramos");
+    // Establishes John as the AGENT (not the customer) — the exact bug that was reported.
+    expect(out).toMatch(/John Ramos[^]*agent/i);
+  });
+
+  it("omits the anchor when no agentName is given (in-app spawn passes real per-message labels)", () => {
+    const out = buildSpawnSystemPrompt({ contextType: "chat_messages", isRefinement: false });
+    expect(out).not.toContain("WHO IS WHO");
+  });
+
+  it("does not add the scanned-thread anchor to the decision surface (already role-structured)", () => {
+    const out = buildSpawnSystemPrompt({
+      contextType: "decision",
+      isRefinement: false,
+      agentName: "John Ramos",
+    });
+    expect(out).not.toContain("WHO IS WHO");
+  });
+});
+
 describe("buildSpawnUserMessage", () => {
   it("decision surface includes the decision's situation and proposal", () => {
     const out = um("decision", {
