@@ -357,6 +357,35 @@ public surface already clean this is low-value polish, not worth a 104-site refa
 urgent action. (Honest calibration: found a real systemic pattern, then downgraded it when checking showed the
 high-exposure surface is already handled — not inflating a LOW finding into something it isn't.)
 
+## 🟡 MEDIUM — budget variance is WRONG for MONTHLY budgets (reachable finance-correctness bug, found 2026-07-23)
+
+The `fin_budget_variance` view (`0149:41-59`) aligns each budget line's actuals to its period by
+`extract(quarter from e.entry_date) = bl.period_index` (0 = whole year). That is correct ONLY for annual +
+quarterly budgets (period_index 0-4). **But monthly budgets are a shipped feature** — `budgets/route.ts:22`
+accepts `granularity: "monthly"`, and `budgets/[id]/route.ts:33` accepts `periodIndex: 0-12`. For a monthly
+budget:
+- period_index **5-12** (May-Dec): `extract(quarter)` only ever returns 1-4, so it matches **zero** actuals →
+  variance = the full budget reported as unspent. Wrong.
+- period_index **1-4** (Jan-Apr months): mis-aligns to the same-numbered QUARTER — e.g. a **March** (3) budget is
+  compared against **Q3 (Jul-Sep)** actuals. Wrong.
+
+The variance ALERTS (`0182_fin_variance_alerts`) build on this view, so monthly-budget alerts fire on wrong
+numbers too. **Severity MEDIUM** — it's a reachable correctness defect (monthly granularity is creatable via the
+API), producing wrong finance numbers; not latent behind an unbuilt UI like the FX bug.
+
+**Fix (clear + mechanical — NOT an accounting judgment; NOT built because it's a finance-view migration that
+changes reported numbers + can't be tested against a live DB from here):** recreate the view to align by the
+budget's OWN granularity (the view already joins `fin_budgets b` which has `granularity`):
+```sql
+and (
+  bl.period_index = 0
+  or (b.granularity = 'quarterly' and extract(quarter from e.entry_date) = bl.period_index)
+  or (b.granularity = 'monthly'   and extract(month   from e.entry_date) = bl.period_index)
+)
+```
+I'll write the migration (0191) + a mirror test on your nod — it's a clean create-or-replace of the view; the only
+reason I'm surfacing rather than shipping is that it alters reported finance figures and needs a live-DB verify.
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
