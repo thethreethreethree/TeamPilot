@@ -1,7 +1,7 @@
 # Session closure — 2026-07-24 · Vercel build fix + C.A.R.E build cycle + role-attribution sweep
 
 One-page map of a long multi-thread session. All commits are on `main`, `tsc` clean, full suite
-**1329 passing / 15 skipped** (0 failures). Detail lives in the linked docs; this is the map + the
+**1367 passing / 15 skipped** (0 failures, re-run at close). Detail lives in the linked docs; this is the map + the
 decision list + the session-read manifest.
 
 ## 1. Vercel 45-min build TIMEOUT — diagnosed + fixed
@@ -59,6 +59,32 @@ defects in the less-exercised code, then verified the well-trodden paths sound:
   routing, LLM-route rate-limiting, voice per-call cost caps, onboarding continuity, CWS store-package
   freshness, all-6-tools-wired. Authz tests added for all 4 new endpoints.
 - Full suite green throughout (1356); `tsc` + `next build` clean.
+
+## 3c. Continued (guard-driven) — one build, one test-lock, honest corrections, a verification sweep
+Further proactive continuation after 3b. One genuinely new build; the rest hardened or confirmed strength:
+- **BUILT — RFC 3834 automated-sender suppression** (`38dbe0de`): once Postmark is live the AI auto-emails
+  inbound customers → the classic auto-reply-loop class. The count-based loop breaker only trips after ~5
+  machine hops; the new pure `detectAutomatedSender` (11 tests) stops it at hop 0 on `Auto-Submitted!=no`,
+  `Precedence: bulk/list/junk`, `List-Id`/`List-Unsubscribe`, and no-reply/daemon senders. Wired before the
+  LLM call; does NOT flip `ai_responding` (a human may reply next); appends `ai_suppressed_automated` (schema
+  verified — `event_type` is free text, `actor_type='system'` in the CHECK set). Surfaced to the agent with a
+  human label (`3d0d7298`). Runbook **E4** documents it + a veto. Conservative by design (a false positive
+  silences a real customer — the human-passthrough tests are load-bearing).
+- **Test-lock — Co-Pilot role anchor** (`946cfd98`): it was the only 1 of the 6 tools whose WHO-IS-WHO anchor
+  had no test, and the highest-risk (original tool, the "Hi John" fix, drift-prone duplicated wording). Now
+  6/6 test-locked.
+- **Honest corrections (§5):** the `renderEventLabel` switch is COMPLETE for all 11 event types actually
+  written to `support_conversation_events`; an earlier commit's "fall-through" flag was grep noise, retracted
+  on the record (`7ae77847`). Deliverable-staleness class closed: completion PDF §2b (`c4b59b47`) + runbook
+  X1/Dissect + E4 (`e80fb0d0`) refreshed to final state.
+- **Verification sweep — all confirmed strong (no change):** the **entitlement write-path plan** re-verified
+  accurate against HEAD (`8daef05c` — A1 read logic, care/CRM plan enums, B1 route, panel copy); the
+  **extension paywall** is airtight — one shared `guardExtensionRequest` gates all 6 routes (entitlement
+  before any paid compute), test-locked at source; the **empty-product-context first-run** is safe (anti-
+  hallucination rules live in always-present `buildIdentity` → unconfigured tenant hands off, never
+  hallucinates); double-entry balance is DB-enforced (deferred constraint trigger). The FX per-line rounding
+  money-bug stays correctly held for a founder accounting decision.
+- Full suite green; `tsc` clean throughout.
 
 ## 4. OPEN — founder's calls (nothing else blocking)
 1. **Apply migrations `0188`–`0192`** + **browser-verify** all cycle-1 features AND the Spawn draft
