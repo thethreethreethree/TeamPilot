@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>C.A.R.E — System Completion Report</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1b1b1f; background: #ffffff; margin: 0;
+    font-size: 10.5px; line-height: 1.5;
+  }
+  h1 { font-size: 22px; margin: 0 0 2px; letter-spacing: -0.4px; }
+  h2 {
+    font-size: 13px; margin: 22px 0 8px; padding-bottom: 4px;
+    border-bottom: 2px solid #F59E0B; letter-spacing: 0.2px;
+    text-transform: uppercase;
+  }
+  h3 { font-size: 11.5px; margin: 12px 0 3px; }
+  p { margin: 0 0 6px; }
+  .sub { color: #6b6b74; font-size: 10px; }
+  .lead { font-size: 11.5px; color: #2a2a30; }
+  code, .mono { font-family: "SF Mono", "Consolas", "Roboto Mono", monospace; font-size: 9.3px; background: #f3f2ef; padding: 0.5px 3px; border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+  th, td { text-align: left; padding: 5px 7px; border-bottom: 1px solid #e7e5e0; vertical-align: top; }
+  th { font-size: 8.6px; text-transform: uppercase; letter-spacing: 0.5px; color: #86868f; border-bottom: 1.5px solid #d6d3cc; }
+  td { font-size: 9.8px; }
+  .pill { display: inline-block; font-size: 8.3px; font-weight: 700; padding: 1.5px 6px; border-radius: 999px; letter-spacing: 0.3px; white-space: nowrap; }
+  .done   { background: #e7f6ec; color: #1c7a43; }
+  .part   { background: #fef3d6; color: #97650a; }
+  .block  { background: #fde3e1; color: #b0261c; }
+  .gated  { background: #e7e9fb; color: #3b3ba0; }
+  .ops    { background: #eef1f4; color: #4a5560; }
+  .card { border: 1px solid #e7e5e0; border-radius: 8px; padding: 9px 12px; margin: 7px 0; background: #fcfbf9; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kicker { color: #F59E0B; font-weight: 700; font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; }
+  .muted { color: #6b6b74; }
+  ul { margin: 3px 0 8px; padding-left: 16px; }
+  li { margin: 2px 0; }
+  .sev-med { color: #b0261c; font-weight: 700; }
+  .sev-low { color: #97650a; font-weight: 700; }
+  .foot { margin-top: 18px; padding-top: 8px; border-top: 1px solid #e7e5e0; color: #86868f; font-size: 9px; }
+  .avoidbreak { break-inside: avoid; }
+  header.rpt { border-bottom: 3px solid #1b1b1f; padding-bottom: 10px; margin-bottom: 6px; }
+  .badge { display:inline-block; width:22px;height:22px;border-radius:6px;background:#F59E0B;color:#111;font-weight:800;text-align:center;line-height:22px;margin-right:6px;font-size:12px;}
+</style>
+</head>
+<body>
+<header class="rpt">
+  <div style="display:flex;align-items:center;">
+    <span class="badge">C</span>
+    <div>
+      <h1>C.A.R.E — System Completion Report</h1>
+      <p class="sub">Customer · Assist · Respond · Engine &nbsp;·&nbsp; Build → Audit → Remediation cycle 1 &nbsp;·&nbsp; 2026-07-24 &nbsp;·&nbsp; internal</p>
+    </div>
+  </div>
+</header>
+
+<p class="lead">This report covers one full <strong>Build → Audit → Remediation</strong> cycle on the unbuilt C.A.R.E surface, performed under the project framework (§0 understanding-first; AMD-006 four-layer gate; §2 diagnose-before-patch; §3.1–§3.6 thesis-core). It records what shipped, the self-audit and its fixes, and — most importantly — <strong>everything still left to build</strong>, ranked by whether it blocks launch.</p>
+
+<div class="grid2">
+  <div class="card avoidbreak">
+    <span class="kicker">Cycle-1 result</span>
+    <p style="margin:4px 0 0;"><strong>4 features built</strong>, type-safe project-wide, 20 new unit tests. 5 audit findings (1 MEDIUM, 4 LOW); 3 fixed, 2 documented. All committed + pushed to <code>main</code>.</p>
+  </div>
+  <div class="card avoidbreak">
+    <span class="kicker">The one thing between "built" and "customers using it"</span>
+    <p style="margin:4px 0 0;"><span class="pill block">LAUNCH BLOCKER</span> The <strong>entitlement write-path</strong> (A1+B1) — every tenant is <code>locked</code>; no flow grants access. Founder pricing decision. Not part of this cycle's scope.</p>
+  </div>
+</div>
+
+<h2>1 · Built this cycle</h2>
+<table>
+  <thead><tr><th style="width:20%">Feature</th><th style="width:44%">What shipped (file by file)</th><th style="width:20%">Framework</th><th style="width:16%">Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Live Monitor</strong><br><span class="muted">was a 31-line "Sprint 3d" stub</span></td>
+      <td>
+        <code>0192</code> visitor-presence table (RLS, additive) · <code>care.ts</code> touch/fetch (purge + window) · <code>POST /widget/presence</code> (embed-token auth) · <code>GET /monitor/visitors</code> (agent-auth, tenant-scoped) · widget anon heartbeat · <code>monitor/page.tsx</code> polling view.
+      </td>
+      <td>A16/A28 (follows the <code>care_agent_state</code> presence precedent, not a new realtime mechanism) · §3.4 anonymous, non-surveillant</td>
+      <td><span class="pill done">BUILT</span><br><span class="pill part">needs 0192 + browser</span></td>
+    </tr>
+    <tr>
+      <td><strong>Decision Dialogue</strong><br><span class="muted">"This is not working" — dead link</span></td>
+      <td>
+        Root cause: link → <code>/dashboard/decisions/new</code> which never existed (404). Repointed to the real page + <code>GET .../decision-seed</code> (agent-auth, IDOR-scoped) + pure <code>decisionSeed.ts</code> builder (7 tests) + page seeds Situation with the customer's own words.
+      </td>
+      <td>AMD-006 L3 (delivers the button's promise, not just avoids 404) · §3.3 grounded in what was asked</td>
+      <td><span class="pill done">BUILT</span><br><span class="pill part">needs browser</span></td>
+    </tr>
+    <tr>
+      <td><strong>Read-receipts</strong><br><span class="muted">"Sprint 2" stub</span></td>
+      <td><code>messageWasSeen()</code> always returned true → the customer's unread dot never lit. Now client-side <code>lastViewedAt</code> (set while widget open, persisted), so a later agent/AI reply lights the bubble dot.</td>
+      <td>AMD-006 L2 (actually works, no server needed)</td>
+      <td><span class="pill done">BUILT</span><br><span class="pill part">needs browser</span></td>
+    </tr>
+    <tr>
+      <td><strong>§A11 aggregator</strong><br><span class="muted">"Sprint 3c" stub</span></td>
+      <td>"What we've noticed" panel wired to <code>customerPatterns.ts</code> (13 tests) + <code>fetchCustomerPatterns</code> + <code>GET .../customer-patterns</code> (IDOR-scoped). Counts only, threshold-gated.</td>
+      <td>A11 counts-not-verdicts · §3.2 withheld below 3 conversations · §3.5 resolved by durable timestamp</td>
+      <td><span class="pill done">BUILT</span><br><span class="pill part">needs data</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>2 · Audit &amp; remediation</h2>
+<table>
+  <thead><tr><th style="width:6%">ID</th><th style="width:9%">Sev</th><th style="width:47%">Finding &amp; evidence</th><th style="width:38%">Resolution</th></tr></thead>
+  <tbody>
+    <tr><td>A1</td><td><span class="sev-med">MEDIUM</span></td><td><code>/widget/presence</code> had no rate-limit, while all 3 sibling public widget routes do (class-checked via A21).</td><td><span class="pill done">FIXED</span> Added <code>rateLimit</code> 120/min/IP (generous for a heartbeat; bounds a rotating-visitorId flood).</td></tr>
+    <tr><td>A3</td><td><span class="sev-low">LOW</span></td><td>Monitor polled every 5s even when the tab was hidden (AMD-006 L1 efficiency).</td><td><span class="pill done">FIXED</span> Polls only while visible; refreshes on return.</td></tr>
+    <tr><td>A5</td><td><span class="sev-low">LOW</span></td><td>Aggregator rendered raw machine topic values (<code>account_login</code>) — AMD-006 L4.</td><td><span class="pill done">FIXED</span> <code>humanizeConcern</code> → "Account login".</td></tr>
+    <tr><td>A2</td><td><span class="sev-low">LOW</span></td><td>Presence stores an unvalidated <code>conversationId</code>.</td><td><span class="pill ops">DOCUMENTED</span> "Open chat" target is agent-auth + tenant-scoped (cross-tenant → 404) → no leak; fix cost (per-heartbeat query) &gt; risk (A15).</td></tr>
+    <tr><td>A4</td><td><span class="sev-low">LOW</span></td><td><code>document.referrer</code> host-page accuracy is imperfect (AMD-006 L2).</td><td><span class="pill ops">FOLLOW-UP</span> Inherent iframe limit; a precise fix needs a host-script <code>postMessage</code> signal.</td></tr>
+  </tbody>
+</table>
+<p class="muted"><strong>Verified-sound on inspection</strong> (not just assumed): tenant-scoping on all 3 new read endpoints (no cross-tenant leak); the presence table is ephemeral infra state, not a §3.1 domain event (matches <code>care_agent_state</code>); the aggregator is counts-only + threshold-gated; every new data-layer function degrades gracefully if its migration is unapplied (A34).</p>
+
+<h2>3 · What's left to build — the whole C.A.R.E map</h2>
+<p class="sub">Legend: <span class="pill block">BLOCKER</span> nothing launches without it &nbsp; <span class="pill gated">FOUNDER-GATED</span> needs your decision &nbsp; <span class="pill part">ENHANCEMENT</span> works today, better later &nbsp; <span class="pill ops">OPS</span> config/apply</p>
+<table>
+  <thead><tr><th style="width:22%">Item</th><th style="width:50%">What &amp; why</th><th style="width:12%">Type</th><th style="width:16%">Source</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Entitlement write-path (A1+B1)</strong></td><td>Every tenant is <code>locked</code>; no flow writes <code>plan=pro</code> or starts a trial. The extension + gated features are unreachable by any customer. Needs the trial mechanism + paid-unlock (Stripe/tier map). This is a pricing decision.</td><td><span class="pill block">BLOCKER</span> <span class="pill gated">GATED</span></td><td>settings/widget:907 "Stripe + tier upgrade ships in Sprint 7"; FOUNDER-ACTION-QUEUE #1</td></tr>
+    <tr><td><strong>Per-tenant AI-cost cap</strong></td><td>4 AI-ingress surfaces (widget LLM, inbound email, voice TTS, voice STT) bound cost below the tenant level → distributed abuse = unbounded bill. One windowed cap closes all 4. Needs per-plan numbers.</td><td><span class="pill gated">GATED</span></td><td>FOUNDER-ACTION-QUEUE 6b</td></tr>
+    <tr><td><strong>AI human/AI honesty disclosure</strong></td><td>The customer widget AI is told to "sound like a real person" with no "be honest if asked human/AI" instruction → SB 1001 / EU AI Act exposure.</td><td><span class="pill gated">GATED</span></td><td>FOUNDER-ACTION-QUEUE 8d</td></tr>
+    <tr><td><strong>Embeddings upgrade</strong></td><td>Read-Phase similarity, Summarize, and Co-Pilot keyword-extraction use crude keyword matching. Works today; embeddings would sharpen "similar past resolutions."</td><td><span class="pill part">ENHANCE</span></td><td>read:72/126, summarize:150, co-pilot:258 ("Sprint 5/6")</td></tr>
+    <tr><td><strong>Durability auto-resolve worker</strong></td><td>A background worker that auto-resolves "held" problems and re-opens reopened ones (the §3.5 moat loop). The hourly sweep exists; the auto-resolve worker doesn't.</td><td><span class="pill part">ENHANCE</span> <span class="pill ops">OPS</span></td><td>durability:14 ("Sprint 5"); needs CRON_SECRET</td></tr>
+    <tr><td><strong>Widget load-events analytics</strong></td><td>Traffic / wrong-origin analytics surfaced in widget settings.</td><td><span class="pill part">ENHANCE</span></td><td>settings/widget:352 ("Sprint 7")</td></tr>
+    <tr><td><strong>Inline Decision Dialogue in thread</strong></td><td>Today "Open as Decision Dialogue" routes to the decisions page (seeded). Full inline-in-thread dialogue (like the chats surface) remains a follow-up.</td><td><span class="pill part">ENHANCE</span></td><td>ConversationsApp comment</td></tr>
+    <tr><td><strong>Monitor host-page accuracy (A4)</strong></td><td>Host-script <code>postMessage</code> so the Monitor shows the exact page on SPA navigations, not just <code>document.referrer</code>.</td><td><span class="pill part">ENHANCE</span></td><td>Audit A4</td></tr>
+  </tbody>
+</table>
+
+<h2>4 · Founder actions to make this cycle live</h2>
+<div class="grid2">
+  <div class="card avoidbreak">
+    <span class="kicker">Apply migrations</span>
+    <ul>
+      <li><code>0188</code> handover capture · <code>0189</code> entitlement column · <code>0190</code> gate fail-closed · <code>0191</code> budget-variance</li>
+      <li><code>0192</code> <strong>visitor-presence</strong> (this cycle) — additive, RLS, zero-risk</li>
+      <li><span class="muted">Run <code>npm run db:apply</code> (needs the pooler string in <code>SUPABASE_DB_URL</code>).</span></li>
+    </ul>
+  </div>
+  <div class="card avoidbreak">
+    <span class="kicker">Browser-verify (untested)</span>
+    <ul>
+      <li>Monitor: heartbeat → row → poll loop; host-page label</li>
+      <li>Decision Dialogue: click → seed → banner; IDOR 404</li>
+      <li>Read-receipt: dot lights on reply, clears on open</li>
+      <li>Aggregator: counts render at ≥3 conversations</li>
+    </ul>
+  </div>
+</div>
+<p class="sub"><strong>Honesty note (§5 / verification discipline):</strong> every "BUILT" item above is verified only to the level stated — <code>tsc</code> clean and unit tests green. The end-to-end behaviour is <strong>untested</strong> until run in a live browser against an applied DB; completion is your confirmation, not mine.</p>
+
+<div class="foot">
+  Commits this cycle: <code>b0fae5fa</code> Monitor · <code>203d3ad5</code> Decision Dialogue · <code>7fb4f307</code> read-receipts + aggregator · <code>e2f3103e</code> remediation. &nbsp; Governed by the project framework (§0, AMD-006, §2, §3.1–§3.6). &nbsp; Internal document.
+</div>
+</body>
+</html>
