@@ -18,6 +18,7 @@ Every surface below was checked by reading the enforcing code this session (not 
 | Finance ledger balance + calcs | ✅ sound (SQL-vs-mirror) | — |
 | Finance **routes** authz | ✅ sound + **CI-enforced** (invariant 2: no service-role in finance routes) | — |
 | **Admin / CRM routes authz** | ✅ sound — CRM (cross-tenant) = `requireVendorAdmin`; readout/team-check/storage-sweep (own-tenant) = company-admin + explicit `company_id` scope. Prior-CRITICAL CRM area fixed; storage-sweep RLS-bypass is company-scoped (verified). | — |
+| **Service-role (`createAdminClient`) usage across ALL API routes** | ✅ swept clean — the CRM-CRITICAL class (RLS-bypass route without tenant scoping) does NOT recur; every service-role usage is preceded by an RLS-bound authz check + explicit tenant scope (exemplar: `notify-message` reads the msg RLS-bound for anti-spoof, then scopes the admin queries to `topic_id`+`msg.company_id`). `invariant:audit` enforces this for FINANCE routes only; this session verified it holds for ALL routes. | — |
 | Finance FX per-line rounding | 🟡 **real bug, latent** (no multi-currency UI) | accounting decision (fix menu in FX doc) |
 | RLS / tenant isolation | ✅ green (`rls:audit`) | — |
 | Public widget (origin, rate, bootstrap, file up/down) | ✅ sound; IDOR + traversal closed; fields whitelisted | — |
