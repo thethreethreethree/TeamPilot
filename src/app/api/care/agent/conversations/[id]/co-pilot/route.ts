@@ -7,6 +7,7 @@ import {
 } from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
+import { copilotModeInstruction, type LastSpeaker } from "@/lib/care/copilotMode";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
@@ -127,13 +128,31 @@ export async function POST(
     limit: 3,
   });
 
+  // Response-MODE selection (founder request 2026-07-23 — parity with the extension Co-Pilot, Lesson 5
+  // / A21). Unlike the extension (which must guess from scraped text), the in-app Co-Pilot knows who
+  // spoke last DETERMINISTICALLY from authorType. When our side sent the last message — the agent, OR
+  // an AI auto-reply on the agent's behalf — the customer hasn't replied, so a "reply" would answer our
+  // own words: switch to follow-up mode. Only "customer" last → reply. Anything else → unknown (the
+  // model determines it and defaults to reply, so no regression). Reuses copilotMode.ts (same helper).
+  const visibleTurns = detail.messages.filter((m) => !m.isInternalNote);
+  const lastTurn = visibleTurns[visibleTurns.length - 1];
+  const lastSpeaker: LastSpeaker =
+    lastTurn?.authorType === "customer"
+      ? "customer"
+      : lastTurn?.authorType === "agent" || lastTurn?.authorType === "ai"
+        ? "agent"
+        : "unknown";
+  const modeInstruction = copilotModeInstruction(lastSpeaker, "the agent");
+
   // Two-pass: ask for draft + reasoning in a single call but
   // separated by an explicit marker we split on.
-  const SYSTEM = `You are the AI Co-Pilot for a support agent. Draft the agent's NEXT REPLY to a customer.
+  const SYSTEM = `You are the AI Co-Pilot for a support agent. Draft the agent's NEXT MESSAGE to a customer. Whether that message is a reply to the customer or a follow-up from the agent is set by the RESPONSE MODE below — follow it.
 
-Draft the reply the way a calm, attentive human agent would write it:
+${modeInstruction}
+
+Draft the message the way a calm, attentive human agent would write it:
   - Plain prose, no markdown
-  - Acknowledge what the customer said briefly
+  - When replying, acknowledge what the customer said briefly
   - Answer the question OR honestly say what you don't know and offer the next move
   - Don't pad, don't use corporate filler ("we appreciate your patience" etc.)
   - 1-4 sentences typical
