@@ -33,6 +33,25 @@ apply, the FX latent bug, and the AI-cost-metering class (one fix, one number). 
 decision — the biggest being the entitlement write-path (the launch blocker), whose read/auth/degradation side is
 verified + fully tested.
 
+### Security-primitive test coverage — enumerated + verified (2026-07-23)
+
+Every security-critical PURE primitive is now test-locked against regression (enumerated, not assumed — the
+completeness-claim-needs-enumeration discipline). Two genuine gaps were found and filled THIS session; the rest
+were already covered:
+
+| Primitive | Guards | Test | Note |
+|---|---|---|---|
+| `isOriginAllowed` | widget can't be embedded on unauthorized domains | ✅ `isOriginAllowed.test.ts` | incl. the load-bearing **prod-wildcard-rejected** case |
+| `constantTimeEqual` | every webhook + cron secret compare | ✅ `constantTime.test.ts` | mismatch/length-differ/null/empty all covered |
+| `computeExtensionEntitlement` + `getExtensionEntitlement` | extension paid gate | ✅ 16 + 6 branch tests | incl. the live 0189-unapplied degradation + wrong-column fail-closed |
+| decision-dialogue §3.3 gate (`readyForSystemResponse` …) | user diagnoses before the System asserts | ✅ **added this session** (`decisionDialogueGate.test.ts`, 10) | was untested inline + duplicated |
+| `toWidgetSafeConfig` | public bootstrap non-exposure (incl. `aiProductContext`) | ✅ **added this session** (`config.widgetSafe.test.ts`, 3) | was untested inline whitelist |
+| `toCsv` / `neutralizeCsvFormula` | CSV formula-injection (CWE-1236) | ✅ locked earlier | RFC-4180 + injection safety |
+| `guardExtensionRequest` order | extension gate order (auth→limit→schema) | ✅ route tests assert it | — |
+
+So the security primitives are comprehensively regression-protected. The two additions this session convert
+verified-sound-but-unlocked properties into test-enforced ones.
+
 ## Layer map
 
 | # | Layer | State | Evidence (this session) |
