@@ -108,7 +108,9 @@ export async function GET(
  * and we haven't yet captured who the customer is. Once a topic or a linked customer
  * exists, stop nudging. Kept in one place so GET and POST agree.
  */
-function handoffCaptureNeeded(c: {
+// Exported for unit tests — GET and POST both gate the HandoffCard on this, so a regression here
+// shows the capture card at the wrong time (nagging a captured customer, or missing a capture).
+export function handoffCaptureNeeded(c: {
   aiResponding: boolean;
   handoffTopic: string | null;
   customerId: string | null;
