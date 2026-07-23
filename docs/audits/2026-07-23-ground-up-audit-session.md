@@ -293,6 +293,17 @@ DB enforcement specifically. Could be a separate `integration.yml` (on push to m
 Corroborating value is high: it would have caught the 0190 fail-open automatically. Once the founder green-lights
 the CI-cost/complexity tradeoff, I build + verify it against a real Actions run.
 
+**De-risking check — the never-run tests are NOT schema-stale (static spot-check 2026-07-23):** a real risk with
+tests that never run is silent rot across ~190 migrations, which would make the CI job fail on stale schema rather
+than deliver coverage. Checked the highest-risk references and they are all CURRENT: the `'*'` threshold seed is
+still `('*', 3, 2, 80, …)` in `0002` (matching the tests' `min_signals=3 / min_distinct_sources=2` assertions, no
+later override found); `derive_signals_for_event` still exists (latest `0014`); all four asserted signal kinds
+(`pinned_evidence`, `task_slipped`, `resolution_held`, `problem_recurrence`) are still present in the emission
+migrations; `check_understanding_gate` exists and the `0190` change is backward-compatible with the tests'
+threshold-exists path. So the tests target today's schema — the CI job would most likely go green immediately and
+provide real coverage, not demand a test-repair pass first. (Caveat: this is a STATIC schema check; runtime
+details — REST auth setup, the persistent test-company assumptions — can only be confirmed by an actual run.)
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
