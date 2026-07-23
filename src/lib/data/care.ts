@@ -2899,6 +2899,99 @@ export async function touchAgentHeartbeat(agentId: string): Promise<void> {
     .eq("agent_id", agentId);
 }
 
+// ─────────────────────────────────────────────────────────────
+// Live Monitor — anonymous visitor presence (0192).
+//
+// Same heartbeat-into-a-row pattern as care_agent_state above (A16/A28): the widget upserts a presence row
+// on a heartbeat; the Monitor page reads rows within a freshness window. Rows are ephemeral — the read path
+// purges long-stale ones so nothing accumulates. Both functions degrade gracefully if 0192 is unapplied
+// (A34): the write no-ops, the read returns empty, neither throws — so the Monitor shows an honest empty
+// state instead of crashing until the migration lands.
+// ─────────────────────────────────────────────────────────────
+
+/** How long since last_seen_at a visitor still counts as "present". */
+export const VISITOR_PRESENCE_WINDOW_SECONDS = 30;
+/** Rows older than this are opportunistically deleted on read (nothing retained long-term). */
+const VISITOR_PRESENCE_PURGE_SECONDS = 10 * 60;
+
+export interface LiveVisitor {
+  visitorId: string;
+  page: string | null;
+  conversationId: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+/** Best-effort upsert of one anonymous visitor's presence. No-ops on any error (0192 unapplied, etc.). */
+export async function touchVisitorPresence(args: {
+  companyId: string;
+  visitorId: string;
+  page: string | null;
+  conversationId: string | null;
+}): Promise<void> {
+  try {
+    const sb = await createServerClient();
+    await sb.from("care_visitor_presence").upsert(
+      {
+        company_id: args.companyId,
+        visitor_id: args.visitorId,
+        page_path: args.page,
+        conversation_id: args.conversationId,
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: "company_id,visitor_id" }
+    );
+  } catch {
+    // Presence is best-effort ephemeral state; never surface a write failure to the visitor's widget.
+  }
+}
+
+/** Present visitors for a tenant, most-recent first. Returns [] on any error (0192 unapplied, etc.). */
+export async function fetchLiveVisitors(
+  companyId: string,
+  windowSeconds: number = VISITOR_PRESENCE_WINDOW_SECONDS
+): Promise<LiveVisitor[]> {
+  try {
+    const sb = await createServerClient();
+    // Opportunistic purge of long-stale rows so the table stays small and nothing is retained. Best-effort.
+    const purgeCutoff = new Date(
+      Date.now() - VISITOR_PRESENCE_PURGE_SECONDS * 1000
+    ).toISOString();
+    await sb
+      .from("care_visitor_presence")
+      .delete()
+      .eq("company_id", companyId)
+      .lt("last_seen_at", purgeCutoff);
+
+    const windowCutoff = new Date(Date.now() - windowSeconds * 1000).toISOString();
+    const { data } = await sb
+      .from("care_visitor_presence")
+      .select("visitor_id, page_path, conversation_id, first_seen_at, last_seen_at")
+      .eq("company_id", companyId)
+      .gte("last_seen_at", windowCutoff)
+      .order("last_seen_at", { ascending: false });
+
+    return (data ?? []).map((r) => {
+      const row = r as {
+        visitor_id: string;
+        page_path: string | null;
+        conversation_id: string | null;
+        first_seen_at: string;
+        last_seen_at: string;
+      };
+      return {
+        visitorId: row.visitor_id,
+        page: row.page_path,
+        conversationId: row.conversation_id,
+        firstSeenAt: row.first_seen_at,
+        lastSeenAt: row.last_seen_at,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Agent updates their own status. Only status (and last_seen_at
  * implicitly via touch) — capacity/channels are admin-controlled.

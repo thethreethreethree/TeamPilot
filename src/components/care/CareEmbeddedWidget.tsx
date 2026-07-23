@@ -107,6 +107,59 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     );
   }, [open]);
 
+  // ─── Live Monitor presence (0192) ──────────────────────────
+  // Anonymous, per-session visitor id (founder decision 2026-07-24:
+  // presence-only, no PII). Stored per-embedToken so a returning
+  // visitor keeps one identity for the browser session rather than
+  // spawning a new presence row on every reload.
+  const [visitorId, setVisitorId] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = `care-widget-visitor:${embedToken}`;
+    let v = window.localStorage.getItem(key);
+    if (!v) {
+      v =
+        window.crypto?.randomUUID?.() ??
+        `v_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(key, v);
+    }
+    setVisitorId(v);
+  }, [embedToken]);
+
+  // Heartbeat while the widget is mounted so the tenant's Live Monitor
+  // sees this visitor + the host page they're on. Best-effort: a failed
+  // beat never touches the chat. The iframe can only learn the host page
+  // from document.referrer (its own URL is the widget route), so page is
+  // the referring host URL — accurate on load, and the honest limit is
+  // that host SPA route changes aren't seen without a host-script signal.
+  useEffect(() => {
+    if (!visitorId || typeof window === "undefined") return;
+    let cancelled = false;
+    const beat = () => {
+      void fetch("/api/care/widget/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: embedToken,
+          visitorId,
+          page: document.referrer || null,
+          conversationId: session?.conversationId ?? null,
+        }),
+        keepalive: true,
+      }).catch(() => {
+        /* best-effort presence */
+      });
+    };
+    beat();
+    const id = window.setInterval(() => {
+      if (!cancelled) beat();
+    }, 20000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [visitorId, embedToken, session?.conversationId]);
+
   // Bootstrap + refresh config from the server.
   //
   // L3.1 fix: previously this was a mount-only fetch — if the
