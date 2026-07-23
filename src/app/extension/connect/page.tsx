@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { isExtensionHandoffAllowed } from "@/lib/care/extensionHandoff";
 
 // Minimal typing for the extension-messaging bridge that externally_connectable exposes on this origin.
 type ChromeRuntime = {
@@ -58,7 +59,7 @@ export default function ExtensionConnectPage() {
       // but log, so the missing pin is visible. Option (b) — an explicit user "Connect?" confirmation — remains
       // available on top of this if the founder wants the dev/unset path hardened too.
       const allowedExtId = process.env.NEXT_PUBLIC_CARE_EXTENSION_ID || "";
-      const extAllowed = !!ext && (!allowedExtId || ext === allowedExtId);
+      const extAllowed = isExtensionHandoffAllowed(ext, allowedExtId);
       if (ext && allowedExtId && !extAllowed) {
         // eslint-disable-next-line no-console
         console.warn(
