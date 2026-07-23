@@ -1,0 +1,52 @@
+# Session closure — 2026-07-24 · Vercel build fix + C.A.R.E build cycle + role-attribution sweep
+
+One-page map of a long multi-thread session. All commits are on `main`, `tsc` clean, full suite
+**1329 passing / 15 skipped** (0 failures). Detail lives in the linked docs; this is the map + the
+decision list + the session-read manifest.
+
+## 1. Vercel 45-min build TIMEOUT — diagnosed + fixed
+Root cause (by elimination): `@sentry/nextjs` build-time source-map upload with
+`widenClientFileUpload: true`, which runs only when `SENTRY_AUTH_TOKEN` is set (Vercel prod, not
+local) — exactly the local-30s / Vercel-45min split. Fixed → `widenClientFileUpload: false`
+(`9e9c842f`). Reverted a first mis-diagnosis (typecheck/lint skip) per §2 (`1a37e36e` — `eslint` is
+an unrecognized key on Next 16 + it removed a safety net). Reconciled with the parked Node-pin bundle
+(complementary, not redundant). **Founder: confirm from the next build log which phase dropped
+(`Sentry - Uploading source maps` vs `Installing dependencies`).** Also surfaced: `middleware`→`proxy`
+Next-16 deprecation on the auth gate (queue 8f) + extracted/tested the auth-gate decision (`routeGuard.ts`).
+
+## 2. C.A.R.E Build→Audit→Remediation cycle (founder's strict protocol) — 4 stubs built
+Pre-build: quoted governing clauses (incl. AMD-006 in full), stated understanding, surfaced conflicts,
+got scope confirmation ("Everything, Monitor first"; "apply everything you can"; anonymous presence).
+- **Live Monitor** (`b0fae5fa`) — heartbeat→row→poll (A16/A28, the `care_agent_state` precedent), NOT
+  Supabase-realtime; migration `0192` (UNAPPLIED); anonymous presence-only (§3.4). Host-page accuracy
+  via host↔iframe postMessage (`98da03a2`).
+- **Decision Dialogue** (`203d3ad5`) — dead link → real page + IDOR-scoped `decision-seed` + pure
+  `decisionSeed.ts` (seeds Situation with the customer's words, §3.3).
+- **Read-receipts + §A11 aggregator** (`7fb4f307`) — aggregator counts-only + threshold-gated
+  (A11/§3.2/§3.5). **Read-receipt post-audit correction** (`f5d256ed`): the dot could never light
+  (no collapsed-state poll) AND was missing on the customer-facing widget (A21) → fixed both.
+- **Audit A1-A5** (`e2f3103e`): A1 presence rate-limit (MED, class-checked A21) + A3/A4/A5 fixed;
+  A2 documented. **PDF: `docs/CARE-COMPLETION-2026-07-24.pdf`** (Chrome headless).
+- IDOR route tests for both new endpoints (`0dcdf66d`, `19ee80f5`).
+
+## 3. Spawn Task role-attribution (founder re-report) — fixed + class-swept
+Founder screenshot: Spawn labeled the C.A.R.E user (John) as the CUSTOMER. Root cause (§2): Spawn
+dumped the whole scanned thread as `author:"Customer conversation"` with no agent anchor — MISSED by
+the 2026-07-23 "universal" fix (which was NOT universal; that memory claim corrected). Fixed
+(`86bc7254`): agent-name lookup + WHO-IS-WHO anchor (parity with copilot, A28) + neutral label.
+**Class sweep (A26):** Formulate had the same gap → fixed (`2a269afb`); all write-AS-agent tools
+(copilot/spawn/formulate) now anchored. Coach/summarize/dissect (describe/grade, lower risk) surfaced
+as a lower-priority follow-up. Anchor locked by tests (`56b4482a`).
+
+## 4. OPEN — founder's calls (nothing else blocking)
+1. **Apply migrations `0188`–`0192`** + **browser-verify** all cycle-1 features AND the Spawn draft
+   (all `tsc`+unit-tested but end-to-end UNTESTED — §5, completion is the founder's confirmation).
+2. **Entitlement write-path A1+B1** — THE launch blocker; pricing decision (say the word).
+3. Per-tenant AI-cost cap (numbers), AI human/AI disclosure (legal), embeddings upgrade, durability
+   auto-resolve worker — all in the completion PDF.
+4. Read-receipt collapsed-poll: reversible-flagged (background polling for active-conversation
+   visitors) — veto if unwanted.
+
+## Session-read manifest (A22)
+CLAUDE.md, ThinkerThinker.md (full), AMD-006 (full) — all read this session 2026-07-24. Governing
+clauses applied: §0, §2, §3.1–§3.6, §5, AMD-006 (four layers), A11, A14, A16, A21, A26, A28, A34, A39.
