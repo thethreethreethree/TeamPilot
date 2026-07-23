@@ -429,6 +429,17 @@ another agent — refresh" so the loser is told honestly) or an intentional *tak
 working as designed; only make the first claimer's success honest)? A clear mechanical fix exists for the
 guarded-grab interpretation; NOT built because it changes CLAIM's semantics = your decision.
 
+**Same-class check (protocol-mandated — checked, not assumed):** the "conditional-intent acquisition done
+unconditionally" class is confined to the mutable `support_conversations` OWNER field, in 3 spots — all
+unguarded, all LOW, all resolved by the SAME intent decision:
+  1. `claimConversation` (care.ts:701) — agent self-serve, HIGHEST concurrency → most reachable.
+  2. `bulkAssignConversations` (care.ts:791) — `.in("id", ids)` unconditional; the route reads eligible ids
+     first (`bulk/route.ts:97` `.or(assigned_agent_id.is.null,eq.agentId)`), so it's a TOCTOU gap; admin/deliberate.
+  3. `assignConversationToAgent` (care.ts:815, reassign) — admin-or-current-owner, deliberate.
+The **event-sourced core (tasks/problems/projects) is IMMUNE by design** — those are derived from append-only
+events (§3.1), so concurrent assignments both append and the derivation resolves order; there is no
+last-writer-wins in-place update to race on. The race exists ONLY on the mutable CARE conversation table.
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
