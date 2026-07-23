@@ -12,6 +12,7 @@
 4. **Apply migration `0190`** (§3.2 gate → fail-closed) + run `supabase/tests/verify_0190_*.sql`. Needs the live DB.
 5. **Merge the 4 ready branches** — `fix/sharp-cve-override` FIRST (real HIGH CVE); never `npm audit fix --force`.
 5b. **Push notifications don't deliver → set 3 VAPID env vars in Vercel** (verified 2026-07-23: `src/lib/notifications/sender.ts` logic is CORRECT — the only blocker is missing config). Set `VAPID_SUBJECT` (mailto:/https URL), `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (generate a keypair with `npx web-push generate-vapid-keys`). The sender already logs which are missing; once set, subscriptions receive pushes. Purely operator config, not a code fix.
+5c. **Set `CRON_SECRET` in Vercel → enables the ENTIRE background-job layer** (verified 2026-07-23: 4 crons are wired in `vercel.json` — durability-sweep (hourly), task-overrun, backfill-dissects, finance-reports — but every route rejects with "disabled" until `CRON_SECRET` is set). **Most important:** the hourly durability sweep is the **§3.5 moat metric** — without `CRON_SECRET`, the constitutional "measure whether resolutions HELD or REOPENED" loop **never runs**, so the product's core differentiator is silently inert. One env var turns on all four. Code + wiring verified correct.
 
 **Decisions (no rush, but yours):**
 6. **FX rounding bug** (`0118/0119`) — real but LATENT (no foreign-currency entry UI). Fix before exposing multi-currency. Graded menu in the FX audit doc.
