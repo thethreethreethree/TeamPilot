@@ -41,6 +41,34 @@ describe("buildSystemPrompt", () => {
   });
 });
 
+describe("buildSystemPrompt — agent-identity anchor (A26 role-attribution sweep 2026-07-24)", () => {
+  it("injects a WHO-IS-WHO anchor naming the agent on the support_reply surface", () => {
+    const out = buildSystemPrompt({
+      mode: "ask",
+      contextType: "support_reply",
+      agentName: "John Ramos",
+    });
+    expect(out).toContain("WHO IS WHO");
+    expect(out).toContain("John Ramos");
+    // Establishes John as the AGENT being coached, not the customer.
+    expect(out).toMatch(/John Ramos[^]*agent/i);
+  });
+
+  it("omits the anchor without an agentName (in-app coaching already has labeled context)", () => {
+    const out = buildSystemPrompt({ mode: "ask", contextType: "support_reply" });
+    expect(out).not.toContain("WHO IS WHO");
+  });
+
+  it("omits the anchor on non-support surfaces even with an agentName", () => {
+    const out = buildSystemPrompt({
+      mode: "ask",
+      contextType: "chat_message",
+      agentName: "John Ramos",
+    });
+    expect(out).not.toContain("WHO IS WHO");
+  });
+});
+
 describe("buildFollowUpSystemPrompt", () => {
   it("is a DISTINCT prompt from initial analysis (follow-up rules replace mode instructions)", () => {
     const followUp = buildFollowUpSystemPrompt({ contextType: "chat_message" });
