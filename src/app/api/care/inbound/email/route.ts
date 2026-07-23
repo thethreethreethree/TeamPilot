@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { routeNewConversation } from "@/lib/data/care";
+import { routeNewConversation, listCareMessagesForCustomer } from "@/lib/data/care";
 import { notifyAssignedAgentOfCustomerMessage } from "@/lib/notifications/careNotify";
 import {
   getProductContextForTenant,
@@ -398,6 +398,7 @@ export async function POST(req: NextRequest) {
       companyId: tenant.company_id,
       customerId,
       customerMessage: body.TextBody,
+      customerMessageId: insertedMsg.id,
     })
   );
 
@@ -439,11 +440,16 @@ const AI_SENDER_MAX = 12; // ≥12 AI replies to one sender in the window = floo
  * the customer doesn't see an auto-reply, but an agent picks
  * up the conversation from the inbox same as a widget message.
  */
+/** Turns of prior thread the email AI sees as context — matches the widget messages route. */
+const EMAIL_VISIBLE_TURNS_IN_CONTEXT = 12;
+
 async function runAiFirstResponder(args: {
   conversationId: string;
   companyId: string;
   customerId: string | null;
   customerMessage: string;
+  /** The just-inserted customer message — excluded from history (it goes in as newMessage). */
+  customerMessageId: string;
 }): Promise<void> {
   const admin = createAdminClient();
   try {
@@ -582,11 +588,31 @@ async function runAiFirstResponder(args: {
       aiTone: tenant?.aiTone,
       aiResponseLength: tenant?.aiResponseLength,
     });
+    // Pull the visible thread so far so the email AI sees the conversation context —
+    // its own prior replies AND the customer's earlier emails — exactly like the widget
+    // messages route. Previously recentTurns was [], so on a multi-email thread the AI
+    // replied context-blind: it re-introduced itself every time and couldn't build on what
+    // was already said (A21 — same prompt, different surface, one was broken). Exclude the
+    // just-inserted customer message; it goes in as newMessage.
+    const priorMessages = await listCareMessagesForCustomer(args.conversationId);
+    const recentTurns = priorMessages
+      .slice(-EMAIL_VISIBLE_TURNS_IN_CONTEXT)
+      .filter((m) => m.id !== args.customerMessageId)
+      .map((m) => ({
+        role:
+          m.authorType === "customer"
+            ? ("customer" as const)
+            : m.authorType === "agent"
+              ? ("agent" as const)
+              : ("ai" as const),
+        body: m.body,
+      }));
+
     const userMessage = buildCareUserMessage({
       newMessage: args.customerMessage,
       context: {
         productContext,
-        recentTurns: [],
+        recentTurns,
       },
     });
 
