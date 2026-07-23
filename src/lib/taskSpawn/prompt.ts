@@ -79,9 +79,22 @@ const CONTEXT_PRESENTATIONS: Record<SpawnContextType, string> = {
 export function buildSpawnSystemPrompt(args: {
   contextType: SpawnContextType;
   isRefinement: boolean;
+  /**
+   * The C.A.R.E user (the support agent). Anchors WHO IS WHO when the input is a scanned external
+   * thread whose messages carry no role labels (the extension case) — without it the model guesses
+   * sender vs receiver and can mislabel the agent as the customer (founder report 2026-07-24). Parity
+   * with the copilot route's Fix-2b anchor. In-app spawn passes real per-message author labels, so
+   * this is optional; omit it there.
+   */
+  agentName?: string;
 }): string {
+  const anchor =
+    args.agentName && args.contextType === "chat_messages"
+      ? `\n\nWHO IS WHO (critical): the C.A.R.E user — the support agent — is ${args.agentName}. In the scanned conversation, messages from ${args.agentName} are the AGENT's own words; the OTHER participant is the customer. Attribute sender vs receiver on that basis. Do NOT assume the whole thread is the customer's, and do NOT describe ${args.agentName} as the customer. If the conversation genuinely doesn't make clear which side is the customer, say so in the task description rather than guessing a role.\n`
+      : "";
   return [
     IDENTITY,
+    anchor,
     `\n\n${CONTEXT_PRESENTATIONS[args.contextType]}\n`,
     args.isRefinement ? REFINEMENT_RULES : "",
     OUTPUT_RULES,

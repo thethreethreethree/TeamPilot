@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { spawnTask } from "@/lib/claude";
 import { buildSpawnSystemPrompt, buildSpawnUserMessage } from "@/lib/taskSpawn/prompt";
 import { validateTaskDraft } from "@/lib/taskSpawn/validate";
@@ -45,14 +46,37 @@ export async function POST(req: NextRequest) {
   const { user, body } = guard;
 
   try {
+    // Agent identity anchor (parity with the copilot route's Fix 2b; founder report 2026-07-24).
+    // The scanned thread has no per-message role labels, so without telling the model WHO the
+    // C.A.R.E user is, it guesses sender vs receiver — and mislabeled the agent (the C.A.R.E user)
+    // as the customer. Look up the signed-in agent's name; fall back to a generic label so the
+    // draft never blocks on the lookup.
+    let agentName = "the support agent";
+    try {
+      const admin = createAdminClient();
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.userId)
+        .maybeSingle();
+      if (typeof prof?.full_name === "string" && prof.full_name.trim())
+        agentName = prof.full_name.trim();
+    } catch {
+      /* best-effort; the WHO-IS-WHO anchor still applies with the generic label */
+    }
+
     const systemPrompt = buildSpawnSystemPrompt({
       contextType: "chat_messages",
       isRefinement: false,
+      agentName,
     });
     const userMessage = buildSpawnUserMessage({
       contextType: "chat_messages",
       contextPayload: {
-        selectedMessages: [{ author: "Customer conversation", body: body.conversation }],
+        // Neutral label — the raw scan is a MIXED thread (agent + customer), not "the customer's".
+        // Calling it "Customer conversation" biased the model to read everything as customer-side.
+        // The WHO-IS-WHO anchor above tells it how to split the roles.
+        selectedMessages: [{ author: "Scanned conversation", body: body.conversation }],
       },
     });
 
