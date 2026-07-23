@@ -261,6 +261,19 @@ draft-producing prompt (not assuming):
     agent's PROVIDED draft). Structurally unaffected.
 Boundary: the class is confined to auto-drafting-a-reply = the two Co-Pilots. Both fixed.
 
+## 3d. Spawn — the internal-work tool: control-gate VERIFIED (2026-07-23)
+
+Spawn is the only extension tool that produces INTERNAL-work AI output (a task draft), so unlike the read-only
+tools it must be §3.4 control-gated. Verified (not trusted from the comment):
+  - **Gated:** `spawn/route.ts:60` passes `companyId: user.companyId` to `spawnTask` → routes through the control
+    window; `:62-72` returns `{ suppressed }` with an honest month-1 message. The header's "this DOES route through
+    the control window" claim is TRUE.
+  - **No direct chain write:** returns a task DRAFT (`{task}`, `:96`); the internal-chain write is the later in-app
+    finalize, not this route — so no append/tenant-write to race. Draft scoped to `user.companyId`, shape-validated
+    (`validateTaskDraft`, `:88`).
+This COMPLETES the tool-by-tool extension audit: Summarize, Dissect, Coach, Co-Pilot, Formulate, Spawn all
+verified this session (role attribution + gating + honesty).
+
 ## 4. What I did NOT do
 - Did not inspect the 5 non-copilot server routes in full, nor the dissect/coach/spawn prompts, nor the in-app tools (so I have NOT verified the §3.4 "no-drift" claim, nor whether Summarize/Dissect have their own role handling). Listed, not assumed clean.
 - Did not run the extension (cannot, from here) — Findings 1 & 2 mechanisms are code-evidenced + screenshot-corroborated but the *fixes* need John's browser confirmation.
