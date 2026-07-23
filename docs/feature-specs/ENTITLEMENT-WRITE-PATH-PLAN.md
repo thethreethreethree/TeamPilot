@@ -82,8 +82,11 @@ WRITE side is missing.
 ---
 
 ## C. Two facets to handle in the SAME change (whichever options you pick)
-1. **Panel "locked" copy:** today it says "start a trial in your workspace" — a flow that doesn't exist. Update it
-   to match the chosen mechanism (A1 → "your trial starts automatically"; A2 → wire the button; etc.).
+1. **Panel "locked" copy:** the fake-flow copy ("start a trial in your workspace") was ALREADY FIXED this session
+   (2026-07-23, Finding 3) → it now honestly reads *"Your plan doesn't include the C.A.R.E extension (…). Contact
+   your workspace admin to enable it."* (`content.js:262`). So today it's honest, not misleading. When A1/A2 ships,
+   update it to the chosen mechanism (A1 → "your trial starts automatically"; A2 → wire the button). Not a blocker
+   now — just the final copy pass alongside the write-path.
 2. **Spawn during a trial:** Spawn is §3.4-control-gated, so a brand-new trial tenant (month-1 control window)
    gets Spawn suppressed while the other 5 tools work. Decide whether trial tenants should be control-exempt for
    Spawn so evaluators can try all six tools. (Second-order — only bites once trials actually start.)
