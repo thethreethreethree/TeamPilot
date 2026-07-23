@@ -200,6 +200,15 @@ sending the file TO the customer). A `.js` would execute if opened, BUT Supabase
 storage origin (`*.supabase.co`), not the app origin — so no app-session/cookie access — and `text/html` is NOT in
 the allow-list, so there is no stored-XSS-in-app-origin vector. Contained by the cross-origin serving boundary.
 
+**Also verified clean — coach sales-session recording upload (`coach/sales-session/[id]/upload-recording` +
+`save-recording`, authed).** Distinct profile (large audio → STT/coaching cost). Cross-tenant IDOR CLOSED — the
+upload route relies on `getSession(id)` for authz, and I VERIFIED (not trusted the comment) that `getSession` uses
+`createServerClient()` (RLS-scoped), so a cross-tenant session id returns null → 404; `save-recording` adds an
+explicit `company_id` 404 + owner/admin authz. Validation: non-empty, ≤25 MB (413), audio/video MIME prefix, plus
+an EXECUTABLE_EXTENSIONS block (documented: can't use `validateUploadCandidate` because its block-list rejects
+legit `.webm`/`.mp4`; the exec-ext block is the spoofable-MIME defense). Tenant-scoped traversal-safe storage path.
+`maxDuration=300` for real recordings.
+
 **Public + agent C.A.R.E surface — audit coverage this session:** origin validation (sound), webhook auth
 (constant-time, fail-closed), rate limits (present on every route), file upload/download — customer AND agent —
 (IDOR + traversal closed), bootstrap field exposure (whitelisted), inbound-email intake (text-only, dedup,
