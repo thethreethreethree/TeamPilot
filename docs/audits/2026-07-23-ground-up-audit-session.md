@@ -335,6 +335,24 @@ user-initiated "Create task from this decision" button on the `{user, system, hy
 guide-don't-overtake while closing the seam. Founder call on whether the seam is worth a surface; I build the
 optional affordance on request.
 
+## 🟢 LOW (systemic) — raw DB `error.message` returned to clients on ~104 routes (found 2026-07-23)
+
+Sweeping gate-uncovered classes surfaced one real (if low) systemic pattern: **~104 API routes return the raw
+database error string to the client** (`return NextResponse.json({ error: error.message }, …)`). Postgres/PostgREST
+error messages can leak SCHEMA internals — constraint names, column names, type mismatches, table names — to the
+API consumer. This is a LOW-severity **information-disclosure** class (schema structure, not data or credentials;
+the schema is partly inferable anyway), but it's the kind of thing that hands an attacker a free map.
+
+**Severity LOW, exposure-dependent:** higher concern on PUBLIC/unauthed routes (care widget, demo, connect) than
+on admin-authed ones (finance, team-check) where the caller is already trusted. Not a data/credential leak.
+
+**Fix (NOT built — it's a ~104-site mechanical refactor; founder's call whether the churn is worth a LOW finding):**
+adopt the standard pattern — LOG the raw `error.message` server-side (for debugging), return a GENERIC message to
+the client (e.g. "Couldn't save right now."). Could be a small helper (`jsonError(status, publicMsg, err)` that
+logs `err` + returns `publicMsg`) applied first to the PUBLIC routes (highest exposure), then the rest. I can do
+the public-route subset in one pass on request, or the full sweep if you want it. Flagged, not unilaterally
+refactored across 104 sites.
+
 ## Open flags (founder decisions — none are code defects I can close alone)
 
 1. **Entitlement write-path** — the extension is `locked` for every tenant (no trial-start or paid-unlock write-path). THE launch blocker; underlying logic verified + tested. Needs: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle).
