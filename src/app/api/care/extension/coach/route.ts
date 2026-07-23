@@ -54,7 +54,13 @@ export async function POST(req: NextRequest) {
       draft: body.draft,
       contextType: "support_reply",
       contextPayload: {
-        supportCustomerLastMessage: { author: "Customer", body: body.conversation },
+        // Founder audit 2026-07-23 (same role-blindness class as the Co-Pilot fix): the scanned text is the WHOLE
+        // thread, NOT "the customer's most recent message". Passing it as supportCustomerLastMessage rendered it
+        // under "CUSTOMER'S MOST RECENT MESSAGE: Customer: <whole thread>" — mis-attributing the agent's OWN prior
+        // turns to the customer and distorting the grading context. Pass it as the RECENT THREAD instead (honest —
+        // it IS the conversation); with the 2a role labels the coach sees "You:"/"Customer:" and focuses on the
+        // customer's actual last turn. §3.4 (no mislabel) / §0 (don't feed a confident-wrong frame).
+        recentThread: [{ author: "Conversation so far", body: body.conversation, timestamp: "" }],
         supportProductContext: productContext,
       },
     });
