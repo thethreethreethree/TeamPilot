@@ -15,6 +15,7 @@ import {
 } from "@/lib/care/prompt";
 import { generateCareReply } from "@/lib/claude";
 import { buildRecentTurns } from "@/lib/care/recentTurns";
+import { dispatchOutboundEmailReply } from "@/lib/care/email/outbound";
 import { LlmError } from "@/lib/llm/errors";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 
@@ -615,14 +616,20 @@ async function runAiFirstResponder(args: {
     const body = stripHandoffSentinel(reply.text);
 
     // Never persist a blank AI message (empty reply, or sentinel-only → "" after strip).
+    let insertedAiId: string | null = null;
     if (body) {
-      await admin.from("support_messages").insert({
-        conversation_id: args.conversationId,
-        author_type: "ai",
-        author_id: null,
-        body,
-        is_internal_note: false,
-      });
+      const { data: aiMsg } = await admin
+        .from("support_messages")
+        .insert({
+          conversation_id: args.conversationId,
+          author_type: "ai",
+          author_id: null,
+          body,
+          is_internal_note: false,
+        })
+        .select("id")
+        .single();
+      insertedAiId = aiMsg?.id ?? null;
     }
 
     // §3.3 — when the AI says it's bringing in a human, it must actually cede the thread so the next
@@ -632,6 +639,25 @@ async function runAiFirstResponder(args: {
         .from("support_conversations")
         .update({ ai_responding: false })
         .eq("id", args.conversationId);
+    }
+
+    // DELIVER the AI reply to the customer's inbox. On the EMAIL channel, STORING the message is not
+    // delivery (unlike the widget, which the customer polls) — without this dispatch the customer who
+    // emailed in never receives the AI first-responder's reply (they get silence). Mirrors the agent
+    // messages route's outbound dispatch (A28). SAFE: dispatchOutboundEmailReply returns {ok:false}
+    // (logged, sends nothing) when POSTMARK_SERVER_TOKEN / CARE_EMAIL_HOST_DOMAIN are unset, so it
+    // only sends real email once outbound is actually configured — the same gate the agent route uses.
+    if (insertedAiId) {
+      const dispatch = await dispatchOutboundEmailReply({
+        conversationId: args.conversationId,
+        messageId: insertedAiId,
+      });
+      if (!dispatch.ok) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[care] email AI reply outbound dispatch NOT sent conv=${args.conversationId} msg=${insertedAiId}: ${dispatch.error}`
+        );
+      }
     }
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
