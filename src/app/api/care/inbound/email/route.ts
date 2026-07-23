@@ -17,6 +17,7 @@ import { generateCareReply } from "@/lib/claude";
 import { buildRecentTurns } from "@/lib/care/recentTurns";
 import { dispatchOutboundEmailReply } from "@/lib/care/email/outbound";
 import { HANDOFF_NOTICE } from "@/lib/care/handoverNotice";
+import { resolveEmailReplyBody } from "@/lib/care/emailReplyDelivery";
 import { LlmError } from "@/lib/llm/errors";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 
@@ -621,7 +622,7 @@ async function runAiFirstResponder(args: {
     // Fall back to the notice so a handoff ALWAYS tells the customer a human is coming (§3.3 req #1).
     // A non-empty reply already says it warmly, so we don't ALSO send the notice — that would
     // double-email the customer. Empty + no-handoff → send nothing (nothing to say; not a handoff).
-    const outboundBody = body || (aiHandsOff ? HANDOFF_NOTICE : "");
+    const outboundBody = resolveEmailReplyBody(body, aiHandsOff, HANDOFF_NOTICE);
 
     let insertedAiId: string | null = null;
     if (outboundBody) {
