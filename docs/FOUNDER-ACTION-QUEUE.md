@@ -15,7 +15,7 @@
 **Decisions (no rush, but yours):**
 6. **FX rounding bug** (`0118/0119`) — real but LATENT (no foreign-currency entry UI). Fix before exposing multi-currency. Graded menu in the FX audit doc.
 7. **Dashboard § citations (~117)** — 41 incidental chrome (strip, like the 26) + 75 deliberate teaching (keep or strip — Layer-2 call). *(§ "HONEST CORRECTION" below.)*
-8. **Tax credit-note netting** (open since 2026-07-13) · **leadership→CFO auto-grant** policy · **5 dead-class visual fixes** · **rate limiter → Redis before scaling** · **pricing / per-seat model**.
+8. **Tax credit-note netting** (open since 2026-07-13; `docs/financial-system/TAX-CREDIT-NOTE-NETTING-DECISION.md`) · **leadership→CFO auto-grant** policy · **5 dead-class visual fixes** (`docs/audits/2026-07-23-wrong-namespace-dead-color-classes.md`) · **rate limiter → Redis before scaling** · **pricing / per-seat model** (`docs/feature-specs/CARE-EXTENSION-PER-SEAT.md`).
 
 **What's DONE + verified this session (no action needed):** §3.2 fail-open fixed (0190, awaits apply); 26 chrome IP-leaks + toast + brain-reason fixed & guarded; file-citation N+1 batched; thesis-core §3.1–§3.5, finance calcs + integrity, auth/RLS, extension, external-auth, inbound-email, invite/role all verified sound. See `docs/audits/2026-07-23-ground-up-audit-session.md`.
 
