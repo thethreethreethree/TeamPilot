@@ -204,3 +204,39 @@ describe("buildCareUserMessage", () => {
     expect(buildCareUserMessage({ ...base, context: {} })).not.toContain("Recent conversation so far");
   });
 });
+
+describe("handoff sentinel — tolerant of LLM variants (hardening 2026-07-23)", () => {
+  it("strips the exact sentinel (unchanged canonical behavior)", () => {
+    expect(stripHandoffSentinel(`I'll bring someone in.\n${HANDOFF_SENTINEL}`)).toBe(
+      "I'll bring someone in."
+    );
+  });
+
+  it("strips casing / internal-whitespace VARIANTS so they never leak to the customer", () => {
+    for (const v of ["[[handoff]]", "[[ HANDOFF ]]", "[[Handoff]]", "[[  handoff  ]]"]) {
+      const out = stripHandoffSentinel(`Let me get a teammate.\n${v}`);
+      expect(out, `variant should be stripped: ${v}`).toBe("Let me get a teammate.");
+      expect(out).not.toMatch(/handoff/i);
+    }
+  });
+
+  it("detects the sentinel and its variants (strip + detect stay consistent)", () => {
+    for (const v of [HANDOFF_SENTINEL, "[[handoff]]", "[[ Handoff ]]"]) {
+      expect(detectHandoffSignal(`Sure — ${v}`), `should detect: ${v}`).toBe(true);
+    }
+  });
+
+  it("detect is not stateful across calls (no shared /g/ lastIndex bug)", () => {
+    const s = `pull in a colleague ${HANDOFF_SENTINEL}`;
+    // Same input twice must give the same answer — a shared global regex would alternate.
+    expect(detectHandoffSignal(s)).toBe(true);
+    expect(detectHandoffSignal(s)).toBe(true);
+    expect(detectHandoffSignal("just a normal reply")).toBe(false);
+    expect(detectHandoffSignal("just a normal reply")).toBe(false);
+  });
+
+  it("does not false-strip ordinary text without a sentinel", () => {
+    expect(stripHandoffSentinel("No token here at all.")).toBe("No token here at all.");
+    expect(detectHandoffSignal("Here's how the feature works.")).toBe(false);
+  });
+});

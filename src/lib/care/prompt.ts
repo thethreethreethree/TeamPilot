@@ -277,14 +277,23 @@ export function buildCareUserMessage(args: {
  */
 export const HANDOFF_SENTINEL = "[[HANDOFF]]";
 
+// Tolerant matchers (hardening 2026-07-23): the sentinel is emitted by a NON-DETERMINISTIC LLM, so the
+// read side must not assume the byte-exact literal. A casing/internal-whitespace variant ("[[ Handoff ]]")
+// would otherwise LEAK to the customer (strip misses it) AND be missed by detection — an inconsistent pair.
+// The exact `HANDOFF_SENTINEL` stays the canonical form the PROMPT instructs the model to emit; this only
+// ADDS tolerance when reading the model's output. Two regexes on purpose: the global one is for replace-all,
+// the non-global one for `.test()` (a shared /g/ regex carries lastIndex and would alternate true/false).
+const HANDOFF_SENTINEL_STRIP_RE = /\[\[\s*handoff\s*\]\]/gi;
+const HANDOFF_SENTINEL_TEST_RE = /\[\[\s*handoff\s*\]\]/i;
+
 /**
  * Remove the handoff sentinel (and the surrounding whitespace/newline it sits on) from
  * an AI reply before it is stored or shown. Idempotent and safe on text with no token.
+ * Tolerant of casing / internal whitespace so a malformed token can't leak to the customer.
  */
 export function stripHandoffSentinel(text: string): string {
   return text
-    .split(HANDOFF_SENTINEL)
-    .join("")
+    .replace(HANDOFF_SENTINEL_STRIP_RE, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -317,8 +326,9 @@ const HANDOFF_PHRASES = [
 ] as const;
 
 export function detectHandoffSignal(aiResponse: string): boolean {
-  // Sentinel first — the coupled, authoritative signal (founder-approved 2026-07-21).
-  if (aiResponse.includes(HANDOFF_SENTINEL)) return true;
+  // Sentinel first — the coupled, authoritative signal (founder-approved 2026-07-21). Tolerant match so a
+  // casing/whitespace variant still triggers the handoff (consistent with stripHandoffSentinel above).
+  if (HANDOFF_SENTINEL_TEST_RE.test(aiResponse)) return true;
   // Fallback: the phrase heuristic, for the turn where the model forgets the token.
   const normalized = aiResponse.toLowerCase();
   return HANDOFF_PHRASES.some((p) => normalized.includes(p));
