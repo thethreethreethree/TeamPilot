@@ -357,6 +357,31 @@ public surface already clean this is low-value polish, not worth a 104-site refa
 urgent action. (Honest calibration: found a real systemic pattern, then downgraded it when checking showed the
 high-exposure surface is already handled — not inflating a LOW finding into something it isn't.)
 
+## 🟡 MEDIUM — finance silently assumes a CALENDAR fiscal year (systemic, undocumented, found 2026-07-23)
+
+The finance system has **no fiscal-year-start config** — `fin_settings` (0116) holds only `base_currency`; there
+is no `fiscal_year_start_month`. `fiscal_year` is a free user-set int (`budgets/route.ts:21`, `close-year/route.ts:13`:
+`z.number().int().min(2000).max(2100)`), and it is matched to ledger entries by `extract(year from entry_date) =
+fiscal_year` in **budget variance (0149:54), variance alerts (0182:43/62/80/89), and year-end close (0151:56)**.
+
+So for a company whose fiscal year is NOT the calendar year (e.g. Jul-Jun, common outside calendar-year SMBs):
+setting FY2026 matches Jan-Dec 2026 entries — NOT their actual Jul 2025-Jun 2026 window. Their budgets, variance
+alerts, and **year-end close (which rolls revenue/expense to retained earnings on the wrong window)** are all
+silently wrong, with no config to fix it and no warning that only calendar-year FY is supported.
+
+**Severity MEDIUM** — systemic finance-correctness for a legitimate use case, and SILENT (the company gets
+calendar-year numbers labeled as their FY and may not notice). Calendar-year-only is a defensible MVP scope; the
+defect is that it's UNDOCUMENTED + unwarned. (The 1099 `extract(year)` in `0170:54` is CORRECT — the IRS mandates
+calendar year for 1099s regardless of FY — so it is not part of this finding.)
+
+**Fix — two tiers (founder's call on scope; NOT built):**
+- **Interim (LOW effort, honest):** document + surface a UI note that "fiscal year = calendar year" until
+  non-calendar FY is supported — turns a silent wrong-number into an honest known-limitation (like the tax report).
+- **Proper (larger):** add `fin_settings.fiscal_year_start_month` and change the ~6 `extract(year)=fiscal_year`
+  sites to a fiscal-year DATE WINDOW (`entry_date >= fy_start and entry_date < fy_start + 1 year`). A finance
+  feature + migration; needs live-DB verify. The budget-variance MONTHLY bug below is a SEPARATE symptom
+  (period-index alignment), independent of this FY-window issue — both want fixing.
+
 ## 🟡 MEDIUM — budget variance is WRONG for MONTHLY budgets (reachable finance-correctness bug, found 2026-07-23)
 
 The `fin_budget_variance` view (`0149:41-59`) aligns each budget line's actuals to its period by
