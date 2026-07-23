@@ -9,6 +9,14 @@ The read side is DONE and tested: `computeExtensionEntitlement` (pure, 16 tests 
 case-insensitivity) unlocks on `plan∈{pro,enterprise}` OR `extension_trial_started_at` within 14 days. Only the
 WRITE side is missing.
 
+> **Read-path re-verified 2026-07-23 (comprehensive — not just "done").** The auth gate (`requireEntitledExtensionUser`
+> → 401/403/402) is fail-closed and order-tested; the IO wrapper `getExtensionEntitlement` has 6 branch tests
+> covering every path INCLUDING the exact current-live scenario (migration `0189` unapplied): missing-column →
+> plan-only fallback → `locked` for a pilot tenant (no 500), other read error → `locked` (fail-closed for a paid
+> feature), and a DIFFERENT missing column is NOT swallowed → `locked` (isMissingColumnError must name OUR column).
+> So the extension degrades correctly against today's DB (it returns clean 402-locked, never crashes). The write
+> path is the SOLE remaining gap — building it (below) turns the fully-tested read side live.
+
 > ⚠️ **PREREQUISITE: migration `0189` must be applied first.** It adds the `extension_trial_started_at` column
 > that A1/A2 write. `0189` is pending (the 2026-07-20 full-apply went through `0187`) — apply it via
 > `npm run db:apply` (see FOUNDER-ACTION-QUEUE item 4) BEFORE I build the trial-start write, or the write hits a
