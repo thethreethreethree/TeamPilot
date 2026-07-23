@@ -104,6 +104,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const payload = { conversation: String(message.conversation || "") };
     if (typeof message.draft === "string" && message.draft) payload.draft = message.draft;
     if (typeof message.intent === "string" && message.intent) payload.intent = message.intent;
+    // Co-Pilot response-mode signal (founder request 2026-07-23): who sent the last message. Only the
+    // two meaningful, schema-valid values are relayed (the route defaults a missing value to reply).
+    if (message.lastSpeaker === "agent" || message.lastSpeaker === "customer") {
+      payload.lastSpeaker = message.lastSpeaker;
+    }
     careFetch(message.endpoint, payload)
       .then((r) => sendResponse(r))
       .catch(() => sendResponse({ status: 0, data: { error: "network" } }));

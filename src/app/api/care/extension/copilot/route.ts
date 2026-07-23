@@ -4,6 +4,7 @@ import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { CO_PILOT_SYSTEM } from "@/lib/care/toolPrompts";
+import { copilotModeInstruction } from "@/lib/care/copilotMode";
 import { LlmError } from "@/lib/llm/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -32,6 +33,11 @@ export const maxDuration = 60;
 const Schema = z
   .object({
     conversation: z.string().min(1).max(20_000),
+    // Who sent the LAST message in the thread (founder request 2026-07-23). Supplied by the
+    // adapter from the DOM where it can be known (WhatsApp/Gmail); omitted otherwise. Drives the
+    // response MODE: agent-last → follow-up, customer-last → reply, absent → determine + default
+    // to reply (see copilotMode.ts). Optional so any caller that can't determine it still works.
+    lastSpeaker: z.enum(["agent", "customer", "unknown"]).optional(),
   })
   .strict();
 
@@ -61,15 +67,24 @@ export async function POST(req: NextRequest) {
     /* best-effort; the WHO-IS-WHO discipline still applies with the generic label */
   }
 
+  // Response-MODE selection (founder request 2026-07-23). When the LAST message is the agent's own,
+  // a "reply" would respond to the agent's own words — the mode must switch to a follow-up instead.
+  // The signal comes from the adapter (DOM) where known; "unknown" makes the model determine it and
+  // default to reply, so this never regresses today's behaviour (§1.5). Composes with the 2b anchor
+  // below (TT.md A16 — both reference the same ${agentName}).
+  const modeInstruction = copilotModeInstruction(body.lastSpeaker ?? "unknown", agentName);
+
   try {
     const r = await generateCareReply({
       systemPrompt: `${CO_PILOT_SYSTEM}
 
 You are drafting AS: ${agentName}. Messages from ${agentName} in the conversation are the agent's own words — write the next message from ${agentName}'s side, never addressed to ${agentName}.
 
+${modeInstruction}
+
 Product context the customer is reaching out about:
 ${productContext}`,
-      userMessage: `Conversation so far:\n${body.conversation}\n\nDraft ${agentName}'s next reply to the customer.`,
+      userMessage: `Conversation so far:\n${body.conversation}\n\nDraft ${agentName}'s next message to the customer, following the RESPONSE MODE above.`,
     });
     const raw = r.text;
     const idx = raw.indexOf(REASONING_MARKER);

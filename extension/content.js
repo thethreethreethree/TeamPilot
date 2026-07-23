@@ -26,6 +26,10 @@
   }
 
   let currentSelection = "";
+  // Who sent the LAST message in the current selection (founder request 2026-07-23). Set by an
+  // adapter that can read it from the DOM (WhatsApp); "unknown" for manual selections and adapters
+  // that can't reliably tell. Sent ONLY on the Co-Pilot call, to pick reply-vs-follow-up mode.
+  let currentLastSpeaker = "unknown";
   // Resolved from getApiBase() on each render(); used to link the Spawn draft back to the workspace so the tool
   // doesn't dead-end (§1.5.1 workflow continuity). Safe default until the first render resolves it.
   let apiBase = "https://elostate.com";
@@ -230,6 +234,9 @@
     try {
       const msg = { type: "care-tool", endpoint: tool.endpoint, conversation: currentSelection };
       if (tool.input && inputValue) msg[tool.input.key] = inputValue;
+      // Co-Pilot only: tell the server who spoke last so it picks reply-vs-follow-up mode. Scoped to
+      // this one tool because the other tools' request schemas are .strict() and reject extra keys.
+      if (tool.key === "copilot") msg.lastSpeaker = currentLastSpeaker;
       resp = await chrome.runtime.sendMessage(msg);
     } catch {
       out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Couldn't reach C.A.R.E. Check your connection.`;
@@ -385,10 +392,14 @@
   // (z.string().max(20_000)) use — so highlighting a very long page truncates gracefully here instead of being
   // sent whole and 400'd by the server (which the user would only see as "Something went wrong").
   const SELECTION_MAX = 20000;
-  function setSelection(text, note) {
+  function setSelection(text, note, lastSpeaker) {
     const trimmed = (text || "").trim();
     const capped = trimmed.length > SELECTION_MAX;
     currentSelection = capped ? trimmed.slice(0, SELECTION_MAX) : trimmed;
+    // Manual selection can't know who spoke last → "unknown" (the server then determines it and
+    // defaults to reply, so nothing regresses). An adapter may pass a reliable value.
+    currentLastSpeaker =
+      lastSpeaker === "agent" || lastSpeaker === "customer" ? lastSpeaker : "unknown";
     const info = $("selInfo");
     if (info) {
       info.textContent = currentSelection
@@ -406,9 +417,17 @@
   // (§3.4 — never fabricate; degrade to the universal path).
   function readAdapter(adapter) {
     const text = adapter.extract();
+    // Capture who spoke last where the adapter can tell (best-effort; missing method → "unknown").
+    let last = "unknown";
+    try {
+      if (typeof adapter.lastSpeaker === "function") last = adapter.lastSpeaker();
+    } catch {
+      /* never let a role-signal miss break the read (§3.4 degrade, never fabricate) */
+    }
     setSelection(
       text,
-      `Couldn't auto-read this ${adapter.label} — highlight it on the page and use “Read my selected text”.`
+      `Couldn't auto-read this ${adapter.label} — highlight it on the page and use “Read my selected text”.`,
+      last
     );
   }
 

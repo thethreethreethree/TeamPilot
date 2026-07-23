@@ -147,6 +147,23 @@ if (!globalThis.__careAdaptersLoaded) {
           textFrom(".message-in .selectable-text, .message-out .selectable-text")
         );
       },
+      // Who sent the LAST message (founder request 2026-07-23). Reuses the LIVE-CONFIRMED
+      // `[data-pre-plain-text]` anchor (one per message bubble, document order) + the 2a role class:
+      // `.message-out` = the agent ("You"), `.message-in` = the customer. The last such bubble is the
+      // most recent message. Returns "unknown" on any miss so the server falls back to reply-mode —
+      // never fabricates a role (§3.4). UNVERIFIED against the live DOM (this file's header) — the
+      // extract() side of these same selectors IS live-confirmed, but the last-bubble read is not.
+      lastSpeaker: () => {
+        try {
+          const nodes = document.querySelectorAll("[data-pre-plain-text]");
+          const last = nodes[nodes.length - 1];
+          const bubble = last && last.closest(".message-out, .message-in");
+          if (!bubble) return "unknown";
+          return bubble.classList.contains("message-out") ? "agent" : "customer";
+        } catch {
+          return "unknown";
+        }
+      },
     },
     {
       key: "linkedin",
