@@ -2,10 +2,12 @@
 
 ## 🧭 PRIORITIZED INDEX (as of 2026-07-23) — do these in order; details in the flags below
 
-**⚙️ Operator config:** several built features are inert until env vars are set — the COMPLETE checklist (with what each activates + fastest-launch order) is `docs/OPERATOR-CONFIG-CHECKLIST.md`. Key ones appear inline below (DeepSeek, `CRON_SECRET`, VAPID).
+**✅ EXTENSION BUGS FIXED + FOUNDER-VERIFIED (2026-07-23):** the two live bugs (can't-type, Co-Pilot role-inversion) are fixed and confirmed working in your browser ("I can type now, co-pilot is addressing properly"). Role-blindness class closed across all 11 tool routes; connect-page token-theft hardened. Full record: `docs/audits/2026-07-23-EXTENSION-framework-audit.md`. **So the extension now WORKS — the only thing between "works in my browser" and "customers can use it" is item 1 below.**
+
+**⚙️ Operator config:** several built features are inert until env vars are set — the COMPLETE checklist (with what each activates + fastest-launch order) is `docs/OPERATOR-CONFIG-CHECKLIST.md`. Key ones appear inline below (DeepSeek, `CRON_SECRET`, VAPID, and now `NEXT_PUBLIC_CARE_EXTENSION_ID` for the connect-page security pin).
 
 **Launch-critical (nothing ships without these):**
-1. **Entitlement write-path** — the extension is `locked` for EVERY tenant; no flow writes `plan=pro` or starts a trial. Decide: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle). **Exact implementation for each option (say the combo, e.g. `A1 + B1`, and I build + test in one pass): `docs/feature-specs/ENTITLEMENT-WRITE-PATH-PLAN.md`.** *(§ "CRITICAL — entitlement write-path" below.)*
+1. **Entitlement write-path — NOW THE SINGULAR LAUNCH BLOCKER** (the extension itself is verified working). Every tenant is `locked`; no flow writes `plan=pro` or starts a trial, so no customer can use the extension you just confirmed works. Decide: trial mechanism (1 auto / 2 button / 3 signup) + paid-unlock (CRM-sync / admin toggle). **Say the combo (recommended `A1 + B1`) and I build + test in one pass** (apply migration `0189` first — it adds the trial column). Plan: `docs/feature-specs/ENTITLEMENT-WRITE-PATH-PLAN.md`. *(§ "CRITICAL — entitlement write-path" below.)*
 2. **Check `DEEPSEEK_API_KEY` in Vercel** — 30 seconds. Tells us whether customer conversations currently route to DeepSeek (China-based). Then decide the provider posture. *(§ "DATA-GOVERNANCE" below.)*
 
 **Real defects / leaks (fix soon, low effort):**
