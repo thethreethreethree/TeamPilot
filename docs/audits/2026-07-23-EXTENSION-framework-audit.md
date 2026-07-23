@@ -151,6 +151,24 @@ once the URL is opened.
 `state` machine + copy-fallback are sound, `bg-base`/`border-default` are the correct theme tokens — the
 `text-base` color-collision class does not apply to background utilities.)
 
+## Class-check of the connect-page finding — the sibling classes are CLEAN (2026-07-23)
+
+Checked whether the "unvalidated-param → sensitive-action" class appears elsewhere:
+- **Open-redirect on login `next` — NOT present (secure).** `src/app/login/page.tsx:44-55` reads `intent` and only
+  ever APPENDS it as a query param to a HARDCODED internal base (`/dashboard`, `/onboarding`) — user input is
+  never the redirect target. So the connect-page token-handoff finding is ISOLATED, not systemic.
+- **Extension `background.js` — clean.** Its `careFetch` validates the endpoint against
+  `/^\/api\/care\/extension\/[a-z]+$/` (no arbitrary path/host), and `open-connect` uses `chrome.runtime.id` (its
+  OWN id), not attacker input. Only the connect PAGE (sending side) has the unvalidated-target bug.
+
+**Minor §1.5.1 continuity bug found while checking (LOW):** the connect page's Sign-in link is
+`/login?next=%2Fextension%2Fconnect`, but login reads `intent`, NOT `next` — so `next` is dropped and a signed-out
+user who clicks "Sign in" from connect lands on `/dashboard`, not back at `/extension/connect` to finish
+connecting. Fix (small, must stay open-redirect-safe): have login honor a `next` param VALIDATED to be an internal
+path (starts with a single `/`, not `//` or a scheme), and point the connect link at whatever login reads. Not
+built — touches the shared login redirect and needs the internal-only validation to avoid introducing the very
+open-redirect that's currently absent. Recommended, founder's call.
+
 ## 3.5 Remediation APPLIED — status (updated as built)
 
 | Fix | Status | Where | Commit | Verified by me | UNVERIFIED (needs founder browser) |
