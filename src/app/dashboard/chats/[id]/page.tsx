@@ -197,6 +197,19 @@ export default function TeamChatTopicPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicId]);
 
+  // Reset the composer (draft + reply-target + AI-assist flag) on topic switch. Today the only path
+  // into a chat is list→[id] (no direct chat→chat link), so this page remounts and the draft starts
+  // empty — this can't bite yet. But chat messages are APPEND-ONLY §3.1 events: the day a direct
+  // chat→chat control is added (a "related topic" / mention jump / persistent list sidebar), the
+  // same-[id]-segment nav would PRESERVE this page's state and an unsent draft for topic A would post
+  // to topic B (the context-switch state-bleed class — C.A.R.E conversations + sales-coach, 2026-07-24).
+  // Structural floor; mirrors the same trio post() clears on send (498-500).
+  useEffect(() => {
+    setDraft("");
+    setAiAssisted(false);
+    setReplyTo(null);
+  }, [topicId]);
+
   // Queue #5 — live updates. Until the codebase's eventual "S7"
   // Supabase-realtime work (named in the C.A.R.E poll), Team Chat uses
   // the SAME lightweight 5s poll the C.A.R.E surface already uses
