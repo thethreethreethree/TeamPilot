@@ -358,11 +358,11 @@ function ReplyShapePatternRow({ pattern }: { pattern: ReplyShapePattern }) {
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <MessageCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-300" aria-hidden />
+            <MessageCircle className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300" aria-hidden />
             <p className="text-sm font-semibold text-primary">{label}</p>
           </div>
           <p className="text-[11px] text-muted">
-            <span className="font-mono font-semibold text-amber-600 dark:text-amber-300">
+            <span className="font-mono font-semibold text-amber-700 dark:text-amber-300">
               {pattern.totalInstances}
             </span>{" "}
             instances across {pattern.repliesScanned}{" "}
@@ -385,7 +385,7 @@ function ReplyShapePatternRow({ pattern }: { pattern: ReplyShapePattern }) {
               <Link
                 key={id}
                 href={`/dashboard/care/conversations/${id}`}
-                className="inline-flex items-center gap-0.5 text-[10px] font-mono text-amber-600 dark:text-amber-300 hover:text-primary border border-amber-500/30 hover:border-amber-500/60 px-1.5 py-0.5 rounded"
+                className="inline-flex items-center gap-0.5 text-[10px] font-mono text-amber-700 dark:text-amber-300 hover:text-primary border border-amber-500/30 hover:border-amber-500/60 px-1.5 py-0.5 rounded"
               >
                 {id.slice(0, 8)}
                 <ArrowRight className="w-2 h-2" aria-hidden />

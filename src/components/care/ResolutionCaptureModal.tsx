@@ -210,7 +210,7 @@ export function ResolutionCaptureModal({
               type="button"
               onClick={() => void submit(true)}
               disabled={!canSubmit || submitting}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-500/15 border border-emerald-500/40 hover:border-emerald-500/70 text-emerald-300 disabled:opacity-40 px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-500/15 border border-emerald-500/40 hover:border-emerald-500/70 text-emerald-700 dark:text-emerald-300 disabled:opacity-40 px-3 py-1.5 rounded-md"
             >
               {submitting ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />

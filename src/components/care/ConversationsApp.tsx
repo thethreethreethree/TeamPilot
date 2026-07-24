@@ -2071,7 +2071,7 @@ function ConversationListRow({
           {c.supervisorGuidanceRequestedAt && (
             <span
               title="Supervisor guidance has been requested on this conversation"
-              className="mt-1 inline-flex items-center gap-1 text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-300"
+              className="mt-1 inline-flex items-center gap-1 text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-400/10 text-amber-700 dark:text-amber-300"
             >
               <HandHelping className="w-2.5 h-2.5" aria-hidden />
               Needs guidance
@@ -2443,8 +2443,8 @@ function DetailHeader({
                 disabled={acting}
                 className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md disabled:opacity-50 transition-colors ${
                   conversation.supervisorGuidanceRequestedAt
-                    ? "text-amber-600 dark:text-amber-300 bg-amber-400/10 border border-amber-400/50 hover:bg-amber-400/15"
-                    : "text-secondary border border-default hover:text-amber-600 dark:hover:text-amber-300 hover:border-amber-400/50"
+                    ? "text-amber-700 dark:text-amber-300 bg-amber-400/10 border border-amber-400/50 hover:bg-amber-400/15"
+                    : "text-secondary border border-default hover:text-amber-700 dark:hover:text-amber-300 hover:border-amber-400/50"
                 }`}
               >
                 <HandHelping className="w-3.5 h-3.5" aria-hidden />
@@ -2468,7 +2468,7 @@ function DetailHeader({
                   type="button"
                   onClick={onResolve}
                   disabled={acting}
-                  className="inline-flex items-center gap-1.5 text-xs text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+                  className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
                   Resolve
@@ -2862,7 +2862,7 @@ function CoachCountsRow({
 
 function PresenceChip({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded">
       <span aria-hidden>✓</span>
       {label}
     </span>
@@ -2879,7 +2879,7 @@ function GapChip({ label }: { label: string }) {
 
 function RiskChip({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
       {label}
     </span>
   );
@@ -2908,9 +2908,9 @@ function CoachLegacyRow({
       <Sparkles
         className={`w-3 h-3 shrink-0 mt-0.5 ${
           grade === "productive"
-            ? "text-emerald-300"
+            ? "text-emerald-700 dark:text-emerald-300"
             : grade === "needs_guidance"
-              ? "text-amber-600 dark:text-amber-300"
+              ? "text-amber-700 dark:text-amber-300"
               : "text-secondary"
         }`}
         aria-hidden
@@ -2919,9 +2919,9 @@ function CoachLegacyRow({
         <span
           className={`text-[10px] uppercase tracking-widest font-bold ${
             grade === "productive"
-              ? "text-emerald-300"
+              ? "text-emerald-700 dark:text-emerald-300"
               : grade === "needs_guidance"
-                ? "text-amber-600 dark:text-amber-300"
+                ? "text-amber-700 dark:text-amber-300"
                 : "text-muted"
           }`}
         >
@@ -3325,7 +3325,7 @@ function BulkActionBar({
             type="button"
             onClick={onReopen}
             disabled={acting}
-            className="inline-flex items-center gap-1.5 text-xs text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/70 disabled:opacity-50 px-2.5 py-1 rounded-md"
+            className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/70 disabled:opacity-50 px-2.5 py-1 rounded-md"
           >
             Reopen
           </button>

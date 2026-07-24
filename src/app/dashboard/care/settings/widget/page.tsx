@@ -238,7 +238,7 @@ export default function CareWidgetSettingsPage() {
                   Widget is{" "}
                   <span
                     className={
-                      draft.active ? "text-emerald-300 font-semibold" : "text-muted"
+                      draft.active ? "text-emerald-700 dark:text-emerald-300 font-semibold" : "text-muted"
                     }
                   >
                     {draft.active ? "live" : "paused"}
@@ -1113,7 +1113,7 @@ function OriginsValidation({ raw }: { raw: string }) {
       {issues.map((iss, i) => (
         <div
           key={i}
-          className="flex items-start gap-1.5 text-[11px] text-amber-600 dark:text-amber-300/90 bg-amber-500/5 border border-amber-500/30 rounded px-2 py-1"
+          className="flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-300/90 bg-amber-500/5 border border-amber-500/30 rounded px-2 py-1"
         >
           <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" aria-hidden />
           <span>

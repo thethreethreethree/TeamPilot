@@ -192,7 +192,7 @@ export default function CareAgentsPage() {
                           <PresenceBadge presence={a.presence} />
                         )}
                         {implicit ? (
-                          <span className="text-[10px] text-emerald-300 inline-flex items-center gap-1">
+                          <span className="text-[10px] text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
                             <UserCheck
                               className="w-3 h-3"
                               aria-hidden
@@ -252,9 +252,9 @@ function PresenceBadge({ presence }: { presence: AgentPresence }) {
         : "bg-white/30";
   const textCls =
     presence.status === "online"
-      ? "text-emerald-300"
+      ? "text-emerald-700 dark:text-emerald-300"
       : presence.status === "away"
-        ? "text-amber-600 dark:text-amber-300"
+        ? "text-amber-700 dark:text-amber-300"
         : "text-muted";
   return (
     <span

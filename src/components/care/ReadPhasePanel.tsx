@@ -174,7 +174,7 @@ export function ReadPhasePanel({
         <p className="text-[11px] font-semibold text-brand flex-1">
           The Read Phase
           {data.readingCompleteAt && (
-            <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-emerald-300 font-normal">
+            <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-300 font-normal">
               <CheckCircle2 className="w-3 h-3" aria-hidden />
               Reviewed
             </span>

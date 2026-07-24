@@ -42,10 +42,10 @@ type Roster = {
 };
 
 const TIER: Record<CareGrade["tier"], { text: string; ring: string; bg: string; label: string }> = {
-  strong: { text: "text-emerald-300", ring: "border-emerald-500/40", bg: "bg-emerald-500/10", label: "Strong" },
+  strong: { text: "text-emerald-700 dark:text-emerald-300", ring: "border-emerald-500/40", bg: "bg-emerald-500/10", label: "Strong" },
   solid: { text: "text-brand", ring: "border-ember-400/40", bg: "bg-ember-400/10", label: "Solid" },
-  developing: { text: "text-amber-600 dark:text-amber-300", ring: "border-amber-500/40", bg: "bg-amber-500/10", label: "Developing" },
-  "growth-area": { text: "text-amber-600 dark:text-amber-300", ring: "border-amber-500/30", bg: "bg-amber-500/[0.07]", label: "Growth area" },
+  developing: { text: "text-amber-700 dark:text-amber-300", ring: "border-amber-500/40", bg: "bg-amber-500/10", label: "Developing" },
+  "growth-area": { text: "text-amber-700 dark:text-amber-300", ring: "border-amber-500/30", bg: "bg-amber-500/[0.07]", label: "Growth area" },
   "not-yet": { text: "text-muted", ring: "border-default", bg: "bg-white/[0.02]", label: "Not yet" },
 };
 
@@ -95,8 +95,8 @@ export default function CareCoachAssessmentPage() {
           </div>
         ) : state === "degraded" ? (
           <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 flex items-center gap-3">
-            <TriangleAlert className="w-4 h-4 text-amber-600 dark:text-amber-300 shrink-0" aria-hidden />
-            <p className="text-xs text-amber-600 dark:text-amber-300">
+            <TriangleAlert className="w-4 h-4 text-amber-700 dark:text-amber-300 shrink-0" aria-hidden />
+            <p className="text-xs text-amber-700 dark:text-amber-300">
               Couldn&apos;t load the assessment right now — this is an error, not an empty team. Try again shortly.
             </p>
           </div>
@@ -135,7 +135,7 @@ export default function CareCoachAssessmentPage() {
             </LearningHint>
 
             {roster && roster.bounded && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-300">
+              <p className="text-[11px] text-amber-700 dark:text-amber-300">
                 Heads up: a high volume of replies means these counts may undercount (scan cap hit).
               </p>
             )}
@@ -199,7 +199,7 @@ export default function CareCoachAssessmentPage() {
                   {/* Learning gaps — the hero: which book principle to coach next. */}
                   {a.learningGaps.length > 0 ? (
                     <div>
-                      <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-amber-600 dark:text-amber-300 font-bold mb-2">
+                      <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300 font-bold mb-2">
                         <BookOpen className="w-3 h-3" aria-hidden /> Learning gaps · reinforce next
                       </p>
                       <ul className="space-y-1.5">
@@ -212,7 +212,7 @@ export default function CareCoachAssessmentPage() {
                       </ul>
                     </div>
                   ) : (
-                    <p className="inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+                    <p className="inline-flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
                       <ThumbsUp className="w-3 h-3" aria-hidden /> Solid across the board — nothing flagged
                       to reinforce.
                     </p>
