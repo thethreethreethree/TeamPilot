@@ -56,6 +56,13 @@ detail-panel `md:min-w-[380px]` floor, 2 click-block overlays.
   route remount), sales-coach manager views (unmount on switch), problems page (create-form). Ran the full
   runtime-bug rigor (state-bleed / overlay / keyboard / effect-races / timers) on sales-coach — otherwise
   clean. Class captured in memory `reference_context_switch_state_bleed_class` (sweep-complete record).
+- **App-Router-preservation class — full `[id]`-page sweep (BEYOND scope — flagged):** same-segment `[id]→[id]`
+  navigation PRESERVES a page component (no remount), which breaks both directions of per-item state. Found +
+  fixed 3 real/latent code sites beyond the drafts above: C.A.R.E `initialId`→`selectedId` not synced
+  (`0b67fd47`, **LIVE** — a notification/deep-link to another conversation showed the wrong one); operations
+  `GateForm` seeded from `initialTitle` (`e15fcd00`, `key={task.id}`); admin/crm `OverviewTab`/`ContactsTab`
+  edit forms seeded from `account` (`7c6755fb`, `key`, latent floor). Every dynamic-segment page checked;
+  invite/[code] + widget/[embedToken] are single-use (N/A). Sweep complete.
 
 ## 5. OPEN — founder only (nothing else blocking autonomously)
 
