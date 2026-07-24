@@ -955,7 +955,24 @@ export function ConversationsApp({
     setDraft("");
     setAiOriginalDraft(null);
     setAiReasoning(null);
+    setAiPrecedents([]);
     setIsInternalNote(false);
+    // Close every per-conversation OVERLAY/PANEL on switch — same bleed class as the draft (§A26).
+    // These all bind to `selected` reactively: ResolutionCaptureModal + TaskRefinementPanel take
+    // conversationId={selected.id}, so leaving one open and navigating (J/K works even under the
+    // modal backdrop) would re-target it to the NEW conversation and capture the record against the
+    // WRONG one. The read panels (Summarize/Dissect/Formulate/Ask-Coach) analyze the current
+    // conversation, so they shouldn't linger showing another one either. DELIBERATELY EXCLUDES the
+    // debrief (debrief/debriefModalOpen/debriefLoading): the resolve flow opens the debrief for the
+    // just-resolved conversation and THEN auto-advances selectedId (onCaptured, 1851) — the debrief
+    // is designed to survive that switch (§3.6), so resetting it here would close it instantly.
+    setResolveModalOpen(false);
+    setSpawnTaskOpen(false);
+    setSummarizeOpen(false);
+    setDissectOpen(false);
+    setFormulateOpen(false);
+    setAskCoachOpen(false);
+    setCoachNeedsDraft(false);
     if (selectedId) {
       void loadDetail(selectedId);
     }
