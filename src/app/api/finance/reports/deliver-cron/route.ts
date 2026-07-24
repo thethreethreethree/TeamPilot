@@ -33,6 +33,11 @@ import { sendPushToUsers } from "@/lib/notifications/sender";
  * revenue in it would leak the number to anyone glancing at the phone, and to a subscription endpoint we
  * do not control. The numbers stay behind the login. The notification is a doorbell, not an envelope.
  */
+// Report delivery generates + emails scheduled reports — the most likely of the crons to exceed the
+// ~10s Vercel default. 60s is the proven-safe ceiling here (backfill-dissects-cron uses it; main
+// deploys). Only relevant once CRON_SECRET activates the cron. (If delivery ever needs >60s, batch it.)
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {

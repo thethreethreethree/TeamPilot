@@ -16,6 +16,10 @@ import { constantTimeEqual } from "@/lib/api/constantTime";
  * Until both are done this route 503s (secret unset) and no schedule invokes it —
  * the code is ready, dormant, and safe.
  */
+// 60s (proven-safe; backfill-dissects-cron uses it) so a task-overrun sweep isn't truncated by the
+// ~10s Vercel default once it has rows to process. Relevant only when CRON_SECRET activates the cron.
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {

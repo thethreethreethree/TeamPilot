@@ -26,6 +26,11 @@ import { constantTimeEqual } from "@/lib/api/constantTime";
  * External / non-Vercel cron consumers use the sibling POST route
  * /api/care/durability-sweep with its own shared secret header.
  */
+// Vercel's default function timeout (~10s) can truncate a durability sweep mid-run once it has
+// rows to process. 60s matches the proven-safe value already used by backfill-dissects-cron (the
+// account accepts it — main deploys with it). Only relevant once CRON_SECRET activates the cron.
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
