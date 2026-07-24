@@ -292,7 +292,15 @@ export default function CrmAccountDetailPage() {
         </div>
 
         {tab === "overview" && (
+          // key={account.id}: OverviewTab seeds its edit `form` from `account` via a once-only
+          // useState initializer, and save() PATCHes `account.id` (the CURRENT prop) with those form
+          // values. This page reads id from useParams and App Router preserves it across same-segment
+          // /admin/crm/[id]→[id] nav — so without a key, editing account B could write account A's
+          // field values (industry/email/healthScore…) to B. Latent today (crm links all come from the
+          // list page; no account→account link), but keying per account makes it impossible up front.
+          // Same App-Router-preservation class as the C.A.R.E deep-link + operations GateForm fixes.
           <OverviewTab
+            key={account.id}
             account={account}
             contactCount={contacts.length}
             noteCount={notes.length}
@@ -303,6 +311,7 @@ export default function CrmAccountDetailPage() {
         )}
         {tab === "contacts" && (
           <ContactsTab
+            key={account.id}
             accountId={account.id}
             contacts={contacts}
             onChanged={() => void load()}
