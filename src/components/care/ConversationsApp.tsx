@@ -1635,7 +1635,13 @@ export function ConversationsApp({
             AND no other drawer (Views/Customer) is open.
             Desktop: always rendered as the center flex-1 region. */}
         <div
-          className={`flex-1 min-w-0 flex-col ${
+          // min-w-0 lets flex shrink the detail on mobile (single-pane); md:min-w-[380px] GUARANTEES the
+          // conversation detail never crushes below a usable width on desktop no matter what the other
+          // panes do (founder 2026-07-24: detail collapsed to a char-by-char sliver at narrow widths —
+          // the responsive auto-collapse frees space, this is the hard floor so it can never crush again;
+          // if the row can't fit, the far-right customer pane clips under overflow-hidden, keeping the
+          // WORK area usable, which is the correct priority).
+          className={`flex-1 min-w-0 md:min-w-[380px] flex-col ${
             mobileShowDetail ? "flex w-full" : "hidden md:flex"
           }`}
         >
@@ -4477,7 +4483,7 @@ function AskCoachCarePanel({
           {response.affirmation && (
             <div className="flex items-start gap-2">
               <Sparkles
-                className="w-3 h-3 text-emerald-400 mt-0.5 flex-shrink-0"
+                className="w-3 h-3 text-emerald-700 dark:text-emerald-400 mt-0.5 flex-shrink-0"
                 aria-hidden
               />
               <p className="text-xs text-primary leading-relaxed">
