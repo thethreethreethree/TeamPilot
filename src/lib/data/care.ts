@@ -1096,13 +1096,19 @@ export async function createTag(args: {
   return mapTag(data);
 }
 
+// NOTE (audit 2026-07-24): these two are the data layer for applying/removing a tag on a
+// conversation, but they are currently UNWIRED — no route or UI calls them (tags are created in
+// settings and DISPLAYED on conversations, but there's no apply/remove control). Surfaced for the
+// founder as a half-built feature (whether/how tag-apply ships is a product call). Made honest now so
+// the eventual apply route can trust them: previously both fire-and-forget'd the write and swallowed
+// any error, which would have silently reported success on a failed write (§3.4 "no silent ok=true").
 export async function addTagToConversation(args: {
   conversationId: string;
   tagId: string;
   agentId: string;
 }): Promise<void> {
   const sb = await createServerClient();
-  await sb.from("support_conversation_tags").upsert(
+  const { error } = await sb.from("support_conversation_tags").upsert(
     {
       conversation_id: args.conversationId,
       tag_id: args.tagId,
@@ -1110,6 +1116,7 @@ export async function addTagToConversation(args: {
     },
     { onConflict: "conversation_id,tag_id" }
   );
+  if (error) throw new Error(`Couldn't add tag to conversation: ${error.message}`);
 }
 
 export async function removeTagFromConversation(args: {
@@ -1117,11 +1124,12 @@ export async function removeTagFromConversation(args: {
   tagId: string;
 }): Promise<void> {
   const sb = await createServerClient();
-  await sb
+  const { error } = await sb
     .from("support_conversation_tags")
     .delete()
     .eq("conversation_id", args.conversationId)
     .eq("tag_id", args.tagId);
+  if (error) throw new Error(`Couldn't remove tag from conversation: ${error.message}`);
 }
 
 export async function setConversationPriority(args: {
