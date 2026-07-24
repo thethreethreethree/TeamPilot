@@ -2199,7 +2199,7 @@ function DetailHeader({
                 dispatch as outbound email. */}
             {conversation.source === "email" && (
               <span
-                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full border border-arc-400/40 bg-arc-400/10 text-arc-300"
+                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full border border-arc-400/40 bg-arc-400/10 text-brand"
                 title="This conversation arrived via email. Replies will be dispatched as outbound email."
               >
                 <Mail className="w-3 h-3" aria-hidden />
@@ -2207,7 +2207,7 @@ function DetailHeader({
               </span>
             )}
             {conversation.aiResponding && (
-              <span className="inline-flex items-center gap-1 text-[10px] text-arc-300">
+              <span className="inline-flex items-center gap-1 text-[10px] text-brand">
                 <Sparkles className="w-3 h-3" aria-hidden />
                 AI responding
               </span>
@@ -2261,7 +2261,7 @@ function DetailHeader({
               type="button"
               onClick={onSummarize}
               disabled={acting}
-              className="inline-flex items-center gap-1.5 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1.5 text-xs text-brand border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
             >
               <Sparkles className="w-3.5 h-3.5" aria-hidden />
               Summarize
@@ -2283,7 +2283,7 @@ function DetailHeader({
               type="button"
               onClick={onDissect}
               disabled={acting}
-              className="inline-flex items-center gap-1.5 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1.5 text-xs text-brand border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
             >
               <Brain className="w-3.5 h-3.5" aria-hidden />
               Dissect
@@ -2310,7 +2310,7 @@ function DetailHeader({
               onClick={onCoach}
               disabled={acting}
               title="Grades your reply draft against the communication books — type your reply first, then click."
-              className="inline-flex items-center gap-1.5 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1.5 text-xs text-brand border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
             >
               <GraduationCap className="w-3.5 h-3.5" aria-hidden />
               Coach
@@ -2492,7 +2492,7 @@ function AssignDropdown({
         onClick={() => setOpen((v) => !v)}
         disabled={acting}
         title="Assign or hand off this conversation"
-        className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-arc-300 hover:border-arc-400/50 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-brand hover:border-arc-400/50 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
       >
         <UserCheck className="w-3.5 h-3.5" aria-hidden />
         {current ? `Assigned: ${label}` : "Assign"}
@@ -2532,7 +2532,7 @@ function AssignDropdown({
               disabled={isCurrent}
               className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 ${
                 isCurrent
-                  ? "bg-arc-400/5 text-arc-300 cursor-default"
+                  ? "bg-arc-400/5 text-brand cursor-default"
                   : "text-primary hover:bg-base/40"
               }`}
             >
@@ -3038,7 +3038,7 @@ function Composer({
                 type="button"
                 onClick={onAskCoach}
                 disabled={!draft.trim()}
-                className="text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-0.5 rounded"
+                className="text-[11px] font-semibold text-brand border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-0.5 rounded"
               >
                 <Wand2 className="w-3 h-3" aria-hidden />
                 Ask Coach
@@ -3079,7 +3079,7 @@ function Composer({
               <button
                 type="button"
                 onClick={onSpawnTask}
-                className="text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 inline-flex items-center gap-1 px-2 py-0.5 rounded"
+                className="text-[11px] font-semibold text-brand border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 inline-flex items-center gap-1 px-2 py-0.5 rounded"
               >
                 <ListChecks className="w-3 h-3" aria-hidden />
                 Spawn task
@@ -3104,7 +3104,7 @@ function Composer({
           reasoning is supplementary — hidden in Standard, shown in Expert. */}
       <ExpertOnly>
         {aiReasoning && (
-          <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.04] text-[11px] text-arc-300 leading-relaxed">
+          <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.04] text-[11px] text-brand leading-relaxed">
             <span className="font-semibold">Co-pilot reasoning (internal):</span>{" "}
             {aiReasoning}
           </div>
@@ -3125,7 +3125,7 @@ function Composer({
             aiPrecedents.length === 1 ? "" : "s"
           } the co-pilot drew on`}
         >
-          <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.02] text-[11px] text-arc-300 leading-relaxed">
+          <div className="mb-2 p-2 rounded-md border border-arc-400/30 bg-arc-400/[0.02] text-[11px] text-brand leading-relaxed">
             <p className="font-semibold mb-1">
               Drew on {aiPrecedents.length} past resolution
               {aiPrecedents.length === 1 ? "" : "s"}:
@@ -4050,7 +4050,7 @@ function DissectCarePanel({
 
           {dissect.guidingQuestion && (
             <div className="pt-3 border-t border-default">
-              <p className="text-sm text-arc-300 leading-relaxed">
+              <p className="text-sm text-brand leading-relaxed">
                 {dissect.guidingQuestion}
               </p>
               <ExpertOnly>
@@ -4113,7 +4113,7 @@ function DissectCarePanel({
                 type="button"
                 onClick={() => void ask()}
                 disabled={asking || !question.trim()}
-                className="shrink-0 inline-flex items-center gap-1 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-40 px-2.5 py-1.5 rounded-md"
+                className="shrink-0 inline-flex items-center gap-1 text-xs text-brand border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-40 px-2.5 py-1.5 rounded-md"
               >
                 <Send className="w-3.5 h-3.5" aria-hidden />
                 Ask

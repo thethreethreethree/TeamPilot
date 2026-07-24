@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { useToast } from "@/components/ui/toast";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   BarChart3,
   BookOpen,
@@ -275,6 +276,18 @@ export function CareShell({ children }: { children: React.ReactNode }) {
             home indicator. Without this, the footer was cut off by
             the gesture area — caught in founder audit 2026-06-19. */}
         <div className="px-2 pt-2 border-t border-white/[0.06] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {/* Theme (light/dark/system) — founder 2026-07-24: C.A.R.E had no in-surface way to switch
+              theme. Reuses the app-wide ThemeToggle + ThemeProvider (A28 — align to the existing system,
+              don't rebuild). The C.A.R.E sidebar is intentionally dark-brand (bg-brand-shell) regardless
+              of theme (Zendesk-style), so the label uses fixed white/40, NOT a themeable token that would
+              go dark-on-dark in light mode. The toggle switches the MAIN content (bg-base) between light
+              and dark. */}
+          <div className="flex items-center justify-between px-3 py-1.5 mb-0.5">
+            <span className="text-[10px] uppercase tracking-widest text-white/40">
+              Theme
+            </span>
+            <ThemeToggle variant="compact" />
+          </div>
           <Link
             href="/dashboard"
             className="flex items-center gap-2 px-3 py-2 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors"
