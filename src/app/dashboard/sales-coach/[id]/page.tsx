@@ -135,6 +135,22 @@ export default function SessionDetail() {
     void load();
   }, [load]);
 
+  // Reset the local composer/draft state on session switch. TODAY each session is its own route
+  // mount (nav never goes session→session while this page stays mounted), so this can't bite — but
+  // `whyDraft` POSTs an APPEND-ONLY §3.1 event (submitWhy → /why). If a session→session control is
+  // ever added (a next/prev arrow, a "next session" link) while the page is mounted, an unreset
+  // whyDraft would submit rep A's hypothesis as an IMMUTABLE event on session B — unrecoverable.
+  // This is the C.A.R.E draft-bleed class (2026-07-24); the structural floor makes it impossible up
+  // front rather than waiting for the nav change to surface it. `load` (keyed on [id]) re-fetches the
+  // server-derived state; this only clears local typed/derived buffers, mirroring a fresh mount.
+  useEffect(() => {
+    setWhyDraft("");
+    setPrep(null);
+    setPrepQuestion("");
+    setPrepAnswer(null);
+    setError(null);
+  }, [id]);
+
   const generateReview = async () => {
     setGenerating(true);
     setError(null);
