@@ -49,6 +49,12 @@ detail-panel `md:min-w-[380px]` floor, 2 click-block overlays.
 - **One latent fail-open** (documented, currently safe): both auth gates are denylists (`status==='removed'`),
   safe only while `profiles.status` ∈ {active,removed}. Guard added: `profiles-status-fail-open-invariant.test.ts`
   (`859c7631`). Did NOT flip the auth semantics unilaterally (§2).
+- **Sales-coach surface (BEYOND the C.A.R.E scope — flagged, audited for triage):** ran the same runtime-bug
+  rigor (state-bleed / overlay / keyboard / effect-races). CLEAN in-component (session selection is route-based
+  → remount). One LATENT instance of the context-switch state-bleed class in `sales-coach/[id]/page.tsx`
+  (`whyDraft` etc. not reset on `id`); unreachable today but `whyDraft` POSTs an append-only §3.1 event, so I
+  added the same cheap reset-on-`[id]` floor (`c6fdd63d`). The recurring class itself is captured in memory
+  `reference_context_switch_state_bleed_class` (found 3× this session).
 
 ## 5. OPEN — founder only (nothing else blocking autonomously)
 
