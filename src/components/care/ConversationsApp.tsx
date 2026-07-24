@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Brain,
+  GraduationCap,
   CheckCircle2,
   Clock,
   Filter,
@@ -394,6 +395,10 @@ export function ConversationsApp({
   const [dissectOpen, setDissectOpen] = useState(false);
   const [formulateOpen, setFormulateOpen] = useState(false);
   const [askCoachOpen, setAskCoachOpen] = useState(false);
+  // Transient hint when the top-toolbar Coach is clicked with an empty draft: Coach grades the
+  // agent's reply DRAFT, so it needs one. Rather than silently grey the button (the confusion the
+  // founder flagged on the composer-bar "Ask Coach"), we focus the composer and show this hint.
+  const [coachNeedsDraft, setCoachNeedsDraft] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -1649,6 +1654,18 @@ export function ConversationsApp({
                 onToggleGuidance={toggleSupervisorGuidance}
                 onSummarize={() => setSummarizeOpen(true)}
                 onDissect={() => setDissectOpen(true)}
+                onCoach={() => {
+                  // Same grade-a-draft Coach as the composer-bar "Ask Coach" (opens the same
+                  // AskCoachCarePanel). It grades the DRAFT, so if the composer is empty, guide the
+                  // agent to write a reply first (focus + transient hint) instead of grading nothing.
+                  if (!draft.trim()) {
+                    composerRef.current?.focus();
+                    setCoachNeedsDraft(true);
+                    window.setTimeout(() => setCoachNeedsDraft(false), 4000);
+                    return;
+                  }
+                  setAskCoachOpen(true);
+                }}
                 onResolve={() => setResolveModalOpen(true)}
                 onClose={() => {
                   // Close = terminal state without a resolution
@@ -1926,6 +1943,14 @@ export function ConversationsApp({
           onClose={() => setAskCoachOpen(false)}
         />
       )}
+      {coachNeedsDraft && (
+        <div
+          role="status"
+          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[70] text-xs text-arc-200 bg-base border border-arc-400/50 px-3 py-2 rounded-md shadow-lg max-w-xs text-center"
+        >
+          Type your reply first — Coach grades your draft against the books.
+        </div>
+      )}
     </div>
   );
 }
@@ -2125,6 +2150,7 @@ function DetailHeader({
   onPriorityChange,
   onSummarize,
   onDissect,
+  onCoach,
 }: {
   conversation: Conversation;
   acting: boolean;
@@ -2144,6 +2170,7 @@ function DetailHeader({
   onPriorityChange: (priority: string) => void;
   onSummarize: () => void;
   onDissect: () => void;
+  onCoach: () => void;
 }) {
   const dl = careStatusDisplay(conversation.status);
   const Icon = dl.icon;
@@ -2260,6 +2287,33 @@ function DetailHeader({
             >
               <Brain className="w-3.5 h-3.5" aria-hidden />
               Dissect
+            </button>
+          </LearningHint>
+          {/* Coach — promoted to the top toolbar (founder 2026-07-24). This is the SAME grade-a-draft
+              Coach as the bottom-bar "Ask Coach" (same AskCoachCarePanel, same ask-coach route) — it was
+              buried + greyed in the composer bar, so it's surfaced here alongside Summarize/Dissect for
+              parity with the demo. A21: same feature, ONE backend, two entry points (not two features).
+              Unlike Summarize/Dissect (which read the CONVERSATION), Coach grades the agent's reply DRAFT,
+              so onCoach focuses the composer + hints when the draft is empty instead of silently greying —
+              making the draft-dependency obvious (§ founder directive) rather than hidden behind a disabled
+              state. */}
+          <LearningHint
+            category="AI · Coach"
+            title="Coach"
+            whatItIs="The same Coach as 'Ask Coach' in the composer bar — a pre-send review of your reply DRAFT using Coach v5 (grounded in 10 books of communication principles). Returns a classification, a suggested revision with the cited principle + book, and conversational follow-up."
+            why="Promoted here so the Coach is visible alongside Summarize and Dissect, not buried in the composer. It grades what YOU are about to send — so it needs a draft. Type your reply first, then Coach checks it before it goes out, when fixing costs one sentence."
+            how="Type your reply in the composer, then click Coach. If the draft is empty, Coach points you to the composer to write it first. Read the diagnostic + suggested revision (with its book), use it, edit it, or send as-is — the Coach informs, you decide."
+            principle="Coach grades your draft, not the conversation — that's why it needs your reply first. Same tool as 'Ask Coach'; this is just a more visible way in."
+          >
+            <button
+              type="button"
+              onClick={onCoach}
+              disabled={acting}
+              title="Grades your reply draft against the communication books — type your reply first, then click."
+              className="inline-flex items-center gap-1.5 text-xs text-arc-300 border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
+            >
+              <GraduationCap className="w-3.5 h-3.5" aria-hidden />
+              Coach
             </button>
           </LearningHint>
           {/* Open as Decision Dialogue — escalates a tough
