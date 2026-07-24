@@ -117,7 +117,7 @@
   --text-muted:     113 113 122;      /* ink.500 #71717A */
 
   /* Contrast-aware brand text — ember-600 is darker, holds on cream. */
-  --brand-text:  202 138 4;           /* ember.600 #CA8A04 */
+  --brand-text:  161 98 7;            /* ember.700 #A16207 — darkened 2026-07-24: ember.600 measured only 2.7–2.9:1 on light bg (FAILS WCAG AA, founder flagged "too light, hard to see"). ember.700 = 4.5–4.9:1 (PASS-AA), still gold. Fixes ALL light-mode text-brand at the root. Dark-mode brand-text unchanged. */
 
   --bg-primary: #FAFAFA;
   --bg-secondary: #FFFFFF;
