@@ -49,12 +49,13 @@ detail-panel `md:min-w-[380px]` floor, 2 click-block overlays.
 - **One latent fail-open** (documented, currently safe): both auth gates are denylists (`status==='removed'`),
   safe only while `profiles.status` ∈ {active,removed}. Guard added: `profiles-status-fail-open-invariant.test.ts`
   (`859c7631`). Did NOT flip the auth semantics unilaterally (§2).
-- **Sales-coach surface (BEYOND the C.A.R.E scope — flagged, audited for triage):** ran the same runtime-bug
-  rigor (state-bleed / overlay / keyboard / effect-races). CLEAN in-component (session selection is route-based
-  → remount). One LATENT instance of the context-switch state-bleed class in `sales-coach/[id]/page.tsx`
-  (`whyDraft` etc. not reset on `id`); unreachable today but `whyDraft` POSTs an append-only §3.1 event, so I
-  added the same cheap reset-on-`[id]` floor (`c6fdd63d`). The recurring class itself is captured in memory
-  `reference_context_switch_state_bleed_class` (found 3× this session).
+- **App-wide sweep of the context-switch state-bleed class (BEYOND C.A.R.E scope — flagged):** the same class
+  found in care was swept across every master-detail surface. FIXED: sales-coach `[id]` composer (`c6fdd63d`,
+  latent floor) + chats `[id]` composer (`9f51e80a`, latent floor) — both §3.1 append-only, so unrecoverable
+  if a direct item→item nav is ever added. CLEAN (verified, not the class): TaskGateEditor (prop-sync effect +
+  route remount), sales-coach manager views (unmount on switch), problems page (create-form). Ran the full
+  runtime-bug rigor (state-bleed / overlay / keyboard / effect-races / timers) on sales-coach — otherwise
+  clean. Class captured in memory `reference_context_switch_state_bleed_class` (sweep-complete record).
 
 ## 5. OPEN — founder only (nothing else blocking autonomously)
 
