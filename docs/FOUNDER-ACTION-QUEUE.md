@@ -145,6 +145,15 @@
 > (pass a provider override through `generateCareReply` for the extension routes). The storage claim itself is
 > HONEST — verified nothing writes the conversation to our DB or logs (only error metadata is logged, never content).
 >
+> **⚠️ SUBTLE — a provider PIN does NOT guarantee "never DeepSeek" (found 2026-07-24).** `llmCall`
+> (`src/lib/llm/index.ts`) cascades to the OTHER provider on an `auth` or `quota` error (operator resilience,
+> line ~109), and `otherProvider()` ignores the `LLM_PROVIDER` pin. So `LLM_PROVIDER=anthropic` (or a per-route
+> Anthropic pin) set for DATA-RESIDENCY reasons would still cascade a request to **DeepSeek** if the Anthropic key
+> is rejected / quota-blocked. Edge-case (fires only on an Anthropic key failure, never in normal operation) — but
+> it defeats a governance pin. **Decision: should an explicit pin be STRICT (no cross-provider cascade)?** If yes,
+> the fix is a separate flag (e.g. `LLM_STRICT_PROVIDER=true` → `otherProvider` returns null / `shouldCascade` false
+> when a pin is set), leaving the resilience default intact for everyone who WANTS failover. Small, safe build on your word.
+>
 > ## 💱 FINANCE BUG — foreign-currency bills/invoices can hard-fail "UNBALANCED" (found 2026-07-23)
 > **Real bug, but LATENT today** — no finance create form exposes a currency picker, so foreign documents are
 > only reachable via direct DB/API calls right now; a normal user posts base-currency docs and never hits it. It
