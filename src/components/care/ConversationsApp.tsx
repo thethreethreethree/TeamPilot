@@ -945,6 +945,17 @@ export function ConversationsApp({
   }, []);
 
   useEffect(() => {
+    // Reset the composer on EVERY conversation switch. `draft` (+ its AI provenance and note-mode)
+    // is a single shared state, not per-conversation. Without this reset, an unsent reply typed for
+    // conversation A stays in the composer when you open B — and Send would post A's words to B's
+    // CUSTOMER, stamped with A's Co-Pilot provenance in the learning corpus (audit 2026-07-24, HIGH:
+    // cross-conversation mis-send — "looks wired" because Send works, but sends stale content). The
+    // apply-draft flows (Formulate/Coach) never change selectedId, so they are unaffected. Losing an
+    // unsent draft on an explicit switch is the correct, safe trade vs. mis-sending it.
+    setDraft("");
+    setAiOriginalDraft(null);
+    setAiReasoning(null);
+    setIsInternalNote(false);
     if (selectedId) {
       void loadDetail(selectedId);
     }
@@ -1544,7 +1555,7 @@ export function ConversationsApp({
             </button>
             <div className="relative flex-1 min-w-0">
               <Search
-                className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2"
+                className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
                 aria-hidden
               />
               <input
@@ -1984,7 +1995,7 @@ export function ConversationsApp({
       {coachNeedsDraft && (
         <div
           role="status"
-          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[70] text-xs text-arc-700 dark:text-arc-200 bg-base border border-arc-400/50 px-3 py-2 rounded-md shadow-lg max-w-xs text-center"
+          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[70] pointer-events-none text-xs text-arc-700 dark:text-arc-200 bg-base border border-arc-400/50 px-3 py-2 rounded-md shadow-lg max-w-xs text-center"
         >
           Type your reply first — Coach grades your draft against the books.
         </div>
@@ -2342,6 +2353,13 @@ function DetailHeader({
               so onCoach focuses the composer + hints when the draft is empty instead of silently greying —
               making the draft-dependency obvious (§ founder directive) rather than hidden behind a disabled
               state. */}
+          {/* Coach grades a reply DRAFT, and there is NO composer on a closed conversation (the
+              Composer is guarded `status !== "closed"`). So hide Coach on closed too — otherwise
+              clicking it hits the empty-draft branch, focuses a null composer ref (no-op), and points
+              the "type your reply first" hint at a composer that does not exist (audit 2026-07-24: I
+              introduced this inert state when promoting Coach to the toolbar). Summarize/Dissect stay
+              on closed — they read the CONVERSATION, not a draft. Matches the Decision-Dialogue guard. */}
+          {conversation.status !== "closed" && (
           <LearningHint
             category="AI · Coach"
             title="Coach"
@@ -2361,6 +2379,7 @@ function DetailHeader({
               Coach
             </button>
           </LearningHint>
+          )}
           {/* Open as Decision Dialogue — escalates a tough
               customer case to the §3.1 structured internal call.
               Routes to /dashboard/decisions?fromCareConversation=<id>;
