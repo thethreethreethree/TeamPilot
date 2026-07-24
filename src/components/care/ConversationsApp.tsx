@@ -398,7 +398,6 @@ export function ConversationsApp({
   // Transient hint when the top-toolbar Coach is clicked with an empty draft: Coach grades the
   // agent's reply DRAFT, so it needs one. Rather than silently grey the button (the confusion the
   // founder flagged on the composer-bar "Ask Coach"), we focus the composer and show this hint.
-  const [coachNeedsDraft, setCoachNeedsDraft] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -972,7 +971,6 @@ export function ConversationsApp({
     setDissectOpen(false);
     setFormulateOpen(false);
     setAskCoachOpen(false);
-    setCoachNeedsDraft(false);
     if (selectedId) {
       void loadDetail(selectedId);
     }
@@ -1744,15 +1742,14 @@ export function ConversationsApp({
                 onSummarize={() => setSummarizeOpen(true)}
                 onDissect={() => setDissectOpen(true)}
                 onCoach={() => {
-                  // Same grade-a-draft Coach as the composer-bar "Ask Coach" (opens the same
-                  // AskCoachCarePanel). It grades the DRAFT, so if the composer is empty, guide the
-                  // agent to write a reply first (focus + transient hint) instead of grading nothing.
-                  if (!draft.trim()) {
-                    composerRef.current?.focus();
-                    setCoachNeedsDraft(true);
-                    window.setTimeout(() => setCoachNeedsDraft(false), 4000);
-                    return;
-                  }
+                  // ALWAYS open the Coach panel so a click ALWAYS produces a visible result. Founder
+                  // 2026-07-24: clicking Coach with an empty composer did nothing but a subtle 4s toast
+                  // → read as "the Coach isn't working." Now it opens the same AskCoachCarePanel every
+                  // time; the panel grades the reply DRAFT, and if the composer is empty it shows a
+                  // "type your reply first" prompt (then grades automatically once the agent types — the
+                  // composer stays visible beside the right-side drawer). Focus the composer on an empty
+                  // draft so they can start typing immediately.
+                  if (!draft.trim()) composerRef.current?.focus();
                   setAskCoachOpen(true);
                 }}
                 onResolve={() => setResolveModalOpen(true)}
@@ -2031,14 +2028,6 @@ export function ConversationsApp({
           }}
           onClose={() => setAskCoachOpen(false)}
         />
-      )}
-      {coachNeedsDraft && (
-        <div
-          role="status"
-          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[70] pointer-events-none text-xs text-arc-700 dark:text-arc-200 bg-base border border-arc-400/50 px-3 py-2 rounded-md shadow-lg max-w-xs text-center"
-        >
-          Type your reply first — Coach grades your draft against the books.
-        </div>
       )}
     </div>
   );
@@ -4432,17 +4421,32 @@ function AskCoachCarePanel({
   const [followUpInput, setFollowUpInput] = useState("");
   const [followingUp, setFollowingUp] = useState(false);
   const [starters, setStarters] = useState<string[]>([]);
+  const [needsDraft, setNeedsDraft] = useState(false);
 
   useEffect(() => {
     setResponse(null);
     setError(null);
-    setLoading(true);
+    setNeedsDraft(false);
     setTurns([]);
     setStarters([]);
-    void (async () => {
-      try {
-        const res = await fetch(
-          `/api/care/agent/conversations/${conversationId}/ask-coach`,
+    // Coach grades the reply DRAFT, so it needs one. If the composer is empty, DON'T call the route
+    // (it requires a draft and would just error) — show a friendly "type your reply first" prompt.
+    // The panel is a right-side drawer, so the composer stays visible on the left; this effect depends
+    // on `draft`, so once the agent starts typing, it re-runs and grades automatically.
+    if (!draft.trim()) {
+      setNeedsDraft(true);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    // Debounce: grade only after typing settles, so editing the draft in the composer (the drawer
+    // leaves it visible) doesn't fire an LLM grading call on every keystroke — Coach v5 is expensive.
+    // Grades ~650ms after the last change.
+    const debounce = setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch(
+            `/api/care/agent/conversations/${conversationId}/ask-coach`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -4470,7 +4474,9 @@ function AskCoachCarePanel({
       } finally {
         setLoading(false);
       }
-    })();
+      })();
+    }, 650);
+    return () => clearTimeout(debounce);
   }, [conversationId, draft]);
 
   async function askFollowUp(question: string) {
@@ -4546,6 +4552,15 @@ function AskCoachCarePanel({
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
           Reading your draft…
         </p>
+      )}
+      {needsDraft && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-primary">Type your reply first</p>
+          <p className="text-xs text-muted leading-relaxed">
+            Coach grades the reply you&apos;re about to send — so it needs a draft. Start typing your
+            reply in the composer and Coach will grade it here automatically.
+          </p>
+        </div>
       )}
       {error && (
         <div
