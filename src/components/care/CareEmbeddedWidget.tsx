@@ -571,7 +571,11 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
           ) && (
             <span
               aria-hidden
-              className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-base rounded-full"
+              // pointer-events-none: this dot is a SIBLING hoisted OUT of the button (to escape the
+              // button's overflow-hidden), so without it the dot paints on top of the button's
+              // top-right corner and eats taps there — a dead ~12px zone on the launcher whenever an
+              // unread reply exists (audit 2026-07-24). The dot is decoration; clicks must pass through.
+              className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-base rounded-full pointer-events-none"
             />
           )}
         </div>

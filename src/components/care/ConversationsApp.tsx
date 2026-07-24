@@ -1984,7 +1984,7 @@ export function ConversationsApp({
       {coachNeedsDraft && (
         <div
           role="status"
-          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[70] text-xs text-arc-200 bg-base border border-arc-400/50 px-3 py-2 rounded-md shadow-lg max-w-xs text-center"
+          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[70] text-xs text-arc-700 dark:text-arc-200 bg-base border border-arc-400/50 px-3 py-2 rounded-md shadow-lg max-w-xs text-center"
         >
           Type your reply first — Coach grades your draft against the books.
         </div>

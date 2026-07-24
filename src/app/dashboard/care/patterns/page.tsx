@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LearningHint } from "@/components/learning/LearningHint";
 import {
@@ -94,6 +94,18 @@ const RISK_HINTS: Record<ReplyShapePattern["riskCategory"], string> = {
 };
 
 export default function CarePatternsPage() {
+  // Deep-link support: the home page links each surfaced pattern to
+  // /dashboard/care/patterns?category=<category> (care/page.tsx:428). Before this,
+  // the param was dropped — clicking a SPECIFIC pattern silently landed on the full
+  // unfiltered list (audit 2026-07-24: "looks wired, does nothing"). Read it here to
+  // highlight + scroll to the matching row so the drill-in intent actually lands.
+  // Read via window.location in an effect (not useSearchParams) to avoid the App-Router
+  // CSR-bailout / Suspense-boundary build requirement on a param that's purely cosmetic.
+  const [highlightCategory, setHighlightCategory] = useState<string | null>(null);
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("category");
+    if (c) setHighlightCategory(c);
+  }, []);
   const [issuePatterns, setIssuePatterns] = useState<IssuePattern[] | null>(
     null
   );
@@ -242,7 +254,11 @@ export default function CarePatternsPage() {
                   </p>
                   <div className="space-y-2">
                     {issuePatterns.map((p) => (
-                      <IssuePatternRow key={p.category} pattern={p} />
+                      <IssuePatternRow
+                        key={p.category}
+                        pattern={p}
+                        highlighted={p.category === highlightCategory}
+                      />
                     ))}
                   </div>
                 </section>
@@ -295,9 +311,30 @@ export default function CarePatternsPage() {
  * §A14 — two render states: collapsed (just count), with sample
  * IDs (drill-through links). Both verified.
  */
-function IssuePatternRow({ pattern }: { pattern: IssuePattern }) {
+function IssuePatternRow({
+  pattern,
+  highlighted = false,
+}: {
+  pattern: IssuePattern;
+  highlighted?: boolean;
+}) {
+  // When arrived-at via a ?category deep-link, scroll this row into view and ring it so
+  // the specific pattern the user clicked is unmistakable in a long list (audit 2026-07-24).
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (highlighted && ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlighted]);
   return (
-    <div className="rounded-xl border border-default bg-white/[0.02] p-4">
+    <div
+      ref={ref}
+      className={`rounded-xl border bg-white/[0.02] p-4 transition-shadow ${
+        highlighted
+          ? "border-brand ring-2 ring-brand/40"
+          : "border-default"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
