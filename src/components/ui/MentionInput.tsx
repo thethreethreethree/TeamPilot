@@ -213,7 +213,12 @@ export function MentionInput({
         anchorRef={ref}
         placement="bottom-stretch"
         onClose={() => setOpen(false)}
-        zIndex={50}
+        // z-90: this @-mention autocomplete portals to document.body, and MentionInput is used INSIDE
+        // high-z overlays (FeedbackPanel is `fixed inset-0 z-[80]`). At the old z-50 the suggestions
+        // opened invisibly behind that panel — same portal-behind-fixed-shell class as the C.A.R.E
+        // Assign dropdown. 90 clears every fixed overlay it can live in; harmless on plain pages where
+        // nothing sits above it. (audit 2026-07-24, §A26 class sweep)
+        zIndex={90}
         className="bg-surface border border-default rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto"
       >
         <div role="listbox" aria-label="Mention suggestions">

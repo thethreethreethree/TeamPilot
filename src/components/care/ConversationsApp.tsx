@@ -2567,7 +2567,13 @@ function AssignDropdown({
         placement="bottom-end"
         onClose={() => setOpen(false)}
         minWidth={256}
-        zIndex={50}
+        // z-index MUST clear CareShell. This whole surface renders inside CareShell's root, which is
+        // `fixed inset-0 z-[60]` with an OPAQUE bg-base. FloatingMenu portals to document.body, so the
+        // menu becomes a SIBLING of that z-60 shell — at the old z-50 it opened INVISIBLY BEHIND the
+        // opaque shell and could not be clicked ("Assign does nothing" — the real cause; the earlier
+        // `relative z-10` toolbar fixes were the wrong layer). 70 matches the other above-shell care
+        // overlays (toast z-70) and stays below the z-80 resolution modal. (audit 2026-07-24)
+        zIndex={70}
         className="max-h-80 overflow-y-auto bg-base border border-default rounded-md shadow-lg py-1"
       >
         {currentAssignedId && (
@@ -2646,7 +2652,9 @@ function PriorityDropdown({
         placement="bottom-start"
         onClose={() => setOpen(false)}
         minWidth={120}
-        zIndex={50}
+        // Same CareShell-stacking fix as the Assign dropdown: portaled to body, so it must clear the
+        // z-60 opaque shell or it opens invisibly behind it. z-70 (audit 2026-07-24).
+        zIndex={70}
         className="bg-base border border-default rounded-md shadow-lg py-1"
       >
         {(["urgent", "high", "normal", "low"] as const).map((p) => {

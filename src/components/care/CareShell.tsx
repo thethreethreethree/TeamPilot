@@ -500,7 +500,11 @@ function PresenceControl() {
         anchorRef={triggerRef}
         placement="bottom-stretch"
         onClose={() => setMenuOpen(false)}
-        zIndex={50}
+        // This status picker lives INSIDE this very shell (the root is `fixed inset-0 z-[60]` with an
+        // opaque bg). FloatingMenu portals to document.body, so at the old z-50 the menu opened
+        // invisibly BEHIND the z-60 shell — same class as the Assign-dropdown bug. z-70 clears it.
+        // (audit 2026-07-24, §A26 class sweep)
+        zIndex={70}
         className="bg-brand-shell border border-white/[0.08] rounded-md shadow-lg py-1"
       >
         <StatusOption
