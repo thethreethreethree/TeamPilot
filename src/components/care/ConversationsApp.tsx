@@ -495,13 +495,24 @@ export function ConversationsApp({
   // because it's the one that overlaps the toolbar.
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(min-width: 768px) and (max-width: 1439px)");
+    // LAYERED collapse (verified against an isolated headless render of the column mechanics):
+    // collapsing ONLY the customer panel recovers the detail near ~1200px, but at the low desktop
+    // end the always-on filter-views (~180) + list (~320) still crush it — so below ~1120px also
+    // collapse the filter-views. Both keep a toggle rail (nothing lost). Above each threshold we do
+    // NOT force-expand — the user keeps their choice when there's room. (Mobile <768 stays single-pane.)
+    const mqCustomer = window.matchMedia("(min-width: 768px) and (max-width: 1439px)");
+    const mqViews = window.matchMedia("(min-width: 768px) and (max-width: 1119px)");
     const apply = () => {
-      if (mq.matches) setCustomerCollapsed(true);
+      if (mqCustomer.matches) setCustomerCollapsed(true);
+      if (mqViews.matches) setViewsCollapsed(true);
     };
     apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
+    mqCustomer.addEventListener("change", apply);
+    mqViews.addEventListener("change", apply);
+    return () => {
+      mqCustomer.removeEventListener("change", apply);
+      mqViews.removeEventListener("change", apply);
+    };
   }, []);
   useEffect(() => {
     try {
