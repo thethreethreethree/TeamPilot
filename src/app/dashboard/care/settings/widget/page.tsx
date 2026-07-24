@@ -547,7 +547,7 @@ export default function CareWidgetSettingsPage() {
                         toast.error("Failed", "Couldn't remove logo.");
                       }
                     }}
-                    className="text-[11px] text-secondary hover:text-red-300 border border-default hover:border-red-500/40 rounded-md px-2 py-1"
+                    className="text-[11px] text-secondary hover:text-red-700 dark:hover:text-red-300 border border-default hover:border-red-500/40 rounded-md px-2 py-1"
                   >
                     Remove
                   </button>
@@ -1003,14 +1003,14 @@ function WidgetLoadEvents() {
               <span className="text-primary font-semibold">{summary.okCount}</span> loaded
             </span>
             {summary.rejectedCount > 0 && (
-              <span className="text-red-300">
+              <span className="text-red-700 dark:text-red-300">
                 <span className="font-semibold">{summary.rejectedCount}</span> wrong-origin
               </span>
             )}
           </div>
           {summary.rejectedOrigins.length > 0 && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
-              <p className="text-[11px] text-red-300 flex items-center gap-1 mb-1">
+              <p className="text-[11px] text-red-700 dark:text-red-300 flex items-center gap-1 mb-1">
                 <ShieldCheck className="w-3 h-3" aria-hidden /> Your embed token was used
                 from these non-allowed origins:
               </p>
@@ -1027,7 +1027,7 @@ function WidgetLoadEvents() {
                 key={e.id}
                 className="flex items-center justify-between gap-2 text-[11px] border-b border-default/50 py-1"
               >
-                <span className={e.result === "ok" ? "text-secondary" : "text-red-300"}>
+                <span className={e.result === "ok" ? "text-secondary" : "text-red-700 dark:text-red-300"}>
                   {RESULT_LABEL[e.result]}
                 </span>
                 <span className="text-muted truncate flex-1 mx-2 font-mono">

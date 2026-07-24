@@ -68,7 +68,7 @@ export function VoiceSurface({
     return (
       <div className="border-t border-default px-4 py-4 bg-surface/40 max-h-[70dvh] overflow-y-auto">
         <div className="flex items-start gap-2 mb-3">
-          <MicOff className="w-5 h-5 text-red-400 shrink-0 mt-0.5" aria-hidden />
+          <MicOff className="w-5 h-5 text-red-700 dark:text-red-400 shrink-0 mt-0.5" aria-hidden />
           <div>
             <p className="text-sm font-semibold text-primary mb-1">
               Microphone is blocked

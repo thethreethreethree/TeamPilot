@@ -42,11 +42,11 @@ export default function CareError({
   return (
     <div className="flex-1 flex items-center justify-center px-4 md:px-8 py-12">
       <div className="max-w-md w-full text-center space-y-5">
-        <div className="w-12 h-12 mx-auto rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-300">
+        <div className="w-12 h-12 mx-auto rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-700 dark:text-red-300">
           <AlertTriangle className="w-5 h-5" aria-hidden="true" />
         </div>
         <div className="space-y-2">
-          <p className="text-[10px] uppercase tracking-widest font-bold text-red-300">
+          <p className="text-[10px] uppercase tracking-widest font-bold text-red-700 dark:text-red-300">
             C.A.R.E module hit an error
           </p>
           <h1 className="text-lg font-semibold text-primary">
@@ -61,7 +61,7 @@ export default function CareError({
           <p className="text-[10px] uppercase tracking-widest font-bold text-muted mb-1">
             Error
           </p>
-          <p className="text-[11px] font-mono text-red-300 break-words">
+          <p className="text-[11px] font-mono text-red-700 dark:text-red-300 break-words">
             {error.message || "Unknown render failure."}
           </p>
           {error.digest && (

@@ -150,7 +150,7 @@ export default function CareGrowthPage() {
         )}
         {error && (
           <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4 flex items-center gap-3">
-            <p className="flex-1 text-sm text-red-300">{error}</p>
+            <p className="flex-1 text-sm text-red-700 dark:text-red-300">{error}</p>
             {error !== "Care growth is for agents." && (
               <button
                 type="button"

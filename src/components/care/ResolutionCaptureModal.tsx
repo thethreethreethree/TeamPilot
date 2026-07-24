@@ -177,7 +177,7 @@ export function ResolutionCaptureModal({
           </LearningHint>
 
           {error && (
-            <div className="bg-red-500/5 border border-red-500/30 rounded-md p-2 text-xs text-red-300">
+            <div className="bg-red-500/5 border border-red-500/30 rounded-md p-2 text-xs text-red-700 dark:text-red-300">
               {error}
             </div>
           )}

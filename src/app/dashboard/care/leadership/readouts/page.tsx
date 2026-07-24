@@ -190,7 +190,7 @@ export default function CareReadoutsPage() {
         )}
         {error && (
           <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4">
-            <p className="text-sm text-red-300">{error}</p>
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
           </div>
         )}
 

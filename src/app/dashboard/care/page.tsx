@@ -238,7 +238,7 @@ export default function CareHomePage() {
           )}
           {error && (
             <div className="glass-card p-4 border border-red-500/30 bg-red-500/5">
-              <p className="text-sm text-red-300">{error}</p>
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
             </div>
           )}
 

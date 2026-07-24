@@ -1585,7 +1585,7 @@ export function ConversationsApp({
             />
           )}
           {error ? (
-            <div className="p-4 text-xs text-red-300">{error}</div>
+            <div className="p-4 text-xs text-red-700 dark:text-red-300">{error}</div>
           ) : !conversations ? (
             <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
               <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
@@ -2488,7 +2488,7 @@ function DetailHeader({
                 type="button"
                 onClick={onClose}
                 disabled={acting}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary border border-default hover:text-red-300 hover:border-red-500/50 hover:bg-red-500/5 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary border border-default hover:text-red-700 dark:hover:text-red-300 hover:border-red-500/50 hover:bg-red-500/5 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
               >
                 <Lock className="w-3.5 h-3.5" aria-hidden />
                 Close
@@ -2552,7 +2552,7 @@ function AssignDropdown({
               setOpen(false);
               onAssign(null);
             }}
-            className="w-full text-left px-3 py-2 text-xs text-red-300 hover:bg-red-500/5"
+            className="w-full text-left px-3 py-2 text-xs text-red-700 dark:text-red-300 hover:bg-red-500/5"
           >
             ↶ Unassign (return to Unassigned)
           </button>
@@ -3417,7 +3417,7 @@ function BulkCloseButton({
       onClick={() => setConfirming(true)}
       disabled={acting}
       title={`Close ${count} conversation${count === 1 ? "" : "s"} — soft archive, customer can reopen by replying`}
-      className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-red-300 hover:border-red-500/50 disabled:opacity-50 px-2.5 py-1 rounded-md"
+      className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-red-700 dark:hover:text-red-300 hover:border-red-500/50 disabled:opacity-50 px-2.5 py-1 rounded-md"
     >
       <Lock className="w-3.5 h-3.5" aria-hidden />
       Close
@@ -3854,7 +3854,7 @@ function SummarizeCarePanel({
           Reading the thread…
         </p>
       )}
-      {error && <p className="text-xs text-red-300">{error}</p>}
+      {error && <p className="text-xs text-red-700 dark:text-red-300">{error}</p>}
       {summary && (
         <>
           <p className="text-xs uppercase tracking-widest text-muted font-bold mb-2">
@@ -4010,7 +4010,7 @@ function DissectCarePanel({
           Dissecting the thread…
         </p>
       )}
-      {error && <p className="text-xs text-red-300">{error}</p>}
+      {error && <p className="text-xs text-red-700 dark:text-red-300">{error}</p>}
 
       {/* Honest-empty (§3.4): too little to diagnose is NOT a fabricated problem. */}
       {dissect && !dissect.hasSignal && (
@@ -4131,7 +4131,7 @@ function DissectCarePanel({
                 Thinking…
               </p>
             )}
-            {askError && <p className="text-[11px] text-red-300 mb-2">{askError}</p>}
+            {askError && <p className="text-[11px] text-red-700 dark:text-red-300 mb-2">{askError}</p>}
             <div className="flex items-end gap-2">
               <textarea
                 value={question}
@@ -4238,7 +4238,7 @@ function FormulateCarePanel({
             placeholder="e.g. tell them the refund will land in 5-7 business days, acknowledge the wait was longer than usual, offer to follow up if it doesn't arrive"
             className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y leading-relaxed"
           />
-          {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
+          {error && <p className="text-xs text-red-700 dark:text-red-300 mt-2">{error}</p>}
           <div className="flex justify-end mt-3">
             <button
               type="button"
@@ -4467,7 +4467,7 @@ function AskCoachCarePanel({
       {error && (
         <div
           role="alert"
-          className="text-xs text-red-300 border border-red-500/30 bg-red-500/5 rounded-md px-2.5 py-2"
+          className="text-xs text-red-700 dark:text-red-300 border border-red-500/30 bg-red-500/5 rounded-md px-2.5 py-2"
         >
           {error}
         </div>

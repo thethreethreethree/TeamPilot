@@ -524,7 +524,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     return (
       <div
         role="alert"
-        className="fixed bottom-4 right-4 w-72 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-300"
+        className="fixed bottom-4 right-4 w-72 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-700 dark:text-red-300"
       >
         {bootstrapError}
       </div>
@@ -690,7 +690,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
           {error && (
             <div
               role="alert"
-              className="px-4 py-2 text-[11px] text-red-400 border-t border-red-500/30 bg-red-500/5"
+              className="px-4 py-2 text-[11px] text-red-700 dark:text-red-400 border-t border-red-500/30 bg-red-500/5"
             >
               {error}
             </div>

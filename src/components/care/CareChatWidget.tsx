@@ -678,7 +678,7 @@ export function CareChatWidget() {
           {error && (
             <div
               role="alert"
-              className="px-4 py-2 text-[11px] text-red-400 border-t border-red-500/30 bg-red-500/5"
+              className="px-4 py-2 text-[11px] text-red-700 dark:text-red-400 border-t border-red-500/30 bg-red-500/5"
             >
               {error}
             </div>

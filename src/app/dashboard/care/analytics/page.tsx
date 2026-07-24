@@ -68,7 +68,7 @@ export default function CareAnalyticsPage() {
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-5">
         {loadError && !loading && (
           <div className="glass-card p-4 border border-red-500/30 bg-red-500/[0.04] flex items-center gap-3">
-            <p className="flex-1 text-xs text-red-300">{loadError}</p>
+            <p className="flex-1 text-xs text-red-700 dark:text-red-300">{loadError}</p>
             <button
               type="button"
               onClick={() => setReloadKey((k) => k + 1)}

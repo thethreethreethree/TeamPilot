@@ -138,7 +138,7 @@ export function ReadPhasePanel({
   if (loadError) {
     return (
       <div className="mx-6 mt-4 mb-2 border border-red-500/30 bg-red-500/[0.04] rounded-lg p-3 flex items-center gap-3">
-        <p className="flex-1 text-[11px] text-red-300">{loadError}</p>
+        <p className="flex-1 text-[11px] text-red-700 dark:text-red-300">{loadError}</p>
         <button
           type="button"
           onClick={() => void load()}
