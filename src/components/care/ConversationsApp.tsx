@@ -978,6 +978,19 @@ export function ConversationsApp({
     }
   }, [selectedId, loadDetail]);
 
+  // Sync the route deep-link into the in-component selection. `selectedId` is seeded ONCE from
+  // `initialId` (useState initializer, line ~347). But the deep-link route (/dashboard/care/
+  // conversations/[id]) and the list route both render <ConversationsApp initialId=…/>, and App
+  // Router PRESERVES this component across same-segment [id]→[id] navigation (it only swaps the prop,
+  // no remount). So a push-notification / deep-link to conversation B while C.A.R.E is already open on
+  // A would change initialId A→B but leave selectedId on A — the agent clicks the notification for B
+  // and still sees A (audit 2026-07-24, reachable via notifications). Sync on initialId change only,
+  // so this NEVER fights in-component switching (clicking a row sets selectedId, not initialId, so
+  // this effect stays dormant). Guarded on a real id so it can't clear the selection.
+  useEffect(() => {
+    if (initialId) setSelectedId(initialId);
+  }, [initialId]);
+
   // Auto-scroll message stream on new
   useEffect(() => {
     if (scrollRef.current) {
