@@ -274,7 +274,7 @@ function ResolutionCard({
           </div>
           <p className="text-[11px] text-muted">
             {resolution.category && (
-              <span className="inline-block mr-2 px-1.5 py-0.5 rounded bg-arc-400/10 border border-arc-400/30 text-arc-300 text-[10px] uppercase tracking-widest font-bold">
+              <span className="inline-block mr-2 px-1.5 py-0.5 rounded bg-arc-400/10 border border-arc-400/30 text-brand text-[10px] uppercase tracking-widest font-bold">
                 {resolution.category}
               </span>
             )}

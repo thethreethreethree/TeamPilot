@@ -170,8 +170,8 @@ export function ReadPhasePanel({
         onClick={() => setCollapsed((v) => !v)}
         className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-arc-400/[0.06] transition-colors"
       >
-        <Eye className="w-3.5 h-3.5 text-arc-300 shrink-0" aria-hidden />
-        <p className="text-[11px] font-semibold text-arc-300 flex-1">
+        <Eye className="w-3.5 h-3.5 text-brand shrink-0" aria-hidden />
+        <p className="text-[11px] font-semibold text-brand flex-1">
           The Read Phase
           {data.readingCompleteAt && (
             <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-emerald-300 font-normal">
@@ -207,7 +207,7 @@ export function ReadPhasePanel({
             <>
               {data.customerHasHistory && (
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest font-bold text-arc-300 mb-1.5 flex items-center gap-1">
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-brand mb-1.5 flex items-center gap-1">
                     <RotateCcw className="w-3 h-3" aria-hidden />
                     This customer has been here {data.priorConversations.length} time
                     {data.priorConversations.length === 1 ? "" : "s"} before
@@ -235,7 +235,7 @@ export function ReadPhasePanel({
 
               {data.similarResolutions.length > 0 && (
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest font-bold text-arc-300 mb-1.5 flex items-center gap-1">
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-brand mb-1.5 flex items-center gap-1">
                     <BookOpen className="w-3 h-3" aria-hidden />
                     What worked for similar issues
                   </p>
@@ -249,7 +249,7 @@ export function ReadPhasePanel({
                           {r.issueSummary}
                         </p>
                         <p className="text-[11px] text-secondary leading-relaxed">
-                          <span className="text-arc-300 font-semibold">
+                          <span className="text-brand font-semibold">
                             Worked:
                           </span>{" "}
                           {r.whatWorked}
@@ -285,7 +285,7 @@ export function ReadPhasePanel({
                   type="button"
                   onClick={() => void markComplete()}
                   disabled={marking}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-arc-300 border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/10 hover:bg-arc-400/15 disabled:opacity-50 px-2.5 py-1 rounded-md shrink-0"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/10 hover:bg-arc-400/15 disabled:opacity-50 px-2.5 py-1 rounded-md shrink-0"
                 >
                   {marking ? (
                     <Loader2 className="w-3 h-3 animate-spin" />

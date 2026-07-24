@@ -2989,7 +2989,7 @@ function Composer({
           stacked each button to its own row, making the composer
           unusable. Horizontal scroll keeps every tool reachable in
           one row; touch-pan-x + hidden scrollbar make it feel native. */}
-      <div className="flex items-center gap-1.5 mb-2 overflow-x-auto flex-nowrap [&>*]:shrink-0 [touch-action:pan-x] [overscroll-behavior:contain] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+      <div className="relative z-10 flex items-center gap-1.5 mb-2 overflow-x-auto flex-nowrap [&>*]:shrink-0 [touch-action:pan-x] [overscroll-behavior:contain] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         <LearningHint
           category="C.A.R.E"
           title="Reply mode"

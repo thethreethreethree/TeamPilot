@@ -588,7 +588,7 @@ function ConfidenceTag({ tier }: { tier: ConfidenceTier }) {
     },
     developing: {
       label: "developing",
-      cls: "text-arc-300 bg-arc-400/10 border-arc-400/30",
+      cls: "text-brand bg-arc-400/10 border-arc-400/30",
       icon: Sparkles,
     },
     confident: {
