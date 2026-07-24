@@ -93,6 +93,17 @@ const ALLOWLIST = new Map([
   ["fin_report_deliveries.update", "0172 append-only (RULE) — a run either happened or it did not."],
   ["fin_report_deliveries.delete", "0172 append-only (RULE) — the worker must not erase a failure it caused."],
 
+  // 0192 care_visitor_presence — ephemeral anonymous visitor presence for the C.A.R.E Live Monitor. RLS
+  // is ENABLED with NO policies BY DESIGN: every access is via the service-role client (touchVisitorPresence
+  // writes, fetchLiveVisitors reads/purges — src/lib/data/care.ts), which bypasses RLS; tenant isolation is
+  // enforced in code by company_id. Denying all direct authed/anon access is defense-in-depth for a table
+  // that never needs direct end-user access (A23). Not §3.1 domain data — transient operational state, same
+  // class as care_agent_state. (The absence of policies is the control, not an oversight.)
+  ["care_visitor_presence.select", "0192 service-role-only Live Monitor read; tenant-scoped in code by company_id."],
+  ["care_visitor_presence.insert", "0192 service-role-only widget presence write; row carries company_id."],
+  ["care_visitor_presence.update", "0192 service-role-only upsert (onConflict company_id,visitor_id)."],
+  ["care_visitor_presence.delete", "0192 service-role-only opportunistic purge of stale rows; scoped by company_id."],
+
   ["events.update", "§3.1 events are immutable historical record."],
   ["events.delete", "§3.1 events are immutable; cascades via FK only."],
   ["signals.update", "§3.1 signals are immutable derived facts."],

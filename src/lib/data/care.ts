@@ -2989,7 +2989,12 @@ export async function touchVisitorPresence(args: {
   conversationId: string | null;
 }): Promise<void> {
   try {
-    const sb = await createServerClient();
+    // Service-role: care_visitor_presence has RLS ENABLED with NO policies by design (migration 0192 —
+    // "all access is via service-role"), so the authed/anon client is denied. The anonymous widget
+    // visitor has no session anyway. Tenant-correct: the row carries args.companyId. (fix 2026-07-24:
+    // was createServerClient (authed) → RLS deny-all → this write silently no-op'd and the Live Monitor
+    // stayed empty once 0192 applied — the code diverged from its own migration's stated contract.)
+    const sb = createServiceRoleClient();
     await sb.from("care_visitor_presence").upsert(
       {
         company_id: args.companyId,
@@ -3011,7 +3016,10 @@ export async function fetchLiveVisitors(
   windowSeconds: number = VISITOR_PRESENCE_WINDOW_SECONDS
 ): Promise<LiveVisitor[]> {
   try {
-    const sb = await createServerClient();
+    // Service-role (see touchVisitorPresence): the table is service-role-only by design; this read is
+    // tenant-scoped IN CODE by .eq("company_id", companyId) below. Was createServerClient (authed) →
+    // RLS deny-all → the monitor returned [] after 0192 applied. (fix 2026-07-24)
+    const sb = createServiceRoleClient();
     // Opportunistic purge of long-stale rows so the table stays small and nothing is retained. Best-effort.
     const purgeCutoff = new Date(
       Date.now() - VISITOR_PRESENCE_PURGE_SECONDS * 1000
