@@ -64,6 +64,18 @@ detail-panel `md:min-w-[380px]` floor, 2 click-block overlays.
   edit forms seeded from `account` (`7c6755fb`, `key`, latent floor). Every dynamic-segment page checked;
   invite/[code] + widget/[embedToken] are single-use (N/A). Sweep complete.
 
+## 4b. Full `check` gate run — one real bug surfaced + fixed
+
+Ran the complete gate (typecheck · lint · theme:audit · rls:audit · invariant:audit · test). Theme +
+invariant + lint clean; **rls:audit was RED** and surfaced a real functional bug in the Live Monitor:
+`care_visitor_presence` (migration 0192) enables RLS with NO policies BY DESIGN ("service-role only"),
+but `care.ts` accessed it via the AUTHED client — so once 0192 applies, RLS denies every read/write and
+the Monitor stays silently EMPTY (masked by best-effort try/catch). Fixed: both visitor-presence
+functions now use the service-role client (tenant-scoped in code by company_id), matching 0192's own
+contract; documented the intentional no-policy posture in the rls-audit ALLOWLIST (`20350d8e`).
+**Full gate now green** (typecheck · lint · theme · rls · invariant · 1384 tests). db:check/test:chain
+need DB connectivity (sandbox can't reach it — founder-run).
+
 ## 5. OPEN — founder only (nothing else blocking autonomously)
 
 1. **Runtime-verify** the fixes (Layer-2 checklist in the audit doc): Assign menu opens + assigns; switching
