@@ -254,7 +254,7 @@ function PresenceBadge({ presence }: { presence: AgentPresence }) {
     presence.status === "online"
       ? "text-emerald-300"
       : presence.status === "away"
-        ? "text-amber-300"
+        ? "text-amber-600 dark:text-amber-300"
         : "text-muted";
   return (
     <span

@@ -496,7 +496,7 @@ function PresenceCell({
     tone === "emerald"
       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
       : tone === "amber"
-        ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+        ? "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-300"
         : "border-default bg-surface/40 text-secondary";
   return (
     <div className={`rounded-lg border p-3 ${toneCls}`}>
@@ -516,7 +516,7 @@ function PresenceCell({
 function RiskCell({ label, count }: { label: string; count: number }) {
   return (
     <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-      <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300 mb-1">
+      <p className="text-[10px] uppercase tracking-widest font-bold text-amber-600 dark:text-amber-300 mb-1">
         {label}
       </p>
       <p className="text-lg font-bold text-primary">{count}</p>
@@ -542,7 +542,7 @@ function DurabilityCell({
     tone === "emerald"
       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
       : tone === "amber"
-        ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+        ? "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-300"
         : "border-default bg-surface/40 text-secondary";
   return (
     <div className={`rounded-lg border p-3 ${toneCls}`}>
@@ -584,8 +584,8 @@ function EditCell({
 const TIER_STYLE: Record<CareGrade["tier"], { text: string; label: string }> = {
   strong: { text: "text-emerald-300", label: "Strong" },
   solid: { text: "text-brand", label: "Solid" },
-  developing: { text: "text-amber-300", label: "Developing" },
-  "growth-area": { text: "text-amber-300", label: "Growth area" },
+  developing: { text: "text-amber-600 dark:text-amber-300", label: "Developing" },
+  "growth-area": { text: "text-amber-600 dark:text-amber-300", label: "Growth area" },
   "not-yet": { text: "text-muted", label: "Not yet" },
 };
 

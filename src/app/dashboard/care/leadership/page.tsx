@@ -207,7 +207,7 @@ export default function CareLeadershipPage() {
             {snap.bounded && (
               <div className="flex items-start gap-2 rounded-md border border-amber-400/40 bg-amber-400/5 px-3 py-2">
                 <TriangleAlert
-                  className="w-4 h-4 text-amber-300 shrink-0 mt-0.5"
+                  className="w-4 h-4 text-amber-600 dark:text-amber-300 shrink-0 mt-0.5"
                   aria-hidden
                 />
                 <p className="text-[11px] text-secondary leading-relaxed">
@@ -658,7 +658,7 @@ function PresenceCell({
     tone === "emerald"
       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
       : tone === "amber"
-        ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+        ? "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-300"
         : "border-default bg-surface/40 text-secondary";
   return (
     <div className={`rounded-lg border p-3 ${toneCls}`}>
@@ -678,7 +678,7 @@ function PresenceCell({
 function RiskCell({ label, count }: { label: string; count: number }) {
   return (
     <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-      <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300 mb-1">
+      <p className="text-[10px] uppercase tracking-widest font-bold text-amber-600 dark:text-amber-300 mb-1">
         {label}
       </p>
       <p className="text-lg font-bold text-primary">{count}</p>
@@ -704,7 +704,7 @@ function DurabilityCell({
     tone === "emerald"
       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
       : tone === "amber"
-        ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+        ? "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-300"
         : "border-default bg-surface/40 text-secondary";
   return (
     <div className={`rounded-lg border p-3 ${toneCls}`}>
@@ -763,7 +763,7 @@ function PresenceCountCell({
     tone === "emerald"
       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
       : tone === "amber"
-        ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+        ? "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-300"
         : "border-default bg-surface/40 text-secondary";
   return (
     <div className={`rounded-lg border p-3 ${toneCls}`}>

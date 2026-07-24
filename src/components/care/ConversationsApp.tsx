@@ -2060,7 +2060,7 @@ function ConversationListRow({
           {c.supervisorGuidanceRequestedAt && (
             <span
               title="Supervisor guidance has been requested on this conversation"
-              className="mt-1 inline-flex items-center gap-1 text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-400/10 text-amber-300"
+              className="mt-1 inline-flex items-center gap-1 text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-300"
             >
               <HandHelping className="w-2.5 h-2.5" aria-hidden />
               Needs guidance
@@ -2432,8 +2432,8 @@ function DetailHeader({
                 disabled={acting}
                 className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md disabled:opacity-50 transition-colors ${
                   conversation.supervisorGuidanceRequestedAt
-                    ? "text-amber-300 bg-amber-400/10 border border-amber-400/50 hover:bg-amber-400/15"
-                    : "text-secondary border border-default hover:text-amber-300 hover:border-amber-400/50"
+                    ? "text-amber-600 dark:text-amber-300 bg-amber-400/10 border border-amber-400/50 hover:bg-amber-400/15"
+                    : "text-secondary border border-default hover:text-amber-600 dark:hover:text-amber-300 hover:border-amber-400/50"
                 }`}
               >
                 <HandHelping className="w-3.5 h-3.5" aria-hidden />
@@ -2868,7 +2868,7 @@ function GapChip({ label }: { label: string }) {
 
 function RiskChip({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
       {label}
     </span>
   );
@@ -2899,7 +2899,7 @@ function CoachLegacyRow({
           grade === "productive"
             ? "text-emerald-300"
             : grade === "needs_guidance"
-              ? "text-amber-300"
+              ? "text-amber-600 dark:text-amber-300"
               : "text-secondary"
         }`}
         aria-hidden
@@ -2910,7 +2910,7 @@ function CoachLegacyRow({
             grade === "productive"
               ? "text-emerald-300"
               : grade === "needs_guidance"
-                ? "text-amber-300"
+                ? "text-amber-600 dark:text-amber-300"
                 : "text-muted"
           }`}
         >

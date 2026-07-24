@@ -552,7 +552,7 @@ function CatchCell({
       : tone === "emerald"
         ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
         : tone === "amber"
-          ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+          ? "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-300"
           : "border-default bg-surface/40 text-secondary";
   const body = (
     <div className={`rounded-xl border p-4 ${toneCls} h-full transition-colors`}>
@@ -611,7 +611,7 @@ function LoadCell({
 }) {
   const toneCls =
     tone === "amber"
-      ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+      ? "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-300"
       : tone === "brand"
         ? "border-ember-400/30 bg-ember-400/5 text-brand"
         : "border-default bg-surface/40 text-secondary";

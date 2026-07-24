@@ -119,7 +119,7 @@ export default function CareMonitorPage() {
 
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-5">
         {error && (
-          <div className="mb-4 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-2">
+          <div className="mb-4 text-xs text-amber-600 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-2">
             {error} Retrying…
           </div>
         )}

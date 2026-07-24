@@ -334,7 +334,7 @@ function DurabilityChip({
   }
   if (durability.outcome === "reopened") {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded">
+      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-amber-600 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded">
         <RotateCcw className="w-3 h-3" aria-hidden />
         Reopened
       </span>

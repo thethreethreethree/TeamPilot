@@ -404,7 +404,7 @@ export default function CareReadoutsPage() {
                   rate (first-response met AND durability held) is
                   the honest measure; the standard SLA metric is the
                   comparison. The{" "}
-                  <span className="text-amber-300 font-semibold">
+                  <span className="text-amber-600 dark:text-amber-300 font-semibold">
                     false SLA successes
                   </span>{" "}
                   count is the failure mode the standard SLA hides.
@@ -437,7 +437,7 @@ export default function CareReadoutsPage() {
                   resolutions in the corpus, Co-Pilot finds
                   precedents).
                 </p>
-                <p className="text-[10px] text-amber-300/80 italic mb-3">
+                <p className="text-[10px] text-amber-600 dark:text-amber-300/80 italic mb-3">
                   §A4 caveat: BEFORE conversations are earlier-in-
                   time resolutions and may also reflect general
                   team inexperience, not only absence of pattern
@@ -583,7 +583,7 @@ function ConfidenceTag({ tier }: { tier: ConfidenceTier }) {
     },
     preliminary: {
       label: "preliminary",
-      cls: "text-amber-300 bg-amber-500/10 border-amber-500/30",
+      cls: "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/30",
       icon: AlertTriangle,
     },
     developing: {
@@ -627,7 +627,7 @@ function Stat({
     tone === "emerald"
       ? "text-emerald-300"
       : tone === "amber"
-        ? "text-amber-300"
+        ? "text-amber-600 dark:text-amber-300"
         : "text-secondary";
   return (
     <div className="rounded border border-default bg-surface/40 p-2">
@@ -726,7 +726,7 @@ function SlaBackstopCard({ data }: { data: SlaWithDurabilityReadout }) {
         />
       </div>
       {data.falseSlaSuccesses > 0 ? (
-        <p className="text-[10px] text-amber-300/90 italic">
+        <p className="text-[10px] text-amber-600 dark:text-amber-300/90 italic">
           {data.falseSlaSuccesses} of these conversations met the
           first-response SLA but reopened anyway — the standard
           SLA dashboard would mark them "honored." The fully-
@@ -763,7 +763,7 @@ function BackstopStat({
     tone === "emerald"
       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
       : tone === "amber"
-        ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+        ? "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-300"
         : "border-default bg-surface/40 text-secondary";
   return (
     <div className={`rounded-lg border p-3 ${toneCls}`}>
