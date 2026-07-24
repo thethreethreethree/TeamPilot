@@ -482,6 +482,27 @@ export function ConversationsApp({
       /* ignore */
     }
   }, []);
+  // Responsive collapse guard (founder 2026-07-24 — detail-panel collapse + Assign click-block).
+  // Between mobile (<768, already forced single-pane) and a wide desktop, all fixed columns —
+  // C.A.R.E nav (~168) + filter-views (~180) + list (~320) + customer panel (~320) ≈ 988px that
+  // do NOT shrink — crush the flex-1 detail toward its min-w-0, so at a narrow/zoomed viewport
+  // the conversation detail becomes an unusable sliver AND the crushed/overlapping customer panel
+  // click-blocks the toolbar buttons (Assign/etc.) — the exact "buttons behind the panel" failure
+  // DetailHeader documents. Auto-collapse the customer panel (its toggle rail stays, so nothing is
+  // lost) whenever the viewport is too narrow for the detail to stay usable. Above the threshold we
+  // do NOT force-expand — the user keeps whatever they chose when there's room. Threshold is a first
+  // pass (needs runtime tuning against real window sizes); the customer panel is collapsed first
+  // because it's the one that overlaps the toolbar.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(min-width: 768px) and (max-width: 1439px)");
+    const apply = () => {
+      if (mq.matches) setCustomerCollapsed(true);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
   useEffect(() => {
     try {
       window.localStorage.setItem(
@@ -2235,7 +2256,14 @@ function DetailHeader({
               address at a glance without expanding the Customer panel. */}
           <HandoffCaptureLine conversation={conversation} />
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap justify-start md:justify-end gap-y-2 min-w-0 md:max-w-[60%] pt-1 md:pt-0 border-t md:border-t-0 border-default md:border-transparent">
+        {/* relative z-10 (restored 2026-07-24): the toolbar is right-aligned (md:justify-end), so its
+            rightmost buttons — Assign / Resolve / Close — sit closest to the customer panel on the far
+            right. When the layout is tight the panel overlaps them and, without a stacking context here,
+            they render visually present but CLICK-BLOCKED by the panel underneath (the documented
+            "Close button not working" failure — same class as the founder-reported "Assign does
+            nothing"). `relative z-10` lifts the whole button row above any overlapping sibling so every
+            button stays reachable. */}
+        <div className="relative z-10 flex items-center gap-1.5 flex-wrap justify-start md:justify-end gap-y-2 min-w-0 md:max-w-[60%] pt-1 md:pt-0 border-t md:border-t-0 border-default md:border-transparent">
           {/* Summarize — System's read of the thread for an agent
               taking over a long conversation. Always available;
               the endpoint says "no messages yet" if there's
