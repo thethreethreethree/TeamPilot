@@ -233,6 +233,14 @@ export default function TaskDetailPage() {
         {/* ─── Pillar 1: Understanding Gate ─────────────────────────── */}
         {!task.gateCleared ? (
           <GateForm
+            // key={task.id}: GateForm seeds its `what` edit buffer from `initialTitle` via a useState
+            // initializer (runs once). This page reads its id from useParams and App Router PRESERVES
+            // it across same-segment /operations/[id]→[id] navigation (deep-link / notification to
+            // another task, no remount) — so without a key, task A's title stays pre-filled while you
+            // edit task B's Understanding Gate (§3.2), a wrong pre-fill. Keying on task.id remounts the
+            // form per task so all its local edit state (what/resources/roles/mode) re-seeds fresh.
+            // Same App-Router-preservation class as the C.A.R.E deep-link fix (2026-07-24).
+            key={task.id}
             taskId={task.id}
             initialTitle={task.title}
             onCleared={() => void load()}
