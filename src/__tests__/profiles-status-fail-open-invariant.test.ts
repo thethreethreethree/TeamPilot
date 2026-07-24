@@ -32,7 +32,7 @@ const PROFILES_STMT =
 const STATUS_CHECK = /check\s*\(\s*status\s+in\s*\(([^)]*)\)\s*\)/i;
 
 function extractValues(list: string): string[] {
-  return Array.from(list.matchAll(/'([^']*)'/g)).map((m) => m[1]);
+  return Array.from(list.matchAll(/'([^']*)'/g)).map((m) => m[1] ?? "");
 }
 
 describe("profiles.status fail-open invariant", () => {
@@ -51,7 +51,7 @@ describe("profiles.status fail-open invariant", () => {
         if (!PROFILES_STMT.test(stmt)) continue;
         const m = stmt.match(STATUS_CHECK);
         if (!m) continue;
-        effective = new Set(extractValues(m[1]));
+        effective = new Set(extractValues(m[1] ?? ""));
         source = file; // later migrations override earlier ones
       }
     }

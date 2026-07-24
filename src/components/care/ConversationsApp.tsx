@@ -1002,18 +1002,28 @@ export function ConversationsApp({
         e.preventDefault();
         const prev = filtered[Math.max(idx - 1, 0)];
         if (prev) setSelectedId(prev.id);
-      } else if (e.key === "r" && selected) {
+        // r/n focus the composer, which is HIDDEN on closed conversations (guard at ~1797). Match
+        // that guard so the shortcut doesn't focus a null ref + set note-mode on a composer that
+        // isn't rendered (audit 2026-07-24 — keyboard shortcuts must not bypass the visible affordance).
+      } else if (e.key === "r" && selected && selected.status !== "closed") {
         e.preventDefault();
         setIsInternalNote(false);
         composerRef.current?.focus();
-      } else if (e.key === "n" && selected) {
+      } else if (e.key === "n" && selected && selected.status !== "closed") {
         e.preventDefault();
         setIsInternalNote(true);
         composerRef.current?.focus();
-      } else if (e.key === "e" && selected) {
+      } else if (
+        e.key === "e" &&
+        selected &&
+        selected.status !== "resolved" &&
+        selected.status !== "closed"
+      ) {
         e.preventDefault();
-        // E opens the capture modal — §1.1 discipline routes the
-        // resolve action through the learning capture.
+        // E opens the capture modal — §1.1 discipline routes the resolve action through the learning
+        // capture. Guarded to MATCH the toolbar Resolve button (hidden on resolved+closed, ~2499):
+        // without this, `e` opened the Resolve modal on an already-resolved/closed conversation —
+        // capturing a resolution the UI otherwise forbids (keyboard bypassed the button's guard).
         setResolveModalOpen(true);
       }
     };
