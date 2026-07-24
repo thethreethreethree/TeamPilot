@@ -76,6 +76,32 @@ contract; documented the intentional no-policy posture in the rls-audit ALLOWLIS
 **Full gate now green** (typecheck · lint · theme · rls · invariant · 1384 tests). db:check/test:chain
 need DB connectivity (sandbox can't reach it — founder-run).
 
+## 4c. Minor findings surfaced (NOT built — your triage)
+
+Extended verification (post the headline fixes) surfaced these small items. Each is documented in a
+code comment + commit; none blocks anything. Deliberately not auto-fixed — they're product calls, tuned-AI
+changes, or polish, where building blind would overtake (§2):
+
+- **Conversation-tagging is half-built** (`a4d77b4f`): tags are created (settings) + displayed, but there's
+  no apply/remove path (the data functions exist, unwired). Product call whether/how tag-apply ships. The
+  data functions were also made §3.4-honest (surface write errors) so they're correct when wired.
+- **tasks.ts §3.1 event-consistency (low-probability):** the gate-clear system message that *triggers* the
+  gate_cleared event is a best-effort insert; if it silently failed, the state column changed but the event
+  might not chain. Forcing the whole gate-clear to fail on an audit-message error is the wrong trade, so
+  flagged rather than changed.
+- **Prompt-injection defense-in-depth (LOW):** the customer-facing AI already uses role separation (system
+  prompt vs. customer content in the user message — the correct primary defense). Optional hardening: delimit
+  the customer transcript inside the user message. Touches the tuned AI prompt → needs staging to verify
+  response quality; not changed blind.
+- **Accessibility pass (MEDIUM):** `docs/audits/2026-07-24-care-accessibility-audit.md` — modal focus
+  management + full dropdown keyboard nav. The safe subset (trigger `aria-haspopup`/`aria-expanded`) shipped;
+  the rest is a deliberate, tested a11y pass.
+- **Polish (LOW):** `server.ts` uses bare `process.env.X!` for the core Supabase vars while `admin.ts` throws
+  an explicit "missing" error — the latter is nicer DX. Not a bug (the app can't run without those vars).
+
+Verified sound (no action): authz/tenant-isolation, XSS surface, committed-secrets, dead internal links,
+N+1 queries, data-mapper null-safety, timer cleanup, customer-widget send/poll, migration-coupling (0188/0189).
+
 ## 5. OPEN — founder only (nothing else blocking autonomously)
 
 1. **Runtime-verify** the fixes (Layer-2 checklist in the audit doc): Assign menu opens + assigns; switching
