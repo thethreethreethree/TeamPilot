@@ -252,3 +252,43 @@ Operating amplification (appended, not rewritten):
 - **The bar for surfacing.** A finding worth surfacing is one the agent *thought about* and either has evidence for or has a clear path to confirm. Pattern-matching to "things SaaS tools usually have wrong" is not the rule satisfied — that's surface-level checklist work.
 
 This clarification doesn't change the ratification status — the operating intent was always THINK + SEARCH. The original quote captured only half the intent; this addendum corrects it on the record per §3.1 (append-only).
+
+---
+
+## Third addendum — 2026-07-24 (appended, not rewritten, per §7.3 append-only)
+
+Founder directive, verbatim: *"add this to ammendment AMD-006 so we avoid this mistake again [the agent's own words:] 'On the Assign bug + my audit: you're right… My autonomous "audit" this session was largely static — I read the assignConversationToAgent data function and called it sound, but I never verified the button actually works end-to-end.' this is a real finding and a serious drift from the audit and remediation intended goal."*
+
+### Trigger
+
+2026-07-24. Over an extended autonomous audit run, the agent verified many C.A.R.E features by **reading the code** — for conversation assignment specifically, it read the `assignConversationToAgent` data-layer function, reasoned about its behavior, and reported it **sound**. The founder then reported the **Assign button does not work** in the running app (a serious, high-risk bug). A static code read had passed a feature whose actual button is broken.
+
+The same shape had already appeared this session (the "Decision Dialogue — this is not working" and "Live Monitor 0192 UNAPPLIED" cases): the code was structurally present, so the agent treated the feature as done, but the operational reality — click the button, does the thing happen — was never exercised.
+
+### Diagnosis
+
+AMD-006's four-layer framework was written for **builds**. But its **Layer 2 (operational feature effectivity — "does the feature, when invoked the way a real user would invoke it, actually deliver the intended result… not 'does the unit test pass' — does it *work*")** is exactly the layer a static audit skips. An audit that confirms **Layer 1** (the code is organized, the function reads correctly) and stops there has verified *structure*, not *operation*. It is the identical failure class AMD-006 exists to prevent — "passes every check and still breaks the operational reality it lives inside" — now one altitude up: **the AUDIT imitates a real audit.** Reading a function is not verifying the feature; a green code-read is the §5 "confident answer that arrived too quickly" and the §A24 "manufacture output — keep it genuine" trap wearing an audit's clothes. It also violates the project's standing verification-discipline: **completion/soundness is the user's runtime confirmation, never the agent's own static read.**
+
+Critically, the miss can hide at the *wiring* layer the data-function read never reaches: the button's `onClick`, the handler, the state, the route call, the render of the result. `assignConversationToAgent` reading correctly says nothing about whether the Assign button is wired to it, enabled, and rendering.
+
+### The rule (operating expansion — audits, not just builds)
+
+1. **An audit of a user-facing feature is not complete at Layer 1.** Confirming the code/data-function reads correctly is necessary, not sufficient. The audit must reach **Layer 2** — the feature exercised the way a user invokes it: the button clicked, the handler fired, the state changed, the result rendered. Trace the *full* path (button → onClick → handler → route → data → response → re-render), not just the data function at the bottom of it.
+
+2. **Where the agent genuinely cannot run it** (no browser/runtime available to the agent), the audit must **explicitly label that feature "static-verified only — runtime UNVERIFIED"** and must **NOT** report it as "sound"/"works"/"verified." Silence that reads as a pass is the violation. An honest "I read the code; I did not click the button" is required.
+
+3. **A static "verified sound" on a feature whose button is later found broken is a reportable audit failure**, not a minor miss — because the whole purpose of the audit-and-remediation cycle is that the founder should not be the one discovering broken buttons. Per §5 (the biggest risk is the builder under pressure) and §A24, the pressure to produce a stream of "verified sound" results is exactly what manufactures false passes; the discipline is to label the runtime-unverified honestly rather than inflate the code-read into an operational guarantee.
+
+### Ripple-trace
+
+| Section | Effect | Coherence |
+|---|---|---|
+| **AMD-006 Layer 2** | Extended from builds to audits — the "does it actually work" test is now a required audit gate, not only a build gate. | Additive; no conflict. |
+| **§0 (understanding precedes solving)** | Reinforced — a static read is not understanding that the feature *works*. | No conflict. |
+| **§5 / ThinkerThinker.md A24** | Reinforced — names static-audit-passes as a manufacturing failure under output pressure. | No conflict. |
+| **Verification-discipline (standing)** | Reinforced — "completion is the user's confirmation, not the agent's tests/reads" now explicitly covers audits. | No conflict. |
+| **§1.7 Ground-up auditing** | Sharpened — a ground-up audit must exercise operation at each layer, not just inspect it. | No conflict. |
+
+### Ratification
+
+Founder directive ratifies (AMD-001 §7.2 — the founder is the ratifier). Append-only per §7.3; this addendum is referenced by ID in the commit per §7.4. Status of AMD-006 stays `ratified`; this is operating-rule expansion (audit scope), not principle change. Per §7.5 distrust-of-evolution, it remains eligible for counter-amendment if it produces worse outcomes.
