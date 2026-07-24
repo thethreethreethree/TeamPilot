@@ -2595,6 +2595,11 @@ function AssignDropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={acting}
+        // a11y: announce the popup + its state to screen readers (matches the CareShell status trigger
+        // pattern). Additive only — no behavioral change. Full menu keyboard-nav is the deferred A1 work
+        // in docs/audits/2026-07-24-care-accessibility-audit.md.
+        aria-haspopup="true"
+        aria-expanded={open}
         title="Assign or hand off this conversation"
         className="inline-flex items-center gap-1.5 text-xs text-secondary border border-default hover:text-brand hover:border-arc-400/50 disabled:opacity-50 px-3 py-1.5 rounded-md transition-colors"
       >
@@ -2681,6 +2686,11 @@ function PriorityDropdown({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
+        // a11y: additive only. aria-label because the visible text alone ("NORMAL") doesn't convey this
+        // is a control; aria-haspopup/expanded announce the popup + its state (matches CareShell status).
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label={`Change priority (currently ${cur.label})`}
         className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border ${cur.tone.chip}`}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${cur.tone.dot}`} />
