@@ -1323,11 +1323,17 @@ export async function captureResolution(args: {
     .select("*")
     .single();
   // §3.4 false-ok (audit 2026-07-09): a swallowed error returned null, which the
-  // route reported as { resolution: null } with HTTP 200 — SUCCESS on failure. This
-  // is worse than a lost record: inserting support_resolutions is what TRIGGERS the
-  // durability-check schedule (the §3.5 loop), so a silent failure means the §3.5
-  // consequence measurement for this conversation NEVER happens, while the agent
-  // sees "captured." Throw so the route surfaces it.
+  // route reported as { resolution: null } with HTTP 200 — SUCCESS on failure, so the
+  // agent sees "captured" while nothing landed. Throw so the route surfaces it: this
+  // row IS the §3.5 learning RECORD (learn.ts distills held/reopened actions + reasoning
+  // from support_resolutions), so losing it silently corrupts the learning corpus.
+  //
+  // NB (corrected 2026-07-24): the durability CHECK is scheduled by a SEPARATE trigger —
+  // trg_schedule_durability_check fires on support_conversations when status→'resolved'
+  // (0036), i.e. driven by the route's BEST-EFFORT mark-resolved update, NOT by this
+  // insert. So this throw protects the learning record; it does NOT by itself guarantee a
+  // check gets scheduled — if the best-effort status update fails, a resolution is captured
+  // with no consequence-measurement. See FOUNDER-ACTION-QUEUE 8i.
   if (error) throw new Error(`captureResolution failed — ${error.message}`);
   if (!data) return null;
   return mapResolution(data);
