@@ -1364,8 +1364,11 @@ export function ConversationsApp({
     );
   };
 
-  const send = async () => {
-    if (!selected || !draft.trim() || sending) return;
+  // Returns true when the reply actually sent, so compound actions (Send &
+  // Resolve, §3.3) can chain the resolve ONLY on a confirmed send — never
+  // resolve a conversation whose reply failed to leave.
+  const send = async (): Promise<boolean> => {
+    if (!selected || !draft.trim() || sending) return false;
     setSending(true);
     try {
       const res = await fetch(
@@ -1394,12 +1397,23 @@ export function ConversationsApp({
         setAiReasoning(null);
         await loadDetail(selected.id);
         await loadInbox();
-      } else {
-        toast.error("Couldn't send.");
+        return true;
       }
+      toast.error("Couldn't send.");
+      return false;
     } finally {
       setSending(false);
     }
+  };
+
+  // §3.3 Standard-mode ranked action: send the reply, then — only if it landed —
+  // open the fast Resolve modal (optional single-select reason, §3.4: the agent
+  // still commits the resolve; nothing auto-resolves). Collapses the common
+  // "reply, then go find Resolve" two-step into one. Additive for both modes —
+  // it removes nothing from Expert (§6), it just saves a step (§A21 consistency).
+  const sendAndResolve = async () => {
+    const sent = await send();
+    if (sent) setResolveModalOpen(true);
   };
 
   const askAiCoPilot = async () => {
@@ -1888,6 +1902,7 @@ export function ConversationsApp({
                   isInternalNote={isInternalNote}
                   onToggleNote={setIsInternalNote}
                   onSend={send}
+                  onSendAndResolve={sendAndResolve}
                   sending={sending}
                   onAiCoPilot={askAiCoPilot}
                   aiDrafting={aiDrafting}
@@ -3113,6 +3128,7 @@ function Composer({
   isInternalNote,
   onToggleNote,
   onSend,
+  onSendAndResolve,
   sending,
   onAiCoPilot,
   aiDrafting,
@@ -3132,6 +3148,7 @@ function Composer({
   isInternalNote: boolean;
   onToggleNote: (v: boolean) => void;
   onSend: () => void;
+  onSendAndResolve: () => void;
   sending: boolean;
   onAiCoPilot: () => void;
   aiDrafting: boolean;
@@ -3405,6 +3422,22 @@ function Composer({
               : "border-default focus:border-strong"
           }`}
         />
+        {/* §3.3 ranked actions: Send (primary) + Send & Resolve (secondary).
+            Hidden on internal notes — resolving after an agent-only note makes
+            no sense (the note isn't a customer reply). The composer only renders
+            on non-closed conversations, so there's nothing to resolve-guard here. */}
+        {!isInternalNote && (
+          <button
+            type="button"
+            onClick={onSendAndResolve}
+            disabled={sending || !draft.trim()}
+            title="Send this reply and mark the conversation resolved (you'll confirm the reason)."
+            className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-brand border border-arc-400/50 hover:border-arc-400/80 disabled:opacity-40 px-3 py-2 rounded-md"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+            Send &amp; Resolve
+          </button>
+        )}
         <button
           type="button"
           onClick={onSend}
