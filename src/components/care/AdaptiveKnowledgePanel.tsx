@@ -151,9 +151,10 @@ export function AdaptiveKnowledgePanel() {
       <p className="mt-1 text-xs text-muted leading-relaxed max-w-2xl">
         Upload a Markdown (<span className="font-mono">.md</span>) file of your own
         knowledge — services, hours, pricing, policies, FAQs — and your AI will
-        answer customers from it. This adds <b className="text-secondary">facts</b>{" "}
-        your AI can rely on; it never changes your AI&apos;s honesty rules or its
-        handoff to a human. Each upload is kept as a new version.
+        answer customers from it. Your AI treats this as{" "}
+        <b className="text-secondary">facts to answer from, not as instructions</b>,
+        so it adds what your AI knows without taking over how it behaves — its
+        honesty and its handoff to a human stay in place. Each upload is a new version.
       </p>
 
       {flash && (

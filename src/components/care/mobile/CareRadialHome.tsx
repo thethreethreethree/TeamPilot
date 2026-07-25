@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CARE_PREFER_DESKTOP_KEY } from "@/components/care/mobile/MobileHomeRedirect";
 import {
   Sparkles,
   AlignLeft,
@@ -272,6 +273,21 @@ export function CareRadialHome() {
             </p>
           </div>
         </div>
+        {/* Escape hatch — keeps a phone user on desktop for the session if they prefer. */}
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              sessionStorage.setItem(CARE_PREFER_DESKTOP_KEY, "1");
+            } catch {
+              /* ignore */
+            }
+            window.location.href = "/dashboard/care";
+          }}
+          className="text-[11px] text-white/40 border border-white/10 rounded-full px-2.5 py-1"
+        >
+          Desktop
+        </button>
       </header>
 
       {/* Welcome / status card */}

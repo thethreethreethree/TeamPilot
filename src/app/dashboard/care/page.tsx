@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { MobileHomeRedirect } from "@/components/care/mobile/MobileHomeRedirect";
 import {
   ArrowRight,
   BookOpen,
@@ -206,6 +207,7 @@ export default function CareHomePage() {
 
   return (
     <>
+      <MobileHomeRedirect />
       <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60 flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-lg font-semibold text-primary">
