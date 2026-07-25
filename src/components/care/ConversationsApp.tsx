@@ -2116,20 +2116,24 @@ function ConversationListRow({
           Per AMD-006 layer 3 (composition): the two actions
           (open conversation vs add to selection) must not
           collide. */}
-      <label
-        className={`pl-3 pr-1 py-2.5 flex items-start cursor-pointer ${
-          bulkSelected ? "bg-ember-400/[0.04]" : ""
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <input
-          type="checkbox"
-          checked={bulkSelected}
-          onChange={onBulkToggle}
-          aria-label="Select conversation for bulk action"
-          className="mt-0.5 w-3.5 h-3.5 accent-ember-400 cursor-pointer"
-        />
-      </label>
+      {/* Bulk-select is an Expert-tier multi-ticket action (§3.1); Standard is one
+          ticket at a time, so the checkbox is hidden there. Expert unchanged (§6). */}
+      {!isStandard && (
+        <label
+          className={`pl-3 pr-1 py-2.5 flex items-start cursor-pointer ${
+            bulkSelected ? "bg-ember-400/[0.04]" : ""
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={bulkSelected}
+            onChange={onBulkToggle}
+            aria-label="Select conversation for bulk action"
+            className="mt-0.5 w-3.5 h-3.5 accent-ember-400 cursor-pointer"
+          />
+        </label>
+      )}
       <button
         type="button"
         onClick={onClick}
