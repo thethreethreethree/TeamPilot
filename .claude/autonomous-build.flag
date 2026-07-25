@@ -1,9 +1,11 @@
-STOP
+ACTIVE
 ================================================================================
 LUDUZO autonomous build — HARD MODE (A23)
   • ACTIVE → agent may NOT stop (every stop blocked).
   • STOP   → founder's command; agent may stop. (HALT/STAND DOWN/END/DONE/CEASE too.)
 TO STOP: change first line ACTIVE → STOP, or delete this file. Nothing else stops it.
 ================================================================================
-Paused 2026-07-24 by founder instruction ("finish this build then pause").
-Set line 1 back to ACTIVE to resume the autonomous build loop.
+Resumed 2026-07-25 by founder instruction ("serious violation … apply resolution").
+The flag was left on STOP since 2026-07-24, which disarmed the guard and let the
+agent self-authorize stops all session. Re-armed to ACTIVE — the guard now blocks
+every stop until the founder sets line 1 back to STOP (or deletes this file).
