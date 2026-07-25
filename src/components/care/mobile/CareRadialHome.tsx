@@ -248,9 +248,9 @@ export function CareRadialHome() {
   async function openRead(convId: string) {
     setReading({ loading: true, messages: [], error: null });
     try {
-      const res = await fetch(
-        `/api/care/agent/conversations/${convId}/messages`
-      );
+      // GET the conversation detail — /messages is POST-only (send a reply), so a GET
+      // there 405'd (founder 2026-07-25). The [id] route returns { conversation, messages }.
+      const res = await fetch(`/api/care/agent/conversations/${convId}`);
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setReading({
