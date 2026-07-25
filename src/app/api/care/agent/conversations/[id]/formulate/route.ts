@@ -165,9 +165,13 @@ export async function POST(
       draft: (parsed.draft ?? "").trim(),
       reasoning: (parsed.reasoning ?? "").trim(),
     });
-  } catch {
+  } catch (err) {
+    // Surface the REAL provider cause (2026-07-25 class sweep) instead of a
+    // generic 502 the operator can't diagnose.
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[care.formulate] generation failed:", detail, err);
     return NextResponse.json(
-      { error: "Couldn't formulate right now." },
+      { error: "Couldn't formulate right now.", detail },
       { status: 502 }
     );
   }

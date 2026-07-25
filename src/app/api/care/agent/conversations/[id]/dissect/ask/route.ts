@@ -107,9 +107,13 @@ export async function POST(
       controlExempt: true,
     });
     reply = r.text;
-  } catch {
+  } catch (err) {
+    // Surface the REAL provider cause (2026-07-25 class sweep — the same opacity
+    // that turned the DeepSeek model-rename outage into an hours-long diagnosis).
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[care.dissect.ask] generation failed:", detail, err);
     return NextResponse.json(
-      { error: "The coach could not respond just now. Please try again." },
+      { error: "The coach could not respond just now. Please try again.", detail },
       { status: 502 }
     );
   }

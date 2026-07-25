@@ -272,7 +272,14 @@ export async function generateConversationDissect(args: {
       userMessage: source.slice(0, MAX_SOURCE_CHARS),
     });
     return parseConversationDissect(r.text, source);
-  } catch {
+  } catch (err) {
+    // Fail-soft to EMPTY (the never-throws contract callers rely on) but do NOT
+    // swallow SILENTLY — a provider outage rendering as "nothing to diagnose" is
+    // indistinguishable from a genuinely thin thread (§3.4). Logging keeps the
+    // real cause visible to operators (2026-07-25 class sweep — the DeepSeek
+    // model-rename outage was hard to trace precisely because catches were mute).
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[dissect.engine] generation failed → empty dissect:", detail);
     return EMPTY_DISSECT;
   }
 }
