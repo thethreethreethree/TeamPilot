@@ -96,6 +96,11 @@ export function FeedbackButton() {
   const isLandingPage = pathname === "/";
   if (isLandingPage) return null;
 
+  // /care/mobile is the simplified mobile agent surface (radial home) — the floating
+  // Feedback button clutters that "5-year-old-simple" surface (founder 2026-07-25:
+  // "remove the feedback tool"). Suppress it there.
+  if (pathname.startsWith("/care/mobile")) return null;
+
   return (
     <>
       <button

@@ -217,11 +217,17 @@ Draft the next reply.`;
       );
     }
     raw = r.text;
-  } catch {
+  } catch (err) {
+    // Surface the REAL provider error instead of swallowing it (2026-07-25: "Co-pilot
+    // couldn't draft" was opaque — the actual cause, e.g. an LLM provider/auth/balance
+    // error, was lost). Log for the server + return `detail` so the agent sees the cause.
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[care.co-pilot] generation failed:", detail, err);
     return NextResponse.json(
       {
         error:
           "The Co-Pilot couldn't draft a reply right now. Type your own and we'll learn from it.",
+        detail,
       },
       { status: 502 }
     );

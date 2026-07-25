@@ -138,9 +138,12 @@ export async function POST(
         category: p.category,
       })),
     });
-  } catch {
+  } catch (err) {
+    // Surface the REAL provider error instead of swallowing it (2026-07-25).
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[care.summarize] generation failed:", detail, err);
     return NextResponse.json(
-      { error: "Couldn't generate a summary right now." },
+      { error: "Couldn't generate a summary right now.", detail },
       { status: 502 }
     );
   }

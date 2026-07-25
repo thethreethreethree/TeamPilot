@@ -232,7 +232,7 @@ export function CareRadialHome() {
         setReply({
           ...reply,
           sending: false,
-          error: data?.error ?? `Couldn't send (HTTP ${res.status}).`,
+          error: data?.detail ?? data?.error ?? `Couldn't send (HTTP ${res.status}).`,
         });
         return;
       }
@@ -256,7 +256,7 @@ export function CareRadialHome() {
         setReading({
           loading: false,
           messages: [],
-          error: data?.error ?? `Couldn't load (HTTP ${res.status}).`,
+          error: data?.detail ?? data?.error ?? `Couldn't load (HTTP ${res.status}).`,
         });
         return;
       }
@@ -294,7 +294,7 @@ export function CareRadialHome() {
           label: "Co-Pilot",
           loading: false,
           result: null,
-          error: data?.error ?? `Co-Pilot unavailable (HTTP ${res.status}).`,
+          error: data?.detail ?? data?.error ?? `Co-Pilot unavailable (HTTP ${res.status}).`,
         });
         return;
       }
@@ -343,7 +343,7 @@ export function CareRadialHome() {
                   ? suggestion
                     ? null
                     : "Coach had nothing to add."
-                  : data?.error ?? `Coach unavailable (HTTP ${res.status}).`,
+                  : data?.detail ?? data?.error ?? `Coach unavailable (HTTP ${res.status}).`,
               },
             }
           : r
@@ -396,7 +396,7 @@ export function CareRadialHome() {
           label,
           loading: false,
           result: null,
-          error: data?.error ?? `${label} unavailable (HTTP ${res.status}).`,
+          error: data?.detail ?? data?.error ?? `${label} unavailable (HTTP ${res.status}).`,
         });
         return;
       }

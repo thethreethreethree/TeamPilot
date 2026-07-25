@@ -1433,45 +1433,25 @@ export function ConversationsApp({
         }
         composerRef.current?.focus();
       } else {
-        toast.error("Co-pilot couldn't draft.");
+        // Surface the real provider cause the route now returns (2026-07-25).
+        const errData = await res.json().catch(() => null);
+        toast.error(
+          errData?.detail
+            ? `Co-pilot couldn't draft — ${errData.detail}`
+            : "Co-pilot couldn't draft."
+        );
       }
     } finally {
       setAiDrafting(false);
     }
   };
 
-  // Standard §3.3/§5 — pre-draft the reply so it's "already in the flow." When a
-  // Standard agent opens a conversation that genuinely NEEDS their reply (customer
-  // sent the last message, the AI isn't handling it, it isn't resolved/closed, and
-  // the composer is empty), auto-run Co-Pilot ONCE so a suggested draft is already in
-  // the box. The human still edits/accepts and commits (§3.3 Understanding Gate — the
-  // AI prepares, never auto-sends). Expert: unchanged (no auto-draft). Behavior change,
-  // deliberate per the spec; cheap on the current provider. Guarded to fire once per
-  // conversation via autoDraftedFor so it never spams or overwrites a typed draft.
-  // Set (not a single id) so we draft ONCE per conversation per session — a single ref
-  // would re-draft on revisit (the switch-reset clears the draft), wasting Co-Pilot
-  // calls (audit 2026-07-25).
-  const autoDraftedFor = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (
-      isStandard &&
-      modeLoaded &&
-      selected &&
-      selected.status !== "resolved" &&
-      selected.status !== "closed" &&
-      selected.lastMessageAuthorType === "customer" &&
-      !selected.aiResponding &&
-      !draft.trim() &&
-      !aiDrafting &&
-      !autoDraftedFor.current.has(selected.id)
-    ) {
-      autoDraftedFor.current.add(selected.id);
-      void askAiCoPilot();
-    }
-    // askAiCoPilot is intentionally omitted — it's re-created each render; the
-    // autoDraftedFor guard makes re-runs idempotent (once per conversation).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStandard, modeLoaded, selected, draft, aiDrafting]);
+  // NOTE (2026-07-25): the Standard auto-pre-draft (auto-run Co-Pilot on ticket open)
+  // was REVERTED. It auto-fired an LLM call on every qualifying open, which — while the
+  // provider is erroring ("Co-pilot couldn't draft") — meant firing failing calls on
+  // every open, and it was an unverified behavior change the founder flagged. Co-Pilot is
+  // manual again (the composer's AI Co-pilot button). Re-add deliberately once the
+  // provider is confirmed healthy and the founder opts in.
 
   // ─── Render ─────────────────────────────────────────────────
 
