@@ -437,8 +437,14 @@ export function CareRadialHome() {
               <Wrench className="w-4 h-4" aria-hidden />
             </button>
             {moreOpen && (
-              <div className="absolute left-0 top-11 z-[65] w-44 rounded-xl border border-white/10 bg-[#111119] py-1 shadow-lg">
-                {MORE_TOOLS.map(({ key, label, Icon }) => (
+              <>
+                <div
+                  className="fixed inset-0 z-[64]"
+                  onClick={() => setMoreOpen(false)}
+                  aria-hidden
+                />
+                <div className="absolute left-0 top-11 z-[65] w-44 rounded-xl border border-white/10 bg-[#111119] py-1 shadow-lg">
+                  {MORE_TOOLS.map(({ key, label, Icon }) => (
                   <button
                     key={key}
                     type="button"
@@ -451,8 +457,9 @@ export function CareRadialHome() {
                     <Icon className="w-4 h-4 text-amber-400" aria-hidden />
                     {label}
                   </button>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -788,14 +795,26 @@ export function CareRadialHome() {
               <p className="text-sm font-semibold text-amber-300">
                 {current?.customerName ?? "Conversation"}
               </p>
-              <button
-                type="button"
-                onClick={() => setReading(null)}
-                aria-label="Close"
-                className="p-1 text-white/50 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReading(null);
+                    setReply({ text: "", sending: false, error: null, sent: false });
+                  }}
+                  className="text-xs font-semibold text-[#09090B] bg-amber-400 rounded-full px-3 py-1"
+                >
+                  Reply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReading(null)}
+                  aria-label="Close"
+                  className="p-1 text-white/50 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             {reading.loading ? (
               <p className="text-xs text-white/50 flex items-center gap-2">
