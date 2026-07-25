@@ -79,6 +79,31 @@ describe("deepseekProvider error classification (outage regression lock)", () =>
     expect(shouldCascade(caught)).toBe(false);
   });
 
+  it("adds reasoning headroom to max_tokens (rescues tight caps on the reasoning model)", async () => {
+    // Verified live 2026-07-25: v4-flash counts reasoning_content against max_tokens,
+    // so a tiny cap (classifyTurnSpeaker=16) spends the whole budget on reasoning and
+    // returns EMPTY. The provider adds headroom so the ANSWER survives. This pins that
+    // the sent body carries caller-cap + headroom, not the bare cap.
+    let sentBody: { max_tokens?: number } = {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: { body: string }) => {
+        sentBody = JSON.parse(init.body);
+        return jsonResponse(200, {
+          choices: [{ message: { content: '{"speaker":"prospect"}' } }],
+          usage: { prompt_tokens: 5, completion_tokens: 8, total_tokens: 13 },
+        });
+      })
+    );
+
+    await deepseekProvider.call({ ...CALL, maxTokens: 16 });
+    // 16 (caller's answer budget) + 256 headroom.
+    expect(sentBody.max_tokens).toBe(272);
+
+    await deepseekProvider.call(CALL); // no maxTokens → default 900 + headroom
+    expect(sentBody.max_tokens).toBe(1156);
+  });
+
   it("still maps 401 to 'auth' (cascades) — non-model failures unchanged", async () => {
     vi.stubGlobal(
       "fetch",

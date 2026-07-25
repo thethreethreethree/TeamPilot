@@ -77,6 +77,24 @@ const DEFAULT_MODEL = "deepseek-v4-flash";
 const ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
 const DEFAULT_TIMEOUT_MS = 45_000;
 
+/**
+ * v4 models are REASONING models: `reasoning_content` is emitted BEFORE `content`
+ * and COUNTS against `max_tokens` (verified 2026-07-25 via live probe — a call
+ * with max_tokens:16 spent all 16 on reasoning and returned EMPTY content,
+ * finish_reason:"length"). Callers budget `maxTokens` for the ANSWER; they never
+ * accounted for reasoning. So the DeepSeek provider adds this headroom on top,
+ * per-call, so reasoning can't starve the answer. It's a CEILING — it costs
+ * nothing on calls that finish naturally, and only rescues ones that would have
+ * truncated. Without it, tight-cap callers (classifyTurnSpeaker=16 → empty JSON,
+ * liveSalesCue=160, care voice=80) return empty/truncated on the reasoning model.
+ * Probe measured 16–34 reasoning tokens for trivial tasks; 256 covers verbose
+ * reasoning with margin. Anthropic (non-reasoning) needs no such floor.
+ */
+const REASONING_HEADROOM_TOKENS = 256;
+function withReasoningHeadroom(maxTokens: number | undefined): number {
+  return (maxTokens ?? 900) + REASONING_HEADROOM_TOKENS;
+}
+
 export const deepseekProvider: Provider = {
   name: "deepseek",
   enabled: () => Boolean(process.env.DEEPSEEK_API_KEY),
@@ -99,7 +117,7 @@ export const deepseekProvider: Provider = {
         { role: "system", content: args.systemPrompt },
         ...args.messages.map((m) => ({ role: m.role, content: m.content })),
       ],
-      max_tokens: args.maxTokens ?? 900,
+      max_tokens: withReasoningHeadroom(args.maxTokens),
       ...(args.expectJson ? { response_format: { type: "json_object" } } : {}),
     };
 
@@ -171,7 +189,7 @@ export const deepseekProvider: Provider = {
         { role: "system", content: args.systemPrompt },
         ...args.messages.map((m) => ({ role: m.role, content: m.content })),
       ],
-      max_tokens: args.maxTokens ?? 900,
+      max_tokens: withReasoningHeadroom(args.maxTokens),
       stream: true,
       ...(args.expectJson ? { response_format: { type: "json_object" } } : {}),
     };
