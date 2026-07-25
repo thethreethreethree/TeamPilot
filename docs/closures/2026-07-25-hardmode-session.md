@@ -66,7 +66,8 @@ server-side auth, never from the request:**
 - **Care agent** (session): scopes by `auth.companyId` + defense-in-depth
   `conversation.companyId !== auth.companyId` checks.
 - **Coach sales-session** (session): companyId from the authed user's profile; role-scoped.
-- **File access**: explicit `isUploader || (isAdmin && sameCompany)` — beyond RLS.
+- **File access + serve**: grants route checks `isUploader || (isAdmin && sameCompany)`; the serve path (`getFile` → RLS client) is gated by the `files_select` policy (0057) whose FIRST clause is a cross-tenant block (`company_id in (my companies)`) — verified down to the DB, a cross-tenant file id returns null → 404.
+- **Notifications / team / chat-lock**: session-auth, server-derived companyId, explicit 403s (notify-message verifies message access before notifying).
 - **Crons** (no session): `CRON_SECRET` Bearer + `constantTimeEqual`, fail-closed 503 when unset.
 
 Honest scope: audited the major clusters (extension, care agent, coach, files, crons),
