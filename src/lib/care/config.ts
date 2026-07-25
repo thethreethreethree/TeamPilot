@@ -21,6 +21,19 @@ import { ELOSTATE_PRODUCT_KNOWLEDGE } from "@/lib/care/elostateProductKnowledge"
 
 const ELOSTATE_COMPANY_ID = "c3e7f389-3df6-48c8-876b-0cd4baf5c2a7";
 
+/**
+ * Whether a tenant's product context is AUTHORITATIVELY maintained in code
+ * (ELOSTATE_PRODUCT_KNOWLEDGE) rather than from the editable `ai_product_context`
+ * config. This is the SAME predicate getProductContextForTenant uses to decide the
+ * ELOSTATE branch — exported so the settings UI can tell the founder that editing the
+ * "Product context" field has no effect for this tenant, instead of the edit silently
+ * doing nothing (an A31/A14 dead-control). Keep this and getProductContextForTenant's
+ * ELOSTATE check in agreement — they are the same rule and must not drift.
+ */
+export function isProductContextCodeManaged(companyId: string): boolean {
+  return companyId === ELOSTATE_COMPANY_ID;
+}
+
 export type CareTenantResolution =
   | {
       ok: true;

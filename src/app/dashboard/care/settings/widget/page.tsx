@@ -84,6 +84,11 @@ export default function CareWidgetSettingsPage() {
   const [inboundEmailAddress, setInboundEmailAddress] = useState<string | null>(
     null
   );
+  // ELOSTATE's own tenant: product context is authoritative in code, so the field below
+  // is display-only (editing it has no effect). The server tells us; we say so in the UI
+  // instead of letting the edit silently do nothing.
+  const [productContextManagedInCode, setProductContextManagedInCode] =
+    useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +99,7 @@ export default function CareWidgetSettingsPage() {
         setDraft(data.config);
         setOriginsRaw((data.config.allowed_origins ?? []).join("\n"));
         setInboundEmailAddress(data.inboundEmailAddress ?? null);
+        setProductContextManagedInCode(!!data.productContextManagedInCode);
       }
     } finally {
       setLoading(false);
@@ -679,11 +685,20 @@ export default function CareWidgetSettingsPage() {
                 <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
                   Product context
                 </label>
+                {productContextManagedInCode && (
+                  <div className="mb-2 rounded-md border border-default bg-base px-3 py-2 text-[11px] text-secondary leading-relaxed">
+                    <strong className="text-primary">Managed in code for this account.</strong>{" "}
+                    This account&apos;s product knowledge is maintained in the codebase and kept
+                    current with every feature, so it&apos;s always authoritative. Edits to this
+                    field have no effect here — it&apos;s shown for reference only.
+                  </div>
+                )}
                 <textarea
                   value={draft.ai_product_context ?? ""}
                 onChange={(e) =>
                   setDraft({ ...draft, ai_product_context: e.target.value || null })
                 }
+                disabled={productContextManagedInCode}
                 rows={10}
                 placeholder={`What ELOSTATE actually is:
 [one sentence — the product in plain terms]
@@ -698,7 +713,9 @@ Pricing & access:
 
 Always hand off to a human for:
 [account-specific data, billing, refunds, anything you don't want the AI deciding]`}
-                className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y leading-relaxed font-mono"
+                className={`w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y leading-relaxed font-mono${
+                  productContextManagedInCode ? " opacity-60 cursor-not-allowed" : ""
+                }`}
               />
               <div className="text-[11px] text-muted mt-1.5 space-y-1">
                 <p>

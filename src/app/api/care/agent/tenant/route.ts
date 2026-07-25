@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
+import { isProductContextCodeManaged } from "@/lib/care/config";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 
 /**
@@ -66,6 +67,10 @@ export async function GET() {
     config: data,
     inboundEmailAddress,
     emailHostDomain,
+    // True for the ELOSTATE tenant: its product context is authoritative in code
+    // (ELOSTATE_PRODUCT_KNOWLEDGE), so an edit to `ai_product_context` here has no effect.
+    // The settings UI reads this to say so, rather than the edit silently doing nothing.
+    productContextManagedInCode: isProductContextCodeManaged(ctx.companyId),
   });
 }
 
