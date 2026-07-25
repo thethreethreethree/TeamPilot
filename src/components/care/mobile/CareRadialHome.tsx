@@ -131,18 +131,17 @@ export function CareRadialHome() {
         return;
       }
       const d = await res.json();
+      // Field names verified against EnrichedConversation (src/lib/data/care.ts):
+      // the customer name is customer.name; there is NO message-preview field in
+      // the enriched inbox payload, so the card falls back to subject (honest —
+      // a true last-message snippet isn't in this response).
       const list: Conv[] = (d.conversations ?? []).map(
         (c: Record<string, unknown>) => ({
           id: c.id as string,
           subject: (c.subject as string | null) ?? null,
           customerName:
-            (c.customerName as string | null) ??
-            (c.customer_name as string | null) ??
-            null,
-          lastMessagePreview:
-            (c.lastMessagePreview as string | null) ??
-            (c.last_message_preview as string | null) ??
-            null,
+            (c.customer as { name?: string | null } | null)?.name ?? null,
+          lastMessagePreview: null,
           status: (c.status as string | null) ?? null,
           priority: (c.priority as string | null) ?? null,
         })
