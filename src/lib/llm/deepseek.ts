@@ -1,6 +1,6 @@
 import "server-only";
 import type { LlmCallArgs, LlmResult, Provider } from "./types";
-import { LlmError, classifyStatus } from "./errors";
+import { LlmError, classifyStatusWithBody } from "./errors";
 import { fetchWithTimeout, withRetry } from "./retry";
 
 /**
@@ -121,7 +121,7 @@ export const deepseekProvider: Provider = {
       if (!res.ok) {
         const rawBody = await res.text();
         throw new LlmError({
-          kind: classifyStatus(res.status),
+          kind: classifyStatusWithBody(res.status, rawBody),
           status: res.status,
           message: `DeepSeek API error ${res.status}: ${rawBody.slice(0, 200)}`,
           provider: "deepseek",
@@ -193,7 +193,7 @@ export const deepseekProvider: Provider = {
     if (!res.ok) {
       const rawBody = await res.text();
       throw new LlmError({
-        kind: classifyStatus(res.status),
+        kind: classifyStatusWithBody(res.status, rawBody),
         status: res.status,
         message: `DeepSeek stream error ${res.status}: ${rawBody.slice(0, 200)}`,
         provider: "deepseek",

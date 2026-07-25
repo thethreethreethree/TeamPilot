@@ -14,6 +14,13 @@ export type LlmErrorKind =
   | "rate_limit"
   | "auth"
   | "invalid_request"
+  // The SELECTED provider rejected the configured MODEL (renamed, deprecated,
+  // not-found) — distinct from a bad prompt. Same-provider retry is hopeless,
+  // but the OTHER provider uses its own model, so this failover-cascades where
+  // a generic invalid_request does not. Added 2026-07-25 after DeepSeek renamed
+  // deepseek-chat → deepseek-v4-* and every AI tool went down at once with no
+  // fallback (the 400 classified as invalid_request, which doesn't cascade).
+  | "model_unavailable"
   | "server"
   | "network"
   | "quota" // 402 Payment Required / insufficient balance — non-retryable
@@ -61,4 +68,49 @@ export function classifyStatus(status: number): LlmErrorKind {
   if (status === 408 || status === 504) return "timeout";
   if (status >= 500) return "server";
   return "unknown";
+}
+
+/**
+ * True when an error BODY indicates the provider rejected the MODEL itself
+ * (renamed / deprecated / not-found) rather than the prompt. Kept deliberately
+ * TIGHT so a normal bad-prompt 400 (which must NOT cascade — the other provider
+ * would fail identically) is never misread as a model error.
+ *
+ * Real examples this must catch:
+ *   DeepSeek: "supported API model names are deepseek-v4-pro or deepseek-v4-flash"
+ *   OpenAI-compat: "The model `x` does not exist" / "model not found"
+ *   Anthropic: "model: <name> not found" (404)
+ */
+export function isModelUnavailableBody(body: string | undefined | null): boolean {
+  if (!body) return false;
+  const b = body.toLowerCase();
+  return (
+    /supported\s+(api\s+)?model\s+names?/.test(b) ||
+    /\bmodel\b[^.]{0,40}\b(not\s+found|does\s+not\s+exist|is\s+not\s+available|no\s+longer\s+available|unavailable|deprecated|is\s+invalid|not\s+supported|unsupported)\b/.test(
+      b
+    ) ||
+    /\b(unknown|unsupported|invalid|deprecated)\s+model\b/.test(b)
+  );
+}
+
+/**
+ * Status + body classification. Only diverges from classifyStatus for the
+ * model-rejection case: a 400/404/422 whose body names a MODEL problem becomes
+ * "model_unavailable" (which failover-cascades) instead of "invalid_request"
+ * (which doesn't). Everything else is unchanged.
+ */
+export function classifyStatusWithBody(
+  status: number,
+  body: string | undefined | null
+): LlmErrorKind {
+  const base = classifyStatus(status);
+  if (
+    (base === "invalid_request" || status === 404) &&
+    isModelUnavailableBody(body)
+  ) {
+    return "model_unavailable";
+  }
+  // A bare 404 with no model signal is a routing/endpoint error, not auth/quota.
+  if (status === 404 && base === "unknown") return "invalid_request";
+  return base;
 }

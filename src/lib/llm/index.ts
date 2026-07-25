@@ -67,10 +67,15 @@ export function activeProviderName(): string | null {
  * Failure kinds that DO cascade:
  *   - "auth"       (key rejected by provider — try the other)
  *   - "quota"      (account-level payment block — try the other)
+ *   - "model_unavailable" (the SELECTED provider deprecated/renamed its model —
+ *     the OTHER provider uses its own model, so the same call can succeed there.
+ *     Added 2026-07-25: DeepSeek renamed deepseek-chat and every AI tool went
+ *     down at once because this classified as invalid_request and didn't cascade.)
  *
  * Failure kinds that do NOT cascade (retrying the other provider would
  * make the same call and produce the same kind of failure):
- *   - "invalid_request" (the prompt itself is bad)
+ *   - "invalid_request" (the PROMPT itself is bad — the other provider fails the
+ *     same way; note: a bad MODEL is "model_unavailable" above, not this)
  *   - "rate_limit"      (handled at the call-site with backoff)
  *   - "timeout" / "network" / "server" (retry semantics owned by caller)
  */
@@ -90,7 +95,10 @@ function otherProvider(selected: Provider): Provider | null {
 // re-run the same doomed call against the other provider.
 export function shouldCascade(err: unknown): boolean {
   return (
-    err instanceof LlmError && (err.kind === "auth" || err.kind === "quota")
+    err instanceof LlmError &&
+    (err.kind === "auth" ||
+      err.kind === "quota" ||
+      err.kind === "model_unavailable")
   );
 }
 
@@ -111,7 +119,10 @@ export async function llmCall(args: LlmCallArgs): Promise<LlmResult> {
       if (fallback) {
         // eslint-disable-next-line no-console
         console.warn(
-          `[llm] primary provider ${provider.name} failed (${(err as LlmError).kind}); cascading to ${fallback.name}.`
+          `[llm] primary provider ${provider.name} failed (${(err as LlmError).kind}); cascading to ${fallback.name}.` +
+            ((err as LlmError).kind === "model_unavailable"
+              ? ` ACTION: ${provider.name} rejected its configured model — update ${provider.name === "deepseek" ? "DEEPSEEK_MODEL" : "ANTHROPIC_MODEL"} to a current model name so traffic returns to ${provider.name}.`
+              : "")
         );
         return await fallback.call(shaped);
       }

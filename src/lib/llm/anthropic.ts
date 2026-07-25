@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { LlmCallArgs, LlmResult, Provider } from "./types";
-import { LlmError, classifyStatus } from "./errors";
+import { LlmError, classifyStatusWithBody } from "./errors";
 import { withRetry } from "./retry";
 
 /**
@@ -55,7 +55,7 @@ export const anthropicProvider: Provider = {
         const e = err as { status?: number; message?: string };
         if (typeof e.status === "number") {
           throw new LlmError({
-            kind: classifyStatus(e.status),
+            kind: classifyStatusWithBody(e.status, e.message),
             status: e.status,
             message: e.message ?? `Anthropic API error ${e.status}`,
             provider: "anthropic",
@@ -98,7 +98,7 @@ export const anthropicProvider: Provider = {
       const e = err as { status?: number; message?: string };
       if (typeof e.status === "number") {
         throw new LlmError({
-          kind: classifyStatus(e.status),
+          kind: classifyStatusWithBody(e.status, e.message),
           status: e.status,
           message: e.message ?? `Anthropic stream error ${e.status}`,
           provider: "anthropic",
