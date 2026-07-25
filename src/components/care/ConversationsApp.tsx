@@ -2101,6 +2101,10 @@ function ConversationListRow({
   onClick: () => void;
   onBulkToggle: () => void;
 }) {
+  // Standard: keep rows to the essentials (customer/subject/priority/time/status) —
+  // tag chips are metadata, still shown on the ticket when opened (§3.2, collapse
+  // not remove). Expert: rows unchanged.
+  const { isStandard } = useExperienceMode();
   const dl = careStatusDisplay(c.status);
   const pri = priorityDisplay(c.priority);
   const Icon = dl.icon;
@@ -2176,7 +2180,7 @@ function ConversationListRow({
               Needs guidance
             </span>
           )}
-          {c.tags.length > 0 && (
+          {!isStandard && c.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {c.tags.slice(0, 3).map((t) => {
                 const tone = tagTone(t.color);
