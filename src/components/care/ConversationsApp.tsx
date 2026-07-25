@@ -12,6 +12,7 @@ import {
   Archive,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   HandHelping,
   Inbox,
   Lightbulb,
@@ -41,6 +42,7 @@ import {
 import { FileDropzone } from "@/components/files/FileDropzone";
 import { InlineAttachment } from "@/components/files/InlineAttachment";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { AdvancedDetail } from "@/components/experience/AdvancedDetail";
 import { ExpertOnly } from "@/components/experience/ExpertOnly";
 import Modal from "@/components/ui/Modal";
@@ -340,8 +342,16 @@ export function ConversationsApp({
   const [team, setTeam] = useState<
     Array<{ id: string; fullName: string | null; role: string | null; isSupportAgent: boolean }>
   >([]);
+  // Standard/Expert experience mode — follows the existing ExperienceModeProvider
+  // structure (founder 2026-07-25, CARE-Standard-Simplification spec). Standard = the
+  // simplified 5-core-actions surface; Expert = today's full surface, unchanged (§6
+  // "don't change advanced modes"). Nothing is deleted — advanced is collapsed
+  // one-click-away (§1 "collapse, don't remove").
+  const { isStandard } = useExperienceMode();
+  const [showAllViews, setShowAllViews] = useState(false);
   const initialView =
-    (searchParams.get("view") as ViewKey | null) ?? "all_open";
+    (searchParams.get("view") as ViewKey | null) ??
+    (isStandard ? "mine" : "all_open");
   const [view, setView] = useState<ViewKey>(initialView);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialId ?? null);
@@ -1476,7 +1486,13 @@ export function ConversationsApp({
           </div>
         </div>
         <div className="px-3 py-3 space-y-0.5">
-          {VIEWS.map((v) => {
+          {/* Standard: default to Mine only; the other 7 views collapse behind a
+              single "More views" reveal (§3.1 — default to My Tickets, other queues
+              one click away). Expert: all views inline as today. Collapse, not remove. */}
+          {(isStandard && !showAllViews
+            ? VIEWS.filter((v) => v.key === "mine")
+            : VIEWS
+          ).map((v) => {
             const Icon = v.icon;
             const active = view === v.key;
             const count = viewCounts[v.key];
@@ -1525,6 +1541,22 @@ export function ConversationsApp({
               </LearningHint>
             );
           })}
+          {/* One-click reveal for the other queues (Standard only). */}
+          {isStandard && (
+            <button
+              type="button"
+              onClick={() => setShowAllViews((s) => !s)}
+              className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium text-brand hover:bg-white/[0.03]"
+              aria-expanded={showAllViews}
+            >
+              {showAllViews ? (
+                <ChevronDown className="w-3 h-3" aria-hidden />
+              ) : (
+                <ChevronRight className="w-3 h-3" aria-hidden />
+              )}
+              {showAllViews ? "Fewer views" : "More views"}
+            </button>
+          )}
         </div>
 
         {/* Help footer */}
