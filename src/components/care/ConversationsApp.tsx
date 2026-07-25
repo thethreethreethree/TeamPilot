@@ -347,7 +347,7 @@ export function ConversationsApp({
   // simplified 5-core-actions surface; Expert = today's full surface, unchanged (§6
   // "don't change advanced modes"). Nothing is deleted — advanced is collapsed
   // one-click-away (§1 "collapse, don't remove").
-  const { isStandard } = useExperienceMode();
+  const { isStandard, loaded: modeLoaded } = useExperienceMode();
   const [showAllViews, setShowAllViews] = useState(false);
   const initialView =
     (searchParams.get("view") as ViewKey | null) ??
@@ -428,6 +428,12 @@ export function ConversationsApp({
   const [viewsCollapsed, setViewsCollapsed] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [customerCollapsed, setCustomerCollapsed] = useState(false);
+  // Standard: default the customer panel collapsed (§3.2 — depth-on-demand; it's one
+  // collapsible side panel, one click to open). Gated on modeLoaded so EXPERT never
+  // regresses to collapsed; fires on mode resolution, not fighting a manual expand.
+  useEffect(() => {
+    if (modeLoaded && isStandard) setCustomerCollapsed(true);
+  }, [modeLoaded, isStandard]);
   // Bulk selection — set of conversation ids the agent has
   // checkbox-marked for a bulk action. Cleared after each bulk
   // operation OR when the agent switches view (different filter
