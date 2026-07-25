@@ -74,6 +74,12 @@ const PostmarkInboundBody = z.object({
   To: z.string().min(1).max(1000),
   Subject: z.string().max(998).optional(),
   TextBody: z.string().min(1).max(50000),
+  // Postmark's quote-stripped reply body — just the customer's NEW text, with the
+  // quoted prior thread ("On ... wrote:" + the quoted history) removed. We prefer it
+  // over TextBody so the AI doesn't (a) re-read + mis-attribute its OWN prior reply
+  // quoted back (A39) or (b) pay for the quoted bloat. Optional/empty on a first email
+  // (no quote to strip) → we fall back to TextBody. (8h)
+  StrippedTextReply: z.string().max(50000).optional(),
   // Bounded like every other field (defense-in-depth — the webhook is secret-
   // gated so only the trusted provider sends, but real emails carry a bounded
   // header set; caps keep a compromised/buggy provider from sending an unbounded
@@ -135,6 +141,12 @@ export async function POST(req: NextRequest) {
     );
   }
   const body = parsed.data;
+  // 8h: use the customer's NEW text only — Postmark's StrippedTextReply removes the
+  // quoted prior thread. Fall back to the full TextBody on a first email (nothing to
+  // strip → StrippedTextReply is empty/absent). This is what we store AND what the AI
+  // reads, so it never mis-attributes its own quoted-back reply (A39) or pays for the
+  // quoted bloat.
+  const customerText = body.StrippedTextReply?.trim() || body.TextBody;
 
   const admin = createAdminClient();
 
@@ -333,7 +345,7 @@ export async function POST(req: NextRequest) {
       conversation_id: conversationId,
       author_type: "customer",
       author_id: null,
-      body: body.TextBody,
+      body: customerText,
       is_internal_note: false,
       external_message_id: body.MessageID,
       email_metadata: {
@@ -378,7 +390,7 @@ export async function POST(req: NextRequest) {
     after(() =>
       notifyAssignedAgentOfCustomerMessage({
         conversationId,
-        body: body.TextBody,
+        body: customerText,
       })
     );
   }
@@ -403,7 +415,7 @@ export async function POST(req: NextRequest) {
       conversationId,
       companyId: tenant.company_id,
       customerId,
-      customerMessage: body.TextBody,
+      customerMessage: customerText,
       customerMessageId: insertedMsg.id,
       headers: body.Headers ?? [],
       from: body.From,
