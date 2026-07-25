@@ -3249,25 +3249,10 @@ function Composer({
             </LearningHint>
             )}
 
-            <LearningHint
-              category="AI · Coach"
-              title="Ask Coach"
-              whatItIs="Pre-send review of your draft using Coach v5 — the LLM-primary communication coach grounded in 10 books of operational communication principles (Voss, Carnegie, Heath, Zinsser, Rosenberg, others). Returns a classification, a suggested revision with explicit source citation, and conversational follow-up."
-              why="The same risks show up in support replies again and again: unsupported absolutes, fabricated specifics (the agent invents a feature or policy the product doesn't actually have), empty filler that delays the actual answer. The Coach is calibrated to surface these BEFORE send, when the cost of fixing is editing one sentence — not after, when the cost is a customer who reads the fabricated specific as a promise."
-              how="Type your draft. Click Ask Coach. Read the diagnostic (what the Coach noticed) and the suggested revision (with the principle and book it's drawing from). Use the revision, edit it further, or dismiss and send as-is. The Coach informs; you decide."
-              principle="The Coach never sends. Its job is to surface the risk you can't see in your own draft. Yours is to decide whether the risk is real and what to do about it."
-            >
-              <button
-                type="button"
-                onClick={onAskCoach}
-                disabled={!draft.trim()}
-                className="text-[11px] font-semibold text-brand border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-0.5 rounded"
-              >
-                <Wand2 className="w-3 h-3" aria-hidden />
-                Ask Coach
-              </button>
-            </LearningHint>
-
+            {/* Order per founder 2026-07-25: Summarize · AI Co-Pilot · Ask Coach ·
+                Spawn Task. Co-Pilot (draft-from-scratch) precedes Ask Coach
+                (review-what-you-drafted) because that's the actual workflow order —
+                you draft, then you check. */}
             <LearningHint
               category="AI · C.A.R.E"
               title="AI Co-pilot"
@@ -3288,6 +3273,25 @@ function Composer({
                   <Sparkles className="w-3 h-3" aria-hidden />
                 )}
                 AI Co-pilot
+              </button>
+            </LearningHint>
+
+            <LearningHint
+              category="AI · Coach"
+              title="Ask Coach"
+              whatItIs="Pre-send review of your draft using Coach v5 — the LLM-primary communication coach grounded in 10 books of operational communication principles (Voss, Carnegie, Heath, Zinsser, Rosenberg, others). Returns a classification, a suggested revision with explicit source citation, and conversational follow-up."
+              why="The same risks show up in support replies again and again: unsupported absolutes, fabricated specifics (the agent invents a feature or policy the product doesn't actually have), empty filler that delays the actual answer. The Coach is calibrated to surface these BEFORE send, when the cost of fixing is editing one sentence — not after, when the cost is a customer who reads the fabricated specific as a promise."
+              how="Type your draft. Click Ask Coach. Read the diagnostic (what the Coach noticed) and the suggested revision (with the principle and book it's drawing from). Use the revision, edit it further, or dismiss and send as-is. The Coach informs; you decide."
+              principle="The Coach never sends. Its job is to surface the risk you can't see in your own draft. Yours is to decide whether the risk is real and what to do about it."
+            >
+              <button
+                type="button"
+                onClick={onAskCoach}
+                disabled={!draft.trim()}
+                className="text-[11px] font-semibold text-brand border border-arc-400/40 hover:border-arc-400/70 bg-arc-400/5 hover:bg-arc-400/10 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              >
+                <Wand2 className="w-3 h-3" aria-hidden />
+                Ask Coach
               </button>
             </LearningHint>
 
