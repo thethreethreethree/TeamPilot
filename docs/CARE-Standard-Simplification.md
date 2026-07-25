@@ -119,9 +119,38 @@ The Understanding Gate still applies: the AI never auto-sends and never auto-res
 2. **Propose the simplified layouts** for the three core screens (Queue, Ticket, Response) — as structure/wireframe description — before implementing.
 3. **Implement screen by screen** (Queue → Ticket → Response → Resolve/Escalate), so each can be reviewed.
 4. Preserve all existing functionality behind the new disclosure structure; write nothing that deletes capability.
-5. **Stack:** `[FILL IN — e.g. Next.js / React / TypeScript / Tailwind]`
+5. **Stack:** Next.js (App Router) / React / TypeScript / Tailwind. Surface lives in
+   `src/components/care/ConversationsApp.tsx`; mode via `useExperienceMode()`
+   (`isStandard`), persisted in `profiles.experience_mode`.
 
 **Deliver the audit map first. Explain the reasoning for any element you place, then simplify.**
+
+---
+
+## 8. Build Status — 2026-07-25 (honest ledger, §3.4)
+
+Standard mode branches off `isStandard` from `useExperienceMode()`; every change is
+gated so **Expert is untouched** (§6). "Done" = built + `tsc`/tests green, **runtime
+UNVERIFIED on device** (needs founder — AMD-006 addendum).
+
+| §   | Item | Status | Notes |
+|-----|------|--------|-------|
+| 3.1 | One default list, smart-sorted | **Done** | Standard defaults to "My Tickets"; other views behind "More views" toggle. |
+| 3.1 | Row = customer/subject/priority/time/status only | **Done** | Tag chips + bulk-select checkbox hidden in Standard. Concern (0188) + SLA bar + needs-guidance KEPT — high-signal triage, used on >1-in-5 tickets (§4 rule), so not clutter. |
+| 3.2 | Single-screen ticket layout | **Done (pre-existing)** | Thread center / customer panel side / composer bottom already the layout. |
+| 3.2 | Customer context collapsed by default | **Done** | `setCustomerCollapsed(true)` when Standard + mode loaded. |
+| 3.2 | Advanced metadata behind one toggle | **Done** | Priority dropdown + ticket-header tags hidden in Standard; Details lives in the collapsible customer panel. |
+| 3.2 | AI understanding as ONE summary line at top | **Deferred — DECISION** | Would auto-fire the brain-gated Summarize on every ticket open (LLM cost per open; §3.4 control-window makes it silent month-1 anyway). Held rather than silently spend. **Founder: want the one-liner (accept per-open cost), or keep Summarize on-demand in the composer?** |
+| 3.3 | Ranked actions: Send · Send & Resolve · Save draft | **Send & Resolve Done** (`9fd89535`); Save draft **not built** | Save draft has no persistence backend — a button that didn't persist would be dishonest (§A24). Needs a draft-persistence decision. |
+| 3.3 | Tools decluttered to essentials + "more" | **Done** | Composer: Summarize · Co-Pilot · Ask Coach · Spawn Task; Formulate → Expert-only. Analysis tools grouped behind the "Agent Tools" reveal. |
+| 3.3 | AI reply pre-drafted in the box | **Reverted — DECISION** | Auto-fired Co-Pilot on every open; reverted during the provider outage (fired failing calls) and because it spends an LLM call per open + inserts the AI unprompted (§3.4 guide-don't-overtake). Now that the provider is fixed it *could* return. **Founder: auto-pre-draft on open (cost + AI-forward), or keep Co-Pilot one-click?** |
+| 3.4 | Resolve — one click, optional fast reason | **Done (pre-existing)** | Resolve modal + auto-advance to next conversation (§1.5.1 continuity intact). |
+| 3.4 | Escalate — one click, AI pre-selects target | **Not built** | No skill/tier routing model exists to pre-select against; "request supervisor guidance" (`supervisorGuidanceRequestedAt`) is the nearest current primitive. Building real AI-routed escalation is a feature, not a surface tweak — needs its own spec (§3.2 gate: don't half-build). |
+| 3.5 | Settings out of the agent surface → Admin | **Done (pre-existing)** | Config lives at `/dashboard/care/settings` (admin-gated); agents get defaults. |
+
+**Open founder decisions (3):** §3.2 one-line AI summary, §3.3 auto-pre-draft, and §3.3
+Save-draft persistence. Each is a cost/behavior trade the founder owns (§2), not a
+mechanical build — surfaced rather than decided unilaterally.
 
 ---
 
