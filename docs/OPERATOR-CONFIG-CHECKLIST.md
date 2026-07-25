@@ -15,7 +15,7 @@ the code path this session; "inferred" = from the var name + where it's read (co
 | Var | Enables | Notes |
 |---|---|---|
 | `ANTHROPIC_API_KEY` (+ `ANTHROPIC_MODEL`) | Anthropic provider | verified — `llm/anthropic.ts`. |
-| `DEEPSEEK_API_KEY` (+ `DEEPSEEK_MODEL`) | DeepSeek provider | verified. **⚠️ If set, DeepSeek is PRIMARY (China-based) for ALL AI incl. customer extension data — see the data-governance flag in FOUNDER-ACTION-QUEUE.** |
+| `DEEPSEEK_API_KEY` (+ `DEEPSEEK_MODEL`) | DeepSeek provider | verified. **⚠️ If set, DeepSeek is PRIMARY (China-based) for ALL AI incl. customer extension data — see the data-governance flag in FOUNDER-ACTION-QUEUE.** **🚨 `DEEPSEEK_MODEL`: leave UNSET (code default `deepseek-v4-flash`) — NEVER set it to `deepseek-chat`, which DeepSeek RETIRED 2026-07-25; the API 400s on it and takes down EVERY AI tool (this caused the 2026-07-25 outage). If overriding, use a current id (`deepseek-v4-flash`/`deepseek-v4-pro`). Debug tip: Settings → LLM Connection → Run test shows the effective model; a `model_unavailable` error there = a stale `DEEPSEEK_MODEL`.** **Set `ANTHROPIC_API_KEY` too to enable cross-provider FAILOVER (a DeepSeek model/auth/quota failure then cascades to Anthropic instead of all-AI-down).** |
 | `LLM_PROVIDER` | Explicit provider pin (`anthropic`\|`deepseek`) | verified — `chooseProvider`. Set to `anthropic` to force it. |
 
 ## BACKGROUND JOBS — one secret enables all four crons
