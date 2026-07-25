@@ -118,6 +118,9 @@ export function CareRadialHome() {
     sending: boolean;
     error: string | null;
     sent: boolean;
+    // Ask Coach grades the DRAFT on this same surface (A16 compose) — Coach needs
+    // a non-empty draft (the route requires min length 1), so it lives here.
+    coach?: { loading: boolean; suggestion: string | null; error: string | null };
   } | null>(null);
 
   const touchStartY = useRef<number | null>(null);
@@ -222,12 +225,102 @@ export function CareRadialHome() {
     }
   }
 
+  // Co-Pilot drafts a reply from the thread (route returns {draft}) → prefill the
+  // reply sheet so the agent edits + sends. This is the desktop behavior (A21).
+  async function runCoPilot() {
+    if (!current) return;
+    setSheet({ tool: "copilot", label: "Co-Pilot", loading: true, result: null, error: null });
+    try {
+      const res = await fetch(
+        `/api/care/agent/conversations/${current.id}/co-pilot`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok || typeof data?.draft !== "string") {
+        setSheet({
+          tool: "copilot",
+          label: "Co-Pilot",
+          loading: false,
+          result: null,
+          error: data?.error ?? `Co-Pilot unavailable (HTTP ${res.status}).`,
+        });
+        return;
+      }
+      setSheet(null);
+      setReply({ text: data.draft, sending: false, error: null, sent: false });
+    } catch {
+      setSheet({
+        tool: "copilot",
+        label: "Co-Pilot",
+        loading: false,
+        result: null,
+        error: "Couldn't reach the server.",
+      });
+    }
+  }
+
+  // Ask Coach grades the CURRENT reply draft (route requires a non-empty draft).
+  async function gradeCoach() {
+    if (!current || !reply || !reply.text.trim()) return;
+    const draft = reply.text;
+    setReply({ ...reply, coach: { loading: true, suggestion: null, error: null } });
+    try {
+      const res = await fetch(
+        `/api/care/agent/conversations/${current.id}/ask-coach`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ draft, mode: "ask" }),
+        }
+      );
+      const data = await res.json().catch(() => null);
+      const suggestion =
+        typeof data?.response?.suggestedRevision === "string"
+          ? data.response.suggestedRevision
+          : typeof data?.response?.classification === "string"
+            ? data.response.classification
+            : null;
+      setReply((r) =>
+        r
+          ? {
+              ...r,
+              coach: {
+                loading: false,
+                suggestion: res.ok ? suggestion : null,
+                error: res.ok
+                  ? suggestion
+                    ? null
+                    : "Coach had nothing to add."
+                  : data?.error ?? `Coach unavailable (HTTP ${res.status}).`,
+              },
+            }
+          : r
+      );
+    } catch {
+      setReply((r) =>
+        r ? { ...r, coach: { loading: false, suggestion: null, error: "Couldn't reach the server." } } : r
+      );
+    }
+  }
+
   async function runTool(tool: ToolKey, label: string) {
     if (!unlocked) {
       setUnlocked(true);
       return;
     }
     if (!current) return;
+    // Co-Pilot drafts INTO the reply; Ask Coach grades the reply draft — both route
+    // through the reply sheet, not the read-only result sheet (A16 compose, A21).
+    if (tool === "copilot") {
+      void runCoPilot();
+      return;
+    }
+    if (tool === "coach") {
+      setReply(
+        (r) => r ?? { text: "", sending: false, error: null, sent: false }
+      );
+      return;
+    }
     setSheet({ tool, label, loading: true, result: null, error: null });
     try {
       const { url, body } = toolRequest(tool, current.id);
@@ -502,6 +595,45 @@ export function CareRadialHome() {
                   <p className="mt-2 text-xs text-red-300" role="alert">
                     {reply.error}
                   </p>
+                )}
+                {/* Ask Coach — grades the draft on this surface (A16). */}
+                <button
+                  type="button"
+                  onClick={gradeCoach}
+                  disabled={!reply.text.trim() || reply.coach?.loading}
+                  className="mt-3 w-full rounded-lg border border-amber-400/50 text-amber-300 text-xs font-medium py-2 disabled:opacity-40 flex items-center justify-center gap-1.5"
+                >
+                  {reply.coach?.loading && (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                  )}
+                  <GraduationCap className="w-3.5 h-3.5" aria-hidden /> Ask Coach to check this
+                </button>
+                {reply.coach && !reply.coach.loading && (
+                  <div className="mt-2 rounded-lg border border-white/10 bg-black/40 p-3">
+                    {reply.coach.error ? (
+                      <p className="text-xs text-red-300">{reply.coach.error}</p>
+                    ) : reply.coach.suggestion ? (
+                      <>
+                        <p className="text-[10px] uppercase tracking-widest text-amber-300/70 font-bold mb-1">
+                          Coach suggests
+                        </p>
+                        <p className="text-xs text-white/85 whitespace-pre-wrap leading-relaxed">
+                          {reply.coach.suggestion}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReply((r) =>
+                              r ? { ...r, text: r.coach?.suggestion ?? r.text } : r
+                            )
+                          }
+                          className="mt-2 text-[11px] text-amber-300 underline"
+                        >
+                          Use this
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
                 )}
                 <button
                   type="button"
