@@ -56,5 +56,23 @@ exists) already *mitigates* such outages; this would *detect* them.
 
 ---
 
+## Security audit — service-role tenant isolation (§1.7, result: SOUND)
+
+Swept the cross-tenant-leak class across `createAdminClient()` (RLS-bypassing) surfaces.
+The pattern is uniform and correct everywhere checked — **companyId always comes from
+server-side auth, never from the request:**
+- **Extension** (token): `extensionAuth` resolves companyId from the *token's* user
+  profile (`.eq("id", user.id)`); no route reads a request-supplied companyId.
+- **Care agent** (session): scopes by `auth.companyId` + defense-in-depth
+  `conversation.companyId !== auth.companyId` checks.
+- **Coach sales-session** (session): companyId from the authed user's profile; role-scoped.
+- **File access**: explicit `isUploader || (isAdmin && sameCompany)` — beyond RLS.
+- **Crons** (no session): `CRON_SECRET` Bearer + `constantTimeEqual`, fail-closed 503 when unset.
+
+Honest scope: audited the major clusters (extension, care agent, coach, files, crons),
+not all 63 service-role sites; prior authz sweeps (0090–0111, CRM vendor fix) cover more.
+No cross-tenant leak found. Separately, the ACMS injection hole (system-prompt data) was
+the one real security defect this session — found, fixed, verified, unit-tested.
+
 ## Session-Reads
 §1.1 §1.5 §1.7 §2 §3.1 §3.2 §3.3 §3.4 §5 §6 §A21 §A24 §A26 §A27 §A30 §A38 — all re-read this session (2026-07-25) while producing the work above.
