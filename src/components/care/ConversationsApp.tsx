@@ -1447,7 +1447,10 @@ export function ConversationsApp({
   // AI prepares, never auto-sends). Expert: unchanged (no auto-draft). Behavior change,
   // deliberate per the spec; cheap on the current provider. Guarded to fire once per
   // conversation via autoDraftedFor so it never spams or overwrites a typed draft.
-  const autoDraftedFor = useRef<string | null>(null);
+  // Set (not a single id) so we draft ONCE per conversation per session — a single ref
+  // would re-draft on revisit (the switch-reset clears the draft), wasting Co-Pilot
+  // calls (audit 2026-07-25).
+  const autoDraftedFor = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (
       isStandard &&
@@ -1459,9 +1462,9 @@ export function ConversationsApp({
       !selected.aiResponding &&
       !draft.trim() &&
       !aiDrafting &&
-      autoDraftedFor.current !== selected.id
+      !autoDraftedFor.current.has(selected.id)
     ) {
-      autoDraftedFor.current = selected.id;
+      autoDraftedFor.current.add(selected.id);
       void askAiCoPilot();
     }
     // askAiCoPilot is intentionally omitted — it's re-created each render; the
