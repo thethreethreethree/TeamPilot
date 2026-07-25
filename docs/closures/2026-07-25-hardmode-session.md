@@ -54,6 +54,8 @@ exists) already *mitigates* such outages; this would *detect* them.
 - Mobile radial verified (7 routes exist + correct methods; read view gets messages; swipe/tap logic correct).
 - **§3.1 Standard smart-sort completed** — added the missing SLA-risk key (was priority+age only), so within a priority tier the closest-to-breach ticket surfaces first. Standard-only (Expert sort unchanged, §6).
 - **AI-tool error-surfacing seam completed to the agent** — Summarize/Dissect-ask/Formulate UIs now show the route's real `detail` on failure (they'd discarded it), matching Co-Pilot + mobile. So every AI tool now shows the cause, not a generic message — the opacity the founder hit is closed on all surfaces.
+- **🔒 §3.4 honesty baseline (flagged 8d)** — the customer-facing care AI now answers honestly if asked whether it's a human/AI/bot and NEVER claims to be human (it was told to "sound like a real person" with no honesty-when-asked rule → could deceive, the exact §3.4/§0 failure). Built as a constitutional requirement (rule wins over convenience), test-locked, covers widget+email+voice. The PROACTIVE upfront-disclosure (SB 1001 / EU AI Act) remains your legal call.
+- **Inbound-email quote-strip (flagged 8h, partial)** — the LLM prompt now reads Postmark's `StrippedTextReply` (the AI no longer mis-attributes its own quoted-back reply — A39); the stored message-of-record stays full `TextBody` (store-clean-vs-complete is your call). I initially over-applied it to storage and reverted per 8h's own §2/§5 reasoning — an honest overstep correction.
 
 **HARD MODE guard:** the flag was stale on `STOP` since 2026-07-24, which disarmed the guard and permitted stops all session. Re-armed to `ACTIVE`; verified blocking.
 
