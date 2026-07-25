@@ -3142,6 +3142,10 @@ function Composer({
   onAssetUploaded?: () => void;
   isEmailChannel?: boolean;
 }) {
+  // Standard: relocate Formulate (a "shape my stated intent" tool that overlaps AI
+  // Co-Pilot) to Expert — Co-Pilot + Ask Coach are the primary AI in Standard (§3.3
+  // declutter). Expert shows all composer tools as today (§6).
+  const { isStandard } = useExperienceMode();
   return (
     <div className="border-t border-default bg-white/[0.02] px-4 md:px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       {/* Tool buttons — horizontal scroll instead of vertical wrap
@@ -3197,6 +3201,7 @@ function Composer({
         <div className="flex-1" />
         {!isInternalNote && (
           <>
+            {!isStandard && (
             <LearningHint
               category="AI · C.A.R.E"
               title="Formulate C.A.R.E"
@@ -3214,6 +3219,7 @@ function Composer({
                 Formulate C.A.R.E
               </button>
             </LearningHint>
+            )}
 
             <LearningHint
               category="AI · Coach"
