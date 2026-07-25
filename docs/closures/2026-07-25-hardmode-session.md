@@ -75,5 +75,14 @@ not all 63 service-role sites; prior authz sweeps (0090–0111, CRM vendor fix) 
 No cross-tenant leak found. Separately, the ACMS injection hole (system-prompt data) was
 the one real security defect this session — found, fixed, verified, unit-tested.
 
+Also swept, all confirmatory-SOUND: **write authz** (settings/agents — admin-gated +
+double-scoped `id`+`company_id` write); **inbound-email webhook** (shared-secret
+`constantTimeEqual`, tenant routed by registered `inbound_email_local_part`, writes
+scoped to the resolved company); **CSV formula-injection** (every export routes through
+`toCsv` → `neutralizeCsvFormula` — a grep suspect on `export/[entity]` was cleared by
+reading the code, A26); **upload validation** (`validateUploadCandidate` size+MIME+
+extension, spoofable-MIME-aware, tested). One real defect all session (ACMS); everything
+else verified sound — the A24 pattern (discovery rate → zero), reported as confirmatory.
+
 ## Session-Reads
 §1.1 §1.5 §1.7 §2 §3.1 §3.2 §3.3 §3.4 §5 §6 §A21 §A24 §A26 §A27 §A30 §A38 — all re-read this session (2026-07-25) while producing the work above.
