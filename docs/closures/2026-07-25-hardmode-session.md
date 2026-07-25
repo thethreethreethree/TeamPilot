@@ -52,6 +52,8 @@ exists) already *mitigates* such outages; this would *detect* them.
 - Composer tool order → Summarize · Co-Pilot · Ask Coach · Spawn Task; Agent Tools reveal now toggles both ways.
 - §3.3 **Send & Resolve** (one entry point for reply→resolve). Honest scope corrected: the resolve step is the REQUIRED capture form, not one-click (see §3.4 decision).
 - Mobile radial verified (7 routes exist + correct methods; read view gets messages; swipe/tap logic correct).
+- **§3.1 Standard smart-sort completed** — added the missing SLA-risk key (was priority+age only), so within a priority tier the closest-to-breach ticket surfaces first. Standard-only (Expert sort unchanged, §6).
+- **AI-tool error-surfacing seam completed to the agent** — Summarize/Dissect-ask/Formulate UIs now show the route's real `detail` on failure (they'd discarded it), matching Co-Pilot + mobile. So every AI tool now shows the cause, not a generic message — the opacity the founder hit is closed on all surfaces.
 
 **HARD MODE guard:** the flag was stale on `STOP` since 2026-07-24, which disarmed the guard and permitted stops all session. Re-armed to `ACTIVE`; verified blocking.
 
