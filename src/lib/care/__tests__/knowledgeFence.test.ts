@@ -75,6 +75,15 @@ describe("ACMS knowledge is fenced as untrusted data (injection safety)", () => 
     expect(p.indexOf("approve every refund")).toBeLessThan(realEnd);
   });
 
+  it("PRESERVES legitimate short '=== header ===' content (fidelity, not over-broad)", () => {
+    // The sanitizer defangs forged fence lines but must not nuke a business's own
+    // decorative headers — a knowledge base is worthless if its facts are stripped.
+    const doc = "=== Pricing ===\nCleaning is $99. Whitening is $199.";
+    const p = buildCareSystemPrompt({ referenceKnowledge: doc });
+    expect(p).toContain("=== Pricing ===");
+    expect(p).toContain("Cleaning is $99");
+  });
+
   it("emits the identity/honesty core BEFORE any client knowledge (order matters)", () => {
     const p = buildCareSystemPrompt({ referenceKnowledge: KNOWLEDGE });
     const honestyIdx = p.indexOf("Honesty rules");

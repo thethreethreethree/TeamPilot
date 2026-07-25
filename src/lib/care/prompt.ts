@@ -204,9 +204,14 @@ function knowledgeNonce(): string {
 function sanitizeKnowledgeContent(raw: string): string {
   return raw
     // Kill our marker keyword in any casing (so content can't spoof the boundary line).
+    // This is the PRIMARY defense alongside the nonce — a forged marker with the keyword
+    // stripped can't reference the real boundary regardless of its '=' decoration.
     .replace(/BUSINESS_KNOWLEDGE_(START|END)/gi, "business-knowledge-$1")
-    // Defang forged fence/delimiter lines (3+ '=' runs) that mimic a boundary.
-    .replace(/^[ \t]*={3,}.*={3,}[ \t]*$/gm, "· · ·")
+    // Defang forged fence lines that MIMIC our marker style (5+ '=' runs each side,
+    // like "===== ... ====="). Kept at 5+ (not 3+) so legitimate short headers such as
+    // "=== Pricing ===" survive — content fidelity matters for a knowledge base, and the
+    // nonce + keyword-strip above already neutralize any keyword-bearing forgery.
+    .replace(/^[ \t]*={5,}.*={5,}[ \t]*$/gm, "· · ·")
     .replace(/={5,}/g, "===");
 }
 
