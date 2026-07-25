@@ -129,6 +129,15 @@ const ALLOWLIST = new Map([
   // the outcome and whether it held.
   ["decision_dialogues.update", "§3.1 decision dialogues are append-only."],
   ["decision_dialogues.delete", "§3.1 decision dialogues are append-only."],
+
+  // 0193 care_knowledge_documents (ACMS) — per-tenant client-uploaded KNOWLEDGE, append-only by
+  // design (§3.1). "Current knowledge" = the latest version per company; a business turns knowledge
+  // off by APPENDING a status='retracted' version, never by editing or deleting a row. The absence of
+  // UPDATE/DELETE policies is the control (end users cannot mutate the record), backed defense-in-depth
+  // by the check_care_knowledge_immutability trigger (0193) which freezes the content columns while
+  // permitting created_by->NULL so GDPR user-erasure is never blocked. Same class as events/signals.
+  ["care_knowledge_documents.update", "§3.1 0193 ACMS knowledge is append-only — retract = append a new version, never edit."],
+  ["care_knowledge_documents.delete", "§3.1 0193 ACMS knowledge is immutable record; retract via a status='retracted' version, never delete."],
   // resolutions.update is NOT append-only: the 0005 "resolutions - all" for-all policy
   // (company-scoped) covers it, and the resolution REVIEW legitimately edits
   // observed_outcome/durability/reviewed_at (see /api/resolutions PATCH). It's listed

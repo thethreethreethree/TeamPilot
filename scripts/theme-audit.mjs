@@ -172,6 +172,10 @@ const FILE_ALLOWLIST = new Map([
     "src/components/sales-coach/demo/SalesHonestNote.tsx",
     "Deliberate fixed-dark demo note on /sales/demo — matches CareHonestNote.tsx in the /care/demo family.",
   ],
+  [
+    "src/components/care/mobile/CareRadialHome.tsx",
+    "Deliberate fixed-dark full-screen mobile console (/care/mobile radial launcher): `fixed inset-0 bg-[#0a0a0f] text-white` with white/10 chrome throughout — a single-theme immersive surface by design, same discipline as the /care/demo consoles. The dark ground is intrinsic to the radial-launcher visual, not a theme-token gap.",
+  ],
 ]);
 
 const files = Array.from(
