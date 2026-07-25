@@ -73,6 +73,108 @@ if (!globalThis.__careAdaptersLoaded) {
     }
   };
 
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // RCD — RAW CONVERSATION DATA (founder build 2026-07-26). The text helpers above return a single
+  // STRING for the AI tools; RCD returns the conversation as STRUCTURED, per-message data that
+  // preserves attribution AND captures non-text content (images / files / media). Two governing rules:
+  //   • ThinkerThinker.md A39 — multi-party text must carry who-said-each-turn AS DATA at the source,
+  //     or a downstream consumer reconstructs the roles confidently wrong. rcdFrom keeps role+sender
+  //     per message instead of flattening to a blob.
+  //   • §1.5 / A5 — this is ADDITIVE. extract() (the text path the 6 tools consume as `conversation:
+  //     string`) is untouched, so nothing that works today can regress.
+  // HONESTY (§3.4, same stance as the selectors): any error or miss yields [] / [] and NEVER throws;
+  // a wrong guess OMITS content, never fabricates it. And — per this file's header — the live selectors
+  // are UNVERIFIED against the third-party DOMs for 10 of 11 channels, so RCD capture is likewise
+  // STATIC-VERIFIED ONLY / RUNTIME-UNVERIFIED until each platform is confirmed in a real browser.
+
+  // defaultMediaFrom — best-effort capture of the NON-TEXT content inside a message node: images,
+  // file/attachment links, audio/video. Returns [{ type, url, alt?, filename? }]. It captures DOM
+  // REFERENCES (the URLs already in the page) — it does NOT download bytes; durable byte-storage is a
+  // persistence + data-governance decision held for the founder. Icons/emoji/avatars are filtered by
+  // size so RCD isn't polluted by UI chrome. De-dupes by url (a nested node can repeat an asset).
+  globalThis.defaultMediaFrom = function defaultMediaFrom(node) {
+    const media = [];
+    try {
+      for (const img of node.querySelectorAll("img")) {
+        const url = img.currentSrc || img.getAttribute("src") || "";
+        if (!url) continue;
+        if (/^data:image\/(gif|svg)/i.test(url)) continue; // spacer / emoji sprite
+        const w = img.naturalWidth || img.width || parseInt(img.getAttribute("width") || "0", 10) || 0;
+        const h = img.naturalHeight || img.height || parseInt(img.getAttribute("height") || "0", 10) || 0;
+        if (w && h && w < 40 && h < 40) continue; // UI icon / emoji / tiny avatar
+        media.push({ type: "image", url, alt: (img.getAttribute("alt") || "").trim() });
+      }
+      const FILE_RE =
+        /\.(pdf|docx?|xlsx?|pptx?|zip|rar|7z|csv|txt|rtf|png|jpe?g|gif|webp|heic|svg|mp4|mov|webm|mp3|wav|m4a|ogg)(\?|#|$)/i;
+      for (const a of node.querySelectorAll("a[href]")) {
+        const url = a.href || a.getAttribute("href") || "";
+        if (!url) continue;
+        const dl = a.getAttribute("download");
+        if (dl || FILE_RE.test(url)) {
+          media.push({
+            type: "file",
+            url,
+            filename: (dl || a.getAttribute("aria-label") || a.textContent || "").trim().slice(0, 200),
+          });
+        }
+      }
+      for (const v of node.querySelectorAll("video, audio")) {
+        const src = v.querySelector("source");
+        const url = v.currentSrc || (src && src.src) || v.getAttribute("src") || "";
+        if (url) media.push({ type: v.tagName.toLowerCase() === "video" ? "video" : "audio", url });
+      }
+    } catch {
+      /* degrade to whatever was gathered before the throw */
+    }
+    const seen = new Set();
+    return media.filter((m) => (m.url && !seen.has(m.url) ? (seen.add(m.url), true) : false));
+  };
+
+  // rcdFrom — build the structured RCD array. `msgSel` selects message CONTAINERS (so media inside a
+  // message is captured WITH that message). `roleOf(node)` optionally returns "agent" | "customer"
+  // (a normalized role) OR a sender NAME OR "" (unknown) — mirroring the existing labeledFrom contract.
+  // Shape per element: { role: "agent"|"customer"|"unknown", sender: string, text: string,
+  //   media: [{ type, url, alt?, filename? }] }. Caps to the RECENT tail (most-recent matters most,
+  // like textFrom's slice(-N)). Empty array on any error/miss (→ caller degrades, never fabricates).
+  globalThis.rcdFrom = function rcdFrom(msgSel, roleOf) {
+    try {
+      const nodes = Array.from(document.querySelectorAll(msgSel));
+      const messages = [];
+      for (const n of nodes) {
+        if (n.offsetParent === null && n.getClientRects().length === 0) continue;
+        const text = (n.innerText || n.textContent || "")
+          .replace(/\s+\n/g, "\n")
+          .replace(/[ \t]{2,}/g, " ")
+          .trim();
+        const media = globalThis.defaultMediaFrom(n);
+        if (!text && media.length === 0) continue; // nothing to record
+        let role = "unknown";
+        let sender = "";
+        try {
+          const r = (roleOf && roleOf(n)) || "";
+          if (r === "agent" || r === "customer") role = r;
+          else if (r) sender = r; // a sender name, role stays unknown (source can't tell which side)
+        } catch {
+          /* role stays unknown */
+        }
+        messages.push({ role, sender, text, media });
+      }
+      return messages.length > 500 ? messages.slice(-500) : messages;
+    } catch {
+      return [];
+    }
+  };
+
+  // rcdOrText — RCD with a guaranteed floor: try structured per-message capture; if the (often
+  // UNVERIFIED) container selector matches nothing, degrade to a SINGLE synthetic message built from
+  // the adapter's proven text extraction, so RCD is NEVER worse than today's text scrape (§3.4 / §1.5).
+  globalThis.rcdOrText = function rcdOrText(msgSel, roleOf, textFallback) {
+    const rcd = globalThis.rcdFrom(msgSel, roleOf);
+    if (rcd.length) return rcd;
+    const t = (typeof textFallback === "function" ? textFallback() : textFallback) || "";
+    return t ? [{ role: "unknown", sender: "", text: t, media: [] }] : [];
+  };
+
   // ROLE-LABELING STATUS (Fix 2a, founder audit 2026-07-23). The tools need to know who's the agent vs the
   // customer. Coverage:
   //   • WhatsApp — LABELED via `.message-out/.message-in` + `data-pre-plain-text` sender (reliable).
@@ -106,12 +208,29 @@ if (!globalThis.__careAdaptersLoaded) {
         });
         return labeled || textFrom(".a3s");
       },
+      // RCD: scan each message CONTAINER (so inline images + the body are captured together), sender-
+      // labeled where `span.gD` resolves. Falls back to a single message from the proven `.a3s` text if
+      // the container guess misses. Attachment CHIPS that Gmail renders outside the body are a known
+      // per-platform tightening (UNVERIFIED).
+      extractRCD: () =>
+        rcdOrText(
+          ".gs, .adn, [role='listitem'].h7",
+          (n) => {
+            const s = n.querySelector("span.gD[email], span.gD[name], .gD[email]");
+            return s ? (s.getAttribute("name") || s.getAttribute("email") || s.textContent || "").trim() : "";
+          },
+          () => textFrom(".a3s")
+        ),
     },
     {
       key: "outlook",
       label: "email thread",
       match: (h) => h === "outlook.office.com" || h === "outlook.office365.com" || h === "outlook.live.com",
       extract: () => textFrom('[aria-label="Message body"], .allowTextSelection, [role="document"]'),
+      extractRCD: () =>
+        rcdOrText('[aria-label="Message body"], .allowTextSelection, [role="document"]', null, () =>
+          textFrom('[aria-label="Message body"], .allowTextSelection, [role="document"]')
+        ),
     },
     {
       key: "instagram",
@@ -119,6 +238,10 @@ if (!globalThis.__careAdaptersLoaded) {
       match: (h) => h === "www.instagram.com" || h === "instagram.com",
       // IG DM message rows live inside the conversation grid; message text spans have dir="auto".
       extract: () => textFrom('div[role="grid"] div[dir="auto"], div[aria-label*="Message"] div[dir="auto"]'),
+      extractRCD: () =>
+        rcdOrText('div[role="grid"] div[dir="auto"], div[aria-label*="Message"] div[dir="auto"]', null, () =>
+          textFrom('div[role="grid"] div[dir="auto"], div[aria-label*="Message"] div[dir="auto"]')
+        ),
     },
     {
       key: "messenger",
@@ -126,6 +249,7 @@ if (!globalThis.__careAdaptersLoaded) {
       match: (h) =>
         h === "www.messenger.com" || h === "messenger.com" || h === "www.facebook.com" || h === "facebook.com",
       extract: () => textFrom('div[role="main"] div[dir="auto"]'),
+      extractRCD: () => rcdOrText('div[role="main"] div[dir="auto"]', null, () => textFrom('div[role="main"] div[dir="auto"]')),
     },
     {
       key: "whatsapp",
@@ -172,36 +296,65 @@ if (!globalThis.__careAdaptersLoaded) {
           return "unknown";
         }
       },
+      // RCD: scan each message BUBBLE (`.message-out`/`.message-in`) so sent/received IMAGES are captured
+      // with their message, and carry the reliable WhatsApp role at the source (A39). `.message-out` = the
+      // agent, `.message-in` = the customer. Falls back to the LIVE-CONFIRMED `[data-pre-plain-text]` text.
+      extractRCD: () =>
+        rcdOrText(
+          ".message-out, .message-in",
+          (n) => (n.classList.contains("message-out") ? "agent" : "customer"),
+          () => textFrom("[data-pre-plain-text]")
+        ),
     },
     {
       key: "linkedin",
       label: "message thread",
       match: (h) => h === "www.linkedin.com" || h === "linkedin.com",
       extract: () => textFrom(".msg-s-event-listitem__body, .msg-s-message-list__event p"),
+      extractRCD: () =>
+        rcdOrText(".msg-s-event-listitem, .msg-s-message-list__event", null, () =>
+          textFrom(".msg-s-event-listitem__body, .msg-s-message-list__event p")
+        ),
     },
     {
       key: "gorgias",
       label: "ticket",
       match: (h) => h.endsWith(".gorgias.com") || h === "gorgias.com",
       extract: () => textFrom('[data-testid="message-body"], .message-body, article'),
+      extractRCD: () =>
+        rcdOrText('[data-testid="message-body"], .message-body, article', null, () =>
+          textFrom('[data-testid="message-body"], .message-body, article')
+        ),
     },
     {
       key: "zendesk",
       label: "ticket",
       match: (h) => h.endsWith(".zendesk.com"),
       extract: () => textFrom(".zd-comment, [data-comment-body], .event .comment"),
+      extractRCD: () =>
+        rcdOrText(".zd-comment, [data-comment-body], .event .comment", null, () =>
+          textFrom(".zd-comment, [data-comment-body], .event .comment")
+        ),
     },
     {
       key: "intercom",
       label: "conversation",
       match: (h) => h === "app.intercom.com" || h.endsWith(".intercom.com"),
       extract: () => textFrom('.conversation__body, [class*="conversationPart"], [class*="comment__body"]'),
+      extractRCD: () =>
+        rcdOrText('[class*="conversationPart"], [class*="comment__body"], .conversation__body', null, () =>
+          textFrom('.conversation__body, [class*="conversationPart"], [class*="comment__body"]')
+        ),
     },
     {
       key: "front",
       label: "conversation",
       match: (h) => h === "app.frontapp.com",
       extract: () => textFrom('[class*="messageBody"], [class*="message-body"], .message'),
+      extractRCD: () =>
+        rcdOrText('[class*="message-body"], [class*="messageBody"], .message', null, () =>
+          textFrom('[class*="messageBody"], [class*="message-body"], .message')
+        ),
     },
     {
       key: "slack",
@@ -213,6 +366,14 @@ if (!globalThis.__careAdaptersLoaded) {
       extract: () =>
         textFrom(
           '[data-qa="message_content"] .p-rich_text_section, .c-message_kit__blocks .p-rich_text_section, .c-virtual_list__item .p-rich_text_section'
+        ),
+      // RCD: scan the message KIT container (not just the rich-text block) so uploaded files/images in
+      // a Slack message are captured with it; degrade to the proven rich-text extraction.
+      extractRCD: () =>
+        rcdOrText('[data-qa="message_content"], .c-message_kit__blocks, .c-virtual_list__item', null, () =>
+          textFrom(
+            '[data-qa="message_content"] .p-rich_text_section, .c-message_kit__blocks .p-rich_text_section, .c-virtual_list__item .p-rich_text_section'
+          )
         ),
     },
   ];
