@@ -4066,7 +4066,15 @@ function SummarizeCarePanel({
           { method: "POST" }
         );
         if (!res.ok) {
-          setError("Couldn't generate a summary.");
+          // Surface the REAL cause the route now returns (2026-07-25), not a generic
+          // message — this is the exact "Couldn't generate a summary right now" opacity
+          // the founder hit. Same detail-surfacing as Co-Pilot + the mobile radial.
+          const errData = await res.json().catch(() => null);
+          setError(
+            errData?.detail
+              ? `Couldn't generate a summary — ${errData.detail}`
+              : "Couldn't generate a summary."
+          );
           return;
         }
         const data = await res.json();
@@ -4212,7 +4220,9 @@ function DissectCarePanel({
       );
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.reply) {
-        setAskError(data?.error ?? "The coach couldn't respond. Try again.");
+        setAskError(
+          data?.detail ?? data?.error ?? "The coach couldn't respond. Try again."
+        );
         setTurns((t) => t.filter((_, i) => i !== t.length - 1)); // roll back the optimistic user turn
         setQuestion(q);
         return;
