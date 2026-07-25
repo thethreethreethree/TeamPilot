@@ -2531,6 +2531,19 @@ function DetailHeader({
               </Link>
             </LearningHint>
           )}
+          {/* Collapse back to the single "Agent Tools" control — the reveal is a
+              TOGGLE, not one-way, so the tools stay grouped behind one control as
+              the founder intended (2026-07-25) rather than permanently spilling
+              into the header once opened. */}
+          <button
+            type="button"
+            onClick={() => setToolsExpanded(false)}
+            title="Collapse Agent Tools"
+            aria-label="Collapse Agent Tools"
+            className="inline-flex items-center gap-1 text-xs text-muted hover:text-primary border border-default hover:border-strong px-2 py-1.5 rounded-md"
+          >
+            <ChevronDown className="w-3.5 h-3.5 rotate-180" aria-hidden />
+          </button>
             </>
           )}
           {conversation.aiResponding && (
