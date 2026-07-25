@@ -2474,8 +2474,6 @@ function DetailHeader({
               Dissect
             </button>
           </LearningHint>
-            </>
-          )}
           {/* Coach — promoted to the top toolbar (founder 2026-07-24). This is the SAME grade-a-draft
               Coach as the bottom-bar "Ask Coach" (same AskCoachCarePanel, same ask-coach route) — it was
               buried + greyed in the composer bar, so it's surfaced here alongside Summarize/Dissect for
@@ -2519,8 +2517,8 @@ function DetailHeader({
               dead link to a non-existent /dashboard/decisions/new — fixed
               2026-07-24.) Full inline-in-thread integration remains a
               follow-up. */}
-          {/* Decision Dialogue is advanced escalation — Expert-only in Standard (§3.4). */}
-          {conversation.status !== "closed" && !isStandard && (
+          {/* Decision Dialogue — grouped inside Agent Tools (founder 2026-07-25). */}
+          {conversation.status !== "closed" && (
             <LearningHint
               category="C.A.R.E · §3.3"
               title="Open as Decision Dialogue"
@@ -2537,6 +2535,8 @@ function DetailHeader({
                 Open as Decision Dialogue
               </Link>
             </LearningHint>
+          )}
+            </>
           )}
           {conversation.aiResponding && (
             <LearningHint
