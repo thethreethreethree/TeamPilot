@@ -156,6 +156,39 @@ export function LlmConnectionPanel() {
         </div>
       )}
 
+      {/* Single-provider / no-failover warning (2026-07-25): the provider cascade
+          (auth/quota/model_unavailable → the other provider) can only fire when BOTH
+          keys are set. With one, any DeepSeek outage — a renamed model, an auth/quota
+          block — takes every AI feature down with no automatic fallback. Surfaced here
+          so the resilience gap is visible where an operator checks the connection. */}
+      {keyConfigured &&
+        !(caps?.providers.deepseek && caps?.providers.anthropic) && (
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/[0.06] p-3 mb-4 flex gap-3">
+            <AlertTriangle
+              aria-hidden
+              className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5"
+            />
+            <div className="text-xs text-secondary leading-relaxed">
+              <span className="font-semibold text-primary">
+                Single provider — no failover.
+              </span>{" "}
+              Only{" "}
+              <span className="text-brand font-mono">
+                {caps?.providers.deepseek ? "DeepSeek" : "Anthropic"}
+              </span>{" "}
+              is configured. If it has an outage, an auth/quota block, or a
+              renamed model, every AI feature goes down with no automatic
+              fallback — the cross-provider cascade needs both keys. Add{" "}
+              <code className="text-brand font-mono">
+                {caps?.providers.deepseek
+                  ? "ANTHROPIC_API_KEY"
+                  : "DEEPSEEK_API_KEY"}
+              </code>{" "}
+              to enable failover.
+            </div>
+          </div>
+        )}
+
       {/* Action row */}
       <div className="flex items-center gap-3">
         <LearningHint
