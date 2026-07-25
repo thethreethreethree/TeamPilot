@@ -2311,6 +2311,10 @@ function DetailHeader({
   onDissect: () => void;
   onCoach: () => void;
 }) {
+  // Standard: fold the AI-read tools (Summarize/Dissect) behind one "Tools" reveal to
+  // declutter the toolbar (§3.2, collapse-don't-remove). Expert: inline as today (§6).
+  const { isStandard } = useExperienceMode();
+  const [toolsExpanded, setToolsExpanded] = useState(false);
   const dl = careStatusDisplay(conversation.status);
   const Icon = dl.icon;
   return (
@@ -2395,6 +2399,17 @@ function DetailHeader({
               context, making them visually present but
               click-blocked by the panel underneath. Wrap +
               z-10 keeps every button reachable. */}
+          {isStandard && !toolsExpanded ? (
+            <button
+              type="button"
+              onClick={() => setToolsExpanded(true)}
+              title="Summarize & Dissect — the System's read of this conversation"
+              className="inline-flex items-center gap-1 text-xs text-brand border border-arc-400/40 hover:border-arc-400/70 px-3 py-1.5 rounded-md"
+            >
+              <ChevronRight className="w-3.5 h-3.5" aria-hidden /> Tools
+            </button>
+          ) : (
+            <>
           <LearningHint
             category="AI · C.A.R.E"
             title="Summarize"
@@ -2435,6 +2450,8 @@ function DetailHeader({
               Dissect
             </button>
           </LearningHint>
+            </>
+          )}
           {/* Coach — promoted to the top toolbar (founder 2026-07-24). This is the SAME grade-a-draft
               Coach as the bottom-bar "Ask Coach" (same AskCoachCarePanel, same ask-coach route) — it was
               buried + greyed in the composer bar, so it's surfaced here alongside Summarize/Dissect for
