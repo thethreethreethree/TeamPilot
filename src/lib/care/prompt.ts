@@ -201,7 +201,9 @@ function knowledgeNonce(): string {
  * and (b) defang any `=====`-style delimiter line so no forged fence survives. Legit
  * markdown rarely uses `=====` runs; the safety trade favors neutralizing them.
  */
-function sanitizeKnowledgeContent(raw: string): string {
+// Exported for direct unit testing — this is a security boundary; its attack-variant
+// coverage (forged markers neutralized, legit content preserved) is load-bearing.
+export function sanitizeKnowledgeContent(raw: string): string {
   return raw
     // Kill our marker keyword in any casing (so content can't spoof the boundary line).
     // This is the PRIMARY defense alongside the nonce — a forged marker with the keyword
