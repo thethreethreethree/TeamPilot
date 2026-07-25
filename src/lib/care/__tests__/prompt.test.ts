@@ -154,6 +154,16 @@ describe("buildCareSystemPrompt — tone/length wiring (F2 regression guard)", (
     expect(p).toContain("VOICE MODE");
     expect(p.indexOf("TONE & LENGTH")).toBeLessThan(p.indexOf("VOICE MODE"));
   });
+
+  it("REQUIRES honesty about being an AI when directly asked (§3.4 — never claim to be human)", () => {
+    // §3.4/§0: the AI is told to "sound like a real person"; without this rule it could
+    // LIE when a customer asks "are you human or an AI?" — the core deception the
+    // constitution refuses. This locks the baseline (answer honestly when asked). The
+    // proactive-disclosure decision (SB 1001 / EU AI Act) is separate + founder-owned.
+    const p = buildCareSystemPrompt({});
+    expect(p).toMatch(/a real person, a human, an AI, or a bot/i);
+    expect(p).toMatch(/NEVER claim, imply, or let stand that you're a human/i);
+  });
 });
 
 /**
