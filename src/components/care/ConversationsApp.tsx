@@ -2388,11 +2388,15 @@ function DetailHeader({
                 AI responding
               </span>
             )}
-            <PriorityDropdown
-              current={conversation.priority}
-              onChange={onPriorityChange}
-            />
-            {conversation.tags.map((t) => {
+            {/* Priority + tags are metadata — Expert-only in Standard (§3.2). */}
+            {!isStandard && (
+              <PriorityDropdown
+                current={conversation.priority}
+                onChange={onPriorityChange}
+              />
+            )}
+            {!isStandard &&
+              conversation.tags.map((t) => {
               const tone = tagTone(t.color);
               return (
                 <span
@@ -2528,7 +2532,8 @@ function DetailHeader({
               dead link to a non-existent /dashboard/decisions/new — fixed
               2026-07-24.) Full inline-in-thread integration remains a
               follow-up. */}
-          {conversation.status !== "closed" && (
+          {/* Decision Dialogue is advanced escalation — Expert-only in Standard (§3.4). */}
+          {conversation.status !== "closed" && !isStandard && (
             <LearningHint
               category="C.A.R.E · §3.3"
               title="Open as Decision Dialogue"
@@ -2640,7 +2645,9 @@ function DetailHeader({
                 </button>
               </LearningHint>
             )}
-          {conversation.status !== "closed" && (
+          {/* Close (archive without resolution) is secondary to Resolve — Expert-only
+              in Standard, where Resolve is the one primary terminal action (§3.4). */}
+          {conversation.status !== "closed" && !isStandard && (
             <LearningHint
               category="C.A.R.E"
               title="Close"
