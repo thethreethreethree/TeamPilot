@@ -1,0 +1,404 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Sparkles,
+  AlignLeft,
+  GraduationCap,
+  Brain,
+  ListPlus,
+  MessageSquare,
+  Home,
+  CheckSquare,
+  Search,
+  Settings,
+  Loader2,
+  ChevronUp,
+  ChevronDown,
+  X,
+} from "lucide-react";
+
+/**
+ * Mobile C.A.R.E — radial home (founder mockup 2026-07-25).
+ *
+ * Founder-locked spec: ① responsive web in this app, ② the ring tools call the
+ * SAME backend routes as desktop (A21/A31 — one engine, not a parallel shell),
+ * ③ swiping up/down on the center cycles the CONVERSATION LIST, ④ read + the five
+ * tools + reply/handoff; heavier controls stay on desktop. "A 5-year-old can use it."
+ *
+ * Interaction (founder): the CENTER "Conversations" is tapped FIRST; that unlocks
+ * the surrounding ring. Swipe up/down on the center to move through conversations.
+ *
+ * Governance: Layer-4 surface over the existing Layer-1/2 engine. It composes with
+ * the real inbox + tool routes rather than reimplementing them (A31: a pretty shell
+ * that doesn't reach the backend "does not exist"). The AI honesty/handoff rules are
+ * untouched — this only changes presentation (§3.3 guide, don't overtake preserved).
+ */
+
+type Conv = {
+  id: string;
+  subject: string | null;
+  customerName: string | null;
+  lastMessagePreview?: string | null;
+  status?: string | null;
+  priority?: string | null;
+};
+
+type ToolKey = "copilot" | "summarize" | "coach" | "dissect" | "task";
+
+const TOOLS: {
+  key: ToolKey;
+  label: string;
+  Icon: typeof Sparkles;
+  // Absolute position around the center, matching the mockup.
+  pos: string;
+}[] = [
+  { key: "copilot", label: "Co-Pilot", Icon: Sparkles, pos: "top-0 left-1/2 -translate-x-1/2" },
+  { key: "summarize", label: "Summarize", Icon: AlignLeft, pos: "top-[38%] left-0 -translate-y-1/2" },
+  { key: "coach", label: "Ask Coach", Icon: GraduationCap, pos: "top-[38%] right-0 -translate-y-1/2" },
+  { key: "dissect", label: "Dissect", Icon: Brain, pos: "bottom-2 left-2" },
+  { key: "task", label: "Spawn Task", Icon: ListPlus, pos: "bottom-2 right-2" },
+];
+
+// Each tool → its existing route + the field to read from the JSON response. Robust
+// to shape differences: we render the first meaningful string the route returns.
+function toolRequest(tool: ToolKey, convId: string): { url: string; body?: unknown } {
+  const base = `/api/care/agent/conversations/${convId}`;
+  switch (tool) {
+    case "summarize":
+      return { url: `${base}/summarize`, body: {} };
+    case "dissect":
+      return { url: `${base}/dissect`, body: {} };
+    case "coach":
+      return { url: `${base}/ask-coach`, body: { draft: "", mode: "ask" } };
+    case "copilot":
+      return { url: `${base}/co-pilot`, body: {} };
+    case "task":
+      return { url: `/api/tasks/spawn`, body: { fromCareConversationId: convId } };
+  }
+}
+
+function pickResultText(data: unknown): string {
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    for (const k of ["summary", "response", "draft", "dissection", "text", "message"]) {
+      const v = d[k];
+      if (typeof v === "string" && v.trim()) return v;
+      if (v && typeof v === "object") {
+        // e.g. ask-coach returns { response: { suggestedRevision, ... } }
+        const inner = v as Record<string, unknown>;
+        for (const ik of ["suggestedRevision", "summary", "text", "classification"]) {
+          if (typeof inner[ik] === "string" && (inner[ik] as string).trim())
+            return inner[ik] as string;
+        }
+      }
+    }
+  }
+  return "Done. Open this conversation on desktop for the full result.";
+}
+
+export function CareRadialHome() {
+  const [convos, setConvos] = useState<Conv[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
+
+  const [sheet, setSheet] = useState<{
+    tool: ToolKey;
+    label: string;
+    loading: boolean;
+    result: string | null;
+    error: string | null;
+  } | null>(null);
+
+  const touchStartY = useRef<number | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/care/agent/inbox?enriched=1");
+      if (!res.ok) {
+        setError(`Couldn't load (HTTP ${res.status}).`);
+        return;
+      }
+      const d = await res.json();
+      const list: Conv[] = (d.conversations ?? []).map(
+        (c: Record<string, unknown>) => ({
+          id: c.id as string,
+          subject: (c.subject as string | null) ?? null,
+          customerName:
+            (c.customerName as string | null) ??
+            (c.customer_name as string | null) ??
+            null,
+          lastMessagePreview:
+            (c.lastMessagePreview as string | null) ??
+            (c.last_message_preview as string | null) ??
+            null,
+          status: (c.status as string | null) ?? null,
+          priority: (c.priority as string | null) ?? null,
+        })
+      );
+      setConvos(list);
+    } catch {
+      setError("Couldn't reach the server.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const current = convos[idx] ?? null;
+  const openCount = convos.filter(
+    (c) => c.status !== "closed" && c.status !== "resolved"
+  ).length;
+  const criticalCount = convos.filter(
+    (c) =>
+      c.priority === "urgent" ||
+      c.status === "needs_guidance" ||
+      c.status === "blocked"
+  ).length;
+
+  // Swipe up/down on the center cycles the conversation LIST (founder ③).
+  function cycle(dir: 1 | -1) {
+    if (convos.length === 0) return;
+    setIdx((i) => (i + dir + convos.length) % convos.length);
+  }
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartY.current = e.touches[0]?.clientY ?? null;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const start = touchStartY.current;
+    touchStartY.current = null;
+    if (start == null) return;
+    const end = e.changedTouches[0]?.clientY ?? start;
+    const dy = end - start;
+    if (Math.abs(dy) < 30) {
+      // A tap (not a swipe) on the center: first tap unlocks the ring.
+      if (!unlocked) setUnlocked(true);
+      return;
+    }
+    cycle(dy < 0 ? 1 : -1); // swipe up → next, swipe down → previous
+  }
+
+  async function runTool(tool: ToolKey, label: string) {
+    if (!unlocked) {
+      setUnlocked(true);
+      return;
+    }
+    if (!current) return;
+    setSheet({ tool, label, loading: true, result: null, error: null });
+    try {
+      const { url, body } = toolRequest(tool, current.id);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body ?? {}),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setSheet({
+          tool,
+          label,
+          loading: false,
+          result: null,
+          error: data?.error ?? `${label} unavailable (HTTP ${res.status}).`,
+        });
+        return;
+      }
+      setSheet({ tool, label, loading: false, result: pickResultText(data), error: null });
+    } catch {
+      setSheet({
+        tool,
+        label,
+        loading: false,
+        result: null,
+        error: "Couldn't reach the server.",
+      });
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-[#0a0a0f] text-white overflow-hidden">
+      {/* Header */}
+      <header className="flex items-center justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-amber-400" aria-hidden />
+          <div className="leading-tight">
+            <p className="text-sm font-bold tracking-wide">ELOSTATE</p>
+            <p className="text-[10px] text-amber-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+              LIVE
+            </p>
+          </div>
+        </div>
+      </header>
+
+      {/* Welcome / status card */}
+      <div className="mx-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="text-base font-semibold">Your streamlined C.A.R.E.</p>
+        <p className="mt-1 text-xs text-white/50">
+          {loading
+            ? "Loading your conversations…"
+            : convos.length === 0
+              ? "No conversations yet."
+              : `${openCount} open · tap the center, then use the ring.`}
+        </p>
+      </div>
+
+      {/* Radial */}
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="relative w-[320px] h-[320px] max-w-[86vw] max-h-[86vw]">
+          {/* Ring tools */}
+          {TOOLS.map(({ key, label, Icon, pos }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => runTool(key, label)}
+              aria-label={label}
+              className={`absolute ${pos} w-[86px] h-[86px] rounded-full flex flex-col items-center justify-center gap-1 border transition-all ${
+                unlocked
+                  ? "border-amber-400/70 bg-black/60 shadow-[0_0_20px_-2px_rgba(245,200,66,0.5)]"
+                  : "border-white/10 bg-black/40 opacity-40"
+              }`}
+            >
+              <Icon className="w-5 h-5 text-amber-400" aria-hidden />
+              <span className="text-[10px] font-medium text-amber-300/90">{label}</span>
+            </button>
+          ))}
+
+          {/* Center — Conversations. Tap first to unlock; swipe to cycle. */}
+          <button
+            type="button"
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+            onClick={() => {
+              if (!unlocked) setUnlocked(true);
+            }}
+            aria-label="Conversations — tap to activate, swipe up or down to browse"
+            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[130px] h-[130px] rounded-full flex flex-col items-center justify-center gap-1 border-2 ${
+              unlocked
+                ? "border-amber-400 bg-black shadow-[0_0_40px_-4px_rgba(245,200,66,0.6)]"
+                : "border-amber-400/60 bg-black/80 animate-pulse"
+            }`}
+          >
+            <MessageSquare className="w-7 h-7 text-amber-400" aria-hidden />
+            <span className="text-xs font-semibold text-amber-300">Conversations</span>
+            {unlocked && (
+              <span className="text-[9px] text-white/40 flex items-center gap-0.5">
+                <ChevronUp className="w-2.5 h-2.5" /> swipe <ChevronDown className="w-2.5 h-2.5" />
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Current conversation (below the radial) */}
+      <div className="mx-5 mb-2 min-h-[64px]">
+        {error ? (
+          <p className="text-xs text-red-300" role="alert">
+            {error}
+          </p>
+        ) : loading ? (
+          <p className="text-xs text-white/40 flex items-center gap-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+          </p>
+        ) : !unlocked ? (
+          <p className="text-xs text-white/40 text-center">
+            Tap the glowing center to begin.
+          </p>
+        ) : current ? (
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">
+                {current.customerName ?? "Anonymous"}
+              </p>
+              <p className="text-[10px] text-white/40 font-mono">
+                {idx + 1}/{convos.length}
+              </p>
+            </div>
+            <p className="mt-0.5 text-xs text-white/50 line-clamp-2">
+              {current.lastMessagePreview ?? current.subject ?? "Open to read."}
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-white/40">No conversations.</p>
+        )}
+      </div>
+
+      {/* Info cards */}
+      <div className="mx-5 mb-3 grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <p className="text-[11px] font-semibold text-amber-300">Guide, don&apos;t overtake</p>
+          <p className="mt-1 text-[10px] text-white/45 leading-snug">
+            The tools surface options — you make the final call.
+          </p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <p className="text-[11px] font-semibold">Critical &amp; Blocked</p>
+          <p className="mt-1 text-[10px] text-white/45 leading-snug">
+            {criticalCount === 0
+              ? `None critical. ${openCount} open, all tracking.`
+              : `${criticalCount} need attention.`}
+          </p>
+        </div>
+      </div>
+
+      {/* Bottom nav */}
+      <nav className="flex items-center justify-around border-t border-white/10 px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        {[Home, MessageSquare, CheckSquare, Search, Settings].map((Icon, i) => (
+          <button
+            key={i}
+            type="button"
+            className="p-2 text-white/50 hover:text-amber-400"
+            aria-label="nav"
+          >
+            <Icon className="w-5 h-5" />
+          </button>
+        ))}
+      </nav>
+
+      {/* Tool result sheet */}
+      {sheet && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/60 flex items-end"
+          onClick={() => setSheet(null)}
+        >
+          <div
+            className="w-full max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#111119] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-amber-300">{sheet.label}</p>
+              <button
+                type="button"
+                onClick={() => setSheet(null)}
+                aria-label="Close"
+                className="p-1 text-white/50 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {sheet.loading ? (
+              <p className="text-xs text-white/50 flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Thinking…
+              </p>
+            ) : sheet.error ? (
+              <p className="text-xs text-red-300" role="alert">
+                {sheet.error}
+              </p>
+            ) : (
+              <p className="text-sm text-white/85 whitespace-pre-wrap leading-relaxed">
+                {sheet.result}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
