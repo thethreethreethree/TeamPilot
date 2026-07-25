@@ -15,6 +15,7 @@ import {
   getCareTenantConfigByCompanyId,
   getProductContextForTenant,
 } from "@/lib/care/config";
+import { getActiveKnowledgeForCompany } from "@/lib/care/knowledgeDocs";
 import {
   buildCareSystemPrompt,
   buildCareUserMessage,
@@ -240,12 +241,18 @@ export async function POST(
   const recentTurns = buildRecentTurns(priorMessages, customerMsg.id);
 
   const productContext = await getProductContextForTenant(conversation.companyId);
+  // ACMS (0193): the tenant's current active client-uploaded knowledge, fenced as
+  // untrusted DATA inside buildCareSystemPrompt. null when none/retracted → no block.
+  const referenceKnowledge = await getActiveKnowledgeForCompany(
+    conversation.companyId
+  );
   const medium = body.medium ?? "text";
   // Per migration 0064: pass the per-tenant agent name. tenant is
   // already loaded above for the active-check. Falls back to 'Jeff'
   // if tenant config missing (e.g. ELOSTATE on bare deployment).
   const systemPrompt = buildCareSystemPrompt({
     productContext,
+    referenceKnowledge: referenceKnowledge ?? undefined,
     medium,
     agentName: tenant?.aiName,
     // F2 (founder 2026-07-22): honour the per-tenant voice settings that were previously loaded but unused.

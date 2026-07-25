@@ -7,6 +7,7 @@ import {
   getProductContextForTenant,
   getCareTenantConfigByCompanyId,
 } from "@/lib/care/config";
+import { getActiveKnowledgeForCompany } from "@/lib/care/knowledgeDocs";
 import {
   buildCareSystemPrompt,
   buildCareUserMessage,
@@ -612,6 +613,9 @@ export async function runAiFirstResponder(args: {
     }
 
     const productContext = await getProductContextForTenant(args.companyId);
+    // ACMS (0193): current active client-uploaded knowledge, fenced as untrusted
+    // DATA inside buildCareSystemPrompt. Same wiring as the widget messages route.
+    const referenceKnowledge = await getActiveKnowledgeForCompany(args.companyId);
     // Per the 2026-06-24 audit (H2): email-channel customers were
     // always getting "Jeff" because this caller didn't pass the
     // per-tenant agent name. Load the tenant config and thread the
@@ -620,6 +624,7 @@ export async function runAiFirstResponder(args: {
     const tenant = await getCareTenantConfigByCompanyId(args.companyId);
     const systemPrompt = buildCareSystemPrompt({
       productContext,
+      referenceKnowledge: referenceKnowledge ?? undefined,
       agentName: tenant?.aiName,
       // F2 (founder 2026-07-22): honour the per-tenant voice settings (previously loaded but unused).
       aiTone: tenant?.aiTone,

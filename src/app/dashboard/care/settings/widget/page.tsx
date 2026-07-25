@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Copy, Loader2, Save, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
+import { AdaptiveKnowledgePanel } from "@/components/care/AdaptiveKnowledgePanel";
 import { CURATED_VOICES } from "@/lib/care/voice/curated-client";
 import { LearningHint } from "@/components/learning/LearningHint";
 
@@ -781,6 +782,13 @@ Always hand off to a human for:
             </div>
           </div>
         </Section>
+
+        {/* Adaptive Customer Management (ACMS, 0193) — right under AI personality per
+            founder 2026-07-25. Client uploads a .md of their own knowledge (facts the
+            AI answers from; fenced as untrusted data at the prompt layer — never
+            behavior). Self-contained: fetches/uploads via /api/care/agent/acms/documents,
+            independent of this page's tenant-config draft/Save. */}
+        <AdaptiveKnowledgePanel />
 
         {/* Business type — 0188. Drives the concern-topic list on the customer handoff
             card (and whether the order-number field appears) when Jeff hands off to a
