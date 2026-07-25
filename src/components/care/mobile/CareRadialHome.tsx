@@ -10,8 +10,6 @@ import {
   ListPlus,
   MessageSquare,
   Home,
-  CheckSquare,
-  Search,
   Settings,
   Loader2,
   ChevronUp,
@@ -604,17 +602,36 @@ export function CareRadialHome() {
       </div>
 
       {/* Bottom nav */}
-      <nav className="flex items-center justify-around border-t border-white/10 px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-        {[Home, MessageSquare, CheckSquare, Search, Settings].map((Icon, i) => (
-          <button
-            key={i}
-            type="button"
-            className="p-2 text-white/50 hover:text-amber-400"
-            aria-label="nav"
-          >
-            <Icon className="w-5 h-5" />
-          </button>
-        ))}
+      {/* Bottom nav — FUNCTIONAL destinations only (founder: no decorative buttons).
+          Tasks + Search dropped (no route exists — shipping them would repeat the
+          "looks actionable but isn't" problem). */}
+      <nav className="flex items-center justify-around border-t border-white/10 px-8 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <button
+          type="button"
+          onClick={() => {
+            setUnlocked(true);
+            void load();
+          }}
+          className="p-2 text-amber-400"
+          aria-label="Home / refresh"
+        >
+          <Home className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => (current ? openRead(current.id) : setUnlocked(true))}
+          className="p-2 text-white/50 hover:text-amber-400"
+          aria-label="Read current conversation"
+        >
+          <MessageSquare className="w-5 h-5" />
+        </button>
+        <a
+          href="/dashboard/care/settings"
+          className="p-2 text-white/50 hover:text-amber-400"
+          aria-label="Settings"
+        >
+          <Settings className="w-5 h-5" />
+        </a>
       </nav>
 
       {/* Tool result sheet */}
