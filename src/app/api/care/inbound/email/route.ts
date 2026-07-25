@@ -141,11 +141,13 @@ export async function POST(req: NextRequest) {
     );
   }
   const body = parsed.data;
-  // 8h: use the customer's NEW text only — Postmark's StrippedTextReply removes the
-  // quoted prior thread. Fall back to the full TextBody on a first email (nothing to
-  // strip → StrippedTextReply is empty/absent). This is what we store AND what the AI
-  // reads, so it never mis-attributes its own quoted-back reply (A39) or pays for the
-  // quoted bloat.
+  // 8h (partial): feed the AI the customer's NEW text only — Postmark's StrippedTextReply
+  // removes the quoted prior thread — so it never mis-attributes its own quoted-back reply
+  // (A39) or pays for the quoted bloat. Fall back to the full TextBody on a first email
+  // (nothing to strip). This is used ONLY for the ephemeral LLM prompt; the STORED
+  // message-of-record stays the full TextBody (below) — whether to ALSO store the stripped
+  // version (store-clean vs store-complete) is a founder decision, because Postmark can
+  // rarely over-strip into real content and the record must not silently lose it (§2/§5).
   const customerText = body.StrippedTextReply?.trim() || body.TextBody;
 
   const admin = createAdminClient();
@@ -345,7 +347,7 @@ export async function POST(req: NextRequest) {
       conversation_id: conversationId,
       author_type: "customer",
       author_id: null,
-      body: customerText,
+      body: body.TextBody,
       is_internal_note: false,
       external_message_id: body.MessageID,
       email_metadata: {
@@ -390,7 +392,7 @@ export async function POST(req: NextRequest) {
     after(() =>
       notifyAssignedAgentOfCustomerMessage({
         conversationId,
-        body: customerText,
+        body: body.TextBody,
       })
     );
   }
