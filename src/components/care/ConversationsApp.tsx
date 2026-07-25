@@ -4458,7 +4458,14 @@ function FormulateCarePanel({
         }
       );
       if (!res.ok) {
-        setError("Couldn't formulate a draft.");
+        // Surface the real cause (2026-07-25 seam completion — §A21 consistency
+        // with Co-Pilot/Summarize/Ask-Coach).
+        const errData = await res.json().catch(() => null);
+        setError(
+          errData?.detail
+            ? `Couldn't formulate a draft — ${errData.detail}`
+            : "Couldn't formulate a draft."
+        );
         return;
       }
       const data = await res.json();
