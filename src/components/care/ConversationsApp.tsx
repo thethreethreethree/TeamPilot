@@ -1406,11 +1406,16 @@ export function ConversationsApp({
     }
   };
 
-  // §3.3 Standard-mode ranked action: send the reply, then — only if it landed —
-  // open the fast Resolve modal (optional single-select reason, §3.4: the agent
-  // still commits the resolve; nothing auto-resolves). Collapses the common
-  // "reply, then go find Resolve" two-step into one. Additive for both modes —
-  // it removes nothing from Expert (§6), it just saves a step (§A21 consistency).
+  // §3.3 ranked action: send the reply, then — only if it landed — open the
+  // Resolve capture modal. It collapses the common "reply, then go hunt for
+  // Resolve" two-step into one entry point. HONEST SCOPE: this is NOT §3.4's
+  // "one click, optional reason" — the modal (ResolutionCaptureModal) REQUIRES
+  // issueSummary + whatWorked (≥5 chars each) because that capture feeds the
+  // §3.1/§1.1 learning loop (Co-Pilot precedents depend on it). That §3.4-vs-§3.1
+  // tension is a founder decision (ledger §8), not something to weaken here (§2:
+  // the required form is a real constraint, not incidental). The agent still
+  // commits the resolve; nothing auto-resolves (§3.3). Additive for both modes —
+  // removes nothing from Expert (§6), just saves a step (§A21).
   const sendAndResolve = async () => {
     const sent = await send();
     if (sent) setResolveModalOpen(true);

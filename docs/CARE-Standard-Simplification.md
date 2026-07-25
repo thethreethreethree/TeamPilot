@@ -141,16 +141,18 @@ UNVERIFIED on device** (needs founder — AMD-006 addendum).
 | 3.2 | Customer context collapsed by default | **Done** | `setCustomerCollapsed(true)` when Standard + mode loaded. |
 | 3.2 | Advanced metadata behind one toggle | **Done** | Priority dropdown + ticket-header tags hidden in Standard; Details lives in the collapsible customer panel. |
 | 3.2 | AI understanding as ONE summary line at top | **Deferred — DECISION** | Would auto-fire the brain-gated Summarize on every ticket open (LLM cost per open; §3.4 control-window makes it silent month-1 anyway). Held rather than silently spend. **Founder: want the one-liner (accept per-open cost), or keep Summarize on-demand in the composer?** |
-| 3.3 | Ranked actions: Send · Send & Resolve · Save draft | **Send & Resolve Done** (`9fd89535`); Save draft **not built** | Save draft has no persistence backend — a button that didn't persist would be dishonest (§A24). Needs a draft-persistence decision. |
+| 3.3 | Ranked actions: Send · Send & Resolve · Save draft | **Send & Resolve Done** (`9fd89535`); Save draft **not built** | Send & Resolve collapses the reply→resolve two-step into one entry point — but the resolve step opens the REQUIRED capture form (see §3.4 row), so it is NOT "one click." Save draft has no persistence backend — a button that didn't persist would be dishonest (§A24). |
 | 3.3 | Tools decluttered to essentials + "more" | **Done** | Composer: Summarize · Co-Pilot · Ask Coach · Spawn Task; Formulate → Expert-only. Analysis tools grouped behind the "Agent Tools" reveal. |
 | 3.3 | AI reply pre-drafted in the box | **Reverted — DECISION** | Auto-fired Co-Pilot on every open; reverted during the provider outage (fired failing calls) and because it spends an LLM call per open + inserts the AI unprompted (§3.4 guide-don't-overtake). Now that the provider is fixed it *could* return. **Founder: auto-pre-draft on open (cost + AI-forward), or keep Co-Pilot one-click?** |
-| 3.4 | Resolve — one click, optional fast reason | **Done (pre-existing)** | Resolve modal + auto-advance to next conversation (§1.5.1 continuity intact). |
+| 3.4 | Resolve — one click, optional fast reason | **NOT met — DECISION** | Resolve opens `ResolutionCaptureModal`, which REQUIRES issueSummary + whatWorked (≥5 chars each) — a required two-field form, the opposite of §3.4's "one click, optional reason, not a required form." But that capture is NOT incidental: it feeds the §3.1/§1.1 learning loop (Co-Pilot precedents depend on `whatWorked`). Auto-advance + continuity are intact (§1.5.1). **Founder: (a) keep the full capture (slower resolve, preserves the learning loop — recommended), (b) a lighter Standard resolve that captures less, or (c) pre-fill the capture from the AI's understanding so the agent confirms instead of types (fast AND captured — but costs an LLM call per resolve).** Do not weaken the capture without this call (§2). |
 | 3.4 | Escalate — one click, AI pre-selects target | **Not built** | No skill/tier routing model exists to pre-select against; "request supervisor guidance" (`supervisorGuidanceRequestedAt`) is the nearest current primitive. Building real AI-routed escalation is a feature, not a surface tweak — needs its own spec (§3.2 gate: don't half-build). |
 | 3.5 | Settings out of the agent surface → Admin | **Done (pre-existing)** | Config lives at `/dashboard/care/settings` (admin-gated); agents get defaults. |
 
-**Open founder decisions (3):** §3.2 one-line AI summary, §3.3 auto-pre-draft, and §3.3
-Save-draft persistence. Each is a cost/behavior trade the founder owns (§2), not a
-mechanical build — surfaced rather than decided unilaterally.
+**Open founder decisions (4):** §3.2 one-line AI summary, §3.3 auto-pre-draft, §3.3
+Save-draft persistence, and §3.4 resolve-capture-vs-one-click (the learning-loop
+trade). Each is a cost/behavior trade the founder owns (§2), not a mechanical build —
+surfaced rather than decided unilaterally. The §3.4 one is the sharpest: it pits the
+Standard-simplification goal directly against the §3.1/§1.1 learning thesis.
 
 ---
 
