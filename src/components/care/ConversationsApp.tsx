@@ -840,7 +840,7 @@ export function ConversationsApp({
           (labelForAnyTopic(c.handoffTopic) ?? "").toLowerCase().includes(q)
       );
     }
-    // Sort: priority weight DESC, then last_message_at DESC
+    // Sort: priority weight DESC, then (Standard only) SLA-risk DESC, then last_message_at DESC.
     const priorityWeight: Record<string, number> = {
       urgent: 3,
       high: 2,
@@ -850,11 +850,22 @@ export function ConversationsApp({
     return [...list].sort((a, b) => {
       const pw = (priorityWeight[b.priority] ?? 0) - (priorityWeight[a.priority] ?? 0);
       if (pw !== 0) return pw;
+      // §3.1 Standard smart-sort — the spec is "priority + SLA risk + age". Priority
+      // and age (recency) were already here; SLA risk was the missing dimension. Within
+      // a priority tier, surface whatever is closest to breaching its SLA FIRST, so a
+      // low-margin ticket doesn't get buried under fresher-but-safe ones. Higher slaPct =
+      // closer to breach; null (no SLA tracked) sorts to the bottom of the tier. Gated to
+      // Standard so Expert's ordering is unchanged (§6 — Standard-only scope).
+      if (isStandard) {
+        const sa = computeSlaPct(a) ?? -1;
+        const sb = computeSlaPct(b) ?? -1;
+        if (sb !== sa) return sb - sa;
+      }
       const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
       const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
       return bt - at;
     });
-  }, [conversations, view, search, currentUserId]);
+  }, [conversations, view, search, currentUserId, isStandard]);
 
   // Counts per view, for the sidebar badges
   const viewCounts = useMemo(() => {
