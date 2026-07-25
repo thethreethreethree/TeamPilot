@@ -112,6 +112,13 @@ export function CareRadialHome() {
     error: string | null;
   } | null>(null);
 
+  const [reply, setReply] = useState<{
+    text: string;
+    sending: boolean;
+    error: string | null;
+    sent: boolean;
+  } | null>(null);
+
   const touchStartY = useRef<number | null>(null);
 
   const load = useCallback(async () => {
@@ -183,6 +190,36 @@ export function CareRadialHome() {
       return;
     }
     cycle(dy < 0 ? 1 : -1); // swipe up → next, swipe down → previous
+  }
+
+  async function sendReply() {
+    if (!current || !reply || !reply.text.trim() || reply.sending) return;
+    setReply({ ...reply, sending: true, error: null });
+    try {
+      // SAME agent-reply route as desktop — the AI honesty/handoff logic applies
+      // server-side (A21/A31: one engine). Plain reply = { body }.
+      const res = await fetch(
+        `/api/care/agent/conversations/${current.id}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: reply.text.trim() }),
+        }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setReply({
+          ...reply,
+          sending: false,
+          error: data?.error ?? `Couldn't send (HTTP ${res.status}).`,
+        });
+        return;
+      }
+      setReply({ text: "", sending: false, error: null, sent: true });
+      window.setTimeout(() => setReply(null), 1500);
+    } catch {
+      setReply({ ...reply, sending: false, error: "Couldn't reach the server." });
+    }
   }
 
   async function runTool(tool: ToolKey, label: string) {
@@ -324,6 +361,15 @@ export function CareRadialHome() {
             <p className="mt-0.5 text-xs text-white/50 line-clamp-2">
               {current.lastMessagePreview ?? current.subject ?? "Open to read."}
             </p>
+            <button
+              type="button"
+              onClick={() =>
+                setReply({ text: "", sending: false, error: null, sent: false })
+              }
+              className="mt-2 w-full rounded-lg bg-amber-400 text-[#09090B] text-sm font-semibold py-2"
+            >
+              Reply
+            </button>
           </div>
         ) : (
           <p className="text-xs text-white/40">No conversations.</p>
@@ -395,6 +441,69 @@ export function CareRadialHome() {
               <p className="text-sm text-white/85 whitespace-pre-wrap leading-relaxed">
                 {sheet.result}
               </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Reply compose sheet — SAME agent-reply route as desktop (A21/A31). */}
+      {reply && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/60 flex items-end"
+          onClick={() => !reply.sending && setReply(null)}
+        >
+          <div
+            className="w-full rounded-t-2xl border-t border-white/10 bg-[#111119] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-amber-300">
+                Reply to {current?.customerName ?? "customer"}
+              </p>
+              <button
+                type="button"
+                onClick={() => !reply.sending && setReply(null)}
+                aria-label="Close"
+                className="p-1 text-white/50 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {reply.sent ? (
+              <p className="text-sm text-emerald-300">Sent.</p>
+            ) : (
+              <>
+                <textarea
+                  value={reply.text}
+                  onChange={(e) =>
+                    setReply({ ...reply, text: e.target.value })
+                  }
+                  placeholder="Type your reply…"
+                  rows={4}
+                  autoFocus
+                  className="w-full rounded-lg bg-black/50 border border-white/10 p-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/50 resize-none"
+                />
+                {reply.error && (
+                  <p className="mt-2 text-xs text-red-300" role="alert">
+                    {reply.error}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={sendReply}
+                  disabled={reply.sending || !reply.text.trim()}
+                  className="mt-3 w-full rounded-lg bg-amber-400 text-[#09090B] text-sm font-semibold py-2.5 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {reply.sending && (
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                  )}
+                  Send reply
+                </button>
+                <p className="mt-2 text-[10px] text-white/40 text-center">
+                  The customer sees this. Your AI&apos;s honesty &amp; handoff rules
+                  still apply.
+                </p>
+              </>
             )}
           </div>
         </div>
