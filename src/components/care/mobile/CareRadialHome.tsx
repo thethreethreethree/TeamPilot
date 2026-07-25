@@ -16,6 +16,7 @@ import {
   Loader2,
   ChevronUp,
   ChevronDown,
+  Wrench,
   X,
 } from "lucide-react";
 
@@ -47,18 +48,21 @@ type Conv = {
 
 type ToolKey = "copilot" | "summarize" | "coach" | "dissect" | "task";
 
+// Ring = the three most-used tools (founder 2026-07-25). Dissect + Spawn Task moved
+// into the top-left "More tools" wrench menu below to declutter the ring.
 const TOOLS: {
   key: ToolKey;
   label: string;
   Icon: typeof Sparkles;
-  // Absolute position around the center, matching the mockup.
   pos: string;
 }[] = [
   { key: "copilot", label: "Co-Pilot", Icon: Sparkles, pos: "top-0 left-1/2 -translate-x-1/2" },
-  { key: "summarize", label: "Summarize", Icon: AlignLeft, pos: "top-[38%] left-0 -translate-y-1/2" },
-  { key: "coach", label: "Ask Coach", Icon: GraduationCap, pos: "top-[38%] right-0 -translate-y-1/2" },
-  { key: "dissect", label: "Dissect", Icon: Brain, pos: "bottom-2 left-2" },
-  { key: "task", label: "Spawn Task", Icon: ListPlus, pos: "bottom-2 right-2" },
+  { key: "summarize", label: "Summarize", Icon: AlignLeft, pos: "top-[42%] left-0 -translate-y-1/2" },
+  { key: "coach", label: "Ask Coach", Icon: GraduationCap, pos: "top-[42%] right-0 -translate-y-1/2" },
+];
+const MORE_TOOLS: { key: ToolKey; label: string; Icon: typeof Sparkles }[] = [
+  { key: "dissect", label: "Dissect", Icon: Brain },
+  { key: "task", label: "Spawn Task", Icon: ListPlus },
 ];
 
 // Each tool → its existing route + the field to read from the JSON response. Robust
@@ -130,6 +134,13 @@ export function CareRadialHome() {
     // Ask Coach grades the DRAFT on this same surface (A16 compose) — Coach needs
     // a non-empty draft (the route requires min length 1), so it lives here.
     coach?: { loading: boolean; suggestion: string | null; error: string | null };
+  } | null>(null);
+
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [reading, setReading] = useState<{
+    loading: boolean;
+    messages: { authorType: string; body: string }[];
+    error: string | null;
   } | null>(null);
 
   const touchStartY = useRef<number | null>(null);
@@ -231,6 +242,40 @@ export function CareRadialHome() {
       window.setTimeout(() => setReply(null), 1500);
     } catch {
       setReply({ ...reply, sending: false, error: "Couldn't reach the server." });
+    }
+  }
+
+  // Open a conversation to READ its messages (founder: the "Open to read" affordance
+  // was inert). Loads the thread via the same messages route and shows it in a sheet.
+  async function openRead(convId: string) {
+    setReading({ loading: true, messages: [], error: null });
+    try {
+      const res = await fetch(
+        `/api/care/agent/conversations/${convId}/messages`
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setReading({
+          loading: false,
+          messages: [],
+          error: data?.error ?? `Couldn't load (HTTP ${res.status}).`,
+        });
+        return;
+      }
+      const msgs = (data?.messages ?? []).map(
+        (m: Record<string, unknown>) => ({
+          authorType:
+            (m.authorType as string) ?? (m.author_type as string) ?? "customer",
+          body: (m.body as string) ?? "",
+        })
+      );
+      setReading({ loading: false, messages: msgs, error: null });
+    } catch {
+      setReading({
+        loading: false,
+        messages: [],
+        error: "Couldn't reach the server.",
+      });
     }
   }
 
@@ -382,6 +427,36 @@ export function CareRadialHome() {
               LIVE
             </p>
           </div>
+          {/* More tools (founder 2026-07-25): Dissect + Spawn Task live here, top-left,
+              behind a wrench — off the ring to declutter it. */}
+          <div className="relative ml-1">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-label="More tools"
+              className="p-2 rounded-full border border-white/10 text-amber-400 active:bg-white/5"
+            >
+              <Wrench className="w-4 h-4" aria-hidden />
+            </button>
+            {moreOpen && (
+              <div className="absolute left-0 top-11 z-[65] w-44 rounded-xl border border-white/10 bg-[#111119] py-1 shadow-lg">
+                {MORE_TOOLS.map(({ key, label, Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      void runTool(key, label);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-white/85 hover:bg-white/5"
+                  >
+                    <Icon className="w-4 h-4 text-amber-400" aria-hidden />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         {/* Escape hatch — keeps a phone user on desktop for the session if they prefer. */}
         <button
@@ -483,18 +558,27 @@ export function CareRadialHome() {
                 {idx + 1}/{convos.length}
               </p>
             </div>
-            <p className="mt-0.5 text-xs text-white/50 line-clamp-2">
-              {current.lastMessagePreview ?? current.subject ?? "Open to read."}
+            <p className="mt-0.5 text-xs text-white/50 line-clamp-1">
+              {current.subject ?? "No subject yet"}
             </p>
-            <button
-              type="button"
-              onClick={() =>
-                setReply({ text: "", sending: false, error: null, sent: false })
-              }
-              className="mt-2 w-full rounded-lg bg-amber-400 text-[#09090B] text-sm font-semibold py-2"
-            >
-              Reply
-            </button>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => openRead(current.id)}
+                className="rounded-lg border border-white/15 text-white/80 text-sm font-medium py-2"
+              >
+                Open to read
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setReply({ text: "", sending: false, error: null, sent: false })
+                }
+                className="rounded-lg bg-amber-400 text-[#09090B] text-sm font-semibold py-2"
+              >
+                Reply
+              </button>
+            </div>
           </div>
         ) : (
           <p className="text-xs text-white/40">No conversations.</p>
@@ -668,6 +752,70 @@ export function CareRadialHome() {
                   still apply.
                 </p>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Read-messages sheet — makes "Open to read" functional (founder 2026-07-25). */}
+      {reading && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/60 flex items-end"
+          onClick={() => setReading(null)}
+        >
+          <div
+            className="w-full max-h-[75vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#111119] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-amber-300">
+                {current?.customerName ?? "Conversation"}
+              </p>
+              <button
+                type="button"
+                onClick={() => setReading(null)}
+                aria-label="Close"
+                className="p-1 text-white/50 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {reading.loading ? (
+              <p className="text-xs text-white/50 flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+              </p>
+            ) : reading.error ? (
+              <p className="text-xs text-red-300" role="alert">
+                {reading.error}
+              </p>
+            ) : reading.messages.length === 0 ? (
+              <p className="text-xs text-white/50">No messages yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {reading.messages.map((m, i) => (
+                  <div
+                    key={i}
+                    className={m.authorType === "customer" ? "" : "text-right"}
+                  >
+                    <p className="text-[10px] uppercase tracking-widest text-white/40 mb-0.5">
+                      {m.authorType === "customer"
+                        ? "Customer"
+                        : m.authorType === "ai"
+                          ? "AI"
+                          : "Agent"}
+                    </p>
+                    <p
+                      className={`inline-block rounded-xl px-3 py-2 text-sm whitespace-pre-wrap text-left ${
+                        m.authorType === "customer"
+                          ? "bg-white/[0.06] text-white/85"
+                          : "bg-amber-400/15 text-white/90"
+                      }`}
+                    >
+                      {m.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
