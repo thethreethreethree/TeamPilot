@@ -59,13 +59,21 @@ async function* parseSseDeltas(
  * DeepSeek provider — OpenAI-compatible chat completions API.
  *
  * Endpoint: https://api.deepseek.com/v1/chat/completions
- * Models:   deepseek-chat (general), deepseek-reasoner (longer thinking)
+ * Models:   deepseek-v4-flash (fast/cheap general), deepseek-v4-pro (higher capability).
+ *           Both are reasoning models (reasoning_content precedes content).
  *
  * Hardened in audit Tier 2 #9: now wraps the call with timeout + retry on
  * retryable LlmError kinds, and throws structured errors instead of generic ones.
  */
 
-const DEFAULT_MODEL = "deepseek-chat";
+// 2026-07-25: DeepSeek RENAMED their models — the API now rejects "deepseek-chat" with
+// HTTP 400 ("supported API model names are deepseek-v4-pro or deepseek-v4-flash"), which
+// was silently taking down ALL AI (co-pilot, summarize, coach, dissect, customer replies).
+// Diagnosed by calling the live API directly. v4-flash = the fast/cheap general model (the
+// deepseek-chat successor); v4-pro is the higher-capability tier. Override via DEEPSEEK_MODEL.
+// NOTE: v4 models are REASONING models — output arrives in `content` after `reasoning_content`;
+// verified `content` populates correctly at the normal token budgets (finish_reason: stop).
+const DEFAULT_MODEL = "deepseek-v4-flash";
 const ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
 const DEFAULT_TIMEOUT_MS = 45_000;
 
