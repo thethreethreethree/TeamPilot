@@ -1439,6 +1439,36 @@ export function ConversationsApp({
     }
   };
 
+  // Standard §3.3/§5 — pre-draft the reply so it's "already in the flow." When a
+  // Standard agent opens a conversation that genuinely NEEDS their reply (customer
+  // sent the last message, the AI isn't handling it, it isn't resolved/closed, and
+  // the composer is empty), auto-run Co-Pilot ONCE so a suggested draft is already in
+  // the box. The human still edits/accepts and commits (§3.3 Understanding Gate — the
+  // AI prepares, never auto-sends). Expert: unchanged (no auto-draft). Behavior change,
+  // deliberate per the spec; cheap on the current provider. Guarded to fire once per
+  // conversation via autoDraftedFor so it never spams or overwrites a typed draft.
+  const autoDraftedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      isStandard &&
+      modeLoaded &&
+      selected &&
+      selected.status !== "resolved" &&
+      selected.status !== "closed" &&
+      selected.lastMessageAuthorType === "customer" &&
+      !selected.aiResponding &&
+      !draft.trim() &&
+      !aiDrafting &&
+      autoDraftedFor.current !== selected.id
+    ) {
+      autoDraftedFor.current = selected.id;
+      void askAiCoPilot();
+    }
+    // askAiCoPilot is intentionally omitted — it's re-created each render; the
+    // autoDraftedFor guard makes re-runs idempotent (once per conversation).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStandard, modeLoaded, selected, draft, aiDrafting]);
+
   // ─── Render ─────────────────────────────────────────────────
 
   // Mobile single-pane logic: on < md viewports only ONE pane is
