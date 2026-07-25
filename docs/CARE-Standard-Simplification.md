@@ -135,7 +135,7 @@ UNVERIFIED on device** (needs founder — AMD-006 addendum).
 
 | §   | Item | Status | Notes |
 |-----|------|--------|-------|
-| 3.1 | One default list, smart-sorted | **Done** | Standard defaults to "My Tickets"; other views behind "More views" toggle. |
+| 3.1 | One default list, smart-sorted | **Done** | Standard defaults to "My Tickets"; other views behind "More views" toggle. Smart-sort now full "priority + SLA risk + age" — the SLA-risk key was added (`a35eea45`); it had been priority+age only. Standard-gated (Expert sort unchanged, §6). |
 | 3.1 | Row = customer/subject/priority/time/status only | **Done** | Tag chips + bulk-select checkbox hidden in Standard. Concern (0188) + SLA bar + needs-guidance KEPT — high-signal triage, used on >1-in-5 tickets (§4 rule), so not clutter. |
 | 3.2 | Single-screen ticket layout | **Done (pre-existing)** | Thread center / customer panel side / composer bottom already the layout. |
 | 3.2 | Customer context collapsed by default | **Done** | `setCustomerCollapsed(true)` when Standard + mode loaded. |
