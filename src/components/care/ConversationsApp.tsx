@@ -349,10 +349,25 @@ export function ConversationsApp({
   // one-click-away (§1 "collapse, don't remove").
   const { isStandard, loaded: modeLoaded } = useExperienceMode();
   const [showAllViews, setShowAllViews] = useState(false);
+  // Default view stays "all_open" at init so EXPERT is byte-for-byte unchanged (§6).
+  // The Standard default (Mine) is applied by the loaded-gated effect below — computing
+  // it from isStandard at init would wrongly flip Expert to Mine too, because isStandard
+  // defaults true before the mode loads (audit Issue 1, §6 regression fix, 2026-07-25).
   const initialView =
-    (searchParams.get("view") as ViewKey | null) ??
-    (isStandard ? "mine" : "all_open");
+    (searchParams.get("view") as ViewKey | null) ?? "all_open";
   const [view, setView] = useState<ViewKey>(initialView);
+  const appliedStandardView = useRef(false);
+  useEffect(() => {
+    if (
+      modeLoaded &&
+      isStandard &&
+      !searchParams.get("view") &&
+      !appliedStandardView.current
+    ) {
+      appliedStandardView.current = true;
+      setView("mine"); // Standard lands on Mine once the mode is confirmed (§3.1)
+    }
+  }, [modeLoaded, isStandard, searchParams]);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialId ?? null);
   useEffect(() => {
