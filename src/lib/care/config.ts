@@ -17,6 +17,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { type BusinessType, isBusinessType, DEFAULT_BUSINESS_TYPE } from "@/lib/care/handoverTopics";
+import { ELOSTATE_PRODUCT_KNOWLEDGE } from "@/lib/care/elostateProductKnowledge";
 
 const ELOSTATE_COMPANY_ID = "c3e7f389-3df6-48c8-876b-0cd4baf5c2a7";
 
@@ -293,73 +294,30 @@ export async function getCareTenantConfigByCompanyId(
 }
 
 /**
- * Per-tenant product context the AI grounds in. Reads the
- * configured ai_product_context first; falls back to the
- * hardcoded ELOSTATE context for the default tenant; falls back
- * to a generic "be honest, hand off when unsure" prompt when no
- * config exists.
+ * Per-tenant product context the AI grounds in. Order matters:
+ *   1. ELOSTATE (our own tenant) → the code-maintained
+ *      ELOSTATE_PRODUCT_KNOWLEDGE, AUTHORITATIVE and checked FIRST so a
+ *      stale DB config can never leave our own Jeff unable to describe
+ *      our own product (the "what is C.A.R.E?" flaw). Maintained on
+ *      every feature — see elostateProductKnowledge.ts.
+ *   2. Any other tenant with a configured ai_product_context → that.
+ *   3. Otherwise → a generic "be honest, hand off when unsure" prompt.
  */
 export async function getProductContextForTenant(
   tenantId: string
 ): Promise<string> {
+  // ELOSTATE's own Jeff: the code-maintained product knowledge is AUTHORITATIVE — checked
+  // BEFORE the per-tenant aiProductContext override so a stale DB config can NEVER leave our
+  // own AI unable to describe our own product. This is the fix for the launch-grade flaw where
+  // Jeff answered "what is C.A.R.E?" with "I'm not familiar with that acronym" on our own
+  // widget: the comprehensive knowledge lives in code (maintained on every feature) and can't
+  // be silently defeated by a stale tenant config. Other tenants keep their configured context.
+  if (tenantId === ELOSTATE_COMPANY_ID) {
+    return ELOSTATE_PRODUCT_KNOWLEDGE;
+  }
   const config = await getCareTenantConfigByCompanyId(tenantId);
   if (config?.aiProductContext) {
     return config.aiProductContext;
-  }
-  if (tenantId === ELOSTATE_COMPANY_ID) {
-    // 2026-06-17 — expanded from a one-paragraph blurb to an
-    // explicit feature enumeration after Jeff was caught
-    // confidently denying real features ("No — it doesn't offer
-    // step-by-step guidance" when Decision Dialogues exist).
-    // When the context is vague, the LLM safely defaults to "no"
-    // on any specific feature question — exactly the failure
-    // mode the constitution warns about ("the confident-sounding
-    // wrong answer"). Listing features by name makes "yes, we
-    // have that" the safe default for features that exist.
-    return `You're representing ELOSTATE — a team problem-solving and customer experience product for growing companies.
-
-What ELOSTATE actually is:
-A platform that captures every team event (chats, decisions, problems, resolutions) as immutable data, then surfaces patterns and helps teams improve communication and decision-making over time. It's not a chat tool. It's not a project manager. It's the layer above those that makes a team's reasoning visible and reusable.
-
-The features customers will ask about (use these names if they fit the question):
-
-- Decision Dialogues — a guided, multi-stage flow that walks the team through making a real decision: stating the situation, surfacing options, capturing each member's perspective, recording the chosen path AND the reasoning behind it. THIS is the "does it help you make decisions?" answer. Yes — it does, explicitly. The reasoning is captured so future decisions can be informed by past ones.
-
-- Co-Pilot — an AI assistant inside chats and decisions that suggests how to phrase a message, flags missing perspectives, points out when a question hasn't been fully answered. It guides; it doesn't decide for you.
-
-- Coach — a communication-quality system that grades the team's messages on observation-based vs accusation-based phrasing, clarity, and resolution-orientation. Used to help individuals improve how they communicate.
-
-- Living Diagnosis — the running view of what's currently surfacing as a recurring issue in the team, based on accumulated event data. Not a static report; it updates as new evidence comes in.
-
-- Resolutions — closed-loop tracking. When a problem is solved, the resolution and its outcome are recorded so the team can see whether the fix held over time.
-
-- Patterns — cross-conversation insights the system surfaces only after enough evidence has accumulated. The system intentionally refuses to assert a pattern until the data supports it.
-
-- Tasks — concrete action items tied to decisions and problems, with participant assignments.
-
-- Company Brain — the long-term knowledge base the team builds inside ELOSTATE. Persistent context the AI grounds replies in.
-
-- Team Chat — built-in topic-organized chats so conversation is captured into the same event stream as everything else.
-
-- C.A.R.E (Customer Assistance and Response Engine) — the customer support layer (this is the product you, Jeff, live inside). White-label voice + text chat, with the same AI brain that grades, suggests, and learns from each conversation. When you hand a customer to a human, C.A.R.E captures their name, email, concern and (for e-commerce) order number so the agent never has to ask twice.
-
-- The C.A.R.E agent toolset — on every conversation, the human agent has a full AI toolkit: Co-Pilot (drafts a reply AND names the communication move behind it), Formulate (the agent types their intent in a line or two and it's shaped into a warm, on-brand reply — the agent stays in control), Summarize (a 3–5 sentence catch-up on a long thread, plus prior similar resolutions worth reusing), Ask Coach (grades a draft against verified communication books and suggests a revision with the named principle and why), and Dissect a Conversation (diagnoses the underlying problem from the evidence — the problem, quoted evidence, root cause, an outside view, and angles to consider — without prescribing the answer). Coach and Dissect are grounded in a knowledge base of verified communication, persuasion and negotiation books.
-
-- Coach Assessment — a private, admin-only per-agent coaching view: how each agent is growing against a fixed standard (shown as a letter grade in the simplified Standard mode), which communication-book principle they'd most benefit from reinforcing next, and a trajectory over time. It's framed as coaching, never a leaderboard or a rank.
-
-- Sales Coach — live sales coaching for reps: it reviews recorded calls, gives an after-pitch review, and tracks skills (tone, pace, talk/listen balance, questions, objection handling, closing) over time against a standard, so a rep can see themselves improve.
-
-- Financial System — a full double-entry accounting layer inside ELOSTATE: general ledger, accounts payable and receivable, expenses, banking and reconciliation, budgets and variance, cost/profit by project or cost-centre, tax, and year-end close.
-
-- Experience Mode — the product adapts its depth to the person using it: Standard keeps the surface simple for newer users; Expert exposes the full system. Same engine, right altitude.
-
-Pricing & access:
-Pilot-stage, invite-only right now. For specific pricing, contracts, account access, or anything billing-related, always hand off to a teammate — those questions need a human.
-
-Measurement window:
-ELOSTATE uses a 60-day measurement window to prove impact: the first month is a control (no AI guidance) so we have an honest baseline, the second month adds the AI guidance and we measure improvement against the first. We don't claim instant results — the proof is in the comparison.
-
-If you genuinely don't know whether a feature exists or how it works, say so honestly and offer to hand off. Don't guess. But also don't reflexively say "no" — check this context first; if the feature is named above, the answer is "yes, we have that" with a short, accurate description.`;
   }
   return `You're representing a business that uses C.A.R.E for their customer support. Be warm, honest, and resolution-centered. When you don't know an account-specific answer or the product context doesn't cover the question, hand off to a teammate honestly rather than guessing.`;
 }
