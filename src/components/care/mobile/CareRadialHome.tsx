@@ -82,13 +82,22 @@ function toolRequest(tool: ToolKey, convId: string): { url: string; body?: unkno
 function pickResultText(data: unknown): string {
   if (data && typeof data === "object") {
     const d = data as Record<string, unknown>;
-    for (const k of ["summary", "response", "draft", "dissection", "text", "message"]) {
+    // Verified keys: summarize → {summary}, dissect → {dissect:{...}} (0193 audit).
+    for (const k of ["summary", "response", "dissect", "draft", "text", "message"]) {
       const v = d[k];
       if (typeof v === "string" && v.trim()) return v;
       if (v && typeof v === "object") {
-        // e.g. ask-coach returns { response: { suggestedRevision, ... } }
         const inner = v as Record<string, unknown>;
-        for (const ik of ["suggestedRevision", "summary", "text", "classification"]) {
+        // dissect/coach objects — surface the first human-readable field.
+        for (const ik of [
+          "suggestedRevision",
+          "summary",
+          "read",
+          "diagnosis",
+          "headline",
+          "text",
+          "classification",
+        ]) {
           if (typeof inner[ik] === "string" && (inner[ik] as string).trim())
             return inner[ik] as string;
         }
@@ -319,6 +328,14 @@ export function CareRadialHome() {
       setReply(
         (r) => r ?? { text: "", sending: false, error: null, sent: false }
       );
+      return;
+    }
+    if (tool === "task") {
+      // Spawn Task needs the full conversation context (SpawnSchema) — a one-shot
+      // POST here would 400. Open the conversation, where that flow already lives,
+      // instead of shipping a broken button (§3.4 honesty / A31). Mobile-native task
+      // spawn is a follow-up.
+      window.location.href = `/dashboard/care/conversations/${current.id}`;
       return;
     }
     setSheet({ tool, label, loading: true, result: null, error: null });
