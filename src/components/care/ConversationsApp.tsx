@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Wrench,
   HandHelping,
   Inbox,
   Lightbulb,
@@ -1917,6 +1918,7 @@ export function ConversationsApp({
                   onSpawnTask={() => setSpawnTaskOpen(true)}
                   onFormulate={() => setFormulateOpen(true)}
                   onAskCoach={() => setAskCoachOpen(true)}
+                  onSummarize={() => setSummarizeOpen(true)}
                   onAssetUploaded={() => void loadDetail(selected.id)}
                   isEmailChannel={selected.source === "email"}
                 />
@@ -2436,35 +2438,20 @@ function DetailHeader({
               context, making them visually present but
               click-blocked by the panel underneath. Wrap +
               z-10 keeps every button reachable. */}
-          {isStandard && !toolsExpanded ? (
+          {/* Agent Tools (founder 2026-07-25): the conversation-analysis tools grouped
+              behind ONE control. Summarize moved to the composer with the reply-flow tools;
+              Dissect (+ Coach, Decision Dialogue below) are the analysis tools. All modes. */}
+          {!toolsExpanded ? (
             <button
               type="button"
               onClick={() => setToolsExpanded(true)}
-              title="Summarize & Dissect — the System's read of this conversation"
+              title="Agent Tools — Dissect, Coach, Decision Dialogue"
               className="inline-flex items-center gap-1 text-xs text-brand border border-arc-400/40 hover:border-arc-400/70 px-3 py-1.5 rounded-md"
             >
-              <ChevronRight className="w-3.5 h-3.5" aria-hidden /> Tools
+              <Wrench className="w-3.5 h-3.5" aria-hidden /> Agent Tools
             </button>
           ) : (
             <>
-          <LearningHint
-            category="AI · C.A.R.E"
-            title="Summarize"
-            whatItIs="The System's read of this conversation so far — a 3-5 sentence summary covering what the customer is asking for, what's been tried, what's still open, and any tone or urgency cues. Per §A11 it surfaces facts (what was said) not verdicts (what to think about the customer)."
-            why="Long support threads accumulate noise. An agent stepping in (or returning to one they parked) wastes minutes catching up before they can act. Summarize collapses that catch-up cost from minutes to seconds. Just as important: it also surfaces similar prior resolutions, so institutional memory shows up in the moment the agent needs it (§3.6 make-learning-visible)."
-            how="Click when the thread is long or unfamiliar. Read the summary, scan the prior similar resolutions panel that follows, then decide whether the System's read matches yours. Per §3.3 the summary is confirm-or-correct — it's not authoritative, and the agent renders the verdict."
-            principle="A summary is the System's read, not an instruction. Confirm or correct it against the conversation itself — never trust it blindly."
-          >
-            <button
-              type="button"
-              onClick={onSummarize}
-              disabled={acting}
-              className="inline-flex items-center gap-1.5 text-xs text-brand border border-arc-400/40 hover:border-arc-400/70 disabled:opacity-50 px-3 py-1.5 rounded-md"
-            >
-              <Sparkles className="w-3.5 h-3.5" aria-hidden />
-              Summarize
-            </button>
-          </LearningHint>
           {/* Dissect a Conversation (founder 2026-07-21) — the standalone diagnostic engine,
               brought into the inbox. Where Summarize is a catch-up READ, Dissect is the
               problem-solving LENS: problem, evidence, root cause, outside view, angles to
@@ -3156,6 +3143,7 @@ function Composer({
   onSpawnTask,
   onFormulate,
   onAskCoach,
+  onSummarize,
   onAssetUploaded,
   isEmailChannel,
 }: {
@@ -3179,6 +3167,7 @@ function Composer({
   onSpawnTask: () => void;
   onFormulate: () => void;
   onAskCoach: () => void;
+  onSummarize: () => void;
   onAssetUploaded?: () => void;
   isEmailChannel?: boolean;
 }) {
@@ -3241,6 +3230,25 @@ function Composer({
         <div className="flex-1" />
         {!isInternalNote && (
           <>
+            {/* Summarize — moved down to the composer with the reply-flow tools
+                (founder 2026-07-25): Summarize · AI Co-Pilot · Ask Coach · Spawn Task. */}
+            <LearningHint
+              category="AI · C.A.R.E"
+              title="Summarize"
+              whatItIs="The System's read of this conversation so far — what the customer is asking, what's been tried, and what's still open."
+              why="Long threads accumulate noise; Summarize collapses the catch-up cost so you can act."
+              how="Click when the thread is long or unfamiliar, then confirm or correct the read against the conversation itself."
+              principle="A summary is the System's read, not an instruction — confirm or correct it."
+            >
+              <button
+                type="button"
+                onClick={onSummarize}
+                className="text-[11px] font-semibold text-secondary border border-default hover:border-strong hover:text-primary inline-flex items-center gap-1 px-2 py-0.5 rounded"
+              >
+                <Sparkles className="w-3 h-3" aria-hidden />
+                Summarize
+              </button>
+            </LearningHint>
             {!isStandard && (
             <LearningHint
               category="AI · C.A.R.E"
