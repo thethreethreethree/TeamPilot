@@ -12,6 +12,20 @@ instead of findings scattered across the transcript. All commits pushed to `main
    - **Verify:** Settings → LLM Connection → Run test. Shows the effective model. `deepseek-v4-flash` = fixed; a `model_unavailable` error = stale `DEEPSEEK_MODEL`.
 2. **Decide on `ANTHROPIC_API_KEY`.** It's empty, so there's a **single provider — no failover** (the panel now warns about this). Any DeepSeek outage/rename/quota block downs all AI with no fallback. Set an Anthropic key in Vercel to enable the cascade, or accept single-provider.
 
+## Recommendation — proactive outage detection (would have caught THIS outage)
+
+`/api/health` reports `llmReady: true` on **key presence only** — it deliberately
+never calls the LLM (must stay token-free for frequent polls). So when DeepSeek
+renamed the model, health stayed GREEN while every AI tool was down; the founder
+found it via users, not monitoring. **Gap:** nothing proactively detects "the
+configured model is dead / provider is failing." Recommended fix (a design call —
+not built): a low-frequency real round-trip that DOESN'T bloat every poll —
+either a cached LLM-health check (round-trip at most once per ~5 min) on a
+SEPARATE endpoint from liveness, or an hourly cron ping that alerts on
+`model_unavailable`/auth/quota. Decisions needed: where alerts go, cadence,
+liveness-vs-readiness separation. The runtime cascade (once a 2nd provider key
+exists) already *mitigates* such outages; this would *detect* them.
+
 ## Founder DECISIONS (surfaced, not built — §2)
 
 - **Cascade-to-Anthropic on model/auth/quota failure** — keep, or hard-fail closed? (Moot until an Anthropic key exists.)
