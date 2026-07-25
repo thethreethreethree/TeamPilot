@@ -1825,7 +1825,6 @@ export function ConversationsApp({
                 onClaim={claim}
                 onAssign={assignTo}
                 onToggleGuidance={toggleSupervisorGuidance}
-                onSummarize={() => setSummarizeOpen(true)}
                 onDissect={() => setDissectOpen(true)}
                 onCoach={() => {
                   // ALWAYS open the Coach panel so a click ALWAYS produces a visible result. Founder
@@ -2322,7 +2321,6 @@ function DetailHeader({
   onResolve,
   onClose,
   onPriorityChange,
-  onSummarize,
   onDissect,
   onCoach,
 }: {
@@ -2342,7 +2340,6 @@ function DetailHeader({
   onResolve: () => void;
   onClose: () => void;
   onPriorityChange: (priority: string) => void;
-  onSummarize: () => void;
   onDissect: () => void;
   onCoach: () => void;
 }) {
