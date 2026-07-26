@@ -11,8 +11,40 @@
  * short-lived signed URLs the detail route returns (never a public URL).
  */
 
+import { useState } from "react";
 import { X, Loader2, ChevronLeft } from "lucide-react";
 import { channelLabel, roleLabel, useRcd } from "@/components/care/rcd/useRcd";
+
+/**
+ * Image thumbnail with a load-failure fallback (dark-console variant of RcdPanel's RcdImageThumb). A
+ * metadata-only image (bytes never uploaded — common now that byte capture needs an opt-in permission)
+ * can leave a signed URL whose object is missing; onError degrades it to the same chip as a null url
+ * instead of a broken-image icon. Kept consistent with the web surface (same fallback, dark styling).
+ */
+function RcdMobileImageThumb({ url, label, filename }: { url: string; label: string; filename: string }) {
+  const [broken, setBroken] = useState(false);
+  if (broken) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded border border-white/10 px-2 py-1 text-xs text-white/50"
+        title="Image couldn't be loaded (not yet synced)"
+      >
+        📎 {filename}
+      </span>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" title="Open full size">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={label}
+        onError={() => setBroken(true)}
+        className="max-h-40 max-w-full rounded border border-white/10 object-contain"
+      />
+    </a>
+  );
+}
 
 export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
   const { conversations, listLoaded, selectedId, messages, detailLoading, openConversation, back } = useRcd();
@@ -80,14 +112,12 @@ export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
                   <div className="mt-1.5 flex flex-wrap gap-2">
                     {m.media.map((media) =>
                       media.type === "image" && media.url ? (
-                        <a key={media.id} href={media.url} target="_blank" rel="noreferrer" title="Open full size">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={media.url}
-                            alt={media.alt ?? media.filename ?? "captured image"}
-                            className="max-h-40 max-w-full rounded border border-white/10 object-contain"
-                          />
-                        </a>
+                        <RcdMobileImageThumb
+                          key={media.id}
+                          url={media.url}
+                          label={media.alt ?? media.filename ?? "captured image"}
+                          filename={media.filename ?? "image"}
+                        />
                       ) : media.url ? (
                         <a
                           key={media.id}

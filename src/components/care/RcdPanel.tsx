@@ -18,6 +18,39 @@
 import { useEffect, useRef, useState } from "react";
 import { channelLabel, roleLabel, useRcd } from "@/components/care/rcd/useRcd";
 
+/**
+ * One captured image thumbnail with a load-failure fallback. A metadata-only image (row exists, bytes
+ * never uploaded — a common outcome now that byte capture needs an opt-in host permission the user may
+ * decline) yields either url:null (route already degrades to the placeholder) OR, if the signer signs a
+ * path whose object is missing, a non-null signed URL that 404s. onError covers that second case so a
+ * missing object shows the same "couldn't load" chip as url:null, never a broken-image icon (honest
+ * degrade, not fabrication).
+ */
+function RcdImageThumb({ url, label, filename }: { url: string; label: string; filename: string }) {
+  const [broken, setBroken] = useState(false);
+  if (broken) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded border border-default px-2 py-1 text-xs text-muted"
+        title="Image couldn't be loaded (not yet synced)"
+      >
+        📎 {filename}
+      </span>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" title="Open full size">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={label}
+        onError={() => setBroken(true)}
+        className="max-h-40 max-w-full rounded border border-default object-contain hover:opacity-90"
+      />
+    </a>
+  );
+}
+
 export default function RcdPanel() {
   const { conversations, listLoaded, loadList, selectedId, messages, detailLoading, openConversation, back } =
     useRcd();
@@ -148,20 +181,12 @@ export default function RcdPanel() {
                           <div className="mt-1.5 flex flex-wrap gap-2">
                             {m.media.map((media) =>
                               media.type === "image" && media.url ? (
-                                <a
+                                <RcdImageThumb
                                   key={media.id}
-                                  href={media.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  title="Open full size"
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={media.url}
-                                    alt={media.alt ?? media.filename ?? "captured image"}
-                                    className="max-h-40 max-w-full rounded border border-default object-contain hover:opacity-90"
-                                  />
-                                </a>
+                                  url={media.url}
+                                  label={media.alt ?? media.filename ?? "captured image"}
+                                  filename={media.filename ?? "image"}
+                                />
                               ) : media.url ? (
                                 <a
                                   key={media.id}
