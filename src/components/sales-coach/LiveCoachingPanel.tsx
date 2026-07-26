@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Radio, Square, Sparkles, Hand, CheckCircle2, Mic } from "lucide-react";
+import { Radio, Square, Sparkles, Hand, CheckCircle2, Mic, AlertTriangle } from "lucide-react";
 import { useTapControls } from "@/lib/coach/v5/useTapControls";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
 import type { SalesContext } from "@/lib/data/salesCoach";
@@ -193,6 +193,33 @@ export function LiveCoachingPanel({
         </div>
         </LearningHint>
       </div>
+
+      {/* Unmissable "not recording" state (founder 2026-07-26, images 1+3 bug).
+          Root cause of the empty After-Pitch summary: a rep taps "Start session",
+          believes recording has begun, delivers the whole pitch, and captures 0
+          segments — because recording only starts on THIS button. When the session
+          is not live (idle or error), say so LOUDLY and name the exact trap, so the
+          rep can't pitch without recording (AMD-006 L3; §3.4 — an error is shown,
+          not swallowed). Hidden while connecting (transient) and once live. */}
+      {!live && status !== "connecting" && (
+        <div className="mt-3 rounded-xl border border-amber-500/45 bg-amber-500/[0.08] p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-primary">
+                {status === "error"
+                  ? "Recording stopped — nothing is being captured."
+                  : "You're not recording yet."}
+              </p>
+              <p className="text-[11px] text-secondary leading-relaxed mt-0.5">
+                {status === "error" && error
+                  ? error
+                  : "Opening the session isn't the same as recording it. Tap Start live coaching before you begin — otherwise there's no transcript, and the after-call summary will be empty."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mode toggle. Standard shows one mode only (spec p4.3), so the "Mode:"
           label is dropped too — a label for a single fixed choice is noise. */}
