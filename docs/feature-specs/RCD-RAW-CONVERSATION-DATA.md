@@ -78,6 +78,7 @@ Assumes **Option A** (the only one that fully satisfies the directive). Each pha
 2. **Web:** open the C.A.R.E app → the "Raw Conversation Data" bar sits at the bottom → expand → empty state.
 3. **Extension:** on a supported channel (e.g. WhatsApp Web), click **Capture conversation → C.A.R.E**. Confirm the status line reports messages captured + attachments uploaded.
 4. **Byte upload / image thumbnails** — the worker PUTs to the signed URL; the `*.supabase.co` host permission is already added to `manifest.json`, so **reload the extension and accept the new permission**. Same-origin/blob images (WhatsApp) canvas-read fine; cross-origin images without CORS taint the canvas → they stay filename-only. Confirm thumbnails appear.
+   - **First confirm the bucket exists:** Supabase dashboard → Storage → there should be a **private** `care-rcd-media` bucket (created by `0194`). If it's absent, `0194`'s storage section didn't apply (some apply methods lack storage-schema permission) — re-run `0194`'s `insert into storage.buckets` + the `storage.objects` policy from the SQL editor. Without the bucket, image uploads fail even with the extension reloaded.
 5. **Web + mobile:** the captured conversation appears in the RCD panel (web) and the RCD sheet (mobile, Layers button) with correct roles + media thumbnails.
 6. **Per-adapter selector confirmation** — each channel's `extractRCD` selectors are still best-effort/UNVERIFIED (10/11); confirm capture quality per channel and tighten selectors as needed.
 
