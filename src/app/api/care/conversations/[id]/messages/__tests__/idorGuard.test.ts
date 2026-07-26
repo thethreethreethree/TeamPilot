@@ -18,11 +18,16 @@ vi.mock("@/lib/data/care", async (importOriginal) => {
   return { ...actual, getCareConversationByToken: vi.fn() };
 });
 
-import { GET } from "@/app/api/care/conversations/[id]/messages/route";
+import { GET, POST } from "@/app/api/care/conversations/[id]/messages/route";
 import { getCareConversationByToken } from "@/lib/data/care";
 
 const req = (token?: string) =>
   ({ headers: { get: (k: string) => (k === "x-care-session" ? token ?? null : null) } }) as never;
+const postReq = (token: string) =>
+  ({
+    headers: { get: (k: string) => (k === "x-care-session" ? token : null) },
+    json: async () => ({ body: "hello" }),
+  }) as never;
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 
 beforeEach(() => vi.clearAllMocks());
@@ -45,5 +50,22 @@ describe("GET /api/care/conversations/[id]/messages — customer IDOR guard", ()
     vi.mocked(getCareConversationByToken).mockResolvedValue(null as never);
     const res = await GET(req("bogus-or-expired"), ctx("conv-1"));
     expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/care/conversations/[id]/messages — no raw-exception leak (CWE-209)", () => {
+  it("an internal error returns a GENERIC 500 — the raw exception never reaches the public customer", async () => {
+    // A DB/schema failure inside the handler must not hand its message (table/column names, missing-env-var
+    // names) to an unauthenticated customer. The route logs it server-side and returns a generic error.
+    // Locks the 2026-07-27 fix so a future edit can't re-introduce `detail: err.message` (A30 — gate the class).
+    vi.mocked(getCareConversationByToken).mockRejectedValue(
+      new Error('relation "support_messages" does not exist')
+    );
+    const res = await POST(postReq("valid-token"), ctx("conv-1"));
+    expect(res.status).toBe(500);
+    const json = (await res.json()) as { error?: string; detail?: unknown };
+    expect(json.error).toBe("Server error.");
+    expect(json.detail).toBeUndefined(); // the raw exception must NOT be in the response
+    expect(JSON.stringify(json)).not.toContain("support_messages"); // belt-and-suspenders: no leak anywhere
   });
 });
