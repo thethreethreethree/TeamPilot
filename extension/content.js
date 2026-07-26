@@ -493,6 +493,58 @@
       if (!text) { say("Nothing to capture — highlight the conversation (or open a supported channel), then Capture."); return; }
       messages = [{ role: "unknown", sender: "", text, media: [] }];
     }
+    // Founder 2026-07-26: don't dump the whole thread — let the user SELECT which messages to save.
+    renderCaptureSelection(messages, adapter);
+  }
+
+  // The selection step: list every extracted message with a checkbox (all checked by default) so the user
+  // picks exactly what to capture, then "Capture selected" saves that subset (founder 2026-07-26). Rendered
+  // into the result panel; inline styles so it can't be broken by a host page's CSS (shadow DOM already
+  // isolates us, but the panel's own classes are minimal).
+  function renderCaptureSelection(messages, adapter) {
+    const result = $("result");
+    const info = $("selInfo");
+    if (!result) { void doCapture(messages, adapter); return; } // no panel container → capture all
+    const mini = "font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:transparent;color:#a1a1aa;cursor:pointer;";
+    const rows = messages.map((m, i) => {
+      const who = m.role === "agent" ? "You" : m.role === "customer" ? "Customer" : (m.sender ? esc(String(m.sender).slice(0, 40)) : "—");
+      const nMedia = Array.isArray(m.media) ? m.media.length : 0;
+      const snippet = esc((m.text || "").replace(/\s+/g, " ").trim().slice(0, 90)) || (nMedia ? "(media only)" : "(empty)");
+      return `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;">
+        <input type="checkbox" class="capcb" data-i="${i}" checked style="margin-top:3px;flex:0 0 auto;">
+        <span style="flex:1;min-width:0;">
+          <span style="font-size:10px;font-weight:600;color:#FACC15;">${who}</span>${nMedia ? ` <span style="font-size:9px;color:#a1a1aa;">📎${nMedia}</span>` : ""}
+          <span style="display:block;font-size:11px;color:#d4d4d8;line-height:1.35;">${snippet}</span>
+        </span>
+      </label>`;
+    }).join("");
+    result.classList.remove("hide");
+    result.innerHTML = `
+      <div style="font-size:11px;font-weight:600;color:#fafafa;margin-bottom:6px;">Select what to capture <span id="capCount" style="color:#a1a1aa;font-weight:400;"></span></div>
+      <div style="display:flex;gap:8px;margin-bottom:6px;"><button id="capAll" style="${mini}">All</button><button id="capNone" style="${mini}">None</button></div>
+      <div style="max-height:210px;overflow-y:auto;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0 6px;margin-bottom:8px;">${rows}</div>
+      <div style="display:flex;gap:8px;"><button id="capDo" class="ghost" style="flex:1;">Capture selected</button><button id="capCancel" class="ghost" style="flex:0 0 auto;">Cancel</button></div>`;
+    const cbs = () => Array.from(result.querySelectorAll(".capcb"));
+    const upd = () => { const n = cbs().filter((c) => c.checked).length; const el = $("capCount"); if (el) el.textContent = `(${n} of ${messages.length})`; const go = $("capDo"); if (go) go.disabled = n === 0; };
+    cbs().forEach((c) => c.addEventListener("change", upd));
+    if ($("capAll")) $("capAll").addEventListener("click", () => { cbs().forEach((c) => (c.checked = true)); upd(); });
+    if ($("capNone")) $("capNone").addEventListener("click", () => { cbs().forEach((c) => (c.checked = false)); upd(); });
+    if ($("capCancel")) $("capCancel").addEventListener("click", () => {
+      result.classList.add("hide"); result.innerHTML = "";
+      if (info) info.textContent = adapter ? `Click above to read the open ${esc(adapter.label)}, or highlight part of it.` : "Highlight a conversation on the page, then click above.";
+    });
+    if ($("capDo")) $("capDo").addEventListener("click", () => {
+      const chosen = cbs().filter((c) => c.checked).map((c) => messages[parseInt(c.getAttribute("data-i"), 10)]).filter(Boolean);
+      if (!chosen.length) return;
+      result.classList.add("hide"); result.innerHTML = "";
+      void doCapture(chosen, adapter);
+    });
+    upd();
+  }
+
+  async function doCapture(messages, adapter) {
+    const info = $("selInfo");
+    const say = (t) => { if (info) info.textContent = t; };
 
     // Build the ingest payload (text + per-message attribution + media METADATA). The media URL is
     // sent as provenance; the BYTES are not uploaded from here — content.js must make no direct
