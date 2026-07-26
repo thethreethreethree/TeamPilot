@@ -181,6 +181,34 @@ new code (this session's own) and two documented past-bug classes — all fixed 
     general reconciliation is surfaced for a considered change rather than rushed. Recommended: add the
     reconciliation effect (also future-proofs snooze + any filtering action).
 
+## Additional classes swept — clean with evidence (on the record per §1.7.4)
+
+These three classes were not part of the original tester report but were swept to close the audit. An empty
+flag list at a layer is itself suspicious (§1.7), so the *evidence* is recorded, not just the verdict.
+
+14. **XSS (message + media rendering) — SAFE by construction.** `grep dangerouslySetInnerHTML` across
+    `src/components/care`, `src/app/dashboard/care`, `src/app/widget` returns EMPTY — no raw-HTML rendering.
+    Customer + AI message bodies render as `{text}` (React auto-escapes). The only content-derived href is
+    `media.url` in `RcdPanel`/`RcdMobileSheet`, which is a server-signed Supabase URL (`https://…supabase.co/…`
+    or `null`→placeholder), never raw user input and never `javascript:`/`data:`; the page-controlled
+    `sourceUrl` is server-only and not rendered. A hostile customer message / captured page cannot inject
+    script.
+
+15. **CSRF (state-changing endpoints) — SAFE by design.** Customer state-changes authenticate via the custom
+    `x-care-session` HEADER (`conversations/[id]/messages/route.ts:57`, `…/upload/route.ts:47`; both comment
+    "not user auth"), un-forgeable cross-site (browsers don't auto-send custom headers; CORS blocks setting
+    them). Create-conversation has no session to forge (a CSRF would create a rate-limited empty conversation).
+    Agent endpoints ride Supabase's cookie session under its default `SameSite=Lax`, which blocks cross-site
+    POST cookies.
+
+16. **Performance (inbox hot path) — SOUND, one latent flag.** `fetchEnrichedInbox` (`care.ts:1035`) is a
+    SINGLE joined query (tags + customer via Supabase nested-select), not N+1; downstream enrichment batches
+    via `.in(ids)` (1420/1835/2008). No per-row query loop. **Latent flag (not built):** the inbox caps at
+    `.limit(500)` with no pagination — good for perf (bounded), but a tenant with >500 open conversations would
+    silently see only the 500 most-recent-by-`last_message_at` (a §3.4 "no silent cap" gap). Not pilot-
+    reachable; the useful fix (surface "showing 500 of N" to the agent) needs a return-type ripple across
+    callers, so it's a recorded proposal, not an unprompted refactor. Product call: infinite-scroll vs. pages.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
