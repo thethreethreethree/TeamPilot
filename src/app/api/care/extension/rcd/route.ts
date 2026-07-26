@@ -58,12 +58,20 @@ const Schema = z
   })
   .strict();
 
-/** Postgres "undefined_table" — the 0194 migration hasn't been applied yet. */
+/**
+ * The 0194 migration hasn't been applied yet — the care_rcd_* tables don't exist. Postgres reports
+ * this as 42P01 ("undefined_table"); PostgREST (Supabase's REST layer, which these writes go through)
+ * reports it as PGRST205 with "Could not find the table '…' in the schema cache". Built NOT to depend
+ * on the code being right (same discipline as isMissingColumnError): a known code OR the canonical
+ * phrasing identifies it, so a wrong/missing code still degrades to the honest "apply the migration"
+ * message instead of a generic 500.
+ */
 function isMissingTable(err: unknown): boolean {
   const e = err as { code?: string; message?: string } | null;
-  return (
-    e?.code === "42P01" ||
-    /relation ".*" does not exist|undefined table/i.test(e?.message ?? "")
+  if (!e) return false;
+  if (e.code === "42P01" || e.code === "PGRST205") return true;
+  return /relation ".*" does not exist|undefined table|schema cache|could not find the table/i.test(
+    e.message ?? ""
   );
 }
 

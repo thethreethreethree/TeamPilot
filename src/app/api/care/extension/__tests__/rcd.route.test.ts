@@ -113,7 +113,7 @@ describe("POST /api/care/extension/rcd", () => {
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 
-  it("degrades to 503 (not 500) when 0194 isn't applied — missing table (A34)", async () => {
+  it("degrades to 503 (not 500) when 0194 isn't applied — Postgres 42P01 (A34)", async () => {
     vi.mocked(readBody).mockResolvedValue({
       channel: "gmail",
       messages: [{ seq: 0, role: "customer", text: "hi", media: [] }],
@@ -121,6 +121,24 @@ describe("POST /api/care/extension/rcd", () => {
     vi.mocked(createAdminClient).mockReturnValue(makeAdmin({ convError: { code: "42P01", message: 'relation "care_rcd_conversations" does not exist' } }) as never);
     const res = await POST(req);
     expect(res.status).toBe(503);
+  });
+
+  it("degrades to 503 for PostgREST's missing-table shape too (PGRST205 / schema cache) — the real Supabase error", async () => {
+    // Regression: content.js writes go through PostgREST, which reports a missing table as PGRST205
+    // ('Could not find the table … in the schema cache') — NOT 42P01. The founder hit this live and got
+    // a generic 500 ('Couldn't start the capture.') instead of the honest 'apply the migration' message.
+    vi.mocked(readBody).mockResolvedValue({
+      channel: "whatsapp",
+      messages: [{ seq: 0, role: "customer", text: "hi", media: [] }],
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeAdmin({
+        convError: { code: "PGRST205", message: "Could not find the table 'public.care_rcd_conversations' in the schema cache" },
+      }) as never
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/isn't enabled|pending migration/i);
   });
 
   it("happy path: creates rows + returns a signed upload URL per media; company from auth", async () => {
