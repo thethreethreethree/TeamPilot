@@ -68,4 +68,22 @@ describe("GET /api/care/rcd/retention-cron — auth gate", () => {
     const json = await (await GET(reqWith("Bearer s3cret"))).json();
     expect(json.retentionDays).toBe(90);
   });
+
+  it("MASS-DELETE GUARD: 0, negative, and non-numeric RCD_RETENTION_DAYS all fall back to 90 — never cutoff=now", async () => {
+    // The single most important safety on an IRREVERSIBLE PII purge: retentionDays() requires `parsed > 0`,
+    // so a misconfigured RCD_RETENTION_DAYS=0 or -5 CANNOT set the cutoff to "now" and delete every capture.
+    // The "unset" test above does NOT exercise this guard — these dangerous VALUES do. If a refactor ever
+    // weakened `> 0` to `>= 0` (or dropped the guard), this test fails instead of the DB losing all RCD PII.
+    process.env.CRON_SECRET = "s3cret";
+    vi.mocked(createAdminClient).mockReturnValue(emptyAdmin() as never);
+    for (const bad of ["0", "-5", "-1", "0.0", "abc", "", " "]) {
+      process.env.RCD_RETENTION_DAYS = bad;
+      const json = await (await GET(reqWith("Bearer s3cret"))).json();
+      expect(
+        json.retentionDays,
+        `RCD_RETENTION_DAYS=${JSON.stringify(bad)} must default to 90, never enable a mass-delete`
+      ).toBe(90);
+    }
+    delete process.env.RCD_RETENTION_DAYS;
+  });
 });
