@@ -91,12 +91,29 @@ to the period (confirmed: no such constraint in the table def `0118:28-44`; `fin
   no external exposure → **MEDIUM**, not HIGH.
 - **Only compensating control is detective, not preventive:** `0178_fin_integrity_check.sql:154-155` flags
   future-dated postings in a report; it blocks nothing.
+- **Class sweep (§A26) — the "gate keys on a caller-supplied reference, not the actual data" class, each
+  instance read directly (§A38, not relayed):**
+  - `fin_post_entry` (`0118:170`) — **HAS the gap** (caller-supplied `period_id`, no `entry_date`
+    containment). Confirmed.
+  - `fin_reverse_entry` / `fin_post_reversal` (`0118:215` / `:248`) — **HAS the gap too**: takes
+    caller-supplied `p_period_id` + `p_entry_date`, inserts the reversal with both (`:230-232`) and posts
+    checking only `period_id` status (`:254-257`), no containment. **This is the MORE-exercised path**
+    (reversal is the normal way to correct a posted entry), so it matters more than the base case.
+  - `fin_reopen_year` (`0151:101`) — **CHECKED, SAFE.** (An earlier draft of this doc relayed a claim that
+    it shared the pattern; reading it directly disproved that — it DERIVES `v_date =
+    make_date(fiscal_year,12,31)` and selects the period `where status='open' and v_date between
+    start_date and end_date` (`:121-124`), the same immune derive-from-date pattern as the document paths.
+    Corrected here; a false "also vulnerable" claim would have sent a fix at a non-bug.)
+  - Non-finance gates were considered and are NOT in this class: the care/RCD/extension/auth paths derive
+    the tenant from the authed session (RLS / `auth_company_id()`), not a caller-supplied reference — so
+    they can't be defeated the same way. **The class is bounded to finance manual-posting/reversal paths
+    (2 instances), both closed by the one BEFORE-posted containment trigger.**
 - **Recommended fix (§A27/A31 — enforce the invariant at the chokepoint, not via caller discipline):**
   add an `entry_date ∈ [period.start_date, period.end_date]` containment check. Cleanest as an additive
   BEFORE-trigger on `fin_journal_entries` that fires on the transition to `status='posted'` (matching the
   existing T-19 timing so drafts and the already-safe document paths are unaffected), OR inside
-  `fin_post_entry` alongside T-19. Also apply to `fin_reverse_entry` (`0118:215`) and `fin_reopen_year`
-  (`0151:101`), which the map flags as sharing the caller-supplied-period pattern. **Flagged, not built:**
+  `fin_post_entry` alongside T-19. **A single BEFORE-posted trigger on `fin_journal_entries` fixes the
+  whole class at once** — it covers the second confirmed instance too. **Flagged, not built:**
   it's a behavior change on the core ledger posting path (which entries get rejected) that needs live-DB
   verification + founder review; the consistent finance-change discipline here is flag + ready fix, apply
   under the founder's eye (same as the FX-rounding flag). Ready to write the migration + test on the word.
