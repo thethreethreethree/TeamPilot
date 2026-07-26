@@ -882,6 +882,9 @@ export default function SessionDetail() {
               sessionId={id}
               context={session?.context}
               onRecordingSaved={() => void load()}
+              // Gate the "not recording" banner to active sessions so it can't
+              // misfire on an already-ended one (founder 2026-07-26 fix).
+              active={session?.status === "active"}
             />
 
             {/* Upload / Coach tools / raw Transcript — Expert only. Spec p4/p5

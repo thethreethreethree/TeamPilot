@@ -22,10 +22,16 @@ export function LiveCoachingPanel({
   sessionId,
   context,
   onRecordingSaved,
+  // Whether this session is still ACTIVE (not ended). Gates the "you're not
+  // recording yet" banner so it can't misfire on an already-ended session that
+  // still shows this panel (Expert stays on the page after ending). Defaults
+  // true so a caller that doesn't pass it keeps the safety prompt.
+  active = true,
 }: {
   sessionId: string;
   context?: SalesContext;
   onRecordingSaved?: () => void;
+  active?: boolean;
 }) {
   const {
     recordingBlob,
@@ -201,7 +207,7 @@ export function LiveCoachingPanel({
           is not live (idle or error), say so LOUDLY and name the exact trap, so the
           rep can't pitch without recording (AMD-006 L3; §3.4 — an error is shown,
           not swallowed). Hidden while connecting (transient) and once live. */}
-      {!live && status !== "connecting" && (
+      {active && !live && status !== "connecting" && (
         <div className="mt-3 rounded-xl border border-amber-500/45 bg-amber-500/[0.08] p-3">
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
