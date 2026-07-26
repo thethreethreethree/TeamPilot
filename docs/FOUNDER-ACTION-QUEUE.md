@@ -17,6 +17,7 @@ comprehensive security audit (all green, ~40 commits). Full record: `docs/closur
 5. **Email dispatch-failure → route to a human?** (today: transient send failure = customer silence + a log only). Recommended yes.
 6. **Inbox: should single assign-away auto-advance** like close/resolve? (UX call — AMD-006 pattern). 
 7. **Capture success → clickable "Open C.A.R.E →" link** (like Spawn) — say the word once you've confirmed capture works end-to-end.
+8. **Standard-mode Home (DONE: the 2 learning-visibility panels are now Expert-only, `eeafd70`).** Two adjacent items you didn't annotate, left as-is for your call (one-line gate each): the "make-learning-visible" reframe banner (partly introduces the now-hidden metrics) + the "Patterns surfaced this week" list. Cascade-check done: the dedicated learning pages (growth/patterns/leadership) are correctly NOT gated — hiding their content would empty them.
 
 **🧪 RUNTIME-VERIFY (I can't run a browser):** fresh pilot tenant first tool call → trial opens (not 402);
 the sidebar group expands; capture with an image → Enable image capture → re-capture → thumbnail lands.
