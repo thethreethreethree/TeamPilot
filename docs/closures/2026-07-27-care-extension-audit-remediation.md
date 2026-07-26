@@ -37,9 +37,16 @@ Governed by the founder's Build/Audit/Solution protocol (`Thinkerthinker Build K
    exception string (`${err.name}: ${err.message}`) to unauthenticated clients: `conversations/route.ts:174`
    (create) and `conversations/[id]/messages/route.ts:362` (post message). Leaks Postgres table/column names
    and missing-env-var names on error. Both already log it server-side, so `detail` in the response was pure
-   leak. Fixed (`3e8c75ae`) + swept the class to the authed `agent/tenant` route (`908d0897`). No care route
-   now returns a raw exception to any client. **Reusable lens:** grep public API error responses for
-   `detail:` / `err.message` / `String(err)` — raw exceptions belong in the server log, never the response.
+   leak. Fixed (`3e8c75ae`) + the authed `agent/tenant` route (`908d0897`). **CORRECTION (`f188f791`): my
+   first sweep was INCOMPLETE** — the grep matched `detail:` (colon) and missed the object-shorthand
+   `{error, detail}` and interpolated `${detail}` forms, so I wrongly claimed "no care route returns a raw
+   exception." A proper re-sweep found a THIRD public instance: `conversations/[id]/upload/route.ts:128` (the
+   customer-widget file upload, raw DB error to the customer with NO server log) — fixed; plus the authed
+   `agent-upload` sibling. **Accurate final state:** no PUBLIC care route leaks a raw exception; the 4 authed
+   agent AI-tool routes (co-pilot/dissect/formulate/summarize) intentionally return the LLM error to the agent
+   (documented 2026-07-25, authed-only, A15). **Reusable lens (corrected):** grep error responses for
+   `detail[,:}]` AND `${...err`/`String(err)` — shorthand and interpolation hide the leak from a naive
+   `detail:` grep (A38 — the sweep recipe itself must be verified).
 
 **Verified SOUND this pass (now inspected, moved off the residual):** widget bootstrap (`toWidgetSafeConfig`
 whitelist projection, test-locked — no internal field leaks); inbound-email webhook (`CARE_INBOUND_EMAIL_SECRET`
