@@ -106,17 +106,30 @@ to the period (confirmed: no such constraint in the table def `0118:28-44`; `fin
     Corrected here; a false "also vulnerable" claim would have sent a fix at a non-bug.)
   - Non-finance gates were considered and are NOT in this class: the care/RCD/extension/auth paths derive
     the tenant from the authed session (RLS / `auth_company_id()`), not a caller-supplied reference — so
-    they can't be defeated the same way. **The class is bounded to finance manual-posting/reversal paths
-    (2 instances), both closed by the one BEFORE-posted containment trigger.**
+    they can't be defeated the same way.
+  - **⚠️ CORRECTION (deeper sweep — supersedes "bounded to 2 instances"; §A38 applied to my own fix):**
+    because the fix is a trigger on ALL posted-entry writes, I then swept every one of the ~20
+    `fin_post_system_entry` document callers. The class is BROADER than the manual + reversal pair:
+    **payroll (`0167`, pay_date) and inventory (`0180`, current_date)** also pass a caller-supplied period
+    with no containment check — their date belongs in-period, so they are additional instances the trigger
+    correctly closes. The ~14 date-derived paths + fixed-assets (`0166`, dates at `period.start_date`) are
+    provably in-period. **The one genuine EXCEPTION is opening balances (`0169`)** — `as_of` is a
+    ledger-inception date posted into a client-supplied period and may legitimately fall outside it, so the
+    trigger EXEMPTS `source LIKE 'opening_batch:%'` (founder accounting-convention decision to drop the
+    exemption if opening balances are always in-period). My earlier "document paths immune / bounded to 2"
+    framing was over-broad — corrected before it could ship a fix that rejects legitimate opening-balance
+    imports.
 - **Recommended fix (§A27/A31 — enforce the invariant at the chokepoint, not via caller discipline):**
   add an `entry_date ∈ [period.start_date, period.end_date]` containment check. Cleanest as an additive
   BEFORE-trigger on `fin_journal_entries` that fires on the transition to `status='posted'` (matching the
   existing T-19 timing so drafts and the already-safe document paths are unaffected), OR inside
   `fin_post_entry` alongside T-19. **A single BEFORE-posted trigger on `fin_journal_entries` fixes the
-  whole class at once** — it covers the second confirmed instance too. **Flagged, not built:**
-  it's a behavior change on the core ledger posting path (which entries get rejected) that needs live-DB
-  verification + founder review; the consistent finance-change discipline here is flag + ready fix, apply
-  under the founder's eye (same as the FX-rounding flag). Ready to write the migration + test on the word.
+  whole class at once** — it covers the second confirmed instance too. **✅ DRAFTED on branch
+  `fix/fin-h1-entry-date-in-period`:** migration `0196` (the additive trigger) + `verify_0196_*.sql`
+  (detection query for existing mis-dated rows + isolated negative/positive trigger tests, rolls back).
+  **On a branch, NOT main, on purpose** — it changes core-ledger posting behavior and is not live-verified,
+  so it must not auto-apply as a side effect of the founder's `0188`–`0195` `db:apply`. Founder reviews →
+  merges → applies → runs the verifier. Static gates pass (rls:audit, invariant:audit); SQL not executed.
 
 ## Bottom line
 Application layer sound (no RLS bypass, no float money-math). DB layer: balance, immutability, and tenant
