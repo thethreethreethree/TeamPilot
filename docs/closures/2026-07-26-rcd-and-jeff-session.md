@@ -1,20 +1,23 @@
 # Closure — 2026-07-26: RCD + Jeff product knowledge
 
 One actionable record of the session, so the founder has a single list rather than findings
-scattered across ~25 commits. All pushed to `main` (auto-deploys). Full canonical gate green
-(`npm run check` exit 0 · 1445 tests · 0 leaks/policy-gaps/violations) **and** `next build` green.
+scattered across ~70 commits. All pushed to `main` (auto-deploys). Full canonical gate green
+(`npm run check` exit 0 · 1451 tests · 0 leaks/policy-gaps/violations) **and** `next build` green.
 
 ---
 
 ## 🚦 FOUNDER ACTIONS
 
-1. **Reload the extension** (`chrome://extensions` → reload → **accept the new `*.supabase.co` permission**). The manifest changed for image-byte upload; without a reload, Capture runs old code.
-2. **Re-test Capture** on a channel (WhatsApp) → confirm: N messages (not 1), Agent/Customer roles, the prominent "Raw Conversation Data" bar at the app bottom (auto-opens), and whether image **thumbnails** appear. Report the status line back.
-3. **Three deferred decisions** (details in `docs/feature-specs/RCD-RAW-CONVERSATION-DATA.md`):
+1. **⭐ Run `npm run db:apply` (highest-value).** If you applied `0194` (RCD) alone, `0188`–`0193` are still pending → **Live Monitor, Adaptive Knowledge (ACMS), the §3.2 fail-closed gate, the extension trial column, and e-commerce order-capture in handoffs are all DORMANT** — and Jeff's product knowledge *describes them as working* (a soft §3.4 gap). `db:apply` activates them all + makes Jeff's claims true. `0194` is idempotent so re-applying is safe. (Or confirm you already ran `db:apply`, which applies everything — then this is moot.)
+2. **⭐ Verify Jeff answers "what is C.A.R.E?"** on the live widget or `/care/demo`. Fix `7a5b3113` made the product-knowledge check env-aware — but if your Vercel env sets `CARE_DEFAULT_TENANT_ID` to a non-hardcoded id, the *first* fix never took effect. If Jeff still says "not familiar with that acronym," tell me (different resolution path).
+3. **Reload the extension** (`chrome://extensions` → reload → **accept the new `*.supabase.co` permission**). The manifest changed for image-byte upload; without a reload, Capture runs old code.
+4. **Re-test Capture** on a channel (WhatsApp) → confirm: N messages (not 1), Agent/Customer roles, the prominent "Raw Conversation Data" bar at the app bottom (auto-opens), and whether image **thumbnails** appear (first confirm the `care-rcd-media` bucket exists in Supabase → Storage). Report the status line back.
+5. **Three deferred decisions** (details in `docs/feature-specs/RCD-RAW-CONVERSATION-DATA.md`):
    - **Non-image media bytes** (PDF/video/audio) — metadata-only today; capturing bytes needs BROADER extension host-permissions (a security tradeoff — not taken unilaterally).
    - **Activate retention** — set `RCD_RETENTION_DAYS` (default 90) + add `/api/care/rcd/retention-cron` to `vercel.json` + `CRON_SECRET`. Dormant until then (it deletes customer PII — a conscious activation).
    - **Targeted GDPR/CCPA erasure** for captured customer PII — not built (tables are immutable + retention-only delete). A legal decision; same class as `anonymizeCustomer()`.
-4. **Chrome Web Store** (when publishing): justify the new `*.supabase.co` host permission; the store description should mention Capture. Adding a host permission disables an already-installed extension until re-accepted.
+6. **Chrome Web Store** (when publishing): justify the new `*.supabase.co` host permission; the store description should mention Capture. Adding a host permission disables an already-installed extension until re-accepted.
+7. **`A1 + B1` + the tier→plan pricing map** — the entitlement write-path (the #1 launch blocker). Fully specced (`docs/feature-specs/ENTITLEMENT-WRITE-PATH-PLAN.md`), zero drift, but genuinely gated on your pricing decision (which CRM tiers unlock the extension). Say the combo + confirm the map → I build + test in one pass.
 
 ---
 
