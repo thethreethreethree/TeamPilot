@@ -56,6 +56,21 @@ bytes-before-rows, no orphans, RCD immutability triggers are UPDATE-only so dele
 numbers). **Still NOT inspected:** finance, sales-coach live-coaching internals, the authed agent AI-tool
 routes' bodies (co-pilot/dissect/summarize/formulate) beyond the error-leak class.
 
+## CWE-209 gating — final boundary (A30 done to the point of diminishing returns, A33)
+
+- **All 3 PUBLIC instances GATED with regression tests** (the real risk): messages (`idorGuard.test.ts`),
+  create-conversation (`conversations/__tests__/errorLeak.test.ts`), customer upload
+  (`upload/__tests__/errorLeak.test.ts`). Each asserts an internal throw → generic 500 with no `detail`/raw
+  string; each FAILS against the pre-fix code. Independently regressable per the codebase's own convention.
+- **The 2 AUTHED instances (agent-upload, tenant/logo) are FIXED + verified-by-inspection, gate DECLINED
+  (A33).** Reason: both are authenticated (trusted same-tenant user → lower risk than the public routes), and
+  reaching their inner file/config-write catch needs a disproportionate mock stack (agent-upload: 7+ deps —
+  getCurrentAuthContext/fetchAgentConversation/validate/buildPath/upload/autoRoute/classify/createFileRecord;
+  logo: an admin-client mock with both a storage-upload and an upsert chain). Per A33, a gate whose cost
+  exceeds its value is worse than the documented decision — the fix (log + generic message) is simple and
+  read-verified. If either is later refactored, add the gate then. (I initially said I'd gate these; on
+  reading the routes the mock cost inverted the call — recorded honestly rather than force the tests.)
+
 ## Extended audit — sales-coach subsystem authz (adjacent, verified SOUND with evidence)
 
 Applied the same authz rigor to the sales-coach transcript surface (the sensitive per-rep coaching data, A10/A18):
