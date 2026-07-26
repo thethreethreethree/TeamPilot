@@ -454,7 +454,11 @@
       for (const el of document.querySelectorAll("img")) {
         if ((el.currentSrc || el.src) === url) { img = el; break; }
       }
-      if (!img || !img.complete || !img.naturalWidth) return null;
+      if (!img || !img.complete || !img.naturalWidth) {
+        // Diagnostic (why a thumbnail didn't sync — visible in the extension console during testing).
+        console.warn("[care rcd] image not found / not loaded on the page for capture:", url);
+        return null;
+      }
       const MAX = 1600;
       const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
       const w = Math.max(1, Math.round(img.naturalWidth * scale));
@@ -467,7 +471,10 @@
       ctx.drawImage(img, 0, 0, w, h);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.9); // throws SecurityError if the canvas is tainted
       return (dataUrl.split(",")[1]) || null;
-    } catch {
+    } catch (e) {
+      // The common case: a cross-origin image without CORS taints the canvas → toDataURL throws
+      // SecurityError. Log it so "images didn't sync" is diagnosable (that media stays metadata-only).
+      console.warn("[care rcd] couldn't read image bytes (likely cross-origin/tainted canvas):", e && e.name);
       return null; // tainted cross-origin or any failure → skip, keep the metadata row
     }
   }
