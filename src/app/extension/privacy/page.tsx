@@ -29,10 +29,13 @@ export default function ExtensionPrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-primary mb-2">The short version</h2>
             <p>
-              The C.A.R.E extension only ever reads the text <strong className="text-primary">you select</strong>{" "}
-              on a page, and only when you click a tool. That text is sent to the C.A.R.E service to produce the
-              result you asked for (a summary, a diagnosis, a draft) and is{" "}
-              <strong className="text-primary">not stored</strong>. It is processed and discarded.
+              The C.A.R.E extension reads a conversation only when you click a button, and only the conversation
+              you point it at. The <strong className="text-primary">tools</strong> (Summarize, Co-Pilot, Coach…)
+              send that text to the C.A.R.E service to produce the result you asked for and{" "}
+              <strong className="text-primary">do not store it</strong> — it&apos;s processed and discarded. The{" "}
+              <strong className="text-primary">Capture</strong> button is deliberately different: it{" "}
+              <strong className="text-primary">saves</strong> the conversation to your C.A.R.E workspace so your
+              team can see it (see &ldquo;When you use Capture&rdquo; below).
             </p>
           </section>
 
@@ -55,11 +58,24 @@ export default function ExtensionPrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-primary mb-2">What we do with it</h2>
             <p>
-              The selected text is sent to the C.A.R.E backend to generate the tool&apos;s output, grounded in
-              your own workspace. It is <strong className="text-primary">not written to any database, not used
-              to train models, and not retained after the request completes</strong> — unless you explicitly
-              choose to save a result (for example, spawning a task or saving a resolution), in which case only
-              the item you saved is stored, in your own C.A.R.E workspace.
+              For the <strong className="text-primary">tools</strong>, the text is sent to the C.A.R.E backend to
+              generate the output, grounded in your own workspace. It is <strong className="text-primary">not
+              written to any database, not used to train models, and not retained after the request
+              completes</strong> — unless you explicitly choose to save a result (for example, spawning a task, or
+              using Capture), in which case what you saved is stored in your own C.A.R.E workspace.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-bold text-primary mb-2">When you use Capture</h2>
+            <p>
+              <strong className="text-primary">Capture</strong> is the one action that stores data on purpose. When
+              you click <em>Capture conversation → C.A.R.E</em>, the extension reads the open conversation and{" "}
+              <strong className="text-primary">saves it to your C.A.R.E workspace</strong> — the messages and any
+              attachments (such as images) — so your team can view the full thread in the C.A.R.E app. This is
+              stored privately in your workspace, visible only to your team, never sold or shared, and never used
+              to train models. It is kept according to your workspace&apos;s retention policy. Use Capture only for
+              conversations you intend to keep as part of your customer records.
             </p>
           </section>
 
