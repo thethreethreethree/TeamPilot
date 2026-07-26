@@ -433,6 +433,98 @@
     );
   }
 
+  // Capture RCD (Raw Conversation Data) — the FULL conversation (text + per-message attribution + media)
+  // sent to the C.A.R.E app, where it appears at the bottom (§ founder build 2026-07-26). Flow:
+  //   1. adapter.extractRCD() → structured messages (falls back to the current text selection as one msg).
+  //   2. POST the structure (text + media METADATA) to the ingest route via the worker → signed upload URLs.
+  //   3. Fetch each media's bytes HERE (page context, where blob:/session URLs are valid) and PUT them
+  //      DIRECTLY to the Supabase signed URL (CORS-permitted; bytes never hit the worker or the API limit).
+  // Media byte upload is BEST-EFFORT: a fetch/CORS/tainted-canvas miss leaves the metadata row intact, so
+  // the app shows the filename/placeholder rather than failing the whole capture (§3.4 degrade).
+  // RUNTIME-UNVERIFIED: third-party media fetching varies by site; must be confirmed in a real browser.
+  async function captureRcd() {
+    const info = $("selInfo");
+    const say = (t) => { if (info) info.textContent = t; };
+
+    const adapter = (typeof careAdapterFor === "function") ? careAdapterFor(location.hostname) : null;
+    let messages = [];
+    if (adapter && typeof adapter.extractRCD === "function") {
+      try { messages = adapter.extractRCD() || []; } catch { messages = []; }
+    }
+    if (!messages.length) {
+      const text = (currentSelection || "").trim();
+      if (!text) { say("Nothing to capture — highlight the conversation (or open a supported channel), then Capture."); return; }
+      messages = [{ role: "unknown", sender: "", text, media: [] }];
+    }
+
+    // Build the ingest payload; remember each media's real URL so we can upload its bytes after.
+    const mediaToUpload = []; // { ref, url }
+    const payloadMessages = messages.slice(0, 500).map((m, i) => {
+      const media = (Array.isArray(m.media) ? m.media : []).slice(0, 50).map((md, j) => {
+        const ref = `m${i}_${j}`;
+        if (md && md.url) mediaToUpload.push({ ref, url: md.url });
+        return {
+          ref,
+          type: md && md.type ? md.type : "file",
+          filename: md && md.filename ? String(md.filename).slice(0, 300) : null,
+          alt: md && md.alt ? String(md.alt).slice(0, 2000) : null,
+          sourceUrl: md && md.url ? String(md.url).slice(0, 4000) : null,
+        };
+      });
+      return {
+        seq: i,
+        role: m.role === "agent" || m.role === "customer" ? m.role : "unknown",
+        sender: m.sender ? String(m.sender).slice(0, 300) : null,
+        text: (m.text || "").slice(0, 20000),
+        media,
+      };
+    });
+
+    say(`Capturing ${payloadMessages.length} message(s)…`);
+    const payload = {
+      channel: adapter && adapter.key ? adapter.key : "manual",
+      sourceUrl: location.href.slice(0, 4000),
+      messages: payloadMessages,
+    };
+
+    let resp;
+    try {
+      resp = await chrome.runtime.sendMessage({ type: "care-rcd-ingest", payload });
+    } catch {
+      say("Couldn't reach C.A.R.E to save the capture.");
+      return;
+    }
+    if (!resp || resp.status < 200 || resp.status >= 300) {
+      say((resp && resp.data && resp.data.error) || "Couldn't save the capture.");
+      return;
+    }
+
+    const uploads = (resp.data && resp.data.uploads) || [];
+    let ok = 0;
+    for (const up of uploads) {
+      const m = mediaToUpload.find((x) => x.ref === up.ref);
+      if (!m || !m.url || !up.signedUrl) continue;
+      try {
+        const blob = await (await fetch(m.url)).blob();
+        if (!blob || blob.size === 0 || blob.size > 25 * 1024 * 1024) continue;
+        const put = await fetch(up.signedUrl, {
+          method: "PUT",
+          body: blob,
+          headers: { "content-type": blob.type || "application/octet-stream" },
+        });
+        if (put.ok) ok++;
+      } catch {
+        /* best-effort: the metadata row persists; the app shows a placeholder */
+      }
+    }
+    const total = uploads.length;
+    say(
+      total > 0
+        ? `Captured ${payloadMessages.length} message(s) · ${ok}/${total} attachment(s) uploaded. Open the C.A.R.E app to view it.`
+        : `Captured ${payloadMessages.length} message(s). Open the C.A.R.E app to view it.`
+    );
+  }
+
   // ── Views ────────────────────────────────────────────────────────────────────────────────────────────────
   function toolsView() {
     const grid = CARE_TOOLS.map((t, i) => {
@@ -448,12 +540,19 @@
          <button class="ghost" id="readSelBtn">Read my selected text instead</button>`
       : `<button class="primary" id="readSelBtn">Read my selected text</button>`;
     $("body").innerHTML = `
-      <div class="consent">We only read the ${adapter ? "conversation you point us at" : "text you have <b>selected</b>"} on the page. It's processed to help you and <b>not stored</b>.</div>
+      <div class="consent">The tools read the ${adapter ? "conversation you point us at" : "text you have <b>selected</b>"} and process it to help you — <b>nothing is stored</b>. <b>Capture</b> is different: it <b>saves</b> the full thread (text + media) to your C.A.R.E app so your team can see it.</div>
       ${adapterBtn}
+      <button class="ghost" id="captureBtn">Capture conversation → C.A.R.E</button>
       <div class="selinfo" id="selInfo">${adapter ? `Click above to read the open ${esc(adapter.label)}, or highlight part of it.` : "Highlight a conversation on the page, then click above."}</div>
       <div class="grid">${grid}</div>
       <div class="result hide" id="result"></div>`;
     if (adapter) $("readAdapterBtn").addEventListener("click", () => readAdapter(adapter));
+    // Capture stores the full thread (text + media) to the C.A.R.E app (RCD). mousedown+preventDefault so a
+    // click doesn't collapse the page selection before extractRCD/selection reads it (same reason as readSel).
+    $("captureBtn").addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      void captureRcd();
+    });
     // Capture on mousedown + preventDefault so clicking the button doesn't steal focus and COLLAPSE the page
     // selection before we read it (the classic rich-text-toolbar problem). Without this, "Read my selected
     // text" would often read empty on the very flow it exists for.

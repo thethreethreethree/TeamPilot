@@ -114,6 +114,23 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch(() => sendResponse({ status: 0, data: { error: "network" } }));
     return true; // async
   }
+
+  // Ingest RCD (Raw Conversation Data) captured from the page. Unlike the text tools, this carries the
+  // full STRUCTURE (messages + per-message attribution + media metadata), so it has its own handler with
+  // the endpoint PINNED here (never caller-supplied — open-proxy hygiene). Returns { conversationId,
+  // uploads:[{ref, signedUrl, ...}] }; the panel then PUTs each media's bytes DIRECTLY to its Supabase
+  // signed URL (CORS-permitted), so the bytes never traverse this worker or the API's ~4.5MB body limit.
+  if (message?.type === "care-rcd-ingest") {
+    const p = message.payload;
+    if (!p || typeof p !== "object" || !Array.isArray(p.messages) || !p.messages.length) {
+      sendResponse?.({ status: 400, data: { error: "Bad RCD payload." } });
+      return; // sync
+    }
+    careFetch("/api/care/extension/rcd", p)
+      .then((r) => sendResponse(r))
+      .catch(() => sendResponse({ status: 0, data: { error: "network" } }));
+    return true; // async
+  }
 });
 
 // Keep the toolbar badge in sync with the session, wherever the token changes (connect handoff, panel
