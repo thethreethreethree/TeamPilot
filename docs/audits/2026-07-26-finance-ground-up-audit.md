@@ -44,22 +44,66 @@ arithmetic prefill handles the float trap. Sound.
 
 ---
 
-## B. DB layer — hypotheses OPEN (verification in progress)
+## B. DB layer — VERIFIED (enforcement map confirmed against the highest-numbered definitions)
 
-The load-bearing money-integrity checks are all in the DB. Verifying these against the current (highest-
-numbered `create or replace`) definitions:
+- **H2 — posted-entry immutability: SOUND.** `fin_entries_immutable()` (`0118:94`, BEFORE INS/UPD/DEL
+  trigger `0118:112`) raises on any UPDATE/DELETE of a `status='posted'` entry ("reverse it, do not edit")
+  and blocks any touch when the period is closed/locked. `fin_lines_immutable()` (`0118:117`, trigger
+  `0118:134`) mirrors it for lines. Posted rows are terminal; correction is only via `fin_reverse_entry`.
+  RLS also caps client writes to `status in ('draft','pending_approval')` (`0118:304`).
+- **H3 — balance-check completeness: SOUND.** `fin_assert_balanced()` (`0118:142`) is a **DEFERRABLE
+  INITIALLY DEFERRED constraint trigger** (`0118:164`) on `fin_journal_lines` for INS/UPD/DEL per row —
+  fires at COMMIT, so multi-line inserts can be transiently unbalanced but MUST tie by commit. Sums
+  `base_debit`/`base_credit` (server-computed by `fin_lines_compute_base`, `round(debit*fx_rate,4)` — client
+  can't inject a false base). Backed by per-line CHECKs: nonneg + debit-XOR-credit (`0118:64-65`). Also
+  asserted procedurally inside every posting RPC before the status flip. (The known FX-rounding flag lives
+  in `fin_lines_compute_base`'s per-line rounding vs the exact tie — already queued, not re-litigated here.)
+- **H4 — DB tenant isolation: SOUND.** **No `using(true)` / `with check(true)` anywhere in the finance
+  layer** (grep-confirmed across `*fin*.sql`). Every core table is `company_id = auth_company_id()`-scoped
+  plus a capability predicate (`fin_can_view/enter/approve/configure`): `fin_journal_entries` (`0118:293`),
+  `fin_journal_lines` (`0118:311`), `fin_accounts` (`0116:169`), `fin_bills`/`fin_invoices` (draft-only
+  client writes, author-pinned `0142`). Counters + `fin_source_postings` are select-only for viewers,
+  mutated solely by DEFINER functions.
 
-- **H1 — closed-period posting (highest consequence):** can a journal entry post into an already-closed
-  period/fiscal year? Evidence it's *checked*: `fin_approve_bill` surfaces a **"no open period"** error
-  (approve route comment `:21`) — so the bill path enforces it. OPEN: confirm the check at the SQL level,
-  and whether EVERY posting path (manual journals, AR invoices, expenses, payroll) enforces it, not just
-  bill approval. A path that skips it could corrupt closed books.
-- **H2 — posted-entry immutability:** is there a trigger blocking UPDATE/DELETE on `fin_journal_entries` /
-  `fin_journal_lines` once posted (reverse-don't-edit)? OPEN.
-- **H3 — balance-check completeness:** `fin_assert_balanced` (debits == credits) — does it fire on all
-  mutation paths incl. late line UPDATEs, and is it a deferred constraint trigger or an AFTER-row trigger?
-  OPEN.
-- **H4 — DB tenant isolation:** SELECT/INSERT/UPDATE policies on `fin_journal_*`/`fin_accounts`/bills/
-  invoices scoped by company_id, none `using(true)`. OPEN.
+### H1 — closed-period posting: **REAL GAP (MEDIUM).** The close gate keys on `period_id`, not `entry_date`.
 
-_DB-layer verdicts appended once the enforcement map is confirmed._
+`fin_post_entry` (`0118:170`, the sanctioned manual-post RPC) checks only that the **referenced
+`period_id`** is open (T-19, `0118:193-197`). It never checks that `entry_date ∈ [period.start_date,
+period.end_date]`, and there is **no CHECK constraint or trigger** on `fin_journal_entries` tying the date
+to the period (confirmed: no such constraint in the table def `0118:28-44`; `fin_entries_immutable` keys off
+`period_id` status, not `entry_date`; grep for any `entry_date`↔period rule returns nothing).
+
+- **Document/subledger paths are IMMUNE** — `fin_approve_bill`/`fin_issue_invoice`/`fin_approve_expense`/
+  AP-pay/AR-receipt/credit-note/reconcile all resolve the period *from the document date* and require an
+  OPEN period that CONTAINS that date (e.g. `0147:126-129` `where status='open' and v_date between
+  start_date and end_date`). They cannot mis-date into a closed period.
+- **The manual `fin_post_entry` path is the hole.** A draft can be inserted with `entry_date` in a closed
+  period but `period_id` pointing at a *different, open* period (RLS insert policy `0118:296-300` validates
+  only `status` + `created_by`, not date/period agreement). `fin_post_entry` sees an open `period_id` →
+  passes T-19 → posts. The entry lands in the GL dated in the closed period, and all GL/reporting views
+  aggregate by `e.entry_date` (`0151:56`, `0164:77`, `0165:57`), so closed-period figures shift silently.
+- **Reachability (verified, keeps severity honest):** **NOT reachable through the current product UI** —
+  there is no manual journal-entry surface in `src/app/dashboard/finance/` (every surface is document-driven
+  → the safe paths), and no app code calls `fin_post_entry`. But `0183_fin_definer_revoke` does **not**
+  revoke `fin_post_entry` (it stays callable by `authenticated` by design — the documented sanctioned
+  posting primitive), so it IS reachable by a finance user with approve-capability via a **direct PostgREST
+  RPC**, deliberately mis-setting `period_id` ≠ `entry_date`'s period. Internal actor, deliberate act,
+  no external exposure → **MEDIUM**, not HIGH.
+- **Only compensating control is detective, not preventive:** `0178_fin_integrity_check.sql:154-155` flags
+  future-dated postings in a report; it blocks nothing.
+- **Recommended fix (§A27/A31 — enforce the invariant at the chokepoint, not via caller discipline):**
+  add an `entry_date ∈ [period.start_date, period.end_date]` containment check. Cleanest as an additive
+  BEFORE-trigger on `fin_journal_entries` that fires on the transition to `status='posted'` (matching the
+  existing T-19 timing so drafts and the already-safe document paths are unaffected), OR inside
+  `fin_post_entry` alongside T-19. Also apply to `fin_reverse_entry` (`0118:215`) and `fin_reopen_year`
+  (`0151:101`), which the map flags as sharing the caller-supplied-period pattern. **Flagged, not built:**
+  it's a behavior change on the core ledger posting path (which entries get rejected) that needs live-DB
+  verification + founder review; the consistent finance-change discipline here is flag + ready fix, apply
+  under the founder's eye (same as the FX-rounding flag). Ready to write the migration + test on the word.
+
+## Bottom line
+Application layer sound (no RLS bypass, no float money-math). DB layer: balance, immutability, and tenant
+isolation are all DB-enforced and sound. **One material finding: H1** — the closed-period gate is enforced
+against `period_id` rather than `entry_date`, leaving the manual `fin_post_entry` RPC able to post a
+closed-period-dated entry. UI-unreachable today, reachable by a deliberate internal actor via direct RPC.
+MEDIUM. Recommend the date∈period containment check.
