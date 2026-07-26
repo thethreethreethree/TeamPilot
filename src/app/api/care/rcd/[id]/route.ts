@@ -45,19 +45,26 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
       .eq("conversation_id", id),
   ]);
 
-  // Sign each media's private-bucket path (short TTL). A failed sign yields url:null → the panel
-  // shows the filename/placeholder rather than a broken image.
-  const mediaByMessage = new Map<string, Array<Record<string, unknown>>>();
-  for (const m of media ?? []) {
-    let url: string | null = null;
+  // Sign all media paths in ONE batch round-trip (createSignedUrls), not N sequential ones — until
+  // Phase 2c lands, EVERY media is byte-less, so a per-media loop would be N failing storage calls on
+  // every conversation view. A missing object / failed sign yields url:null → the panel shows the
+  // filename placeholder rather than a broken image (§3.4 degrade).
+  const mediaList = media ?? [];
+  const signedByPath = new Map<string, string>();
+  if (mediaList.length > 0) {
     try {
-      const { data: signed } = await auth.sb.storage
-        .from(BUCKET)
-        .createSignedUrl(m.storage_path as string, SIGNED_TTL);
-      url = signed?.signedUrl ?? null;
+      const paths = mediaList.map((m) => m.storage_path as string);
+      const { data: signedArr } = await auth.sb.storage.from(BUCKET).createSignedUrls(paths, SIGNED_TTL);
+      for (const s of signedArr ?? []) {
+        if (s && !s.error && s.signedUrl && s.path) signedByPath.set(s.path, s.signedUrl);
+      }
     } catch {
-      url = null;
+      /* leave all urls null → placeholders */
     }
+  }
+
+  const mediaByMessage = new Map<string, Array<Record<string, unknown>>>();
+  for (const m of mediaList) {
     const list = mediaByMessage.get(m.message_id as string) ?? [];
     list.push({
       id: m.id,
@@ -66,7 +73,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
       alt: m.alt,
       contentType: m.content_type,
       byteSize: m.byte_size,
-      url,
+      url: signedByPath.get(m.storage_path as string) ?? null,
     });
     mediaByMessage.set(m.message_id as string, list);
   }
