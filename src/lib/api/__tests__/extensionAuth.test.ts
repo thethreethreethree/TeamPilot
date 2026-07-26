@@ -99,7 +99,7 @@ describe("requireEntitledExtensionUser", () => {
 
   it("authenticated but locked tenant → 402 with the entitlement in the body", async () => {
     mockAdmin({ user: { id: "u" }, profile: { company_id: "c", status: "active" } });
-    vi.mocked(getExtensionEntitlement).mockResolvedValue({ status: "locked", trialDaysLeft: 0, plan: "pilot" });
+    vi.mocked(getExtensionEntitlement).mockResolvedValue({ status: "locked", trialDaysLeft: 0, plan: "pilot", trialEnded: false });
     const r = await requireEntitledExtensionUser(reqWith("Bearer t"));
     expect(r.ok).toBe(false);
     if (!r.ok) {
@@ -111,7 +111,7 @@ describe("requireEntitledExtensionUser", () => {
 
   it("authenticated + entitled → ok, carrying the entitlement", async () => {
     mockAdmin({ user: { id: "u1" }, profile: { company_id: "c1", status: "active" } });
-    vi.mocked(getExtensionEntitlement).mockResolvedValue({ status: "trial", trialDaysLeft: 9, plan: "pilot" });
+    vi.mocked(getExtensionEntitlement).mockResolvedValue({ status: "trial", trialDaysLeft: 9, plan: "pilot", trialEnded: false });
     const r = await requireEntitledExtensionUser(reqWith("Bearer t"));
     expect(r.ok).toBe(true);
     if (r.ok) {

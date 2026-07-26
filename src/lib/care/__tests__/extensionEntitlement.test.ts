@@ -66,9 +66,24 @@ describe("computeExtensionEntitlement (D2)", () => {
     expect(r.trialDaysLeft).toBe(EXTENSION_TRIAL_DAYS - 4);
   });
 
-  it("EXPIRED trial → locked (no silent grant)", () => {
+  it("EXPIRED trial → locked (no silent grant) AND trialEnded=true (honest 'your trial ended')", () => {
     const startedAt = new Date(NOW - (EXTENSION_TRIAL_DAYS + 1) * DAY).toISOString();
-    expect(computeExtensionEntitlement({ plan: "pilot", trialStartedAt: startedAt, now: NOW }).status).toBe("locked");
+    const r = computeExtensionEntitlement({ plan: "pilot", trialStartedAt: startedAt, now: NOW });
+    expect(r.status).toBe("locked");
+    expect(r.trialEnded).toBe(true); // they HAD it; the client shows "trial ended", not "never included"
+  });
+
+  it("trialEnded is FALSE for never-started, active-trial, paid, and future/garbled starts", () => {
+    // never started → "your plan doesn't include it" (honest — they never had it)
+    expect(computeExtensionEntitlement({ plan: "pilot", trialStartedAt: null, now: NOW }).trialEnded).toBe(false);
+    // active trial → not ended
+    const active = new Date(NOW - 2 * DAY).toISOString();
+    expect(computeExtensionEntitlement({ plan: "pilot", trialStartedAt: active, now: NOW }).trialEnded).toBe(false);
+    // paid → never a trial
+    expect(computeExtensionEntitlement({ plan: "pro", trialStartedAt: null, now: NOW }).trialEnded).toBe(false);
+    // future/garbled start = never had a working trial → not "ended"
+    expect(computeExtensionEntitlement({ plan: "pilot", trialStartedAt: new Date(NOW + DAY).toISOString(), now: NOW }).trialEnded).toBe(false);
+    expect(computeExtensionEntitlement({ plan: "pilot", trialStartedAt: "not-a-date", now: NOW }).trialEnded).toBe(false);
   });
 
   it("trial exactly at the boundary → locked (window is exclusive at the end)", () => {
@@ -145,7 +160,7 @@ describe("getExtensionEntitlement (IO branches)", () => {
  */
 describe("shouldAutoStartTrial (pure predicate)", () => {
   const ent = (status: "active" | "trial" | "locked"): ReturnType<typeof computeExtensionEntitlement> =>
-    ({ status, trialDaysLeft: 0, plan: "x" });
+    ({ status, trialDaysLeft: 0, plan: "x", trialEnded: false });
   it("true only when locked AND no trial ever started", () => {
     expect(shouldAutoStartTrial({ trialStartedAt: null, computed: ent("locked") })).toBe(true);
   });

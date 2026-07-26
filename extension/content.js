@@ -255,11 +255,15 @@
       return;
     }
     if (status === 402) {
-      const s = data?.entitlement?.status || "locked";
-      // §1.5.1 / §3.4 (founder audit 2026-07-23 — Finding 3): the old copy promised "start a trial in your
-      // workspace" — a self-serve flow that does not exist yet (the entitlement write-path is unbuilt). Don't
-      // point the user at a door that isn't there; name the real next step (their admin enables it).
-      out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Your plan doesn't include the C.A.R.E extension (${esc(s)}). Contact your workspace admin to enable it.`;
+      // Honesty (founder audit 2026-07-23 Finding 3 + 2026-07-27): don't promise a self-serve trial that
+      // doesn't exist. AND — now that the auto-trial exists — distinguish a tenant whose 14-day trial ENDED
+      // (they HAD it) from one whose plan never included it. Saying "your plan doesn't include it" to someone
+      // who just had a working trial is a lie; `entitlement.trialEnded` carries the truth from the server.
+      const ended = data?.entitlement?.trialEnded === true;
+      const msg = ended
+        ? "Your 14-day C.A.R.E trial has ended. Ask your workspace admin to upgrade the plan to keep using it."
+        : "Your plan doesn't include the C.A.R.E extension. Ask your workspace admin to enable it.";
+      out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>${esc(msg)}`;
       return;
     }
     if (status < 200 || status >= 300) {

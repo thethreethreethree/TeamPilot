@@ -21,6 +21,13 @@ export type ExtensionEntitlement = {
   trialDaysLeft: number;
   /** The plan the decision was based on (for the client to show context honestly). */
   plan: string;
+  /**
+   * True only when the tenant is `locked` AND had a trial that has genuinely EXPIRED (a valid start, window
+   * elapsed). Lets the client tell "your trial ended" from "your plan never included this" — honesty is the
+   * moat: once auto-trial exists, a bare "your plan doesn't include it" is a lie to a tenant that just had 14
+   * days of it. Never true for a paid tenant, an active trial, or a tenant that never started one.
+   */
+  trialEnded: boolean;
 };
 
 const PAID_PLANS = new Set(["pro", "enterprise"]);
@@ -50,9 +57,10 @@ export function computeExtensionEntitlement(args: {
   const plan = (args.plan ?? "pilot").toLowerCase();
 
   if (PAID_PLANS.has(plan)) {
-    return { status: "active", trialDaysLeft: 0, plan };
+    return { status: "active", trialDaysLeft: 0, plan, trialEnded: false };
   }
 
+  let trialEnded = false;
   if (args.trialStartedAt) {
     const started = Date.parse(args.trialStartedAt);
     if (!Number.isNaN(started)) {
@@ -60,12 +68,15 @@ export function computeExtensionEntitlement(args: {
       const msWindow = EXTENSION_TRIAL_DAYS * 24 * 60 * 60 * 1000;
       if (msElapsed >= 0 && msElapsed < msWindow) {
         const daysLeft = Math.max(0, Math.ceil((msWindow - msElapsed) / (24 * 60 * 60 * 1000)));
-        return { status: "trial", trialDaysLeft: daysLeft, plan };
+        return { status: "trial", trialDaysLeft: daysLeft, plan, trialEnded: false };
       }
+      // A valid start past the window = a genuinely EXPIRED trial (they HAD access). A future/garbled start
+      // is NOT counted — they never had a working trial, so the honest state is "never included", not "ended".
+      if (msElapsed >= msWindow) trialEnded = true;
     }
   }
 
-  return { status: "locked", trialDaysLeft: 0, plan };
+  return { status: "locked", trialDaysLeft: 0, plan, trialEnded };
 }
 
 /**
@@ -109,7 +120,7 @@ export async function getExtensionEntitlement(
       });
     }
     // Any other read failure → locked (fail closed for a paid feature).
-    return { status: "locked", trialDaysLeft: 0, plan: "unknown" };
+    return { status: "locked", trialDaysLeft: 0, plan: "unknown", trialEnded: false };
   }
 
   const plan = (data?.plan as string | null) ?? null;
