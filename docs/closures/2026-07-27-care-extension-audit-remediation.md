@@ -304,6 +304,23 @@ ruled it out with hard evidence:
     the default unlock path. This is an honest correction — the ripple should have been surfaced WITH the
     auto-trial fix, not a cycle later.
 
+## Compliance verification — the RCD PII-purge cron genuinely deletes (not silent-failure theater)
+
+24. **SOUND — RCD retention purge actually purges.** Before the founder relies on this cron for PII/GDPR
+    retention, verified the failure mode from the append-only-blocks-deletion incident does NOT apply here.
+    The cron (`rcd/retention-cron/route.ts:97`) does `.delete()` then `if (!delErr) purged += 1` — if RCD
+    immutability were a `do instead nothing` RULE, the delete would silently no-op (no error) and the cron
+    would report `purged: N` while retaining the PII forever. It is NOT a rule: `0194_care_rcd.sql` freezes
+    content with `BEFORE UPDATE` TRIGGERS on all three tables (121-123 / 132-134 / 143-144) — UPDATE raises,
+    DELETE is untouched. No `do instead nothing` rule, no `BEFORE DELETE` trigger. So the delete lands; child
+    `care_rcd_media`/`messages` rows cascade (`on delete cascade`, 60/83) and their triggers are also
+    UPDATE-only, so they don't block the cascade. The 0194 author explicitly mirrored the `care_knowledge_documents`
+    0193 content-freeze-trigger pattern (comment line 24) precisely to allow deletion — the lesson from the
+    append-only incident was applied. Fail-safe is sound too: `RCD_RETENTION_DAYS` defaults to 90 (not 0 =
+    delete-all, not infinite = delete-nothing) when unset; CRON_SECRET auth is 503-if-unset / 401-on-mismatch.
+    Bytes are removed before the row so objects never orphan. Conclusion: the purge chain is correct — the
+    founder can schedule it as a genuine retention path.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
