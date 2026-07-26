@@ -259,10 +259,13 @@
       // doesn't exist. AND — now that the auto-trial exists — distinguish a tenant whose 14-day trial ENDED
       // (they HAD it) from one whose plan never included it. Saying "your plan doesn't include it" to someone
       // who just had a working trial is a lie; `entitlement.trialEnded` carries the truth from the server.
+      // Both variants route to the admin WITHOUT naming a self-serve action that doesn't exist — "upgrade
+      // the plan" / "enable it as a button" would re-introduce the Finding-3 "door that isn't there" gap,
+      // because the paid write-path is unbuilt (the admin escalates to ELOSTATE, they don't click a toggle).
       const ended = data?.entitlement?.trialEnded === true;
       const msg = ended
-        ? "Your 14-day C.A.R.E trial has ended. Ask your workspace admin to upgrade the plan to keep using it."
-        : "Your plan doesn't include the C.A.R.E extension. Ask your workspace admin to enable it.";
+        ? "Your 14-day C.A.R.E trial has ended. Contact your workspace admin to keep using C.A.R.E."
+        : "Your plan doesn't include the C.A.R.E extension. Contact your workspace admin to enable it.";
       out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>${esc(msg)}`;
       return;
     }
