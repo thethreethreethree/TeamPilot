@@ -12,6 +12,16 @@ verification, hygiene, and audit. Every substantive fix is founder-gated and fla
   **RCD (Conversation Capture)** or the **Browser extension** — the founder's two explicit builds. A future
   edit could have dropped the RCD answer with the test green. Both now locked. (Jeff's knowledge already
   describes RCD accurately + honestly-scoped.)
+- **Regression-hardening: +20 tests locking security/safety-critical guards that were verified-by-reading
+  but UNprotected** (suite 1453 → 1473). Each is a property whose silent regression would be
+  catastrophic/high-consequence: (1) **RCD retention mass-delete guard** — `RETENTION_DAYS=0`/neg → 90, so a
+  config typo can't purge all PII; (2) **recording-purge** — auth + the malformed-pointer "false-ok"
+  guard (was 0 tests); (3) **inbound-email webhook auth** — 500 fail-closed / 401, the only thing stopping
+  forged-customer emails (was untested); (4) **widget-messages customer IDOR** — a token holder can't read
+  another customer's conversation (the #1 customer-facing property, was untested); (5) **customer
+  file-access** — no cross-conversation or internal/admin-only file downloads; (6) **`vocabAlt`** — the
+  regex builder behind all 7 Coach detectors. Writing #3 also caught my own 503-vs-500 slip (route right,
+  test wrong; fixed).
 
 ## Audits (§1.7, outside-view) — the tenant-isolation surface, verified end-to-end
 | Audit | Doc | Result |
