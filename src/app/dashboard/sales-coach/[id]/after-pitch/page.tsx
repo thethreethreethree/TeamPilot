@@ -404,9 +404,13 @@ export default function AfterPitchPage() {
               <span className="text-secondary">recording during the call</span>{" "}
               to capture it. On your next call, tap{" "}
               <span className="text-brand font-semibold">Start live coaching</span>{" "}
-              on the session screen before you begin — opening the session isn&apos;t
-              the same as recording it. If you did record and still see this, tap
-              Rebuild.
+              on the session screen before you begin
+              {/* Expert also has an Upload-a-recording path on the session screen;
+                  Standard is live-only (that upload was removed for door-to-door
+                  reps), so only mention it in Expert. */}
+              {!isStandard && ", or upload a recording there afterward"} — opening
+              the session isn&apos;t the same as recording it. If you did record and
+              still see this, tap Rebuild.
             </p>
             <button
               type="button"
