@@ -1,6 +1,6 @@
 # RCD — Raw Conversation Data (feature spec)
 
-**Status:** Phase 1 (capture foundation) shipped · Phases 2–5 blocked on ONE founder decision (§ Decision, below)
+**Status:** Pipeline built end-to-end for TEXT + attribution + media metadata (app-rendered, founder-decided 2026-07-26) — RUNTIME-UNVERIFIED; migration 0194 must be applied. Media BYTES (the "store bytes" choice) are the one remaining piece — Phase 2c, gated on the host-permissions decision. Downstream (ingest, private bucket, signed URLs, both displays) is already byte-ready.
 **Founder directive (2026-07-26):** *"modify our C.A.R.E extension so that it is capable of retrieving/capturing all content of the message from all of the channels… by all content I mean image and all data/media content. This is now defined as RCD RAW CONVERSATION DATA, and it is present on the bottom part of the C.A.R.E system. for both Mobile and Website. This is true for both Expert, and Standard mode."*
 
 ---
@@ -61,11 +61,23 @@ Secondary confirmations:
 
 Assumes **Option A** (the only one that fully satisfies the directive). Each phase pairs write + read (A31).
 
-- **Phase 2 — transport contract.** Extend `content.js`/`background.js` to send structured RCD; a new `/api/care/extension/rcd` ingest route with a Zod schema for `{ messages: [{role, sender, text, media[]}] }`. Multipart/binary handling for media bytes.
-- **Phase 3 — persistence.** Migration: `care_rcd_conversations` + `care_rcd_messages` (+ a Storage bucket for media) with tenant RLS + retention. Append-only per §3.1. Media download worker.
-- **Phase 4 — web display.** RCD panel below the `<Composer>` in `ConversationsApp.tsx`; render text + media thumbnails (reuse `InlineAttachment`). Visible in both modes (NOT `ExpertOnly`).
-- **Phase 5 — mobile display.** RCD bottom sheet in `CareRadialHome.tsx`; same data. Wire `ExperienceModeProvider` if mode-respect is wanted.
-- **Throughout:** each adapter's live selectors need a real-browser confirmation before that channel's RCD is trusted (the standing UNVERIFIED caveat).
+- **Phase 1 — capture.** ✅ `extension/adapters.js`: `extractRCD()` on all 11 adapters (structured + attributed + media, additive). `15ef16b7`.
+- **Phase 2 — ingest transport.** ✅ `/api/care/extension/rcd` (JSON in → rows + signed upload URLs out; degrade 503 if 0194 unapplied). `27aabce7`. 5 route tests.
+- **Phase 2b — extension wiring.** ✅ (text + attribution + media METADATA) `content.js` "Capture conversation" → ingest via `background.js`. Consent copy updated (§3.4: Capture STORES). `e0ba5cb2`/`cabea147`.
+- **Phase 2c — media BYTES.** ⬜ NOT built. content.js may make NO direct network calls (security invariant, `extensionWorker.test.ts`), and the worker can't read page-scoped `blob:` URLs — so byte sync needs a deliberate invariant-safe design: read bytes in content.js WITHOUT fetch (canvas for images / FileReader for blobs, mind CORS-taint) → pass to the worker → worker PUTs to the signed URL with a SCOPED `*.supabase.co` host permission. This is the "store bytes" the founder chose; everything downstream (ingest, bucket, signed URLs, both displays) is already byte-ready. Gated on the host-permissions decision.
+- **Phase 3 — persistence.** ✅ Migration `0194`: `care_rcd_conversations`/`_messages`/`_media` + PRIVATE `care-rcd-media` bucket, tenant RLS, content-immutable (§3.1). `b0881d47`. **Must be applied.**
+- **Phase 4 — web display.** ✅ `RcdPanel` mounted in `CareShell` (bottom, app-wide, both modes). Read routes `GET /api/care/rcd` + `/api/care/rcd/[id]` (signed media URLs). `f28e12c4` / `c6ab0275`.
+- **Phase 5 — mobile display.** ✅ `RcdMobileSheet` in `CareRadialHome` (Layers nav button; dark-console styling). `ba98523f`.
+- **Retention purge (Phase 3b).** ⬜ NOT built — a service-role cron deleting rows + bucket objects older than the retention window (the only delete path). Needs the founder's retention window + `CRON_SECRET`.
+
+## Runtime verification (founder — the whole feature is code-complete but UNVERIFIED)
+
+1. **Apply migration `0194`** (creates the tables + private bucket). Until then the panel shows empty and ingest returns 503.
+2. **Web:** open the C.A.R.E app → the "Raw Conversation Data" bar sits at the bottom → expand → empty state.
+3. **Extension:** on a supported channel (e.g. WhatsApp Web), click **Capture conversation → C.A.R.E**. Confirm the status line reports messages captured + attachments uploaded.
+4. **Verify the byte upload path** — the open question: does the content-script PUT to the Supabase signed URL succeed via CORS, or does it need a `*.supabase.co` host-permission entry in `manifest.json`? Check the extension console for a blocked-request error; if blocked, add the host permission (narrow to the project ref).
+5. **Web + mobile:** the captured conversation appears in the RCD panel (web) and the RCD sheet (mobile, Layers button) with correct roles + media thumbnails.
+6. **Per-adapter selector confirmation** — each channel's `extractRCD` selectors are still best-effort/UNVERIFIED (10/11); confirm capture quality per channel and tighten selectors as needed.
 
 ## 7. Maintenance note
 
