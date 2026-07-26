@@ -55,6 +55,18 @@ returns `locked` for everything non-entitled. Verified fail-closed by constructi
     the platform-wide auth boundary, not an RCD-specific weakness. **Inherited caveat (not a new hole):**
     the `status==='removed'` denylist fail-open if a third `profiles.status` is ever added — already
     tracked as queue item 8c, safe today under the 0008 CHECK constraint. **SOUND.**
+  - **Read-path re-traced (2026-07-26) — the signed-URL RLS-bypass vector specifically checked and
+    cleared:** signed *download* URLs are the classic way to bypass RLS (if signed by the service-role
+    client, the object's own RLS never runs). The detail route (`rcd/[id]/route.ts:59`) signs via
+    `auth.sb.storage` — the **session** client, RLS-enforced — NOT the admin client, so the storage
+    SELECT policy (`0194:216-219`, `foldername[1] = auth_company_id()`) still gates every sign. Doubly
+    safe: the `paths` handed to `createSignedUrls` come from a media read that already ran under `auth.sb`
+    RLS (`:44-47`), so they're tenant-scoped before signing. Verified the three table SELECT policies are
+    genuinely tenant-scoped (`exists(profiles where id=auth.uid() and company_id=row.company_id)`, NOT
+    `using(true)`; `0194:160-183`) and that RLS is enabled with **no** authenticated INSERT/UPDATE/DELETE
+    policy (writes are service-role only). A cross-tenant id → RLS yields nothing → 404. **SOUND.**
+    (Minor doc nit: the route's "explicit company match" comment overstates — the detail route relies on
+    RLS alone, which is the stronger DB-enforced guarantee, not a weaker one.)
 - **Injection/XSS:** uploaded content can't XSS (private bucket, non-HTML MIME allowlist, served via signed
   URL not our origin); `channel`/`sender`/`filename`/`body`/`preview` are all React-escaped on render.
 - **Latent risk FOUND + HARDENED:** `source_url` was stored raw (safe only because nothing renders it). Now
