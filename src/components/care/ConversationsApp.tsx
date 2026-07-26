@@ -1104,6 +1104,13 @@ export function ConversationsApp({
           // — a guidance toggle that says success but didn't flip
           // the column should surface, not silently lie.
           guidanceSet?: boolean;
+          // Verifies a general assign/unassign landed: a string = expect
+          // that owner; null = expect unassigned (column NULL). `claim`
+          // has its own `claimed` check (assign-to-self); this covers
+          // assign-to-other and unassign, which previously passed null
+          // here and so bypassed divergence detection entirely — the same
+          // silent-ok-on-failed-write gap that was fixed for guidance.
+          assignedAgentId?: string | null;
         }
       | null,
     successMsg: string
@@ -1153,6 +1160,21 @@ export function ConversationsApp({
           fresh.assignedAgentId !== currentUserId
         ) {
           toast.error("Claim didn't stick — conversation is still unassigned.");
+          await Promise.all([loadInbox(), loadDetail(selected.id)]);
+          return false;
+        }
+        // General assign/unassign verification. `!== undefined` (not a
+        // truthiness test) so null — the unassign case — is still checked;
+        // a truthy guard would silently skip verifying an unassign landed.
+        if (
+          expect.assignedAgentId !== undefined &&
+          fresh.assignedAgentId !== expect.assignedAgentId
+        ) {
+          toast.error(
+            expect.assignedAgentId === null
+              ? "Unassign didn't stick — the conversation still reads assigned."
+              : "Assignment didn't stick — the DB still reads a different owner."
+          );
           await Promise.all([loadInbox(), loadDetail(selected.id)]);
           return false;
         }
@@ -1269,11 +1291,32 @@ export function ConversationsApp({
   };
 
   const assignTo = async (targetAgentId: string | null) => {
-    await runAction(
+    // Auto-advance parity with changeStatus/runBulk (AMD-006 continuity): if
+    // this assignment moves the conversation OUT of the current filtered view,
+    // advance to the neighbor snapshot'd BEFORE the reload — otherwise the
+    // agent is left selected on a conversation that just left their list.
+    // Assignment only changes membership of two views: Mine (assigned away)
+    // and Unassigned (now assigned); every other view is assignment-invariant,
+    // so the agent correctly stays put there (advancing would be a jarring,
+    // wrong jump). The predicate is computed at action time from
+    // view+target+currentUserId — it deliberately does NOT read `filtered`
+    // after the action, whose useMemo hasn't re-derived from the reload yet
+    // (the stale-state trap that made this a considered fix, not a rushed one).
+    const willLeaveView =
+      (view === "mine" && targetAgentId !== currentUserId) ||
+      (view === "unassigned" && targetAgentId !== null);
+    const nextAfter =
+      willLeaveView && selected ? computeNextAfterTerminal(selected.id) : null;
+    const ok = await runAction(
       { action: "assign", targetAgentId },
-      null,
+      // Verify the write landed (parity with claim/guidance divergence
+      // detection) — a failed assign/unassign must not toast success.
+      { assignedAgentId: targetAgentId },
       targetAgentId ? "Assigned." : "Unassigned."
     );
+    if (ok && willLeaveView && nextAfter) {
+      setSelectedId(nextAfter);
+    }
   };
 
   const toggleSupervisorGuidance = async () => {
