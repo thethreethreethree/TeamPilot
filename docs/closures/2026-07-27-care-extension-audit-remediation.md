@@ -85,6 +85,24 @@ Applied the same authz rigor to the sales-coach transcript surface (the sensitiv
    already RLS-filters non-admin ids. Lower priority than #9 (which had zero route-layer scoping); left as a
    documented follow-up rather than refactoring a sound route.
 
+## Extended audit — finance subsystem authz (the last uninspected adjacent surface, verified SOUND)
+
+11. **Finance tenant-scoping — sound + structurally enforced.** Read (`fin_gl_detail`) and write
+    (`fin_approve_bill`, etc.) routes use the SESSION client + RPCs scoped internally by `auth_company_id()`,
+    passing only entity ids (`p_bill_id`) — never a client-supplied company param, so the tenant can't be
+    spoofed. NO finance route uses `createAdminClient` except `reports/deliver-cron` (CRON_SECRET-gated). This
+    is enforced by the `invariant:audit` gate ("finance routes RLS-scoped", "no client-callable DEFINER
+    tenant-param fn") in every `npm run check` — a stronger, uniformly-applied pattern than care's per-route
+    checks, so the "service-role route missed the tenant check" class (#9) does not apply here. The finance
+    error-response pattern (400/403 domain messages) was scoped-out earlier as intentional (finding #7 notes).
+    Finance also had a dedicated ground-up audit 2026-07-26 (`docs/audits/2026-07-26-finance-ground-up-audit.md`).
+
+**Audit coverage is now comprehensive across the in-scope + adjacent surfaces:** extension (entitlement/
+capture/permission/adapters/inputs), public C.A.R.E (widget/conversations/upload/inbound + CWE-209), agent
+conversation routes (read + mutation authz), sales-coach (read + write authz), finance (authz), crons. Every
+security class is either FIXED+gated or VERIFIED-sound-with-evidence. Remaining defects were concentrated in
+new code (this session's own) and two documented past-bug classes — all fixed and tested.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
