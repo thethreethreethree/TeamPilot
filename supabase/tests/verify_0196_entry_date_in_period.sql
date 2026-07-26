@@ -10,8 +10,9 @@
 --   NOTICE:  [detection] existing posted entries with a date outside their period: <N>
 --            (N should be 0 on a clean ledger; if > 0, the pre-fix gap already produced mis-dated rows —
 --             they are NOT auto-fixed by 0196 and may warrant a reversal cleanup.)
---   NOTICE:  [1/2] negative: posting an entry DATED OUTSIDE its period was REJECTED  -> PASS
---   NOTICE:  [2/2] positive: posting an entry DATED INSIDE its period SUCCEEDED      -> PASS
+--   NOTICE:  [1/3] negative: posting an entry DATED OUTSIDE its period was REJECTED  -> PASS
+--   NOTICE:  [2/3] positive: posting an entry DATED INSIDE its period SUCCEEDED      -> PASS
+--   NOTICE:  [3/3] exemption: an out-of-period OPENING-BALANCE entry was ALLOWED     -> PASS
 --   ...then a ROLLBACK. Any FAIL (or SKIPPED because the DB has no open period / no user) means investigate.
 
 begin;
@@ -31,7 +32,7 @@ begin
   end if;
 end $$;
 
--- ── [1/2] NEGATIVE: an entry posted with a date OUTSIDE its referenced period must be REJECTED. ───────
+-- ── [1/3] NEGATIVE: an entry posted with a date OUTSIDE its referenced period must be REJECTED. ───────
 --         This is the H1 bug being closed. We insert directly as status='posted' to isolate the new
 --         trigger (a bare entry with no lines doesn't invoke the balance trigger). ──────────────────
 do $$
@@ -43,7 +44,7 @@ begin
     from fin_periods where status = 'open' order by start_date desc limit 1;
   select id into v_user from auth.users limit 1;
   if v_period is null or v_user is null then
-    raise notice '[1/2] SKIPPED: needs at least one OPEN period and one user to build a test entry.';
+    raise notice '[1/3] SKIPPED: needs at least one OPEN period and one user to build a test entry.';
     return;
   end if;
 
@@ -57,13 +58,13 @@ begin
   end;
 
   if v_raised then
-    raise notice '[1/2] negative: posting an entry DATED OUTSIDE its period was REJECTED  -> PASS';
+    raise notice '[1/3] negative: posting an entry DATED OUTSIDE its period was REJECTED  -> PASS';
   else
-    raise warning '[1/2] negative: a mis-dated posted entry was ACCEPTED                  -> FAIL (H1 still open!)';
+    raise warning '[1/3] negative: a mis-dated posted entry was ACCEPTED                  -> FAIL (H1 still open!)';
   end if;
 end $$;
 
--- ── [2/2] POSITIVE: an entry posted with a date INSIDE its period must SUCCEED (no false positives). ──
+-- ── [2/3] POSITIVE: an entry posted with a date INSIDE its period must SUCCEED (no false positives). ──
 do $$
 declare
   v_period  uuid; v_company uuid; v_start date; v_end date; v_user uuid;
@@ -73,7 +74,7 @@ begin
     from fin_periods where status = 'open' order by start_date desc limit 1;
   select id into v_user from auth.users limit 1;
   if v_period is null or v_user is null then
-    raise notice '[2/2] SKIPPED: needs at least one OPEN period and one user to build a test entry.';
+    raise notice '[2/3] SKIPPED: needs at least one OPEN period and one user to build a test entry.';
     return;
   end if;
 
@@ -83,13 +84,46 @@ begin
       values (v_company, v_start, v_period, 'verify-0196 in-period', 'posted', 'manual', v_user);
   exception when others then
     v_raised := true;
-    raise notice '[2/2] (unexpected error: %)', SQLERRM;
+    raise notice '[2/3] (unexpected error: %)', SQLERRM;
   end;
 
   if not v_raised then
-    raise notice '[2/2] positive: posting an entry DATED INSIDE its period SUCCEEDED      -> PASS';
+    raise notice '[2/3] positive: posting an entry DATED INSIDE its period SUCCEEDED      -> PASS';
   else
-    raise warning '[2/2] positive: an in-period posted entry was REJECTED                 -> FAIL (0196 is too strict!)';
+    raise warning '[2/3] positive: an in-period posted entry was REJECTED                 -> FAIL (0196 is too strict!)';
+  end if;
+end $$;
+
+-- ── [3/3] EXEMPTION: an OPENING-BALANCE entry dated OUTSIDE its period must still SUCCEED. Opening
+--         balances (source LIKE 'opening_batch:%') carry a ledger-inception date that may legitimately
+--         fall outside the chosen period, so 0196 exempts them. This proves the exemption works (i.e. the
+--         trigger does not break legitimate opening-balance imports). ─────────────────────────────────
+do $$
+declare
+  v_period  uuid; v_company uuid; v_end date; v_user uuid;
+  v_raised  boolean := false;
+begin
+  select id, company_id, end_date into v_period, v_company, v_end
+    from fin_periods where status = 'open' order by start_date desc limit 1;
+  select id into v_user from auth.users limit 1;
+  if v_period is null or v_user is null then
+    raise notice '[3/3] SKIPPED: needs at least one OPEN period and one user to build a test entry.';
+    return;
+  end if;
+
+  begin
+    -- entry_date OUTSIDE the period, but source marks it an opening batch → exempt → must post.
+    insert into fin_journal_entries (company_id, entry_date, period_id, description, status, source, created_by)
+      values (v_company, v_end + 1, v_period, 'verify-0196 opening exempt', 'posted', 'opening_batch:test', v_user);
+  exception when others then
+    v_raised := true;
+    raise notice '[3/3] (unexpected error: %)', SQLERRM;
+  end;
+
+  if not v_raised then
+    raise notice '[3/3] exemption: an out-of-period OPENING-BALANCE entry was ALLOWED             -> PASS';
+  else
+    raise warning '[3/3] exemption: an opening-balance entry was REJECTED                          -> FAIL (exemption not working — would break opening-balance imports)';
   end if;
 end $$;
 
