@@ -153,6 +153,20 @@ conversation routes (read + mutation authz), sales-coach (read + write authz), f
 security class is either FIXED+gated or VERIFIED-sound-with-evidence. Remaining defects were concentrated in
 new code (this session's own) and two documented past-bug classes — all fixed and tested.
 
+## Flow-trace finding — email support: outbound dispatch failure has no human fallback (PROPOSAL, not built)
+
+12. **MEDIUM (proposal) — a failed outbound email reply leaves the customer in silence.** Traced the email
+    first-responder flow: `inbound/email/route.ts:713-724` generates + stores the AI reply, then
+    `dispatchOutboundEmailReply`. On `!dispatch.ok` it ONLY `console.error`s — the conversation is not routed
+    to a human, not retried, not flagged. On the EMAIL channel, storing ≠ delivering (the comment says so), so
+    a transient send failure (Postmark error / bad recipient) means the customer who emailed in gets nothing
+    and no agent is alerted (only Vercel logs). The unconfigured case (no `POSTMARK_SERVER_TOKEN`) is a
+    documented config prerequisite; the transient-failure case is the gap. **Not built (design decision):**
+    the right fix — flip `ai_responding=false` to surface it in the agent inbox on a genuine send failure,
+    and/or distinguish "unconfigured" from "send_failed" in the dispatch result so only real failures route to
+    a human — changes behavior + the return type, so it's surfaced for the founder rather than resolved
+    silently (surface-don't-overtake). Recommended: on a non-unconfigured dispatch failure, route to a human.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
