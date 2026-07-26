@@ -16,12 +16,19 @@ columns (`care_tenant_config.plan`, `extension_trial_started_at`) had NO writer,
 3. **Download page** version 0.1.0→0.3.0 (was showing a stale build number to testers).
 4. **Sidebar**: the 7 analysis/coaching items collapsed under one "C.A.R.E Tools" button (your mockup).
 
-**🚨 THE remaining blocker — B / PAID UNLOCK (14-day cliff, time-sensitive):** with only the auto-trial,
-**every tenant RE-LOCKS 14 days after their trial starts.** There's still no writer for
-`care_tenant_config.plan=pro/enterprise`, and a real bug: `PAID_PLANS={pro,enterprise}` but paying customers
-live in `crm_subscriptions.plan∈{team_*}` in a DIFFERENT table — so even a paying `team_large` reads locked.
-**Fix = build B1 (`ENTITLEMENT-WRITE-PATH-PLAN.md §B1`): a CRM-tier→plan sync + one-time backfill. Needs YOUR
-pricing call — which CRM tiers include the extension.** Say the tier→plan map and I build it in one pass.
+**B / PAID UNLOCK — a POST-PILOT feature, not an urgent blocker (framing corrected 2026-07-27):** with only
+the auto-trial, a tenant RE-LOCKS 14 days after their trial starts. I first flagged this as a "time-sensitive
+cliff," but that OVERSTATED it: your own `settings/account` page says the product is deliberately pre-billing
+(*"invite-only pilot… billing tiers arrive only once the pilots prove out"*). So in the pilot, the coherent
+flow is: auto-trial → honest "trial ended, contact your admin" on expiry → **you manually extend/unlock that
+pilot tenant** (`update care_tenant_config set plan='pro'` or reset `extension_trial_started_at`). For a
+handful of pilot tenants that is a per-tenant manual step, not a scaling emergency. **B1 (self-serve
+CRM-tier→plan sync, `ENTITLEMENT-WRITE-PATH-PLAN.md §B1`) is the SCALE solution for when billing goes live** —
+it needs your tier→plan pricing call, so it correctly waits for that. There IS a real latent bug to fix
+*when* you build B1: `PAID_PLANS={pro,enterprise}` vs CRM `crm_subscriptions.plan∈{team_*}` (different table,
+different vocab) — a paying `team_large` would read locked until the vocab is reconciled. **Immediate action
+for the tester:** if their trial expires before you want, `update care_tenant_config set plan='pro' where
+company_id='<tester>'`. Say the tier→plan map when you're ready for self-serve and I build B1 in one pass.
 
 **Tester diagnostic (confirm which bug they hit):** have them retry a tool — `402` = entitlement (now
 auto-trial-fixed, they should retry) vs `401` = sign-in (Finding 2: if you pinned
