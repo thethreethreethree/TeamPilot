@@ -457,12 +457,15 @@
       messages = [{ role: "unknown", sender: "", text, media: [] }];
     }
 
-    // Build the ingest payload; remember each media's real URL so we can upload its bytes after.
-    const mediaToUpload = []; // { ref, url }
+    // Build the ingest payload (text + per-message attribution + media METADATA). The media URL is
+    // sent as provenance; the BYTES are not uploaded from here — content.js must make no direct
+    // network calls (CORS/security architecture invariant, extensionWorker.test.ts), and the worker
+    // can't read page-scoped blob: URLs. Byte sync is a worker-side follow-up gated on the
+    // host-permissions decision (see the RCD spec). Rows are created now; the app shows the filename
+    // until bytes land.
     const payloadMessages = messages.slice(0, 500).map((m, i) => {
       const media = (Array.isArray(m.media) ? m.media : []).slice(0, 50).map((md, j) => {
         const ref = `m${i}_${j}`;
-        if (md && md.url) mediaToUpload.push({ ref, url: md.url });
         return {
           ref,
           type: md && md.type ? md.type : "file",
@@ -499,28 +502,10 @@
       return;
     }
 
-    const uploads = (resp.data && resp.data.uploads) || [];
-    let ok = 0;
-    for (const up of uploads) {
-      const m = mediaToUpload.find((x) => x.ref === up.ref);
-      if (!m || !m.url || !up.signedUrl) continue;
-      try {
-        const blob = await (await fetch(m.url)).blob();
-        if (!blob || blob.size === 0 || blob.size > 25 * 1024 * 1024) continue;
-        const put = await fetch(up.signedUrl, {
-          method: "PUT",
-          body: blob,
-          headers: { "content-type": blob.type || "application/octet-stream" },
-        });
-        if (put.ok) ok++;
-      } catch {
-        /* best-effort: the metadata row persists; the app shows a placeholder */
-      }
-    }
-    const total = uploads.length;
+    const total = ((resp.data && resp.data.uploads) || []).length;
     say(
       total > 0
-        ? `Captured ${payloadMessages.length} message(s) · ${ok}/${total} attachment(s) uploaded. Open the C.A.R.E app to view it.`
+        ? `Captured ${payloadMessages.length} message(s) and ${total} attachment(s). Open the C.A.R.E app to view it. (Attachment previews are being finalized — filenames show now.)`
         : `Captured ${payloadMessages.length} message(s). Open the C.A.R.E app to view it.`
     );
   }
