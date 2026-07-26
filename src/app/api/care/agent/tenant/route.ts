@@ -192,11 +192,17 @@ export async function PATCH(req: NextRequest) {
         .select("*")
         .single();
       if (retry.error) {
-        return NextResponse.json({ error: retry.error.message }, { status: 500 });
+        // Log the raw cause for the operator; return a generic message — don't hand a raw DB error to the
+        // client, even an authenticated agent (defense in depth vs a compromised account; CWE-209). Audit 2026-07-27.
+        // eslint-disable-next-line no-console
+        console.error(`[care.tenant] 500 retry upsert failed companyId=${ctx.companyId}: ${retry.error.message}`);
+        return NextResponse.json({ error: "Couldn't save settings." }, { status: 500 });
       }
       return NextResponse.json({ config: retry.data, businessTypeDeferred: true });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // eslint-disable-next-line no-console
+    console.error(`[care.tenant] 500 upsert failed companyId=${ctx.companyId}: ${error.message}`);
+    return NextResponse.json({ error: "Couldn't save settings." }, { status: 500 });
   }
 
   return NextResponse.json({ config: data });
