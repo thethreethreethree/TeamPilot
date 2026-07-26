@@ -32,7 +32,9 @@ the period from the date), but the manual `fin_post_entry` RPC — and, confirme
 more-exercised path) — can post a closed-period-*dated* entry by pointing `period_id` at an open period,
 silently shifting closed-period GL figures. Not reachable via any current UI; reachable by a finance user
 with approve-capability via direct RPC. **Fix DRAFTED on branch `fix/fin-h1-entry-date-in-period`**
-(migration `0196` — one additive `entry_date ∈ period` BEFORE-posted trigger closing both instances — +
+(migration `0196` — one additive `entry_date ∈ period` BEFORE-posted trigger; a deeper sweep found the
+class is broader than 2 — it also covers payroll + inventory, and EXEMPTS opening balances as a legitimate
+ledger-inception exception, correcting my earlier "document paths immune" over-claim — plus
 `verify_0196_*.sql`). **On a branch, not main, on purpose** so it doesn't auto-apply when you run the
 `0188`–`0195` `db:apply`: review → merge → apply → run the verifier. Static gates pass; SQL not
 live-executed (no DB from the sandbox).
