@@ -26,6 +26,7 @@ import {
   Sparkles,
   Tag,
   Users,
+  Wrench,
   Zap,
 } from "lucide-react";
 
@@ -66,10 +67,18 @@ type NavItem = {
   external?: boolean;
 };
 
+// Top-level, always-visible destinations — the agent's day-to-day surfaces (the inbox workflow).
 const PRIMARY_NAV: NavItem[] = [
   { label: "Home", href: "/dashboard/care", icon: Home },
   { label: "Conversations", href: "/dashboard/care/conversations", icon: Inbox },
   { label: "Customers", href: "/dashboard/care/customers", icon: Users },
+];
+
+// The C.A.R.E Tools group (founder 2026-07-27): the seven analysis/coaching surfaces collapsed behind ONE
+// "C.A.R.E Tools" button so the sidebar isn't a wall of ten items. Grouping only — every destination is
+// unchanged; the expander mirrors the existing Settings expander pattern (A28 — reuse the established
+// affordance, don't invent a new one).
+const TOOLS_NAV: NavItem[] = [
   // §3.2 Understanding Gate for support — recurring categories
   // surface as patterns once N>=3. The earliest warning system the
   // company has for product/process/messaging gaps.
@@ -94,11 +103,25 @@ const PRIMARY_NAV: NavItem[] = [
   // aggregate-only stance, carrying the §A18 guardrails (alphabetical, vs a
   // standard, coaching-framed, no F). Gated CEO/COO/admin by the route.
   { label: "Coach Assessment", href: "/dashboard/care/coach-assessment", icon: GraduationCap },
+];
+
+// Rendered after the Tools group, before Settings — kept top-level (NOT inside Tools) because the founder's
+// mockup arrows point only at the seven Tools items, not at this.
+const SECONDARY_NAV: NavItem[] = [
   // Download + install the browser extension. Promoted to PRIMARY (always-visible) from the Settings sub-nav
   // 2026-07-22 — the founder couldn't find it buried behind the collapsed Settings expander (§1.5.1
   // discoverability). Links out to the public /extension/download page.
   { label: "Browser extension", href: "/extension/download", icon: Puzzle, external: true },
 ];
+
+// Shared active-route test (a tool route has no common prefix, so the group checks each item).
+function isNavItemActive(item: NavItem, pathname: string): boolean {
+  return (
+    !item.external &&
+    (pathname === item.href ||
+      (item.href !== "/dashboard/care" && pathname.startsWith(item.href + "/")))
+  );
+}
 
 const SETTINGS_NAV: NavItem[] = [
   { label: "Agents", href: "/dashboard/care/settings/agents", icon: Users },
@@ -113,6 +136,11 @@ export function CareShell({ children }: { children: React.ReactNode }) {
   const [settingsOpen, setSettingsOpen] = useState(
     pathname.startsWith("/dashboard/care/settings")
   );
+  // C.A.R.E Tools group (founder 2026-07-27). Default collapsed — but auto-expanded when the current page is
+  // one of the grouped tools, so collapsing the group never hides the agent's OWN location (AMD-006 Layer 3
+  // workflow continuity: a nav that hides where you are is a stall). After mount the agent controls it.
+  const toolsActive = TOOLS_NAV.some((item) => isNavItemActive(item, pathname));
+  const [toolsOpen, setToolsOpen] = useState(toolsActive);
   // Collapse state for the C.A.R.E left nav. Per AMD-006 §1.5.1
   // layer 3 — agent can reclaim ~224px of horizontal real estate
   // for the inbox surface. Persisted in localStorage so the
@@ -234,6 +262,38 @@ export function CareShell({ children }: { children: React.ReactNode }) {
         {/* Primary navigation */}
         <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
           {PRIMARY_NAV.map((item) => (
+            <NavLink key={item.href} item={item} pathname={pathname} />
+          ))}
+
+          {/* C.A.R.E Tools (expandable) — groups the seven analysis/coaching surfaces (founder 2026-07-27).
+              Same affordance as the Settings expander below (A28). */}
+          <button
+            type="button"
+            onClick={() => setToolsOpen((v) => !v)}
+            aria-expanded={toolsOpen}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              toolsActive
+                ? "bg-white/10 text-white"
+                : "text-white/70 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <Wrench className="w-4 h-4 shrink-0" aria-hidden />
+            <span className="flex-1 text-left">C.A.R.E Tools</span>
+            {toolsOpen ? (
+              <ChevronDown className="w-3.5 h-3.5 shrink-0" aria-hidden />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden />
+            )}
+          </button>
+          {toolsOpen && (
+            <div className="ml-2 mt-0.5 mb-1 space-y-0.5 border-l border-white/10 pl-2">
+              {TOOLS_NAV.map((item) => (
+                <NavLink key={item.href} item={item} pathname={pathname} nested />
+              ))}
+            </div>
+          )}
+
+          {SECONDARY_NAV.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}
 
