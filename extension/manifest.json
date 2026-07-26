@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "C.A.R.E — assist the conversation you're viewing",
   "version": "0.2.0",
-  "description": "Summarize, Dissect, Coach, and Co-Pilot the conversation on your screen — and capture full conversations (text + media) into your C.A.R.E workspace. Powered by your C.A.R.E account.",
+  "description": "Summarize, Dissect, Coach, Co-Pilot, and capture conversations (text + media) into your C.A.R.E workspace.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
