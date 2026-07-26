@@ -16,7 +16,9 @@ import {
   ChevronDown,
   Wrench,
   X,
+  Layers,
 } from "lucide-react";
+import RcdMobileSheet from "@/components/care/mobile/RcdMobileSheet";
 
 /**
  * Mobile C.A.R.E — radial home (founder mockup 2026-07-25).
@@ -115,6 +117,7 @@ export function CareRadialHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
+  const [rcdOpen, setRcdOpen] = useState(false); // Raw Conversation Data sheet
 
   const [sheet, setSheet] = useState<{
     tool: ToolKey;
@@ -632,6 +635,14 @@ export function CareRadialHome() {
         >
           <MessageSquare className="w-5 h-5" />
         </button>
+        <button
+          type="button"
+          onClick={() => setRcdOpen(true)}
+          className="p-2 text-white/50 hover:text-amber-400"
+          aria-label="Raw Conversation Data"
+        >
+          <Layers className="w-5 h-5" />
+        </button>
         <a
           href="/dashboard/care/settings"
           className="p-2 text-white/50 hover:text-amber-400"
@@ -640,6 +651,8 @@ export function CareRadialHome() {
           <Settings className="w-5 h-5" />
         </a>
       </nav>
+
+      {rcdOpen && <RcdMobileSheet onClose={() => setRcdOpen(false)} />}
 
       {/* Tool result sheet */}
       {sheet && (

@@ -176,6 +176,10 @@ const FILE_ALLOWLIST = new Map([
     "src/components/care/mobile/CareRadialHome.tsx",
     "Deliberate fixed-dark full-screen mobile console (/care/mobile radial launcher): `fixed inset-0 bg-[#0a0a0f] text-white` with white/10 chrome throughout — a single-theme immersive surface by design, same discipline as the /care/demo consoles. The dark ground is intrinsic to the radial-launcher visual, not a theme-token gap.",
   ],
+  [
+    "src/components/care/mobile/RcdMobileSheet.tsx",
+    "The RCD bottom sheet for the mobile console — styled to match CareRadialHome's fixed-dark sheets (bg-[#111119], white/10 chrome), single-theme by design, same family/discipline as the radial console it lives inside.",
+  ],
 ]);
 
 const files = Array.from(
