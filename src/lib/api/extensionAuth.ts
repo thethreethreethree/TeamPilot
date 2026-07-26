@@ -77,10 +77,23 @@ export async function requireEntitledExtensionUser(req: NextRequest): Promise<Ex
 
   const entitlement = await getExtensionEntitlement(auth.companyId);
   if (entitlement.status === "locked") {
+    // Honest error string that MATCHES entitlement.trialEnded, rather than a
+    // fixed "plan doesn't include" that lies when the real reason is a trial
+    // that ran out. The extension client already picks its own message from
+    // entitlement.trialEnded; keeping the server string aligned means the two
+    // can't drift, and any OTHER consumer (logs, debugging, a future client)
+    // gets the true reason from the response itself — not only from a field it
+    // has to know to inspect. (§3.4 — a response must not say something the
+    // data contradicts.)
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "Your plan doesn't include the C.A.R.E extension.", entitlement },
+        {
+          error: entitlement.trialEnded
+            ? "Your 14-day C.A.R.E extension trial has ended."
+            : "Your plan doesn't include the C.A.R.E extension.",
+          entitlement,
+        },
         { status: 402 }
       ),
     };
