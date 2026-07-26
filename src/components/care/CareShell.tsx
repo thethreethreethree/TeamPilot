@@ -141,6 +141,15 @@ export function CareShell({ children }: { children: React.ReactNode }) {
   // workflow continuity: a nav that hides where you are is a stall). After mount the agent controls it.
   const toolsActive = TOOLS_NAV.some((item) => isNavItemActive(item, pathname));
   const [toolsOpen, setToolsOpen] = useState(toolsActive);
+  // CareShell is an App Router LAYOUT (src/app/dashboard/care/layout.tsx) — it PERSISTS across navigation, so
+  // the useState initializer above only fires on first mount. Without this, navigating INTO a tool page from
+  // outside the group (Cmd+K, an in-page link, browser back) would leave the group collapsed while the agent
+  // is on that page — hiding their own location (AMD-006 Layer 3). Open the group whenever the active route
+  // enters it. It never force-CLOSES, so a manual collapse (which happens while toolsActive is already true,
+  // so this doesn't re-fire) is respected until the agent leaves and re-enters the group.
+  useEffect(() => {
+    if (toolsActive) setToolsOpen(true);
+  }, [toolsActive]);
   // Collapse state for the C.A.R.E left nav. Per AMD-006 §1.5.1
   // layer 3 — agent can reclaim ~224px of horizontal real estate
   // for the inbox surface. Persisted in localStorage so the
