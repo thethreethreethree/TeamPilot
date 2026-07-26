@@ -25,6 +25,20 @@ precise gate isn't feasible (imprecise SQL-policy parsing), so kept as prose.
 check (no timing attack), uses no raw `===` on the secret, and fails closed (503) when `CRON_SECRET` is
 unset. No unauthenticated or timing-attackable cron endpoint. **SOUND.**
 
+### 2a. RCD retention-cron DELETION LOGIC (not just auth) — verified before founder activation
+This cron IRREVERSIBLY deletes customer PII, so its logic was verified separately (added 2026-07-26):
+- **Only past-retention data is deleted:** selects `captured_at < cutoff` (`retention-cron/route.ts:55`);
+  anything inside the window is never selected.
+- **The critical mass-delete guard is present:** `retentionDays()` requires `parsed > 0` (`:31`), so a
+  misconfigured `RCD_RETENTION_DAYS=0`/negative falls back to 90 rather than setting `cutoff = now` and
+  purging EVERYTHING. This is the load-bearing safety on a PII purge — confirmed.
+- **Byte-before-row ordering** (`:86-100`): media bytes removed first, then the row; a storage failure
+  `continue`s (row survives for the next run) so bytes never orphan. "Already gone" converges (idempotent).
+- **Global-by-design** (no company filter) is correct for a maintenance cron; it only ever deletes expired
+  rows by id, so no wrong-row or cross-tenant deletion. Honest `bounded` flag; read errors return
+  `purged:0`, never crash. **SOUND** — safe to activate once the founder sets `RCD_RETENTION_DAYS` +
+  `CRON_SECRET` + the `vercel.json` entry.
+
 ## 3. Extension entitlement gate — protects ALL paid access (RCD + tools)
 
 The gate is a denylist (`if status === "locked" → 402; else ok`), safe only if the entitlement decision
