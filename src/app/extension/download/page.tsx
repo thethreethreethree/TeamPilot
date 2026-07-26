@@ -16,7 +16,11 @@ export const metadata: Metadata = {
     "Download the C.A.R.E browser extension and install it in Chrome, Edge, or Brave — summarize, dissect, coach, and draft replies on any conversation you're viewing.",
 };
 
-const VERSION = "0.1.0";
+// Keep in sync with extension/manifest.json "version" (source of truth) on every extension bump. This was
+// stale at 0.1.0 while the shipped package was 0.3.0 — a tester "downloading the latest" saw the wrong number
+// (audit 2026-07-27, Finding 5). A future maintainer can single-source this: build-extension-download.mjs
+// already reads the manifest version + the zip byte size and could emit them into src/ for import.
+const VERSION = "0.3.0";
 
 const STEPS: Array<{ title: string; body: React.ReactNode }> = [
   {
@@ -103,7 +107,7 @@ export default function ExtensionDownloadPage() {
             </svg>
             Download the extension
           </a>
-          <span className="text-xs text-muted">Version {VERSION} · ~22&nbsp;KB · .zip</span>
+          <span className="text-xs text-muted">Version {VERSION} · ~37&nbsp;KB · .zip</span>
         </div>
 
         <p className="text-xs text-muted mb-12">
