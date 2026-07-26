@@ -296,13 +296,19 @@ if (!globalThis.__careAdaptersLoaded) {
           return "unknown";
         }
       },
-      // RCD: scan each message BUBBLE (`.message-out`/`.message-in`) so sent/received IMAGES are captured
-      // with their message, and carry the reliable WhatsApp role at the source (A39). `.message-out` = the
-      // agent, `.message-in` = the customer. Falls back to the LIVE-CONFIRMED `[data-pre-plain-text]` text.
+      // RCD: split per message on the LIVE-CONFIRMED `[data-pre-plain-text]` anchor (one per bubble,
+      // stable for years) — NOT `.message-out/.message-in`, which weren't matching the live DOM and
+      // collapsed a real multi-message thread into a single blob (founder test 2026-07-26: "Captured 1
+      // message"). Role is read best-effort by walking up to the bubble's `.message-out`/`.message-in`
+      // class (A39: carry attribution from the source; "" if the class isn't there → role 'unknown').
+      // Media is scanned within the text node (best-effort; standalone image bubbles are a known gap).
       extractRCD: () =>
         rcdOrText(
-          ".message-out, .message-in",
-          (n) => (n.classList.contains("message-out") ? "agent" : "customer"),
+          "[data-pre-plain-text]",
+          (n) => {
+            const b = n.closest(".message-out, .message-in");
+            return b ? (b.classList.contains("message-out") ? "agent" : "customer") : "";
+          },
           () => textFrom("[data-pre-plain-text]")
         ),
     },
