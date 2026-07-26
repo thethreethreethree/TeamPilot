@@ -36,15 +36,22 @@ function fakeChild(tag: string, attrs: Attrs) {
     width: num("width"),
     height: num("height"),
     textContent: attrs._text ?? "",
-    querySelector: () => null,
+    // Video elements resolve their src via a nested <source> when there's no direct src attr.
+    querySelector: (sel: string) => (sel === "source" && attrs._sourceSrc ? { src: attrs._sourceSrc } : null),
   };
 }
 
-function fakeMsg(opts: { text?: string; cls?: string[]; imgs?: Attrs[]; links?: Attrs[] }) {
+function fakeMsg(opts: {
+  text?: string;
+  cls?: string[];
+  imgs?: Attrs[];
+  links?: Attrs[];
+  media?: Array<{ tag: "video" | "audio"; attrs: Attrs }>;
+}) {
   const children: Record<string, unknown[]> = {
     img: (opts.imgs ?? []).map((a) => fakeChild("img", a)),
     "a[href]": (opts.links ?? []).map((a) => fakeChild("a", a)),
-    "video, audio": [],
+    "video, audio": (opts.media ?? []).map((m) => fakeChild(m.tag, m.attrs)),
   };
   return {
     offsetParent: {}, // truthy → passes the visibility guard
@@ -111,6 +118,20 @@ describe("defaultMediaFrom", () => {
     const node = fakeMsg({ links: [{ href: "https://x/profile", _text: "see profile" }] });
     expect(H.defaultMediaFrom(node)).toEqual([]);
     expect(H.defaultMediaFrom(fakeMsg({}))).toEqual([]);
+  });
+
+  it("captures video (direct src or nested <source>) and audio", () => {
+    const node = fakeMsg({
+      media: [
+        { tag: "video", attrs: { src: "https://x/clip.mp4" } },
+        { tag: "video", attrs: { _sourceSrc: "https://x/via-source.webm" } }, // src resolved via <source>
+        { tag: "audio", attrs: { src: "https://x/voice.mp3" } },
+      ],
+    });
+    const media = H.defaultMediaFrom(node);
+    expect(media).toContainEqual({ type: "video", url: "https://x/clip.mp4" });
+    expect(media).toContainEqual({ type: "video", url: "https://x/via-source.webm" });
+    expect(media).toContainEqual({ type: "audio", url: "https://x/voice.mp3" });
   });
 });
 
