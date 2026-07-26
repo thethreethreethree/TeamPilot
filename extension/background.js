@@ -166,11 +166,32 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true; // async
   }
 
+  // Is the optional <all_urls> host permission (needed to fetch third-party image bytes) already granted?
+  // chrome.permissions.contains lives in the worker (not the content script), so the panel asks via message.
+  if (message?.type === "care-image-perm-status") {
+    chrome.permissions
+      .contains({ origins: ["*://*/*"] })
+      .then((granted) => sendResponse({ granted: !!granted }))
+      .catch(() => sendResponse({ granted: false }));
+    return true; // async
+  }
+
+  // Open the extension's own permission page so the user can GRANT the optional host permission there. The
+  // grant MUST happen in an extension page's click handler — chrome.permissions.request needs a user
+  // gesture, and that gesture does NOT survive a content-script → worker sendMessage hop (MV3). So we can't
+  // request it from here or from the panel; we open permission.html and let its button do it.
+  if (message?.type === "care-open-image-permission") {
+    chrome.tabs.create({ url: chrome.runtime.getURL("permission.html") });
+    sendResponse?.({ ok: true });
+    return true; // async
+  }
+
   // care-rcd-fetch-and-upload (founder 2026-07-26): the FIX for cross-origin image capture. The content
   // script's canvas read fails on third-party images (CORS taint → SecurityError). The WORKER, once the
-  // user grants the <all_urls> OPTIONAL host permission, CAN fetch those images cross-origin — so it
-  // fetches the image URL here, then PUTs the bytes to the Supabase signed URL. signedUrl is PINNED to
-  // *.supabase.co (destination can't be redirected — not an open proxy); imageUrl must be http(s).
+  // user grants the <all_urls> OPTIONAL host permission (via permission.html), CAN fetch those images
+  // cross-origin — so it fetches the image URL here, then PUTs the bytes to the Supabase signed URL.
+  // signedUrl is PINNED to *.supabase.co (destination can't be redirected — not an open proxy); imageUrl
+  // must be http(s).
   if (message?.type === "care-rcd-fetch-and-upload") {
     const imageUrl = message.imageUrl;
     const signedUrl = message.signedUrl;

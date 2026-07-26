@@ -14,7 +14,7 @@ const extDir = join(here, ".."); // extension/
 const dist = join(here, "dist");
 
 // Files the published package needs. Everything else in extension/ is dev-only or dead.
-const INCLUDE = ["manifest.json", "background.js", "content.js", "config.js", "adapters.js", "icons"];
+const INCLUDE = ["manifest.json", "background.js", "content.js", "config.js", "adapters.js", "permission.html", "permission.js", "icons"];
 const STRIP_HOST = /localhost/;
 
 function stripLocalhost(manifest) {

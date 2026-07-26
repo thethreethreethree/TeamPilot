@@ -518,12 +518,32 @@
         </span>
       </label>`;
     }).join("");
+    const anyImages = messages.some(
+      (m) => Array.isArray(m.media) && m.media.some((md) => md && md.type === "image" && md.url)
+    );
     result.classList.remove("hide");
     result.innerHTML = `
       <div style="font-size:11px;font-weight:600;color:#fafafa;margin-bottom:6px;">Select what to capture <span id="capCount" style="color:#a1a1aa;font-weight:400;"></span></div>
       <div style="display:flex;gap:8px;margin-bottom:6px;"><button id="capAll" style="${mini}">All</button><button id="capNone" style="${mini}">None</button></div>
       <div style="max-height:210px;overflow-y:auto;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0 6px;margin-bottom:8px;">${rows}</div>
+      <div id="capImgPerm" style="display:none;font-size:10px;color:#a1a1aa;background:rgba(250,204,21,0.08);border:1px solid rgba(250,204,21,0.25);border-radius:8px;padding:7px 9px;margin-bottom:8px;line-height:1.4;">This thread has images. Third-party images need a one-time permission to capture — otherwise they save as filenames only. <button id="capEnableImg" style="${mini}margin-top:5px;color:#FACC15;border-color:rgba(250,204,21,0.4);">Enable image capture</button></div>
       <div style="display:flex;gap:8px;"><button id="capDo" class="ghost" style="flex:1;">Capture selected</button><button id="capCancel" class="ghost" style="flex:0 0 auto;">Cancel</button></div>`;
+    // Only nudge for the permission when the thread actually has images AND it isn't already granted (asking
+    // the worker, since chrome.permissions isn't reachable here). The grant itself must happen on an
+    // extension page — the worker opens permission.html — because the user gesture can't cross the message hop.
+    if (anyImages) {
+      chrome.runtime.sendMessage({ type: "care-image-perm-status" }).then((s) => {
+        if (s && s.granted) return; // already granted → no nudge, capture will sync images
+        const box = $("capImgPerm");
+        if (box) box.style.display = "block";
+        const btn = $("capEnableImg");
+        if (btn) btn.addEventListener("click", () => {
+          chrome.runtime.sendMessage({ type: "care-open-image-permission" });
+          btn.textContent = "Approve in the new tab, then re-capture";
+          btn.disabled = true;
+        });
+      }).catch(() => {});
+    }
     const cbs = () => Array.from(result.querySelectorAll(".capcb"));
     const upd = () => { const n = cbs().filter((c) => c.checked).length; const el = $("capCount"); if (el) el.textContent = `(${n} of ${messages.length})`; const go = $("capDo"); if (go) go.disabled = n === 0; };
     cbs().forEach((c) => c.addEventListener("change", upd));
@@ -548,22 +568,24 @@
 
     // Image bytes: a third-party image on the page is CROSS-ORIGIN, so the content-script canvas read
     // taints and throws (SecurityError) — that is why "image capture wasn't working." The WORKER can fetch
-    // it cross-origin, but only with a host permission for that site. Rather than demand "all sites" up
-    // front (broad, scary at install), we request the OPTIONAL <all_urls> host permission HERE — the first
-    // time a capture actually contains an image — so the prompt is tied to an explicit user action and its
-    // reason. chrome.permissions.request needs the click's user gesture, so this MUST run before the first
-    // await. If the API is unavailable in this context, or the user declines, we fall back to the canvas
-    // read below (same-origin images still work; cross-origin ones stay metadata-only) — capture still
-    // succeeds either way.
+    // it cross-origin, but only once the user grants the optional <all_urls> host permission.
+    //
+    // We CANNOT request that permission here: chrome.permissions is not exposed to content scripts, and
+    // the user gesture does NOT survive a sendMessage hop to the worker (MV3) — so the grant must happen on
+    // an extension page (see permission.html, opened from renderCaptureSelection's "Enable image capture").
+    // Here we only ASK the worker whether it's ALREADY granted (chrome.permissions.contains works in the
+    // worker). Granted → the worker fetches the bytes; not granted → the canvas fallback (same-origin only,
+    // cross-origin stays metadata-only). Either way the capture itself succeeds.
     const hasImages = messages.some(
       (m) => Array.isArray(m.media) && m.media.some((md) => md && md.type === "image" && md.url)
     );
     let imgPerm = false;
-    if (hasImages && chrome.permissions && chrome.permissions.request) {
+    if (hasImages) {
       try {
-        imgPerm = await chrome.permissions.request({ origins: ["*://*/*"] });
+        const s = await chrome.runtime.sendMessage({ type: "care-image-perm-status" });
+        imgPerm = !!(s && s.granted);
       } catch {
-        imgPerm = false; // API rejected (no gesture / not supported) → canvas fallback
+        imgPerm = false;
       }
     }
 

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C.A.R.E — enable image capture</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #0a0a0b; color: #e4e4e7;
+      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 24px;
+    }
+    .card { width: 100%; max-width: 460px; background: #151517; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 26px 26px 24px; }
+    h1 { margin: 0 0 4px; font-size: 17px; font-weight: 650; color: #fafafa; }
+    .sub { margin: 0 0 16px; font-size: 12px; color: #FACC15; font-weight: 600; letter-spacing: .02em; }
+    p { margin: 0 0 12px; font-size: 13px; color: #c4c4cc; }
+    ul { margin: 0 0 16px; padding-left: 18px; font-size: 13px; color: #c4c4cc; }
+    li { margin: 3px 0; }
+    button { font: inherit; cursor: pointer; border-radius: 9px; padding: 10px 16px; font-weight: 600;
+      border: 1px solid transparent; }
+    #grant { background: #FACC15; color: #1a1a1a; border-color: #FACC15; }
+    #grant:disabled { opacity: .6; cursor: default; }
+    #status { margin-top: 14px; font-size: 12.5px; min-height: 18px; }
+    .ok { color: #4ade80; }
+    .no { color: #f87171; }
+    .fine { margin-top: 16px; font-size: 11px; color: #8a8a92; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Enable image capture</h1>
+    <p class="sub">C.A.R.E browser extension</p>
+    <p>Capturing a conversation saves its text right away. Images shared in the chat are hosted on other
+      sites, so the extension needs your permission to read them.</p>
+    <ul>
+      <li>Grants access only so images in a capture can be saved to your workspace.</li>
+      <li>The extension never browses or reads pages on its own — it acts only when you click Capture.</li>
+      <li>You can revoke this any time from the extension's details page in your browser.</li>
+    </ul>
+    <button id="grant" type="button">Allow image capture</button>
+    <div id="status" role="status" aria-live="polite"></div>
+    <p class="fine">After you allow it, close this tab and re-run your capture — images in the thread will
+      now save with it.</p>
+  </main>
+  <script src="permission.js"></script>
+</body>
+</html>
