@@ -68,7 +68,8 @@ Assumes **Option A** (the only one that fully satisfies the directive). Each pha
 - **Phase 3 — persistence.** ✅ Migration `0194`: `care_rcd_conversations`/`_messages`/`_media` + PRIVATE `care-rcd-media` bucket, tenant RLS, content-immutable (§3.1). `b0881d47`. **Must be applied.**
 - **Phase 4 — web display.** ✅ `RcdPanel` mounted in `CareShell` (bottom, app-wide, both modes). Read routes `GET /api/care/rcd` + `/api/care/rcd/[id]` (signed media URLs). `f28e12c4` / `c6ab0275`.
 - **Phase 5 — mobile display.** ✅ `RcdMobileSheet` in `CareRadialHome` (Layers nav button; dark-console styling). `ba98523f`.
-- **Retention purge (Phase 3b).** ⬜ NOT built — a service-role cron deleting rows + bucket objects older than the retention window (the only delete path). Needs the founder's retention window + `CRON_SECRET`.
+- **Retention purge (Phase 3b).** ✅ `/api/care/rcd/retention-cron` — service-role purge: removes media BYTES first, then deletes conversations (cascade). `RCD_RETENTION_DAYS` (default 90). DORMANT until `CRON_SECRET` set + a `vercel.json` schedule added (a conscious activation — it deletes customer PII). 4 gate tests. `79590d6b`.
+- **Media bytes — images only.** ✅ Phase 2c: content.js canvas-reads image bytes (invariant-safe) → worker PUTs to the signed URL (`ac443b91`). ⬜ NON-image bytes (files/video/audio) stay metadata-only — canvas is image-only; those need a worker-fetch path + broader host permissions (a security decision).
 
 ## Runtime verification (founder — the whole feature is code-complete but UNVERIFIED)
 
