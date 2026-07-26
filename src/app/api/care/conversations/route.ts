@@ -170,8 +170,10 @@ export async function POST(req: NextRequest) {
       err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     // eslint-disable-next-line no-console
     console.error(`[care.conversations.create] 500 uncaught: ${message}`, err);
+    // `message` stays in the server log above, NOT the response — same CWE-209 reasoning as the messages
+    // route: a public/unauthenticated endpoint must not hand a raw exception to the client. Audit 2026-07-27.
     return NextResponse.json(
-      { error: "Couldn't open a conversation.", detail: message },
+      { error: "Couldn't open a conversation." },
       { status: 500 }
     );
   }

@@ -358,8 +358,12 @@ export async function POST(
       `[care.messages] 500 uncaught exception id=${id}: ${message}`,
       err
     );
+    // `message` stays in the server log above (console.error) for the operator; it is NOT returned to the
+    // client. This is a PUBLIC, unauthenticated customer endpoint — a raw exception (Postgres table/column
+    // names, missing-env-var names) in the response is an information leak (CWE-209) with no upside, since
+    // the operator reads it in Vercel logs. Audit 2026-07-27.
     return NextResponse.json(
-      { error: "Server error.", detail: message },
+      { error: "Server error." },
       { status: 500 }
     );
   }
