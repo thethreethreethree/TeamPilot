@@ -42,6 +42,19 @@ returns `locked` for everything non-entitled. Verified fail-closed by constructi
 
 - **Cross-tenant:** ingest (company from auth, never client), read routes (RLS + explicit company match),
   storage (company-path scoped) — no read/write across tenants.
+  - **Ingest write-path chain re-traced end-to-end (2026-07-26, this is the evidence for the "company
+    from auth" claim, not just the assertion):** `guardExtensionRequest` → `requireEntitledExtensionUser`
+    → `requireExtensionAuth`, where `companyId` is read from `profiles.company_id` keyed on the
+    `admin.auth.getUser(token)`-validated `user.id` (`extensionAuth.ts:42-48`) — so it derives from the
+    cryptographically-validated Bearer token, never a request field. The ingest `Schema` is `.strict()`
+    with **no** company field (a client-supplied `company_id` is rejected, not ignored), and all three
+    inserts + the storage path + the signed-upload URL use `user.companyId` server-side
+    (`extension/rcd/route.ts:116,146,168,173,184`). The `mediaId` is a server `crypto.randomUUID()`, so a
+    caller can neither aim an upload at another tenant's prefix nor overwrite an existing object. Spoofing
+    a tenant would require forging a valid session token for a user already in the target company — i.e.
+    the platform-wide auth boundary, not an RCD-specific weakness. **Inherited caveat (not a new hole):**
+    the `status==='removed'` denylist fail-open if a third `profiles.status` is ever added — already
+    tracked as queue item 8c, safe today under the 0008 CHECK constraint. **SOUND.**
 - **Injection/XSS:** uploaded content can't XSS (private bucket, non-HTML MIME allowlist, served via signed
   URL not our origin); `channel`/`sender`/`filename`/`body`/`preview` are all React-escaped on render.
 - **Latent risk FOUND + HARDENED:** `source_url` was stored raw (safe only because nothing renders it). Now
