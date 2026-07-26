@@ -38,9 +38,16 @@ export function decideAuthRedirect({ hasUser, path }: AuthRedirectInput): string
     path.startsWith("/dashboard") || path.startsWith("/onboarding");
 
   if (!hasUser && isProtected) {
-    return path.startsWith("/dashboard/sales-coach")
-      ? "/sales-coach/login"
-      : "/login";
+    // Sales-Coach deep-links bounce to the branded login. (Its page doesn't yet honor ?next= — a follow-up;
+    // threading it needs sales-coach/login updated too.)
+    if (path.startsWith("/dashboard/sales-coach")) {
+      return "/sales-coach/login";
+    }
+    // Preserve the intended destination so a post-login redirect returns the user THERE, not the generic
+    // dashboard — deep-link continuity (an agent's bookmarked /dashboard/care/* survives the login bounce;
+    // this is the same class as the extension connect flow's ?next=). /login honors ?next= behind an
+    // open-redirect guard (safeRelativePath); `path` is a same-origin pathname by construction, encoded here.
+    return `/login?next=${encodeURIComponent(path)}`;
   }
 
   if (hasUser && path === "/login") {

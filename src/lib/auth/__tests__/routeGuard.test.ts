@@ -10,24 +10,28 @@ import { decideAuthRedirect } from "../routeGuard";
  * fire exactly as below.
  */
 describe("decideAuthRedirect — auth gate", () => {
-  describe("unauthenticated users hitting protected routes → login", () => {
-    it("sends /dashboard to /login", () => {
-      expect(decideAuthRedirect({ hasUser: false, path: "/dashboard" })).toBe("/login");
-    });
-
-    it("sends a nested /dashboard/... route to /login", () => {
-      expect(decideAuthRedirect({ hasUser: false, path: "/dashboard/care/inbox" })).toBe(
-        "/login"
+  describe("unauthenticated users hitting protected routes → login (preserving next)", () => {
+    it("sends /dashboard to /login?next=/dashboard", () => {
+      expect(decideAuthRedirect({ hasUser: false, path: "/dashboard" })).toBe(
+        "/login?next=%2Fdashboard"
       );
     });
 
-    it("sends /onboarding to /login", () => {
-      expect(decideAuthRedirect({ hasUser: false, path: "/onboarding" })).toBe("/login");
+    it("preserves a nested /dashboard/... route as next (deep-link survives the login bounce)", () => {
+      expect(decideAuthRedirect({ hasUser: false, path: "/dashboard/care/inbox" })).toBe(
+        "/login?next=%2Fdashboard%2Fcare%2Finbox"
+      );
     });
 
-    it("sends nested /onboarding/... to /login", () => {
+    it("sends /onboarding to /login?next=/onboarding", () => {
+      expect(decideAuthRedirect({ hasUser: false, path: "/onboarding" })).toBe(
+        "/login?next=%2Fonboarding"
+      );
+    });
+
+    it("preserves nested /onboarding/... as next", () => {
       expect(decideAuthRedirect({ hasUser: false, path: "/onboarding/step-2" })).toBe(
-        "/login"
+        "/login?next=%2Fonboarding%2Fstep-2"
       );
     });
 
