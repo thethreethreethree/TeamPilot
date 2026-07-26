@@ -167,6 +167,20 @@ new code (this session's own) and two documented past-bug classes — all fixed 
     a human — changes behavior + the return type, so it's surfaced for the founder rather than resolved
     silently (surface-don't-overtake). Recommended: on a non-unconfigured dispatch failure, route to a human.
 
+## Flow-trace finding — inbox: single assign-away doesn't auto-advance (LOW-MED, proposal)
+
+13. **LOW-MED (proposal) — `assignTo` (single assign-away) breaks the AMD-006 auto-advance pattern its
+    siblings honor.** `ConversationsApp.tsx`: `changeStatus` (close/resolve) and `runBulk` both snapshot the
+    neighbor (`computeNextAfterTerminal`) and advance after success — the AMD-006 continuity the founder asked
+    for. `assignTo` (1271) does NOT: after assigning a conversation to someone else from a filtered view
+    (Unassigned / Assigned-to-me), it leaves the view but the agent stays selected on it (milder than the
+    original empty-state bug — the detail still renders — but the same class). **Not built:** the reliable fix
+    is a general "selected-left-the-filtered-list → advance" reconciliation effect, NOT a synchronous
+    `filtered.some()` check right after the action (React's `useMemo` won't reflect the post-action reload yet
+    — stale-state trap). The inbox selection logic is intricate (many effects + explicit advances), so a
+    general reconciliation is surfaced for a considered change rather than rushed. Recommended: add the
+    reconciliation effect (also future-proofs snooze + any filtering action).
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
