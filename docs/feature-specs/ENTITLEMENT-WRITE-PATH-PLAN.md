@@ -1,5 +1,23 @@
 # Entitlement write-path — implementation plan (the #1 launch blocker)
 
+> **🟢 STATUS UPDATE 2026-07-27 — Section A (trial start) is BUILT; Section B (paid unlock) is the sole
+> remaining gap.** Founder chose **A1 (auto-start on first entitlement check)**; shipped in commit `d4a04a6`
+> (`getExtensionEntitlement` now opens the 14-day window via an atomic `UPDATE … WHERE
+> extension_trial_started_at IS NULL`, one trial per tenant; `shouldAutoStartTrial` + 8 tests; verified single
+> caller, fires only on genuine tool use). So a fresh pilot tenant's first extension call now works (was: 402
+> forever). **Two live consequences now in force:**
+> 1. **The 14-day cliff is real and ticking.** With A built but B (below) NOT, every tenant **re-locks after 14
+>    days** — there is still no writer for `care_tenant_config.plan=pro/enterprise`, and the plan-vocabulary
+>    fragmentation in Section B1 means even a paying `team_large` reads locked. **Build B before the first trial
+>    cohort expires.**
+> 2. **Section C2 (Spawn during trial) is no longer hypothetical.** A1 now actually creates trial tenants, and
+>    since the C.A.R.E trial (14d) sits entirely inside the 30-day control window, Spawn is 100% suppressed for
+>    every trial evaluator for the whole trial. Decide C2 alongside B.
+>
+> Everything below about Section A is now HISTORICAL (it describes the pre-build decision); Sections B + C
+> remain the open, founder-gated decisions. Full audit: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
+
+
 > **✅ TARGETS VERIFIED EXECUTION-READY (2026-07-23, no drift).** Both build targets confirmed present + as
 > described: A1's `getExtensionEntitlement` (`src/lib/care/extensionEntitlement.ts`, read side 16-tested) and B1's
 > `src/app/api/admin/crm/accounts/[id]/subscription/route.ts` (exists, `PATCH`, `requireVendorAdmin`-gated, already
