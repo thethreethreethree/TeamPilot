@@ -19,6 +19,7 @@ export type RcdConversationSummary = {
   source_url: string | null;
   message_count: number;
   captured_at: string;
+  preview?: string | null; // first-message snippet, to tell same-channel captures apart
 };
 
 export type RcdMedia = {

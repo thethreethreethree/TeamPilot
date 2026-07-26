@@ -111,6 +111,9 @@ export default function RcdPanel() {
                         {c.message_count} message{c.message_count === 1 ? "" : "s"} ·{" "}
                         {new Date(c.captured_at).toLocaleString()}
                       </span>
+                      {c.preview ? (
+                        <span className="block text-[11px] text-secondary truncate mt-0.5">{c.preview}</span>
+                      ) : null}
                     </button>
                   </li>
                 ))}

@@ -30,5 +30,31 @@ export async function GET() {
     return NextResponse.json({ conversations: [] });
   }
 
-  return NextResponse.json({ conversations: data ?? [] });
+  const conversations = data ?? [];
+
+  // A first-message PREVIEW so the agent can tell multiple same-channel captures apart at a glance
+  // (a plain list of "WhatsApp · N messages" is indistinguishable). ONE batched query for seq 0 of
+  // every listed conversation — not N+1. Best-effort: on any error the previews are simply absent.
+  let previewByConv = new Map<string, string>();
+  if (conversations.length > 0) {
+    try {
+      const ids = conversations.map((c) => c.id as string);
+      const { data: firsts } = await auth.sb
+        .from("care_rcd_messages")
+        .select("conversation_id, body")
+        .in("conversation_id", ids)
+        .eq("seq", 0);
+      previewByConv = new Map(
+        (firsts ?? [])
+          .filter((m) => typeof m.body === "string" && (m.body as string).trim())
+          .map((m) => [m.conversation_id as string, (m.body as string).trim().slice(0, 140)])
+      );
+    } catch {
+      /* previews are optional */
+    }
+  }
+
+  return NextResponse.json({
+    conversations: conversations.map((c) => ({ ...c, preview: previewByConv.get(c.id as string) ?? null })),
+  });
 }
