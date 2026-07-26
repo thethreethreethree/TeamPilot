@@ -2,6 +2,35 @@
 
 Governed by the founder's Build/Audit/Solution protocol (`Thinkerthinker Build Key.MD.txt`).
 
+## Outcome at a glance
+
+**Tester's "not working" → ROOT-CAUSED + FIXED.** The extension was entitlement-locked for every tenant (the
+`extension_trial_started_at` / `plan` columns had no writer). Fixed with an auto 14-day trial on first use;
+hardened against a phantom-trial edge; ripple-traced (isolated); expiry message made honest (trial-ended vs
+never-included), then self-corrected to not imply a non-existent self-serve upgrade. Client verified
+deploy-ready (v0.3 package carries every fix).
+
+**Everything green:** `npm run check` (6 gates, ~1495 tests) + `next build`. ~32 commits, all pushed.
+
+**Real defects found + fixed this session** (with tests where gate-able): (1) entitlement no-writer root
+cause; (2) phantom-trial edge in that fix; (3) L3 sidebar-group gap; (4) CWE-209 raw-error leak on 3 public
+routes (+ my own incomplete sweep, corrected); (5) conversation-mutation route missing a route-layer tenant
+check (defense-in-depth, past-bug class). Every one after (1) found by auditing my OWN work or re-opening my
+own residual.
+
+**Built to your decisions:** auto-trial, both PII purge crons scheduled (dormant until `CRON_SECRET`),
+download-page version fix, sidebar "C.A.R.E Tools" grouping.
+
+**Verified SOUND with evidence** (no defect): sales-coach read+write authz, agent conversation read routes,
+finance authz (gate-enforced `auth_company_id()` RPCs), knowledge/ACMS authz, widget bootstrap, inbound-email
+webhook, public demo endpoint, extension tool input bounds, both purge crons' delete logic.
+
+**Your one open item — B/paid-unlock — is a POST-PILOT feature, not an urgent blocker** (the product is
+deliberately pre-billing; see the corrected framing in FOUNDER-ACTION-QUEUE). It needs your tier→plan pricing
+call; until then, unlock a pilot tenant manually (`update care_tenant_config set plan='pro' where company_id=…`).
+
+Detail follows.
+
 ## Assets actually read this session (honest ledger, per A22/A35 — not cached labels)
 
 | Asset | Read this session | Where |
