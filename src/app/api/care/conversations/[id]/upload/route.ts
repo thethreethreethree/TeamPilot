@@ -123,9 +123,13 @@ export async function POST(
       linkedConversationId: conv.id,
     });
   } catch (err) {
+    // PUBLIC customer endpoint — log the raw cause for the operator, return a generic message. A raw DB
+    // exception (table/column names) must never reach an unauthenticated customer (CWE-209). Audit 2026-07-27.
     const detail = err instanceof Error ? err.message : String(err);
+    // eslint-disable-next-line no-console
+    console.error(`[care.upload] file row write failed conv=${conv.id}: ${detail}`);
     return NextResponse.json(
-      { error: `Failed to write file row: ${detail}` },
+      { error: "Failed to save the file. Please try again." },
       { status: 500 }
     );
   }

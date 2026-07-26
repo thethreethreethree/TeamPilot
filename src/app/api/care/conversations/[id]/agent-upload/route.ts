@@ -147,9 +147,13 @@ export async function POST(
       linkedConversationId: id,
     });
   } catch (err) {
+    // Log the raw cause; return a generic message (consistent with the customer upload path). Authed agent
+    // route, so lower risk, but a raw DB error shouldn't reach any client + the operator had no log. Audit 2026-07-27.
     const detail = err instanceof Error ? err.message : String(err);
+    // eslint-disable-next-line no-console
+    console.error(`[care.agent-upload] file row write failed conv=${id}: ${detail}`);
     return NextResponse.json(
-      { error: `File row write failed: ${detail}` },
+      { error: "Failed to save the file. Please try again." },
       { status: 500 }
     );
   }
