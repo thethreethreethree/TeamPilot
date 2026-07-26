@@ -133,7 +133,7 @@
       <div class="hd" id="hd">
         <span class="brand"><span class="dot" id="dot"></span> C.A.R.E</span>
         <span class="hd-sp"></span>
-        <span class="ver">v0.1</span>
+        <span class="ver">v0.2</span>
         <button class="icobtn" id="minBtn" title="Minimize">–</button>
         <button class="icobtn" id="closeBtn" title="Close">✕</button>
       </div>
