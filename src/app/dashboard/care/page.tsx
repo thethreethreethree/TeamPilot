@@ -18,6 +18,7 @@ import { careStatusDisplay } from "@/lib/care/statusLabels";
 import { priorityDisplay } from "@/lib/care/tagColors";
 import { EnableNotificationsBanner } from "@/components/pwa/EnableNotificationsBanner";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 
 /**
  * /dashboard/care — ELOSTATE RTM Home.
@@ -117,6 +118,13 @@ export default function CareHomePage() {
     identity?.role === "CEO" ||
     identity?.role === "COO" ||
     identity?.role === "admin";
+
+  // Standard mode hides the §3.6 learning-visibility metrics (founder revision 2026-07-27): the two panels
+  // "What compounded this week" (patterns/durability catches) and "How the team's replies have read" (Coach
+  // aggregate). Standard = the operational view (current load + links); the learning-visibility surface is
+  // Expert-mode. Gated `loaded && isExpert` (same guard as ExpertOnly) so Standard/pre-load never flashes them.
+  const { isExpert, loaded: modeLoaded } = useExperienceMode();
+  const showLearningMetrics = modeLoaded && isExpert;
 
   const loadAll = useCallback(async () => {
     if (pollingRef.current) return;
@@ -262,8 +270,9 @@ export default function CareHomePage() {
             </div>
           )}
 
-          {/* §3.6 catches — patterns, durability, learning visible. */}
-          {growth && (
+          {/* Learning-visibility catches — patterns, durability. Expert-only (founder 2026-07-27): Standard
+              hides this panel, keeping the operational view. */}
+          {growth && showLearningMetrics && (
             <section>
               <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
                 What compounded this week
@@ -321,8 +330,9 @@ export default function CareHomePage() {
             </section>
           )}
 
-          {/* §A11 — Coach v6 aggregate, role-appropriate framing. */}
-          {growth && growth.coachAggregate.repliesGraded > 0 && (
+          {/* Coach aggregate (counts, not verdicts), role-appropriate framing. Expert-only (founder
+              2026-07-27): Standard hides this reply-read panel. */}
+          {growth && growth.coachAggregate.repliesGraded > 0 && showLearningMetrics && (
             <section>
               <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
                 {isLeader
