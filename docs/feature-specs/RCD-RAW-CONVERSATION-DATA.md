@@ -76,9 +76,15 @@ Assumes **Option A** (the only one that fully satisfies the directive). Each pha
 1. **Apply migration `0194`** (creates the tables + private bucket). Until then the panel shows empty and ingest returns 503.
 2. **Web:** open the C.A.R.E app → the "Raw Conversation Data" bar sits at the bottom → expand → empty state.
 3. **Extension:** on a supported channel (e.g. WhatsApp Web), click **Capture conversation → C.A.R.E**. Confirm the status line reports messages captured + attachments uploaded.
-4. **Verify the byte upload path** — the open question: does the content-script PUT to the Supabase signed URL succeed via CORS, or does it need a `*.supabase.co` host-permission entry in `manifest.json`? Check the extension console for a blocked-request error; if blocked, add the host permission (narrow to the project ref).
+4. **Byte upload / image thumbnails** — the worker PUTs to the signed URL; the `*.supabase.co` host permission is already added to `manifest.json`, so **reload the extension and accept the new permission**. Same-origin/blob images (WhatsApp) canvas-read fine; cross-origin images without CORS taint the canvas → they stay filename-only. Confirm thumbnails appear.
 5. **Web + mobile:** the captured conversation appears in the RCD panel (web) and the RCD sheet (mobile, Layers button) with correct roles + media thumbnails.
 6. **Per-adapter selector confirmation** — each channel's `extractRCD` selectors are still best-effort/UNVERIFIED (10/11); confirm capture quality per channel and tighten selectors as needed.
+
+## Open data-governance items (founder decisions — flagged, not built)
+
+- **Targeted GDPR/CCPA erasure.** The `care_rcd_*` tables are content-immutable with a retention-only (time-based) delete path — there is **no** mechanism to erase ONE customer's captured messages/media on request. Storing customer PII creates that obligation. Options: a service-role targeted-delete tool (deletes that customer's captures + bucket objects), or anonymization. Same class as the existing `anonymizeCustomer()` consideration for the event tables. Not built — a legal/compliance decision.
+- **Sub-processor + storage disclosure.** RCD stores customer conversations scraped from third-party platforms into the tenant's workspace. Whether/how the business must disclose that to their own customers is the business's data-processing decision; the extension privacy + download pages now state honestly that Capture stores.
+- **Chrome Web Store.** The new `*.supabase.co` host permission needs a justification in the CWS submission; the store listing/description should mention Capture. Adding a host permission also disables an already-installed extension until the user re-accepts.
 
 ## 7. Maintenance note
 
