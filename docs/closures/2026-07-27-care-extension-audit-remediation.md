@@ -70,6 +70,21 @@ Applied the same authz rigor to the sales-coach transcript surface (the sensitiv
   sales-coach authz is mature; a future audit can deprioritize it. **NOT inspected:** finance subsystem;
   sales-coach LLM-prompt/injection surfaces; the non-`[id]` aggregate routes' role gating in depth.
 
+## Extended audit — agent conversation routes (tenant authz)
+
+8. **Read/AI-tool routes** (co-pilot/messages/read/resolution/dissect/formulate/events/ask-coach): all carry an
+   explicit `conversation.companyId === auth.companyId` route-layer check — consistent, sound.
+9. **NEW — mutation route hardened (`78e9c982`).** `[id]` PATCH (claim/assign/status/priority/snooze) was the
+   ONE agent route without that route-layer check — it relied purely on its data fns being RLS-scoped. Verified
+   sound today (claim/assign/status/priority/snooze + fetch all use `createServerClient`), so **not an active
+   vuln** — but it's the "service-role route missed the tenant check" class that caused a real past incident
+   (CRM vendor bug, 0089). Added the route-layer fetch+company check gating every branch + a regression test.
+   Defense in depth against a future data-fn switch to the admin client.
+10. **Observation (not changed — A15 + the don't-over-refactor-sound-code rule):** `bulk/route.ts` admin path ("admin targets any") relies on RLS
+   (`bulkAssignConversations` → `createServerClient`) for company scoping, same class as #9. Sound today; it
+   already RLS-filters non-admin ids. Lower priority than #9 (which had zero route-layer scoping); left as a
+   documented follow-up rather than refactoring a sound route.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
