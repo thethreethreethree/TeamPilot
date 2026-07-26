@@ -251,6 +251,30 @@ Applied the same premise-test to finding 12 (failed outbound email reply → cus
     proposal converts to a build. The gate is now specified precisely (it wasn't before): the decision is
     cede-vs-retry + the undelivered-signal surface. Flagged inline at the failure site.
 
+## Distribution-chain verification — rules out "stale download" as the tester's cause (no commit; verification only)
+
+The tester's exact words were "not working even with downloading the latest extension file." That phrasing
+points at a distribution/staleness hypothesis distinct from the entitlement lock (findings 1-2). Traced and
+ruled it out with hard evidence:
+
+21. **The served ZIP is byte-current with source, rebuilt automatically every deploy.** `public/care-extension.zip`
+    is produced by `scripts/build-extension-download.mjs`, wired to `prebuild` + `predev` (so every Vercel
+    deploy and every local dev start regenerate it). The script first imports `build-store-package.mjs`, which
+    refreshes `extension/store/dist/` from the dev source (validates + strips localhost), then deterministically
+    zips `dist/` (fixed epoch → byte-stable). Verified: (a) all 7 non-manifest files in the ZIP are
+    byte-identical to the working-tree source; the manifest differs by exactly the designed localhost-strip
+    (938→908B, prod host_permissions = elostate.com + *.supabase.co); (b) a fresh `npm run build:extension`
+    passed validation ("store package valid") and produced ZERO git churn (determinism holds). **Conclusion:**
+    the tester did NOT receive a stale build — on every deploy the ZIP is rebuilt from current source. This
+    RULES OUT stale distribution and CONFIRMS the entitlement lock (finding 1: no trial writer → every tenant
+    locked → 402) as the actual cause, which the auto-trial fix resolves. Ruling out the wrong hypothesis with
+    evidence is as valuable as fixing the right one — it prevents chasing distribution when the fix is
+    entitlement.
+
+    *Adjacent note (not chased):* the prod extension is pinned to `elostate.com` (externally_connectable +
+    host_permissions). If a tester runs the app on a different origin (a `*.vercel.app` preview / staging
+    domain), the extension cannot talk to it — a config assumption to confirm, not a code defect.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
