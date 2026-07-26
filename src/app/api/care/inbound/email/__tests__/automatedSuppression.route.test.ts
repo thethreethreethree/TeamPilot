@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**
  * Route-level coverage for runAiFirstResponder's SHORT-CIRCUIT guard chain — the cost/abuse/handoff
@@ -45,7 +45,7 @@ const adminMock = {
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => adminMock }));
 vi.mock("@/lib/claude", () => ({ generateCareReply: vi.fn() }));
 
-import { runAiFirstResponder } from "@/app/api/care/inbound/email/route";
+import { runAiFirstResponder, POST } from "@/app/api/care/inbound/email/route";
 import { generateCareReply } from "@/lib/claude";
 
 const base = {
@@ -125,5 +125,44 @@ describe("runAiFirstResponder — short-circuit guard chain (no LLM before a gat
     const e = eventOfType("ai_suppressed_loop");
     expect(e, "loop breaker must record its suppression").toBeTruthy();
     expect(updateEqSpy).toHaveBeenCalled(); // ai_responding flipped off — a human takes the looping thread
+  });
+});
+
+/**
+ * Webhook AUTH GATE on the POST handler — this is the security boundary for a PUBLIC endpoint. Without it,
+ * anyone could POST a forged "customer" email and drive the AI (impersonation, cost-abuse, injection). The
+ * gate was previously UNtested (the suppression tests above call the internal runAiFirstResponder, bypassing
+ * it). The auth check runs FIRST — before body parse — so these need no body scaffolding.
+ */
+describe("POST /api/care/inbound/email — webhook auth gate (public endpoint)", () => {
+  const OLD_SECRET = process.env.CARE_INBOUND_EMAIL_SECRET;
+  afterEach(() => {
+    if (OLD_SECRET === undefined) delete process.env.CARE_INBOUND_EMAIL_SECRET;
+    else process.env.CARE_INBOUND_EMAIL_SECRET = OLD_SECRET;
+  });
+
+  const postReq = (secretHeader?: string) =>
+    ({
+      headers: {
+        get: (k: string) =>
+          k.toLowerCase() === "x-care-webhook-secret" ? secretHeader ?? null : null,
+      },
+      json: () => Promise.resolve({}),
+    }) as never;
+
+  it("FAIL-CLOSED: 500 when CARE_INBOUND_EMAIL_SECRET is unset — rejects (never processes), signals the provider to retry", async () => {
+    // Deliberately 500, not 503: a missing secret is a SERVER misconfig, so returning 500 makes the
+    // provider (Postmark) retry once the operator sets it — while still REFUSING to process the webhook.
+    // The security property under test is "unset secret NEVER opens the endpoint", regardless of the exact code.
+    delete process.env.CARE_INBOUND_EMAIL_SECRET;
+    const status = (await POST(postReq("anything"))).status;
+    expect(status).toBe(500);
+    expect(status).not.toBe(200); // the load-bearing invariant: it must never accept
+  });
+
+  it("401 when the X-Care-Webhook-Secret header is wrong or absent — forged emails are rejected", async () => {
+    process.env.CARE_INBOUND_EMAIL_SECRET = "s3cret";
+    expect((await POST(postReq("wrong-secret"))).status).toBe(401);
+    expect((await POST(postReq(undefined))).status).toBe(401);
   });
 });
