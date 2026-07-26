@@ -133,7 +133,7 @@
       <div class="hd" id="hd">
         <span class="brand"><span class="dot" id="dot"></span> C.A.R.E</span>
         <span class="hd-sp"></span>
-        <span class="ver">v0.2</span>
+        <span class="ver">v0.3</span>
         <button class="icobtn" id="minBtn" title="Minimize">–</button>
         <button class="icobtn" id="closeBtn" title="Close">✕</button>
       </div>
@@ -546,6 +546,27 @@
     const info = $("selInfo");
     const say = (t) => { if (info) info.textContent = t; };
 
+    // Image bytes: a third-party image on the page is CROSS-ORIGIN, so the content-script canvas read
+    // taints and throws (SecurityError) — that is why "image capture wasn't working." The WORKER can fetch
+    // it cross-origin, but only with a host permission for that site. Rather than demand "all sites" up
+    // front (broad, scary at install), we request the OPTIONAL <all_urls> host permission HERE — the first
+    // time a capture actually contains an image — so the prompt is tied to an explicit user action and its
+    // reason. chrome.permissions.request needs the click's user gesture, so this MUST run before the first
+    // await. If the API is unavailable in this context, or the user declines, we fall back to the canvas
+    // read below (same-origin images still work; cross-origin ones stay metadata-only) — capture still
+    // succeeds either way.
+    const hasImages = messages.some(
+      (m) => Array.isArray(m.media) && m.media.some((md) => md && md.type === "image" && md.url)
+    );
+    let imgPerm = false;
+    if (hasImages && chrome.permissions && chrome.permissions.request) {
+      try {
+        imgPerm = await chrome.permissions.request({ origins: ["*://*/*"] });
+      } catch {
+        imgPerm = false; // API rejected (no gesture / not supported) → canvas fallback
+      }
+    }
+
     // Build the ingest payload (text + per-message attribution + media METADATA). The media URL is
     // sent as provenance; the BYTES are not uploaded from here — content.js must make no direct
     // network calls (CORS/security architecture invariant, extensionWorker.test.ts), and the worker
@@ -593,9 +614,12 @@
       return;
     }
 
-    // Phase 2c: upload IMAGE bytes. Read each image via canvas (no network here), hand the base64 to the
-    // worker, which PUTs it to the Supabase signed URL. Best-effort: a tainted/cross-origin image or a
-    // failed PUT just leaves the metadata row (filename placeholder). Non-image media stays metadata-only.
+    // Phase 2c: upload IMAGE bytes. Two paths, best-effort — a failed image just leaves its metadata row
+    // (filename placeholder); non-image media stays metadata-only either way:
+    //   1. Permission granted → the WORKER fetches the image cross-origin and PUTs it (care-rcd-fetch-and-
+    //      upload). This is the path that makes third-party images actually work.
+    //   2. No permission (declined / API absent) → the content-script canvas read (care-rcd-upload). Works
+    //      only for same-origin images; cross-origin ones taint and are skipped.
     const uploads = (resp.data && resp.data.uploads) || [];
     let synced = 0;
     let imageTotal = 0;
@@ -603,6 +627,18 @@
       const imgUrl = imageUrlByRef.get(up.ref);
       if (!imgUrl || !up.signedUrl) continue;
       imageTotal++;
+      if (imgPerm) {
+        try {
+          const r = await chrome.runtime.sendMessage({
+            type: "care-rcd-fetch-and-upload",
+            imageUrl: imgUrl,
+            signedUrl: up.signedUrl,
+          });
+          if (r && r.ok) { synced++; continue; }
+        } catch {
+          /* fall through to the canvas attempt */
+        }
+      }
       const b64 = imageBytesBase64(imgUrl);
       if (!b64) continue;
       try {

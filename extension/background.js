@@ -165,6 +165,39 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch(() => sendResponse({ ok: false, error: "network" }));
     return true; // async
   }
+
+  // care-rcd-fetch-and-upload (founder 2026-07-26): the FIX for cross-origin image capture. The content
+  // script's canvas read fails on third-party images (CORS taint → SecurityError). The WORKER, once the
+  // user grants the <all_urls> OPTIONAL host permission, CAN fetch those images cross-origin — so it
+  // fetches the image URL here, then PUTs the bytes to the Supabase signed URL. signedUrl is PINNED to
+  // *.supabase.co (destination can't be redirected — not an open proxy); imageUrl must be http(s).
+  if (message?.type === "care-rcd-fetch-and-upload") {
+    const imageUrl = message.imageUrl;
+    const signedUrl = message.signedUrl;
+    if (
+      typeof signedUrl !== "string" ||
+      !/^https:\/\/[a-z0-9-]+\.supabase\.co\//i.test(signedUrl) ||
+      typeof imageUrl !== "string" ||
+      !/^https?:\/\//i.test(imageUrl)
+    ) {
+      sendResponse?.({ ok: false, error: "bad params" });
+      return; // sync
+    }
+    (async () => {
+      try {
+        const imgRes = await fetch(imageUrl);
+        if (!imgRes.ok) { sendResponse({ ok: false, error: "fetch " + imgRes.status }); return; }
+        const buf = await imgRes.arrayBuffer();
+        const ct = imgRes.headers.get("content-type") ||
+          (typeof message.contentType === "string" ? message.contentType : "application/octet-stream");
+        const put = await fetch(signedUrl, { method: "PUT", body: buf, headers: { "content-type": ct } });
+        sendResponse({ ok: put.ok, status: put.status });
+      } catch {
+        sendResponse({ ok: false, error: "network" });
+      }
+    })();
+    return true; // async
+  }
 });
 
 // Keep the toolbar badge in sync with the session, wherever the token changes (connect handoff, panel
