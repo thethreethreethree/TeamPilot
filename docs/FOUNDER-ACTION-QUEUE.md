@@ -1,5 +1,33 @@
 # Founder action queue — as of 2026-07-14
 
+## 🆕 2026-07-27 — "EXTENSION NOT WORKING" (tester) ROOT-CAUSED + HALF-FIXED. Full audit + remediation.
+
+**Root cause (verified in code, not memory): the extension was locked for EVERY tenant** — the entitlement
+columns (`care_tenant_config.plan`, `extension_trial_started_at`) had NO writer, so every `pilot` tenant hit a
+402 on every tool. Not a client problem, which is why re-downloading didn't help.
+
+**✅ SHIPPED this session (all gate-green — `npm run check` 1488 tests + `next build`):**
+1. **Auto 14-day trial on first use** (root-cause fix) — a fresh tenant's first extension call now opens a
+   trial instead of 402. Atomic, one-trial-per-tenant, phantom-trial edge hardened. **YOUR RUNTIME-VERIFY:** a
+   fresh pilot tenant → first tool call should succeed (not 402).
+2. **Both PII purge crons scheduled** in `vercel.json` (RCD media + coach recordings) — **DORMANT until you set
+   `CRON_SECRET` (+ `RCD_RETENTION_DAYS`, default 90).** Deletion logic audited sound (deletes only expired,
+   bytes-before-rows, no orphans). **YOUR ACTION: set those env vars to activate.**
+3. **Download page** version 0.1.0→0.3.0 (was showing a stale build number to testers).
+4. **Sidebar**: the 7 analysis/coaching items collapsed under one "C.A.R.E Tools" button (your mockup).
+
+**🚨 THE remaining blocker — B / PAID UNLOCK (14-day cliff, time-sensitive):** with only the auto-trial,
+**every tenant RE-LOCKS 14 days after their trial starts.** There's still no writer for
+`care_tenant_config.plan=pro/enterprise`, and a real bug: `PAID_PLANS={pro,enterprise}` but paying customers
+live in `crm_subscriptions.plan∈{team_*}` in a DIFFERENT table — so even a paying `team_large` reads locked.
+**Fix = build B1 (`ENTITLEMENT-WRITE-PATH-PLAN.md §B1`): a CRM-tier→plan sync + one-time backfill. Needs YOUR
+pricing call — which CRM tiers include the extension.** Say the tier→plan map and I build it in one pass.
+
+**Tester diagnostic (confirm which bug they hit):** have them retry a tool — `402` = entitlement (now
+auto-trial-fixed, they should retry) vs `401` = sign-in (Finding 2: if you pinned
+`NEXT_PUBLIC_CARE_EXTENSION_ID` but they load unpacked, only manual token-paste works; leave it unset for
+testers). Full record: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
+
 ## 🧭 PRIORITIZED INDEX (as of 2026-07-26) — do these in order; details in the flags below
 
 **🆕 2026-07-26 — RCD (RAW CONVERSATION DATA) BUILT END-TO-END + Jeff can now define our product.** Two founder requests this session, both shipped, full gate green (1445 tests, 0 leaks/policy-gaps/violations):
