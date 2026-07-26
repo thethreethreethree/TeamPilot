@@ -30,6 +30,8 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     .eq("id", id)
     .maybeSingle();
   if (convErr || !conv) {
+    // A genuine not-found (convErr null) is expected; a real read error is worth seeing in the logs.
+    if (convErr) console.error("[rcd detail] conversation read failed:", convErr);
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 

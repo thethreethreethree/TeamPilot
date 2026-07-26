@@ -27,6 +27,9 @@ export async function GET() {
 
   if (error) {
     // Missing table (0194 unapplied) or any read error → empty, so the panel degrades gracefully.
+    // Log it so a REAL read error is distinguishable from a genuinely-empty list in the server logs
+    // (now that 0194 is applied, the missing-table case is moot and any error here is worth seeing).
+    console.error("[rcd list] read failed:", error);
     return NextResponse.json({ conversations: [] });
   }
 
