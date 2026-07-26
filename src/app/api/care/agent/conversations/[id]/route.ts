@@ -84,6 +84,22 @@ export async function PATCH(
   const body = await readBody(req, PatchBody);
   if (body instanceof NextResponse) return body;
 
+  // Tenant defense-in-depth (audit 2026-07-27). Every SIBLING agent route (co-pilot / messages / read /
+  // resolution / dissect / formulate / events / ask-coach) verifies the conversation is in the caller's
+  // company at the ROUTE layer; this mutation route did not — it relied purely on the mutation data fns all
+  // using the RLS client. That is sound TODAY (verified: claim/assign/status/priority/snooze + the fetch all
+  // use createServerClient), but it is exactly the "service-role route missed the tenant check" class that
+  // caused a past cross-tenant incident (the CRM vendor bug): a future switch of any one of those fns to the
+  // admin client would silently turn this into a cross-tenant mutation. Fetching once + checking company here
+  // gates EVERY action branch, so the invariant holds at the route regardless of the data layer. A26/A29.
+  const current = await fetchAgentConversation(id);
+  if (!current) {
+    return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+  }
+  if (!auth.companyId || current.conversation.companyId !== auth.companyId) {
+    return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+  }
+
   try {
     if (body.action === "claim") {
       await claimConversation({ conversationId: id, agentId: auth.agentId });
@@ -103,15 +119,8 @@ export async function PATCH(
           { status: 400 }
         );
       }
-      const current = await fetchAgentConversation(id);
-      if (!current) {
-        return NextResponse.json(
-          { error: "Conversation not found." },
-          { status: 404 }
-        );
-      }
-      // isAdmin already resolved by requireCareAgent; no extra
-      // profile fetch needed.
+      // `current` was fetched + tenant-checked at the top of the handler; reuse it (no second read).
+      // isAdmin already resolved by requireCareAgent; no extra profile fetch needed.
       const currentAssignee = current.conversation.assignedAgentId;
       const isUnclaimed = currentAssignee === null;
       const ownsIt = currentAssignee === auth.agentId;
