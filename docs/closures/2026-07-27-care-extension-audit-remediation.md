@@ -56,6 +56,20 @@ bytes-before-rows, no orphans, RCD immutability triggers are UPDATE-only so dele
 numbers). **Still NOT inspected:** finance, sales-coach live-coaching internals, the authed agent AI-tool
 routes' bodies (co-pilot/dissect/summarize/formulate) beyond the error-leak class.
 
+## Extended audit — sales-coach subsystem authz (adjacent, verified SOUND with evidence)
+
+Applied the same authz rigor to the sales-coach transcript surface (the sensitive per-rep coaching data, A10/A18):
+- **Session read** (`[id]/route.ts` GET → `getSession`/`getSessionTranscript`): both use the RLS session client
+  (`createServerClient`, verified — not admin), governed by the `0084` SELECT policy = **owner OR admin/sales-coach
+  manager same-company**. Correct A10/A18 model (rep sees own, managers see team); no cross-tenant/cross-rep leak.
+- **Segment write** (`[id]/segments/route.ts` POST): **owner-only** (`session.agentId !== auth.user.id → 403`) —
+  explicitly hardened (2026-07-09 audit) against the "RLS-fixed, service-role-route-missed" cross-rep injection
+  class that 0082 first closed at the PostgREST layer.
+- **Observation:** the migration history (0082/0083/0084/0095/0102/0113/0155) shows this subsystem's authz has
+  already been through rigorous hardening — the probes confirmed prior work rather than finding new gaps. The
+  sales-coach authz is mature; a future audit can deprioritize it. **NOT inspected:** finance subsystem;
+  sales-coach LLM-prompt/injection surfaces; the non-`[id]` aggregate routes' role gating in depth.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
