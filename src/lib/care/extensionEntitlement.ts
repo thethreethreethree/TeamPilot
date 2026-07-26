@@ -116,7 +116,13 @@ export async function getExtensionEntitlement(
   const trialStartedAt = (data?.extension_trial_started_at as string | null) ?? null;
   const computed = computeExtensionEntitlement({ plan, trialStartedAt, now: Date.now() });
 
-  if (shouldAutoStartTrial({ trialStartedAt, computed })) {
+  // `data &&` is load-bearing: only auto-start when the config ROW actually exists. Without it, a tenant with
+  // NO care_tenant_config row (a pre-0045 company that predates the bootstrap trigger) would take the
+  // auto-start branch, the `UPDATE … WHERE company_id=$1` would match ZERO rows (not an error), and we'd
+  // return `trial` anyway — a PHANTOM trial that never persists and recomputes to "trial" on every call
+  // forever (unbounded free access). With the guard, a row-less tenant correctly stays `locked` (the
+  // pre-change behavior) rather than being silently and permanently unlocked.
+  if (data && shouldAutoStartTrial({ trialStartedAt, computed })) {
     const startedIso = new Date().toISOString();
     const { error: upErr } = await admin
       .from("care_tenant_config")

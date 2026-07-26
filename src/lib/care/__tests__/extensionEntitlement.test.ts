@@ -182,6 +182,14 @@ describe("getExtensionEntitlement auto-start (IO)", () => {
     expect((await getExtensionEntitlement("c1")).status).toBe("locked");
   });
 
+  it("NO config row (row-less tenant) → locked, NOT a phantom trial (the UPDATE would match 0 rows)", async () => {
+    // A pre-0045 company without a care_tenant_config row: the read returns {data:null}. Auto-starting here
+    // would UPDATE 0 rows (no error) and wrongly return `trial` on every call forever. The `data &&` guard
+    // keeps it locked.
+    mockAdmin([{ data: null, error: null }]);
+    expect((await getExtensionEntitlement("c1")).status).toBe("locked");
+  });
+
   it("migration-missing branch does NOT attempt an auto-start write (nowhere to write) → locked", async () => {
     // No updateResult needed; if the code tried to UPDATE here it would still resolve OK, but the point is
     // the fallback path must return locked for a non-paid plan without a column to persist a trial into.
