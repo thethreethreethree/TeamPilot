@@ -275,6 +275,18 @@ ruled it out with hard evidence:
     host_permissions). If a tester runs the app on a different origin (a `*.vercel.app` preview / staging
     domain), the extension cannot talk to it — a config assumption to confirm, not a code defect.
 
+## Security verification of the fix itself — the auto-trial WRITE is tenant-scoped (audit only, no change)
+
+22. **The auto-trial write cannot be abused cross-tenant.** The fix (finding 1) added an `UPDATE
+    care_tenant_config SET extension_trial_started_at = now() WHERE company_id = $1`. Audited against the
+    "gate keys on a caller-supplied reference, not the actual data" class: `getExtensionEntitlement(companyId)`
+    receives `auth.companyId`, which `extensionAuth.ts` derives SERVER-SIDE from the `Authorization: Bearer`
+    token → `admin.auth.getUser(token)` → `profiles.company_id` keyed on the authenticated user id — never a
+    request param. Fail-closed on `removed` status and missing company. So the trial-start write is scoped to
+    the caller's OWN tenant; a caller cannot start trials for, or probe the entitlement of, other tenants. The
+    root-cause fix is therefore correct (26 passing tests) AND tenant-secure. Closes the loop on the one piece
+    of new mutation code the tester fix introduced.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
