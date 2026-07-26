@@ -1,5 +1,31 @@
 # Founder action queue — as of 2026-07-14
 
+## ✅ 2026-07-27 SESSION — one decision checklist (everything surfaced this session, prioritized)
+
+**DONE + deployed (no action):** tester's "not working" fixed on both causes (entitlement auto-trial +
+`/login` honoring `?next=`); trial-expiry message honest; sidebar "C.A.R.E Tools" grouping; CWE-209
+raw-error leaks closed on all public routes; conversation-mutation route hardened; deep-link continuity;
+comprehensive security audit (all green, ~40 commits). Full record: `docs/closures/2026-07-27-…md`.
+
+**⚙️ CONFIG you set (unblocks dormant features):**
+1. `CRON_SECRET` + `RCD_RETENTION_DAYS` → activates the two PII purge crons (scheduled, dormant).
+2. `NEXT_PUBLIC_CARE_EXTENSION_ID` → pin before any public Web Store launch (unset = handoff fails open; fine for pilot testers).
+3. Confirm `POSTMARK_SERVER_TOKEN` + `CARE_EMAIL_HOST_DOMAIN` if email support should send.
+
+**🧩 DECISIONS (I build once you choose):**
+4. **B / paid-unlock** — post-pilot; the tier→plan pricing map (which CRM tiers include the extension). Not urgent (pilot = manual unlock). Spec: `ENTITLEMENT-WRITE-PATH-PLAN.md §B1`.
+5. **Email dispatch-failure → route to a human?** (today: transient send failure = customer silence + a log only). Recommended yes.
+6. **Inbox: should single assign-away auto-advance** like close/resolve? (UX call — AMD-006 pattern). 
+7. **Capture success → clickable "Open C.A.R.E →" link** (like Spawn) — say the word once you've confirmed capture works end-to-end.
+
+**🧪 RUNTIME-VERIFY (I can't run a browser):** fresh pilot tenant first tool call → trial opens (not 402);
+the sidebar group expands; capture with an image → Enable image capture → re-capture → thumbnail lands.
+
+**📎 Minor/inert (low priority):** anti-injection line in the care system prompt (proposal); `external_ref`
+dedup (inert column); sales-coach login honoring `next` (separate product, A26 residual).
+
+---
+
 ## 🆕 2026-07-27 — "EXTENSION NOT WORKING" (tester) ROOT-CAUSED + HALF-FIXED. Full audit + remediation.
 
 **Root cause (verified in code, not memory): the extension was locked for EVERY tenant** — the entitlement
