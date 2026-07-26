@@ -31,6 +31,24 @@ Governed by the founder's Build/Audit/Solution protocol (`Thinkerthinker Build K
 - **Fix 6** — held (inert).
 - **Sidebar revision** — the seven analysis/coaching nav items grouped under one collapsible "C.A.R.E Tools" button (mirrors the Settings expander, A28; default collapsed, auto-open when the active route is inside the group per AMD-006 L3). Verified: typecheck, lint, theme (0 leaks). **Untested:** the click/expand + visual layout in a real browser (AMD-006 3rd addendum — static-verified only).
 
+## Extended audit — public C.A.R.E app surfaces (post-remediation, A36 — re-opened my own "not inspected" residual)
+
+7. **NEW — CWE-209 information disclosure (fixed).** Two PUBLIC customer-facing endpoints returned the raw
+   exception string (`${err.name}: ${err.message}`) to unauthenticated clients: `conversations/route.ts:174`
+   (create) and `conversations/[id]/messages/route.ts:362` (post message). Leaks Postgres table/column names
+   and missing-env-var names on error. Both already log it server-side, so `detail` in the response was pure
+   leak. Fixed (`3e8c75ae`) + swept the class to the authed `agent/tenant` route (`908d0897`). No care route
+   now returns a raw exception to any client. **Reusable lens:** grep public API error responses for
+   `detail:` / `err.message` / `String(err)` — raw exceptions belong in the server log, never the response.
+
+**Verified SOUND this pass (now inspected, moved off the residual):** widget bootstrap (`toWidgetSafeConfig`
+whitelist projection, test-locked — no internal field leaks); inbound-email webhook (`CARE_INBOUND_EMAIL_SECRET`
+enforced, **fails closed** if unset → 500, `constantTimeEqual`); both PII purge crons (delete only expired,
+bytes-before-rows, no orphans, RCD immutability triggers are UPDATE-only so deletes aren't blocked).
+**Known-open (documented, config-gated, not re-flagged as new):** per-tenant AI-cost cap (awaits founder cap
+numbers). **Still NOT inspected:** finance, sales-coach live-coaching internals, the authed agent AI-tool
+routes' bodies (co-pilot/dissect/summarize/formulate) beyond the error-leak class.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
