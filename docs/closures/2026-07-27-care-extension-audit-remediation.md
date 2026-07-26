@@ -4,11 +4,17 @@ Governed by the founder's Build/Audit/Solution protocol (`Thinkerthinker Build K
 
 ## Outcome at a glance
 
-**Tester's "not working" → ROOT-CAUSED + FIXED.** The extension was entitlement-locked for every tenant (the
-`extension_trial_started_at` / `plan` columns had no writer). Fixed with an auto 14-day trial on first use;
-hardened against a phantom-trial edge; ripple-traced (isolated); expiry message made honest (trial-ended vs
-never-included), then self-corrected to not imply a non-existent self-serve upgrade. Client verified
-deploy-ready (v0.3 package carries every fix).
+**Tester's "not working" → TWO real causes, both ROOT-CAUSED + FIXED.**
+- **(1) Entitlement lock (server).** The `extension_trial_started_at` / `plan` columns had no writer, so every
+  tenant was `locked`. Fixed with an auto 14-day trial on first use; hardened against a phantom-trial edge;
+  ripple-traced (isolated); expiry message made honest (trial-ended vs never-included), self-corrected to not
+  imply a non-existent self-serve upgrade.
+- **(2) Sign-in flow break (client onboarding).** Found by tracing the fresh-tester path: `/login` ignored the
+  `?next=` param the extension connect page sends (`/login?next=%2Fextension%2Fconnect`), so a fresh sign-in
+  landed on the dashboard and NEVER returned to complete the token handoff → extension stayed "Not connected."
+  Fixed (`a59b9f6e`): `/login` honors `next`, open-redirect-guarded (`safeRelativePath` + test). Follow-ups
+  noted: threading `next` through the onboarding flow (fresh-signup case) + the separate sales-coach login.
+- Client verified deploy-ready (v0.3 package carries every fix).
 
 **Everything green:** `npm run check` (6 gates, ~1495 tests) + `next build`. ~32 commits, all pushed.
 
