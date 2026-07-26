@@ -22,8 +22,9 @@ import { SalesRepBenefits } from "@/components/sales-coach/demo/SalesRepBenefits
 import { SalesRoleplay } from "@/components/sales-coach/demo/SalesRoleplay";
 import { SalesHonestNote } from "@/components/sales-coach/demo/SalesHonestNote";
 
-// TODO(founder): replace with your real booking / contact link before sending to prospects.
-const BOOKING_URL = "/login"; // → [your booking link]
+// Set NEXT_PUBLIC_BOOKING_URL in Vercel to your real booking / contact link (no code change needed);
+// falls back to /login until then. Replace before sending the demo to prospects.
+const BOOKING_URL = process.env.NEXT_PUBLIC_BOOKING_URL || "/login";
 
 const compareRows: { dim: string; recordings: string; training: string; coach: string }[] = [
   { dim: "When you get coached", recordings: "Next week, if a manager watches", training: "Once a quarter, in a room", coach: "In the moment, on the call" },

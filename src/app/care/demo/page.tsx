@@ -32,8 +32,9 @@ import { CareAgentBenefits } from "@/components/care/demo/CareAgentBenefits";
 import { JeffLiveChat } from "@/components/care/demo/JeffLiveChat";
 import { CareHonestNote } from "@/components/care/demo/CareHonestNote";
 
-// TODO(founder): replace with your real booking / contact link before sending to prospects.
-const BOOKING_URL = "/login"; // → [your booking link]
+// Set NEXT_PUBLIC_BOOKING_URL in Vercel to your real booking / contact link (no code change needed);
+// falls back to /login until then. Replace before sending the demo to prospects.
+const BOOKING_URL = process.env.NEXT_PUBLIC_BOOKING_URL || "/login";
 
 const compareRows: { dim: string; chatbot: string; inbox: string; care: string }[] = [
   { dim: "After hours", chatbot: "Deflects to a FAQ", inbox: "Customer waits till morning", care: "Jeff answers in seconds, grounded in your product" },
