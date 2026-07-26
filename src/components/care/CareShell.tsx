@@ -7,6 +7,7 @@ import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { useToast } from "@/components/ui/toast";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import RcdPanel from "@/components/care/RcdPanel";
 import {
   BarChart3,
   BookOpen,
@@ -304,7 +305,11 @@ export function CareShell({ children }: { children: React.ReactNode }) {
           top of this main; the inset is absorbed once here so pages
           don't have to repeat it. */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
-        {children}
+        {/* Page content fills + scrolls internally; the RCD drawer sits at the bottom of the
+            C.A.R.E system (founder build 2026-07-26), collapsed by default so it never steals
+            page height until opened. */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">{children}</div>
+        <RcdPanel />
       </main>
       {/* Own LearningModeFab, mirroring SalesCoachShell (A21 parity). The dashboard-layout FAB sits at z-40,
           BEHIND this z-[60] overlay, so it's hidden inside C.A.R.E — re-rendering it here keeps the learning
