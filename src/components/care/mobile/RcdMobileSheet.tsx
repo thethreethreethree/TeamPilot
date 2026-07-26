@@ -11,62 +11,11 @@
  * short-lived signed URLs the detail route returns (never a public URL).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { X, Loader2, ChevronLeft } from "lucide-react";
-
-type Summary = { id: string; channel: string; message_count: number; captured_at: string };
-type Media = { id: string; type: "image" | "file" | "video" | "audio"; filename: string | null; alt: string | null; url: string | null };
-type Message = { id: string; seq: number; role: "agent" | "customer" | "unknown"; sender: string | null; body: string; media: Media[] };
-
-function channelLabel(c: string): string {
-  const map: Record<string, string> = {
-    whatsapp: "WhatsApp", gmail: "Gmail", outlook: "Outlook", slack: "Slack", gorgias: "Gorgias",
-    zendesk: "Zendesk", intercom: "Intercom", front: "Front", instagram: "Instagram", messenger: "Messenger", linkedin: "LinkedIn",
-  };
-  return map[c] ?? c;
-}
-function roleLabel(r: Message["role"]): string {
-  return r === "agent" ? "Agent" : r === "customer" ? "Customer" : "—";
-}
+import { channelLabel, roleLabel, useRcd } from "@/components/care/rcd/useRcd";
 
 export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
-  const [conversations, setConversations] = useState<Summary[]>([]);
-  const [listLoaded, setListLoaded] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[] | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-
-  const loadList = useCallback(async () => {
-    try {
-      const res = await fetch("/api/care/rcd");
-      if (res.ok) setConversations((await res.json()).conversations ?? []);
-    } finally {
-      setListLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadList();
-  }, [loadList]);
-
-  // Stale-response guard (context-switch state-bleed class): only the latest requested id writes state.
-  const latestReqId = useRef<string | null>(null);
-  const open = useCallback(async (id: string) => {
-    latestReqId.current = id;
-    setSelectedId(id);
-    setMessages(null);
-    setDetailLoading(true);
-    try {
-      const res = await fetch(`/api/care/rcd/${id}`);
-      const data = res.ok ? await res.json() : { messages: [] };
-      if (latestReqId.current !== id) return; // superseded by a newer selection
-      setMessages(data.messages ?? []);
-    } catch {
-      if (latestReqId.current === id) setMessages([]);
-    } finally {
-      if (latestReqId.current === id) setDetailLoading(false);
-    }
-  }, []);
+  const { conversations, listLoaded, selectedId, messages, detailLoading, openConversation, back } = useRcd();
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 flex items-end" onClick={onClose}>
@@ -77,7 +26,7 @@ export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-amber-300">
             {selectedId ? (
-              <button type="button" onClick={() => setSelectedId(null)} className="flex items-center gap-1 text-amber-300">
+              <button type="button" onClick={back} className="flex items-center gap-1 text-amber-300">
                 <ChevronLeft className="w-4 h-4" /> Raw Conversation Data
               </button>
             ) : (
@@ -103,7 +52,7 @@ export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
             <ul className="divide-y divide-white/10">
               {conversations.map((c) => (
                 <li key={c.id}>
-                  <button type="button" onClick={() => open(c.id)} className="w-full text-left py-2.5">
+                  <button type="button" onClick={() => openConversation(c.id)} className="w-full text-left py-2.5">
                     <span className="block text-sm text-white/90 font-medium">{channelLabel(c.channel)}</span>
                     <span className="block text-[11px] text-white/40">
                       {c.message_count} message{c.message_count === 1 ? "" : "s"} · {new Date(c.captured_at).toLocaleString()}

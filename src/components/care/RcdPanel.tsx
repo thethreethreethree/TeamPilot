@@ -15,81 +15,13 @@
  * Degrades to an empty state when 0194 isn't applied yet (the read routes return []).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
-
-type RcdConversationSummary = {
-  id: string;
-  channel: string;
-  source_url: string | null;
-  message_count: number;
-  captured_at: string;
-};
-
-type RcdMedia = {
-  id: string;
-  type: "image" | "file" | "video" | "audio";
-  filename: string | null;
-  alt: string | null;
-  url: string | null;
-};
-
-type RcdMessage = {
-  id: string;
-  seq: number;
-  role: "agent" | "customer" | "unknown";
-  sender: string | null;
-  body: string;
-  media: RcdMedia[];
-};
-
-function channelLabel(channel: string): string {
-  const map: Record<string, string> = {
-    whatsapp: "WhatsApp",
-    gmail: "Gmail",
-    outlook: "Outlook",
-    slack: "Slack",
-    gorgias: "Gorgias",
-    zendesk: "Zendesk",
-    intercom: "Intercom",
-    front: "Front",
-    instagram: "Instagram",
-    messenger: "Messenger",
-    linkedin: "LinkedIn",
-  };
-  return map[channel] ?? channel;
-}
-
-function roleLabel(role: RcdMessage["role"]): string {
-  if (role === "agent") return "Agent";
-  if (role === "customer") return "Customer";
-  return "—";
-}
+import { useEffect, useRef, useState } from "react";
+import { channelLabel, roleLabel, useRcd } from "@/components/care/rcd/useRcd";
 
 export default function RcdPanel() {
+  const { conversations, listLoaded, loadList, selectedId, messages, detailLoading, openConversation, back } =
+    useRcd();
   const [open, setOpen] = useState(false);
-  const [conversations, setConversations] = useState<RcdConversationSummary[]>([]);
-  const [listLoaded, setListLoaded] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<RcdMessage[] | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-
-  const loadList = useCallback(async () => {
-    try {
-      const res = await fetch("/api/care/rcd");
-      if (res.ok) {
-        const data = await res.json();
-        setConversations(data.conversations ?? []);
-      }
-    } finally {
-      setListLoaded(true);
-    }
-  }, []);
-
-  // Load on mount (not only when opened) so the bar shows the count immediately — otherwise there's no
-  // visible signal that captures exist, which is exactly the "I don't see where to view it" gap.
-  useEffect(() => {
-    void loadList();
-  }, [loadList]);
 
   // Auto-reveal when captures exist so they're visible without hunting — but only ONCE PER SESSION, not
   // on every care-section entry (CareShell remounts each time), which would be intrusive for regular use.
@@ -108,27 +40,6 @@ export default function RcdPanel() {
       }
     }
   }, [listLoaded, conversations.length]);
-
-  // Guard against the stale-response race: clicking capture A then B quickly can resolve A's fetch
-  // AFTER B's, rendering A's messages under B (the context-switch state-bleed class). Only the LATEST
-  // requested id may write state.
-  const latestReqId = useRef<string | null>(null);
-  const openConversation = useCallback(async (id: string) => {
-    latestReqId.current = id;
-    setSelectedId(id);
-    setMessages(null);
-    setDetailLoading(true);
-    try {
-      const res = await fetch(`/api/care/rcd/${id}`);
-      const data = res.ok ? await res.json() : { messages: [] };
-      if (latestReqId.current !== id) return; // superseded by a newer selection — drop this response
-      setMessages(data.messages ?? []);
-    } catch {
-      if (latestReqId.current === id) setMessages([]);
-    } finally {
-      if (latestReqId.current === id) setDetailLoading(false);
-    }
-  }, []);
 
   const hasData = listLoaded && conversations.length > 0;
 
@@ -164,8 +75,7 @@ export default function RcdPanel() {
             <button
               type="button"
               onClick={() => {
-                setSelectedId(null);
-                setMessages(null);
+                back();
                 void loadList(); // re-fetch directly (the mount effect only runs once)
               }}
               className="text-[11px] text-secondary hover:text-primary"
