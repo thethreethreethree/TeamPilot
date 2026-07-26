@@ -49,7 +49,14 @@ const POSTMARK_API = "https://api.postmarkapp.com/email";
 
 export type DispatchResult =
   | { ok: true; providerMessageId: string }
-  | { ok: false; error: string };
+  // `unconfigured: true` marks the benign "outbound email isn't set up here"
+  // returns (no POSTMARK_SERVER_TOKEN / CARE_EMAIL_HOST_DOMAIN) — the expected
+  // state in dev/demo. Its ABSENCE on an ok:false means a GENUINE problem: a
+  // real Postmark send failure, or a data/logic error. Callers use this to
+  // avoid conflating a production dropped-reply (an incident) with dev noise —
+  // the two previously logged identically. Keyed on this flag, not on
+  // string-matching the free-text `error` — key on state, not on a string.
+  | { ok: false; error: string; unconfigured?: true };
 
 export async function dispatchOutboundEmailReply(args: {
   conversationId: string;
@@ -61,6 +68,7 @@ export async function dispatchOutboundEmailReply(args: {
   if (!apiToken) {
     return {
       ok: false,
+      unconfigured: true,
       error:
         "Outbound email not configured (POSTMARK_SERVER_TOKEN missing). Skipping dispatch.",
     };
@@ -69,6 +77,7 @@ export async function dispatchOutboundEmailReply(args: {
   if (!emailHostDomain) {
     return {
       ok: false,
+      unconfigured: true,
       error:
         "Outbound email host domain not configured (CARE_EMAIL_HOST_DOMAIN missing).",
     };

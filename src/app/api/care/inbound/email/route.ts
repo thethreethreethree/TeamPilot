@@ -716,10 +716,32 @@ export async function runAiFirstResponder(args: {
         messageId: insertedAiId,
       });
       if (!dispatch.ok) {
-        // eslint-disable-next-line no-console
-        console.error(
-          `[care] email AI reply outbound dispatch NOT sent conv=${args.conversationId} msg=${insertedAiId}: ${dispatch.error}`
-        );
+        if (dispatch.unconfigured) {
+          // Benign: outbound email isn't set up in this environment (dev/demo,
+          // or a tenant not yet on email). Expected — the reply is stored and
+          // the widget/inbox still show it. Log at warn (not error) so it
+          // doesn't drown a REAL failure in the logs.
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[care] email outbound skipped (not configured) conv=${args.conversationId}: ${dispatch.error}`
+          );
+        } else {
+          // GENUINE failure: outbound IS configured but the send didn't land
+          // (Postmark error / bad recipient / data problem). On the EMAIL
+          // channel storing != delivering, so the customer who emailed in got
+          // SILENCE and no agent knows. This is a real incident — log at error.
+          // eslint-disable-next-line no-console
+          console.error(
+            `[care] email AI reply outbound dispatch FAILED (configured) conv=${args.conversationId} msg=${insertedAiId}: ${dispatch.error}`
+          );
+          // FOUNDER-GATED (closure finding 12, remaining half): the honest
+          // remediation — cede the thread to a human (flip ai_responding=false)
+          // and surface the undelivered reply in the agent inbox — is a product
+          // decision (cede immediately vs. retry first; how to signal
+          // "undelivered" in the UI). Not built unilaterally per surface-don't-
+          // overtake; the distinguished error log above at least makes the
+          // incident VISIBLE now instead of hiding it in dev noise.
+        }
       }
     }
   } catch (e) {
