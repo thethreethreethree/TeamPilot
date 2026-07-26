@@ -165,8 +165,12 @@ export async function POST(req: NextRequest) {
       { onConflict: "company_id" }
     );
   if (updateError) {
+    // Sibling of the agent/tenant route (908d0897): log the raw cause, return a generic message — no client
+    // gets a raw DB error, even an authed agent (CWE-209 defense in depth). Audit 2026-07-27.
+    // eslint-disable-next-line no-console
+    console.error(`[care.tenant.logo] config update failed companyId=${auth.companyId}: ${updateError.message}`);
     return NextResponse.json(
-      { error: `Config update failed: ${updateError.message}` },
+      { error: "Couldn't save the logo. Please try again." },
       { status: 500 }
     );
   }
