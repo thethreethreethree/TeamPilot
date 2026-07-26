@@ -442,6 +442,36 @@
   // Media byte upload is BEST-EFFORT: a fetch/CORS/tainted-canvas miss leaves the metadata row intact, so
   // the app shows the filename/placeholder rather than failing the whole capture (§3.4 degrade).
   // RUNTIME-UNVERIFIED: third-party media fetching varies by site; must be confirmed in a real browser.
+  // Read an already-rendered image's bytes via canvas → base64. This is NOT a network call (it reads
+  // pixels of an <img> the page already loaded), so it respects the content-script no-direct-network
+  // invariant. Cross-origin images without CORS taint the canvas and toDataURL throws → return null
+  // (that media stays metadata-only). Same-origin / blob: images (e.g. WhatsApp) read fine. Re-encodes
+  // to JPEG (lossy, drops alpha) — acceptable for a capture preview. Caps dimensions to bound payload.
+  function imageBytesBase64(url) {
+    try {
+      if (!url) return null;
+      let img = null;
+      for (const el of document.querySelectorAll("img")) {
+        if ((el.currentSrc || el.src) === url) { img = el; break; }
+      }
+      if (!img || !img.complete || !img.naturalWidth) return null;
+      const MAX = 1600;
+      const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.9); // throws SecurityError if the canvas is tainted
+      return (dataUrl.split(",")[1]) || null;
+    } catch {
+      return null; // tainted cross-origin or any failure → skip, keep the metadata row
+    }
+  }
+
   async function captureRcd() {
     const info = $("selInfo");
     const say = (t) => { if (info) info.textContent = t; };
@@ -463,9 +493,11 @@
     // can't read page-scoped blob: URLs. Byte sync is a worker-side follow-up gated on the
     // host-permissions decision (see the RCD spec). Rows are created now; the app shows the filename
     // until bytes land.
+    const imageUrlByRef = new Map(); // ref → source URL, for reading image bytes via canvas after ingest
     const payloadMessages = messages.slice(0, 500).map((m, i) => {
       const media = (Array.isArray(m.media) ? m.media : []).slice(0, 50).map((md, j) => {
         const ref = `m${i}_${j}`;
+        if (md && md.type === "image" && md.url) imageUrlByRef.set(ref, md.url);
         return {
           ref,
           type: md && md.type ? md.type : "file",
@@ -502,12 +534,35 @@
       return;
     }
 
-    const total = ((resp.data && resp.data.uploads) || []).length;
-    say(
-      total > 0
-        ? `Captured ${payloadMessages.length} message(s) and ${total} attachment(s). Open the C.A.R.E app to view it. (Attachment previews are being finalized — filenames show now.)`
-        : `Captured ${payloadMessages.length} message(s). Open the C.A.R.E app to view it.`
-    );
+    // Phase 2c: upload IMAGE bytes. Read each image via canvas (no network here), hand the base64 to the
+    // worker, which PUTs it to the Supabase signed URL. Best-effort: a tainted/cross-origin image or a
+    // failed PUT just leaves the metadata row (filename placeholder). Non-image media stays metadata-only.
+    const uploads = (resp.data && resp.data.uploads) || [];
+    let synced = 0;
+    let imageTotal = 0;
+    for (const up of uploads) {
+      const imgUrl = imageUrlByRef.get(up.ref);
+      if (!imgUrl || !up.signedUrl) continue;
+      imageTotal++;
+      const b64 = imageBytesBase64(imgUrl);
+      if (!b64) continue;
+      try {
+        const r = await chrome.runtime.sendMessage({
+          type: "care-rcd-upload",
+          signedUrl: up.signedUrl,
+          dataBase64: b64,
+          contentType: "image/jpeg",
+        });
+        if (r && r.ok) synced++;
+      } catch {
+        /* best-effort: metadata row persists */
+      }
+    }
+    const attachments = uploads.length;
+    let tail = "";
+    if (imageTotal > 0) tail = ` · ${synced}/${imageTotal} image(s) synced`;
+    else if (attachments > 0) tail = ` · ${attachments} attachment(s) recorded`;
+    say(`Captured ${payloadMessages.length} message(s)${tail}. Open the C.A.R.E app to view it.`);
   }
 
   // ── Views ────────────────────────────────────────────────────────────────────────────────────────────────

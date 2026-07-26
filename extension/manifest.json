@@ -25,6 +25,7 @@
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
     "http://localhost:4321/*",
-    "https://elostate.com/*"
+    "https://elostate.com/*",
+    "https://*.supabase.co/*"
   ]
 }

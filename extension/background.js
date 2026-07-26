@@ -131,6 +131,40 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch(() => sendResponse({ status: 0, data: { error: "network" } }));
     return true; // async
   }
+
+  // Upload one media's BYTES to its Supabase signed URL (Phase 2c). The panel reads image bytes via
+  // canvas (NO network in the content script — the CORS/security invariant) and base64-encodes them;
+  // the worker (which holds the *.supabase.co host permission) does the actual cross-origin PUT. The
+  // URL is PINNED to *.supabase.co so this can't be turned into an open PUT proxy (same hygiene as the
+  // tool-endpoint pin). No Authorization header — the signed URL already carries its upload token.
+  if (message?.type === "care-rcd-upload") {
+    const url = message.signedUrl;
+    const b64 = message.dataBase64;
+    if (
+      typeof url !== "string" ||
+      !/^https:\/\/[a-z0-9-]+\.supabase\.co\//i.test(url) ||
+      typeof b64 !== "string" ||
+      !b64
+    ) {
+      sendResponse?.({ ok: false, error: "bad upload" });
+      return; // sync
+    }
+    let bytes;
+    try {
+      bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    } catch {
+      sendResponse?.({ ok: false, error: "decode" });
+      return; // sync
+    }
+    fetch(url, {
+      method: "PUT",
+      body: bytes,
+      headers: { "content-type": typeof message.contentType === "string" ? message.contentType : "application/octet-stream" },
+    })
+      .then((r) => sendResponse({ ok: r.ok, status: r.status }))
+      .catch(() => sendResponse({ ok: false, error: "network" }));
+    return true; // async
+  }
 });
 
 // Keep the toolbar badge in sync with the session, wherever the token changes (connect handoff, panel
