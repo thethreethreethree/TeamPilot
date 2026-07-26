@@ -287,6 +287,23 @@ ruled it out with hard evidence:
     root-cause fix is therefore correct (26 passing tests) AND tenant-secure. Closes the loop on the one piece
     of new mutation code the tester fix introduced.
 
+## §1.5 ripple of the auto-trial fix — it widens the per-tenant cost gap onto the extension surface (FLAG, not built)
+
+23. **MEDIUM — auto-trial + no per-tenant cost cap = uncapped free LLM spend per trial tenant.** Tracing what
+    else the finding-1 fix affects (holistic, §1.5): auto-trial now auto-unlocks the 7 LLM-burning extension
+    tools (coach/copilot/dissect/formulate/rcd/spawn/summarize) free for 14 days to every pilot tenant.
+    `guardExtensionRequest` bounds cost per-IP (60/min pre-auth) and per-USER (`care-ext-${tool}:${userId}`,
+    perUserMax/min) but has NO per-tenant (company_id) cap. So a trial tenant with N agents on distinct IPs can
+    drive N×perUserMax/min aggregate (e.g. 10 agents × copilot@20 = 200 LLM calls/min), unbounded at the tenant
+    level — the SAME cost-metering class already flagged for the widget + inbound-email surfaces, now confirmed
+    on the extension surface and made more reachable by auto-trial (free, no card). **Not built:** the fix is the
+    same designed-but-unbuilt per-tenant windowed cap (author_type='ai' count over a window → suppress + route
+    to human inbox) extended to these 7 routes, and it awaits the cap NUMBERS the founder holds — picking them
+    unilaterally is the surface-don't-overtake line (a cost/business-policy throttle, not a pure safety
+    mechanism). **Recommendation:** set the per-tenant cap before broad pilot rollout, since auto-trial is now
+    the default unlock path. This is an honest correction — the ripple should have been surfaced WITH the
+    auto-trial fix, not a cycle later.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
