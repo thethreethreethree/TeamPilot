@@ -251,11 +251,17 @@ export default function SalesCoachHome() {
                   In-person
                 </button>
               </div>
-              <CaptureInput
-                value={clientLabel}
-                onChange={setClientLabel}
-                placeholder={isStandard ? "Name it later (optional)" : "Client / campaign (required)"}
-              />
+              {/* Standard: no name field here (founder 2026-07-26, image 4 "take
+                  this out"). The pitch is named AFTER the call on the After-Pitch
+                  screen, once the rep knows what it was. Expert still names up
+                  front (required — Start is disabled without it). */}
+              {!isStandard && (
+                <CaptureInput
+                  value={clientLabel}
+                  onChange={setClientLabel}
+                  placeholder="Client / campaign (required)"
+                />
+              )}
               {error && <p className="text-[11px] text-amber-300">{error}</p>}
               <DeckButton
                 pending={starting}
@@ -326,23 +332,28 @@ export default function SalesCoachHome() {
               </DeckGhostButton>
             </div>
           </LearningHint>
-          <LearningHint
-            as="block"
-            category="Sales Coach · Session"
-            title="Client / campaign label"
-            whatItIs="A short label for who or what this session is about — a client name, a campaign, or a door number."
-            why="It's how you find this exact conversation later to learn from it. A pile of untitled sessions is a history you can't navigate."
-            how="Give it something you'll recognize ('Door 17', 'Acme renewal'). It's required — the session won't start without it. A trailing number auto-increments when you use 'Start Next Door'."
-            principle="A conversation you can't find later is a lesson you can't revisit."
-          >
-            <input
-              type="text"
-              value={clientLabel}
-              onChange={(e) => setClientLabel(e.target.value)}
-              placeholder={isStandard ? "Name it later (optional)" : "Client / campaign (required)"}
-              className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
-            />
-          </LearningHint>
+          {/* Standard: no name field here (founder 2026-07-26, image 4) — Standard
+              names the pitch AFTER the call on the After-Pitch screen. Expert keeps
+              the required up-front label. */}
+          {!isStandard && (
+            <LearningHint
+              as="block"
+              category="Sales Coach · Session"
+              title="Client / campaign label"
+              whatItIs="A short label for who or what this session is about — a client name, a campaign, or a door number."
+              why="It's how you find this exact conversation later to learn from it. A pile of untitled sessions is a history you can't navigate."
+              how="Give it something you'll recognize ('Door 17', 'Acme renewal'). It's required — the session won't start without it. A trailing number auto-increments when you use 'Start Next Door'."
+              principle="A conversation you can't find later is a lesson you can't revisit."
+            >
+              <input
+                type="text"
+                value={clientLabel}
+                onChange={(e) => setClientLabel(e.target.value)}
+                placeholder="Client / campaign (required)"
+                className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
+              />
+            </LearningHint>
+          )}
           <LearningHint
             as="block"
             category="Sales Coach · Session"

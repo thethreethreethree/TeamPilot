@@ -279,6 +279,10 @@ export default function AfterPitchPage() {
       : "In-person"
     : "";
   const dur = durationLabel(session?.startedAt, session?.endedAt);
+  // Standard sessions are created as "New session" (placeholder) — treat that
+  // (or an empty label) as UNNAMED so we prompt the rep to name the pitch
+  // prominently, not with a tiny "rename" link (founder 2026-07-26, image 5).
+  const unnamed = !session?.clientLabel || session.clientLabel === "New session";
 
   return (
     // flex-1 + overflow-y-auto: the shell's <main> is overflow-hidden, so this
@@ -305,24 +309,41 @@ export default function AfterPitchPage() {
               <Award className="w-5 h-5 text-brand shrink-0" aria-hidden />
             </div>
             {session && !renaming && (
-              <p className="text-[11px] text-brand mt-1">
-                {session.clientLabel ?? "Session"}
-                {dur ? ` · ${dur} conversation` : ` · ${ctxLabel}`}
-                {/* Spec 1b: rename here, now that the rep knows what the call was
-                    ("angry customer"). Standard + owner only. */}
-                {isStandard && isOwner && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLabelDraft(session.clientLabel ?? "");
-                      setRenaming(true);
-                    }}
-                    className="ml-1.5 text-muted underline decoration-dotted hover:text-primary"
-                  >
-                    rename
-                  </button>
-                )}
-              </p>
+              <div className="mt-1 space-y-1.5">
+                <p className="text-[11px] text-brand">
+                  {unnamed ? ctxLabel : session.clientLabel}
+                  {dur ? ` · ${dur} conversation` : unnamed ? "" : ` · ${ctxLabel}`}
+                </p>
+                {/* Spec 1b + founder image 5: name the pitch here, once the rep
+                    knows what the call was. When still UNNAMED, this is a
+                    prominent labelled button (not a tiny "rename" link) so the rep
+                    knows they need to name it. Once named, it's the quiet rename. */}
+                {isStandard && isOwner &&
+                  (unnamed ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLabelDraft("");
+                        setRenaming(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 px-3 py-1.5 rounded-lg hover:shadow-[0_0_20px_-6px_rgba(250,204,21,0.6)] transition-shadow"
+                    >
+                      <FileText className="w-3.5 h-3.5" aria-hidden />
+                      Name this pitch
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLabelDraft(session.clientLabel ?? "");
+                        setRenaming(true);
+                      }}
+                      className="text-[11px] text-muted underline decoration-dotted hover:text-primary"
+                    >
+                      rename
+                    </button>
+                  ))}
+              </div>
             )}
             {session && renaming && (
               <div className="mt-1 flex items-center justify-center gap-1.5">
@@ -369,9 +390,23 @@ export default function AfterPitchPage() {
           </div>
         ) : !summary || !summary.hasSignal ? (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-5 text-center space-y-3">
-            <p className="text-xs text-muted">
-              Not enough of the conversation yet to write an honest summary.
-              Capture or upload the call, then check back.
+            {/* Honest root cause, not a vague "not enough" (§3.4). The common
+                cause is a call delivered WITHOUT live coaching running — "Start
+                session" only opens the session; recording begins when you tap
+                "Start live coaching" on the session screen. Name that, and point
+                to the fix, so the rep isn't stuck re-trying the same empty step
+                (§2 no error loops; AMD-006 L3 — a dead end becomes a next step). */}
+            <p className="text-xs text-primary font-medium">
+              No conversation was captured for this call yet.
+            </p>
+            <p className="text-[11px] text-muted leading-relaxed">
+              Live coaching has to be{" "}
+              <span className="text-secondary">recording during the call</span>{" "}
+              to capture it. On your next call, tap{" "}
+              <span className="text-brand font-semibold">Start live coaching</span>{" "}
+              on the session screen before you begin — opening the session isn&apos;t
+              the same as recording it. If you did record and still see this, tap
+              Rebuild.
             </p>
             <button
               type="button"
