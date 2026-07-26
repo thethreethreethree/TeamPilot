@@ -11,7 +11,7 @@
  * short-lived signed URLs the detail route returns (never a public URL).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { X, Loader2, ChevronLeft } from "lucide-react";
 
 type Summary = { id: string; channel: string; message_count: number; captured_at: string };
@@ -49,17 +49,22 @@ export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
     void loadList();
   }, [loadList]);
 
+  // Stale-response guard (context-switch state-bleed class): only the latest requested id writes state.
+  const latestReqId = useRef<string | null>(null);
   const open = useCallback(async (id: string) => {
+    latestReqId.current = id;
     setSelectedId(id);
     setMessages(null);
     setDetailLoading(true);
     try {
       const res = await fetch(`/api/care/rcd/${id}`);
-      setMessages(res.ok ? (await res.json()).messages ?? [] : []);
+      const data = res.ok ? await res.json() : { messages: [] };
+      if (latestReqId.current !== id) return; // superseded by a newer selection
+      setMessages(data.messages ?? []);
     } catch {
-      setMessages([]);
+      if (latestReqId.current === id) setMessages([]);
     } finally {
-      setDetailLoading(false);
+      if (latestReqId.current === id) setDetailLoading(false);
     }
   }, []);
 

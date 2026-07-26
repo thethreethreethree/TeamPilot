@@ -100,22 +100,24 @@ export default function RcdPanel() {
     }
   }, [listLoaded, conversations.length]);
 
+  // Guard against the stale-response race: clicking capture A then B quickly can resolve A's fetch
+  // AFTER B's, rendering A's messages under B (the context-switch state-bleed class). Only the LATEST
+  // requested id may write state.
+  const latestReqId = useRef<string | null>(null);
   const openConversation = useCallback(async (id: string) => {
+    latestReqId.current = id;
     setSelectedId(id);
     setMessages(null);
     setDetailLoading(true);
     try {
       const res = await fetch(`/api/care/rcd/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages ?? []);
-      } else {
-        setMessages([]);
-      }
+      const data = res.ok ? await res.json() : { messages: [] };
+      if (latestReqId.current !== id) return; // superseded by a newer selection — drop this response
+      setMessages(data.messages ?? []);
     } catch {
-      setMessages([]);
+      if (latestReqId.current === id) setMessages([]);
     } finally {
-      setDetailLoading(false);
+      if (latestReqId.current === id) setDetailLoading(false);
     }
   }, []);
 
