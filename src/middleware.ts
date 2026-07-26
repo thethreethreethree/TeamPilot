@@ -42,6 +42,7 @@ export async function middleware(request: NextRequest) {
   const dest = decideAuthRedirect({
     hasUser: !!user,
     path: request.nextUrl.pathname,
+    search: request.nextUrl.search, // preserve the deep link's query into ?next=
   });
   if (dest) {
     return NextResponse.redirect(new URL(dest, request.url));

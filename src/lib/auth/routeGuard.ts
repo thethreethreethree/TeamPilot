@@ -16,8 +16,14 @@
 export interface AuthRedirectInput {
   /** Whether the request carries an authenticated Supabase user. */
   hasUser: boolean;
-  /** `request.nextUrl.pathname`. */
+  /** `request.nextUrl.pathname`. Used for the protection + login-page checks. */
   path: string;
+  /**
+   * `request.nextUrl.search` (the `?query`, or ""). Preserved into the login `?next=` so a deep link's query
+   * (e.g. an inbox `?filter=unassigned`) survives the login bounce, not just the path. NOT used for any
+   * check — only the pathname decides protection — so it can't affect the `path === "/login"` comparison.
+   */
+  search?: string;
 }
 
 /**
@@ -33,7 +39,7 @@ export interface AuthRedirectInput {
  *    `/dashboard/sales-coach`.
  *  - Otherwise → `null` (proceed).
  */
-export function decideAuthRedirect({ hasUser, path }: AuthRedirectInput): string | null {
+export function decideAuthRedirect({ hasUser, path, search }: AuthRedirectInput): string | null {
   const isProtected =
     path.startsWith("/dashboard") || path.startsWith("/onboarding");
 
@@ -43,11 +49,12 @@ export function decideAuthRedirect({ hasUser, path }: AuthRedirectInput): string
     if (path.startsWith("/dashboard/sales-coach")) {
       return "/sales-coach/login";
     }
-    // Preserve the intended destination so a post-login redirect returns the user THERE, not the generic
-    // dashboard — deep-link continuity (an agent's bookmarked /dashboard/care/* survives the login bounce;
-    // this is the same class as the extension connect flow's ?next=). /login honors ?next= behind an
-    // open-redirect guard (safeRelativePath); `path` is a same-origin pathname by construction, encoded here.
-    return `/login?next=${encodeURIComponent(path)}`;
+    // Preserve the intended destination (path + query) so a post-login redirect returns the user THERE, not
+    // the generic dashboard — deep-link continuity (an agent's bookmarked /dashboard/care/*?filter=… survives
+    // the login bounce; same class as the extension connect flow's ?next=). /login honors ?next= behind an
+    // open-redirect guard (safeRelativePath); path+search is a same-origin relative URL by construction,
+    // encoded here as one param.
+    return `/login?next=${encodeURIComponent(path + (search ?? ""))}`;
   }
 
   if (hasUser && path === "/login") {

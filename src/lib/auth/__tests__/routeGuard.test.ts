@@ -35,6 +35,16 @@ describe("decideAuthRedirect — auth gate", () => {
       );
     });
 
+    it("preserves the deep link's QUERY too, not just the path", () => {
+      expect(
+        decideAuthRedirect({
+          hasUser: false,
+          path: "/dashboard/care/conversations",
+          search: "?filter=unassigned",
+        })
+      ).toBe("/login?next=%2Fdashboard%2Fcare%2Fconversations%3Ffilter%3Dunassigned");
+    });
+
     it("bounces Sales-Coach deep-links to the BRANDED login, not /login", () => {
       expect(
         decideAuthRedirect({ hasUser: false, path: "/dashboard/sales-coach" })
