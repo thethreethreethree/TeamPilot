@@ -15,7 +15,7 @@
  * Degrades to an empty state when 0194 isn't applied yet (the read routes return []).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type RcdConversationSummary = {
   id: string;
@@ -85,9 +85,20 @@ export default function RcdPanel() {
     }
   }, []);
 
+  // Load on mount (not only when opened) so the bar shows the count immediately — otherwise there's no
+  // visible signal that captures exist, which is exactly the "I don't see where to view it" gap.
   useEffect(() => {
-    if (open && !listLoaded) void loadList();
-  }, [open, listLoaded, loadList]);
+    void loadList();
+  }, [loadList]);
+
+  // Auto-reveal ONCE when captures exist, so a fresh capture is visible without hunting for the bar.
+  const autoRevealed = useRef(false);
+  useEffect(() => {
+    if (listLoaded && !autoRevealed.current && conversations.length > 0) {
+      autoRevealed.current = true;
+      setOpen(true);
+    }
+  }, [listLoaded, conversations.length]);
 
   const openConversation = useCallback(async (id: string) => {
     setSelectedId(id);
@@ -108,30 +119,49 @@ export default function RcdPanel() {
     }
   }, []);
 
+  const hasData = listLoaded && conversations.length > 0;
+
   return (
-    <div className="border-t border-default bg-base">
-      {/* Collapsed bar — the "bottom part" handle */}
+    <div className={`border-t bg-base ${hasData ? "border-strong" : "border-default"}`}>
+      {/* Collapsed bar — the "bottom part" handle. Prominent when captures exist so it's unmissable. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-2 text-left hover:bg-surface focus:outline-none"
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-surface focus:outline-none"
         aria-expanded={open}
       >
-        <span className="text-[11px] uppercase tracking-widest text-secondary font-medium">
+        <span
+          className={`text-[11px] uppercase tracking-widest font-semibold ${
+            hasData ? "text-primary" : "text-secondary"
+          }`}
+        >
           Raw Conversation Data
-          {listLoaded && conversations.length > 0 ? (
-            <span className="ml-2 text-muted normal-case tracking-normal">
-              {conversations.length} captured
+          {hasData ? (
+            <span className="ml-2 inline-flex items-center justify-center rounded-full border border-strong px-1.5 text-[10px] normal-case tracking-normal text-primary">
+              {conversations.length}
             </span>
           ) : null}
         </span>
-        <span className="text-muted text-xs" aria-hidden>
+        <span className={`text-xs ${hasData ? "text-primary" : "text-muted"}`} aria-hidden>
           {open ? "▾" : "▴"}
         </span>
       </button>
 
       {open && (
         <div className="max-h-[45vh] overflow-y-auto border-t border-default">
+          <div className="flex justify-end px-3 py-1.5 border-b border-default">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedId(null);
+                setMessages(null);
+                setListLoaded(false); // re-triggers loadList via the effect
+              }}
+              className="text-[11px] text-secondary hover:text-primary"
+            >
+              ↻ Refresh
+            </button>
+          </div>
           {!listLoaded ? (
             <p className="px-4 py-6 text-sm text-muted">Loading captured conversations…</p>
           ) : conversations.length === 0 ? (
