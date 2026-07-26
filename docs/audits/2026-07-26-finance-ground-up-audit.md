@@ -73,10 +73,13 @@ period.end_date]`, and there is **no CHECK constraint or trigger** on `fin_journ
 to the period (confirmed: no such constraint in the table def `0118:28-44`; `fin_entries_immutable` keys off
 `period_id` status, not `entry_date`; grep for any `entry_date`↔period rule returns nothing).
 
-- **Document/subledger paths are IMMUNE** — `fin_approve_bill`/`fin_issue_invoice`/`fin_approve_expense`/
-  AP-pay/AR-receipt/credit-note/reconcile all resolve the period *from the document date* and require an
-  OPEN period that CONTAINS that date (e.g. `0147:126-129` `where status='open' and v_date between
-  start_date and end_date`). They cannot mis-date into a closed period.
+- **The DATE-DERIVED document/subledger paths are IMMUNE** — `fin_approve_bill`/`fin_issue_invoice`/
+  `fin_approve_expense`/AP-pay/AR-receipt/credit-note/reconcile all resolve the period *from the document
+  date* and require an OPEN period that CONTAINS that date (e.g. `0147:126-129` `where status='open' and
+  v_date between start_date and end_date`). They cannot mis-date into a closed period. (NOTE: this is
+  NOT all document paths — payroll, inventory, and opening-balances pass a caller-supplied period without
+  a containment check; see the "deeper sweep" correction in the class-sweep bullet below. My initial
+  "all document paths immune" framing was too broad.)
 - **The manual `fin_post_entry` path is the hole.** A draft can be inserted with `entry_date` in a closed
   period but `period_id` pointing at a *different, open* period (RLS insert policy `0118:296-300` validates
   only `status` + `created_by`, not date/period agreement). `fin_post_entry` sees an open `period_id` →
