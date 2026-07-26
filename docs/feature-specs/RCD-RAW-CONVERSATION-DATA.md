@@ -65,7 +65,11 @@ Assumes **Option A** (the only one that fully satisfies the directive). Each pha
 - **Phase 3 — persistence.** ✅ Migration `0194`: `care_rcd_conversations`/`_messages`/`_media` + PRIVATE `care-rcd-media` bucket, tenant RLS, content-immutable (§3.1). `b0881d47`. **Must be applied.**
 - **Phase 4 — web display.** ✅ `RcdPanel` mounted in `CareShell` (bottom, app-wide, both modes). Read routes `GET /api/care/rcd` + `/api/care/rcd/[id]` (signed media URLs). `f28e12c4` / `c6ab0275`.
 - **Phase 5 — mobile display.** ✅ `RcdMobileSheet` in `CareRadialHome` (Layers nav button; dark-console styling). `ba98523f`.
-- **Retention purge (Phase 3b).** ✅ `/api/care/rcd/retention-cron` — service-role purge: removes media BYTES first, then deletes conversations (cascade). `RCD_RETENTION_DAYS` (default 90). DORMANT until `CRON_SECRET` set + a `vercel.json` schedule added (a conscious activation — it deletes customer PII). 4 gate tests. `79590d6b`.
+- **Retention purge (Phase 3b).** ✅ `/api/care/rcd/retention-cron` — service-role purge: removes media BYTES first, then deletes conversations (cascade). `RCD_RETENTION_DAYS` (default 90). DORMANT until `CRON_SECRET` set + a `vercel.json` schedule added (a conscious activation — it deletes customer PII). 4 gate tests. `79590d6b`. **To activate:** set `RCD_RETENTION_DAYS` to your policy + ensure `CRON_SECRET` is set, then add to the `crons` array in `vercel.json`:
+  ```json
+  { "path": "/api/care/rcd/retention-cron", "schedule": "0 3 * * *" }
+  ```
+  (daily 03:00 UTC — an off-peak slot distinct from the existing crons). Not added by the agent: scheduling it starts deleting customer PII, which is your call.
 - **Media bytes — images only.** ✅ Phase 2c: content.js canvas-reads image bytes (invariant-safe) → worker PUTs to the signed URL (`ac443b91`). ⬜ NON-image bytes (files/video/audio) stay metadata-only — canvas is image-only; those need a worker-fetch path + broader host permissions (a security decision).
 
 ## Runtime verification (founder — the whole feature is code-complete but UNVERIFIED)
