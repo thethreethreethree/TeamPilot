@@ -138,6 +138,22 @@ const ALLOWLIST = new Map([
   // permitting created_by->NULL so GDPR user-erasure is never blocked. Same class as events/signals.
   ["care_knowledge_documents.update", "§3.1 0193 ACMS knowledge is append-only — retract = append a new version, never edit."],
   ["care_knowledge_documents.delete", "§3.1 0193 ACMS knowledge is immutable record; retract via a status='retracted' version, never delete."],
+
+  // 0194 care_rcd_* (Raw Conversation Data) — extension-captured third-party conversations + media.
+  // SELECT is tenant-scoped (the app renders it). WRITES are service-role only: the extension ingest
+  // route scopes by the authed agent's company_id in code (same as care_visitor_presence 0192). Content
+  // is immutable (§3.1 triggers freeze it — a captured record is never edited). The ONLY delete path is a
+  // service-role retention purge by captured_at, never app-level. Each absence is the control, not an
+  // oversight — same class as care_visitor_presence.
+  ["care_rcd_conversations.insert", "0194 service-role ingest only; row carries company_id (agent-scoped in code)."],
+  ["care_rcd_conversations.update", "§3.1 0194 captured record — immutable (trigger); no app edit."],
+  ["care_rcd_conversations.delete", "0194 delete only via service-role retention purge by captured_at, never app."],
+  ["care_rcd_messages.insert", "0194 service-role ingest only; row carries company_id."],
+  ["care_rcd_messages.update", "§3.1 0194 captured message — immutable (trigger)."],
+  ["care_rcd_messages.delete", "0194 delete only via service-role retention purge / conversation cascade."],
+  ["care_rcd_media.insert", "0194 service-role ingest only; row carries company_id."],
+  ["care_rcd_media.update", "§3.1 0194 captured media record — immutable (trigger)."],
+  ["care_rcd_media.delete", "0194 delete only via service-role retention purge / message cascade."],
   // resolutions.update is NOT append-only: the 0005 "resolutions - all" for-all policy
   // (company-scoped) covers it, and the resolution REVIEW legitimately edits
   // observed_outcome/durability/reviewed_at (see /api/resolutions PATCH). It's listed
