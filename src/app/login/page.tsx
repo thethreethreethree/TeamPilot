@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { safeRelativePath } from "@/lib/nav/safeRedirect";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { BrandLogo } from "@/components/brand/Logo";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -41,7 +42,13 @@ function LoginPage() {
   // signal — caught in audit 2026-06-19.
   const searchParams = useSearchParams();
   const intent = searchParams?.get("intent") ?? null;
+  // `next` returns the user where they came from after auth — notably the extension connect flow
+  // (/login?next=%2Fextension%2Fconnect). Without honoring it, a fresh sign-in dead-ended on the dashboard
+  // and the extension token handoff never completed ("sign-in did nothing" for a fresh install). Guarded
+  // against open redirect: same-origin relative paths only (safeRelativePath). Takes precedence over intent.
+  const safeNext = safeRelativePath(searchParams?.get("next") ?? null);
   const buildDestination = (base: string) => {
+    if (safeNext) return safeNext;
     if (!intent) return base;
     // For the feedback intent we route to /dashboard/feedback
     // (where 'Submit new feedback' opens the composer
