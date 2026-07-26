@@ -209,6 +209,27 @@ flag list at a layer is itself suspicious (§1.7), so the *evidence* is recorded
     reachable; the useful fix (surface "showing 500 of N" to the agent) needs a return-type ripple across
     callers, so it's a recorded proposal, not an unprompted refactor. Product call: infinite-scroll vs. pages.
 
+## Post-audit resolution — finding 13 built + a sibling finding it surfaced (commit `4e4917fe`)
+
+On re-reading `ConversationsApp.tsx` (rather than reasoning from the earlier flag), finding 13's deferral
+premise — "needs a novel reconciliation architecture, stale-`useMemo` trap" — turned out to be **wrong**. The
+proven sibling pattern (`changeStatus`/`runBulk`: snapshot the neighbor BEFORE the action, advance on success)
+transfers cleanly to `assignTo` with a *deterministic* predicate computed at action time, not by reading the
+post-action `filtered`. Since auto-advance is already the founder-decided behavior (AMD-006), building the
+parity fix completes a decided intent — it is not new product scope — so it was built, not left as a proposal.
+
+17. **RESOLVED (was finding 13) — `assignTo` auto-advance parity.** `willLeaveView = (view==="mine" &&
+    target!==me) || (view==="unassigned" && target!==null)`; assignment is membership-invariant for every
+    other view, so it correctly does NOT advance there (advancing when the item stays visible would be the
+    jarring bug). No `filtered` read after the action.
+
+18. **NEW → RESOLVED — `assignTo` write-verification parity (§1.6 / §3.4).** Surfaced WHILE building 17:
+    `assignTo` passed `null` as `runAction`'s `expect`, bypassing divergence detection — a 200 that didn't
+    actually assign (RLS/trigger/wrong-owner) toasted "Assigned." while the DB disagreed. Same silent-ok class
+    already fixed for `claim` and guidance; `claim` (assign-to-self) verified but general assign/unassign did
+    not. Fixed with an `assignedAgentId` expect checked via `!== undefined` (so the null/unassign case is still
+    verified). This is the §1.5.2 dividend: the audit lens on one finding surfaced its neighbor.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
