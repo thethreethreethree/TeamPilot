@@ -1,6 +1,6 @@
 # RCD — Raw Conversation Data (feature spec)
 
-**Status:** Pipeline built end-to-end for TEXT + attribution + media metadata (app-rendered, founder-decided 2026-07-26) — RUNTIME-UNVERIFIED; migration 0194 must be applied. Media BYTES (the "store bytes" choice) are the one remaining piece — Phase 2c, gated on the host-permissions decision. Downstream (ingest, private bucket, signed URLs, both displays) is already byte-ready.
+**Status (as of 2026-07-26):** Built end-to-end and DEPLOYED — capture (11 adapters) → ingest (signed uploads) → private-bucket storage → web panel + mobile sheet → retention cron. Founder decided **store bytes, app-rendered**; migration `0194` **APPLIED**. IMAGE bytes ship (canvas → worker → signed URL, invariant-safe). Proven by the founder's live capture. **Remaining:** NON-image media bytes (PDF/video/audio — needs the broader host-permissions decision, see Phase 2c below); per-channel adapter selector quality (10/11 runtime-unverified); founder verification (thumbnails, per-channel). Full gate + `next build` green throughout. See the closure `docs/closures/2026-07-26-rcd-and-jeff-session.md` + audit `docs/audits/2026-07-26-rcd-security-audit.md`.
 **Founder directive (2026-07-26):** *"modify our C.A.R.E extension so that it is capable of retrieving/capturing all content of the message from all of the channels… by all content I mean image and all data/media content. This is now defined as RCD RAW CONVERSATION DATA, and it is present on the bottom part of the C.A.R.E system. for both Mobile and Website. This is true for both Expert, and Standard mode."*
 
 ---
@@ -42,20 +42,17 @@ The complete, faithful, **structured** record of a conversation as it actually h
 - `extractRCD()` on all 11 adapters (A26).
 - Tested: `src/lib/care/__tests__/extensionRcd.test.ts` (11 fake-DOM logic tests). **Live third-party selectors remain RUNTIME-UNVERIFIED** (no headless browser can confirm them; honest per AMD-006 3rd addendum).
 
-## 5. 🚦 THE decision that unblocks everything (founder)
+## 5. ✅ The persistence decision (DECIDED 2026-07-26)
 
-**Do we persist customer conversation content, and how?** RCD "present in the C.A.R.E app, mobile + web" means the extension must send captured data to our backend and STORE it — reversing the current *"nothing stored"* posture. Options:
+**"Do we persist customer conversation content, and how?"** — RESOLVED by the founder: **Option A, store bytes, app-rendered.** (This reversed the extension's prior *"nothing stored"* posture — a deliberate, founder-approved change; the extension privacy + download pages were updated to say so honestly.) The options as weighed, kept for the record:
 
-| Option | What it means | Trade-off |
-|---|---|---|
-| **A. Store bytes** (recommended) | Download the media + store it in a tenant-RLS'd Supabase Storage bucket + an `care_rcd_*` table; text stored too. | Faithful + durable in-app later. But we now hold customers' scraped media/PII → retention window + consent + PII-in-screenshots are real obligations. |
-| **B. References only** | Store text + media **URLs** (no bytes). | Cheap, lighter privacy footprint. But WhatsApp blob URLs die and Gmail/CDN URLs need the customer's own auth → media often un-viewable later in-app. Effectively text + dead links. |
-| **C. Ephemeral, extension-only** | Render RCD live in the extension's on-page panel, never transmitted/stored. | Preserves *"nothing stored."* But desktop-only — **cannot** satisfy "mobile + website in the C.A.R.E app." |
+| Option | What it means | Trade-off | Chosen |
+|---|---|---|---|
+| **A. Store bytes** | Download the media + store it in a tenant-RLS'd Supabase Storage bucket + `care_rcd_*` tables; text stored too. | Faithful + durable in-app. But we hold customers' scraped media/PII → retention + consent + PII-in-screenshots are real obligations. | **✅ YES** |
+| **B. References only** | Store text + media **URLs** (no bytes). | Cheap, but WhatsApp blob URLs die and CDN URLs need the customer's own auth → media un-viewable later. Text + dead links. | no |
+| **C. Ephemeral, extension-only** | Render RCD live in the extension overlay, never stored. | Preserves *"nothing stored"* — but desktop-only, can't satisfy "mobile + website in the app." | no |
 
-Secondary confirmations:
-- **Placement:** RCD panel at the bottom of the **C.A.R.E app** (Composer region on web, a bottom sheet on mobile) — confirm, vs the extension overlay.
-- **Mobile mode:** leave `/care/mobile` mode-agnostic (RCD shows in both, trivially) or wire `ExperienceModeProvider` so mobile *respects* Standard/Expert.
-- **The mockup image** you referenced never reached my context — if it pins the layout, re-send.
+Also decided: **placement** = the C.A.R.E app (bottom bar on web via `CareShell`, a bottom sheet on mobile via `CareRadialHome`); **mobile mode** = left mode-agnostic (RCD shows in both, trivially). *(The founder's mockup image never reached the agent's context; placement is the agent's interpretation, easily moved.)*
 
 ## 6. Phased plan (ready to execute on the decision)
 
