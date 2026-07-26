@@ -86,11 +86,19 @@ export default function RcdPanel() {
           {!listLoaded ? (
             <p className="px-4 py-6 text-sm text-muted">Loading captured conversations…</p>
           ) : conversations.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-muted">
-              No captured conversations yet. Use the C.A.R.E browser extension on a supported channel
-              (WhatsApp, Gmail, …) and choose “Capture conversation” to bring the full thread —
-              text and media — here.
-            </p>
+            <div className="px-4 py-6 text-sm text-muted">
+              <p>
+                No captured conversations yet. Use the C.A.R.E browser extension on a supported channel
+                (WhatsApp, Gmail, …) and choose “Capture conversation” to bring the full thread —
+                text and media — here.
+              </p>
+              <a
+                href="/extension/download"
+                className="mt-2 inline-block text-secondary underline hover:text-primary"
+              >
+                Get the browser extension →
+              </a>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-[minmax(0,15rem)_1fr]">
               {/* Capture list */}
