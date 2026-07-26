@@ -80,13 +80,14 @@ export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
                   <div className="mt-1.5 flex flex-wrap gap-2">
                     {m.media.map((media) =>
                       media.type === "image" && media.url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={media.id}
-                          src={media.url}
-                          alt={media.alt ?? media.filename ?? "captured image"}
-                          className="max-h-40 max-w-full rounded border border-white/10 object-contain"
-                        />
+                        <a key={media.id} href={media.url} target="_blank" rel="noreferrer" title="Open full size">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={media.url}
+                            alt={media.alt ?? media.filename ?? "captured image"}
+                            className="max-h-40 max-w-full rounded border border-white/10 object-contain"
+                          />
+                        </a>
                       ) : media.url ? (
                         <a
                           key={media.id}
