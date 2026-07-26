@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { isProductContextCodeManaged } from "../config";
+import { isProductContextCodeManaged, getProductContextForTenant } from "../config";
 
 /**
  * Regression lock for `7a5b3113`: the product-knowledge "is this our own tenant" check must follow the
@@ -28,5 +28,22 @@ describe("isProductContextCodeManaged — env-aware own-tenant resolution", () =
     process.env.CARE_DEFAULT_TENANT_ID = "real-tenant-uuid";
     expect(isProductContextCodeManaged("real-tenant-uuid")).toBe(true);
     expect(isProductContextCodeManaged(HARDCODED)).toBe(false);
+  });
+});
+
+describe("getProductContextForTenant — own tenant is AUTHORITATIVE (the core Jeff fix)", () => {
+  // The own-tenant branch returns the code knowledge BEFORE reading the DB config, so no DB mock is
+  // needed — and that early return is exactly the invariant (a stale DB config can never defeat it).
+  it("returns the code KNOWLEDGE for the own tenant (unset env → hardcoded id), never a config", async () => {
+    delete process.env.CARE_DEFAULT_TENANT_ID;
+    const ctx = await getProductContextForTenant(HARDCODED);
+    expect(ctx).toMatch(/Customer Assistance & Response Engine/i); // the C.A.R.E definition (case-insensitive)
+    expect(ctx).toContain("ELOSTATE");
+  });
+
+  it("returns the KNOWLEDGE for the ENV-resolved own tenant (locks the env-aware fix at the resolver)", async () => {
+    process.env.CARE_DEFAULT_TENANT_ID = "real-tenant-uuid";
+    const ctx = await getProductContextForTenant("real-tenant-uuid");
+    expect(ctx).toMatch(/Customer Assistance & Response Engine/i);
   });
 });
