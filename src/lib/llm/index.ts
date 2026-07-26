@@ -32,27 +32,20 @@ function withModeDirective(args: LlmCallArgs): LlmCallArgs {
  * Provider selection.
  *
  * Order of preference:
- *   1. LLM_PROVIDER env var if set ('deepseek' | 'anthropic') — TRIMMED + case-insensitive.
+ *   1. LLM_PROVIDER env var if set ('deepseek' | 'anthropic')
  *   2. DeepSeek if DEEPSEEK_API_KEY is set
  *   3. Anthropic if ANTHROPIC_API_KEY is set
  *   4. Throw a clear error — no silent fallback to a broken state.
  *
- * DATA-GOVERNANCE SAFETY: if LLM_PROVIDER is SET but unrecognized (a typo, or a trailing space —
- * trivial in a hosting env UI), we FAIL LOUD rather than fall through to the auto-select. The whole
- * point of the pin is usually to keep customer data on a specific provider/region (e.g. Anthropic-US,
- * not DeepSeek-China); silently routing to the other provider on a typo would defeat that invisibly.
+ * NOTE: an INVALID LLM_PROVIDER can't reach here — `import "@/lib/env"` (top of this file) validates it
+ * against a strict `z.enum(["deepseek","anthropic"])` and THROWS at first LLM call, so a typo/trailing
+ * space fails loudly with a clear env error rather than silently routing to the other provider. So this
+ * function only ever sees "deepseek" | "anthropic" | undefined | "".
  */
 export function chooseProvider(): Provider {
-  const raw = process.env.LLM_PROVIDER;
-  if (raw != null && raw.trim() !== "") {
-    const preferred = raw.trim().toLowerCase();
-    if (preferred === "deepseek") return deepseekProvider;
-    if (preferred === "anthropic") return anthropicProvider;
-    throw new Error(
-      `LLM_PROVIDER is set to an unrecognized value ("${raw}"). Use "deepseek" or "anthropic", ` +
-        `or unset it to auto-select. Refusing to silently route to a different provider than intended.`
-    );
-  }
+  const preferred = process.env.LLM_PROVIDER?.toLowerCase();
+  if (preferred === "deepseek") return deepseekProvider;
+  if (preferred === "anthropic") return anthropicProvider;
   if (deepseekProvider.enabled()) return deepseekProvider;
   if (anthropicProvider.enabled()) return anthropicProvider;
   throw new Error(
