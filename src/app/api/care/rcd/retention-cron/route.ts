@@ -60,23 +60,33 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ purged: 0, scanned: 0, note: "no rcd table or read error", retentionDays: days });
   }
 
-  let purged = 0;
-  let storageErrors = 0;
-  for (const row of expired ?? []) {
-    const convId = row.id as string;
+  const expiredIds = (expired ?? []).map((r) => r.id as string);
 
-    // 1. Collect this conversation's media BYTE paths BEFORE deleting the rows (else the cascade wipes
-    //    the pointers and the objects orphan forever).
+  // Collect ALL media byte-paths for the batch in ONE query (not N+1), grouped by conversation, BEFORE
+  // any delete (else the cascade wipes the pointers and the objects orphan). Matters at scale — a large
+  // backlog runs 200 conversations per invocation.
+  const pathsByConv = new Map<string, string[]>();
+  if (expiredIds.length > 0) {
     const { data: media } = await admin
       .from("care_rcd_media")
-      .select("storage_path")
-      .eq("conversation_id", convId);
-    const paths = (media ?? [])
-      .map((m) => m.storage_path as string)
-      .filter((p) => typeof p === "string" && p.length > 0);
+      .select("conversation_id, storage_path")
+      .in("conversation_id", expiredIds);
+    for (const m of media ?? []) {
+      const cid = m.conversation_id as string;
+      const p = m.storage_path as string;
+      if (typeof p !== "string" || !p) continue;
+      const list = pathsByConv.get(cid) ?? [];
+      list.push(p);
+      pathsByConv.set(cid, list);
+    }
+  }
 
-    // 2. Remove the bytes. "Already gone" is fine (converges); a real storage failure means leave the
-    //    row for the next run rather than orphan live bytes.
+  let purged = 0;
+  let storageErrors = 0;
+  for (const convId of expiredIds) {
+    // Remove this conversation's bytes, THEN delete the row — per-conversation so a storage failure
+    // leaves that one row for the next run rather than orphaning its bytes. "Already gone" converges.
+    const paths = pathsByConv.get(convId) ?? [];
     if (paths.length > 0) {
       const { error: rmErr } = await admin.storage.from(BUCKET).remove(paths);
       if (rmErr && !/not found|does not exist/i.test(rmErr.message)) {
@@ -84,8 +94,6 @@ export async function GET(req: NextRequest) {
         continue;
       }
     }
-
-    // 3. Delete the conversation row — cascade removes its messages + media rows.
     const { error: delErr } = await admin.from("care_rcd_conversations").delete().eq("id", convId);
     if (!delErr) purged += 1;
     else storageErrors += 1;
