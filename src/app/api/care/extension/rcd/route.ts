@@ -32,13 +32,31 @@ export const maxDuration = 60;
 const BUCKET = "care-rcd-media";
 const MAX_TOTAL_MEDIA = 200; // bound per capture — a conversation shouldn't upload thousands of files
 
+/**
+ * A stored source/provenance URL, sanitized to http(s) ONLY. Anything else (javascript:, data:,
+ * a non-URL, etc.) becomes null. Makes source_url safe BY CONSTRUCTION at the ingest chokepoint —
+ * so even a future surface that renders it as a link can't be turned into an XSS/redirect vector
+ * (A27/A31: enforce the invariant below the label, don't rely on "nothing renders it yet").
+ */
+export function sanitizeSourceUrl(u: unknown): string | null {
+  if (typeof u !== "string" || !u) return null;
+  try {
+    const p = new URL(u);
+    return p.protocol === "http:" || p.protocol === "https:" ? u.slice(0, 4000) : null;
+  } catch {
+    return null;
+  }
+}
+
+const httpUrlField = z.string().max(4000).optional().nullable().transform(sanitizeSourceUrl);
+
 const MediaSchema = z.object({
   ref: z.string().min(1).max(40), // client-side handle so the extension knows which upload URL is which
   type: z.enum(["image", "file", "video", "audio"]),
   filename: z.string().max(300).optional().nullable(),
   alt: z.string().max(2000).optional().nullable(),
   contentType: z.string().max(200).optional().nullable(),
-  sourceUrl: z.string().max(4000).optional().nullable(),
+  sourceUrl: httpUrlField,
 });
 
 const MessageSchema = z.object({
@@ -52,7 +70,7 @@ const MessageSchema = z.object({
 const Schema = z
   .object({
     channel: z.string().min(1).max(60),
-    sourceUrl: z.string().max(4000).optional().nullable(),
+    sourceUrl: httpUrlField,
     externalRef: z.string().max(400).optional().nullable(),
     messages: z.array(MessageSchema).min(1).max(500),
   })

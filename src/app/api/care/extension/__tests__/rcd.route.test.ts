@@ -16,7 +16,7 @@ vi.mock("@/lib/api/validate", () => ({ readBody: vi.fn() }));
 vi.mock("@/lib/api/extensionAuth", () => ({ requireEntitledExtensionUser: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
-import { POST } from "@/app/api/care/extension/rcd/route";
+import { POST, sanitizeSourceUrl } from "@/app/api/care/extension/rcd/route";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
@@ -167,5 +167,31 @@ describe("POST /api/care/extension/rcd", () => {
     const media = admin._inserted["care_rcd_media"]![0] as { company_id: string; storage_path: string };
     expect(media.company_id).toBe("co-1");
     expect(media.storage_path).toContain("co-1/conv-1/");
+  });
+});
+
+describe("sanitizeSourceUrl — stored source URLs are http(s) only (safe by construction)", () => {
+  it("keeps http/https URLs", () => {
+    expect(sanitizeSourceUrl("https://web.whatsapp.com/")).toBe("https://web.whatsapp.com/");
+    expect(sanitizeSourceUrl("http://mail.google.com/x")).toBe("http://mail.google.com/x");
+  });
+
+  it("nulls dangerous or non-http schemes (javascript:, data:, vbscript:, file:)", () => {
+    for (const u of [
+      "javascript:alert(1)",
+      "data:text/html,<script>alert(1)</script>",
+      "vbscript:msgbox",
+      "file:///etc/passwd",
+    ]) {
+      expect(sanitizeSourceUrl(u), `should null: ${u}`).toBeNull();
+    }
+  });
+
+  it("nulls non-URLs and empty/absent values", () => {
+    expect(sanitizeSourceUrl("not a url")).toBeNull();
+    expect(sanitizeSourceUrl("")).toBeNull();
+    expect(sanitizeSourceUrl(null)).toBeNull();
+    expect(sanitizeSourceUrl(undefined)).toBeNull();
+    expect(sanitizeSourceUrl(123)).toBeNull();
   });
 });
