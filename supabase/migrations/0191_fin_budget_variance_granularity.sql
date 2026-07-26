@@ -1,27 +1,15 @@
--- 0191 — fin_budget_variance: align actuals by the budget's OWN granularity (audit 2026-07-23).
+-- 0191 — fin_budget_variance: align actuals by the budget's OWN granularity (audit 2026-07-23; corrected 2026-07-26).
 --
--- BUG (0149): fin_budget_variance aligned every budget line's actuals by
---   `bl.period_index = 0 or extract(quarter from e.entry_date) = bl.period_index`
--- — i.e. QUARTERLY only. But fin_budgets.granularity allows 'monthly' (period_index 1-12), and for a
--- MONTHLY budget this is wrong: months 5-12 match ZERO actuals (extract(quarter) is only 1-4), and months
--- 1-4 mis-align to the same-numbered QUARTER (a March/period-3 line compares against Q3 = Jul-Sep actuals).
--- The variance alerts (0182) inherit the same window and so misfire on monthly budgets.
+-- BUG (0149): the view aligned actuals by extract(quarter) ONLY. For a MONTHLY budget it is wrong: months
+-- 5-12 match ZERO actuals, months 1-4 mis-align to the same-numbered quarter, and the variance ALERTS
+-- (0182) inherit the same window. FIX: branch the period match on the budget's granularity in EVERY
+-- subquery (period_index 0 = whole year; quarterly = extract(quarter); monthly = extract(month)).
 --
--- FIX: branch the period match on the budget's granularity (the view already joins fin_budgets b):
---   annual   → only period_index 0 (whole fiscal year)
---   quarterly→ extract(quarter) = period_index   (unchanged; 1-4)
---   monthly  → extract(month)   = period_index   (NEW; 1-12)
--- period_index = 0 always means the whole-year total, regardless of granularity (kept).
---
--- ADDITIVE + REVERSIBLE: a create-or-replace of a derived VIEW. No table, no column, no data migration,
--- no policy/trigger change. It only CORRECTS monthly-budget variance (currently wrong); quarterly/annual
--- variance is byte-for-byte unchanged. Logic mirror-tested in src/lib/finance/__tests__/budgetVarianceAlignment.test.ts
--- (the pure alignment predicate). STATIC-ONLY here — the founder confirms the live view on apply (a monthly
--- budget line's `actual` should now sum only that month's postings).
---
--- NOTE: this does NOT address the separate calendar-fiscal-year assumption (extract(year) = b.fiscal_year),
--- which is its own finding (a company on a non-calendar FY needs fin_settings.fiscal_year_start_month +
--- a date-window rewrite). This migration only fixes the WITHIN-year monthly/quarterly alignment.
+-- CORRECTED 2026-07-26 (db:apply failed here): the original 0191 was written against the 0149 view (13
+-- cols) and its create-or-replace DROPPED the 3 columns 0182 added (alert_threshold_pct, variance_pct,
+-- is_alert) -> Postgres "cannot drop columns from view". This version reproduces 0182's FULL 16-column
+-- definition (nothing dropped) and applies the granularity branch to ALL FOUR subqueries (actual +
+-- variance_pct + both is_alert branches), also fixing the alerts' monthly window. Additive + reversible.
 
 create or replace view fin_budget_variance with (security_invoker = true) as
 select
@@ -37,12 +25,66 @@ select
     where l.account_id = bl.account_id and e.status = 'posted'
       and l.cost_center_id is not distinct from bl.cost_center_id
       and extract(year from e.entry_date) = b.fiscal_year
-      and (
-        bl.period_index = 0
-        or (b.granularity = 'quarterly' and extract(quarter from e.entry_date) = bl.period_index)
-        or (b.granularity = 'monthly'   and extract(month   from e.entry_date) = bl.period_index)
-      )
-  ), 0) as actual
+      and (bl.period_index = 0
+         or (b.granularity = 'quarterly' and extract(quarter from e.entry_date) = bl.period_index)
+         or (b.granularity = 'monthly'   and extract(month   from e.entry_date) = bl.period_index))
+  ), 0) as actual,
+
+  -- ── NEW: the threshold, and whether this line has breached it ──
+  s.variance_alert_pct as alert_threshold_pct,
+
+  -- How far off, as a percentage of budget. NULL when the budget is zero — a percentage of nothing is
+  -- undefined, not infinite, and certainly not 0. A 0 here would silently classify a line that spent
+  -- £40,000 against a £0 budget as perfectly on-plan.
+  case when bl.amount <> 0 then
+    round(((coalesce((
+      select sum(case when a.type in ('revenue','liability','equity')
+                      then l.base_credit - l.base_debit
+                      else l.base_debit - l.base_credit end)
+      from fin_journal_lines l
+      join fin_journal_entries e on e.id = l.entry_id
+      where l.account_id = bl.account_id and e.status = 'posted'
+        and l.cost_center_id is not distinct from bl.cost_center_id
+        and extract(year from e.entry_date) = b.fiscal_year
+        and (bl.period_index = 0
+         or (b.granularity = 'quarterly' and extract(quarter from e.entry_date) = bl.period_index)
+         or (b.granularity = 'monthly'   and extract(month   from e.entry_date) = bl.period_index))
+    ), 0) - bl.amount) / abs(bl.amount)) * 100, 2)
+  end as variance_pct,
+
+  -- THE ALERT. Direction-aware, deliberately:
+  --   expense → alert when actual is ABOVE budget by more than the threshold (overspend)
+  --   revenue → alert when actual is BELOW budget by more than the threshold (undershoot)
+  -- A naive abs(variance) > threshold would fire happily on a month the company BEAT its sales target,
+  -- and an alert that celebrates good news is an alert people stop reading.
+  case when bl.amount <> 0 then
+    case when a.type = 'revenue'
+      then ((bl.amount - coalesce((
+             select sum(l.base_credit - l.base_debit)
+               from fin_journal_lines l
+               join fin_journal_entries e on e.id = l.entry_id
+              where l.account_id = bl.account_id and e.status = 'posted'
+                and l.cost_center_id is not distinct from bl.cost_center_id
+                and extract(year from e.entry_date) = b.fiscal_year
+                and (bl.period_index = 0
+         or (b.granularity = 'quarterly' and extract(quarter from e.entry_date) = bl.period_index)
+         or (b.granularity = 'monthly'   and extract(month   from e.entry_date) = bl.period_index))
+           ), 0)) / abs(bl.amount)) * 100 > s.variance_alert_pct
+      else ((coalesce((
+             select sum(l.base_debit - l.base_credit)
+               from fin_journal_lines l
+               join fin_journal_entries e on e.id = l.entry_id
+              where l.account_id = bl.account_id and e.status = 'posted'
+                and l.cost_center_id is not distinct from bl.cost_center_id
+                and extract(year from e.entry_date) = b.fiscal_year
+                and (bl.period_index = 0
+         or (b.granularity = 'quarterly' and extract(quarter from e.entry_date) = bl.period_index)
+         or (b.granularity = 'monthly'   and extract(month   from e.entry_date) = bl.period_index))
+           ), 0) - bl.amount) / abs(bl.amount)) * 100 > s.variance_alert_pct
+    end
+  end as is_alert
+
 from fin_budget_lines bl
-join fin_budgets b  on b.id = bl.budget_id
-join fin_accounts a on a.id = bl.account_id;
+join fin_budgets  b on b.id = bl.budget_id
+join fin_accounts a on a.id = bl.account_id
+join fin_settings s on s.company_id = bl.company_id;
