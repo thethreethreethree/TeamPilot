@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   computeExtensionEntitlement,
   getExtensionEntitlement,
+  shouldAutoStartTrial,
   EXTENSION_TRIAL_DAYS,
 } from "@/lib/care/extensionEntitlement";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,13 +13,16 @@ const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-07-22T00:00:00Z");
 
 // Mock the admin client so successive .from()…maybeSingle() chains return queued {data,error} results.
-// getExtensionEntitlement calls maybeSingle twice only on the missing-column fallback path.
+// getExtensionEntitlement calls maybeSingle twice only on the missing-column fallback path. The auto-start
+// path also issues an UPDATE…eq…is chain whose terminal `.is()` resolves to `updateResult` (default OK).
 type Row = { data: unknown; error: unknown };
-function mockAdmin(results: Row[]) {
+function mockAdmin(results: Row[], updateResult: Row = { data: null, error: null }) {
   let i = 0;
   const builder: Record<string, unknown> = {};
   builder.select = () => builder;
   builder.eq = () => builder;
+  builder.update = () => builder;
+  builder.is = async () => updateResult; // terminal for the auto-start `UPDATE … WHERE … IS NULL`
   builder.maybeSingle = async () => results[Math.min(i++, results.length - 1)];
   vi.mocked(createAdminClient).mockReturnValue({ from: () => builder } as never);
 }
@@ -130,6 +134,58 @@ describe("getExtensionEntitlement (IO branches)", () => {
     // isMissingColumnError must name OUR column; a different missing column is a real defect, so we must not
     // take the trusting plan-only fallback — we fail closed instead.
     mockAdmin([missingCol("some_unrelated_column")]);
+    expect((await getExtensionEntitlement("c1")).status).toBe("locked");
+  });
+});
+
+/**
+ * shouldAutoStartTrial + the auto-start IO path (founder decision 2026-07-27, audit Finding 1). The columns
+ * previously had NO writer → every non-paid tenant was permanently locked ("the extension doesn't work").
+ * The fix opens the 14-day trial on first contact, exactly once per tenant.
+ */
+describe("shouldAutoStartTrial (pure predicate)", () => {
+  const ent = (status: "active" | "trial" | "locked"): ReturnType<typeof computeExtensionEntitlement> =>
+    ({ status, trialDaysLeft: 0, plan: "x" });
+  it("true only when locked AND no trial ever started", () => {
+    expect(shouldAutoStartTrial({ trialStartedAt: null, computed: ent("locked") })).toBe(true);
+  });
+  it("false when a paid plan is already active", () => {
+    expect(shouldAutoStartTrial({ trialStartedAt: null, computed: ent("active") })).toBe(false);
+  });
+  it("false when already in a trial", () => {
+    expect(shouldAutoStartTrial({ trialStartedAt: new Date().toISOString(), computed: ent("trial") })).toBe(false);
+  });
+  it("false when an EXPIRED trial exists (start recorded) → never restart, one trial per tenant ever", () => {
+    expect(shouldAutoStartTrial({ trialStartedAt: "2020-01-01T00:00:00Z", computed: ent("locked") })).toBe(false);
+  });
+});
+
+describe("getExtensionEntitlement auto-start (IO)", () => {
+  it("pilot + never-started trial → auto-starts and returns TRIAL (the tester-unblock path)", async () => {
+    mockAdmin([{ data: { plan: "pilot", extension_trial_started_at: null }, error: null }]);
+    const r = await getExtensionEntitlement("c1");
+    expect(r.status).toBe("trial");
+    expect(r.trialDaysLeft).toBe(EXTENSION_TRIAL_DAYS);
+  });
+
+  it("pilot + EXPIRED trial (start recorded) → stays LOCKED, does not restart", async () => {
+    const longAgo = new Date(Date.now() - 999 * DAY).toISOString();
+    mockAdmin([{ data: { plan: "pilot", extension_trial_started_at: longAgo }, error: null }]);
+    expect((await getExtensionEntitlement("c1")).status).toBe("locked");
+  });
+
+  it("auto-start WRITE fails → returns LOCKED (never grants an unpersisted trial)", async () => {
+    mockAdmin(
+      [{ data: { plan: "pilot", extension_trial_started_at: null }, error: null }],
+      { data: null, error: { code: "XX000", message: "write blocked" } }
+    );
+    expect((await getExtensionEntitlement("c1")).status).toBe("locked");
+  });
+
+  it("migration-missing branch does NOT attempt an auto-start write (nowhere to write) → locked", async () => {
+    // No updateResult needed; if the code tried to UPDATE here it would still resolve OK, but the point is
+    // the fallback path must return locked for a non-paid plan without a column to persist a trial into.
+    mockAdmin([missingCol("extension_trial_started_at"), { data: { plan: "pilot" }, error: null }]);
     expect((await getExtensionEntitlement("c1")).status).toBe("locked");
   });
 });

@@ -26,6 +26,20 @@ export type ExtensionEntitlement = {
 const PAID_PLANS = new Set(["pro", "enterprise"]);
 
 /**
+ * Pure predicate: should this tenant's free trial be AUTO-STARTED right now? (founder decision 2026-07-27,
+ * audit Finding 1). True only on genuine first contact — the tenant is currently `locked` AND has never had
+ * a trial (`extension_trial_started_at` is null). A paid plan never reaches `locked` (it is `active`), and
+ * an EXPIRED trial has a non-null start, so neither auto-starts: one trial per tenant, ever. No IO here so
+ * it is unit-tested; the write lives in getExtensionEntitlement.
+ */
+export function shouldAutoStartTrial(args: {
+  trialStartedAt: string | null | undefined;
+  computed: ExtensionEntitlement;
+}): boolean {
+  return args.computed.status === "locked" && !args.trialStartedAt;
+}
+
+/**
  * Pure entitlement decision — no IO, so it is unit-tested. `now` is injected for testability.
  */
 export function computeExtensionEntitlement(args: {
@@ -57,8 +71,17 @@ export function computeExtensionEntitlement(args: {
 /**
  * Load the tenant's plan + trial start and decide entitlement. Reads degrade gracefully: if the
  * `extension_trial_started_at` column isn't present yet (migration not applied on this deployment), the
- * trial is treated as not-started rather than crashing (§3.4 / migration-coupling discipline — reads
+ * trial is treated as not-started rather than crashing (the migration-coupling discipline — reads
  * degrade, they never assert the migration ran).
+ *
+ * AUTO-TRIAL (founder decision 2026-07-27, audit Finding 1): the entitlement columns previously had NO
+ * writer, so every non-paid tenant was permanently `locked` — the extension "did not work" for any tester.
+ * The fix gives the read column a writer at THIS chokepoint (every tool call passes through here): a tenant
+ * that has never started a trial and isn't paid gets its 14-day window OPENED by its first extension call,
+ * instead of a 402 with no self-serve way in. One trial per tenant, ever — enforced by the atomic
+ * `UPDATE ... WHERE extension_trial_started_at IS NULL`, so concurrent first calls can't double-start and an
+ * expired trial (column already set) is never restarted. NOT done in the migration-missing branch below —
+ * there is no column to write, so it correctly stays plan-only (A34 degrade preserved).
  */
 export async function getExtensionEntitlement(
   companyId: string
@@ -73,7 +96,7 @@ export async function getExtensionEntitlement(
 
   if (error) {
     if (isMissingColumnError(error, "extension_trial_started_at")) {
-      // Column not deployed yet — fall back to a plan-only read (no trial).
+      // Column not deployed yet — fall back to a plan-only read (no trial, no auto-start: nowhere to write).
       const { data: planOnly } = await admin
         .from("care_tenant_config")
         .select("plan")
@@ -89,9 +112,26 @@ export async function getExtensionEntitlement(
     return { status: "locked", trialDaysLeft: 0, plan: "unknown" };
   }
 
-  return computeExtensionEntitlement({
-    plan: (data?.plan as string | null) ?? null,
-    trialStartedAt: (data?.extension_trial_started_at as string | null) ?? null,
-    now: Date.now(),
-  });
+  const plan = (data?.plan as string | null) ?? null;
+  const trialStartedAt = (data?.extension_trial_started_at as string | null) ?? null;
+  const computed = computeExtensionEntitlement({ plan, trialStartedAt, now: Date.now() });
+
+  if (shouldAutoStartTrial({ trialStartedAt, computed })) {
+    const startedIso = new Date().toISOString();
+    const { error: upErr } = await admin
+      .from("care_tenant_config")
+      .update({ extension_trial_started_at: startedIso })
+      .eq("company_id", companyId)
+      .is("extension_trial_started_at", null); // atomic guard: only the first call ever sets it
+    if (upErr) {
+      // Write failed → stay honest with the locked state rather than granting an unpersisted trial; the
+      // next call retries. (Never fabricate access the DB didn't record — honesty is the moat.)
+      return computed;
+    }
+    // Trial is now open — either this call set it, or a concurrent first call did (both within the same
+    // second, immaterial to a 14-day window). Recompute so the caller sees `trial`, not `locked`.
+    return computeExtensionEntitlement({ plan, trialStartedAt: startedIso, now: Date.now() });
+  }
+
+  return computed;
 }
