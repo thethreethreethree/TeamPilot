@@ -230,6 +230,27 @@ parity fix completes a decided intent — it is not new product scope — so it 
     not. Fixed with an `assignedAgentId` expect checked via `!== undefined` (so the null/unassign case is still
     verified). This is the §1.5.2 dividend: the audit lens on one finding surfaced its neighbor.
 
+## Post-audit resolution — finding 12 split: shippable half built, gated half confirmed (commit `95dd62ab`)
+
+Applied the same premise-test to finding 12 (failed outbound email reply → customer silence). Unlike finding
+13, re-reading the code did NOT fully dissolve the deferral — it SPLIT it:
+
+19. **RESOLVED (finding 12, shippable half) — a genuine dropped reply is now visible.** `dispatchOutboundEmailReply`'s
+    `ok:false` conflated three cases: unconfigured (benign, every dev/demo emits it), data/logic (customer has no
+    email), and a genuine configured-but-failed Postmark send. The route logged all three identically via
+    `console.error`, so a production dropped customer reply was indistinguishable from dev noise. Added an
+    `unconfigured: true` discriminator to the two config-gate returns (keyed on state, not string-matching the
+    free-text error); the route now warns on unconfigured and errors only on a genuine failure. A real incident
+    is finally visible.
+
+20. **CONFIRMED DEFERRAL (finding 12, gated half) — auto-remediation is a real product decision.** Whether a
+    genuine send failure should cede the thread to a human immediately (flip `ai_responding=false`) vs. retry
+    first, and how to surface the undelivered reply in the agent UI (internal note now vs. a `delivery_status`
+    column + inbox badge later), are product judgments, not correctness. Testing the premise CONFIRMED this
+    deferral rather than dissolving it — which is the discipline working, not failing: not every flagged
+    proposal converts to a build. The gate is now specified precisely (it wasn't before): the decision is
+    cede-vs-retry + the undelivered-signal surface. Flagged inline at the failure site.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
