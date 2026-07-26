@@ -46,6 +46,26 @@ it safely derives date+period. Corrected before it could send you at a non-bug.)
   false-positive and confirmed the two ownership-based admin routes.
 - Held every finance/core-ledger change at flagged-not-built rather than write an unverifiable change to
   the money path under the build mandate (§5 — the builder-under-pressure trap).
+- **Verified my OWN claims, not just others'** — the H1 "document paths unaffected" over-claim was mine,
+  and verifying all ~20 `fin_post_system_entry` callers disproved it (opening-balances) before the fix
+  could ship a regression. Self-scrutiny, not just agent-scrutiny.
+
+## Evidence for AMD-007 (surfaced, NOT appended to the amendment — deliberately)
+`docs/amendments/AMD-007-PROPOSED-cite-only-what-you-read.md` proposes widening §0.1 to forbid citing any
+methodology asset you haven't READ this session. This session is a **living demonstration that the
+discipline catches real defects**, worth weighing when you decide AMD-007:
+- **Relayed-claim caught:** I cited the mapping agent's "`fin_reopen_year` also has the gap" in the audit
+  doc + queue, then read it directly (§A38) and found it SAFE — the agent overstated. Un-verified, that
+  citation would have sent you to fix a non-bug.
+- **Own-claim caught:** my "document paths are immune" H1 framing was asserted before I'd read all the
+  posting callers; reading them found opening-balances would break under my own fix.
+Both extend AMD-007's thesis from "don't cite unread methodology" to "don't relay/assert any unverified
+claim — including your own." **Why this is surfaced here and NOT appended to AMD-007:** AMD-007's own
+disclosure (its "second pass" section) flags that amendment work produced *under the active build-continuation guard* is
+exactly A24's "manufacture impressive-looking output" trap — and the guard is active now. Autonomously
+expanding the constitutional record under that mandate would repeat the very failure AMD-007 warns of. So
+the evidence is yours to weigh; the constitutional edit stays yours to make. (This paragraph is itself an
+application of AMD-007's discipline to the decision about AMD-007.)
 
 ## Still yours (unchanged, unreachable from here)
 `db:apply` (`0188`–`0193` + `0195`) · runtime-verify Jeff + reload extension → re-capture → thumbnails ·
