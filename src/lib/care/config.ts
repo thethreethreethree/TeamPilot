@@ -29,6 +29,9 @@ const ELOSTATE_COMPANY_ID = "c3e7f389-3df6-48c8-876b-0cd4baf5c2a7";
  * a different id, the authoritative product knowledge was never served (Jeff falls back to generic).
  */
 function ownTenantId(): string {
+  // NOTE: src/lib/crm/vendorAuth.ts independently hardcodes the same ELOSTATE_COMPANY_ID + the same
+  // `CARE_DEFAULT_TENANT_ID ??` resolution (for vendor/home-company auth). If the deployment's own
+  // tenant id ever changes, update BOTH (grep the UUID) — they are the same "our own tenant" value.
   return process.env.CARE_DEFAULT_TENANT_ID ?? ELOSTATE_COMPANY_ID;
 }
 
