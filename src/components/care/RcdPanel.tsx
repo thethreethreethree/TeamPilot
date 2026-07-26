@@ -157,7 +157,7 @@ export default function RcdPanel() {
               onClick={() => {
                 setSelectedId(null);
                 setMessages(null);
-                setListLoaded(false); // re-triggers loadList via the effect
+                void loadList(); // re-fetch directly (the mount effect only runs once)
               }}
               className="text-[11px] text-secondary hover:text-primary"
             >
