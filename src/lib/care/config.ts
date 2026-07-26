@@ -22,6 +22,17 @@ import { ELOSTATE_PRODUCT_KNOWLEDGE } from "@/lib/care/elostateProductKnowledge"
 const ELOSTATE_COMPANY_ID = "c3e7f389-3df6-48c8-876b-0cd4baf5c2a7";
 
 /**
+ * The deployment's OWN (ELOSTATE) tenant id — the one the direct/no-embed widget, the demo, and
+ * elostate.com resolve to. MUST match resolveCareTenant()'s logic: an env override wins over the
+ * hardcoded constant. This was a real bug: the code-managed knowledge check keyed on the hardcoded
+ * constant while callers pass resolveCareTenant()'s result — so if CARE_DEFAULT_TENANT_ID is set to
+ * a different id, the authoritative product knowledge was never served (Jeff falls back to generic).
+ */
+function ownTenantId(): string {
+  return process.env.CARE_DEFAULT_TENANT_ID ?? ELOSTATE_COMPANY_ID;
+}
+
+/**
  * Whether a tenant's product context is AUTHORITATIVELY maintained in code
  * (ELOSTATE_PRODUCT_KNOWLEDGE) rather than from the editable `ai_product_context`
  * config. This is the SAME predicate getProductContextForTenant uses to decide the
@@ -31,7 +42,7 @@ const ELOSTATE_COMPANY_ID = "c3e7f389-3df6-48c8-876b-0cd4baf5c2a7";
  * ELOSTATE check in agreement — they are the same rule and must not drift.
  */
 export function isProductContextCodeManaged(companyId: string): boolean {
-  return companyId === ELOSTATE_COMPANY_ID;
+  return companyId === ownTenantId();
 }
 
 export type CareTenantResolution =
@@ -148,7 +159,7 @@ export function resolveCareTenant(_hint?: {
   origin?: string;
   embedToken?: string;
 }): string {
-  return process.env.CARE_DEFAULT_TENANT_ID ?? ELOSTATE_COMPANY_ID;
+  return ownTenantId(); // same resolution the product-knowledge check uses — they must not drift
 }
 
 /**
@@ -325,7 +336,7 @@ export async function getProductContextForTenant(
   // Jeff answered "what is C.A.R.E?" with "I'm not familiar with that acronym" on our own
   // widget: the comprehensive knowledge lives in code (maintained on every feature) and can't
   // be silently defeated by a stale tenant config. Other tenants keep their configured context.
-  if (tenantId === ELOSTATE_COMPANY_ID) {
+  if (tenantId === ownTenantId()) {
     return ELOSTATE_PRODUCT_KNOWLEDGE;
   }
   const config = await getCareTenantConfigByCompanyId(tenantId);
