@@ -113,10 +113,12 @@ to the period (confirmed: no such constraint in the table def `0118:28-44`; `fin
   BEFORE-trigger on `fin_journal_entries` that fires on the transition to `status='posted'` (matching the
   existing T-19 timing so drafts and the already-safe document paths are unaffected), OR inside
   `fin_post_entry` alongside T-19. **A single BEFORE-posted trigger on `fin_journal_entries` fixes the
-  whole class at once** — it covers the second confirmed instance too. **Flagged, not built:**
-  it's a behavior change on the core ledger posting path (which entries get rejected) that needs live-DB
-  verification + founder review; the consistent finance-change discipline here is flag + ready fix, apply
-  under the founder's eye (same as the FX-rounding flag). Ready to write the migration + test on the word.
+  whole class at once** — it covers the second confirmed instance too. **✅ DRAFTED on branch
+  `fix/fin-h1-entry-date-in-period`:** migration `0196` (the additive trigger) + `verify_0196_*.sql`
+  (detection query for existing mis-dated rows + isolated negative/positive trigger tests, rolls back).
+  **On a branch, NOT main, on purpose** — it changes core-ledger posting behavior and is not live-verified,
+  so it must not auto-apply as a side effect of the founder's `0188`–`0195` `db:apply`. Founder reviews →
+  merges → applies → runs the verifier. Static gates pass (rls:audit, invariant:audit); SQL not executed.
 
 ## Bottom line
 Application layer sound (no RLS bypass, no float money-math). DB layer: balance, immutability, and tenant
