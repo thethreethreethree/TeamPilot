@@ -129,6 +129,9 @@ export async function POST(req: NextRequest) {
           { status: 503 }
         );
       }
+      // Log the REAL cause server-side (Vercel) — the client gets a generic message, but the next
+      // failure must be diagnosable in seconds (the missing-table one wasn't, until we looked).
+      console.error("[rcd ingest] conversation insert failed:", convErr);
       return NextResponse.json({ error: "Couldn't start the capture." }, { status: 500 });
     }
     const conversationId = conv.id as string;
@@ -148,6 +151,7 @@ export async function POST(req: NextRequest) {
       )
       .select("id, seq");
     if (msgErr || !msgRows) {
+      console.error("[rcd ingest] message insert failed:", msgErr);
       return NextResponse.json({ error: "Couldn't store the messages." }, { status: 500 });
     }
     const idBySeq = new Map<number, string>(msgRows.map((r) => [r.seq as number, r.id as string]));
@@ -191,6 +195,7 @@ export async function POST(req: NextRequest) {
         { status: 503 }
       );
     }
+    console.error("[rcd ingest] unexpected failure:", err);
     return NextResponse.json({ error: "Couldn't ingest the conversation." }, { status: 500 });
   }
 }
