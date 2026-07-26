@@ -138,10 +138,24 @@ if (!globalThis.__careAdaptersLoaded) {
   // like textFrom's slice(-N)). Empty array on any error/miss (→ caller degrades, never fabricates).
   globalThis.rcdFrom = function rcdFrom(msgSel, roleOf) {
     try {
-      const nodes = Array.from(document.querySelectorAll(msgSel));
+      // De-nest before capturing. A container selector often lists candidates at MULTIPLE granularities —
+      // Slack's `[data-qa="message_content"], .c-message_kit__blocks, .c-virtual_list__item` is a three-level
+      // nest (item ⊃ blocks ⊃ content) — and querySelectorAll returns ALL of them. Without de-nesting, one
+      // message is recorded once per level (2-3× the same text) because each ANCESTOR's innerText already
+      // contains the inner text. Keep only the INNERMOST matched node in any nested group (drop a node that
+      // contains another matched node). This is the inverse-safe counterpart to the WhatsApp collapse fix: it
+      // can NEVER merge distinct messages (no re-collapse to "1 message") and can NEVER fabricate a duplicate;
+      // its only cost is that media in an outer wrapper but outside the inner node is missed — an acceptable
+      // §3.4 degrade, strictly better than a triplicated record. Visibility is filtered first so a hidden inner
+      // node doesn't strip a visible outer one. Nodes without a usable `.contains` are kept (no regression).
+      const visible = Array.from(document.querySelectorAll(msgSel)).filter(
+        (n) => !(n.offsetParent === null && n.getClientRects().length === 0)
+      );
+      const nodes = visible.filter(
+        (n) => !(typeof n.contains === "function" && visible.some((o) => o !== n && n.contains(o)))
+      );
       const messages = [];
       for (const n of nodes) {
-        if (n.offsetParent === null && n.getClientRects().length === 0) continue;
         const text = (n.innerText || n.textContent || "")
           .replace(/\s+\n/g, "\n")
           .replace(/[ \t]{2,}/g, " ")

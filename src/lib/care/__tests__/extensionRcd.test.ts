@@ -47,6 +47,10 @@ function fakeMsg(opts: {
   imgs?: Attrs[];
   links?: Attrs[];
   media?: Array<{ tag: "video" | "audio"; attrs: Attrs }>;
+  // Nodes this node CONTAINS (transitively) — models DOM nesting so the de-nest guard can be tested. The
+  // real Node.contains(x) is true for any descendant at any depth, so callers pass the full descendant set.
+  contains?: unknown[];
+  hidden?: boolean; // model an off-screen/hidden node (fails the visibility guard)
 }) {
   const children: Record<string, unknown[]> = {
     img: (opts.imgs ?? []).map((a) => fakeChild("img", a)),
@@ -54,12 +58,13 @@ function fakeMsg(opts: {
     "video, audio": (opts.media ?? []).map((m) => fakeChild(m.tag, m.attrs)),
   };
   return {
-    offsetParent: {}, // truthy → passes the visibility guard
-    getClientRects: () => ({ length: 1 }),
+    offsetParent: opts.hidden ? null : {}, // truthy → passes the visibility guard
+    getClientRects: () => ({ length: opts.hidden ? 0 : 1 }),
     innerText: opts.text ?? "",
     textContent: opts.text ?? "",
     classList: { contains: (c: string) => (opts.cls ?? []).includes(c) },
     querySelectorAll: (sel: string) => children[sel] ?? [],
+    contains: (o: unknown) => (opts.contains ?? []).includes(o),
   };
 }
 
@@ -168,6 +173,38 @@ describe("rcdFrom — per-message structure + attribution (A39)", () => {
 
   it("returns [] (never throws) when the selector matches nothing", () => {
     expect(H.rcdFrom(".does-not-exist", null)).toEqual([]);
+  });
+
+  // De-nesting guard: a container selector that lists candidates at multiple nesting levels (Slack's
+  // item ⊃ blocks ⊃ content) must NOT record the same message once per level.
+  it("de-nests: records the INNERMOST match once, not once per nesting level (Slack triplication)", () => {
+    const content = fakeMsg({ text: "where is my refund?", imgs: [{ src: "https://x/receipt.png", width: "400", height: "300" }] });
+    const blocks = fakeMsg({ text: "where is my refund?", contains: [content] });
+    const item = fakeMsg({ text: "where is my refund?", contains: [blocks, content] }); // outermost sees both
+    // Document order returns them outer→inner (as querySelectorAll would for nested ancestors/descendants).
+    DOC[".slackish"] = [item, blocks, content];
+    const rcd = H.rcdFrom(".slackish", null);
+    expect(rcd).toHaveLength(1); // was 3 before the guard
+    expect(rcd[0]).toMatchObject({ text: "where is my refund?" });
+    expect(rcd[0]!.media).toContainEqual({ type: "image", url: "https://x/receipt.png", alt: "" });
+  });
+
+  it("de-nest keeps genuinely separate sibling messages (no false merge / no collapse)", () => {
+    DOC[".sib"] = [
+      fakeMsg({ text: "first", cls: ["out"] }),
+      fakeMsg({ text: "second", cls: ["in"] }),
+    ]; // siblings contain nothing → both kept
+    const rcd = H.rcdFrom(".sib", (n) => ((n as { classList: { contains: (c: string) => boolean } }).classList.contains("out") ? "agent" : "customer"));
+    expect(rcd.map((m) => m.text)).toEqual(["first", "second"]);
+  });
+
+  it("de-nest by VISIBILITY first: a hidden inner node doesn't strip its visible outer container", () => {
+    const hiddenInner = fakeMsg({ text: "inner (hidden)", hidden: true });
+    const visibleOuter = fakeMsg({ text: "outer message", contains: [hiddenInner] });
+    DOC[".v"] = [visibleOuter, hiddenInner];
+    const rcd = H.rcdFrom(".v", null);
+    expect(rcd).toHaveLength(1);
+    expect(rcd[0]!.text).toBe("outer message"); // outer kept because the inner match is invisible
   });
 });
 
