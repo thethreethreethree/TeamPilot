@@ -133,7 +133,9 @@ export default function ExtensionDownloadPage() {
               entitlement when you sign in.
             </li>
             <li>
-              It only reads the conversation text you point it at, and never stores it. See the{" "}
+              It only reads the conversation you point it at, when you click a button. The tools process that
+              text and don&apos;t store it; the <strong className="text-primary">Capture</strong> button
+              deliberately saves the conversation to your workspace so your team can see it. See the{" "}
               <a href="/extension/privacy" className="text-brand hover:opacity-80">
                 privacy policy
               </a>
