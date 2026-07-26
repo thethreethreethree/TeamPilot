@@ -38,6 +38,13 @@ describe("ELOSTATE_PRODUCT_KNOWLEDGE — the answers Jeff must never fail", () =
       "Sales Coach",
       "Financial System",
       "Experience Mode",
+      // Founder's two explicit 2026-07 requests — the extension and the conversation
+      // capture that rides on it. Both are prospect-first questions ("can I use it on
+      // WhatsApp/Gmail?", "can you pull conversations in?") and both were shipped this
+      // cycle, so the mandate says lock them: a future edit must not silently drop the
+      // RCD/extension answer and leave Jeff unable to describe a headline capability.
+      "Browser extension",
+      "Conversation Capture",
     ]) {
       expect(
         ELOSTATE_PRODUCT_KNOWLEDGE,
