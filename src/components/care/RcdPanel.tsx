@@ -91,12 +91,21 @@ export default function RcdPanel() {
     void loadList();
   }, [loadList]);
 
-  // Auto-reveal ONCE when captures exist, so a fresh capture is visible without hunting for the bar.
+  // Auto-reveal when captures exist so they're visible without hunting — but only ONCE PER SESSION, not
+  // on every care-section entry (CareShell remounts each time), which would be intrusive for regular use.
+  // The prominent count badge carries discoverability after that.
   const autoRevealed = useRef(false);
   useEffect(() => {
     if (listLoaded && !autoRevealed.current && conversations.length > 0) {
       autoRevealed.current = true;
-      setOpen(true);
+      try {
+        if (sessionStorage.getItem("rcd-revealed") !== "1") {
+          sessionStorage.setItem("rcd-revealed", "1");
+          setOpen(true);
+        }
+      } catch {
+        setOpen(true); // sessionStorage unavailable → still reveal
+      }
     }
   }, [listLoaded, conversations.length]);
 
