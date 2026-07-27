@@ -392,6 +392,35 @@ Queried `care_tenant_config` to make the runtime-verify concrete:
   tenant), it will then show the honest "trial ended — contact your admin" message and need a manual unlock
   (`update care_tenant_config set plan='pro'` or reset the trial start). If it's a throwaway test tenant, ignore.
 
+## Session-tail verification coverage map (inspected vs NOT — per the audit protocol)
+
+The continuation cycles inspected a wide surface. Per the protocol's "list what you inspected and what you did
+not," the honest scope:
+
+**INSPECTED — verified SOUND with evidence (code and/or live DB):**
+- Tester-fix chain end-to-end: `/login` `?next=` (test-locked), token handoff (fail-open + token-theft guard,
+  test-locked), auto-trial (26 tests, tenant-scoped write, 0189 live), full `next build` (exit 0).
+- Distribution: served ZIP byte-current + rebuilt every deploy (deterministic, no churn).
+- §3 thesis-core in the LIVE DB: §3.1 append-only (UPDATE no-op), §3.2 gate (fail-closed + `*` threshold),
+  §3.4 control-window (fail-safe to suppressed, test-locked), §3.5 (rubric mirror ≠ consequence).
+- Security surfaces: XSS (no raw HTML), CSRF (header/SameSite), widget-safe config (allowlist + test-locked),
+  origin allowlist (test-locked), ACMS prompt-injection fence (nonce+defang, both consumers) + ACMS tenant
+  isolation (server-derived companyId) + ACMS append-only.
+- PII purge: RCD cron (DELETE not rule-blocked; single-writer immutable storage_path) + recording-purge cron
+  (malformed-guard tested); finding-25 write path removed + test-locked + 0 existing orphaned rows (live).
+- Production data: 0 mis-dated posted journal entries (6a4 latent-only); entitlement distribution (12 locked
+  pilots, 1 pre-set trial expiring ~08-05).
+- Inbox mutation write-verification class (finding-18): all 5 runAction callers verify their writes.
+
+**NOT inspected this session (honest gaps):**
+- RUNTIME (needs a browser/phone): the extension panel injecting + tools returning live on a real channel page;
+  per-adapter capture selectors (10/11 unverified); mobile radial C.A.R.E; the Standard/Expert Home toggle live.
+- The Financial System beyond the 6a4 detection query (last full audit 2026-07-26; 0196 on a branch).
+- Sales-Coach beyond the recording-purge/PII path (finding 25) and the PATCH authz already tested.
+- The `brain`/company-composer AI output QUALITY (only the §3.4 gate mechanics, not the generated guidance).
+- Non-image RCD media (PDF/video/audio) bytes — metadata-only by design, a founder-flagged decision.
+- Anything gated behind a founder decision or config (cost cap numbers, B/paid-unlock, email cede-vs-retry).
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
