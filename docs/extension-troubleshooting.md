@@ -28,15 +28,23 @@ Click a tool and read the message in the panel.
   If it persists, your workspace admin needs to enable access for your account.
 - **"Please sign in" / it says you're not connected even though you signed in** → the sign-in didn't carry
   through to the extension. Click **Connect** in the panel again and complete sign-in; you should land back on
-  the connect page, which hands the session to the extension.
+  the connect page, which hands the session to the extension. **If you complete sign-in, land on the connect
+  page, and it *still* won't connect (no error, just stays disconnected) — check step 3 (web-address mismatch).**
+  The extension only accepts the hand-off from the official C.A.R.E web address, so signing in on a preview or
+  staging link will look successful but never actually connect.
 - **"Couldn't reach C.A.R.E. Check your connection."** → the extension can't reach the C.A.R.E servers. First
   check your internet. If your connection is fine, this usually means a **web-address mismatch**: see step 3.
 
-## 3. "Couldn't reach C.A.R.E" but your internet is fine — web-address mismatch
+## 3. Web-address mismatch — "couldn't reach", OR signs in but never connects
 
-The extension is built to talk to C.A.R.E at **one specific web address**. If you're using the C.A.R.E web app
-at a *different* address (for example a preview/staging link, or a company web address that isn't the official
-one), the extension will try the official address, not the one you're on, and can't connect.
+Two symptoms point here: **"Couldn't reach C.A.R.E"** (with working internet), and **sign-in appears to succeed
+but the extension stays disconnected** with no error.
+
+The extension is built to talk to C.A.R.E at **one specific web address**, and it only accepts the sign-in
+hand-off from that address. If you're using the C.A.R.E web app at a *different* address (a preview/staging
+link, or a company web address that isn't the official one), the extension tries the official address rather
+than the one you're on — so it either can't reach it, or the sign-in looks fine but the connection is silently
+rejected.
 
 **What to check with your workspace admin / the person who set up C.A.R.E:**
 
