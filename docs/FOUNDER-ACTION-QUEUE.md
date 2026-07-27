@@ -1459,7 +1459,7 @@ payment), so there are no legitimate collisions. **Not added to the apply batch 
 *pre-lock* duplicate already exists in your data, the index creation fails and would halt the apply. Run
 this first — `select source_type, source_id, kind, count(*) from fin_source_postings group by 1,2,3
 having count(*) > 1;` — and if it returns nothing, add the unique index (I'll write the migration on your
-say-so). A non-empty result is itself a real finding (an existing double-post to investigate).
+say-so). A non-empty result is itself a real finding (an existing double-post to investigate). **➕ 2026-07-27 — I RAN the check against the live DB: `fin_source_postings` has 0 rows, 0 duplicate `(source_type,source_id,kind)` groups. So the pre-condition is MET — the unique index is SAFE to add (it won't fail on existing data), and there are no existing double-posts. Just say the word and I write the migration; no need to re-run the check.**
 
 ### Non-finance finding — coach/care LLM routes lacked `maxDuration` → **FIXED** (verify live-vs-superseded)
 **Resolved 2026-07-13 — CLASS DEFINITIVELY CLOSED (24 routes, verified by transitive-import closure).**
