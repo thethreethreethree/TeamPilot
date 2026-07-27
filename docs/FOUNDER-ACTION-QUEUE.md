@@ -1,4 +1,50 @@
-# Founder action queue — as of 2026-07-14
+# Founder action queue
+
+> **CURRENT OPEN DECISIONS — refreshed 2026-07-28.** A navigation index over the full log below
+> (which is the append-only historical record, §1.1 — nothing here is removed, only summarized).
+> Everything below this box is detail/history. This box is the "what still needs *you*" surface.
+
+### 🔴 One live check (2 min) — the only thing I couldn't verify headlessly
+- **Do ONE live browser pilot redemption** (redeem an ELOSTATE code end-to-end → confirm you land in the
+  dashboard). Everything else in the redeem path is runtime-verified; this is the browser signup→redeem→redirect
+  chain. Paste any error and I fix it. *(Pilot §, top of log.)*
+
+### 🟡 Product / policy decisions — I build on your word (each is a real trade-off, not a bug)
+- **Support-search access policy** — support content is company-searchable by non-agents; agent-gate it, or leave
+  as intended? ~10 lines. Say *"agent-gate support in search."* *(Access-consistency §.)*
+- **C.A.R.E product-context field on `/redeem`** (F3) — pilot skips the wizard so Jeff hands off product Qs until
+  Settings is filled; adding a field changes your specified 3-field form. Say *"add the product field."*
+- **`0047` onboarding race fix** — same class as the pilot F0 I fixed; behavior-preserving but touches the
+  primary onboarding RPC. Say *"fix 0047."*
+- **Widget bootstrap write-dedup** — un-rate-limited per-call write; an analytics-granularity trade-off. Say
+  *"dedup the widget write."*
+- **Finish admin-role consolidation** — this session PROVED the ~13 remaining inline gates are semantically
+  identical to `isAdminRole` (zero divergence, no authz hole), so this is now *optional cosmetic DRY*, not a fix.
+- **Email dispatch-failure → route to a human?** (today: transient send failure = customer silence + a log).
+  Recommended yes.
+- **Provider posture** (DeepSeek-China vs Anthropic-pin) + the one-line privacy sub-processor disclosure that
+  follows from it. **B / paid-unlock tier→plan map** — post-pilot, when billing goes live.
+
+### 🟢 Config you set in Vercel (unblocks dormant features — full table in the "VERCEL ENV-VAR CHECKLIST" §)
+- Verify `DEEPSEEK_MODEL` ≠ stale `deepseek-chat`; `NEXT_PUBLIC_SITE_URL` === `https://elostate.com`;
+  set `CRON_SECRET` (+ `RCD_RETENTION_DAYS`) to activate the PII-purge crons; VAPID×3 for push; `BOOKING_URL`
+  for the demo; `NEXT_PUBLIC_CARE_EXTENSION_ID` before any *public* Web Store launch (fine unset for pilot).
+- **Founder-IP-in-git-history** (`861e5ffc`) — purge + force-push only if the repo is/goes public (your call;
+  prevention is already in place). *(🔴 DO FIRST § in the 2026-07-27 block.)*
+
+### ✅ Resolved / done this session (2026-07-28) — no action
+- Email confirmation OFF (verified live) · pilot codes verified typo-safe (100/100) · pilot-code **generator**
+  committed (recovers the discarded generation method; `npm run pilot:generate`) · **two live security guards**
+  added (pilot redeem stays anon-un-executable; `pilot_codes` stays deny-all — both detection-tested) ·
+  pilot-vs-onboarding **parity** verified (redemption produces a complete company) · team-invite/join
+  continuity verified (pilot admin can grow the team) · live prod launch surface confirmed serving ·
+  full `npm run check` green (1597 tests, 13 live invariants).
+
+---
+
+## Historical log (append-only) — earlier entries follow; the box above is the current surface.
+
+# Founder action queue — history begins (originally "as of 2026-07-14")
 
 ## 🆕 2026-07-28 — PILOT ACCESS CODES shipped (your directive, client waiting). 4 open items.
 
