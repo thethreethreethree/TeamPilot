@@ -76,6 +76,28 @@ describe("status transition stays company-scoped (intentional manager workflow)"
   });
 });
 
+describe("retention-hole guard: a status PATCH never writes an audio pointer (regression, e52363bf)", () => {
+  it("does NOT forward a smuggled full-URL audioAssetUrl to setSessionStatus", async () => {
+    // The PATCH zod used to carry `audioAssetUrl: z.string().url()` — whose
+    // full-URL shape the recording-purge cron cannot delete (it flags it
+    // `malformed` and leaves the bytes), silently breaking the 2-day deletion
+    // promise. That write path was removed. This locks it: even when the body
+    // tries to smuggle a full URL, the status transition must reach
+    // setSessionStatus WITHOUT any audio pointer, so no unpurgeable
+    // audio_asset_url can ever be written through this route.
+    mockAuth("manager");
+    vi.mocked(getSession).mockResolvedValue({ id: "s1", agentId: "rep" } as never);
+    vi.mocked(setSessionStatus).mockResolvedValue({ id: "s1", status: "ended" } as never);
+    const res = await PATCH(
+      req({ status: "ended", audioAssetUrl: "https://evil.example/orphan.mp3" }),
+      ctx("s1")
+    );
+    expect(res.status).toBe(200);
+    const callArg = vi.mocked(setSessionStatus).mock.calls[0]?.[0] ?? {};
+    expect(callArg).not.toHaveProperty("audioAssetUrl");
+  });
+});
+
 describe("gate + validation", () => {
   it("401s an anonymous caller", async () => {
     mockAuth(null);
