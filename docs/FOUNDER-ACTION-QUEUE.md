@@ -1918,7 +1918,11 @@ allowlisting first — see the note below rather than assuming CI covers this sh
   confidence about security fixes). **Settle it with one query:**
   `select version from supabase_migrations.schema_migrations order by version desc limit 12;`
   Then delete whichever statement is false. Prioritized index: `docs/SECURITY-FINDINGS-2026-07-09.md`.
-- `0141`/`0142` (invite-escalation, subledger SoD) — status per the same check (they're ≤ `0144`).
+  **✅ SETTLED 2026-07-27 (DB access now available — ran the check against `public._agent_migrations`): ALL
+  `0001`–`0195` are APPLIED, including `0101`–`0111`.** So the "UNAPPLIED" statement was STALE and the
+  author-spoof / tenant-key / §3.4-control security fixes (`0101`–`0111`) are LIVE, not phantom holes — the safe
+  direction. No action; the contradiction is resolved in favor of "applied."
+- `0141`/`0142` (invite-escalation, subledger SoD) — **✅ APPLIED (≤ `0195`, ledger-verified 2026-07-27).** Live.
 - **Dormant crons** — both the §3.5 durability sweep AND the task-overrun sweep are code-wired AND scheduled in
   `vercel.json`; they await only `CRON_SECRET` (one env var activates both). NOT awaiting code/vercel wiring —
   corrected 2026-07-16, see class 70. (The finance `deliver-cron` is the only one still needing a `vercel.json`
