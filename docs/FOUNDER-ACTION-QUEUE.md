@@ -1098,6 +1098,9 @@ Full record: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
 > Expect 2 rows. If either is missing (only possible via hand-applied out-of-order migrations), apply that
 > migration + `0090`'s coupled care-agent-settings service-role change. The fixes are exemplary; only their
 > application state was ever in question, and the ordering model says it's fine.
+> **✅ CONFIRMED 2026-07-27 (ran the query against the live DB): BOTH triggers present** —
+> `profiles_guard_privileged` + `chat_participants_guard_privilege`. So the cross-tenant re-tenant guard and the
+> chat self-promote guard are LIVE in production. Settled; no action.
 >
 > **APPLY (2 new migrations, after the `0157–0182` batch):**
 > - **`0184`** — task-overrun sweep now excludes CANCELLED tasks (was emitting false `task_slipped` signals).
