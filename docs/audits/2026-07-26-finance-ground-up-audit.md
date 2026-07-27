@@ -165,7 +165,15 @@ to the period (confirmed: no such constraint in the table def `0118:28-44`; `fin
     - **Assets — SAFE, no fix.** `0166` dates the entry at `v_pstart` = the CHOSEN period's own `start_date`
       (read from `fin_periods where id = p_period_id`), so `entry_date ∈ [start,end]` is automatic no matter
       which period the client's `periods[0]` picks. Containment is structural.
-    - Opening-balances — trigger-EXEMPTED (`opening_batch:%`), confirmed above.
+    - Opening-balances — trigger-EXEMPTED (`opening_batch:%`), confirmed above. **Do NOT apply the
+      containment fix here (§1.5 — it would BREAK a legitimate case).** The page also uses `periods[0]` and
+      posts `as_of` into it, but opening balances are exempt from containment BY DESIGN: `as_of` (a
+      ledger-inception convention) can legitimately fall BEFORE the period's start (e.g. prior-year-end
+      balances posted into the current year's first period), which is exactly why 0196 exempts them. Forcing
+      `findOpenPeriodContaining(periods, asOf)` would return undefined for that valid case and block the post.
+      So `periods[0]` here is arbitrary but NOT the H1 bug (there is no must-contain invariant). Which period
+      opening balances SHOULD post to (the inception/earliest period vs the most-recent `periods[0]`) is an
+      accounting decision, not a code defect — flagged for the founder, not fixed.
     - **Net: every app UI posting path is now 0196-safe** (none will break on apply). The only remaining
       mismatch route is a finance user calling `fin_post_entry` / `fin_reverse_entry` / `fin_post_payroll_run`
       DIRECTLY via PostgREST with a deliberately mismatched period — which is exactly the deliberate
