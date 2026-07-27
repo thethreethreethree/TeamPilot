@@ -196,13 +196,16 @@ export async function renameSession(
 export async function setSessionStatus(args: {
   sessionId: string;
   status: Exclude<SalesSessionStatus, "active">;
-  audioAssetUrl?: string | null;
   // Who triggered the transition; defaults to the session's agent.
   actorId?: string | null;
 }): Promise<SalesSession | null> {
+  // Deliberately does NOT write audio_asset_url. That column is owned solely by
+  // the upload-recording route, which stores the bucket-relative shape the
+  // recording-purge cron can delete. A status transition setting the audio
+  // pointer to an arbitrary (full-URL) shape would have produced audio the
+  // retention cron can't purge — silently breaking the 2-day deletion promise.
   const sb = createServiceRoleClient();
   const patch: Record<string, unknown> = { status: args.status };
-  if (args.audioAssetUrl !== undefined) patch.audio_asset_url = args.audioAssetUrl;
   const { data, error } = await sb
     .from("coaching_sessions")
     .update(patch)

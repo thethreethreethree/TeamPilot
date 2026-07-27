@@ -44,7 +44,16 @@ export async function GET(
 const PatchSchema = z
   .object({
     status: z.enum(["ended", "reviewed"]).optional(),
-    audioAssetUrl: z.string().url().max(2000).optional(),
+    // NOTE: no audioAssetUrl here. The audio pointer is written ONLY by the
+    // upload-recording route, in the bucket-relative `${ASSETS_BUCKET}/…` shape
+    // the retention cron can purge. This field used to accept a full `z.url()`
+    // — the exact shape the recording-purge cron flags `malformed` and never
+    // deletes — so a caller setting it would have silently created audio that
+    // survives past the 2-day retention promise. It was unused (no caller sent
+    // it); removed so the write boundary can only ever store a purgeable shape
+    // (§3.4 — don't accept data you can't honor the deletion promise on). If a
+    // PATCH-sets-audio flow is ever wanted, it must take the storage PATH, not
+    // a URL, so it stays purgeable.
     clientLabel: z.string().trim().min(1).max(120).optional(),
   })
   .refine((b) => b.status !== undefined || b.clientLabel !== undefined, {
@@ -100,7 +109,6 @@ export async function PATCH(
     const transitioned = await setSessionStatus({
       sessionId: id,
       status: body.status,
-      audioAssetUrl: body.audioAssetUrl,
     });
     if (!transitioned) {
       return NextResponse.json(
