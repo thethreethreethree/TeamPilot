@@ -35,6 +35,7 @@ to `FOUNDER-ACTION-QUEUE.md`.
 | Signed-URL gating (§A27) | sound (all 3 issuance points gate before signing) |
 | Gate-predicate drift (admin / sales-coach-manager) | **consolidated** to canonical predicates (9 sites); remaining ~13 inline hand-rolls **audited for semantic divergence → ZERO** (all enumerate exactly `{CEO,COO,admin}` = `isAdminRole`; none over-permissive, none locks out an admin). Drift is cosmetic-only, no latent authz hole; consolidation now *proven* behavior-preserving. `RoleSchema` (invite-only, admin excluded by design) and `chats:359` (per-topic `chat_participants.role`) are correct-by-design, not divergence. |
 | Nav-stall class (AMD-006 L3) | fixed both shells + DRY + tested |
+| Team-invite / join continuity (AMD-006 L3 — pilot admin's NEXT step) | sound — `/invite/[code]` handles all member states (new→signup-then-accept, existing→confirm-accept, demo→clear error), no dead-end; email-confirm-OFF path fires accept with the fresh ssr cookie (server sees `auth.user`); pilot admin can invite → teammate joins → full loop closes past redemption. Raw `accept_invitation` errors are user-meaningful (expired/accepted/invalid), safe to surface — not a CWE-209 leak |
 | `fin_effective_role` auto-grant | intended (bootstrap-admin, overridable) — not a bug |
 
 ## Correctness classes swept
