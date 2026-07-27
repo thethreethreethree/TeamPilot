@@ -548,6 +548,48 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 12 — the constitution version metadata must match the ratified amendments ══════════
+//
+// LEARNED: 2026-07-28. src/lib/constitution.ts (surfaced by /api/health AND the customer-facing version
+// badge) drifted stale at AMD-004 / count 4 while AMD-005 and AMD-006 were ALREADY ratified in
+// docs/amendments/ — the product reported a constitution state that wasn't true (§5 honesty). Nothing
+// gated the constant against the amendment record, so the drift was silent for weeks. This check makes
+// the two agree: amendmentCount === the number of RATIFIED AMD-*.md files, and lastAmendmentId === the
+// highest ratified one. A newly-ratified amendment that forgets to bump the constant now fails the build.
+const AMD_DIR = "docs/amendments";
+{
+  const ratified = [];
+  for (const f of readdirSync(AMD_DIR)) {
+    const mm = f.match(/^AMD-(\d+).*\.md$/i);
+    if (!mm) continue;
+    const status = (readFileSync(join(AMD_DIR, f), "utf8").match(/\*\*Status:\*\*\s*(\S+)/i)?.[1] ?? "").toLowerCase();
+    if (status === "ratified") ratified.push(parseInt(mm[1], 10));
+  }
+  const constText = readFileSync("src/lib/constitution.ts", "utf8");
+  const declaredCount = parseInt(constText.match(/amendmentCount:\s*(\d+)/)?.[1] ?? "-1", 10);
+  const declaredLastId = constText.match(/lastAmendmentId:\s*["']([^"']+)["']/)?.[1] ?? "?";
+  const expectedLastId = ratified.length ? `AMD-${String(Math.max(...ratified)).padStart(3, "0")}` : "?";
+  if (declaredCount !== ratified.length) {
+    findings.push({
+      rule: "Constitution amendmentCount is stale",
+      file: "src/lib/constitution.ts",
+      why:
+        `amendmentCount=${declaredCount} but docs/amendments/ has ${ratified.length} RATIFIED amendment(s).\n` +
+        "      /api/health + the customer version badge would report a constitution state that isn't true (honesty).\n" +
+        "      Update CONSTITUTION.amendmentCount (and version / lastAmendment*) to match the ratified record.",
+    });
+  }
+  if (declaredLastId !== expectedLastId) {
+    findings.push({
+      rule: "Constitution lastAmendmentId is stale",
+      file: "src/lib/constitution.ts",
+      why:
+        `lastAmendmentId=${declaredLastId} but the highest RATIFIED amendment is ${expectedLastId}.\n` +
+        "      Update CONSTITUTION.lastAmendmentId / lastAmendmentDate / lastAmendmentTitle to the latest ratified one.",
+    });
+  }
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -570,6 +612,11 @@ st("INV10 finds dangerouslySetInnerHTML", /dangerouslySetInnerHTML/.test("<div d
 // INV11 cron: path matcher + secret check.
 st("INV11 matches a cron route path", /cron\/route\.(ts|tsx)$/.test("src/app/api/x-cron/route.ts"));
 st("INV11 flags a cron missing CRON_SECRET", !/CRON_SECRET/.test("export async function GET(){}"));
+// INV12 constitution metadata parsers.
+st("INV12 parses amendmentCount", /amendmentCount:\s*(\d+)/.exec("amendmentCount: 6,")?.[1] === "6");
+st("INV12 parses lastAmendmentId", /lastAmendmentId:\s*["']([^"']+)["']/.exec('lastAmendmentId: "AMD-006",')?.[1] === "AMD-006");
+st("INV12 counts a ratified status", "ratified" === ("- **Status:** ratified".match(/\*\*Status:\*\*\s*(\S+)/i)?.[1] ?? "").toLowerCase());
+st("INV12 excludes a proposed status", "ratified" !== ("- **Status:** **PROPOSED — not ratified.**".match(/\*\*Status:\*\*\s*(\S+)/i)?.[1] ?? "").toLowerCase());
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -588,7 +635,7 @@ if (findings.length === 0) {
       " no client-callable DEFINER tenant-param fn · every upload route validated ·" +
       " every cross-person read gated · every admin route gated · every extension route authenticated ·" +
       " no server secret NEXT_PUBLIC_-exposed · every dangerouslySetInnerHTML justified ·" +
-      " every cron route CRON_SECRET-gated."
+      " every cron route CRON_SECRET-gated · constitution metadata matches the ratified amendments."
   );
   process.exit(0);
 }
