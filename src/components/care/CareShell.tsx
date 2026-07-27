@@ -7,6 +7,7 @@ import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { useToast } from "@/components/ui/toast";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useCurrentUserRole, isCompanyAdminRole } from "@/lib/hooks/useCurrentUserRole";
 import {
   BarChart3,
   BookOpen,
@@ -65,6 +66,9 @@ type NavItem = {
   /** Opens in a new tab (for links that leave the C.A.R.E overlay, e.g. the extension download) so the agent
    *  keeps their inbox/conversation context. */
   external?: boolean;
+  /** Manager-only destination (server-gated CEO/COO/admin). Hidden from the nav for non-managers so a
+   *  regular agent never clicks a nav item that bounces them (AMD-006 L3 — nav must not stall the user). */
+  managerOnly?: boolean;
 };
 
 // Top-level, always-visible destinations — the agent's day-to-day surfaces (the inbox workflow).
@@ -101,12 +105,12 @@ const TOOLS_NAV: NavItem[] = [
   // mirrors a field on the agent self-view; per A18 there is no
   // per-agent breakdown. Visible only to CEO / COO / admin
   // (gated server-side by /api/care/leadership/team).
-  { label: "Team", href: "/dashboard/care/leadership", icon: Users },
+  { label: "Team", href: "/dashboard/care/leadership", icon: Users, managerOnly: true },
   // Per-agent coaching roster (founder 2026-07-22). Unlike "Team" (aggregate),
   // this shows each agent's grade — a founder-approved override of the stricter
   // aggregate-only stance, carrying the §A18 guardrails (alphabetical, vs a
   // standard, coaching-framed, no F). Gated CEO/COO/admin by the route.
-  { label: "Coach Assessment", href: "/dashboard/care/coach-assessment", icon: GraduationCap },
+  { label: "Coach Assessment", href: "/dashboard/care/coach-assessment", icon: GraduationCap, managerOnly: true },
 ];
 
 // Rendered after the Tools group, before Settings — kept top-level (NOT inside Tools) because the founder's
@@ -137,13 +141,20 @@ const SETTINGS_NAV: NavItem[] = [
 
 export function CareShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
+  // Role-filter the Tools group: hide manager-only destinations (Team, Coach Assessment — server-gated
+  // CEO/COO/admin) from non-managers so a regular agent never clicks a nav item that bounces them
+  // (AMD-006 L3 — nav must not stall the user). Role is null while loading, so managerOnly items stay
+  // hidden until an admin is confirmed — the safe direction (never show what the viewer can't use).
+  const role = useCurrentUserRole();
+  const isManager = isCompanyAdminRole(role);
+  const visibleTools = TOOLS_NAV.filter((item) => !item.managerOnly || isManager);
   const [settingsOpen, setSettingsOpen] = useState(
     pathname.startsWith("/dashboard/care/settings")
   );
   // C.A.R.E Tools group (founder 2026-07-27). Default collapsed — but auto-expanded when the current page is
   // one of the grouped tools, so collapsing the group never hides the agent's OWN location (AMD-006 Layer 3
   // workflow continuity: a nav that hides where you are is a stall). After mount the agent controls it.
-  const toolsActive = TOOLS_NAV.some((item) => isNavItemActive(item, pathname));
+  const toolsActive = visibleTools.some((item) => isNavItemActive(item, pathname));
   const [toolsOpen, setToolsOpen] = useState(toolsActive);
   // CareShell is an App Router LAYOUT (src/app/dashboard/care/layout.tsx) — it PERSISTS across navigation, so
   // the useState initializer above only fires on first mount. Without this, navigating INTO a tool page from
@@ -300,7 +311,7 @@ export function CareShell({ children }: { children: React.ReactNode }) {
           </button>
           {toolsOpen && (
             <div className="ml-2 mt-0.5 mb-1 space-y-0.5 border-l border-white/10 pl-2">
-              {TOOLS_NAV.map((item) => (
+              {visibleTools.map((item) => (
                 <NavLink key={item.href} item={item} pathname={pathname} nested />
               ))}
             </div>
