@@ -145,6 +145,17 @@ only in app code. Verified live:
   not-inspected items are the FEATURE-level flows (reports, AP/AR, tax, year-end) beyond these invariants and
   the branch-only `0196`.
 
+## 10. C.A.R.E reply AI — designed behavior is honesty-railed (static review; partially closes the AI-quality gap)
+
+The customer-reply prompt (`prompt.ts`) instructs the honest, non-fabricating behavior the thesis requires:
+don't guess (say when unsure) (L70); NEVER invent features/prices/policies → hand off (L72); never claim to be
+human when asked (L73); escalate refunds/complaints/account-data/uncertainty to a human via a machine-read
+handoff sentinel (L89-98); and the nuanced rail that a confident-wrong "No" is the least safe answer, so default
+to HAND OFF over NO (L79-81). So the AI's DESIGNED behavior embodies §0 (don't fabricate) + §3.4 (honesty) — no
+over-promising, no confident-wrong answers, AI-transparent, hands off where a human is needed. **Partially closes
+the "brain AI output quality" gap: the design is sound; live output QUALITY (does the LLM follow the rails well)
+still needs runtime eval — the honest residual.**
+
 ## What remains structurally unverifiable here
 
 The one link no static/DB check can reach: a fresh pilot tenant clicking an extension tool in a real browser
