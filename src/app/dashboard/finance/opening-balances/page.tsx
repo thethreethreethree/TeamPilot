@@ -121,7 +121,7 @@ export default function OpeningBalancesPage() {
   }
 
   async function post(id: string) {
-    if (!openPeriod) return toast.error("No open period", "Opening balances post into one.");
+    if (!openPeriod) return toast.error("No open period", "Opening balances need an open period to post into — open or create one in Finance → Periods first.");
     setBusy(true);
     try {
       const res = await fetch("/api/finance/opening-balances", {

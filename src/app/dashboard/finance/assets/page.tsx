@@ -117,7 +117,7 @@ export default function AssetsPage() {
   }
 
   async function act(id: string, action: "depreciate" | "dispose", proceeds?: number) {
-    if (!openPeriod) return toast.error("No open period", "Open a period before posting to the ledger.");
+    if (!openPeriod) return toast.error("No open period", "Depreciation and disposal post to the ledger, so they need one — open or create a period in Finance → Periods, then try again.");
     setBusy(id);
     try {
       const res = await fetch("/api/finance/assets", {
