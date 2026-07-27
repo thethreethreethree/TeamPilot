@@ -524,6 +524,29 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 11 — every cron route must authenticate with CRON_SECRET ═══════════════════════════
+//
+// Cron routes are PUBLIC HTTP endpoints (Vercel Cron hits them over the internet). They run destructive or
+// expensive work — the PII retention purge, the recording purge, the durability sweep. A cron route that
+// forgets the CRON_SECRET Bearer check is triggerable by ANYONE: fire the PII purge, run up LLM/ElevenLabs
+// cost, spam the sweep. Every route under a *-cron/ dir must reference CRON_SECRET. (Verified all 6 gated
+// 2026-07-27.)
+const CRON_AUTH_ALLOWLIST = new Map();
+for (const f of FILES) {
+  if (!/cron\/route\.(ts|tsx)$/.test(f.path)) continue;
+  if (/CRON_SECRET/.test(f.sql)) continue;
+  if (CRON_AUTH_ALLOWLIST.has(f.path)) continue;
+  findings.push({
+    rule: "Cron route without a CRON_SECRET check",
+    file: f.path,
+    why:
+      "A *-cron route is a PUBLIC endpoint (Vercel Cron calls it over the internet) that runs destructive/\n" +
+      "      expensive work (PII purge, recording purge, sweeps). Without the CRON_SECRET Bearer check, ANYONE\n" +
+      "      can trigger it. Add the CRON_SECRET gate (503 if unset, 401 on mismatch, constantTimeEqual), or\n" +
+      "      allowlist here WITH the reason it is intentionally open.",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
@@ -535,7 +558,8 @@ if (findings.length === 0) {
     "\n✓ CSV exports formula-safe · finance routes RLS-scoped · finance schema reachable ·" +
       " no client-callable DEFINER tenant-param fn · every upload route validated ·" +
       " every cross-person read gated · every admin route gated · every extension route authenticated ·" +
-      " no server secret NEXT_PUBLIC_-exposed · every dangerouslySetInnerHTML justified."
+      " no server secret NEXT_PUBLIC_-exposed · every dangerouslySetInnerHTML justified ·" +
+      " every cron route CRON_SECRET-gated."
   );
   process.exit(0);
 }
