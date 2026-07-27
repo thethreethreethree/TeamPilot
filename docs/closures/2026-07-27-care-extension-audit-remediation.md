@@ -321,6 +321,20 @@ ruled it out with hard evidence:
     Bytes are removed before the row so objects never orphan. Conclusion: the purge chain is correct — the
     founder can schedule it as a genuine retention path.
 
+## Cross-subsystem finding (sales-coach) — latent PII-retention hole closed (commit `e52363bf`)
+
+25. **RESOLVED (MEDIUM) — the recording-purge cron couldn't delete full-URL-shaped audio pointers, and a dead
+    PATCH field could write exactly that shape.** Extending the two-PII-cron verification to the sales-coach
+    recording-purge cron: it deletes audio only when `audio_asset_url` is the bucket-relative `${ASSETS_BUCKET}/…`
+    shape (upload-recording's shape); any other shape is flagged `malformed` and never purged (the cron author
+    correctly surfaced this as the false-ok write class it must never commit). But the session PATCH route
+    carried an UNUSED, mis-typed `audioAssetUrl: z.string().url()` field — full-URL-only, i.e. the exact
+    unpurgeable shape — threaded through `setSessionStatus` into the column. A caller setting it would have
+    silently stored audio surviving past the 2-day retention promise. Verified unused (frontend `endSession`
+    PATCHes `{status:"ended"}` only; `setSessionStatus`'s sole caller is this route), then removed the field
+    end-to-end so the write boundary can only store a purgeable shape (§3.4/§3.2). The §1.5.2 dividend: verifying
+    the cron surfaced an upstream defect the cron could only flag, not fix.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
