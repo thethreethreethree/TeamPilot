@@ -143,6 +143,13 @@ export async function getExtensionEntitlement(
     if (upErr) {
       // Write failed → stay honest with the locked state rather than granting an unpersisted trial; the
       // next call retries. (Never fabricate access the DB didn't record — honesty is the moat.)
+      // LOG it (diagnostic-logging-first): a PERSISTENT failure here (an RLS/trigger rejection, a permission
+      // issue) keeps a tenant locked FOREVER and silently — which reads to the founder as "the extension still
+      // doesn't work for this tenant" with no clue why. Surface the real cause so it's diagnosable.
+      // eslint-disable-next-line no-console
+      console.error(
+        `[care.entitlement] auto-trial write FAILED for company=${companyId} — tenant stays LOCKED (retries next call): ${upErr.message ?? String(upErr)}`
+      );
       return computed;
     }
     // Trial is now open — either this call set it, or a concurrent first call did (both within the same
