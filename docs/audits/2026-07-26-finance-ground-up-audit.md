@@ -153,11 +153,28 @@ to the period (confirmed: no such constraint in the table def `0118:28-44`; `fin
       period (`status=open limit(1)`, no date filter/order) as the inventory default; a today-dated entry
       could default into a non-containing open period (latent now, rejected under 0196). Now selects the
       open period CONTAINING today. No-op for the default year period; correct for monthly books.
-    - **Payroll caller — still to trace.** `p_period_id` is client-supplied (route takes `periodId` from the
-      body, no server-side containing-period resolution), so the client picks it. Payroll additionally has a
-      genuine accrual-vs-cash question (pay_date can legitimately fall after the worked period). Founder:
-      before applying 0196, confirm the payroll client sends the period containing `pay_date`, OR decide
-      payroll should date the entry at period-end (accrual) — the two must agree or 0196 rejects the post.
+    - **Payroll caller — FIXED (`6e059143`).** The client posted to `periods[0]` (most-recent open period,
+      arbitrary vs the run's `pay_date`). Now selects the open period CONTAINING `pay_date`. This aligns the
+      period to the already-coded cash-basis `entry_date = pay_date`; it does NOT decide accrual-vs-cash (see
+      below). Undefined when no open period contains `pay_date` → the existing "No open period" guard blocks
+      the post rather than posting to a wrong period.
+  - **Complete client-caller sweep (2026-07-27) — the bug exists ONLY where `entry_date` is not derived from
+    the chosen period, so the containment trigger can disagree with it:**
+    - Inventory (`current_date`) — was arbitrary-period → FIXED (`042da195`, contain today).
+    - Payroll (`pay_date`, user-editable) — was arbitrary-period → FIXED (`6e059143`, contain pay_date).
+    - **Assets — SAFE, no fix.** `0166` dates the entry at `v_pstart` = the CHOSEN period's own `start_date`
+      (read from `fin_periods where id = p_period_id`), so `entry_date ∈ [start,end]` is automatic no matter
+      which period the client's `periods[0]` picks. Containment is structural.
+    - Opening-balances — trigger-EXEMPTED (`opening_batch:%`), confirmed above.
+    - **Net: every app UI posting path is now 0196-safe** (none will break on apply). The only remaining
+      mismatch route is a finance user calling `fin_post_entry` / `fin_reverse_entry` / `fin_post_payroll_run`
+      DIRECTLY via PostgREST with a deliberately mismatched period — which is exactly the deliberate
+      internal-actor case 0196 is designed to reject. So fixed-UI + 0196 = UI never breaks AND the direct-RPC
+      abuse is blocked. **The one open item is the accrual-vs-cash accounting DECISION** (below), not a code gap.
+  - **Accrual-vs-cash (founder decision, unchanged by the fixes above).** Both fixes align the period to the
+    EXISTING cash-basis `entry_date` (inventory = today, payroll = pay_date). If the founder wants payroll
+    recognized in the period WORKED (accrual), that changes `entry_date` to `period_end` AND the period
+    selection together — a coordinated change to flag, not something the containment fixes preempt.
   - **Net:** the drafted 0196 is safe to apply for the manual-journal + reversal paths it targets and does
     not over-reject opening balances; the only thing to confirm operationally is the payroll/inventory
     caller's period resolution at boundaries. Verification is static (SQL still not executed on a real DB).
