@@ -231,6 +231,17 @@ export async function uploadAssetBytes(args: {
  * browser can download / preview it. Per the v1 design the
  * bucket is private; signed URLs are the way to expose objects
  * to the user agent.
+ *
+ * SECURITY CONTRACT (§A27 — this is an UNGATED CAPABILITY): this uses the ADMIN storage
+ * client and signs WHATEVER storagePath it is handed — it performs NO authorization of its
+ * own, and a signed URL is a bearer token that bypasses RLS entirely for its TTL. Therefore
+ * EVERY caller MUST have already authorized the caller's access to THIS object before calling,
+ * and must never pass a storagePath derived from unvalidated caller input. The two sanctioned
+ * callers do this: /api/files/[id] gates via getFile() on the RLS-bound client (only signs
+ * files the agent can SELECT); /api/care/conversations/[id]/file/[fileId] gates via an explicit
+ * hand-rolled check (conversation-binding + access_role='everyone' + not-deprecated, because a
+ * customer has no auth.users row for RLS to key on). A new caller that signs a path without
+ * first proving access is a cross-tenant / cross-conversation file-bytes leak.
  */
 export async function signAssetUrl(args: {
   storagePath: string;
