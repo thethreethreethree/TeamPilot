@@ -34,8 +34,9 @@ per-tenant cost gap onto the extension surface (set the cap before broad rollout
    AMD-006-decided behavior (its siblings close/resolve/bulk honor it); `assignTo` was simply the inconsistent
    one — extending a decided behavior to a sibling, not a new UX decision. Also fixed in the same commit
    (finding 18): `assignTo` skipped the write-verification its sibling `claim` had (a §3.4 silent-ok gap) — a
-   failed assign could toast "Assigned." while the DB disagreed; now it verifies the write landed. Regression:
-   the whole thing is not test-locked at the component level (runAction is IO-heavy) — flag if you want a test.
+   failed assign could toast "Assigned." while the DB disagreed; now it verifies the write landed. **The advance
+   predicate is now test-locked** (`153f3827`): extracted to a pure `assignWillLeaveView()` with 16 edge-case
+   tests (assign-to-self, unassign, assignment-invariant views), following the house pattern. Nothing left open.
 7. **Capture success → clickable "Open C.A.R.E →" link** (like Spawn) — say the word once you've confirmed capture works end-to-end.
 8. **Standard-mode Home (DONE: the 2 learning-visibility panels are now Expert-only, `eeafd70`).** Two adjacent items you didn't annotate, left as-is for your call (one-line gate each): the "make-learning-visible" reframe banner (partly introduces the now-hidden metrics) + the "Patterns surfaced this week" list. Cascade-check done: the dedicated learning pages (growth/patterns/leadership) are correctly NOT gated — hiding their content would empty them.
 
