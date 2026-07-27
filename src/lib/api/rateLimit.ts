@@ -27,11 +27,25 @@ function maybeGc(now: number) {
 }
 
 function clientKey(req: NextRequest): string {
-  // Prefer x-forwarded-for; fall back to a coarse session-cookie key.
+  // Key on the most trustworthy client identifier available, most-trustworthy first.
+  //
+  // Prefer x-real-ip: on Vercel the platform SETS it to the actual connecting IP — a single
+  // value it controls. x-forwarded-for is a comma-list whose LEFTMOST entry is the client-supplied
+  // end of the chain; keying on that alone lets an attacker append a rotating value to get a fresh
+  // bucket every request. x-real-ip sidesteps that parse-the-right-element guess.
+  //
+  // HONESTY (§5 — this is a best-effort abuse throttle, NOT an authorization control): every
+  // inbound header is only as trustworthy as the platform overwriting a client-supplied copy, and
+  // this limiter is per-instance in-memory (see the file header — a horizontally-scaled deploy needs
+  // Redis). The user-agent fallback is fully client-controlled and exists only so a request with no
+  // IP header still lands in *some* bucket rather than a shared "anon" one. Real authorization is
+  // always the RLS/gate layer; this only smooths cost/abuse spikes.
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp?.trim()) return realIp.trim();
   const fwd = req.headers.get("x-forwarded-for");
   if (fwd) {
     const first = fwd.split(",")[0];
-    if (first) return first.trim();
+    if (first?.trim()) return first.trim();
   }
   return req.headers.get("user-agent")?.slice(0, 64) ?? "anon";
 }

@@ -14,6 +14,10 @@ function reqFrom(ip: string): NextRequest {
   });
 }
 
+function reqWith(headers: Record<string, string>): NextRequest {
+  return new NextRequest("http://localhost/api/x", { headers });
+}
+
 let n = 0;
 const freshId = () => `test-${n++}`;
 
@@ -53,6 +57,24 @@ describe("rateLimit", () => {
     expect(rateLimit(reqFrom(ip), { id: idA, windowMs: 60_000, max: 1 })).not.toBeNull();
     // Same client, different limiter id → independent budget.
     expect(rateLimit(reqFrom(ip), { id: idB, windowMs: 60_000, max: 1 })).toBeNull();
+  });
+
+  it("prefers x-real-ip over x-forwarded-for as the client key", () => {
+    const id = freshId();
+    // Same x-real-ip, DIFFERENT x-forwarded-for. If the limiter keyed on XFF, the second request
+    // (fresh XFF) would get its own budget — the exact spoofing bypass this guards against. Keying
+    // on the platform-set x-real-ip means both share one bucket.
+    const a = reqWith({ "x-real-ip": "9.9.9.9", "x-forwarded-for": "1.1.1.1" });
+    const b = reqWith({ "x-real-ip": "9.9.9.9", "x-forwarded-for": "2.2.2.2" }); // attacker rotates XFF
+    expect(rateLimit(a, { id, windowMs: 60_000, max: 1 })).toBeNull();
+    expect(rateLimit(b, { id, windowMs: 60_000, max: 1 })).not.toBeNull(); // same bucket → 429
+  });
+
+  it("falls back to x-forwarded-for when x-real-ip is absent (legacy behavior preserved)", () => {
+    const id = freshId();
+    const req = reqFrom("10.0.0.9");
+    expect(rateLimit(req, { id, windowMs: 60_000, max: 1 })).toBeNull();
+    expect(rateLimit(req, { id, windowMs: 60_000, max: 1 })).not.toBeNull();
   });
 
   it("frees the budget once the window slides past old requests", () => {
