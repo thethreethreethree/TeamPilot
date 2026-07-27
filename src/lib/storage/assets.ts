@@ -25,6 +25,12 @@ export const CUSTOMER_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
  *  blocked gets rejected too; this is a defense-in-depth list. */
 export const BLOCKED_MIME_PREFIXES = [
   "video/", // explicitly blocked per founder red-pen 2026-06-19
+  // SVG is an image type but can embed <script> — a stored-XSS vector if a signed URL is ever opened directly
+  // (SVG executes as a document) or if attachments are ever served same-origin. Today's serving is cross-origin
+  // (supabase signed URL) + rel=noopener, so impact is low, but we block at the CHOKEPOINT (§A27) so safety
+  // doesn't depend on the serving model never changing. Founder: re-allow if you have a genuine SVG use case.
+  "image/svg+xml",
+  "image/svg",
   "application/x-executable",
   "application/x-msdownload",
   "application/x-msdos-program",
@@ -44,6 +50,7 @@ export const BLOCKED_EXTENSIONS = [
   ".mp4", ".mov", ".avi", ".mkv", ".webm", ".wmv", ".flv", ".m4v",
   ".exe", ".dll", ".msi", ".bat", ".cmd", ".com", ".scr", ".sh", ".app",
   ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2",
+  ".svg", // stored-XSS vector (see BLOCKED_MIME_PREFIXES) — block by extension too, for a spoofed MIME
 ];
 
 /**

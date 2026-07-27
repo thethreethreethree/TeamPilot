@@ -90,6 +90,21 @@ describe("validateUploadCandidate", () => {
     ).toEqual({ ok: true });
   });
 
+  it("blocks SVG despite the image/ allow-prefix (stored-XSS vector) — by MIME and by extension", () => {
+    // image/svg+xml matches the image/ allow-list but the block-list is checked FIRST.
+    expect(
+      validateUploadCandidate({ sizeBytes: 100, mimeType: "image/svg+xml", uploadedVia: customer })
+    ).toMatchObject({ ok: false, reason: "blocked_type" });
+    expect(
+      validateUploadCandidate({ sizeBytes: 100, mimeType: "image/svg+xml", uploadedVia: agent })
+    ).toMatchObject({ ok: false, reason: "blocked_type" });
+    // And by extension, in case the client spoofs the MIME as image/png but ships a .svg.
+    expect(
+      validateUploadCandidate({ sizeBytes: 100, mimeType: "image/png", filename: "logo.svg", uploadedVia: customer })
+    ).toMatchObject({ ok: false, reason: "blocked_type" });
+    expect(BLOCKED_EXTENSIONS).toContain(".svg");
+  });
+
   it("allows a normal image for both surfaces", () => {
     expect(validateUploadCandidate({ sizeBytes: 100, mimeType: "image/png", uploadedVia: agent })).toEqual({ ok: true });
     expect(validateUploadCandidate({ sizeBytes: 100, mimeType: "image/jpeg", uploadedVia: customer })).toEqual({ ok: true });
