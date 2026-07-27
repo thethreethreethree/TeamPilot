@@ -483,10 +483,36 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 10 — every dangerouslySetInnerHTML must be justified (XSS) ═════════════════════════
+//
+// dangerouslySetInnerHTML renders RAW HTML. With any user/DB-derived content it is an XSS hole (React's
+// default {text} escaping is exactly what protects the customer surfaces). Only a STATIC build-time constant
+// or explicitly-SANITIZED content is safe. Force every use to be reviewed + justified here so a future
+// raw-HTML render of customer/DB content can't slip in silently.
+const XSS_ALLOWLIST = new Map([
+  [
+    "src/app/layout.tsx",
+    "The no-flash theme script: __html is NO_FLASH_THEME_SCRIPT, a STATIC build-time string constant (sets the\n" +
+      "      theme before hydration to avoid a flash). No user/DB interpolation, so no XSS surface.",
+  ],
+]);
+for (const f of FILES) {
+  if (!/dangerouslySetInnerHTML/.test(f.sql)) continue;
+  if (XSS_ALLOWLIST.has(f.path)) continue;
+  findings.push({
+    rule: "Unreviewed dangerouslySetInnerHTML (XSS risk)",
+    file: f.path,
+    why:
+      "dangerouslySetInnerHTML renders raw HTML — with ANY user/DB-derived content it is an XSS hole. Only a\n" +
+      "      static constant or explicitly-sanitized string is safe. Render as escaped {text} instead, or allowlist\n" +
+      "      it here WITH the reason it is safe (static constant? sanitized by which sanitizer?).",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -494,7 +520,7 @@ if (findings.length === 0) {
     "\n✓ CSV exports formula-safe · finance routes RLS-scoped · finance schema reachable ·" +
       " no client-callable DEFINER tenant-param fn · every upload route validated ·" +
       " every cross-person read gated · every admin route gated · every extension route authenticated ·" +
-      " no server secret NEXT_PUBLIC_-exposed."
+      " no server secret NEXT_PUBLIC_-exposed · every dangerouslySetInnerHTML justified."
   );
   process.exit(0);
 }
