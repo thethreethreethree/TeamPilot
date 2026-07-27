@@ -411,6 +411,12 @@ not," the honest scope:
 - Production data: 0 mis-dated posted journal entries (6a4 latent-only); entitlement distribution (12 locked
   pilots, 1 pre-set trial expiring ~08-05).
 - Inbox mutation write-verification class (finding-18): all 5 runAction callers verify their writes.
+- **Full authorization surface** (added post-coverage-map): external — widget input BOUNDED (message ≤4KB, upload
+  ≤10MB + type/extension block-list), inbound-email webhook shared-secret authenticated (constant-time);
+  authenticated — agent routes tenant-scoped; ADMIN — all 11 admin routes gated (isAdmin / requireVendorAdmin =
+  admin AND vendor-company); finance — RLS + role gates. No unauthenticated escalation, no unguarded admin route.
+- **Verifier hardened + proven**: `verify:live` exits 1 on failure (tested) and isolates a broken query into a
+  clean per-check FAIL, not a crash (tested). Runnable after any migration.
 
 **NOT inspected this session (honest gaps):**
 - RUNTIME (needs a browser/phone): the extension panel injecting + tools returning live on a real channel page;
