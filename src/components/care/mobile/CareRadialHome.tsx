@@ -67,7 +67,7 @@ const MORE_TOOLS: { key: ToolKey; label: string; Icon: typeof Sparkles }[] = [
 
 // Each tool → its existing route + the field to read from the JSON response. Robust
 // to shape differences: we render the first meaningful string the route returns.
-function toolRequest(tool: ToolKey, convId: string): { url: string; body?: unknown } {
+export function toolRequest(tool: ToolKey, convId: string): { url: string; body?: unknown } {
   const base = `/api/care/agent/conversations/${convId}`;
   switch (tool) {
     case "summarize":
