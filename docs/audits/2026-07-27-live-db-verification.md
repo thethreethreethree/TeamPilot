@@ -122,7 +122,11 @@ only in app code. Verified live:
   ("reverse it, do not edit it"); `fin_lines_immutable` blocks editing a posted entry's LINES; `fin_audit_log`
   is append-only; `fin_freeze_created_by` prevents reassigning the author (SoD). So posted books can only be
   corrected by a reversing entry, never silently edited.
-- **H4 tenant RLS:** RLS is ON for `fin_accounts`, `fin_journal_entries`, `fin_journal_lines`, `fin_periods`.
+- **H4 tenant RLS:** RLS is ON for `fin_accounts`, `fin_journal_entries`, `fin_journal_lines`, `fin_periods`,
+  AND (verified airtight) all 6 policies on the two journal tables are tightly scoped: every op carries
+  `company_id = auth_company_id()` (no cross-tenant), layered with role gates (`fin_can_view()` reads /
+  `fin_can_enter()` writes), and INSERT is restricted to `status IN ('draft','pending_approval')` — you CANNOT
+  directly insert a posted entry via RLS; posting must go through the sanctioned RPC (authz + balance + period).
 - **Finance-core status:** all four invariants now inspected — H1 (entry-date; `0196` on a branch + 0 existing
   bad rows by detection), H2 (immutability, live triggers), H3 (balance, DB-trigger-enforced, §8), H4 (RLS on).
   The books can't be silently altered, go out of balance, or leak across tenants. The remaining finance
