@@ -16,8 +16,9 @@ Connection: `SUPABASE_DB_URL` (Session-pooler, `ap-northeast-1`) from `.env.loca
 > has RLS ON — a new table missing RLS is a cross-tenant leak)**. Run it after a migration or before a release.
 > The one-time findings below explain WHAT each check means; the script is the durable guard. Proven robust:
 > exits 1 and names the failing invariant on a break, isolates a broken query per-check, exits 2 (not hang) on a
-> connection failure. (Complements `npm run invariant:audit`, which checks the CODE — now 8 invariants incl.
-> admin-route-gated + extension-route-authenticated.)
+> connection failure. (Complements `npm run invariant:audit`, which checks the CODE — now 11 invariants: CSV-safe,
+> finance-RLS, finance-schema-reachable, no-client-DEFINER, upload-validated, cross-person-gated, admin-gated,
+> extension-authed, no-secret-via-NEXT_PUBLIC_ [allowlist], every-dangerouslySetInnerHTML-justified, cron-CRON_SECRET-gated.)
 
 ## 1. Migration state — all applied (reconciles a stale doc)
 
