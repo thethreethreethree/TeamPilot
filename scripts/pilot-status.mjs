@@ -23,7 +23,16 @@ function loadConn() {
 }
 
 const client = new pg.Client({ connectionString: loadConn(), ssl: { rejectUnauthorized: false } });
-await client.connect();
+try {
+  await client.connect();
+} catch (err) {
+  console.error(
+    "\nCouldn't connect to the database. Check that SUPABASE_DB_URL in .env.local is the " +
+      "Session-pooler string and that you have network access.\n  " +
+      (err instanceof Error ? err.message : String(err))
+  );
+  process.exit(1);
+}
 try {
   const inv = (
     await client.query(`
@@ -68,6 +77,12 @@ try {
     console.table(redemptions);
   }
   console.log("");
+} catch (err) {
+  console.error(
+    "\nQuery failed. Is the pilot_codes table applied (migration 0197)?\n  " +
+      (err instanceof Error ? err.message : String(err))
+  );
+  process.exitCode = 1;
 } finally {
   await client.end();
 }
