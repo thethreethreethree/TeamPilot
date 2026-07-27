@@ -89,8 +89,13 @@ from "panel appeared but tools failed", because they have different causes:
 - **`402`** = entitlement (now auto-trial-fixed — they should just retry; it opens a trial).
 - **`401`** = sign-in (Finding 2: if you pinned `NEXT_PUBLIC_CARE_EXTENSION_ID` but they load unpacked, only
   manual token-paste works; leave it unset for testers).
-- **⚠️ NEITHER 401 nor 402 — the panel never connects / tool calls fail with a network error / "Not connected"
-  persists after sign-in = DOMAIN MISMATCH (verified 2026-07-27, a distinct cause from entitlement).** The
+- **⚠️ NEITHER 401 nor 402 — the panel shows "Couldn't reach C.A.R.E. Check your connection." (content.js:242,
+  the network-failure message) / "Not connected" persists after sign-in = DOMAIN MISMATCH (verified 2026-07-27,
+  a distinct cause from entitlement).** NB: that message MISATTRIBUTES the cause — it says "check your
+  connection" but the real problem is the extension reaching `elostate.com` while the app/session is elsewhere.
+  (Minor follow-up when you're back + the flow is browser-verified: reword the reach-failure message to name the
+  configured host, e.g. "Couldn't reach C.A.R.E at elostate.com — is the app deployed there?" — not done now
+  because it's runtime-unverified extension code needing a rebuild.) The
   extension is HARD-PINNED to `https://elostate.com` (`extension/config.js` `DEFAULT_API_BASE`, and
   `externally_connectable`/`host_permissions` = elostate.com only). So the extension ONLY works if the tester
   is using the app AT `https://elostate.com`. If your `NEXT_PUBLIC_SITE_URL` is a `*.vercel.app` / staging /
