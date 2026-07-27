@@ -7,13 +7,13 @@ import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { useToast } from "@/components/ui/toast";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import RcdPanel from "@/components/care/RcdPanel";
 import {
   BarChart3,
   BookOpen,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Database,
   Heart,
   GraduationCap,
   Home,
@@ -85,6 +85,10 @@ const TOOLS_NAV: NavItem[] = [
   { label: "Patterns", href: "/dashboard/care/patterns", icon: Sparkles },
   { label: "Analytics", href: "/dashboard/care/analytics", icon: BarChart3 },
   { label: "Monitor", href: "/dashboard/care/monitor", icon: LayoutGrid },
+  // Raw Conversation Data — captured conversation records (RCD, founder build 2026-07-26). Moved here
+  // from the persistent shell footer into C.A.R.E Tools (founder 2026-07-28) so it's a deliberate
+  // destination among the analysis surfaces, not always-underfoot at the bottom of every page.
+  { label: "Raw Conversation Data", href: "/dashboard/care/rcd", icon: Database },
   // §1.1 — past resolutions ARE the knowledge base. The
   // Co-Pilot uses this corpus to draft new replies; this nav
   // entry lets agents browse the team's playbook directly.
@@ -374,11 +378,10 @@ export function CareShell({ children }: { children: React.ReactNode }) {
           top of this main; the inset is absorbed once here so pages
           don't have to repeat it. */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
-        {/* Page content fills + scrolls internally; the RCD drawer sits at the bottom of the
-            C.A.R.E system (founder build 2026-07-26), collapsed by default so it never steals
-            page height until opened. */}
+        {/* Page content fills + scrolls internally. RCD moved out of this footer into C.A.R.E Tools
+            → /dashboard/care/rcd (founder 2026-07-28), so it's a deliberate destination rather than
+            always-underfoot at the bottom of every page. */}
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">{children}</div>
-        <RcdPanel />
       </main>
       {/* Own LearningModeFab, mirroring SalesCoachShell (A21 parity). The dashboard-layout FAB sits at z-40,
           BEHIND this z-[60] overlay, so it's hidden inside C.A.R.E — re-rendering it here keeps the learning

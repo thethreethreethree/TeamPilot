@@ -51,10 +51,12 @@ function RcdImageThumb({ url, label, filename }: { url: string; label: string; f
   );
 }
 
-export default function RcdPanel() {
+export default function RcdPanel({ defaultOpen = false }: { defaultOpen?: boolean } = {}) {
   const { conversations, listLoaded, loadList, selectedId, messages, detailLoading, openConversation, back } =
     useRcd();
-  const [open, setOpen] = useState(false);
+  // defaultOpen=true on the dedicated /dashboard/care/rcd page (the panel IS the page there, so it
+  // shouldn't start collapsed); defaults false so the legacy footer usage is unchanged.
+  const [open, setOpen] = useState(defaultOpen);
 
   // Auto-reveal when captures exist so they're visible without hunting — but only ONCE PER SESSION, not
   // on every care-section entry (CareShell remounts each time), which would be intrusive for regular use.
