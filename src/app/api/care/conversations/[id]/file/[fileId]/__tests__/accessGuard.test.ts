@@ -68,3 +68,35 @@ describe("GET customer file/[fileId] — access guard", () => {
     expect((await res.json()).downloadUrl).toBeTruthy();
   });
 });
+
+/**
+ * OUTER conversation gate (IDOR) — distinct from the file guard above. The tests above isolate the file
+ * guard by making conv.id === id; these lock the gate that runs FIRST: a caller may only ever reach a file
+ * on the conversation their OWN token authorizes. Without this, a customer with a valid token for their own
+ * conversation could swap the URL `id` to another conversation and pull its file. Previously untested.
+ */
+describe("GET customer file/[fileId] — outer conversation gate", () => {
+  it("401 when no x-care-session token is presented", async () => {
+    const res = await GET(req(undefined), ctx("conv-1", "file-x"));
+    expect(res.status).toBe(401);
+    // Must reject before ever resolving the token or touching storage.
+    expect(getCareConversationByToken).not.toHaveBeenCalled();
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("404 when the token is invalid/expired (resolves to no conversation)", async () => {
+    vi.mocked(getCareConversationByToken).mockResolvedValue(null as never);
+    const res = await GET(req("bad-tok"), ctx("conv-1", "file-x"));
+    expect(res.status).toBe(404);
+    // Never reaches the file lookup with an unauthenticated caller.
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("404 (IDOR) when the token authorizes conv-1 but the URL asks for a DIFFERENT conversation", async () => {
+    // beforeEach: token → { id: "conv-1" }. Caller requests conv-OTHER, so conv.id !== id.
+    const res = await GET(req("tok"), ctx("conv-OTHER", "file-x"));
+    expect(res.status).toBe(404);
+    // The mismatch must short-circuit BEFORE any file lookup — the other conversation's file is never read.
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+});
