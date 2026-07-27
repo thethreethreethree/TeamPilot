@@ -44,6 +44,7 @@ to `FOUNDER-ACTION-QUEUE.md`.
 | Metric integrity — §3.5 coach-readout | sound (consequence-anchored, ITT partition, durable timestamp, test-locked) |
 | Metric integrity — C.A.R.E analytics | sound (negative-duration dropped, empty→null, durable `resolved_at`) |
 | Empty-company launch safety (fresh pilot co) | sound (dashboards render null/0, no NaN/crash) |
+| Pilot vs normal-onboarding parity (AMD-006 L2 — does redemption produce a *complete* company?) | sound — both paths `insert into companies` → same 0045 triggers seed `care_tenant_config`/`care_agent_state`/`company_brain` (runtime-proven: care-plan update needs the row). Only diff = `industry/size/stage/goals` NULL, consumed ONLY by Settings (NULL-graceful), NOT by any AI/coach/care context builder. No missing foundational rows, no downstream break. `ai_product_context` NULL = the already-flagged F3 (founder-gated) |
 | Webhook idempotency (inbound email) | sound (dedup on MessageID + 23505 concurrent-retry catch) |
 | Constitution metadata drift | fixed + guarded (INVARIANT 12) |
 | Cron schedule wiring | sound (all 6 → existing gated routes; no dead-route scheduling) |
