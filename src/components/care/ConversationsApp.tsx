@@ -1246,6 +1246,19 @@ export function ConversationsApp({
       const affected = (data?.affectedCount as number) ?? 0;
       const requested = (data?.requestedCount as number) ?? ids.length;
       toast.success(successMsgFn(affected, requested));
+      // Surface a PARTIAL outcome (§3.4). The server returns how many rows it
+      // actually changed vs how many were requested; when fewer changed, some
+      // selected conversations were already in that state or the write wasn't
+      // permitted. Say so — a plain "N done" on a bulk of M>N silently implies
+      // all M succeeded. This wires the `requested` arg that runBulk already
+      // computes and passes to successMsgFn, but which the per-action messages
+      // don't use (the single-action equivalent is assignTo's divergence check).
+      if (affected < requested) {
+        toast.warn(
+          `${requested - affected} of ${requested} weren't changed`,
+          "They were already in that state, or you don't have permission to change them."
+        );
+      }
       setBulkSelectedIds(new Set());
       await loadInbox();
       if (nextAfterBulk) setSelectedId(nextAfterBulk);
