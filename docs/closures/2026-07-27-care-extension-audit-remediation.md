@@ -299,6 +299,25 @@ ruled it out with hard evidence:
     host_permissions). If a tester runs the app on a different origin (a `*.vercel.app` preview / staging
     domain), the extension cannot talk to it — a config assumption to confirm, not a code defect.
 
+## Text-acquisition fallback — rules out "unsupported/broken site" as the tester's cause (2026-07-27, verification only)
+
+A tester who opens the panel on a site with no adapter, or a known site whose DOM changed, could read a
+blank/dead panel as "not working." THINK-first hypothesis; traced both failure modes in `extension/content.js`
+and ruled them out — the text-acquisition path is robustly fallback-protected:
+
+29. **Unknown site (no adapter) degrades to a clear selection-only mode.** `careAdapterFor(hostname)` returns
+    null off the ~11 supported hosts (`adapters.js:401`). The panel then renders a primary "Read my selected
+    text" button, consent copy adapted to "the text you have **selected**", and the prompt "Highlight a
+    conversation on the page, then click above" (`content.js:705-710`); it seeds from any existing selection
+    (`:732`). Tools enable once text is read (`:418`). Not a dead panel — a working universal mode.
+30. **Known site whose adapter selectors break degrades the same way.** If `adapter.extract()` returns empty
+    (the DOM moved out from under the selectors), `readAdapter` shows "Couldn't auto-read this {label} —
+    highlight it on the page and use 'Read my selected text'" (`content.js:429-438`) rather than failing
+    silently. `readAdapter` is only wired behind `if (adapter)` (`:713`), so it is never invoked with null (no
+    `null.extract()` crash). **Conclusion:** neither an unsupported host nor a stale adapter produces a broken
+    panel — both fall back to manual selection with a clear prompt. This is NOT the tester's cause (entitlement
+    /login/domain remain the causes), and it confirms the extension's text acquisition is fail-soft by design.
+
 ## Security verification of the fix itself — the auto-trial WRITE is tenant-scoped (audit only, no change)
 
 22. **The auto-trial write cannot be abused cross-tenant.** The fix (finding 1) added an `UPDATE
