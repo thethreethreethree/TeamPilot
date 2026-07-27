@@ -119,7 +119,13 @@ export async function getExtensionEntitlement(
         now: Date.now(),
       });
     }
-    // Any other read failure → locked (fail closed for a paid feature).
+    // Any other read failure → locked (fail closed for a paid feature). LOG it: a transient DB blip locks a
+    // paid tenant for that call, and a PERSISTENT read failure locks them silently until it's fixed — either
+    // way the founder needs the real error to diagnose "the extension is locked and I don't know why."
+    // eslint-disable-next-line no-console
+    console.error(
+      `[care.entitlement] entitlement READ failed for company=${companyId} — tenant locked (fail-closed): ${error.message ?? String(error)}`
+    );
     return { status: "locked", trialDaysLeft: 0, plan: "unknown", trialEnded: false };
   }
 
