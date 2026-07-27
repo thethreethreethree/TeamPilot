@@ -48,6 +48,28 @@ against the LIVE trigger, both halves:
   would raise on every surfacing and silently kill the problems feature). Both the mechanism and its
   configuration are sound.
 
+## 5. §3.5 communication-quality — the honesty moat holds (mirror ≠ consequence)
+
+The thesis's most-guarded rule: the communication-quality metric must be anchored to downstream CONSEQUENCE
+(resolution rate/time, clarification cycles, durability), NEVER to a self-graded rubric or "the AI's suggestion
+was adopted" — measuring agreement is grading your own homework, forbidden. Verified (code, not DB) that this
+holds structurally:
+- **The rubric is a MIRROR, not a verdict.** `grader.ts` scores each reply on acknowledged/answered/next-step
+  (0|1) via an LLM rubric — a self-graded structural read. `careQualityGrade.ts` frames it exactly as the
+  defense requires: §A11 "mirror, not verdict" (the letter travels with its raw count basis), §A18 no-"F"
+  (coaching target, not penalty), §A4 (formula is retune-when-data-answers instrumentation), §3.5 honest-empty
+  (0 replies → null, never a low letter).
+- **The rubric is NEVER the improvement claim.** Grep for `careQualityScore`/`coachAggregate` used in any
+  month-over-month / trend / baseline / before-after context: EMPTY. So the self-graded rubric is not presented
+  as "communication quality improved"; that proof is the consequence metrics (resolution via durable
+  `resolved_at`/`closed_at`).
+- **Net:** intervention (coaching rubric + Co-Pilot/Formulate) and measurement (consequence/resolution) are
+  correctly separated — §3.5's causal order ("better communication is the mechanism; faster resolution is the
+  result"). The grading-own-homework trap is structurally avoided.
+
+Together with §4 above, the product's two core honesty mechanisms — §3.2 (understanding precedes surfacing) and
+§3.5 (consequence, not agreement) — are both verified sound this session.
+
 ## What remains structurally unverifiable here
 
 The one link no static/DB check can reach: a fresh pilot tenant clicking an extension tool in a real browser
