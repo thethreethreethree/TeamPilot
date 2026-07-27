@@ -65,6 +65,16 @@ $/window) — founder decision below.
 **Why suppress-and-degrade, not hard-error:** the customer/agent still has a path forward (a human picks up the
 chat; voice falls back to text) — the cap protects cost without dropping anyone on the floor (§3.3 continuity).
 
+## Current usage data (live DB, 2026-07-27) — grounds the numbers
+
+Queried production `support_messages` to calibrate: **248 messages all-time across ALL tenants** (customer 134,
+**ai 95**, agent 16, system 3). Production C.A.R.E usage is effectively **near-zero** — there is no meaningful
+peak-volume to calibrate a tight cap against yet (mirrors the GL: 0 posted entries). Implication, honestly: **set
+a GENEROUS safety-ceiling now** — its job today is to stop a *runaway/abuse* spike (thousands of calls), not to
+shave normal volume, because normal volume is ~nil. Then tighten with real data as pilots ramp. A tight,
+data-driven cap is premature; a generous abuse-ceiling is correct for launch. (Also validates building the
+`care_ai_usage` ledger EARLY — it starts collecting the very volume data a future tighter cap will need, §3.6.)
+
 ## The founder decision (the ONLY thing blocking build)
 
 1. **The cap numbers + window, per surface** (units differ, so likely a small table of caps, not one number):
