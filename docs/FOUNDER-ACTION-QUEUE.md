@@ -19,6 +19,19 @@ is already CLOSED in prod (0112, live-checked). Guard tests lock the fences. Als
 (inventory + payroll defaulted a today/pay-dated entry to an arbitrary open period → now the CONTAINING period;
 tested helper), which also de-risks the 0196 apply — see decision 6a4 for the full 0196 status.
 
+**🔧 VERCEL ENV-VAR CHECKLIST (consolidated — these were scattered across the queue; here's every one in a single pass).** Each is verified this session where noted:
+| Env var | Effect if unset | Action |
+|---|---|---|
+| `DEEPSEEK_MODEL` | If stale `deepseek-chat` → ALL AI tools 400 (the outage). | VERIFY it's NOT `deepseek-chat` (LLM Connection test). |
+| `ANTHROPIC_API_KEY` | No failover — any DeepSeek issue = all AI down. | Set for failover, or accept single-provider. |
+| `CRON_SECRET` | The 4 crons (incl. §3.5 durability sweep = the moat metric) never run. | Set to activate the whole background layer. |
+| `RCD_RETENTION_DAYS` | RCD PII purge cron inert (defaults 90 if set). | Set + wire the retention cron (conscious PII activation). |
+| `VAPID_SUBJECT` + `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` | Push notifications silently skip (code VERIFIED sound this session — it logs which var is missing; only config gates it). | Set all 3 to enable push delivery. |
+| `NEXT_PUBLIC_CARE_EXTENSION_ID` | `/extension/connect` token handoff FAIL-OPENS (leaks session token to any ext id). | Set to the Web Store id before public launch (fine unset for pilot). |
+| `NEXT_PUBLIC_SITE_URL` | Extension can't reach the app if ≠ the deployed origin. | Confirm === `https://elostate.com`. |
+| `CARE_DEFAULT_TENANT_ID` | If ≠ the ELOSTATE id, Jeff/demo resolve a different tenant. | Confirm it's unset or the ELOSTATE id. |
+| `BOOKING_URL` | C.A.R.E demo "book a call" has no target. | Set to your booking link. |
+
 **DONE + deployed (no action):** tester's "not working" fixed on both causes (entitlement auto-trial +
 `/login` honoring `?next=`); trial-expiry message honest; sidebar "C.A.R.E Tools" grouping; CWE-209
 raw-error leaks closed on all public routes; conversation-mutation route hardened; deep-link continuity;
