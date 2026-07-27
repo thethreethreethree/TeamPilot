@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
+import { filterManagerNav } from "@/lib/nav/managerNav";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
   NavProgressProvider,
@@ -97,7 +98,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
   // user never clicks a nav entry that bounces them (AMD-006 L3). isManager is false while loading →
   // items stay hidden until confirmed (safe direction). MOBILE_TABS has no manager items, so it's unaffected.
   const isSalesCoachManager = useIsSalesCoachManager();
-  const visibleNav = NAV.filter((item) => !item.managerOnly || isSalesCoachManager);
+  const visibleNav = filterManagerNav(NAV, isSalesCoachManager);
 
   return (
     <NavProgressProvider>

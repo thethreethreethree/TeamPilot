@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useCurrentUserRole, isCompanyAdminRole } from "@/lib/hooks/useCurrentUserRole";
+import { filterManagerNav } from "@/lib/nav/managerNav";
 import {
   BarChart3,
   BookOpen,
@@ -147,7 +148,7 @@ export function CareShell({ children }: { children: React.ReactNode }) {
   // hidden until an admin is confirmed — the safe direction (never show what the viewer can't use).
   const role = useCurrentUserRole();
   const isManager = isCompanyAdminRole(role);
-  const visibleTools = TOOLS_NAV.filter((item) => !item.managerOnly || isManager);
+  const visibleTools = filterManagerNav(TOOLS_NAV, isManager);
   const [settingsOpen, setSettingsOpen] = useState(
     pathname.startsWith("/dashboard/care/settings")
   );
