@@ -116,6 +116,19 @@ only in app code. Verified live:
   by a cent would be REJECTED as unbalanced. Surfaced-not-built (accounting decision); latent with 0 posted
   entries in production. Partially closes the "finance not inspected" gap: the balance core is now verified.
 
+## 9. Finance H2 (immutability) + H4 (tenant RLS) — live; finance-core now substantially inspected
+
+- **H2 immutability (posted = terminal):** `fin_entries_immutable` raises on UPDATE/DELETE of a posted entry
+  ("reverse it, do not edit it"); `fin_lines_immutable` blocks editing a posted entry's LINES; `fin_audit_log`
+  is append-only; `fin_freeze_created_by` prevents reassigning the author (SoD). So posted books can only be
+  corrected by a reversing entry, never silently edited.
+- **H4 tenant RLS:** RLS is ON for `fin_accounts`, `fin_journal_entries`, `fin_journal_lines`, `fin_periods`.
+- **Finance-core status:** all four invariants now inspected — H1 (entry-date; `0196` on a branch + 0 existing
+  bad rows by detection), H2 (immutability, live triggers), H3 (balance, DB-trigger-enforced, §8), H4 (RLS on).
+  The books can't be silently altered, go out of balance, or leak across tenants. The remaining finance
+  not-inspected items are the FEATURE-level flows (reports, AP/AR, tax, year-end) beyond these invariants and
+  the branch-only `0196`.
+
 ## What remains structurally unverifiable here
 
 The one link no static/DB check can reach: a fresh pilot tenant clicking an extension tool in a real browser
