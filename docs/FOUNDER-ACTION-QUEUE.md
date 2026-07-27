@@ -78,10 +78,24 @@ different vocab) — a paying `team_large` would read locked until the vocab is 
 for the tester:** if their trial expires before you want, `update care_tenant_config set plan='pro' where
 company_id='<tester>'`. Say the tier→plan map when you're ready for self-serve and I build B1 in one pass.
 
-**Tester diagnostic (confirm which bug they hit):** have them retry a tool — `402` = entitlement (now
-auto-trial-fixed, they should retry) vs `401` = sign-in (Finding 2: if you pinned
-`NEXT_PUBLIC_CARE_EXTENSION_ID` but they load unpacked, only manual token-paste works; leave it unset for
-testers). Full record: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
+**Tester diagnostic (confirm which bug they hit) — THREE candidate causes, check in this order:** have them
+retry a tool and watch the extension panel / network:
+- **`402`** = entitlement (now auto-trial-fixed — they should just retry; it opens a trial).
+- **`401`** = sign-in (Finding 2: if you pinned `NEXT_PUBLIC_CARE_EXTENSION_ID` but they load unpacked, only
+  manual token-paste works; leave it unset for testers).
+- **⚠️ NEITHER 401 nor 402 — the panel never connects / tool calls fail with a network error / "Not connected"
+  persists after sign-in = DOMAIN MISMATCH (verified 2026-07-27, a distinct cause from entitlement).** The
+  extension is HARD-PINNED to `https://elostate.com` (`extension/config.js` `DEFAULT_API_BASE`, and
+  `externally_connectable`/`host_permissions` = elostate.com only). So the extension ONLY works if the tester
+  is using the app AT `https://elostate.com`. If your `NEXT_PUBLIC_SITE_URL` is a `*.vercel.app` / staging /
+  not-yet-attached custom domain, OR the tester opened the app at any URL other than elostate.com, the extension
+  calls the wrong host and the one-click connect (externally_connectable) never fires — and NO entitlement fix
+  helps. **CONFIRM: (a) `NEXT_PUBLIC_SITE_URL === https://elostate.com` in Vercel, and (b) the tester accessed
+  the app at elostate.com** (not a preview URL). If not, that's the "not working," and the fix is aligning the
+  domain (or, for staging, a tester sets `apiBase` in `chrome.storage.local` to the staging origin — but
+  externally_connectable still won't match, so manual token-paste is the staging path).
+
+Full record: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
 
 ## 🧭 PRIORITIZED INDEX (as of 2026-07-26) — do these in order; details in the flags below
 
