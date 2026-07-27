@@ -90,6 +90,17 @@ async function main() {
     return { pass: rls.rowCount === 2 && pols.rows[0].n >= 4, detail: `${rls.rowCount}/2 tables RLS, ${pols.rows[0].n} scoped policies` };
   });
 
+  await check("tenant isolation: every company_id table has RLS ON (no cross-tenant leak)", async () => {
+    // The single highest-value tenant-isolation invariant: a table holding tenant data (a company_id column)
+    // MUST have RLS enabled, or any authenticated user reads every tenant's rows. A future migration that adds
+    // a tenant table and forgets `alter table … enable row level security` is a silent cross-tenant leak —
+    // this catches it. (Verified 2026-07-27: 98 company_id tables, 0 with RLS off.)
+    const r = await c.query(
+      "select count(*)::int n, coalesce(string_agg(cl.relname, ', '), '') as tbls from pg_class cl join pg_namespace ns on ns.oid=cl.relnamespace and ns.nspname='public' where cl.relkind='r' and not cl.relrowsecurity and exists (select 1 from information_schema.columns col where col.table_name=cl.relname and col.column_name='company_id')");
+    const n = r.rows[0].n;
+    return { pass: n === 0, detail: n === 0 ? "all company_id tables RLS-protected" : `${n} table(s) with RLS OFF → LEAK: ${r.rows[0].tbls}` };
+  });
+
   await check("auth-gate invariant: profiles.status CHECK is exactly (active, removed)", async () => {
     // The extension auth gate + requireCareAgent DENYLIST 'removed' (block it, allow the rest). That's only
     // safe because status can ONLY be 'active' or 'removed'. If a migration adds a status (e.g. 'suspended'),
