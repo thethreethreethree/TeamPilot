@@ -22,6 +22,16 @@ export async function GET() {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
+  // The default period offered for an inventory posting must be the one that CONTAINS today, because the
+  // posting RPCs (0180) date the entry `current_date`. Offering an arbitrary open period (the old
+  // `.eq(status,open).limit(1)` with no date filter) is a latent H1-class bug: with monthly periods, two can
+  // be open at once and an unordered limit(1) could hand back June while today is July, so the today-dated
+  // entry lands in the wrong period (GL views aggregate by entry_date, so it silently mis-buckets — and once
+  // migration 0196's containment trigger is live, that mismatch is REJECTED). Selecting the containing period
+  // is a no-op for the default single year-long period (it contains today) and correct for multi-period books.
+  // UTC date string matches Postgres `current_date` under a UTC session (a ≤1-day skew only at midnight UTC,
+  // where the RPC + 0196 would still catch any genuine mismatch since this is just the default hint).
+  const today = new Date().toISOString().slice(0, 10);
   const [items, check, shrink, missingCogs, periods] = await Promise.all([
     sb.from("fin_inventory_items").select("id, sku, name, qty_on_hand, avg_cost, is_active").order("sku"),
     sb.from("fin_inventory_check").select("item_id, sku, discrepancy, stated_value"),
@@ -31,7 +41,7 @@ export async function GET() {
     // view exists to catch anything issued before 0181, or through any path that bypassed fin_issue_invoice.
     // Before this it was queried by nothing: a safety net that was never hung. Now it is (§A31).
     sb.from("fin_invoices_missing_cogs").select("invoice_id, invoice_number, invoice_date, stock_lines"),
-    sb.from("fin_periods").select("id, status").eq("status", "open").limit(1),
+    sb.from("fin_periods").select("id, status").eq("status", "open").lte("start_date", today).gte("end_date", today).limit(1),
   ]);
 
   if (items.error) return NextResponse.json({ error: "Could not load inventory." }, { status: 500 });
