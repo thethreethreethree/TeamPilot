@@ -78,8 +78,14 @@ different vocab) — a paying `team_large` would read locked until the vocab is 
 for the tester:** if their trial expires before you want, `update care_tenant_config set plan='pro' where
 company_id='<tester>'`. Say the tier→plan map when you're ready for self-serve and I build B1 in one pass.
 
-**Tester diagnostic (confirm which bug they hit) — THREE candidate causes, check in this order:** have them
-retry a tool and watch the extension panel / network:
+**Tester diagnostic (confirm which bug they hit) — check in this order:** FIRST split "panel never appeared"
+from "panel appeared but tools failed", because they have different causes:
+- **Panel NEVER appeared?** The panel does NOT auto-inject — it opens by CLICKING the C.A.R.E toolbar icon
+  (title "C.A.R.E — open the panel"; it injects `content.js` into the current tab via `activeTab` on click).
+  Confirm the tester actually clicked the icon. It also can't inject on restricted pages (`chrome://`, the
+  Web Store, PDF/local-file views) — try it on a normal web page. If the panel appears at all, move on.
+- **Panel appeared, but a TOOL fails** — then it's one of the three below. Have them retry a tool and watch
+  the panel / network:
 - **`402`** = entitlement (now auto-trial-fixed — they should just retry; it opens a trial).
 - **`401`** = sign-in (Finding 2: if you pinned `NEXT_PUBLIC_CARE_EXTENSION_ID` but they load unpacked, only
   manual token-paste works; leave it unset for testers).
