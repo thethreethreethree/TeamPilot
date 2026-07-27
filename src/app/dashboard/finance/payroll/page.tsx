@@ -41,7 +41,7 @@ type Run = {
   headcount: number | null;
   status: string;
 };
-type Period = { id: string; status: string };
+type Period = { id: string; status: string; start_date: string; end_date: string };
 
 export default function PayrollPage() {
   const toast = useToast();
@@ -77,7 +77,15 @@ export default function PayrollPage() {
     load().catch(() => setReady(false));
   }, [load]);
 
-  const openPeriod = periods[0];
+  // The payroll entry is dated `payDate` (used as entry_date by fin_post_payroll_run) and GL views aggregate
+  // by entry_date, so it must post to the period that CONTAINS payDate — not periods[0]. Periods arrive
+  // ordered start_date DESC, so periods[0] is merely the most-recent open period; it can disagree with
+  // payDate (a back-dated run, or a future period created ahead), which mis-buckets now and is REJECTED once
+  // 0196's date-in-period trigger is live. This aligns the period to the already-coded cash-basis entry_date
+  // (entry_date = pay_date); it does NOT decide accrual-vs-cash — that founder decision would move BOTH the
+  // entry_date (to period_end) and this selection together. Undefined when no open period contains payDate,
+  // which correctly blocks the post (the existing "No open period" guard) instead of posting to a wrong one.
+  const openPeriod = periods.find((p) => p.start_date <= payDate && payDate <= p.end_date);
 
   // Live check, shown BEFORE submit. The mismatch is the useful signal, not an error to swallow.
   const g = parseMoneyInput(gross);
