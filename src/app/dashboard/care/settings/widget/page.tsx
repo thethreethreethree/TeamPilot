@@ -393,10 +393,7 @@ export default function CareWidgetSettingsPage() {
                 </code>
                 <button
                   type="button"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(inboundEmailAddress);
-                    toast.success("Copied.");
-                  }}
+                  onClick={() => copy(inboundEmailAddress, "Inbound email address")}
                   className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-ember-400 border border-default hover:border-strong px-2 py-1 rounded"
                 >
                   <Copy className="w-3 h-3" aria-hidden />

@@ -93,9 +93,15 @@ export function InviteMemberDialog({
   };
 
   const copy = async () => {
-    await navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    // clipboard.writeText rejects on permission-denied / insecure context — guard it so a failure
+    // doesn't become an unhandled rejection and the "copied" state only flips on real success.
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setError("Couldn't copy — select the link and copy manually.");
+    }
   };
 
   // mailto: subject + body. Encoded as a raw string then encodeURIComponent
