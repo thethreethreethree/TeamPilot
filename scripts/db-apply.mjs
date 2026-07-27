@@ -346,6 +346,11 @@ async function main() {
       }
     }
     console.log(`\n[db-apply] applied ${pending.length} migration(s). DB now at ${pending.at(-1).version}.`);
+    console.log(
+      "[db-apply] NEXT → run `npm run verify:live` to confirm the structural invariants still hold. A migration\n" +
+        "           can silently break one (a new table without RLS = cross-tenant leak, a dropped append-only\n" +
+        "           rule, an altered finance trigger, the auth-gate constraint). verify:live catches it now."
+    );
   } finally {
     await client.end().catch(() => {});
   }
