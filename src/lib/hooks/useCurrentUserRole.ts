@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 
 /**
  * useCurrentUserRole — returns the current user's company-level role
@@ -58,9 +59,10 @@ export function isCompanyAdminRole(role: string | null | undefined): boolean {
 
 /**
  * useIsSalesCoachManager — client predicate for the Sales Coach MANAGER surfaces
- * (Team, Coach Assessment). Mirrors the server gate isSalesCoachManager
- * (src/lib/coach/v5/skillAccess.ts) + the route checks: a manager is
- * `sales_coach_role === 'admin'` OR a company admin (CEO/COO/admin).
+ * (Team, Coach Assessment). Delegates to the SAME pure predicate the server gate
+ * and routes use — isSalesCoachManager (src/lib/coach/v5/skillAccess.ts) — so the
+ * nav's notion of "manager" can never drift from the actual access gate (A13:
+ * author the vocabulary once).
  *
  * Returns `false` while loading / unauthenticated — the SAFE default for nav
  * gating (hide manager-only items until the viewer is confirmed a manager, so a
@@ -82,10 +84,14 @@ export function useIsSalesCoachManager(): boolean {
         .eq("id", auth.user.id)
         .maybeSingle();
       if (cancelled) return;
-      const manager =
-        profile?.sales_coach_role === "admin" ||
-        isCompanyAdminRole((profile?.role as string | null) ?? null);
-      setIsManager(manager);
+      // Reuse the canonical gate (company_id is unused by the manager check — it's role-only).
+      setIsManager(
+        isSalesCoachManager({
+          role: (profile?.role as string | null) ?? null,
+          sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
+          company_id: null,
+        })
+      );
     })();
     return () => {
       cancelled = true;
