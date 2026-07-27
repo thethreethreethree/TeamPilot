@@ -85,19 +85,35 @@ function RedeemInner() {
     setBusy(true);
     try {
       const supabase = createClient();
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      if (signUpErr) throw signUpErr;
-      if (!signUpData.session) {
-        // Email confirmation is enabled on the project → no session yet. The code
-        // is still unredeemed; ask them to confirm and return.
-        setNotice(
-          "Check your email to confirm your account, then return to this page and re-enter your key to finish."
-        );
-        setBusy(false);
-        return;
+
+      // If the visitor is ALREADY authenticated — they signed in earlier, or they
+      // just confirmed their email (the confirmation link establishes a session) and
+      // came back — skip sign-up entirely and redeem with the existing session.
+      // Calling signUp again on an existing email would fail "already registered" and
+      // dead-end the flow.
+      const { data: existing } = await supabase.auth.getUser();
+      if (!existing.user) {
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (signUpErr) {
+          // A pre-existing account on this email lands here. Guide them to sign in
+          // rather than silently failing — the code is still unredeemed.
+          const msg = /already|registered|exists/i.test(signUpErr.message)
+            ? "An account already exists for that email. Sign in first (top-right), then return here and re-enter your key."
+            : signUpErr.message;
+          throw new Error(msg);
+        }
+        if (!signUpData.session) {
+          // Email confirmation is enabled on the project → no session yet. The code
+          // is still unredeemed; ask them to confirm and return.
+          setNotice(
+            "Check your email to confirm your account, then return to this page and re-enter your key to finish."
+          );
+          setBusy(false);
+          return;
+        }
       }
       const res = await fetch("/api/pilot/redeem", {
         method: "POST",
