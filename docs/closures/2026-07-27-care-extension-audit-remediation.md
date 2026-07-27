@@ -16,7 +16,8 @@ Governed by the founder's Build/Audit/Solution protocol (`Thinkerthinker Build K
   noted: threading `next` through the onboarding flow (fresh-signup case) + the separate sales-coach login.
 - Client verified deploy-ready (v0.3 package carries every fix).
 
-**Everything green:** `npm run check` (6 gates, ~1495 tests) + `next build`. ~32 commits, all pushed.
+**Everything green:** `npm run check` (6 gates, 1499 tests) + `next build`. ~50 commits across the initial
+remediation + the findings 17-26 continuation, all pushed.
 
 **Real defects found + fixed this session** (with tests where gate-able): (1) entitlement no-writer root
 cause; (2) phantom-trial edge in that fix; (3) L3 sidebar-group gap; (4) CWE-209 raw-error leak on 3 public
@@ -30,6 +31,29 @@ download-page version fix, sidebar "C.A.R.E Tools" grouping.
 **Verified SOUND with evidence** (no defect): sales-coach read+write authz, agent conversation read routes,
 finance authz (gate-enforced `auth_company_id()` RPCs), knowledge/ACMS authz, widget bootstrap, inbound-email
 webhook, public demo endpoint, extension tool input bounds, both purge crons' delete logic.
+
+**Post-remediation continuation (findings 17-26, proactive §1.5.2 auditing after the tester fix landed).** Four
+MORE real defects found + fixed, each by auditing an adjacent surface or re-testing my own deferrals:
+- **17-18 — `assignTo` parity**: single assign/unassign didn't auto-advance (AMD-006) and skipped write-verification
+  (§3.4 silent-ok) that its sibling `claim` had. Both fixed; a deferral premise disproven by reading the code.
+- **19 — email outbound honesty**: a genuine dropped customer reply logged identically to benign "unconfigured",
+  hiding a real incident in dev noise. Added an `unconfigured` discriminator so a real failure is visible.
+- **server 402 honesty**: the entitlement rejection said "plan doesn't include" even on a trial that ENDED; made
+  it `trialEnded`-aware to match the client.
+- **25 — sales-coach PII-retention HOLE (MEDIUM)**: a dead full-URL `audioAssetUrl` PATCH field could write an
+  `audio_asset_url` shape the recording-purge cron can't delete → audio surviving past the 2-day promise. Removed
+  end-to-end + **regression-test-locked** so it can't silently reopen.
+
+**Verified sound with hard evidence** (this continuation): auto-trial write is tenant-scoped (server-derived
+companyId, no cross-tenant abuse); distribution chain is byte-current every deploy (rules out "stale download");
+BOTH PII crons genuinely delete (RCD: BEFORE-UPDATE triggers not a blocking rule + single-writer immutable
+storage paths; recording-purge: malformed-guard tested); Standard-Home gating is flash-free (SSR `initialMode`);
+XSS/CSRF/N+1 classes clean.
+
+**One NEW flag for you (finding 23, MEDIUM)**: the auto-trial fix WIDENS the known per-tenant-cost gap onto the
+extension surface — every pilot tenant now free-unlocks the 7 LLM tools for 14 days with no per-tenant cap.
+Recommend setting the cap NUMBERS before broad pilot rollout (now folded into FOUNDER-ACTION-QUEUE item 6b as
+the 5th cost surface).
 
 **Your one open item — B/paid-unlock — is a POST-PILOT feature, not an urgent blocker** (the product is
 deliberately pre-billing; see the corrected framing in FOUNDER-ACTION-QUEUE). It needs your tier→plan pricing
