@@ -151,6 +151,33 @@ export default function ExtensionDownloadPage() {
             </li>
           </ul>
         </div>
+
+        <div className="mt-6 rounded-xl border border-default bg-surface p-5">
+          <h2 className="text-sm font-bold text-primary mb-2">Having trouble?</h2>
+          <ul className="list-disc pl-5 space-y-1.5 text-sm text-secondary leading-relaxed">
+            <li>
+              <strong className="text-primary">Panel didn&apos;t appear?</strong> It doesn&apos;t open on its
+              own — click the C.A.R.E icon in your toolbar. It also can&apos;t open on browser system pages
+              (like <code>chrome://</code> settings), the Web Store, or PDFs — try it on a normal website.
+            </li>
+            <li>
+              <strong className="text-primary">Says &quot;trial ended&quot; or your plan doesn&apos;t include
+              it?</strong> Your first use should start a free trial automatically — try once more. If it
+              persists, ask your workspace admin to enable access for your account.
+            </li>
+            <li>
+              <strong className="text-primary">Signed in but it still says &quot;not connected&quot;?</strong>{" "}
+              Click <strong className="text-primary">Sign in</strong> in the panel again and finish — you should
+              land back on the connect page, which hands your session to the extension.
+            </li>
+            <li>
+              <strong className="text-primary">&quot;Couldn&apos;t reach C.A.R.E&quot;</strong> but your
+              internet is fine? Make sure you&apos;re using the C.A.R.E app at its official web address — not a
+              preview or temporary link. If your team runs C.A.R.E at a custom address, ask your admin to point
+              the extension at it.
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );
