@@ -63,4 +63,20 @@ describe("formatEmailAddress", () => {
   it("wraps a valid name in quotes", () => {
     expect(formatEmailAddress("a@b.com", "Jane")).toBe('"Jane" <a@b.com>');
   });
+
+  it("strips CR/LF from the address so a caller can't smuggle a header (§A27 defense-in-depth)", () => {
+    // A control char is never valid in an email address; if an unvalidated address ever reached here,
+    // the CRLF-injected header must not survive into the built recipient string.
+    const evil = "real@customer.com\r\nBcc: attacker@evil.com";
+    const out = formatEmailAddress(evil, "Jane");
+    // The security property: NO CR/LF survives, so the "Bcc:" text can never become a real header — it
+    // collapses into one malformed address token on a single line (harmless), not a header break.
+    expect(out).not.toMatch(/[\r\n]/);
+    expect(out).toBe('"Jane" <real@customer.comBcc: attacker@evil.com>');
+  });
+
+  it("strips angle brackets from the address so it can't close its own <...> early", () => {
+    // "<" and ">" removed → the injected second address can't become its own <...> token.
+    expect(formatEmailAddress("a@b.com> <evil@x.com", null)).toBe("a@b.com evil@x.com");
+  });
 });

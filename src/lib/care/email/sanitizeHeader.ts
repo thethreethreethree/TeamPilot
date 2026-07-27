@@ -45,13 +45,24 @@ export function sanitizeEmailDisplayName(raw: string | null | undefined): string
 /**
  * Build a safe `"Display Name" <addr@host>` recipient/sender string. When the
  * name sanitizes to empty, returns the bare address (no empty `""` wrapper).
- * The address itself is assumed already-validated by the caller (customer.email
- * from the verified inbound sender / a server-constructed from-address).
+ *
+ * The address is normally already-validated by the caller (customer.email from the
+ * verified inbound sender / a server-constructed from-address). But rather than RELY
+ * on that (a future caller could pass an unvalidated address), we also strip CR/LF and
+ * other control chars from the address here (§A27 — enforce at the chokepoint, don't
+ * trust the caller). A control char is NEVER valid in an email address, so this cannot
+ * break a legitimate address; it only closes a header-injection path if the caller's
+ * validation is ever missing. Angle brackets are stripped too so the address can't
+ * close its own `<...>` early.
  */
 export function formatEmailAddress(
   address: string,
   displayName?: string | null
 ): string {
   const safe = sanitizeEmailDisplayName(displayName);
-  return safe ? `"${safe}" <${address}>` : address;
+  const safeAddr = (address ?? "")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x1f\x7f-\x9f<>]/g, "")
+    .trim();
+  return safe ? `"${safe}" <${safeAddr}>` : safeAddr;
 }
