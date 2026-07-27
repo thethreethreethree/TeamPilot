@@ -1,0 +1,22 @@
+-- 0198 — Explicitly revoke anon EXECUTE on redeem_pilot_code.
+--
+-- WHY (found 2026-07-28 via a live-grant audit): 0197 did `revoke all ... from public` +
+-- `grant execute ... to authenticated`, which READS as "authenticated only". But Supabase
+-- grants EXECUTE on public-schema functions to the `anon` role directly (not via PUBLIC),
+-- so revoking from PUBLIC left anon still able to call redeem_pilot_code. Verified live:
+-- has_function_privilege('anon', 'redeem_pilot_code(text,text,text)', 'EXECUTE') = true.
+--
+-- Exploitable? No — redeem_pilot_code's first statement is `if auth.uid() is null then raise
+-- 'Not authenticated'`, so an anon (no-JWT) call self-gates and does nothing. This migration
+-- is DEFENSE-IN-DEPTH to the INVARIANT-4 preferred posture: REMOVE the attack surface rather
+-- than rely solely on the internal guard, and make the live grant match the stated intent
+-- (A27 — a label must not promise an invariant the grants don't enforce). The redemption
+-- route only ever calls this as an authenticated user (createClient reads the session; it
+-- 401s an anon caller before the RPC), so revoking anon cannot affect the legitimate flow.
+--
+-- pilot_code_status KEEPS its anon grant on purpose — the /redeem UI validates a code BEFORE
+-- the client signs up, so that read must be anon-callable.
+--
+-- A12 idempotent — REVOKE of a privilege that isn't held is a no-op.
+
+revoke execute on function redeem_pilot_code(text, text, text) from anon;
