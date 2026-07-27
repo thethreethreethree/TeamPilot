@@ -29,6 +29,33 @@ import { DEFAULT_BUSINESS_TYPE, type BusinessType } from "@/lib/care/handoverTop
 
 const STORAGE_KEY_BASE = "care-widget-session";
 
+// localStorage throws in Safari private mode / disabled storage / quota-exceeded — and this widget runs
+// EMBEDDED on external customer sites, so it hits many browser configs. Wrap every access so a storage
+// failure degrades to an in-memory/ephemeral session for the page load instead of crashing the widget.
+const safeLS = {
+  get(key: string): string | null {
+    try {
+      return typeof window === "undefined" ? null : window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  set(key: string, value: string): void {
+    try {
+      if (typeof window !== "undefined") window.localStorage.setItem(key, value);
+    } catch {
+      /* storage unavailable — session just won't persist */
+    }
+  },
+  remove(key: string): void {
+    try {
+      if (typeof window !== "undefined") window.localStorage.removeItem(key);
+    } catch {
+      /* storage unavailable — nothing to clear */
+    }
+  },
+};
+
 type WidgetConfig = {
   color: string;
   greeting: string;
@@ -119,12 +146,12 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const key = `care-widget-visitor:${embedToken}`;
-    let v = window.localStorage.getItem(key);
+    let v = safeLS.get(key);
     if (!v) {
       v =
         window.crypto?.randomUUID?.() ??
         `v_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
-      window.localStorage.setItem(key, v);
+      safeLS.set(key, v);
     }
     setVisitorId(v);
   }, [embedToken]);
@@ -239,7 +266,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const raw = window.localStorage.getItem(storageKey);
+      const raw = safeLS.get(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as StoredSession;
         if (parsed.conversationId && parsed.sessionToken) {
@@ -269,7 +296,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
       );
       if (!res.ok) {
         if (res.status === 404 || res.status === 410) {
-          window.localStorage.removeItem(storageKey);
+          safeLS.remove(storageKey);
           setSession(null);
           setMessages([]);
         }
@@ -315,7 +342,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   // false unread dot.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(`care-widget-lastview:${embedToken}`);
+    const raw = safeLS.get(`care-widget-lastview:${embedToken}`);
     if (raw) setLastViewedAt(Number(raw) || 0);
   }, [embedToken]);
   // While open the customer is looking → mark everything seen (on open + as messages arrive).
@@ -324,7 +351,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
     const now = Date.now();
     setLastViewedAt(now);
     if (typeof window !== "undefined")
-      window.localStorage.setItem(`care-widget-lastview:${embedToken}`, String(now));
+      safeLS.set(`care-widget-lastview:${embedToken}`, String(now));
   }, [open, messages.length, embedToken]);
   // Gentle collapsed-state poll (active session only, 30s, tab-paused) so a reply that lands
   // while closed is fetched and lights the dot. Without it the dot could never light.
@@ -350,7 +377,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
         return null;
       }
       const data = (await res.json()) as StoredSession;
-      window.localStorage.setItem(storageKey, JSON.stringify(data));
+      safeLS.set(storageKey, JSON.stringify(data));
       setSession(data);
       return data;
     } catch {
@@ -499,7 +526,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
   const resetConversation = useCallback(() => {
     if (voiceMode) endCall();
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem(storageKey);
+      safeLS.remove(storageKey);
     }
     setSession(null);
     setMessages([]);

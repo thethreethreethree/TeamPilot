@@ -85,12 +85,23 @@ function loadSession(): StoredSession | null {
 
 function saveSession(session: StoredSession) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  // localStorage.setItem THROWS in Safari private mode / disabled storage / quota-exceeded.
+  // loadSession already guards the read; guard the write too (was an asymmetric oversight) so a
+  // private-browsing customer never crashes the widget — the session just won't persist across reloads.
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  } catch {
+    /* storage unavailable — degrade to in-memory session for this page load */
+  }
 }
 
 function clearSession() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(STORAGE_KEY);
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* storage unavailable — nothing to clear */
+  }
 }
 
 export function CareChatWidget() {
@@ -135,8 +146,12 @@ export function CareChatWidget() {
   // already read a reply doesn't get a false unread dot.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(LASTVIEW_KEY);
-    if (raw) setLastViewedAt(Number(raw) || 0);
+    try {
+      const raw = window.localStorage.getItem(LASTVIEW_KEY);
+      if (raw) setLastViewedAt(Number(raw) || 0);
+    } catch {
+      /* storage unavailable (private browsing) — no restored read-receipt, harmless */
+    }
   }, []);
 
   // Read-receipt: while the widget is open the customer is looking, so everything up to now
@@ -146,8 +161,12 @@ export function CareChatWidget() {
     if (!open) return;
     const now = Date.now();
     setLastViewedAt(now);
-    if (typeof window !== "undefined")
-      window.localStorage.setItem(LASTVIEW_KEY, String(now));
+    try {
+      if (typeof window !== "undefined")
+        window.localStorage.setItem(LASTVIEW_KEY, String(now));
+    } catch {
+      /* storage unavailable (private browsing) — read-receipt just won't persist, harmless */
+    }
   }, [open, messages.length]);
 
   // Auto-focus the composer when the panel opens.
