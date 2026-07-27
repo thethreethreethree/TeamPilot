@@ -460,26 +460,41 @@ for (const f of FILES) {
   });
 }
 
-// ═══ INVARIANT 9 — no server SECRET exposed via a NEXT_PUBLIC_ env var ════════════════════════════
+// ═══ INVARIANT 9 — every NEXT_PUBLIC_ env var must be a reviewed, safe-to-expose value ════════════
 //
 // LEARNED (defensive): Next.js bundles EVERY NEXT_PUBLIC_-prefixed env var it sees referenced into the CLIENT
 // bundle — visible to anyone who opens the site. A secret accidentally prefixed NEXT_PUBLIC_ (e.g.
-// NEXT_PUBLIC_ANTHROPIC_KEY, NEXT_PUBLIC_SUPABASE_SERVICE_ROLE) leaks to every browser. The only legit public
-// keys are the Supabase ANON key and the VAPID PUBLIC key (both designed to ship client-side). Any
-// NEXT_PUBLIC_ var whose name says SERVICE_ROLE / PRIVATE / SECRET / PASSWORD, or a known secret-provider
-// (Anthropic/DeepSeek/Postmark/CRON), is a leak. (Verified 2026-07-27: the 6 current NEXT_PUBLIC_ vars are all
-// legitimately public.)
-const NEXT_PUBLIC_SECRET = /NEXT_PUBLIC_[A-Z0-9_]*(SERVICE_ROLE|_PRIVATE|_SECRET|PASSWORD|ANTHROPIC|DEEPSEEK|POSTMARK|CRON_)[A-Z0-9_]*/;
+// NEXT_PUBLIC_ANTHROPIC_KEY, NEXT_PUBLIC_STRIPE_KEY, NEXT_PUBLIC_SUPABASE_SERVICE_ROLE) leaks to every browser.
+// This is an ALLOWLIST (not a denylist of scary words) on purpose: a denylist can't anticipate every future
+// secret name (a new provider's KEY would slip through), so instead EVERY NEXT_PUBLIC_ var must be explicitly
+// confirmed safe-to-expose here. The allowlist below is the 6 legit ones (URLs, a public id, the two PUBLIC
+// keys). Anything new fails until reviewed + added — forcing a conscious "is this safe in the client?" decision.
+const NEXT_PUBLIC_ALLOWLIST = new Map([
+  ["NEXT_PUBLIC_BOOKING_URL", "A booking URL — public by nature."],
+  ["NEXT_PUBLIC_CARE_EXTENSION_ID", "The Chrome extension id — a public identifier."],
+  ["NEXT_PUBLIC_SITE_URL", "The app's own origin — public."],
+  ["NEXT_PUBLIC_SUPABASE_ANON_KEY", "The Supabase ANON/client key — designed to ship client-side (RLS protects the data)."],
+  ["NEXT_PUBLIC_SUPABASE_URL", "The Supabase project URL — public."],
+  ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", "The PUBLIC half of the web-push VAPID keypair — the private half stays server-side."],
+]);
+const seenPublic = new Map(); // name -> first file it appears in
 for (const f of FILES) {
-  const m = f.sql.match(NEXT_PUBLIC_SECRET);
-  if (!m) continue;
+  const matches = f.sql.match(/NEXT_PUBLIC_[A-Z0-9_]+/g);
+  if (!matches) continue;
+  for (const name of matches) {
+    if (NEXT_PUBLIC_ALLOWLIST.has(name)) continue;
+    if (!seenPublic.has(name)) seenPublic.set(name, f.path);
+  }
+}
+for (const [name, file] of seenPublic) {
   findings.push({
-    rule: "Server secret exposed via a NEXT_PUBLIC_ env var (leaks to the client bundle)",
-    file: f.path,
+    rule: "Unreviewed NEXT_PUBLIC_ env var (bundled into the client — possible secret leak)",
+    file,
     why:
-      `'${m[0]}' carries the NEXT_PUBLIC_ prefix, so Next.js bundles it into every client — anyone who opens\n` +
-      "      the site can read it. Server secrets must NEVER be NEXT_PUBLIC_. Drop the prefix and read it only\n" +
-      "      server-side. (The Supabase ANON key + VAPID PUBLIC key are the only NEXT_PUBLIC_ keys that are safe.)",
+      `'${name}' is NEXT_PUBLIC_-prefixed, so Next.js bundles it into every client — anyone who opens the site\n` +
+      "      can read it. Confirm it is SAFE to expose publicly (a URL, a public id, or a PUBLIC key — NOT a\n" +
+      "      secret/API key/service-role), then add it to NEXT_PUBLIC_ALLOWLIST with the reason. If it's a\n" +
+      "      secret, DROP the prefix and read it server-side only.",
   });
 }
 
@@ -512,7 +527,7 @@ for (const f of FILES) {
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
