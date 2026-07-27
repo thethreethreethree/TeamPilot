@@ -10,9 +10,10 @@ unit-tested. Full record: memory `project_pilot_access_codes_2026_07_28`. **YOUR
 1. **Do ONE live browser redemption** (redeem an elostate code end-to-end) — the browser signup→redeem→
    redirect chain is the ONE part I couldn't verify headlessly (AMD-006 3rd-addendum honest label). Confirm
    you land in the dashboard; paste any error and I fix it.
-2. **Supabase email-confirmation setting** — if "Confirm email" is ON, a new client must confirm their email
-   before redemption completes (the page shows a "confirm then return" notice). **Recommend turning it OFF**
-   for a friction-free pilot. Confirm which it is.
+2. **✅ RESOLVED 2026-07-28 — email confirmation is OFF (founder disabled it, verified live).** Production
+   `/auth/v1/settings` now reports `mailer_autoconfirm: true` (was false). So `signUp` returns a session
+   immediately and `/redeem` completes in ONE step (no "check your email" detour — that fallback branch never
+   fires now). Founder's security call, sound: the pilot CODE is the gate, so an unverified email is fine. ~~Original: if "Confirm email" is ON, a new client must confirm before redemption completes; recommend OFF.~~
 3. **Product-context demo gap (C.A.R.E codes):** the pilot flow skips the onboarding wizard, so
    `care_tenant_config.ai_product_context` is NULL → a C.A.R.E pilot lands with Jeff handing off product
    questions until Settings is filled (graceful, not a bug). Fix offered (add an optional product field to
