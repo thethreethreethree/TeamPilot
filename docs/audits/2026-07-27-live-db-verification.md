@@ -98,8 +98,14 @@ Verified the pure `evaluateControlGate` (brain/index.ts) implements this:
 Together, the product's core thesis mechanisms are all verified structurally sound this session:
 **§3.1 (append-only events — live)**, **§3.2 (understanding precedes surfacing — fail-closed + configured,
 live)**, **§3.4 (month-1 control window — fail-safe to suppressed)**, and **§3.5 (consequence, not agreement)**.
-The differentiating thesis is structurally enforced, not just intended. (§3.3 "guide, don't overtake" is a
-behavioral property rather than a single structural gate — not covered here.)
+The differentiating thesis is structurally enforced, not just intended. **§3.3 "guide, don't overtake"** is a
+behavioral property (no single DB gate), but it IS embodied in the prompt/design layer at three points — the
+product-knowledge principle (`elostateProductKnowledge.ts:72` "asks for and sharpens the human's own thinking
+rather than replacing it; the human always decides"), an INVIOLABLE composer discipline (`brain/index.ts:235`:
+§3.3 is not overridden by any team's learned style/context, "applies to every response"), and the coach design
+(rep chooses when to invoke; acknowledge pushback + reflect the rep's read first). So the AI's DESIGNED behavior
+respects guide-don't-overtake and is protected from being overridden by learned context. (Live output QUALITY
+still needs runtime eval — the honest gap.)
 
 ## 8. Finance double-entry balance — DB-trigger-enforced (live)
 
