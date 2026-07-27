@@ -183,6 +183,7 @@ const RPC_ONLY_TABLES = new Map([
   // needs a human to set it, and a CONTROL when a human must never be able to.
   ["problem_thresholds", "§3.2 Understanding-Gate thresholds: DB-seeded, trigger-read. App-editable thresholds would let someone lower the evidence bar for surfacing a problem — disabling the core structural gate. Unreachable BY DESIGN."],
   ["events", "§3.1 append-only historical record; the app inserts via the emit helpers, which name the helper not the table."],
+  ["pilot_codes", "0197 single-use pilot access codes; the app names the RPCs (pilot_code_status / redeem_pilot_code), never the table. RLS-sealed, DEFINER-written."],
 ]);
 
 // Individual COLUMNS the app deliberately does not name (the table IS app-facing, but this column is

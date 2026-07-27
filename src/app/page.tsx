@@ -9,6 +9,7 @@ import {
   Eye,
   GitMerge,
   Hourglass,
+  KeyRound,
   MessageSquare,
   MessageSquarePlus,
   Repeat,
@@ -149,9 +150,20 @@ export default function Landing() {
             >
               Sign in
             </Link>
+            {/* Pilot access-key entry (2026-07-28). New clients with a pilot code
+                redeem it here → /redeem creates their account, provisioned for the
+                code's module. Distinct from "Request access" (which is for people
+                without a code). */}
+            <Link
+              href="/redeem"
+              className="flex items-center gap-1.5 text-brand hover:text-primary border border-ember-400/40 hover:border-ember-400/70 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <KeyRound className="w-3.5 h-3.5" aria-hidden="true" />
+              Enter access key
+            </Link>
             <Link
               href="/login"
-              className="flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              className="hidden sm:flex items-center gap-1.5 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-3 py-1.5 rounded-lg transition-colors"
             >
               Request access <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>

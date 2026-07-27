@@ -104,6 +104,16 @@ const ALLOWLIST = new Map([
   ["care_visitor_presence.update", "0192 service-role-only upsert (onConflict company_id,visitor_id)."],
   ["care_visitor_presence.delete", "0192 service-role-only opportunistic purge of stale rows; scoped by company_id."],
 
+  // 0197 pilot_codes — single-use pilot access codes. RLS ENABLED with NO policies BY DESIGN: the table is
+  // reachable ONLY through the two SECURITY DEFINER functions (pilot_code_status read, redeem_pilot_code
+  // write) and the service role. A member must never enumerate or mutate codes directly — that would let
+  // someone read an unused code (free account) or clear a redeemed flag (re-use). The absence of policies is
+  // the control (A23 — authz-bearing rows DB-frozen against direct end-user access), not an oversight.
+  ["pilot_codes.select", "0197 SECURITY DEFINER pilot_code_status() only; direct read would leak unused codes."],
+  ["pilot_codes.insert", "0197 seeded by the operator (service role) only; a client insert could mint free access."],
+  ["pilot_codes.update", "0197 redeem_pilot_code() (DEFINER) marks single-use; a client update could un-redeem a code."],
+  ["pilot_codes.delete", "0197 redemption history is the record of who onboarded; never client-deletable."],
+
   ["events.update", "§3.1 events are immutable historical record."],
   ["events.delete", "§3.1 events are immutable; cascades via FK only."],
   ["signals.update", "§3.1 signals are immutable derived facts."],
