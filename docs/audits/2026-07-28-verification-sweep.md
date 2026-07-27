@@ -32,6 +32,7 @@ to `FOUNDER-ACTION-QUEUE.md`.
 | Webhook auth (inbound email) | sound (secret-gated, constant-time, fail-closed) |
 | Extension token handoff | **⚠ fail-open when `NEXT_PUBLIC_CARE_EXTENSION_ID` unset** — fine for pilot, pin before public launch |
 | Widget embed origin validation | sound (exact-match whitelist, dev-only wildcard, production-strict) |
+| Extension downloadable artifact (pilot testers download it) | sound — source pins all agree on `elostate.com` (`config.js`/`background.js`/`content.js`/manifest); built `store/dist` + `care-extension.zip` are version-current (0.3.0=0.3.0, no stale drift) and correctly localhost-stripped by the build (prod Web-Store artifact = elostate.com only, by design). Sharpens the "domain mismatch" finding: the ARTIFACT is correct; domain-match rests entirely on app-side `NEXT_PUBLIC_SITE_URL===elostate.com` (flagged env check) |
 | Signed-URL gating (§A27) | sound (all 3 issuance points gate before signing) |
 | Gate-predicate drift (admin / sales-coach-manager) | **consolidated** to canonical predicates (9 sites); remaining ~13 inline hand-rolls **audited for semantic divergence → ZERO** (all enumerate exactly `{CEO,COO,admin}` = `isAdminRole`; none over-permissive, none locks out an admin). Drift is cosmetic-only, no latent authz hole; consolidation now *proven* behavior-preserving. `RoleSchema` (invite-only, admin excluded by design) and `chats:359` (per-topic `chat_participants.role`) are correct-by-design, not divergence. |
 | Nav-stall class (AMD-006 L3) | fixed both shells + DRY + tested |
