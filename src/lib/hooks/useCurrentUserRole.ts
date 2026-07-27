@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
+import { isAdminRole } from "@/lib/roles";
 
 /**
  * useCurrentUserRole — returns the current user's company-level role
@@ -43,18 +44,17 @@ export function useCurrentUserRole(): string | null {
   return role;
 }
 
-/** Set of profile roles that grant company-wide admin powers. */
-const COMPANY_ADMIN_ROLES = new Set(["CEO", "COO", "admin"]);
-
 /**
- * isCompanyAdminRole — predicate. True when the given role gives the
- * holder admin powers across the entire company (every topic, every
- * task, every surface). Centralized so the COO/CEO/admin set stays
- * consistent — these are the same roles checked by
- * /api/admin/team-check, /api/feedback/[id], and sidebar gating.
+ * isCompanyAdminRole — predicate. True when the given role gives the holder admin
+ * powers across the entire company (every topic, every task, every surface).
+ *
+ * Delegates to the CANONICAL isAdminRole / ADMIN_ROLES (@/lib/roles), which authors
+ * the company-admin set once (A13). Previously this held its own duplicate
+ * {CEO,COO,admin} Set — a second copy of a security gate that could drift from the
+ * canonical one. Kept as a named alias since callers import it by this name.
  */
 export function isCompanyAdminRole(role: string | null | undefined): boolean {
-  return role != null && COMPANY_ADMIN_ROLES.has(role);
+  return isAdminRole(role);
 }
 
 /**
