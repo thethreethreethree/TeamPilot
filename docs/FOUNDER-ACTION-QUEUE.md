@@ -1,5 +1,28 @@
 # Founder action queue — as of 2026-07-14
 
+## 🆕 2026-07-28 — PILOT ACCESS CODES shipped (your directive, client waiting). 4 open items.
+
+Built self-serve pilot onboarding: 100 single-use 7-char codes (34 elostate / 33 sales_coach / 33 care),
+redeemed on the landing page → Company + Email + Password → account provisioned for the code's module.
+DB at **0197**; commits `d6e98489` + `d3b200ea`; **PDF of codes at repo-root `PILOT-ACCESS-CODES.pdf`
+(gitignored — live keys, NOT in git)**. RPC layer runtime-verified (live DB, rolled-back); route logic
+unit-tested. Full record: memory `project_pilot_access_codes_2026_07_28`. **YOUR ITEMS:**
+1. **Do ONE live browser redemption** (redeem an elostate code end-to-end) — the browser signup→redeem→
+   redirect chain is the ONE part I couldn't verify headlessly (AMD-006 3rd-addendum honest label). Confirm
+   you land in the dashboard; paste any error and I fix it.
+2. **Supabase email-confirmation setting** — if "Confirm email" is ON, a new client must confirm their email
+   before redemption completes (the page shows a "confirm then return" notice). **Recommend turning it OFF**
+   for a friction-free pilot. Confirm which it is.
+3. **Product-context demo gap (C.A.R.E codes):** the pilot flow skips the onboarding wizard, so
+   `care_tenant_config.ai_product_context` is NULL → a C.A.R.E pilot lands with Jeff handing off product
+   questions until Settings is filled (graceful, not a bug). Fix offered (add an optional product field to
+   /redeem → set ai_product_context, mirrors complete_company_onboarding); **founder-gated** — it changes the
+   3 fields you specified, so I won't add it unasked. Interim: tell C.A.R.E pilots to set Product context in
+   Settings first.
+4. **§3.4 deviation is LIVE + on the record:** pilot codes SKIP the 30-day AI-guidance control window (your
+   "instant guidance" decision). Documented in the 0197 migration header — flagged here so it's visible, no
+   action needed unless you want to reverse it.
+
 ## ✅ 2026-07-27 SESSION — one decision checklist (everything surfaced this session, prioritized)
 
 **🔴 DO FIRST — agent mistake, your decision (time-sensitive IF the repo is public): founder-IP file in git
