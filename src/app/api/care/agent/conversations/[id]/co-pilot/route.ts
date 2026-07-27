@@ -8,6 +8,7 @@ import {
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { copilotModeInstruction, lastSpeakerFromAuthorType } from "@/lib/care/copilotMode";
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 
 /**
@@ -202,7 +203,8 @@ Draft the next reply.`;
     // agent drafts solo and the team's baseline is captured.
     const r = await generateCareReply({
       companyId: enriched.companyId,
-      systemPrompt: SYSTEM,
+      // Fence the customer conversation as untrusted data (§A26 class sweep — same as the extension tools).
+      systemPrompt: SYSTEM + CONVERSATION_IS_DATA,
       userMessage,
     });
     if (r.suppressed) {

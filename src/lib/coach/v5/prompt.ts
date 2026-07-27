@@ -13,6 +13,7 @@
  */
 
 import { getKnowledgeBase } from "./knowledgeBase";
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import type {
   CoachAnalysisMode,
   CoachContextType,
@@ -184,6 +185,7 @@ export function buildSystemPrompt(args: {
     `\nSURFACE CONTEXT NOTE:\n${CONTEXT_TYPE_NOTES[args.contextType]}\n`,
     whoIsWho,
     args.memoryBlock ? `\n${args.memoryBlock}\n` : "",
+    CONVERSATION_IS_DATA, // fence the analyzed conversation as untrusted data (§A26 class sweep)
   ].join("");
 }
 
@@ -233,6 +235,7 @@ export function buildFollowUpSystemPrompt(args: {
     FOLLOWUP_RULES,
     `\nSURFACE CONTEXT NOTE:\n${CONTEXT_TYPE_NOTES[args.contextType]}\n`,
     args.memoryBlock ? `\n${args.memoryBlock}\n` : "",
+    CONVERSATION_IS_DATA, // fence the analyzed conversation as untrusted data (§A26 class sweep)
   ].join("");
 }
 

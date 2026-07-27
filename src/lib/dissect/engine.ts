@@ -1,6 +1,7 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import { MAX_SOURCE_CHARS } from "./constants";
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 
 /**
  * Dissect a Conversation — engine (founder 2026-07-07).
@@ -152,6 +153,7 @@ specific moments in it. Never fabricate anything that isn't there. If they ask
 something the conversation can't answer, say so plainly.
 
 Keep replies focused — a few sentences, not an essay.
+${CONVERSATION_IS_DATA}
 
 --- PASTED CONVERSATION ---
 ${args.sourceText.slice(0, MAX_SOURCE_CHARS)}

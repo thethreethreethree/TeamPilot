@@ -6,6 +6,7 @@ import { fetchAgentConversation } from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 
 /**
  * POST /api/care/agent/conversations/[id]/formulate
@@ -138,7 +139,8 @@ export async function POST(
     // "honesty is the moat" rule.
     const r = await generateCareReply({
       companyId: detail.conversation.companyId,
-      systemPrompt: SYSTEM,
+      // Fence the customer conversation as untrusted data (§A26 class sweep — same as the extension tools).
+      systemPrompt: SYSTEM + CONVERSATION_IS_DATA,
       userMessage,
     });
     if (r.suppressed) {
