@@ -75,7 +75,10 @@ function toolRequest(tool: ToolKey, convId: string): { url: string; body?: unkno
     case "dissect":
       return { url: `${base}/dissect`, body: {} };
     case "coach":
-      return { url: `${base}/ask-coach`, body: { draft: "", mode: "ask" } };
+      // ask-coach requires draft.min(1) — an empty draft 400s (this mobile stub was never
+      // runtime-exercised). Mobile is one-tap with no draft input, so ask a sensible default
+      // coaching question about the current thread; "ask" mode treats the draft as the user's question.
+      return { url: `${base}/ask-coach`, body: { draft: "How should I handle this conversation?", mode: "ask" } };
     case "copilot":
       return { url: `${base}/co-pilot`, body: {} };
     case "task":
