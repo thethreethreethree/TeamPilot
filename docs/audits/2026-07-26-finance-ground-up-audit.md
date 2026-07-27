@@ -134,6 +134,26 @@ to the period (confirmed: no such constraint in the table def `0118:28-44`; `fin
   so it must not auto-apply as a side effect of the founder's `0188`–`0195` `db:apply`. Founder reviews →
   merges → applies → runs the verifier. Static gates pass (rls:audit, invariant:audit); SQL not executed.
 
+- **Pre-apply verification of the drafted 0196 trigger (2026-07-27, read each cited path directly).** The
+  trigger's correctness rests on two empirical claims (if either is wrong it rejects LEGITIMATE postings —
+  the over-rejection risk this audit flagged). Both checked against the real migration code:
+  - **Opening-balance exemption — CONFIRMED SAFE.** The trigger exempts `source not like 'opening_batch:%'`;
+    `0169:176` posts exactly `'opening_batch:' || p_batch::text`. The prefix matches, so a legitimate
+    opening-balance import (as-of date legitimately outside the period) is NOT rejected. The main flagged
+    risk is closed.
+  - **Payroll (`0167`) + inventory (`0180`) — correct AS WRITTEN, one residual operational edge.** Both set
+    `entry_date` from data (payroll `pay_date`, inventory `current_date`) and take a caller-supplied period.
+    Because GL/reporting views aggregate by `entry_date`, the only consistent period is the one CONTAINING
+    that date, so the containment check is correct and a mismatch it rejects is genuinely the H1 mis-call.
+    **Edge to confirm before apply:** these depend on the *caller* passing the period that contains the
+    date. At a period boundary — inventory posts `current_date` but the resolver hands it a prior still-open
+    period, or today's period row isn't created yet — a legitimate post would be rejected. Not a trigger
+    defect; a precondition on the period-resolution logic (period rows must track the calendar). Founder:
+    confirm the inventory/payroll callers pass the containing period, or the post fails at month-start.
+  - **Net:** the drafted 0196 is safe to apply for the manual-journal + reversal paths it targets and does
+    not over-reject opening balances; the only thing to confirm operationally is the payroll/inventory
+    caller's period resolution at boundaries. Verification is static (SQL still not executed on a real DB).
+
 ## Bottom line
 Application layer sound (no RLS bypass, no float money-math). DB layer: balance, immutability, and tenant
 isolation are all DB-enforced and sound. **One material finding: H1** — the closed-period gate is enforced
