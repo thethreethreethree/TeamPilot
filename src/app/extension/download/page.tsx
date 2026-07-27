@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+// The extension manifest is the SINGLE SOURCE OF TRUTH for the version (see VERSION below).
+import extensionManifest from "../../../../extension/manifest.json";
 
 /**
  * /extension/download — public download + install page for the C.A.R.E browser extension.
@@ -16,11 +18,11 @@ export const metadata: Metadata = {
     "Download the C.A.R.E browser extension and install it in Chrome, Edge, or Brave — summarize, dissect, coach, and draft replies on any conversation you're viewing.",
 };
 
-// Keep in sync with extension/manifest.json "version" (source of truth) on every extension bump. This was
-// stale at 0.1.0 while the shipped package was 0.3.0 — a tester "downloading the latest" saw the wrong number
-// (audit 2026-07-27, Finding 5). A future maintainer can single-source this: build-extension-download.mjs
-// already reads the manifest version + the zip byte size and could emit them into src/ for import.
-const VERSION = "0.3.0";
+// SINGLE-SOURCED from the extension manifest at build time, so the displayed version can NEVER drift from the
+// shipped package again. It was hardcoded and went stale once — showed 0.1.0 while the package was 0.3.0, so a
+// tester "downloading the latest" saw the wrong number (audit 2026-07-27, Finding 5). Now a version bump in the
+// manifest is the only edit needed; this page follows automatically.
+const VERSION = extensionManifest.version;
 
 const STEPS: Array<{ title: string; body: React.ReactNode }> = [
   {
