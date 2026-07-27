@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { readBody } from "@/lib/api/validate";
 import { CURATED_VOICES, DEFAULT_VOICE_ID } from "@/lib/care/voice/elevenlabs";
@@ -27,8 +28,11 @@ async function resolve() {
     .eq("id", auth.user.id)
     .maybeSingle();
   const role = (profile?.role as string | null) ?? null;
-  const isCompanyAdmin = role === "CEO" || role === "COO" || role === "admin";
-  const isManager = isCompanyAdmin || profile?.sales_coach_role === "admin";
+  const isManager = isSalesCoachManager({
+    role,
+    sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
+    company_id: null,
+  });
   return {
     ok: true as const,
     companyId: (profile?.company_id as string | null) ?? null,

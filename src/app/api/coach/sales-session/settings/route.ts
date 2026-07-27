@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { getSalesKnowledgeBase } from "@/lib/coach/v5/salesKnowledgeBase";
 
 /**
@@ -24,9 +25,8 @@ export async function GET() {
     .maybeSingle();
 
   const role = (profile?.role as string | null) ?? null;
-  const isCompanyAdmin = role === "CEO" || role === "COO" || role === "admin";
   const salesCoachRole = (profile?.sales_coach_role as string | null) ?? null;
-  const isManager = isCompanyAdmin || salesCoachRole === "admin";
+  const isManager = isSalesCoachManager({ role, sales_coach_role: salesCoachRole, company_id: null });
 
   // Methodology corpus status (admin-relevant, real loaded state).
   const kb = getSalesKnowledgeBase();
