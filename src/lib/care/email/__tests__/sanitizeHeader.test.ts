@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  sanitizeEmailHeaderValue,
   sanitizeEmailDisplayName,
   formatEmailAddress,
 } from "../sanitizeHeader";
@@ -78,5 +79,21 @@ describe("formatEmailAddress", () => {
   it("strips angle brackets from the address so it can't close its own <...> early", () => {
     // "<" and ">" removed → the injected second address can't become its own <...> token.
     expect(formatEmailAddress("a@b.com> <evil@x.com", null)).toBe("a@b.com evil@x.com");
+  });
+});
+
+describe("sanitizeEmailHeaderValue (In-Reply-To / References from a customer Message-Id)", () => {
+  it("strips CR/LF so a crafted Message-Id can't smuggle a header", () => {
+    const evil = "<abc@mail>\r\nBcc: attacker@evil.com";
+    const out = sanitizeEmailHeaderValue(evil);
+    expect(out).not.toMatch(/[\r\n]/);
+    expect(out).toBe("<abc@mail>Bcc: attacker@evil.com"); // one line; no header break
+  });
+  it("leaves a legitimate Message-Id intact", () => {
+    expect(sanitizeEmailHeaderValue("<CAF=abc123@mail.gmail.com>")).toBe("<CAF=abc123@mail.gmail.com>");
+  });
+  it("empty/nullish → empty (caller skips threading)", () => {
+    expect(sanitizeEmailHeaderValue(null)).toBe("");
+    expect(sanitizeEmailHeaderValue(undefined)).toBe("");
   });
 });

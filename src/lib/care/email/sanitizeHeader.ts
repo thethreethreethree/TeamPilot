@@ -55,6 +55,24 @@ export function sanitizeEmailDisplayName(raw: string | null | undefined): string
  * validation is ever missing. Angle brackets are stripped too so the address can't
  * close its own `<...>` early.
  */
+/**
+ * Sanitize an untrusted value before it is used as a custom email HEADER value (e.g. In-Reply-To /
+ * References built from the inbound Message-Id, which the customer's mail client controls). Strips CR/LF and
+ * other control chars so the value cannot break out of its header and smuggle another one. Same §A27 posture
+ * as formatEmailAddress: enforce here, don't rely on the provider to clean it. A control char is never valid
+ * in a Message-Id, so this cannot break legitimate threading.
+ */
+export function sanitizeEmailHeaderValue(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return (
+    raw
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f-\x9f]/g, "")
+      .trim()
+      .slice(0, 998) // RFC 5322 max line length; a Message-Id is far shorter
+  );
+}
+
 export function formatEmailAddress(
   address: string,
   displayName?: string | null

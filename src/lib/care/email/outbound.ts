@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatEmailAddress } from "@/lib/care/email/sanitizeHeader";
+import { formatEmailAddress, sanitizeEmailHeaderValue } from "@/lib/care/email/sanitizeHeader";
 
 /**
  * Outbound email dispatch — Phase 4 commit 2.
@@ -171,9 +171,12 @@ export async function dispatchOutboundEmailReply(args: {
   // Threading headers — In-Reply-To + References point at the
   // conversation's external_thread_id so replies thread back.
   const headers: Array<{ Name: string; Value: string }> = [];
-  if (conv.external_thread_id) {
-    headers.push({ Name: "In-Reply-To", Value: conv.external_thread_id });
-    headers.push({ Name: "References", Value: conv.external_thread_id });
+  // external_thread_id derives from the inbound Message-Id (customer's mail client) — sanitize before it
+  // becomes a header value so a crafted Message-Id can't smuggle a header (§A27; empty → skip threading).
+  const threadId = sanitizeEmailHeaderValue(conv.external_thread_id);
+  if (threadId) {
+    headers.push({ Name: "In-Reply-To", Value: threadId });
+    headers.push({ Name: "References", Value: threadId });
   }
 
   // ─── 4. Dispatch to Postmark ────────────────────────────────
