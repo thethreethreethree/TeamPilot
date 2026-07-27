@@ -427,6 +427,19 @@ not," the honest scope:
 - Non-image RCD media (PDF/video/audio) bytes — metadata-only by design, a founder-flagged decision.
 - Anything gated behind a founder decision or config (cost cap numbers, B/paid-unlock, email cede-vs-retry).
 
+## Low-severity observation — the monthly conversation quota is check-then-insert (soft-cap race)
+
+27. **LOW (accepted soft-cap tradeoff, not fixed) — the widget conversation quota can be slightly overrun under
+    concurrency.** `conversations/route.ts:111-133`: reads `countCareConversationsThisMonth` (111), rejects if
+    `used >= quota` (112), inserts later (133) — non-atomic. Two exactly-concurrent creates near the boundary can
+    both pass and overrun by a small margin; because they pass the check, they aren't even logged as
+    quota-exceeded (silent overrun). Severity is LOW: it's a SOFT monthly business cap, the race window is tiny,
+    and the endpoint is rate-limited (10/min/IP), so the overrun is a handful of conversations at most. NOT fixed
+    — atomic enforcement (a DB counter/constraint or SELECT…FOR UPDATE) is over-engineering for a soft cap.
+    **Relevance to the cost decision (finding 23 / 6b):** the quota is a cost-control mechanism, so this means it
+    is not a HARD bound — worth knowing when you set the per-tenant cost cap (that cap, if you want a hard limit,
+    should be enforced atomically, unlike this soft quota).
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
