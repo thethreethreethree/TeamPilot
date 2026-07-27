@@ -19,6 +19,7 @@
     "invariant:audit": "node scripts/invariant-audit.mjs",
     "verify:live": "node scripts/verify-invariants-live.mjs",
     "pilot:status": "node scripts/pilot-status.mjs",
+    "pilot:generate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/pilot-generate.mjs",
     "test:chain": "cross-env EXECOS_INTEGRATION_TEST=1 vitest run src/lib/data/__tests__/chain.integration.test.ts",
     "check": "npm run typecheck && npm run lint && npm run theme:audit && npm run rls:audit && npm run invariant:audit && npm run test",
     "setup:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/check-setup.ps1",
