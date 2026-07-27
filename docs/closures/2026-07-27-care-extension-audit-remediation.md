@@ -377,6 +377,21 @@ ruled it out with hard evidence:
     levels matching different risks, not a gap. Combined with finding 24 (DELETE not blocked by an append-only
     rule), the RCD purge is fully sound: rows delete AND bytes are genuinely removed.
 
+## Production entitlement state (live DB, 2026-07-27) — the fix's real blast radius
+
+Queried `care_tenant_config` to make the runtime-verify concrete:
+- **13 tenants total; 0 paid** (confirms the deliberate pre-billing state).
+- **12 are `pilot` + no trial → LOCKED**, and will AUTO-TRIAL on their next extension tool call once the fix is
+  deployed. This is finding-1's blast radius: 12 tenants unblock automatically, no manual step.
+- **1 is `pilot` + trial-started**, but that trial began ~07-22 (~5 days ago) — BEFORE this session's auto-trial
+  fix, and the columns had no writer until now, so it was MANUALLY set (a prior test-unlock), NOT the fix
+  firing. So the auto-trial has not yet fired in production; the 12 locked pilots are the live-verification
+  candidates. Correctness holds: that pre-set trial computes as `trial` (day ~5 of 14), so `shouldAutoStartTrial`
+  is false — it won't re-fire (one trial per tenant, as designed).
+- **⚠️ Minor flag:** that one trial EXPIRES ~2026-08-05 (14 days from ~07-22). If it's a real pilot (not a test
+  tenant), it will then show the honest "trial ended — contact your admin" message and need a manual unlock
+  (`update care_tenant_config set plan='pro'` or reset the trial start). If it's a throwaway test tenant, ignore.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
