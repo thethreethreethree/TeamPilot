@@ -29,8 +29,10 @@ export async function GET() {
   // entry lands in the wrong period (GL views aggregate by entry_date, so it silently mis-buckets — and once
   // migration 0196's containment trigger is live, that mismatch is REJECTED). Selecting the containing period
   // is a no-op for the default single year-long period (it contains today) and correct for multi-period books.
-  // UTC date string matches Postgres `current_date` under a UTC session (a ≤1-day skew only at midnight UTC,
-  // where the RPC + 0196 would still catch any genuine mismatch since this is just the default hint).
+  // `toISOString()` is UTC by spec (independent of the server's local TZ), and the DB session is UTC (verified
+  // 2026-07-27 against the live DB: current_setting('TimeZone')='UTC'), so this string equals the DB's
+  // `current_date` at ALL times — both roll over together at UTC midnight, no skew. (Even if that ever changed,
+  // this is only the default period HINT; the posting RPC + 0196 catch a genuine date/period mismatch anyway.)
   const today = new Date().toISOString().slice(0, 10);
   const [items, check, shrink, missingCogs, periods] = await Promise.all([
     sb.from("fin_inventory_items").select("id, sku, name, qty_on_hand, avg_cost, is_active").order("sku"),
