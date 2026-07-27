@@ -90,6 +90,18 @@ async function main() {
     return { pass: rls.rowCount === 2 && pols.rows[0].n >= 4, detail: `${rls.rowCount}/2 tables RLS, ${pols.rows[0].n} scoped policies` };
   });
 
+  await check("auth-gate invariant: profiles.status CHECK is exactly (active, removed)", async () => {
+    // The extension auth gate + requireCareAgent DENYLIST 'removed' (block it, allow the rest). That's only
+    // safe because status can ONLY be 'active' or 'removed'. If a migration adds a status (e.g. 'suspended'),
+    // BOTH gates silently FAIL OPEN (a suspended user is !== 'removed' → allowed). This locks the dependency:
+    // if the constraint changes, this fails — flip both gates to an ALLOWLIST (status === 'active').
+    const r = await c.query(
+      "select pg_get_constraintdef(con.oid) as def from pg_constraint con join pg_class rel on rel.oid=con.conrelid where rel.relname='profiles' and con.contype='c' and pg_get_constraintdef(con.oid) ilike '%status%' limit 1");
+    const def = (r.rows[0]?.def || "").replace(/\s+/g, " ").trim();
+    const expected = "CHECK ((status = ANY (ARRAY['active'::text, 'removed'::text])))";
+    return { pass: def === expected, detail: def === expected ? "denylist safe" : `CHANGED → flip extensionAuth + requireCareAgent to allowlist: ${def || "(no constraint found)"}` };
+  });
+
   await check("finding-25 audio pointers all purgeable (0 non-'assets-v1/' shapes)", async () => {
     const badAudio = await c.query(
       "select count(*)::int n from coaching_sessions where audio_asset_url is not null and audio_asset_url not like 'assets-v1/%'");
