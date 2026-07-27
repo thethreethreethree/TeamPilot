@@ -359,6 +359,13 @@ ruled it out with hard evidence:
     end-to-end so the write boundary can only store a purgeable shape (§3.4/§3.2). The §1.5.2 dividend: verifying
     the cron surfaced an upstream defect the cron could only flag, not fix.
 
+    **Detection query (live DB, 2026-07-27) — the hole was purely LATENT, zero existing damage.** After fixing
+    the write path, checked production for any row the hole may have already created: of 47 `coaching_sessions`
+    with an audio pointer, **0** are in a non-purgeable shape (all are `assets-v1/…`). So the full-URL write
+    path was never exercised — no orphaned recordings, no PII cleanup burden. Finding 25 is therefore airtight:
+    write path removed → regression-test-locked → verified no existing bad data (the same detection-query
+    discipline as the finance 0196 audit — fix the write, then prove the historical data is clean).
+
 26. **SOUND — RCD cron byte-removal is not exposed to the finding-25 class.** Parity check: does the recording-
     purge false-ok-orphan hole (full-URL pointer the cron can't `remove()`) also threaten the RCD cron's media
     byte-removal? No. `care_rcd_media.storage_path` has ONE writer (`extension/rcd/route.ts:175`) storing the
