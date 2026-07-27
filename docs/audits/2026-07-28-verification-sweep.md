@@ -13,7 +13,7 @@ to `FOUNDER-ACTION-QUEUE.md`.
 | Single-use enforcement | sound | row-lock in `redeem_pilot_code`; runtime-proven double-redeem rejected |
 | Constraints (unique code / module check / FK) | sound | live `pg_constraint`; CHECK runtime-proven to reject bad module |
 | Function grants (anon revoked on redeem) | sound (fixed 0198) **+ now live-guarded** | `verify:live` INVARIANT 12b asserts `anon` can't execute `redeem_pilot_code` while `authenticated` can; detection-tested (rolled-back anon-grant trips it) — a future re-grant now fails CI |
-| RLS seal (no member policies) | sound | rls-audit allowlisted, deny-all-by-design |
+| RLS seal (no member policies) | sound **+ now live-guarded** | rls-audit allowlisted, deny-all-by-design; `verify:live` asserts `pilot_codes` keeps RLS-on + 0-policies (access-key table, `redeemed_company_id` not `company_id` so tenant-RLS guard misses it) — detection-tested (rolled-back policy-add trips it) |
 | Routes (validate/redeem) | sound | 10 unit tests; live prod 200 |
 | §1.5 concurrency race (F0) | fixed 0199 | `for update` on profile read; class swept |
 | Deploy / launch path | sound | prod `/redeem` 200, validate live, health ok |

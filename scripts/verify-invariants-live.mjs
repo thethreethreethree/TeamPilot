@@ -165,6 +165,24 @@ async function main() {
     };
   });
 
+  await check("pilot_codes RLS-sealed (deny-all: RLS on + 0 policies)", async () => {
+    // pilot_codes holds LIVE single-use access keys — a leak lets an attacker read unredeemed codes and
+    // create free accounts. Its security model is deny-all: RLS enabled with ZERO policies, so anon /
+    // authenticated (PostgREST) get nothing; only the SECURITY DEFINER fns (redeem/status) and service_role
+    // reach it. The table has `redeemed_company_id`, NOT `company_id`, so the tenant-RLS invariant above does
+    // NOT cover it. This locks the seal: a future migration that disables RLS OR adds ANY policy (even a
+    // restrictive read) is a design change to the access-key table and must fail CI for a human to review.
+    const rls = await has("select 1 from pg_class where relname='pilot_codes' and relrowsecurity");
+    const pol = await c.query("select count(*)::int n from pg_policies where tablename='pilot_codes'");
+    const n = pol.rows[0].n;
+    const pass = !!rls && n === 0;
+    return {
+      pass,
+      detail: pass ? "RLS on, 0 policies (DEFINER/service-role only)"
+        : `RLS ${rls ? "on" : "OFF"}, ${n} policy(ies) — access-key table must stay deny-all`,
+    };
+  });
+
   await check("§3.1 event UPDATE is a no-op (behavioral, rolled back)", async () => {
     // Wrapped in its own transaction so nothing persists; the finally guarantees the rollback even on error.
     await c.query("begin");
