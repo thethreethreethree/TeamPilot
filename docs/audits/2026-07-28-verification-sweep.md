@@ -48,6 +48,8 @@ to `FOUNDER-ACTION-QUEUE.md`.
 | Constitution metadata drift | fixed + guarded (INVARIANT 12) |
 | Cron schedule wiring | sound (all 6 → existing gated routes; no dead-route scheduling) |
 | Rate-limit bucket ids | sound (all unique; no cross-route bucket sharing) |
+| Security headers (clickjacking/HSTS/nosniff/referrer/permissions) | sound — full set on app routes (live-verified on `/dashboard`); widget route correctly omits only `X-Frame-Options` via negative-lookahead regex so cross-origin embed works; CSP is a documented reasoned deferral |
+| Pilot code typo-safety (client hand-types these) | sound — 100/100 unambiguous alphabet (no `0/O/1/I/L`), all 7-char, all unique (live-DB) |
 
 ## Open findings (in FOUNDER-ACTION-QUEUE.md)
 - ⚠ support-content searchable by non-agents (access-policy decision)
