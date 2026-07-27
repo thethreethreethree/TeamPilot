@@ -455,6 +455,20 @@ testers). Full record: `docs/closures/2026-07-27-care-extension-audit-remediatio
 >      touches the §3.4 internal-baseline boundary and needs your call (gate it during month-1? or allow?).
 >    So the real decision is narrower than before: **"do the 5 read/draft tools follow Summarize (ungated), and
 >    how should Spawn-task behave during the control window?"** I still won't decide the core thesis for you.
+>    - **➕ SHARPENING 2026-07-27 (a dimension the "what they touch" framing above MISSES).** The internal-vs-
+>      external axis isn't the only one that matters for §3.4/§3.5. Two of the five "external" tools — **Co-Pilot
+>      and Formulate — ARE the §3.5 communication-quality intervention itself** (they guide the agent's authoring
+>      of their own reply). The in-app messages route they're analogized to is *plumbing* (it just sends text);
+>      Co-Pilot/Formulate are *coaching* (they improve the draft). §3.5 defines the measured intervention as "AI
+>      guiding individuals to author clearer messages" — exactly what these two do. **Consequence:** if they run
+>      during month-1 control, month-1 is NOT a clean baseline for the communication-quality metric — the agent
+>      already has AI authoring help, so the very thing §3.4 holds OFF in month 1 is on. By the internal-vs-
+>      external axis you'd ungate them (they touch external conversations); by the §3.5-intervention axis you'd
+>      gate them in month 1 (they ARE the intervention). **So the real A3 question is which axis governs:** WHERE
+>      a tool acts, or WHAT it does to the agent's own communication. Summarize/Dissect/Ask-Coach are
+>      analysis/teaching (not the individual's outbound message) → ungated defensible on both axes; Co-Pilot/
+>      Formulate are the split case. Not deciding it for you — but baseline-cleanliness is the stake the earlier
+>      framing didn't name.
 > 3. **popup.html/js** — **DELETED 2026-07-22** (dead code: unreferenced by the manifest, a divergent duplicate
 >    of content.js carrying the old CORS-broken fetch pattern, and a latent XSS-hygiene issue per the audit).
 >    Reversible via git if a popup surface is ever wanted. No action needed.
