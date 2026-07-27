@@ -86,6 +86,15 @@ async function main() {
   record("finding-6a4 no posted entry dated outside its period (0 mis-dated)", badDate.rows[0].n === 0,
     `${badDate.rows[0].n} mis-dated`);
 
+  // RCD purge enablement (finding 24): content-immutable via a BEFORE UPDATE trigger, but NOT delete-blocked
+  // (no `do instead nothing` DELETE rule) — else the PII retention cron would silently no-op and retain data.
+  const rcdImmut = await has(
+    "select 1 from pg_trigger where tgrelid='care_rcd_conversations'::regclass and not tgisinternal and (tgtype & 16)=16");
+  const rcdDelRule = await has(
+    "select 1 from pg_rules where tablename='care_rcd_conversations' and definition ilike '%DO INSTEAD NOTHING%' and lower(definition) like '%on delete%'");
+  record("RCD purge-enabled (content-immutable trigger, no delete-blocking rule)", !!rcdImmut && !rcdDelRule,
+    rcdDelRule ? "a DELETE do-instead-nothing rule would BREAK the purge" : "delete path is open");
+
   // Bonus: event immutability holds behaviorally (rolled-back UPDATE probe)
   await c.query("begin");
   let evOk = true, evDetail = "no events to probe";
