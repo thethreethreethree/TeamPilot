@@ -24,6 +24,21 @@ unit-tested. Full record: memory `project_pilot_access_codes_2026_07_28`. **YOUR
    "instant guidance" decision). Documented in the 0197 migration header — flagged here so it's visible, no
    action needed unless you want to reverse it.
 
+## 🔎 2026-07-28 — access-consistency finding (your call): support/customer content is company-searchable
+
+**Global search (`/api/search`) exposes `support_messages.body` — customer support conversation CONTENT —
+to ANY authenticated company member**, because `support_messages` RLS (`0034:243-251`) scopes company-only
+(no `is_support_agent` check). But the in-app C.A.R.E console IS agent-gated (`requireCareAgent` =
+`is_support_agent OR admin`). So a NON-agent employee can't open the console, yet can **search their way
+into customer support content** (names, issues, agent replies — potential customer PII). Verified by reading
+both the search route (selects `body`) and the RLS. NOT a cross-tenant leak (company-scoped) — an
+intra-company access asymmetry. Contrast: chat search respects topic membership, files respect access_role,
+notifications are per-user; support is the one coarse outlier. **Likely low current impact** (pilot companies
+are small — everyone may legitimately see support). **Your call:** (a) INTENDED (support is company-wide
+searchable) → leave; or (b) agent-gate it → add an `is_support_agent OR admin` guard before the
+support_messages query in `/api/search` (or tighten the RLS). ~10 lines; say "agent-gate support in search."
+Not fixed unilaterally — it's an access-policy/behavior decision (§2).
+
 ## ✅ 2026-07-27 SESSION — one decision checklist (everything surfaced this session, prioritized)
 
 **🔴 DO FIRST — agent mistake, your decision (time-sensitive IF the repo is public): founder-IP file in git
