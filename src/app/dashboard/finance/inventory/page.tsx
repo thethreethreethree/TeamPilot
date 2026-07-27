@@ -78,7 +78,7 @@ export default function InventoryPage() {
 
   async function post(body: Record<string, unknown>, ok: string) {
     if (!periodId) {
-      return toast.error("No open period", "Inventory movements post to the ledger, so they need one.");
+      return toast.error("No open period for today", "Inventory posts to the ledger dated today, so today's date must fall in an open period. Open or create the current period in Finance → Periods, then try again.");
     }
     setBusy(true);
     try {

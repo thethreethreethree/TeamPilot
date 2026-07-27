@@ -125,7 +125,7 @@ export default function PayrollPage() {
   }
 
   async function post(id: string) {
-    if (!openPeriod) return toast.error("No open period", "Payroll posts to the ledger, so it needs one.");
+    if (!openPeriod) return toast.error("No open period for this pay date", "Payroll posts to the ledger dated on the pay date, so that date must fall in an open period. Open or create the matching period in Finance → Periods (or adjust the pay date), then try again.");
     setBusy(id);
     try {
       const res = await fetch("/api/finance/payroll", {
