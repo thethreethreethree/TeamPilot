@@ -462,6 +462,45 @@ not," the honest scope:
     change better made when the extension is next rebuilt and browser-verified. Do it in the same pass as the
     other queued extension tweaks (the capture-success link, the "couldn't reach" reword).
 
+## Build report — file by file (per the Build Prompt protocol: what was built, clause, verification, uncertainty)
+
+The findings above are issue-oriented; this is the file-oriented view the protocol asks for. Every entry is
+committed + pushed. "Verified" = the specific evidence; "Uncertain" = what only a browser/pilot can confirm.
+
+**Code — fixes:**
+- `src/lib/care/extensionEntitlement.ts` — auto-trial on first use (finding 1) + 2 diagnostic logs (read-fail,
+  write-fail). Clause §3.4 (honest, fail-closed) + diagnostic-logging-first. Verified: 26 tests, tenant-scoped
+  write, 0189 live, logs are IDs not PII. Uncertain: a fresh pilot's first live tool call (browser).
+- `src/components/care/ConversationsApp.tsx` — assignTo auto-advance (17) + write-verification (18) + runBulk
+  partial-outcome surface. Clause AMD-006 (continuity) + §3.4 (no silent-ok). Verified: `npm run check`, the
+  advance predicate is test-locked. Uncertain: none material (logic is DB-verified via divergence detection).
+- `src/lib/care/inboxAdvance.ts` (new) + `__tests__/inboxAdvance.test.ts` — extracted advance predicate, 16
+  tests. Clause: house pattern (pure decision + test). Verified: 16 tests pass.
+- `src/lib/care/email/outbound.ts` + `inbound/email/route.ts` — `unconfigured` discriminator (19). Clause §3.4.
+  Verified: 2 tests, distinguished logging. Uncertain: none (early-return branches, no IO).
+- `src/lib/api/extensionAuth.ts` — honest 402 string (trialEnded-aware). Clause §3.4. Verified: client ripple
+  traced (no doubling), centralized across 7 routes.
+- `src/lib/data/salesCoach.ts` + `sales-session/[id]/route.ts` + its authz test — removed the dead full-URL
+  `audioAssetUrl` write path (25). Clause §3.4/§3.2. Verified: no caller sent it, regression-test-locked, 0
+  existing bad rows (live detection). Uncertain: none.
+- `src/app/api/coach/sales-session/recording-purge-cron/route.ts` — `maxDuration=60` + BATCH interaction doc.
+  Clause: deployment-config. Verified: matches sibling crons, typecheck. Uncertain: real per-row latency at a
+  full-500 backlog (documented, self-healing).
+- `src/app/extension/download/page.tsx` — "Having trouble?" card + version single-sourced from the manifest.
+  Clause §1.5.1 (flowing state). Verified: typecheck + lint + `next build` (exit 0). Uncertain: none (static).
+
+**Durable guards (new/extended):**
+- `scripts/invariant-audit.mjs` — INVARIANT 7-11 (admin-gate, extension-auth, NEXT_PUBLIC_ allowlist, XSS,
+  cron-auth) + a self-test. Verified: 0 violations, each detection-proven, self-test detection-proven (exit 3).
+- `scripts/verify-invariants-live.mjs` (new) — 11 live-DB invariants. Verified: all pass, failure/connection
+  handling proven, `pg` dependency correct.
+- `scripts/db-apply.mjs` — post-migration verify:live reminder (console.log only). Verified: `db:check` works.
+
+**Docs/memory (not code):** the shareable troubleshooting guide, the live-DB audit doc, the action-queue
+reconciliations, and 4 audit-lens memories. **Could not complete (founder/browser-gated, on record):** the
+per-tenant cost cap (numbers), B/paid-unlock, email cede-vs-retry, A3, the panel-version single-source (finding
+28), and all browser runtime-verify.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
