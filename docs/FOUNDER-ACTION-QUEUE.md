@@ -47,7 +47,7 @@ test-locked, and a live detection query proved 0 existing orphaned rows). PLUS d
 verification (`docs/audits/2026-07-27-live-db-verification.md`): 0189 applied so the tester fix works in prod;
 12 locked pilots auto-unlock on next use; the §3 thesis-core (§3.1 append-only, §3.2 gate fail-closed +
 configured, §3.4 control-window fail-safe, §3.5 consequence-not-agreement) verified structurally sound +
-regression-guarded in the live database. **One NEW flag → decision 6b below:** auto-trial widens the
+regression-guarded in the live database. **➕ 2026-07-27: the §3.2 gate was CONFIRMED by running `verify_0190_understanding_gate_fail_closed.sql` against the LIVE production DB** (in a rolled-back transaction, no data changed): `[1/2]` a 0-signal problem was REJECTED by the gate → PASS; `[2/2]` surfacing with NO threshold rows RAISED (fail-CLOSED, the 0190 fix) → PASS. So the moat's core bottleneck — a half-understood problem can't reach a human, and a missing config fails closed not open — is proven live. **One NEW flag → decision 6b below:** auto-trial widens the
 per-tenant cost gap onto the extension surface (set the cap before broad rollout).
 
 **⚙️ CONFIG you set (unblocks dormant features):**
