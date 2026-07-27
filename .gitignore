@@ -62,3 +62,6 @@ public/care-extension.zip
 # Founder IP — never commit (untracked local reference only)
 Thinkerthinker Build Key. MD.txt
 /Thinkerthinker*.txt
+
+# Live pilot access codes — never commit
+PILOT-ACCESS-CODES.pdf
