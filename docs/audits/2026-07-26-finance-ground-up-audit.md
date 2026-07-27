@@ -148,8 +148,16 @@ to the period (confirmed: no such constraint in the table def `0118:28-44`; `fin
     **Edge to confirm before apply:** these depend on the *caller* passing the period that contains the
     date. At a period boundary — inventory posts `current_date` but the resolver hands it a prior still-open
     period, or today's period row isn't created yet — a legitimate post would be rejected. Not a trigger
-    defect; a precondition on the period-resolution logic (period rows must track the calendar). Founder:
-    confirm the inventory/payroll callers pass the containing period, or the post fails at month-start.
+    defect; a precondition on the period-resolution logic (period rows must track the calendar).
+    - **Inventory caller — FIXED (`042da195`, independent of 0196).** The route offered an arbitrary open
+      period (`status=open limit(1)`, no date filter/order) as the inventory default; a today-dated entry
+      could default into a non-containing open period (latent now, rejected under 0196). Now selects the
+      open period CONTAINING today. No-op for the default year period; correct for monthly books.
+    - **Payroll caller — still to trace.** `p_period_id` is client-supplied (route takes `periodId` from the
+      body, no server-side containing-period resolution), so the client picks it. Payroll additionally has a
+      genuine accrual-vs-cash question (pay_date can legitimately fall after the worked period). Founder:
+      before applying 0196, confirm the payroll client sends the period containing `pay_date`, OR decide
+      payroll should date the entry at period-end (accrual) — the two must agree or 0196 rejects the post.
   - **Net:** the drafted 0196 is safe to apply for the manual-journal + reversal paths it targets and does
     not over-reject opening balances; the only thing to confirm operationally is the payroll/inventory
     caller's period resolution at boundaries. Verification is static (SQL still not executed on a real DB).
