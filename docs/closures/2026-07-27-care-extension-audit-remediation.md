@@ -335,6 +335,17 @@ ruled it out with hard evidence:
     end-to-end so the write boundary can only store a purgeable shape (§3.4/§3.2). The §1.5.2 dividend: verifying
     the cron surfaced an upstream defect the cron could only flag, not fix.
 
+26. **SOUND — RCD cron byte-removal is not exposed to the finding-25 class.** Parity check: does the recording-
+    purge false-ok-orphan hole (full-URL pointer the cron can't `remove()`) also threaten the RCD cron's media
+    byte-removal? No. `care_rcd_media.storage_path` has ONE writer (`extension/rcd/route.ts:175`) storing the
+    bucket-relative `${companyId}/${conversationId}/${mediaId}` shape (line 168) — exactly what `remove()` on
+    the `care-rcd-media` bucket expects — and it is IMMUTABLE (trigger; "correct on first write, not patched
+    later"). No multi-writer shape disagreement (the root of finding 25), so no wrong-shape path can reach
+    `remove()` and silently orphan bytes. The RCD cron correctly omits the recording-purge cron's malformed
+    guard because its single-writer-immutable model has no inconsistency to defend against — different defense
+    levels matching different risks, not a gap. Combined with finding 24 (DELETE not blocked by an append-only
+    rule), the RCD purge is fully sound: rows delete AND bytes are genuinely removed.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
