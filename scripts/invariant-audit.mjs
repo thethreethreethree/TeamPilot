@@ -547,6 +547,34 @@ for (const f of FILES) {
   });
 }
 
+// ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
+//
+// A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
+// nothing). If a future edit breaks a check's matcher, this audit would still print 0 violations — because a
+// broken check finds nothing. So verify each added guard's core matcher flags a synthetic violation (and, where
+// it's a presence-check, accepts a synthetic-valid). A failure here means a GUARD regressed — fix the matcher.
+const selfTestFailures = [];
+const st = (name, ok) => { if (!ok) selfTestFailures.push(name); };
+// INV7 admin-gate: must NOT match an ungated route, MUST match a gated one.
+st("INV7 flags an ungated admin route", !ADMIN_GATE_RE.test("export async function GET(){ return data; }"));
+st("INV7 accepts a gated admin route", ADMIN_GATE_RE.test("const g = await requireVendorAdmin();"));
+// INV8 extension-auth.
+st("INV8 flags an unauth extension route", !EXT_AUTH_RE.test("export async function POST(){}"));
+st("INV8 accepts a guarded extension route", EXT_AUTH_RE.test("await guardExtensionRequest(req,{});"));
+// INV9 NEXT_PUBLIC_ scanner: must find a public var reference.
+st("INV9 finds a NEXT_PUBLIC_ var", /NEXT_PUBLIC_[A-Z0-9_]+/.test("process.env.NEXT_PUBLIC_ANTHROPIC_KEY"));
+st("INV9 allowlist knows the anon key", NEXT_PUBLIC_ALLOWLIST.has("NEXT_PUBLIC_SUPABASE_ANON_KEY"));
+// INV10 XSS matcher.
+st("INV10 finds dangerouslySetInnerHTML", /dangerouslySetInnerHTML/.test("<div dangerouslySetInnerHTML={{}}/>"));
+// INV11 cron: path matcher + secret check.
+st("INV11 matches a cron route path", /cron\/route\.(ts|tsx)$/.test("src/app/api/x-cron/route.ts"));
+st("INV11 flags a cron missing CRON_SECRET", !/CRON_SECRET/.test("export async function GET(){}"));
+if (selfTestFailures.length) {
+  console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
+    selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
+  process.exit(3);
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
