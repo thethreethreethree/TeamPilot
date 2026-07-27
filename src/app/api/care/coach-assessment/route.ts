@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchCoachAssessmentRoster } from "@/lib/data/careCoachAssessment";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminRole } from "@/lib/roles";
 
 /**
  * GET /api/care/coach-assessment
@@ -26,8 +27,7 @@ export async function GET() {
   if (!profile?.company_id) {
     return NextResponse.json({ error: "No company on profile." }, { status: 403 });
   }
-  const isLeader =
-    profile.role === "CEO" || profile.role === "COO" || profile.role === "admin";
+  const isLeader = isAdminRole(profile.role);
   if (!isLeader) {
     return NextResponse.json(
       { error: "Coach Assessment is for company admins." },

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { readBody, FeedbackStatusPatchSchema } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { isAdminRole } from "@/lib/roles";
 
 /**
  * PATCH /api/feedback/[id] — status transition.
@@ -54,7 +55,7 @@ export async function PATCH(
       { status: 400 }
     );
   }
-  if (profile.role !== "admin" && profile.role !== "CEO" && profile.role !== "COO") {
+  if (!isAdminRole(profile.role)) {
     return NextResponse.json(
       { error: "Only admins can triage feedback." },
       { status: 403 }
