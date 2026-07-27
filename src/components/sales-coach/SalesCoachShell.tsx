@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
   NavProgressProvider,
@@ -43,7 +44,14 @@ import {
  * UNTESTED at runtime.
  */
 
-type NavItem = { label: string; href: string; icon: typeof Home };
+type NavItem = {
+  label: string;
+  href: string;
+  icon: typeof Home;
+  /** Manager-only destination (server-gated: sales_coach_role='admin' OR company admin). Hidden from
+   *  the nav for reps so a staff user never clicks a nav item that bounces them (AMD-006 L3). */
+  managerOnly?: boolean;
+};
 
 const NAV: NavItem[] = [
   { label: "Home", href: "/dashboard/sales-coach", icon: Home },
@@ -56,11 +64,12 @@ const NAV: NavItem[] = [
     icon: MessageSquare,
   },
   { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
-  { label: "Team", href: "/dashboard/sales-coach/team", icon: Users },
+  { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
   {
     label: "Coach Assessment",
     href: "/dashboard/sales-coach/coach-assessment",
     icon: ClipboardCheck,
+    managerOnly: true,
   },
   { label: "Settings", href: "/dashboard/sales-coach/settings", icon: Settings },
 ];
@@ -84,6 +93,11 @@ const MOBILE_TABS: NavItem[] = [
 export function SalesCoachShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const [collapsed, setCollapsed] = useState(false);
+  // Hide manager-only desktop nav items (Team, Coach Assessment — server-gated) from reps so a staff
+  // user never clicks a nav entry that bounces them (AMD-006 L3). isManager is false while loading →
+  // items stay hidden until confirmed (safe direction). MOBILE_TABS has no manager items, so it's unaffected.
+  const isSalesCoachManager = useIsSalesCoachManager();
+  const visibleNav = NAV.filter((item) => !item.managerOnly || isSalesCoachManager);
 
   return (
     <NavProgressProvider>
@@ -128,7 +142,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-            {NAV.map((item) => {
+            {visibleNav.map((item) => {
               const Icon = item.icon;
               const active =
                 pathname === item.href ||

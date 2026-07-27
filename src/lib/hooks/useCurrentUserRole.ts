@@ -55,3 +55,42 @@ const COMPANY_ADMIN_ROLES = new Set(["CEO", "COO", "admin"]);
 export function isCompanyAdminRole(role: string | null | undefined): boolean {
   return role != null && COMPANY_ADMIN_ROLES.has(role);
 }
+
+/**
+ * useIsSalesCoachManager — client predicate for the Sales Coach MANAGER surfaces
+ * (Team, Coach Assessment). Mirrors the server gate isSalesCoachManager
+ * (src/lib/coach/v5/skillAccess.ts) + the route checks: a manager is
+ * `sales_coach_role === 'admin'` OR a company admin (CEO/COO/admin).
+ *
+ * Returns `false` while loading / unauthenticated — the SAFE default for nav
+ * gating (hide manager-only items until the viewer is confirmed a manager, so a
+ * rep never sees a nav item that would bounce them; AMD-006 L3).
+ */
+export function useIsSalesCoachManager(): boolean {
+  const [isManager, setIsManager] = useState(false);
+
+  useEffect(() => {
+    if (!supabaseEnabled) return;
+    const supabase = createClient();
+    let cancelled = false;
+    void (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, sales_coach_role")
+        .eq("id", auth.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const manager =
+        profile?.sales_coach_role === "admin" ||
+        isCompanyAdminRole((profile?.role as string | null) ?? null);
+      setIsManager(manager);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return isManager;
+}
