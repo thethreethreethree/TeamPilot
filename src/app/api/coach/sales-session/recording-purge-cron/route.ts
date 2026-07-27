@@ -20,6 +20,12 @@ import { ASSETS_BUCKET } from "@/lib/storage/assets";
 const RETENTION_DAYS = 2;
 const BATCH = 500;
 
+// Raise past Vercel's ~10s default so a full batch (500 sessions, each a storage remove() + a DB update)
+// isn't truncated mid-purge — which under a backlog would retain recordings past the 2-day promise. Matches
+// the RCD retention cron + the durability/task-overrun sweep crons (all maxDuration=60). This one lacked it
+// despite having the LARGEST batch, so it was the most truncation-prone of them.
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
