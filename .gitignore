@@ -46,3 +46,7 @@ public/care-extension.zip
 
 # Transient screenshots pasted into .claude/ (not project assets)
 .claude/*.png
+
+# Founder IP — never commit (untracked local reference only)
+Thinkerthinker Build Key. MD.txt
+/Thinkerthinker*.txt
