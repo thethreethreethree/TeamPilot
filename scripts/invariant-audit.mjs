@@ -431,17 +431,46 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 8 — every extension route must be authenticated ═══════════════════════════════════
+//
+// LEARNED: the extension tool routes burn LLM/ElevenLabs cost AND read tenant data, on a PUBLIC-internet
+// endpoint (MV3 extensions don't share the app's cookies — they send a Bearer token). A new extension route
+// that forgets guardExtensionRequest (Bearer + entitlement + rate-limit) is an unauthenticated, uncapped
+// cost + data surface. Every route under src/app/api/care/extension/ must authenticate. (Verified 2026-07-27.)
+const EXT_AUTH_ALLOWLIST = new Map([
+  [
+    "src/app/api/care/extension/refresh/route.ts",
+    "Token-refresh proxy: it CANNOT use the entitlement guard because the access token is expired (that is\n" +
+      "      why it's refreshing). It authenticates via the refresh_token itself (required, bounded, rate-limited\n" +
+      "      20/min, validated by Supabase's refresh grant → 401 if invalid). Different auth model, not ungated.",
+  ],
+]);
+const EXT_AUTH_RE = /guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth/;
+for (const f of FILES) {
+  if (!/^src\/app\/api\/care\/extension\/.*route\.(ts|tsx)$/.test(f.path)) continue;
+  if (EXT_AUTH_RE.test(f.sql)) continue;
+  if (EXT_AUTH_ALLOWLIST.has(f.path)) continue;
+  findings.push({
+    rule: "Extension route without authentication",
+    file: f.path,
+    why:
+      "A route under /api/care/extension/ that references no extension auth (guardExtensionRequest / …) is a\n" +
+      "      PUBLIC, unauthenticated endpoint that burns LLM cost + reads tenant data. Add guardExtensionRequest\n" +
+      "      at the top, or allowlist here WITH the reason (e.g. a different auth model like token refresh).",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
   console.log(
     "\n✓ CSV exports formula-safe · finance routes RLS-scoped · finance schema reachable ·" +
       " no client-callable DEFINER tenant-param fn · every upload route validated ·" +
-      " every cross-person read gated · every admin route gated."
+      " every cross-person read gated · every admin route gated · every extension route authenticated."
   );
   process.exit(0);
 }
