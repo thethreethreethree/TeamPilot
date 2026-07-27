@@ -460,6 +460,29 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 9 — no server SECRET exposed via a NEXT_PUBLIC_ env var ════════════════════════════
+//
+// LEARNED (defensive): Next.js bundles EVERY NEXT_PUBLIC_-prefixed env var it sees referenced into the CLIENT
+// bundle — visible to anyone who opens the site. A secret accidentally prefixed NEXT_PUBLIC_ (e.g.
+// NEXT_PUBLIC_ANTHROPIC_KEY, NEXT_PUBLIC_SUPABASE_SERVICE_ROLE) leaks to every browser. The only legit public
+// keys are the Supabase ANON key and the VAPID PUBLIC key (both designed to ship client-side). Any
+// NEXT_PUBLIC_ var whose name says SERVICE_ROLE / PRIVATE / SECRET / PASSWORD, or a known secret-provider
+// (Anthropic/DeepSeek/Postmark/CRON), is a leak. (Verified 2026-07-27: the 6 current NEXT_PUBLIC_ vars are all
+// legitimately public.)
+const NEXT_PUBLIC_SECRET = /NEXT_PUBLIC_[A-Z0-9_]*(SERVICE_ROLE|_PRIVATE|_SECRET|PASSWORD|ANTHROPIC|DEEPSEEK|POSTMARK|CRON_)[A-Z0-9_]*/;
+for (const f of FILES) {
+  const m = f.sql.match(NEXT_PUBLIC_SECRET);
+  if (!m) continue;
+  findings.push({
+    rule: "Server secret exposed via a NEXT_PUBLIC_ env var (leaks to the client bundle)",
+    file: f.path,
+    why:
+      `'${m[0]}' carries the NEXT_PUBLIC_ prefix, so Next.js bundles it into every client — anyone who opens\n` +
+      "      the site can read it. Server secrets must NEVER be NEXT_PUBLIC_. Drop the prefix and read it only\n" +
+      "      server-side. (The Supabase ANON key + VAPID PUBLIC key are the only NEXT_PUBLIC_ keys that are safe.)",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
@@ -470,7 +493,8 @@ if (findings.length === 0) {
   console.log(
     "\n✓ CSV exports formula-safe · finance routes RLS-scoped · finance schema reachable ·" +
       " no client-callable DEFINER tenant-param fn · every upload route validated ·" +
-      " every cross-person read gated · every admin route gated · every extension route authenticated."
+      " every cross-person read gated · every admin route gated · every extension route authenticated ·" +
+      " no server secret NEXT_PUBLIC_-exposed."
   );
   process.exit(0);
 }
