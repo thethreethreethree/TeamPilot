@@ -76,9 +76,16 @@ export const AGENT_ALLOWED_MIME_PREFIXES = [
   "text/",
   "audio/",
   // Code/data text types (folder uploads of projects, e.g. a browser
-  // extension: manifest.json, .js, .xml). Safe — stored as files, never
-  // executed; dangerous types stay blocked by BLOCKED_MIME_PREFIXES /
-  // BLOCKED_EXTENSIONS. Founder-approved 2026-07-01.
+  // extension: manifest.json, .js, .xml). AGENT-ONLY (customers get the far
+  // stricter list below). Founder-approved 2026-07-01.
+  //
+  // ⚠️ SECURITY RELIANCE (§A27): "never executed" holds ONLY because attachments are served from a CROSS-ORIGIN
+  // Supabase signed URL (a different origin than the app) and linked with rel=noopener — so `text/html`,
+  // `application/javascript`, and (were it not blocked) SVG execute, if at all, in the STORAGE origin, never the
+  // app origin. This active-content set is safe by the SERVING MODEL, not by the type. If attachments are ever
+  // proxied/served SAME-ORIGIN (e.g. through the app for access control), these become app-origin stored-XSS and
+  // this allow-list must be re-evaluated (strip text/html + application/javascript, or sanitize on serve). SVG
+  // is already blocked in BLOCKED_MIME_PREFIXES because it was reachable on the customer surface too.
   "application/json",
   "application/javascript",
   "application/xml",
