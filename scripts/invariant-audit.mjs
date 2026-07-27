@@ -407,17 +407,41 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 7 — every admin route enforces an admin gate ══════════════════════════════════════
+//
+// LEARNED: the CRM vendor-authz hole (2026-07-07, CRITICAL) — an admin route reachable by a non-admin (or a
+// customer admin who is not the vendor) leaks platform/vendor data. RLS does not save you here: admin routes
+// routinely use the service role or read cross-tenant aggregates by design, so the ROUTE's own gate is the
+// only defense. Every route under src/app/api/admin/ must reference an admin gate; a new admin route without
+// one is exactly the shape that opened the CRM hole. (Verified all 11 gated on 2026-07-27; this locks it.)
+const ADMIN_GATE_ALLOWLIST = new Map();
+const ADMIN_GATE_RE = /isAdmin|requireAdmin|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin/;
+for (const f of FILES) {
+  if (!/^src\/app\/api\/admin\/.*route\.(ts|tsx)$/.test(f.path)) continue;
+  if (ADMIN_GATE_RE.test(f.sql)) continue;
+  if (ADMIN_GATE_ALLOWLIST.has(f.path)) continue;
+  findings.push({
+    rule: "Admin route without an admin gate",
+    file: f.path,
+    why:
+      "A route under /api/admin/ that references no admin gate (isAdmin / requireVendorAdmin / …) is\n" +
+      "      reachable by any authenticated user — the exact class that opened the CRM vendor-authz hole\n" +
+      "      (2026-07-07). Gate it at the top (403 before any data read), or allowlist here WITH the reason\n" +
+      "      it is intentionally ungated.",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
   console.log(
     "\n✓ CSV exports formula-safe · finance routes RLS-scoped · finance schema reachable ·" +
       " no client-callable DEFINER tenant-param fn · every upload route validated ·" +
-      " every cross-person read gated."
+      " every cross-person read gated · every admin route gated."
   );
   process.exit(0);
 }
