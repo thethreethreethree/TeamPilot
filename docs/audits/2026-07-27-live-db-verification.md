@@ -79,9 +79,24 @@ depend on full history staying intact). Verified against the live `events` table
   must be by ANONYMIZATION (scrub PII, keep the immutable event structure), not DELETE. That tension is already
   flagged in FOUNDER-ACTION-QUEUE (2c); this verification confirms the mechanism behind it.
 
-Together, the product's core thesis mechanisms are all verified sound in the LIVE database this session:
-**§3.1 (append-only events)**, **§3.2 (understanding precedes surfacing — fail-closed + configured)**, and
-**§3.5 (consequence, not agreement)**. The differentiating thesis is structurally enforced, not just intended.
+## 7. §3.4 no-instant-results control window — fail-safe toward suppressed
+
+Month-1 = control (no AI guidance) to capture an honest baseline; the fail-safe direction must be
+"suppressed," never "enabled" (a misconfigured company must NOT accidentally get guidance in month 1).
+Verified the pure `evaluateControlGate` (brain/index.ts) implements this:
+- `guidanceEnabled = manualEnabled || autoUnlocked`, where `autoUnlocked = Boolean(unlockAt) && new
+  Date(unlockAt) <= now`.
+- Every misconfiguration fails safe to SUPPRESSED: null `unlockAt` → false; a garbled date → `NaN <= now` →
+  false; a future date → false. The only ways to enable are an explicit manual unlock or a genuinely-elapsed
+  valid unlock date.
+- When suppressed, the composer returns a refusal with NO API call (guidance genuinely off, not just hidden);
+  manual overrides are recorded as `brain_evolution_events` (on-record per §3.1).
+
+Together, the product's core thesis mechanisms are all verified structurally sound this session:
+**§3.1 (append-only events — live)**, **§3.2 (understanding precedes surfacing — fail-closed + configured,
+live)**, **§3.4 (month-1 control window — fail-safe to suppressed)**, and **§3.5 (consequence, not agreement)**.
+The differentiating thesis is structurally enforced, not just intended. (§3.3 "guide, don't overtake" is a
+behavioral property rather than a single structural gate — not covered here.)
 
 ## What remains structurally unverifiable here
 
