@@ -5,7 +5,18 @@
 **DONE + deployed (no action):** tester's "not working" fixed on both causes (entitlement auto-trial +
 `/login` honoring `?next=`); trial-expiry message honest; sidebar "C.A.R.E Tools" grouping; CWE-209
 raw-error leaks closed on all public routes; conversation-mutation route hardened; deep-link continuity;
-comprehensive security audit (all green, ~40 commits). Full record: `docs/closures/2026-07-27-…md`.
+comprehensive security audit. Full record: `docs/closures/2026-07-27-…md`.
+
+**+ Session-tail continuation (~55 commits total, all green + `next build` clean):** FOUR more real defects
+fixed — assign-away auto-advance + write-verification (item 6, now done); email-outbound genuine-vs-benign
+observability; honest server 402 string; and a **latent PII-retention hole** in the sales-coach recording
+purge (a dead full-URL `audioAssetUrl` field could write audio the purge cron couldn't delete — removed +
+test-locked, and a live detection query proved 0 existing orphaned rows). PLUS deep live-DB + thesis
+verification (`docs/audits/2026-07-27-live-db-verification.md`): 0189 applied so the tester fix works in prod;
+12 locked pilots auto-unlock on next use; the §3 thesis-core (§3.1 append-only, §3.2 gate fail-closed +
+configured, §3.4 control-window fail-safe, §3.5 consequence-not-agreement) verified structurally sound +
+regression-guarded in the live database. **One NEW flag → decision 6b below:** auto-trial widens the
+per-tenant cost gap onto the extension surface (set the cap before broad rollout).
 
 **⚙️ CONFIG you set (unblocks dormant features):**
 1. `CRON_SECRET` + `RCD_RETENTION_DAYS` → activates the two PII purge crons (scheduled, dormant).
@@ -15,7 +26,16 @@ comprehensive security audit (all green, ~40 commits). Full record: `docs/closur
 **🧩 DECISIONS (I build once you choose):**
 4. **B / paid-unlock** — post-pilot; the tier→plan pricing map (which CRM tiers include the extension). Not urgent (pilot = manual unlock). Spec: `ENTITLEMENT-WRITE-PATH-PLAN.md §B1`.
 5. **Email dispatch-failure → route to a human?** (today: transient send failure = customer silence + a log only). Recommended yes.
-6. **Inbox: should single assign-away auto-advance** like close/resolve? (UX call — AMD-006 pattern). 
+6. **✅ DONE 2026-07-27 (was an open decision; built as closure findings 17-18, `4e4917fe`).** Single
+   assign-away now auto-advances — but correctly CONDITIONAL: it advances only when the assignment moves the
+   conversation OUT of the current filtered view (Mine → assigned away; Unassigned → now assigned), and stays
+   put in assignment-invariant views (All/etc.), because advancing while the item is still visible would be a
+   jarring wrong jump. Rationale for building rather than waiting on your call: auto-advance is ALREADY the
+   AMD-006-decided behavior (its siblings close/resolve/bulk honor it); `assignTo` was simply the inconsistent
+   one — extending a decided behavior to a sibling, not a new UX decision. Also fixed in the same commit
+   (finding 18): `assignTo` skipped the write-verification its sibling `claim` had (a §3.4 silent-ok gap) — a
+   failed assign could toast "Assigned." while the DB disagreed; now it verifies the write landed. Regression:
+   the whole thing is not test-locked at the component level (runAction is IO-heavy) — flag if you want a test.
 7. **Capture success → clickable "Open C.A.R.E →" link** (like Spawn) — say the word once you've confirmed capture works end-to-end.
 8. **Standard-mode Home (DONE: the 2 learning-visibility panels are now Expert-only, `eeafd70`).** Two adjacent items you didn't annotate, left as-is for your call (one-line gate each): the "make-learning-visible" reframe banner (partly introduces the now-hidden metrics) + the "Patterns surfaced this week" list. Cascade-check done: the dedicated learning pages (growth/patterns/leadership) are correctly NOT gated — hiding their content would empty them.
 
