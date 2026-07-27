@@ -67,7 +67,11 @@ const MORE_TOOLS: { key: ToolKey; label: string; Icon: typeof Sparkles }[] = [
 
 // Each tool → its existing route + the field to read from the JSON response. Robust
 // to shape differences: we render the first meaningful string the route returns.
-export function toolRequest(tool: ToolKey, convId: string): { url: string; body?: unknown } {
+// "task" is intentionally NOT handled here — handleTool special-cases it and redirects to the conversation
+// page (the spawn flow needs full conversation context that a one-shot POST can't provide; §3.4 honesty). So
+// toolRequest only maps the four one-shot POST tools; excluding "task" keeps the switch exhaustive + honest and
+// removes a dead, wrong `/api/tasks/spawn` mapping that was never reached.
+export function toolRequest(tool: Exclude<ToolKey, "task">, convId: string): { url: string; body?: unknown } {
   const base = `/api/care/agent/conversations/${convId}`;
   switch (tool) {
     case "summarize":
@@ -81,8 +85,6 @@ export function toolRequest(tool: ToolKey, convId: string): { url: string; body?
       return { url: `${base}/ask-coach`, body: { draft: "How should I handle this conversation?", mode: "ask" } };
     case "copilot":
       return { url: `${base}/co-pilot`, body: {} };
-    case "task":
-      return { url: `/api/tasks/spawn`, body: { fromCareConversationId: convId } };
   }
 }
 

@@ -13,11 +13,10 @@ describe("toolRequest — mobile radial tool → route mapping", () => {
     expect(toolRequest("copilot", CONV).url).toBe(`/api/care/agent/conversations/${CONV}/co-pilot`);
   });
 
-  it("task spawns via /api/tasks/spawn with the source conversation id", () => {
-    const { url, body } = toolRequest("task", CONV);
-    expect(url).toBe("/api/tasks/spawn");
-    expect(body).toMatchObject({ fromCareConversationId: CONV });
-  });
+  // NOTE: "task" is NOT a toolRequest case — handleTool special-cases it (redirects to the conversation page,
+  // since spawn needs full context a one-shot POST can't give). toolRequest's type excludes "task", so there's
+  // deliberately no assertion here; an earlier version of this test wrongly asserted a dead `/api/tasks/spawn`
+  // mapping that was never reached.
 
   it("coach hits ask-coach with a NON-EMPTY draft (the fix — empty draft 400s on draft.min(1))", () => {
     const { url, body } = toolRequest("coach", CONV);
