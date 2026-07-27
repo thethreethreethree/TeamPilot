@@ -9,6 +9,11 @@
 // Dates are ISO `YYYY-MM-DD` strings; lexicographic comparison equals chronological order for that format, so
 // string <= / >= is correct here (no Date parsing, no timezone drift). Boundaries are INCLUSIVE — an entry
 // dated exactly on a period's start_date or end_date is inside that period.
+//
+// This is the CANONICAL definition of the containment invariant. The inventory route
+// (src/app/api/finance/inventory/route.ts) implements the SAME inclusive semantic server-side in its query
+// (`.lte("start_date", today).gte("end_date", today)`) because it filters in the DB rather than fetching all
+// periods. If the boundary semantics ever change here, change them there too — they must stay aligned.
 
 export type SelectablePeriod = { id: string; status: string; start_date: string; end_date: string };
 
