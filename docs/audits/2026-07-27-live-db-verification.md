@@ -101,6 +101,21 @@ live)**, **§3.4 (month-1 control window — fail-safe to suppressed)**, and **�
 The differentiating thesis is structurally enforced, not just intended. (§3.3 "guide, don't overtake" is a
 behavioral property rather than a single structural gate — not covered here.)
 
+## 8. Finance double-entry balance — DB-trigger-enforced (live)
+
+The core GL invariant (every posted journal entry balances: debits = credits) is enforced structurally, not
+only in app code. Verified live:
+- `fin_assert_entry_balanced(entry)`: for a POSTED entry, sums `base_debit`/`base_credit` and `raise
+  exception`s if `debit <> credit` OR the entry has `< 2 lines`. Drafts are exempt (only posted must balance).
+- Wired to TWO triggers — `fin_assert_balanced_from_lines` (on `fin_journal_lines`) and
+  `fin_assert_balanced_from_entry` (on `fin_journal_entries`) — so EVERY posting path (`fin_post_entry`,
+  `fin_post_system_entry`, or any direct write / status→posted) re-asserts balance. Cannot be bypassed at the
+  app layer.
+- The check is EXACT base-currency equality — which is also the mechanism behind the flagged FX-rounding item
+  (`project_fx_rounding_base_imbalance_bug`): a foreign split-line entry whose per-line base rounding diverges
+  by a cent would be REJECTED as unbalanced. Surfaced-not-built (accounting decision); latent with 0 posted
+  entries in production. Partially closes the "finance not inspected" gap: the balance core is now verified.
+
 ## What remains structurally unverifiable here
 
 The one link no static/DB check can reach: a fresh pilot tenant clicking an extension tool in a real browser
