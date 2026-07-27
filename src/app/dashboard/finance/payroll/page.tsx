@@ -5,6 +5,7 @@ import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
+import { findOpenPeriodContaining } from "@/lib/finance/periodSelection";
 import { useToast } from "@/components/ui/toast";
 import { Users, Plus } from "lucide-react";
 
@@ -78,14 +79,11 @@ export default function PayrollPage() {
   }, [load]);
 
   // The payroll entry is dated `payDate` (used as entry_date by fin_post_payroll_run) and GL views aggregate
-  // by entry_date, so it must post to the period that CONTAINS payDate — not periods[0]. Periods arrive
-  // ordered start_date DESC, so periods[0] is merely the most-recent open period; it can disagree with
-  // payDate (a back-dated run, or a future period created ahead), which mis-buckets now and is REJECTED once
-  // 0196's date-in-period trigger is live. This aligns the period to the already-coded cash-basis entry_date
-  // (entry_date = pay_date); it does NOT decide accrual-vs-cash — that founder decision would move BOTH the
-  // entry_date (to period_end) and this selection together. Undefined when no open period contains payDate,
-  // which correctly blocks the post (the existing "No open period" guard) instead of posting to a wrong one.
-  const openPeriod = periods.find((p) => p.start_date <= payDate && payDate <= p.end_date);
+  // by entry_date, so it must post to the period that CONTAINS payDate — not periods[0] (the most-recent open
+  // period). See periodSelection.ts + the finance audit H1 note. Aligns the period to the already-coded
+  // cash-basis entry_date; it does NOT decide accrual-vs-cash. Undefined when no open period contains payDate
+  // → the existing "No open period" guard blocks the post rather than posting to a wrong period.
+  const openPeriod = findOpenPeriodContaining(periods, payDate);
 
   // Live check, shown BEFORE submit. The mismatch is the useful signal, not an error to swallow.
   const g = parseMoneyInput(gross);
