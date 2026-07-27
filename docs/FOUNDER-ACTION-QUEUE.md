@@ -32,6 +32,8 @@ tested helper), which also de-risks the 0196 apply — see decision 6a4 for the 
 | `CARE_DEFAULT_TENANT_ID` | If ≠ the ELOSTATE id, Jeff/demo resolve a different tenant. | Confirm it's unset or the ELOSTATE id. |
 | `BOOKING_URL` | C.A.R.E demo "book a call" has no target. | Set to your booking link. |
 
+**🟢 NEW this session — robustness fixes (DONE, no action, FYI):** a runtime-failure-class sweep found + fixed real bugs: **(1) customer-widget crash in private browsing** — both `CareChatWidget` + `CareEmbeddedWidget` called `localStorage.setItem` unguarded, which THROWS in Safari private mode / disabled storage, crashing the widget for those customers on send; now guarded (`safeLS` helper) so it degrades to an in-memory session (`2f1cd1d3`). **(2)** two clipboard copy buttons showed a false "Copied." on failure / left an unhandled rejection — now honest (`5ebf8583`). **(3)** the mobile radial's "Ask Coach" tool always 400'd (empty draft) — fixed + tested (`5e3be3da`). Verified SOUND (no change): division-by-zero in all metrics, unhandled-rejection in every `void fetch`, React interval-cleanup, widget a11y + optimistic-rollback. Lens saved for future sessions.
+
 **DONE + deployed (no action):** tester's "not working" fixed on both causes (entitlement auto-trial +
 `/login` honoring `?next=`); trial-expiry message honest; sidebar "C.A.R.E Tools" grouping; CWE-209
 raw-error leaks closed on all public routes; conversation-mutation route hardened; deep-link continuity;
