@@ -67,8 +67,21 @@ holds structurally:
   correctly separated — §3.5's causal order ("better communication is the mechanism; faster resolution is the
   result"). The grading-own-homework trap is structurally avoided.
 
-Together with §4 above, the product's two core honesty mechanisms — §3.2 (understanding precedes surfacing) and
-§3.5 (consequence, not agreement) — are both verified sound this session.
+## 6. §3.1 append-only events — the data foundation is immutable (live)
+
+Everything in the thesis derives from immutable, append-only events (retrospective analysis + data-as-asset
+depend on full history staying intact). Verified against the live `events` table:
+- Two rules present: **`events_no_delete` (`ON DELETE DO INSTEAD NOTHING`)** and **`events_no_update`
+  (`ON UPDATE DO INSTEAD NOTHING`)**.
+- Behavioral test (rolled-back tx): an `UPDATE` on a real event row → **no-op, row unchanged**. Only INSERT
+  works. Append-only holds in production.
+- Note: this is the SAME `do instead nothing` mechanism that blocks end-user deletion — so GDPR/CCPA erasure
+  must be by ANONYMIZATION (scrub PII, keep the immutable event structure), not DELETE. That tension is already
+  flagged in FOUNDER-ACTION-QUEUE (2c); this verification confirms the mechanism behind it.
+
+Together, the product's core thesis mechanisms are all verified sound in the LIVE database this session:
+**§3.1 (append-only events)**, **§3.2 (understanding precedes surfacing — fail-closed + configured)**, and
+**§3.5 (consequence, not agreement)**. The differentiating thesis is structurally enforced, not just intended.
 
 ## What remains structurally unverifiable here
 
