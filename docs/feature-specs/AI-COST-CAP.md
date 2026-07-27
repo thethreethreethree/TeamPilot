@@ -16,8 +16,16 @@ the tenant (and for us, since we pay the providers). Per the 2026-07-23→27 cos
 2. **Email-LLM** — inbound customer email → AI auto-reply (`care/inbound/email/route.ts:688`). Has loop-breaker +
    per-sender flood-guard + automated-sender suppression, but a spammer rotating human-looking From addresses
    gets independent per-sender counters → no tenant total.
-3. **TTS** — `/api/care/tts` (ElevenLabs, billed **per character**). Auth'd + per-request rate-limited, no tenant cap.
-4. **STT** — `/api/care/stt` (ElevenLabs Scribe, billed **per minute** transcribed). Same.
+3. **TTS** — `/api/care/tts` (ElevenLabs, billed **per character**). Auth'd + per-request rate-limited (30/min),
+   no tenant cap. Per-request cost-UNIT is bounded: `text: z.string().max(2000)` (verified 2026-07-27) → one
+   call ≤ 2000 chars.
+4. **STT** — `/api/care/stt` (ElevenLabs Scribe, billed **per minute** transcribed). Auth'd + rate-limited (8/min),
+   no tenant cap. Per-request cost-UNIT is bounded: `STT_MAX_BYTES = 2MB` (~8min opus; TT.md A21 fix, verified
+   2026-07-27) → one call ≤ ~8 audio-minutes.
+
+   → So voice is already hardened at the per-request layer (auth + rate + cost-unit cap); the ONLY open voice
+   gap is the per-TENANT aggregate below — which strengthens the "a generous abuse-ceiling is fine for launch"
+   case (§below), since a single runaway request is already impossible.
 5. **Extension tools** — the 7 LLM-burning tools via `guardExtensionRequest` (coach/copilot/dissect/formulate/
    rcd/spawn/summarize), bounded per-IP + per-user (`perUserMax`) but not per-tenant. **This session's auto-trial
    fix WIDENS this**: every pilot auto-unlocks these free for 14 days, so N agents on distinct IPs drive
