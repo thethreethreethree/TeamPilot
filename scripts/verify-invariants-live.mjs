@@ -40,75 +40,96 @@ async function has(query, params = []) {
   return r.rowCount > 0 ? r.rows[0] : null;
 }
 
+// Run one check in isolation: a thrown query (e.g. a table renamed by a future migration) becomes a clean
+// FAIL for THAT check with the error, never a crash of the whole run — so the verifier still reports every
+// other invariant and exits 1 (not an opaque exit 2). This matters because the tool is run right when schema
+// changes (after a migration).
+async function check(name, thunk) {
+  try {
+    const { pass, detail } = await thunk();
+    record(name, pass, detail);
+  } catch (e) {
+    record(name, false, "CHECK ERRORED (treated as fail): " + String(e.message).slice(0, 80));
+  }
+}
+
 async function main() {
   await c.connect();
   console.log("\n═══ Live-DB invariant verification (read-only) ═══\n");
 
-  // §3.1 events append-only
-  const rDel = await has("select 1 from pg_rules where tablename='events' and rulename='events_no_delete'");
-  const rUpd = await has("select 1 from pg_rules where tablename='events' and rulename='events_no_update'");
-  record("§3.1 events append-only (no_delete + no_update rules)", !!rDel && !!rUpd);
+  await check("§3.1 events append-only (no_delete + no_update rules)", async () => {
+    const rDel = await has("select 1 from pg_rules where tablename='events' and rulename='events_no_delete'");
+    const rUpd = await has("select 1 from pg_rules where tablename='events' and rulename='events_no_update'");
+    return { pass: !!rDel && !!rUpd };
+  });
 
-  // §3.2 understanding gate fails closed + threshold configured
-  const gateFn = await has(
-    "select 1 from pg_proc where proname ilike '%understanding%' and pg_get_functiondef(oid) ilike '%raise exception%'");
-  const star = await has("select 1 from problem_thresholds where kind='*'");
-  record("§3.2 understanding gate (raises when unconfigurable) + '*' threshold present", !!gateFn && !!star);
+  await check("§3.2 understanding gate (raises when unconfigurable) + '*' threshold present", async () => {
+    const gateFn = await has(
+      "select 1 from pg_proc where proname ilike '%understanding%' and pg_get_functiondef(oid) ilike '%raise exception%'");
+    const star = await has("select 1 from problem_thresholds where kind='*'");
+    return { pass: !!gateFn && !!star };
+  });
 
-  // Finance H2 immutability
-  const immEntry = await has("select 1 from pg_proc where proname='fin_entries_immutable'");
-  const immLines = await has("select 1 from pg_proc where proname='fin_lines_immutable'");
-  record("H2 finance immutability (fin_entries_immutable + fin_lines_immutable)", !!immEntry && !!immLines);
+  await check("H2 finance immutability (fin_entries_immutable + fin_lines_immutable)", async () => {
+    const immEntry = await has("select 1 from pg_proc where proname='fin_entries_immutable'");
+    const immLines = await has("select 1 from pg_proc where proname='fin_lines_immutable'");
+    return { pass: !!immEntry && !!immLines };
+  });
 
-  // Finance H3 balance
-  const bal = await has(
-    "select 1 from pg_proc where proname='fin_assert_entry_balanced' and pg_get_functiondef(oid) ilike '%unbalanced%'");
-  record("H3 finance double-entry balance (fin_assert_entry_balanced raises on unbalanced)", !!bal);
+  await check("H3 finance double-entry balance (fin_assert_entry_balanced raises on unbalanced)", async () => {
+    const bal = await has(
+      "select 1 from pg_proc where proname='fin_assert_entry_balanced' and pg_get_functiondef(oid) ilike '%unbalanced%'");
+    return { pass: !!bal };
+  });
 
-  // Finance H4 RLS on + company-scoped
-  const rls = await c.query(
-    "select relname from pg_class where relname in ('fin_journal_entries','fin_journal_lines') and relrowsecurity");
-  const pols = await c.query(
-    "select count(*)::int n from pg_policies where tablename in ('fin_journal_entries','fin_journal_lines') and coalesce(qual,with_check) ilike '%auth_company_id()%'");
-  record("H4 finance RLS on + policies company-scoped", rls.rowCount === 2 && pols.rows[0].n >= 4,
-    `${rls.rowCount}/2 tables RLS, ${pols.rows[0].n} scoped policies`);
+  await check("H4 finance RLS on + policies company-scoped", async () => {
+    const rls = await c.query(
+      "select relname from pg_class where relname in ('fin_journal_entries','fin_journal_lines') and relrowsecurity");
+    const pols = await c.query(
+      "select count(*)::int n from pg_policies where tablename in ('fin_journal_entries','fin_journal_lines') and coalesce(qual,with_check) ilike '%auth_company_id()%'");
+    return { pass: rls.rowCount === 2 && pols.rows[0].n >= 4, detail: `${rls.rowCount}/2 tables RLS, ${pols.rows[0].n} scoped policies` };
+  });
 
-  // finding-25: no non-purgeable audio pointers
-  const badAudio = await c.query(
-    "select count(*)::int n from coaching_sessions where audio_asset_url is not null and audio_asset_url not like 'assets-v1/%'");
-  record("finding-25 audio pointers all purgeable (0 non-'assets-v1/' shapes)", badAudio.rows[0].n === 0,
-    `${badAudio.rows[0].n} bad`);
+  await check("finding-25 audio pointers all purgeable (0 non-'assets-v1/' shapes)", async () => {
+    const badAudio = await c.query(
+      "select count(*)::int n from coaching_sessions where audio_asset_url is not null and audio_asset_url not like 'assets-v1/%'");
+    return { pass: badAudio.rows[0].n === 0, detail: `${badAudio.rows[0].n} bad` };
+  });
 
-  // finding-6a4: no posted journal entries dated outside their period
-  const badDate = await c.query(`
-    select count(*)::int n from fin_journal_entries je join fin_periods p on p.id = je.period_id
-    where je.status='posted' and (je.entry_date < p.start_date or je.entry_date > p.end_date)`);
-  record("finding-6a4 no posted entry dated outside its period (0 mis-dated)", badDate.rows[0].n === 0,
-    `${badDate.rows[0].n} mis-dated`);
+  await check("finding-6a4 no posted entry dated outside its period (0 mis-dated)", async () => {
+    const badDate = await c.query(`
+      select count(*)::int n from fin_journal_entries je join fin_periods p on p.id = je.period_id
+      where je.status='posted' and (je.entry_date < p.start_date or je.entry_date > p.end_date)`);
+    return { pass: badDate.rows[0].n === 0, detail: `${badDate.rows[0].n} mis-dated` };
+  });
 
-  // RCD purge enablement (finding 24): content-immutable via a BEFORE UPDATE trigger, but NOT delete-blocked
-  // (no `do instead nothing` DELETE rule) — else the PII retention cron would silently no-op and retain data.
-  const rcdImmut = await has(
-    "select 1 from pg_trigger where tgrelid='care_rcd_conversations'::regclass and not tgisinternal and (tgtype & 16)=16");
-  const rcdDelRule = await has(
-    "select 1 from pg_rules where tablename='care_rcd_conversations' and definition ilike '%DO INSTEAD NOTHING%' and lower(definition) like '%on delete%'");
-  record("RCD purge-enabled (content-immutable trigger, no delete-blocking rule)", !!rcdImmut && !rcdDelRule,
-    rcdDelRule ? "a DELETE do-instead-nothing rule would BREAK the purge" : "delete path is open");
+  await check("RCD purge-enabled (content-immutable trigger, no delete-blocking rule)", async () => {
+    // content-immutable via a trigger firing on UPDATE, but NOT delete-blocked (no `do instead nothing`
+    // DELETE rule) — else the PII retention cron would silently no-op and retain data.
+    const rcdImmut = await has(
+      "select 1 from pg_trigger where tgrelid='care_rcd_conversations'::regclass and not tgisinternal and (tgtype & 16)=16");
+    const rcdDelRule = await has(
+      "select 1 from pg_rules where tablename='care_rcd_conversations' and definition ilike '%DO INSTEAD NOTHING%' and lower(definition) like '%on delete%'");
+    return { pass: !!rcdImmut && !rcdDelRule, detail: rcdDelRule ? "a DELETE do-instead-nothing rule would BREAK the purge" : "delete path is open" };
+  });
 
-  // Bonus: event immutability holds behaviorally (rolled-back UPDATE probe)
-  await c.query("begin");
-  let evOk = true, evDetail = "no events to probe";
-  try {
-    const one = await c.query("select id, created_at from events limit 1");
-    if (one.rowCount) {
+  await check("§3.1 event UPDATE is a no-op (behavioral, rolled back)", async () => {
+    // Wrapped in its own transaction so nothing persists; the finally guarantees the rollback even on error.
+    await c.query("begin");
+    try {
+      const one = await c.query("select id, created_at from events limit 1");
+      if (!one.rowCount) return { pass: true, detail: "no events to probe" };
       await c.query("update events set created_at = now() where id = $1", [one.rows[0].id]);
       const chk = await c.query("select created_at from events where id=$1", [one.rows[0].id]);
-      evOk = chk.rows[0].created_at.getTime() === one.rows[0].created_at.getTime();
-      evDetail = evOk ? "UPDATE was a no-op" : "UPDATE CHANGED the row (append-only BROKEN)";
+      const noop = chk.rows[0].created_at.getTime() === one.rows[0].created_at.getTime();
+      return { pass: noop, detail: noop ? "UPDATE was a no-op" : "UPDATE CHANGED the row (append-only BROKEN)" };
+    } catch (e) {
+      // A raised exception is ALSO a valid append-only outcome (the write was refused).
+      return { pass: true, detail: "UPDATE rejected: " + String(e.message).slice(0, 40) };
+    } finally {
+      await c.query("rollback").catch(() => {});
     }
-  } catch (e) { evOk = true; evDetail = "UPDATE rejected: " + e.message.slice(0, 40); }
-  await c.query("rollback");
-  record("§3.1 event UPDATE is a no-op (behavioral, rolled back)", evOk, evDetail);
+  });
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${failed.length === 0 ? "✅ ALL " + results.length + " invariants hold." : "❌ " + failed.length + " of " + results.length + " FAILED."}\n`);
