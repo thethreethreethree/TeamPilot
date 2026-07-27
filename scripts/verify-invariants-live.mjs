@@ -136,6 +136,35 @@ async function main() {
     return { pass: !!rcdImmut && !rcdDelRule, detail: rcdDelRule ? "a DELETE do-instead-nothing rule would BREAK the purge" : "delete path is open" };
   });
 
+  await check("pilot redeem is NOT anon-executable (0198 grant fix holds)", async () => {
+    // redeem_pilot_code creates a company + admin profile + provisions a module. It must run only as an
+    // AUTHENTICATED caller (the just-signed-up user), never anon — Supabase auto-grants EXECUTE to anon on
+    // public functions, so 0198 explicitly `revoke ... from anon`. This is a POINT-IN-TIME fix: a future
+    // migration that `create or replace`s the function, or otherwise re-grants anon, would silently reopen
+    // unauthenticated account creation with no CI signal. This locks it.
+    //
+    // Surgical on purpose: the SIBLING pilot_code_status(text) is INTENTIONALLY anon (non-consuming
+    // validator the /redeem page calls before login), so a blanket "no anon DEFINER" rule would false-flag
+    // it. We assert only the privileged mutation.
+    const r = await c.query(`
+      select p.prosecdef as definer,
+             has_function_privilege('anon', p.oid, 'execute') as anon_exec,
+             has_function_privilege('authenticated', p.oid, 'execute') as authed_exec
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname='public' and p.proname='redeem_pilot_code'
+        and pg_get_function_identity_arguments(p.oid) = 'p_code text, p_company_name text, p_full_name text'`);
+    if (r.rowCount === 0) return { pass: false, detail: "redeem_pilot_code(text,text,text) NOT FOUND (pilot broken?)" };
+    const { anon_exec, authed_exec } = r.rows[0];
+    // anon must be revoked; authenticated must remain (else the redeem route can't call it at all).
+    const pass = anon_exec === false && authed_exec === true;
+    return {
+      pass,
+      detail: pass
+        ? "anon revoked, authenticated retained"
+        : `anon_exec=${anon_exec} (must be false), authed_exec=${authed_exec} (must be true)`,
+    };
+  });
+
   await check("§3.1 event UPDATE is a no-op (behavioral, rolled back)", async () => {
     // Wrapped in its own transaction so nothing persists; the finally guarantees the rollback even on error.
     await c.query("begin");
