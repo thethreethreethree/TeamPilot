@@ -15,6 +15,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * off our compute path. The extension downloads those bytes in its page context, where the customer's
  * session / blob: URL is still valid (RCD capture-audit finding #1).
  *
+ * ⚠️ SECURITY RELIANCE (§A27): because bytes PUT directly to the bucket, the server NEVER sees them and so
+ * cannot run validateUploadCandidate on the actual content (unlike the attachment path, which blocks SVG etc.).
+ * Active-content media (an SVG a customer planted in a captured thread) is safe here ONLY by the RENDERING model:
+ * RcdPanel shows images via <img src> (browsers disable scripting in img-context SVG) and links out to a
+ * CROSS-ORIGIN signed URL with rel="noreferrer". If RcdPanel ever renders media inline as a document
+ * (<object>/<iframe>/SVG-inline) or the bucket is ever served SAME-ORIGIN, this reliance breaks and RCD needs a
+ * type gate (declared-type allow-list at minimum; note it's declared-only since bytes bypass the server).
+ *
  * DATA GOVERNANCE: writes go through the service-role admin client, tenant-scoped by the AUTHED
  * agent's companyId (never a client-supplied id — same discipline as care_visitor_presence). The
  * bucket is private; source_url is stored as provenance only and never returned to a browser.
