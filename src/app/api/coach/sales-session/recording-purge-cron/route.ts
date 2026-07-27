@@ -18,6 +18,12 @@ import { ASSETS_BUCKET } from "@/lib/storage/assets";
  */
 
 const RETENTION_DAYS = 2;
+// NB: this cron removes bytes SEQUENTIALLY (one storage.remove() per session, for per-row error isolation —
+// unlike the RCD cron which batches all removes into one call). So 500 sequential storage round-trips could
+// approach the 60s maxDuration under a FULL backlog. Steady-state daily volume is tiny (only sessions that
+// aged out that day), so 500 is a drain-a-backlog cap, not the normal load; the `bounded` flag makes an
+// incomplete run self-heal on the next tick. If you ever see `bounded:true` persist for days, lower this to
+// ~200 (the RCD cron's proven value) rather than raise it — smaller batches drain reliably, big ones truncate.
 const BATCH = 500;
 
 // Raise past Vercel's ~10s default so a full batch (500 sessions, each a storage remove() + a DB update)
