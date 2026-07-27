@@ -417,6 +417,17 @@ not," the honest scope:
   admin AND vendor-company); finance — RLS + role gates. No unauthenticated escalation, no unguarded admin route.
 - **Verifier hardened + proven**: `verify:live` exits 1 on failure (tested) and isolates a broken query into a
   clean per-check FAIL, not a crash (tested). Runnable after any migration.
+- **~10 further audit lenses (continuation, rotate-the-lens discipline)** — each found a real issue or confirmed
+  sound with evidence: **deployment-config** (→ recording-purge `maxDuration` bug FIXED; runtime=nodejs sound;
+  version-drift single-sourced), **concurrency** (quota check-then-insert = LOW finding 27; all integrity paths
+  atomic), **idempotency** (email webhook MessageID-deduped; customer-create unique-constraint race-safe),
+  **observability** (2 entitlement silent-lock logs ADDED; RCD ingest already logs), **PII-in-logs** (clean —
+  IDs + errors, no customer PII), **RLS-coverage** (98/98 company_id tables RLS ON, 0 leaks; sole RLS-off table
+  is the non-tenant migration ledger → now GUARDED), **auth-gate constraint** (profiles.status → now GUARDED),
+  **migration-ledger** (0001-0195, no gaps/dupes), **test-quality** (15 skips are legit integration-gated),
+  **data-hygiene** (smoke_test_results is a real feature, not pollution), **extension-structure** (no dangling
+  popup ref). Net new this continuation: 1 config bug fixed, 2 observability logs, 1 LOW quota flag, 3 structural
+  guards added (INVARIANT 7/8 + verify:live RLS-coverage + auth-gate).
 
 **NOT inspected this session (honest gaps):**
 - RUNTIME (needs a browser/phone): the extension panel injecting + tools returning live on a real channel page;
