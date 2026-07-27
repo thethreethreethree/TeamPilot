@@ -91,6 +91,9 @@ Verified the pure `evaluateControlGate` (brain/index.ts) implements this:
   valid unlock date.
 - When suppressed, the composer returns a refusal with NO API call (guidance genuinely off, not just hidden);
   manual overrides are recorded as `brain_evolution_events` (on-record per §3.1).
+- **TEST-LOCKED:** `controlGate.test.ts` (6 tests) covers the full truth table including the fail-safe cases —
+  `unlockAt: null` → suppressed, and a malformed date (`"not-a-date"` → `NaN <= now` false) → suppressed. So a
+  future edit that flipped the fail-safe to fail-open turns a test red; the guarantee can't silently regress.
 
 Together, the product's core thesis mechanisms are all verified structurally sound this session:
 **§3.1 (append-only events — live)**, **§3.2 (understanding precedes surfacing — fail-closed + configured,
