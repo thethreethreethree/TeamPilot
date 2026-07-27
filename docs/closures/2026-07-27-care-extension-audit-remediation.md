@@ -440,6 +440,17 @@ not," the honest scope:
     is not a HARD bound — worth knowing when you set the per-tenant cost cap (that cap, if you want a hard limit,
     should be enforced atomically, unlike this soft quota).
 
+## Low-severity follow-up — the panel version is hardcoded too (same Finding-5 drift class)
+
+28. **LOW (flagged, not built) — `content.js:136` hardcodes `<span class="ver">v0.3</span>`.** Same manual-sync
+    footgun as Finding 5 (the download-page version), and already slightly off ("v0.3" vs the manifest's
+    "0.3.0"). The download-page instance was single-sourced from the manifest this session (`73551de9`); the
+    panel sibling can be single-sourced via `chrome.runtime.getManifest().version` (available in content
+    scripts) so it never drifts. NOT done now: it's runtime-unverified extension code (I can't browser-test the
+    panel), needs a rebuild + tester re-download, and changes the displayed format (v0.3 → v0.3.0) — a cosmetic
+    change better made when the extension is next rebuilt and browser-verified. Do it in the same pass as the
+    other queued extension tweaks (the capture-success link, the "couldn't reach" reword).
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
