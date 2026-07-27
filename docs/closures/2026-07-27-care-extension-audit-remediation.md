@@ -520,6 +520,30 @@ reconciliations, and 4 audit-lens memories. **Could not complete (founder/browse
 per-tenant cost cap (numbers), B/paid-unlock, email cede-vs-retry, A3, the panel-version single-source (finding
 28), and all browser runtime-verify.
 
+## Session-tail security-class sweep (§A27 — enforce at the chokepoint, don't rely on downstream)
+
+Beyond the tester fix, a proactive sweep of the "untrusted input into a sensitive context, safe only because of
+a downstream property" class. Each was low-severity TODAY but a real hole waiting on a config/serving change;
+all fixed by enforcing at the chokepoint so the safety no longer depends on the downstream staying as-is:
+
+31. **Email address header** (`e7d9bec8`) — `formatEmailAddress` interpolated the address raw on the assumption
+    the caller validated it. Now strips CR/LF + control chars + angle brackets itself → header-injection-safe
+    regardless of caller. +2 tests.
+32. **Email threading header value** (`a75d1e22`) — In-Reply-To/References were built from the customer-derived
+    inbound Message-Id, unsanitized, trusting Postmark. Added `sanitizeEmailHeaderValue` (shared, §A13) + wired
+    it. +3 tests. (Subject verified safe via Postmark's JSON encoding; send path is HTTP API, not raw SMTP.)
+33. **SVG upload** (`4d5a50f1`) — the `image/` allow-prefix admitted `image/svg+xml`, a stored-XSS vector if a
+    signed URL is opened directly or attachments ever served same-origin. Blocked at the upload gate (MIME +
+    extension). Narrows a founder-approved allow-list by one subtype — founder can re-allow. +1 test.
+
+**Verified SOUND in the same sweep (no change needed):** open-redirect (`safeRelativePath` rejects scheme/
+protocol-relative/backslash, tested); widget `session_token` (crypto-random UUID v4, server-side); TTS/STT
+(token validated → conversation, not presence-only); SSRF (no server fetch of a user URL); input-size caps
+(widget 4k, email 50k, headers ≤100); `buildStoragePath` (extension sanitized to alphanumeric, no traversal —
+already §A27-hardened); the company_brain injection primary vector (0112, verified closed live); RLS (0
+bypassing views). LLM injection: every customer-facing prompt fenced (`CONVERSATION_IS_DATA` + the tested
+nonce-fence on the auto-reply), detection-tested.
+
 ## Founder runtime-verify queue (things I structurally cannot run)
 
 - Fresh pilot tenant → first extension tool call now succeeds + opens a 14-day trial.
