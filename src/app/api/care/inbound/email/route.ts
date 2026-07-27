@@ -72,6 +72,13 @@ const PostmarkInboundBody = z.object({
   From: z.string().email(),
   FromName: z.string().max(400).optional(),
   To: z.string().min(1).max(1000),
+  // Postmark's inbound webhook also sends OriginalRecipient — the SINGLE specific
+  // address this message was delivered to for THIS webhook. Prefer it over the To
+  // HEADER for tenant routing: To can list multiple/reordered recipients, so parsing
+  // its first `@` mis-keys (and silently drops) a support email whose tenant address
+  // isn't first. OriginalRecipient is unambiguous. Optional + we fall back to To, so a
+  // provider/test that omits it behaves exactly as before. (See pickInboundRoutingAddress.)
+  OriginalRecipient: z.string().max(1000).optional(),
   Subject: z.string().max(998).optional(),
   TextBody: z.string().min(1).max(50000),
   // Postmark's quote-stripped reply body — just the customer's NEW text, with the
@@ -169,8 +176,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ─── 4. Resolve tenant from To: address ──────────────────────
-  const localPart = extractLocalPart(body.To);
+  // ─── 4. Resolve tenant from the delivered-to address ─────────
+  // Route on OriginalRecipient (the single address this webhook was delivered to) when
+  // present, else the To header — see pickInboundRoutingAddress for why.
+  const localPart = extractLocalPart(pickInboundRoutingAddress(body));
   if (!localPart) {
     return NextResponse.json(
       { error: "Couldn't parse a local part from the To address." },
@@ -443,6 +452,26 @@ export function extractLocalPart(to: string): string | null {
   const at = address.indexOf("@");
   if (at <= 0) return null;
   return address.slice(0, at);
+}
+
+/**
+ * Pick the address to route tenant lookup on. Postmark's OriginalRecipient is the ONE
+ * address this webhook was delivered to, so it's unambiguous even when the customer put
+ * multiple addresses (or reordered them) in the To header. Fall back to the To header
+ * when OriginalRecipient is absent/blank — so a provider or test that doesn't send it
+ * routes exactly as before (no behavior change; the fix is strictly not-worse).
+ *
+ * Why this matters: extractLocalPart takes the local part up to the FIRST `@`, so on a
+ * multi-recipient To like "cc@customer.com, t-acme@care.elostate.com" it returns "cc" →
+ * tenant lookup misses → the support email is silently dropped (tenant_unknown 200-ignore).
+ * OriginalRecipient="t-acme@care.elostate.com" routes it correctly.
+ */
+export function pickInboundRoutingAddress(body: {
+  OriginalRecipient?: string;
+  To: string;
+}): string {
+  const orig = body.OriginalRecipient?.trim();
+  return orig ? orig : body.To;
 }
 
 // Loop breaker window + threshold. A machine auto-responder ping-pong
