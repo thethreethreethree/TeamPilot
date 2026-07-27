@@ -88,7 +88,7 @@ export function toolRequest(tool: Exclude<ToolKey, "task">, convId: string): { u
   }
 }
 
-function pickResultText(data: unknown): string {
+export function pickResultText(data: unknown): string {
   if (data && typeof data === "object") {
     const d = data as Record<string, unknown>;
     // Verified keys: summarize → {summary}, dissect → {dissect:{...}} (0193 audit).
