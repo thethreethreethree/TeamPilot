@@ -23,6 +23,15 @@ export async function GET(
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
   const { id } = await context.params;
+  // SECURITY (§A27 — load-bearing downstream property): this route has NO explicit
+  // company/access check of its own before signing a download URL. Its cross-tenant
+  // safety depends ENTIRELY on getFile() using the RLS-bound user client (createClient),
+  // so a file the caller can't SELECT — another tenant's, or one whose access_role
+  // excludes them — returns null → 404 here. RLS enforces the FULL visibility rule
+  // (tenant AND access_role AND department membership), which a hand-rolled companyId
+  // check could not. If getFile is ever switched to the admin client, this silently
+  // becomes a cross-tenant file-bytes leak (any authenticated user GETs any file id and
+  // receives a signed URL). Keep getFile RLS-bound, or add an explicit check here first.
   const file = await getFile(id);
   if (!file) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
