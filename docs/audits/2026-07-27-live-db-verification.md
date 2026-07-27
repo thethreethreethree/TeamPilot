@@ -8,10 +8,16 @@ checks. All queries were READ-ONLY; nothing was written or changed.
 Connection: `SUPABASE_DB_URL` (Session-pooler, `ap-northeast-1`) from `.env.local`.
 
 > **These checks are now RE-RUNNABLE: `npm run verify:live`** (`scripts/verify-invariants-live.mjs`, read-only,
-> exit 1 on any failure so CI can gate on it). It re-confirms the structural invariants below — §3.1 append-only,
-> §3.2 gate, finance H2/H3/H4, RCD purge-enablement, and the finding-25 / finding-6a4 detections — against the
-> live DB. Run it after a migration or before a release. The one-time findings below explain WHAT each check
-> means; the script is the durable guard. (Complements `npm run invariant:audit`, which checks the CODE.)
+> exit codes: 0=all pass, 1=an invariant FAILED, 2=couldn't connect — CI can gate on it). It re-confirms **11
+> structural invariants** against the live DB: §3.1 append-only (rules + a rolled-back UPDATE probe), §3.2 gate
+> fail-closed + `*` threshold, finance H2/H3/H4 (immutability, balance, RLS company-scoped), RCD purge-enablement,
+> the finding-25 / finding-6a4 detections, **the auth-gate constraint (`profiles.status` stays exactly
+> (active,removed) or the `'removed'` denylist gates fail open), and TENANT ISOLATION (every `company_id` table
+> has RLS ON — a new table missing RLS is a cross-tenant leak)**. Run it after a migration or before a release.
+> The one-time findings below explain WHAT each check means; the script is the durable guard. Proven robust:
+> exits 1 and names the failing invariant on a break, isolates a broken query per-check, exits 2 (not hang) on a
+> connection failure. (Complements `npm run invariant:audit`, which checks the CODE — now 8 invariants incl.
+> admin-route-gated + extension-route-authenticated.)
 
 ## 1. Migration state — all applied (reconciles a stale doc)
 
