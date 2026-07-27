@@ -7,6 +7,12 @@ checks. All queries were READ-ONLY; nothing was written or changed.
 
 Connection: `SUPABASE_DB_URL` (Session-pooler, `ap-northeast-1`) from `.env.local`.
 
+> **These checks are now RE-RUNNABLE: `npm run verify:live`** (`scripts/verify-invariants-live.mjs`, read-only,
+> exit 1 on any failure so CI can gate on it). It re-confirms the structural invariants below — §3.1 append-only,
+> §3.2 gate, finance H2/H3/H4, RCD purge-enablement, and the finding-25 / finding-6a4 detections — against the
+> live DB. Run it after a migration or before a release. The one-time findings below explain WHAT each check
+> means; the script is the durable guard. (Complements `npm run invariant:audit`, which checks the CODE.)
+
 ## 1. Migration state — all applied (reconciles a stale doc)
 
 - `public._agent_migrations` ledger: **195 applied** (0001→0195).
