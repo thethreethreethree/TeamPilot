@@ -64,46 +64,30 @@ export function detectFileMentionContext(
   value: string,
   caret: number
 ): { triggerStart: number; query: string } | null {
-  // Walk backward from the caret to find a `@file` token. Stop at
-  // whitespace OR at start-of-string. The token has to be at a
-  // word boundary (preceded by whitespace, newline, or start).
-  let i = caret - 1;
-  // Skip back past the query characters (any non-whitespace except
-  // the closing of an existing mention).
-  while (i >= 0) {
-    const ch = value[i];
-    if (!ch) break;
-    if (/[\s\n]/.test(ch)) break;
-    // Stop if we hit a `]` from a completed mention.
-    if (ch === "]" || ch === ")") return null;
-    i--;
-  }
-  // i now points to the char BEFORE the candidate token (or -1).
-  const start = i + 1;
-  const token = value.slice(start, caret);
-  // Token must start with @file (case-sensitive — matches the
-  // marker format).
-  if (!token.startsWith("@file")) return null;
-  // Per 2026-06-19 audit Finding #2: after `@file` the next char
-  // (if any) MUST be a space. Without this guard, a user typing
-  // `@filename.pdf` in plain text (mentioning a hypothetical file
-  // by name, not as a marker) would wrongly trigger the
-  // autocomplete with query "name.pdf". The trigger should only
-  // fire when the user actually types `@file ` (with a space) or
-  // `@file` at the cursor with nothing after.
-  const afterFile = token.slice("@file".length);
-  if (afterFile.length > 0 && !afterFile.startsWith(" ")) {
-    return null;
-  }
-  // Boundary check — the character before `start` must be
-  // whitespace, newline, or start-of-string.
-  if (start > 0) {
-    const prev = value[start - 1];
+  // BUG FIX (2026-07-22): the previous implementation walked backward and STOPPED at the first whitespace,
+  // so the space in "@file <query>" ended the token before "@file" was recognized — the query was ALWAYS
+  // empty and the search-as-you-type never worked (contradicting this function's own comments). We instead
+  // anchor on the last "@file" before the caret and read the query forward from there.
+  const head = value.slice(0, caret);
+  const idx = head.lastIndexOf("@file");
+  if (idx < 0) return null;
+
+  // Word boundary: the char before `@file` must be whitespace/newline or start-of-string. Rules out
+  // "email@file" and similar.
+  if (idx > 0) {
+    const prev = value[idx - 1];
     if (prev && !/[\s\n]/.test(prev)) return null;
   }
-  // Extract the query: everything after `@file` (skip one space if
-  // present, so `@file foo` queries `foo`).
-  let q = afterFile;
-  if (q.startsWith(" ")) q = q.slice(1);
-  return { triggerStart: start, query: q };
+
+  const afterFile = head.slice(idx + "@file".length);
+  // Per 2026-06-19 audit Finding #2: if there IS text right after `@file`, it must begin with a space —
+  // otherwise a plain word like `@filename.pdf` would wrongly trigger the autocomplete.
+  if (afterFile.length > 0 && !afterFile.startsWith(" ")) return null;
+
+  // The query is the single token after `@file ` (skip the one leading space). A further space/newline or a
+  // mention-closer (`]`/`)`) ends the mention, so those never appear inside the live query.
+  const q = afterFile.startsWith(" ") ? afterFile.slice(1) : "";
+  if (/[\s\n\]\)]/.test(q)) return null;
+
+  return { triggerStart: idx, query: q };
 }
