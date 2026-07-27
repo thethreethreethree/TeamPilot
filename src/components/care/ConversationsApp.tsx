@@ -33,6 +33,7 @@ import {
   X,
 } from "lucide-react";
 import { careStatusDisplay } from "@/lib/care/statusLabels";
+import { assignWillLeaveView } from "@/lib/care/inboxAdvance";
 import type { ConversationDissect, CoachTurn } from "@/lib/dissect/types";
 import { labelForAnyTopic } from "@/lib/care/handoverTopics";
 import {
@@ -1315,9 +1316,7 @@ export function ConversationsApp({
     // view+target+currentUserId — it deliberately does NOT read `filtered`
     // after the action, whose useMemo hasn't re-derived from the reload yet
     // (the stale-state trap that made this a considered fix, not a rushed one).
-    const willLeaveView =
-      (view === "mine" && targetAgentId !== currentUserId) ||
-      (view === "unassigned" && targetAgentId !== null);
+    const willLeaveView = assignWillLeaveView({ view, targetAgentId, currentUserId });
     const nextAfter =
       willLeaveView && selected ? computeNextAfterTerminal(selected.id) : null;
     const ok = await runAction(
