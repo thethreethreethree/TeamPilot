@@ -45,8 +45,11 @@
   hard-codes `elostate.com`); its domain-match depends only on the app being SERVED at `elostate.com`, which is
   confirmed live (`/redeem` 200). So the extension is fine on the domain front regardless of this SITE_URL gap.
 - Verify `DEEPSEEK_MODEL` ≠ stale `deepseek-chat`;
-  set `CRON_SECRET` (+ `RCD_RETENTION_DAYS`) to activate the PII-purge crons; VAPID×3 for push; `BOOKING_URL`
-  for the demo; `NEXT_PUBLIC_CARE_EXTENSION_ID` before any *public* Web Store launch (fine unset for pilot).
+  set `CRON_SECRET` (+ `RCD_RETENTION_DAYS`) to activate the PII-purge crons; VAPID×3 for push;
+  `NEXT_PUBLIC_BOOKING_URL` — **CONFIRMED unset live 2026-07-28** (the `/care/demo` "Book a demo" CTA resolves
+  to `/login`), so the demo is NOT prospect-ready — a prospect clicking it hits a login dead-end; set it before
+  sending the demo out (pilot itself unaffected — uses codes, not the demo);
+  `NEXT_PUBLIC_CARE_EXTENSION_ID` before any *public* Web Store launch (fine unset for pilot).
 - **Founder-IP-in-git-history** (`861e5ffc`) — purge + force-push only if the repo is/goes public (your call;
   prevention is already in place). *(🔴 DO FIRST § in the 2026-07-27 block.)*
 
