@@ -56,6 +56,48 @@ function resolve(pref: ThemePreference): ResolvedTheme {
   return resolveSystem();
 }
 
+function isPref(v: unknown): v is ThemePreference {
+  return v === "light" || v === "dark" || v === "system";
+}
+
+/**
+ * Decide which preference a freshly-loaded device should adopt, given the local
+ * cache and the DB (per-user override + company default). Pure so it is unit-testable.
+ *
+ * Rules (founder 2026-07-28 — company default + per-user override):
+ * - A device that ALREADY has an explicit local choice wins; never override it.
+ * - No local choice → a personal DB preference (saved on another device) wins AND is
+ *   cached locally (it is a real choice, so caching it makes future loads flash-free).
+ * - Else the company default applies but is NOT cached, so the device keeps tracking
+ *   later company-default changes instead of freezing the first one it saw.
+ */
+export function reconcileTheme(args: {
+  localRaw: string | null;
+  dbPref: ThemePreference | null;
+  companyDefault: ThemePreference | null;
+}): { preference: ThemePreference | null; shouldCache: boolean } {
+  const { localRaw, dbPref, companyDefault } = args;
+  if (isPref(localRaw)) return { preference: null, shouldCache: false };
+  if (isPref(dbPref)) return { preference: dbPref, shouldCache: true };
+  if (isPref(companyDefault)) return { preference: companyDefault, shouldCache: false };
+  return { preference: null, shouldCache: false };
+}
+
+/** Persist the user's theme choice cross-device (guarded, fire-and-forget). */
+function persistThemePreference(preference: ThemePreference): void {
+  try {
+    void fetch("/api/me/theme", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ preference }),
+    }).catch(() => {
+      /* offline / unauthenticated / migration pending — non-fatal */
+    });
+  } catch {
+    /* fetch unavailable — non-fatal */
+  }
+}
+
 function applyToDom(mode: ResolvedTheme) {
   if (typeof document === "undefined") return;
   document.documentElement.setAttribute("data-theme", mode);
@@ -81,19 +123,59 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // This may flip the toggle's active pill by one frame on first load,
   // which is an acceptable trade for eliminating the hydration warning.
   useEffect(() => {
-    let stored: ThemePreference = "system";
+    let cancelled = false;
+    let localRaw: string | null = null;
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw === "light" || raw === "dark" || raw === "system") stored = raw;
+      localRaw = window.localStorage.getItem(STORAGE_KEY);
     } catch {
       /* storage unavailable — keep default */
     }
+    const stored: ThemePreference = isPref(localRaw) ? localRaw : "system";
     const actual = resolve(stored);
     setPreferenceState(stored);
     setResolved(actual);
     // The pre-paint script already set data-theme, but if storage was
     // changed since that paint (another tab), re-sync the DOM now.
     applyToDom(actual);
+
+    // If this device has NO explicit choice, reconcile from the DB: a personal
+    // preference saved on another device, else the company default. Guarded — any
+    // failure (offline, unauthenticated, migration 0201 pending) leaves the
+    // localStorage-only behavior above intact (A34, non-breaking).
+    if (localRaw === null) {
+      (async () => {
+        try {
+          const res = await fetch("/api/me/theme");
+          if (!res.ok || cancelled) return;
+          const data = (await res.json()) as {
+            preference?: ThemePreference | null;
+            companyDefault?: ThemePreference | null;
+          };
+          const { preference: chosen, shouldCache } = reconcileTheme({
+            localRaw,
+            dbPref: isPref(data.preference) ? data.preference : null,
+            companyDefault: isPref(data.companyDefault) ? data.companyDefault : null,
+          });
+          if (cancelled || !chosen) return;
+          setPreferenceState(chosen);
+          const r = resolve(chosen);
+          setResolved(r);
+          applyToDom(r);
+          if (shouldCache) {
+            try {
+              window.localStorage.setItem(STORAGE_KEY, chosen);
+            } catch {
+              /* non-fatal */
+            }
+          }
+        } catch {
+          /* keep localStorage-only behavior */
+        }
+      })();
+    }
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Re-resolve when the OS preference changes — only matters if user is
@@ -122,6 +204,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Storage write failed (private browsing, quota) — non-fatal. The
       // change still applies this session; it just won't persist.
     }
+    // Persist cross-device (guarded, fire-and-forget). A failure — offline,
+    // unauthenticated, or migration 0201 pending — is non-fatal: the choice
+    // already applied this session via state + localStorage above.
+    persistThemePreference(next);
   }, []);
 
   const toggle = useCallback(() => {

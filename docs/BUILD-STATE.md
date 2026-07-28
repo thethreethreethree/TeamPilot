@@ -16,34 +16,31 @@
 
 ## ▶ ACTIVE BUILD
 
-**slug:** `2026-07-29-x-revision-completeness-mechanism`
-**started:** 2026-07-29T05:10:00Z
-**instruction (verbatim intent):** "create a detailed structured solution so when I interrupted you or
-we lose internet, you can have specific detailed information of what was left unfinished, and all the
-possible risk/complications" + "find a permanent solution so it doesn't occur again" (the recurring
-'revision reported done while partial' pattern the founder named critical).
-**source:** founder chat (2026-07-29)
+**slug:** `2026-07-29-settings-admin-scope` (STARTING — THINK phase)
+**started:** 2026-07-29T05:40:00Z
+**instruction (verbatim intent):** "make Settings substantial" — Timezone, Individual user/agent access +
+Access Assistance (admin resets password for users/agents), System default Theme (light/dark), users'/
+agents' default Learning Mode. Decisions locked: temp-password (user changes next login); theme/learning/
+timezone = admin default + user override (resolve user→company→system); all admin actions company-scoped;
+"keep adding to the current page"; each column migration-coupled with a guarded fallback (A34).
+**source:** founder chat (2026-07-28), decisions locked.
 
-### Requested items → disposition
+### Requested items → disposition (to fill during BUILD)
 
 | id | item | disposition | evidence / risk if left |
 |----|------|-------------|--------------------------|
-| M1 | Durable unfinished-work + risks ledger (`docs/BUILD-STATE.md`), maintained during every build | **DONE** | this file exists + is populated with real state |
-| M2 | Revision-completeness gate (`scripts/tbc/verify-revision.mjs`) — every requested change dispositioned before closure | **DONE** | gate file + detection test (fails on un-dispositioned item, green when all done) |
-| M3 | `revision.md` manifest for this build (all items dispositioned) | **DONE** | `docs/tbc/2026-07-29-x-revision-completeness-mechanism/revision.md` |
-| M4 | Retro-demonstrate on the motivating incident (sales-coach revision) | **DONE** | `docs/tbc/2026-07-29-sales-coach-revision-completion/revision.md` (2 items, both done) |
-| M5 | Standing-protocol write-up (exact `BUILD-PROTOCOL.md` §7.1 + §8.3 text) so the discipline runs every build | **DONE** | text authored verbatim in AMD-009; insertion into the §7-governed BUILD-PROTOCOL.md deferred to ratification (part of M7) |
-| M6 | On-record amendment proposing the gate become MANDATORY (`AMD-009`) — founder ratifies | **DEFERRED** | defer_reason: making a gate mandatory is a governance act (AMD-008 precedent, A28) — proposed, not self-ratified while founder offline. Risk if left: gate is runnable but not auto-enforced until "ratify AMD-009". |
-| M7 | Wire `tbc:revision` into the mandatory `npm run check` chain | **DEFERRED** | defer_reason: mandatory-chain wiring is the ratification act (M6). Exact one-line diff pre-written in AMD-009. Risk if left: a future revision build could skip the manifest until ratified. Mitigation: the runnable gate + this ledger + the protocol doc. |
+| S0 | THINK — read current Settings surface + profiles/company schema; find the admin-company-scoped precedent | **DONE** | Explore map: theme=localStorage-only, learning_mode_enabled/experience_mode precedent, /api/me/learning-mode route shape, requireCompanyAdmin + createAdminClient pattern, no admin-password-reset exists yet |
+| S1 | Theme — company default + per-user override + DB persist (resolve user→company→system) | **DONE (code)** | migration 0201 + /api/me/theme + ThemeProvider reconcile/persist + ThemePanel; reconcileTheme test 6/6; check exit 0. ⚠ migration 0201 NOT yet applied (guarded → localStorage-only until applied) |
+| S2 | Learning Mode — company default + per-user override | not started | next slice |
+| S3 | Timezone — company default + per-user override | not started | next slice |
+| S4 | Access Assistance — admin sets temp password (force-change-next-login), company-scoped | not started | SECURITY-SENSITIVE — first admin-sets-another-user's-password; build most carefully, own slice |
 
 ### Unfinished at this moment
-- **Verification DONE** — `npm run check` exits 0 (1602 tests, all gates), pasted in this build's
-  closure.md §3. `npm run tbc:revision` green standalone.
-- **M6 + M7 only** remain — both awaiting the founder's one-word ratification ("ratify AMD-009"):
-  M6 = flip AMD-009 to ratified + bump `src/lib/constitution.ts` (INV12); M7 = apply AMD-009 §4 (add
-  `tbc:revision` to the `tbc` chain) + §5 (insert BUILD-PROTOCOL.md 7.1 + 8.3). Exact diffs pre-written in
-  AMD-009. Until then the gate is runnable but not auto-enforced (bounded risk, tracked here).
-- No mid-edit files; the mechanism is complete, tested, and committed.
+- **S1 (Theme) code done + check green**, committing next. Migration `0201` written but NOT applied
+  (needs the DB URL / founder `npm run db:apply`); code is A34-guarded so it degrades to localStorage-only
+  until applied — non-breaking. Post-apply live check: pick theme on device A → follows to device B;
+  admin sets company default → fresh member inherits.
+- **S2/S3/S4 not started.** S4 (Access Assistance) is security-sensitive.
 
 ---
 
@@ -54,7 +51,8 @@ possible risk/complications" + "find a permanent solution so it doesn't occur ag
 
 | item | state | risk if left / note |
 |------|-------|---------------------|
-| **Settings admin scope** — Theme, Learning Mode, Timezone (company default + user override + DB persist); Access Assistance (admin temp-password, force-change-next-login, company-scoped) | DECIDED, NOT BUILT (~15%: only name-edit shipped) | founder approved the design 2026-07-28; each column migration-coupled with a guarded fallback (A34). No risk of breakage — simply unbuilt. Next build. |
+| **AMD-009 ratification** — makes `tbc:revision` mandatory (adds to `tbc` chain) + inserts BUILD-PROTOCOL.md 7.1 + 8.3 + bumps constitution.ts | PROPOSED, awaits founder | say "ratify AMD-009". Until then the revision gate is runnable but not auto-enforced (bounded risk). |
+| **Settings admin scope** — Theme, Learning Mode, Timezone (company default + user override + DB persist); Access Assistance (admin temp-password, force-change-next-login, company-scoped) | IN PROGRESS (now the ACTIVE build) | founder approved the design 2026-07-28; each column migration-coupled with a guarded fallback (A34). |
 | **DEFINER-revoke `0200`** — ~50 finance SECURITY DEFINER fns anon-callable (cross-tenant config read) | FOUNDER-GATED | MEDIUM security. Fix written + de-risked. Live finance change → needs founder "fix the definer revoke". |
 | **Per-tenant AI-cost cap** | SPEC READY, awaits founder NUMBERS | distributed abuse unbounded below tenant until set. 5-surface spec written. |
 | **`ANTHROPIC_API_KEY`** (Vercel) | FOUNDER CONFIG | prod is DeepSeek-only → no AI failover (single point of failure). Failover code built + test-locked; activates on key set. |
@@ -68,6 +66,9 @@ possible risk/complications" + "find a permanent solution so it doesn't occur ag
 
 ## ▶ RECENTLY CLOSED (rolling, newest first)
 
+- `2026-07-29-x-revision-completeness-mechanism` — CLOSED 2026-07-29 (`b76bdc84`) — durable ledger
+  (this file) + revision-completeness gate (`tbc:revision`) + AMD-009 proposal. check exits 0. M6/M7
+  (ratification) → carry-over queue.
 - `2026-07-29-sales-coach-revision-completion` — CLOSED 2026-07-29 (`86c987fa`) — declutter (4 strings) +
   Standard post-session → after-pitch routing. 2/2 items done.
 - `7-day build audit PDF` — DELIVERED 2026-07-29 — `BUILD-AUDIT-7DAY-2026-07-29.pdf` (repo root, untracked

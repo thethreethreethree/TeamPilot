@@ -25,6 +25,7 @@ import { LearningModePanel } from "@/components/settings/LearningModePanel";
 import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 import { AvatarCustomizationPanel } from "@/components/settings/AvatarCustomizationPanel";
 import { ProfilePanel } from "@/components/settings/ProfilePanel";
+import { ThemePanel } from "@/components/settings/ThemePanel";
 
 interface Settings {
   company: {
@@ -203,6 +204,10 @@ export default function SettingsPage() {
         {/* Edit your own name (+ view sign-in email). Fills the account gap:
             full_name was set only at onboarding with no later edit surface. */}
         <ProfilePanel />
+
+        {/* Appearance — per-user theme (persisted cross-device) + company default
+            for admins. Theme was localStorage-only before migration 0201. */}
+        <ThemePanel />
 
         <LearningHint
           as="block"
