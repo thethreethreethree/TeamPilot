@@ -190,7 +190,7 @@ export default function SalesCoachHome() {
           <MobileCard
             href="/dashboard/sales-coach/strategy"
             icon={Library}
-            title="Strategy Library"
+            title={isStandard ? "One Liners" : "Strategy Library"}
             sub="Find top-performing correct lines and sales strategies"
           />
         </div>
