@@ -327,15 +327,16 @@ export function LiveCoachingPanel({
               {agentSpeaking ? "You're speaking" : "I'm speaking"}
             </button>
             </LearningHint>
-            {/* Auto-coach toggle — stays ON (auto-cues at pauses) until you
-                turn it off; clear ON/OFF indicator (founder request). */}
+            {/* Auto-coach toggle — DEFAULTS OFF (founder revision 2026-07-28):
+                the rep opts INTO automatic cueing. Turn it ON and it auto-cues at
+                pauses until turned off; clear ON/OFF indicator (founder request). */}
             <LearningHint
               as="inline-block"
               category="Sales Coach · Live coaching"
               title="Auto-coach toggle"
               whatItIs="Lets the coach decide on its own when to cue you — it fires at natural pauses instead of waiting for you to ask."
               why="In a fast conversation you can't always tap for help. Auto-coach watches for the opening and speaks only when it reads a real moment — restraint, not chatter."
-              how="Leave it ON to let cues arrive at pauses. Turn it OFF when you want silence and will ask for coaching yourself."
+              how="Off by default — you ask for coaching yourself. Turn it ON to let cues arrive automatically at pauses; turn it OFF again for silence."
               principle="Good coaching knows when NOT to talk."
             >
             <button
