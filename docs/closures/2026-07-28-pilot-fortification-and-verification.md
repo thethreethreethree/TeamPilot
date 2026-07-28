@@ -57,6 +57,20 @@ and swept adjacent surfaces. No founder-gated feature was built (those remain th
   demo isn't prospect-ready; pilot unaffected (uses codes). Meta-pattern: prod runs on minimal env config —
   essentials set (DeepSeek key, Supabase), enhancement vars unset.
 
+## 🔴 SECURITY FINDING (the standout output) — MEDIUM, confirmed live, fix ready
+
+`0183_fin_definer_revoke.sql` tried to lock ~8 finance SECURITY DEFINER helpers but revoked from
+`authenticated, anon` instead of **PUBLIC** — a no-op (roles inherit the default PUBLIC EXECUTE grant). So
+the cross-tenant hole 0183 documented as "Fixed here" is **still open**. **PoC (rolled back): as ANON,
+`fin_account_by_code(company, code)` returned another tenant's account UUID.** A 2nd sweep found 2 more
+ungated anon-exec write helpers (`fin_post_reversal`, `fin_record_report_delivery`) that take an entity id
+so 0183 + INVARIANT 4 both miss them. Entry/action fns (`fin_approve_bill` etc.) are safe (company-scoped).
+INVARIANT 4 masked it (checks revoke *text*, not effective grant; and only models `p_company`-param fns).
+**Fix (10 functions, de-risked, NOT applied — founder-gated finance change):** `revoke … from public` +
+a `verify:live` grant guard + tighten INVARIANT 4. Full write-up + PoC + 0200 SQL:
+`docs/audits/2026-07-28-fin-definer-revoke-ineffective.md`; top of the queue. Trigger: **"fix the definer
+revoke."** RLS-policy divergence separately checked → clean (the issue is isolated to function grants).
+
 ## Open — founder's call (unchanged; NOT built this session, by design)
 One live browser redemption (E2E confirm) · support-search access policy · C.A.R.E product-context field ·
 `0047` onboarding race · widget write-dedup · finish (optional) admin consolidation · provider posture +
