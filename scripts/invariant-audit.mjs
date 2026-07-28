@@ -590,6 +590,32 @@ const AMD_DIR = "docs/amendments";
   }
 }
 
+// ═══ INVARIANT 13 — every raw PostgREST .or(...ilike...) filter is sanitized ══════════════════════
+//
+// LEARNED: the `.or("col.ilike.<term>,...")` API takes a RAW filter string it does NOT escape. An
+// unescaped comma/paren in an INTERPOLATED term breaks out of the ilike into an attacker-chosen filter
+// clause — PostgREST filter injection (widen results within a tenant, or a malformed-filter 400). The
+// fix was one primitive (sanitizeOrIlikeTerm) wired into FOUR call sites (files/crm/care/global search).
+// Verified 2026-07-28: all four sanitize. Nothing ENFORCED it — a 5th `.or(...ilike.${…})` added without
+// the sanitizer would silently reopen the hole and pass every test (the primitive's own test still green).
+// This locks the class: an interpolated raw ilike filter in a file that never imports sanitizeOrIlikeTerm
+// is flagged. Parameterized `.ilike(col, term)` is safe (escaped) and carries no `ilike.` literal, so it
+// is not matched.
+const RAW_ILIKE_FILTER_RE = /`[^`]*ilike\.[^`]*\$\{/;
+for (const f of FILES) {
+  if (!RAW_ILIKE_FILTER_RE.test(f.sql)) continue;
+  // The primitive + its test legitimately contain the shape; they ARE the sanitizer.
+  if (/sanitizeOrIlikeTerm/.test(f.sql)) continue;
+  findings.push({
+    rule: "raw .or(...ilike...) filter must route through sanitizeOrIlikeTerm",
+    file: f.path,
+    why:
+      "An INTERPOLATED term in a raw PostgREST `.or(\"col.ilike.${term}\")` string is filter injection —\n" +
+      "      an unescaped comma/paren breaks out of the ilike into an attacker-chosen clause. Import\n" +
+      "      sanitizeOrIlikeTerm from @/lib/data/searchTerm and wrap the term before building the filter.",
+  });
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -617,6 +643,10 @@ st("INV12 parses amendmentCount", /amendmentCount:\s*(\d+)/.exec("amendmentCount
 st("INV12 parses lastAmendmentId", /lastAmendmentId:\s*["']([^"']+)["']/.exec('lastAmendmentId: "AMD-006",')?.[1] === "AMD-006");
 st("INV12 counts a ratified status", "ratified" === ("- **Status:** ratified".match(/\*\*Status:\*\*\s*(\S+)/i)?.[1] ?? "").toLowerCase());
 st("INV12 excludes a proposed status", "ratified" !== ("- **Status:** **PROPOSED — not ratified.**".match(/\*\*Status:\*\*\s*(\S+)/i)?.[1] ?? "").toLowerCase());
+// INV13 raw ilike .or() injection: must flag an interpolated raw ilike filter, must ignore parameterized .ilike().
+st("INV13 flags an interpolated raw ilike filter", RAW_ILIKE_FILTER_RE.test("q.or(`title.ilike.%${t}%,description.ilike.%${t}%`)"));
+st("INV13 ignores a parameterized .ilike()", !RAW_ILIKE_FILTER_RE.test('sb.ilike("body", term).eq("kind","message")'));
+st("INV13 ignores a static (non-interpolated) ilike filter", !RAW_ILIKE_FILTER_RE.test('q.or(`title.ilike.foo`)'));
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -635,7 +665,8 @@ if (findings.length === 0) {
       " no client-callable DEFINER tenant-param fn · every upload route validated ·" +
       " every cross-person read gated · every admin route gated · every extension route authenticated ·" +
       " no server secret NEXT_PUBLIC_-exposed · every dangerouslySetInnerHTML justified ·" +
-      " every cron route CRON_SECRET-gated · constitution metadata matches the ratified amendments."
+      " every cron route CRON_SECRET-gated · constitution metadata matches the ratified amendments ·" +
+      " every raw .or(...ilike...) filter sanitized (no PostgREST injection)."
   );
   process.exit(0);
 }
