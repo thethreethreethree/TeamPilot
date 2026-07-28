@@ -31,6 +31,11 @@
   previews resolve against localhost). **Set `NEXT_PUBLIC_SITE_URL=https://elostate.com` in Vercel** to fix
   canonical/OG/robots/sitemap. *Low urgency* (SEO/metadata only — NOT pilot-blocking, NOT extension-breaking).
   Do NOT "fix" it in code — the `localhost` fallback is intentionally correct for local dev.
+  **Blast radius CONFIRMED SEO-only** (ruled out the scary cases): every FUNCTIONAL absolute URL uses
+  `window.location.origin` at runtime, not this env var — invite links (`team/page.tsx:320`,
+  `InviteMemberDialog.tsx:85`) resolve to elostate.com when the admin browses there; widget embed snippet
+  same; password-recovery `redirect_to` comes from Supabase's own settings. So no broken invite/reset links —
+  only canonical/OG/robots/sitemap carry the localhost placeholder.
   **⚠️ CORRECTION to the old "domain mismatch" note:** the EXTENSION does not read `NEXT_PUBLIC_SITE_URL` (it
   hard-codes `elostate.com`); its domain-match depends only on the app being SERVED at `elostate.com`, which is
   confirmed live (`/redeem` 200). So the extension is fine on the domain front regardless of this SITE_URL gap.
