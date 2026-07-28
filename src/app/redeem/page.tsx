@@ -40,7 +40,11 @@ function RedeemInner() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
 
-  // Prefill + auto-validate a code passed in the URL (?code=XXXXXXX).
+  // Prefill (only) a code passed in the URL (?code=XXXXXXX) so a /redeem?code=…
+  // deep link lands with the key filled in. We deliberately do NOT auto-submit —
+  // the visitor reviews the prefilled key and clicks Continue themselves. (If we
+  // ever want one-click deep-link redemption, call validateCode() here once the
+  // code is set — flagged as an option, not wired, to keep the flow user-driven.)
   useEffect(() => {
     const q = search.get("code");
     if (q) setCode(q.toUpperCase());
