@@ -31,16 +31,17 @@ timezone = admin default + user override (resolve user→company→system); all 
 |----|------|-------------|--------------------------|
 | S0 | THINK — read current Settings surface + profiles/company schema; find the admin-company-scoped precedent | **DONE** | Explore map: theme=localStorage-only, learning_mode_enabled/experience_mode precedent, /api/me/learning-mode route shape, requireCompanyAdmin + createAdminClient pattern, no admin-password-reset exists yet |
 | S1 | Theme — company default + per-user override + DB persist (resolve user→company→system) | **DONE (code)** | migration 0201 + /api/me/theme + ThemeProvider reconcile/persist + ThemePanel; reconcileTheme test 6/6; check exit 0. ⚠ migration 0201 NOT yet applied (guarded → localStorage-only until applied) |
-| S2 | Learning Mode — company default + per-user override | not started | next slice |
-| S3 | Timezone — company default + per-user override | not started | next slice |
-| S4 | Access Assistance — admin sets temp password (force-change-next-login), company-scoped | not started | SECURITY-SENSITIVE — first admin-sets-another-user's-password; build most carefully, own slice |
+| S2 | Learning Mode — company default + per-user override | **DECISION NEEDED** | `learning_mode_enabled` is boolean NOT NULL default false → no "unset" state. Live user→company resolve needs a "was it explicitly set" flag (clean) OR reinterpreting existing `false`. RECOMMEND: "company default = value NEW members inherit" (no reinterpret, unambiguous). Founder: confirm semantic. |
+| S3 | Timezone — company default + per-user override | **BLOCKED — dead surface** | `companies.timezone` is stored but NEVER consumed (no timestamp anywhere formats with it). A per-user override would add surface nothing reads. RECOMMEND: first wire timezone into timestamp display (a shared `formatInTz`), THEN add the per-user override. Founder: want the consumption-wiring first, or defer timezone? |
+| S4 | Access Assistance — admin sets temp password (force-change-next-login), company-scoped | **DESIGN NEEDED** | SECURITY-SENSITIVE — first admin-sets-another-user's-password. Building blocks exist (createAdminClient, requireCompanyAdmin, team member list). Needs: force-change-on-login gate (new `profiles.must_change_password` + a login-flow redirect — touches auth). Founder: confirm the force-change mechanism before I wire it. |
 
 ### Unfinished at this moment
-- **S1 (Theme) code done + check green**, committing next. Migration `0201` written but NOT applied
-  (needs the DB URL / founder `npm run db:apply`); code is A34-guarded so it degrades to localStorage-only
-  until applied — non-breaking. Post-apply live check: pick theme on device A → follows to device B;
-  admin sets company default → fresh member inherits.
-- **S2/S3/S4 not started.** S4 (Access Assistance) is security-sensitive.
+- **S1 (Theme) DONE + pushed (`03bc57d4`).** Migration `0201` written but NOT applied (needs founder
+  `npm run db:apply`); A34-guarded → localStorage-only until applied (non-breaking). Post-apply live check:
+  theme follows device A→B; admin default → fresh member inherits.
+- **S2/S3/S4 each surfaced a genuine DECISION** (above) — not blindly built, per the understanding gate.
+  S3 would be dead surface; S2 has a schema-semantic choice; S4 is security-sensitive. Awaiting founder
+  direction on each; recommendations recorded.
 
 ---
 
