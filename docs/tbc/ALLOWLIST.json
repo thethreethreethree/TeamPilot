@@ -1,0 +1,5 @@
+{
+  "_doc": "THINK_BUILD_CHECK.md §6.7 — every allowlisted exception carries its reason INLINE. lib.mjs::loadAllowlist REJECTS any entry whose `reason` is under 20 chars. A bare path list records only that someone silenced the check, never that it was safe to. Keys are gate names ('manifest', 'artifacts'). Empty on install by design — no exceptions have been earned yet.",
+  "manifest": [],
+  "artifacts": []
+}

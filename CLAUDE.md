@@ -232,6 +232,22 @@ failure — both in code, and in strategy work itself.
 - **Trace interconnections before committing.** Before any change touching shared state,
   schema, or cross-module behavior, state what else it affects. Holistic over local.
 
+### 2.1 Standing build protocol
+
+> Added by [AMD-008](docs/amendments/AMD-008-automatic-build-protocol.md).
+
+`BUILD-PROTOCOL.md` is operational, not reference. It runs automatically on
+every build action per its §1 trigger table — no founder invocation required.
+
+Before writing any file, the agent emits the PREFLIGHT and UNDERSTANDING
+blocks. Before writing "verified", it emits the VERIFICATION block naming the
+canonical command. Before declaring closure, it emits the CLOSURE block
+including the un-named-reliance half.
+
+Skipping the protocol because a change seems small is the §5 failure mode and
+is forbidden. If the protocol conflicts with this constitution, the
+constitution wins and BUILD-PROTOCOL.md is amended under §7.
+
 ---
 
 ## 3. How to Build the System (the in-product AI)

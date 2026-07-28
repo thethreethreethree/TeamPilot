@@ -38,4 +38,10 @@ stage with the exact format to use.
 EOF
 fi
 
+# TBC (AMD-008): cheap doc + manifest integrity at commit time. The full set
+# (all four gates) runs in `npm run check`. set -e above makes a non-zero exit
+# block the commit — intended once the protocol is mandatory.
+npm run --silent tbc:docs
+npm run --silent tbc:manifest
+
 exit 0

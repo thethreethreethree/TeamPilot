@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-07-28T12:30:00Z",
+  "note": "Regenerate ONLY as the consequence of a ratified amendment. Reference the AMD-XXX in the commit message (THINK_BUILD_CHECK.md Appendix A, CLAUDE.md §7.4). Regenerated 2026-07-28 on AMD-008 (CLAUDE.md §2.1 added).",
+  "documents": [
+    {
+      "path": "CLAUDE.md",
+      "sha256": "e08874ebce63f41eacdfbadcd46b0a6fa8f15fcb79edafde9a7af52e8ebe261f",
+      "lines": 429,
+      "role": "current constitutional state"
+    },
+    {
+      "path": "ThinkerThinker.md",
+      "sha256": "cc9071abd15ab7e06c3e89fef38f66da0b9df351ffa2afde50ec3d4664ef1d92",
+      "lines": 1211,
+      "role": "asset library A1-A39"
+    }
+  ]
+}
