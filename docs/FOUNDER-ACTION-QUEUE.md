@@ -4,6 +4,18 @@
 > (which is the append-only historical record, §1.1 — nothing here is removed, only summarized).
 > Everything below this box is detail/history. This box is the "what still needs *you*" surface.
 
+### 🔴 SECURITY (MEDIUM) — found + confirmed live 2026-07-28: finance DEFINER fns are anon-callable (cross-tenant read)
+- `0183_fin_definer_revoke.sql` tried to lock ~50 finance SECURITY DEFINER helpers but revoked from
+  `authenticated, anon` instead of from **PUBLIC** — a no-op, because those roles inherit EXECUTE via the
+  default PUBLIC grant. **PoC (rolled back): as ANON, `fin_account_by_code(company, code)` returned another
+  tenant's account UUID** — an RLS bypass reachable unauthenticated. Exposed data = chart-of-accounts /
+  rates / limits (config metadata, not amounts/PII), and exploit needs a known company UUID → **MEDIUM**.
+  INVARIANT 4 masked it (it checks the revoke *text*, not the effective grant). **Fix (founder-gated, finance
+  change): a `0200` migration `revoke execute … from public` on the 0183 list** (completes 0183's intent
+  correctly; verify no app route calls these directly as authenticated first) + tighten INVARIANT 4 to
+  require `from public`. Full write-up + PoC + fn list: `docs/audits/2026-07-28-fin-definer-revoke-ineffective.md`.
+  Say **"fix the definer revoke"** and I'll write the 0200 migration + guard fix for your review.
+
 ### 🔴 One live check (2 min) — the only thing I couldn't verify headlessly
 - **Do ONE live browser pilot redemption** (redeem an ELOSTATE code end-to-end → confirm you land in the
   dashboard). Everything else in the redeem path is runtime-verified; this is the browser signup→redeem→redirect
