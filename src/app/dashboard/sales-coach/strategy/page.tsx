@@ -6,6 +6,7 @@ import TopBar from "@/components/layout/TopBar";
 import { DeckCard, SectionLabel, DeckPill } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import {
   Quote,
   BookOpen,
@@ -43,6 +44,9 @@ export default function SalesCoachStrategyPage() {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Standard-only title relabel (founder revision 2026-07-28, PDF: "change this to
+  // <One Liners>"). Expert keeps "Strategy Library". Content/subtitle unchanged.
+  const { isStandard } = useExperienceMode();
 
   useEffect(() => {
     (async () => {
@@ -61,7 +65,7 @@ export default function SalesCoachStrategyPage() {
   return (
     <>
       <TopBar
-        title="Strategy Library"
+        title={isStandard ? "One Liners" : "Strategy Library"}
         subtitle="Correct lines & sales strategies"
       />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-3xl mx-auto w-full space-y-5 bg-base">

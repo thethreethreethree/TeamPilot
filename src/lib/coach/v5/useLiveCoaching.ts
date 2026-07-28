@@ -256,8 +256,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const [cueSummary, setCueSummary] = useState<string | null>(null);
   // Auto-coach toggle (founder request 2026-06-27): when ON, the coach
   // cues automatically at pauses — no pressing "coach me now". When OFF,
-  // it stays quiet (transcript still runs). Default ON.
-  const [autoCoach, setAutoCoachState] = useState(true);
+  // it stays quiet (transcript still runs).
+  // Default OFF (founder revision 2026-07-28, Sales Coach revision PDF: "Coach
+  // automatic guidance off by default") — GLOBAL, both modes. The rep opts INTO
+  // automatic cueing rather than opting out. autoCoachRef below mirrors this.
+  const [autoCoach, setAutoCoachState] = useState(false);
   // Manual speaker override (founder 2026-07-03): a TOGGLE the rep drives with
   // a single earbud tap. When ON, every committed utterance is locked to
   // "agent" — a hard override of the loudness/content guess — for clean script
@@ -326,7 +329,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // readout (median/p90 end-to-end + delivered/suppressed). Summary logged on stop.
   const cueTracesRef = useRef<CueTrace[]>([]);
   const lastStressCueAtRef = useRef(0); // F2 — stress-cue cooldown (ms epoch)
-  const autoCoachRef = useRef(true); // mirrors autoCoach for ws closures
+  const autoCoachRef = useRef(false); // mirrors autoCoach (default OFF, 2026-07-28) for ws closures
   const agentSpeakingRef = useRef(false); // mirrors agentSpeaking for ws closure
   // Separation-accuracy tally (§4/§3.6): auto-guess vs the toggle's ground
   // truth — turns "is separation better?" into a number we can watch.

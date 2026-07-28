@@ -432,10 +432,18 @@ export default function AfterPitchPage() {
              Nothing honest is lost: the scores are unchanged, the read is the same
              engine, the focus is the same reconciled verdict (deriveFocus). */
           <>
+            {/* Founder revision 2026-07-28 (PDF p2): post-pitch Standard order is
+                scoreboard on top → after-pitch summary → next door focus. The
+                "after-pitch summary" IS the "Your read" section (Narrative), which
+                is auto-surfaced (defaultOpen) per "also have <Your Read>
+                automatically triggered." Next Door Focus (FocusCard) lands last
+                ("…then next door focus, thats it"). CueLoop is kept (existing
+                component, not asked to be removed) with the review content, above
+                the final focus card. */}
             <Scoreboard scores={summary.scores} />
-            <FocusCard focus={summary.focus} />
-            <Narrative narrative={summary.narrative} />
+            <Narrative narrative={summary.narrative} defaultOpen />
             <CueLoop entries={summary.cueLoop} />
+            <FocusCard focus={summary.focus} />
           </>
         ) : (
           <>
@@ -855,9 +863,19 @@ function CorrectLineCard({ moments }: { moments: Moment[] }) {
   );
 }
 
-/* ─── Narrative (reused growth review — tone law: strengths first) ─ */
-function Narrative({ narrative }: { narrative: Summary["narrative"] }) {
-  const [open, setOpen] = useState(false);
+/* ─── Narrative (reused growth review — tone law: strengths first) ─
+   Titled "Your read" in the UI. defaultOpen lets a caller auto-expand it —
+   Standard passes it so "Your Read" is auto-surfaced on the post-pitch screen
+   (founder revision 2026-07-28: "also have <Your Read> automatically triggered").
+   Expert leaves it collapsed (defaultOpen defaults false). */
+function Narrative({
+  narrative,
+  defaultOpen = false,
+}: {
+  narrative: Summary["narrative"];
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   if (!narrative.hasSignal) return null;
   return (
       <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">

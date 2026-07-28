@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { filterManagerNav } from "@/lib/nav/managerNav";
+import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
   NavProgressProvider,
@@ -99,6 +100,11 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
   // items stay hidden until confirmed (safe direction). MOBILE_TABS has no manager items, so it's unaffected.
   const isSalesCoachManager = useIsSalesCoachManager();
   const visibleNav = filterManagerNav(NAV, isSalesCoachManager);
+  // Standard-only nav relabel (founder revision 2026-07-28, PDF): the "Strategy"
+  // item reads "One Liners" in Standard; Expert keeps "Strategy". Label-only —
+  // the route/content is unchanged. Rename is scoped to Standard per the founder's
+  // decision (Expert users keep the "Strategy" vocabulary).
+  const { isStandard } = useExperienceMode();
 
   return (
     <NavProgressProvider>
@@ -149,6 +155,11 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
                 pathname === item.href ||
                 (item.href !== "/dashboard/sales-coach" &&
                   pathname.startsWith(item.href + "/"));
+              // Standard-only: "Strategy" → "One Liners" (label only; href/content unchanged).
+              const label =
+                isStandard && item.href === "/dashboard/sales-coach/strategy"
+                  ? "One Liners"
+                  : item.label;
               return (
                 <Link
                   key={item.href}
@@ -161,7 +172,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
                 >
                   <LinkProgress />
                   <Icon className="w-4 h-4 shrink-0" aria-hidden />
-                  {item.label}
+                  {label}
                 </Link>
               );
             })}
