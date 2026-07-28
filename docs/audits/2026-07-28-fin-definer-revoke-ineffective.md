@@ -76,8 +76,22 @@ revoke execute on function fin_get_rate(uuid, character, character, date)  from 
 revoke execute on function fin_approval_limit_for(uuid, uuid)              from public;
 revoke execute on function fin_mileage_rate_for(uuid, date, text)          from public;
 revoke execute on function fin_per_diem_rate_for(uuid, date, text)         from public;
--- (fin_post_system_entry was already revoked in 0122; confirm its grant too.)
+revoke execute on function fin_post_system_entry(uuid, date, uuid, text, text, jsonb) from public;
 ```
+
+**`fin_post_system_entry` was revoked from roles THREE times (0122, 0147, 0183) — all ineffective** (still
+anon-exec live, PUBLIC grant intact). It gates on `fin_can_enter()` (caller role) so **anon is blocked**
+(null uid → no role → raises), but it does NOT compare `p_company` to `auth_company_id()` — so an
+*authenticated* finance user with the enter-role could post a journal entry into another company given that
+company's UUID + a valid open period UUID (double-UUID-gated, authenticated-only → MEDIUM). Internal helper
+(not app-called), so revoke-from-public is safe.
+
+### Class sweep (§A26 rotate-the-lens) — is the ineffective revoke elsewhere?
+Swept every role-named `revoke execute … from authenticated/anon` in all migrations. The class is **bounded**
+to the 0183 fin_* helpers + `fin_post_system_entry` (all still anon-exec = ineffective). `redeem_pilot_code`
+(0198/0199, revoked `from anon`) is the ONE that's genuinely effective — anon is blocked live (verified,
+`verify:live` guard) — because that function does not carry the PUBLIC grant that makes a role-revoke a
+no-op. So no new surprise sites: the fix list above is complete.
 Verify after: `has_function_privilege('anon', 'fin_account_by_code(uuid,text)', 'execute')` → false.
 Then tighten INVARIANT 4 (require `from public`, or check the live grant) so the ineffective-revoke pattern
 can't recur — sequence AFTER 0200 so the invariant doesn't go red on the open hole.
