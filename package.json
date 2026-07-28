@@ -26,6 +26,7 @@
     "tbc:artifacts": "node scripts/tbc/verify-artifacts.mjs",
     "tbc:residual": "node scripts/tbc/verify-residual.mjs",
     "tbc:freshness": "node scripts/tbc/verify-freshness.mjs",
+    "tbc:revision": "node scripts/tbc/verify-revision.mjs",
     "tbc": "npm run tbc:docs && npm run tbc:manifest && npm run tbc:artifacts && npm run tbc:residual && npm run tbc:freshness",
     "check": "npm run typecheck && npm run lint && npm run theme:audit && npm run rls:audit && npm run invariant:audit && npm run tbc && npm run test",
     "setup:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/check-setup.ps1",
