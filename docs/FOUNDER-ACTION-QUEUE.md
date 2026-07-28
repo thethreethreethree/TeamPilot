@@ -16,10 +16,14 @@
   require `from public`. Full write-up + PoC + fn list: `docs/audits/2026-07-28-fin-definer-revoke-ineffective.md`.
   Say **"fix the definer revoke"** and I'll write the 0200 migration + guard fix for your review.
 
-### 🔴 One live check (2 min) — the only thing I couldn't verify headlessly
-- **Do ONE live browser pilot redemption** (redeem an ELOSTATE code end-to-end → confirm you land in the
-  dashboard). Everything else in the redeem path is runtime-verified; this is the browser signup→redeem→redirect
-  chain. Paste any error and I fix it. *(Pilot §, top of log.)*
+### ✅ RESOLVED — the first real pilot redemption happened + verified healthy (2026-07-28 01:04)
+- A live `sales_coach` redemption succeeded in production: code `FSJEHTP` → **Align Sales Pros** (John
+  Knudtson, john@alignsalespros.com). **Verified healthy end-to-end via live DB:** company created · admin
+  profile with `role=admin` + `sales_coach_role=admin` (correct provisioning) · §3.4 skip applied
+  (`ai_guidance_enabled=true`, unlock=redeem-time) · bootstrap triggers fired (`care_tenant_config` /
+  `care_agent_state` / `company_brain` all present) · code consumed + linked. So the browser
+  signup→redeem→redirect chain — the one thing I couldn't verify headlessly — **works in production.** The
+  pilot is genuinely live. (`npm run pilot:status` shows redemptions.)
 
 ### 🟡 Product / policy decisions — I build on your word (each is a real trade-off, not a bug)
 - **Support-search access policy** — support content is company-searchable by non-agents; agent-gate it, or leave
