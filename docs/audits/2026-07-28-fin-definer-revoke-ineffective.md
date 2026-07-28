@@ -1,6 +1,13 @@
 # FINDING (2026-07-28) — 0183's DEFINER revoke is INEFFECTIVE; finance DEFINER fns are anon-callable (cross-tenant read)
 
-**Severity: MEDIUM** — and note this is **the exact vulnerability `0183` itself found, documented, and
+**Severity: MEDIUM — validated by checking the anon-exploit path (2026-07-28).** The cross-tenant call needs
+a target `company_id` UUID, and that UUID is NOT exposed on any public surface: the widget embed uses an
+opaque `embed_token` (not the UUID); the public bootstrap returns an explicit whitelist (`toWidgetSafeConfig`
+— appearance fields only, `company_id` excluded, test-locked in `config.widgetSafe.test.ts`); and RLS
+otherwise scopes a user to their own `company_id`. So there is no practical anon path to another tenant's
+UUID → MEDIUM, not HIGH. (Still a real RLS-bypass to close.)
+
+This is **the exact vulnerability `0183` itself found, documented, and
 believed it fixed** (its header: "MEDIUM (cross-tenant read + cross-tenant write into the chart of
 accounts)... Fixed here."). This finding is that **`0183`'s fix is INEFFECTIVE — the hole it closed is still
 open** (confirmed live). It is cross-tenant READ (account ids / rates / limits) **and limited cross-tenant
