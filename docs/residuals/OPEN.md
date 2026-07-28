@@ -21,3 +21,17 @@ change or a structural rebuild that is out of scope for the install itself.
 - [ ] 2026-07-28 · install-tbc-gates · "ThinkThinker.md" → "ThinkerThinker.md" naming drift appears in prose in THINK_BUILD_CHECK.md / BUILD-SYSTEM-PREP.md.
       why-unresolved: a literal `find` for the misspelled name fires the stop-condition; verify-docs.mjs already fails on an unresolvable manifest path (R3 closed for the manifest, open for prose references).
       next-action: fix the string in the source prompts. Verified zero code impact (the misspelling appears only in docs).
+
+## Filed by the post-install gate audit (2026-07-28)
+
+Proactive audit of the now-mandatory gates (they block `npm run check` team-wide, so a
+false positive is costly — A33: a gate that cries wolf is one people learn to skip, and the
+real leak rides in behind six fake ones). Both findings are CONFIRMED by test, not theorized.
+
+- [ ] 2026-07-28 · gate-audit · F2 — the citation regex in scripts/tbc/lib.mjs (CITATION_RE) treats BARE `A<1-3 digits>` as a constitutional citation, so `A4` (paper size), `A100` (GPU), `A3` (figure ref), `A1` (grade/cert) all get flagged as needing a manifest entry.
+      why-unresolved: changing the detection semantics of the mandatory protocol is a founder-level design call, not a self-authorized rewrite of the founder's gate. CONFIRMED: `extractCitations("render to A4 paper")` returns `["A4"]`.
+      next-action (RECOMMENDED, precedent-backed per A28): align the asset-citation form to require the section sign — match the repo's OWN established `scripts/hooks/commit-msg` regex, which uses `§A[0-9]+` (sign required). That precedent already decides it: the commit-msg hook does NOT treat bare `A4` as a citation, so the TBC gate should not either. This narrows the gate to the established boundary; the unconditional minimum-set check (which is keyed on declared IDs, not extraction) is unaffected, so A19/A22/A30/A38 stay enforced. Any such fix is itself a TBC-governed build.
+
+- [ ] 2026-07-28 · gate-audit · F3 — the assurance-word regex (ASSURANCE in scripts/tbc/verify-artifacts.mjs) fires on ordinary prose: "a passing mention", "turned green", "identity-verified users" all match, and go red if not within ~1200 chars of a fenced command + exit code.
+      why-unresolved: narrowing the word list risks MISSING real "verified"/"passing" claims (a false negative is worse here), and the near-fence window already mitigates most cases. The honest instrument per gate-honesty policy is the allowlist, not a fuzzier regex.
+      next-action (RECOMMENDED): leave the regex as-is; when a legitimate prose use trips it, add the specific `docs/tbc/<dir>/<file>.md` to ALLOWLIST.json under the `artifacts` key WITH ITS REASON (the loader already rejects reasonless entries). Only tighten the regex if the false-positive rate proves high in practice — the gate-honesty rule's "fix the gate or delete it" bar.
