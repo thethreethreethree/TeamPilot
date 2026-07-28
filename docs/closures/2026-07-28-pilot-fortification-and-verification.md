@@ -21,6 +21,18 @@ and swept adjacent surfaces. No founder-gated feature was built (those remain th
 - **`/redeem` dead-code cleanup** — removed the unreachable `"error"` phase (errors are inline). `addf75fd`.
 - **`.env.example`** — documented the two optional manual-sweep-trigger secrets (the only genuine omission).
   `65b1cb8d`.
+- **Failover EXECUTION test** (`cascade.execution.test.ts`, `ac1491f6`) — locked `llmCall`/`llmStream`
+  actually invoking the fallback provider on a cascadable error (only the `shouldCascade` DECISION was
+  tested before; the execution — what the "set `ANTHROPIC_API_KEY` = failover works" assurance depends on —
+  was not). 5 tests incl. the current no-fallback prod exposure encoded as a test.
+- **INVARIANT 13** (`invariant-audit`, `6ee2bc51`) — every raw `.or(...ilike...)` filter must route through
+  `sanitizeOrIlikeTerm` (PostgREST injection). All 4 current sites verified sanitized; this locks the class
+  against a future 5th. Detection-tested + 3 self-tests.
+- **Bucket-privacy live guard** (`verify:live`, `95f61b9d`→`d958f528`) — no storage bucket public except the
+  `widget-logos` branding allowlist; covers `care-rcd-media` (PII) + `assets-v1` + future buckets.
+  Detection-tested. `verify:live` now holds **14** invariants (was 11 at session start).
+- **Two reusable audit lenses** captured as memories: observe-live-prod-for-env-config (found SITE_URL);
+  decision-tested-vs-execution-untested (found the cascade gap → INV13).
 
 **Verification (no code change — recorded in `docs/audits/2026-07-28-verification-sweep.md`):**
 - Pilot codes typo-safe (100/100, no `0/O/1/I/L`, 7-char, unique) · rate-limiting present + honestly scoped ·
@@ -37,6 +49,13 @@ and swept adjacent surfaces. No founder-gated feature was built (those remain th
   `window.location.origin`, so no broken invite/reset links). Fix = set it in Vercel.
 - **CORRECTION:** the extension does NOT depend on `NEXT_PUBLIC_SITE_URL` (hard-codes elostate.com) — the old
   "domain mismatch → check SITE_URL for the extension" guidance conflated two things.
+- **CONFIRMED LIVE (via `/api/health`): prod is DeepSeek-only, no Anthropic failover** — the single real
+  exposure (the 2026-07-25 outage class would take all AI down). The fix is a code-free one-liner
+  (`ANTHROPIC_API_KEY`) and verified sufficient (cascade code ready + now execution-tested). **Highest-value
+  founder action.**
+- **CONFIRMED LIVE: `NEXT_PUBLIC_BOOKING_URL` unset** (the `/care/demo` "Book a demo" CTA → `/login`) — the
+  demo isn't prospect-ready; pilot unaffected (uses codes). Meta-pattern: prod runs on minimal env config —
+  essentials set (DeepSeek key, Supabase), enhancement vars unset.
 
 ## Open — founder's call (unchanged; NOT built this session, by design)
 One live browser redemption (E2E confirm) · support-search access policy · C.A.R.E product-context field ·
