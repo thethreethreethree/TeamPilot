@@ -183,6 +183,19 @@ async function main() {
     };
   });
 
+  await check("care-rcd-media bucket stays PRIVATE (customer conversation media = PII)", async () => {
+    // RCD stores customer conversation media (images/attachments) — PII. The bucket is private and served
+    // only via short-TTL signed URLs the app issues after an auth check. If a future migration (or a console
+    // click) flips storage.buckets.public=true for this bucket, every object becomes world-readable by path
+    // with no auth — a customer-PII breach that no code path would surface. This locks it. (assets-v1 is
+    // likewise private; widget-logos is intentionally public tenant branding, so we assert the PII bucket
+    // specifically rather than "all buckets private".)
+    const r = await c.query("select public from storage.buckets where id = 'care-rcd-media'");
+    if (r.rowCount === 0) return { pass: true, detail: "bucket not present (RCD not provisioned here)" };
+    const isPublic = r.rows[0].public === true;
+    return { pass: !isPublic, detail: isPublic ? "PUBLIC → customer media world-readable (BREACH)" : "private" };
+  });
+
   await check("§3.1 event UPDATE is a no-op (behavioral, rolled back)", async () => {
     // Wrapped in its own transaction so nothing persists; the finally guarantees the rollback even on error.
     await c.query("begin");
