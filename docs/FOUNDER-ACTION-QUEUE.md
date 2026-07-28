@@ -26,7 +26,15 @@
   follows from it. **B / paid-unlock tier→plan map** — post-pilot, when billing goes live.
 
 ### 🟢 Config you set in Vercel (unblocks dormant features — full table in the "VERCEL ENV-VAR CHECKLIST" §)
-- Verify `DEEPSEEK_MODEL` ≠ stale `deepseek-chat`; `NEXT_PUBLIC_SITE_URL` === `https://elostate.com`;
+- **NEW 2026-07-28 (verified live): `NEXT_PUBLIC_SITE_URL` is UNSET in prod** → the live `sitemap.xml` +
+  homepage canonical emit `http://localhost:4321` (search engines told the site is at localhost; OG/social
+  previews resolve against localhost). **Set `NEXT_PUBLIC_SITE_URL=https://elostate.com` in Vercel** to fix
+  canonical/OG/robots/sitemap. *Low urgency* (SEO/metadata only — NOT pilot-blocking, NOT extension-breaking).
+  Do NOT "fix" it in code — the `localhost` fallback is intentionally correct for local dev.
+  **⚠️ CORRECTION to the old "domain mismatch" note:** the EXTENSION does not read `NEXT_PUBLIC_SITE_URL` (it
+  hard-codes `elostate.com`); its domain-match depends only on the app being SERVED at `elostate.com`, which is
+  confirmed live (`/redeem` 200). So the extension is fine on the domain front regardless of this SITE_URL gap.
+- Verify `DEEPSEEK_MODEL` ≠ stale `deepseek-chat`;
   set `CRON_SECRET` (+ `RCD_RETENTION_DAYS`) to activate the PII-purge crons; VAPID×3 for push; `BOOKING_URL`
   for the demo; `NEXT_PUBLIC_CARE_EXTENSION_ID` before any *public* Web Store launch (fine unset for pilot).
 - **Founder-IP-in-git-history** (`861e5ffc`) — purge + force-push only if the repo is/goes public (your call;
