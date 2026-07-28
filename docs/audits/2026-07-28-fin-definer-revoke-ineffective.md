@@ -77,6 +77,9 @@ revoke execute on function fin_approval_limit_for(uuid, uuid)              from 
 revoke execute on function fin_mileage_rate_for(uuid, date, text)          from public;
 revoke execute on function fin_per_diem_rate_for(uuid, date, text)         from public;
 revoke execute on function fin_post_system_entry(uuid, date, uuid, text, text, jsonb) from public;
+-- entity-id class (2nd sweep — 0183/INVARIANT-4 missed these; not p_company-shaped):
+revoke execute on function fin_post_reversal(uuid)                         from public;
+revoke execute on function fin_record_report_delivery(uuid, text, text, integer) from public;
 ```
 
 **`fin_post_system_entry` was revoked from roles THREE times (0122, 0147, 0183) — all ineffective** (still
@@ -85,6 +88,27 @@ anon-exec live, PUBLIC grant intact). It gates on `fin_can_enter()` (caller role
 *authenticated* finance user with the enter-role could post a journal entry into another company given that
 company's UUID + a valid open period UUID (double-UUID-gated, authenticated-only → MEDIUM). Internal helper
 (not app-called), so revoke-from-public is safe.
+
+### BROADER (2nd sweep): ungated DEFINER WRITE helpers taking an ENTITY id (not p_company) — 0183 + INVARIANT 4 miss these
+
+Swept all `fin_*` DEFINER write fns for a company-scope gate. Beyond `fin_post_system_entry`, two more are
+anon-exec + ungated, and they take an **entity id** (so neither 0183's `p_company` criterion nor INVARIANT 4's
+`p_company`-regex catches them):
+- **`fin_post_reversal(p_entry_id)`** — anon-exec, NO auth/company gate; derives company from the entry and
+  sets it `status='posted'` + assigns `entry_no`. The INTENDED path (`fin_reverse_entry`) IS gated
+  (`fin_can_approve()` + `v_company <> auth_company_id()`), and calls this internally on a draft it just made
+  — but a DIRECT call to `fin_post_reversal(<any entry uuid>)` bypasses that gate: post-control bypass (post a
+  draft) or re-post/`entry_no` corruption. Gated by entry-uuid-unguessability + period-open + balance →
+  **MEDIUM-LOW**. Not app-called → `revoke from public` safe. **Add to 0200.**
+- **`fin_record_report_delivery(p_schedule, …)`** — anon-exec, inserts a delivery-log row (company derived
+  from the schedule). App-called by `deliver-cron` via **service_role**, so `revoke from public` keeps it
+  working. Direct-call risk = delivery-log pollution → **LOW**. **Add to 0200** (`revoke … from public`).
+
+**Guard-scope gap (bigger than the text-vs-grant one):** INVARIANT 4 only inspects DEFINER fns with a
+`p_company uuid` param. A DEFINER fn that takes an ENTITY id and DERIVES the company (post_reversal,
+report_delivery, and the whole "act on entity X" family) is a cross-tenant surface it does not model at all.
+The durable fix is a live-grant `verify:live` check over ALL non-allowlisted DEFINER fns (anon/authenticated
+must not execute), which catches both classes regardless of parameter shape.
 
 ### Class sweep (§A26 rotate-the-lens) — is the ineffective revoke elsewhere?
 Swept every role-named `revoke execute … from authenticated/anon` in all migrations. The class is **bounded**
