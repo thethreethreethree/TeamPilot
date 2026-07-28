@@ -220,7 +220,7 @@ export function LiveCoachingPanel({
               <p className="text-[11px] text-secondary leading-relaxed mt-0.5">
                 {status === "error" && error
                   ? error
-                  : "Opening the session isn't the same as recording it. Tap Start live coaching before you begin — otherwise there's no transcript, and the after-call summary will be empty."}
+                  : "Tap Start live coaching before you begin."}
               </p>
             </div>
           </div>
@@ -434,12 +434,6 @@ export function LiveCoachingPanel({
               <span className="text-secondary">Auto-coach</span> on/off (quiet).
             </li>
           </ul>
-          <p className="mt-1 text-[9px] text-muted/80">
-            Works on earbuds that send media controls to the browser. Which
-            physical tap triggers which action depends on the earbud (§3.4) — use
-            the on-screen buttons if a gesture doesn’t map. The “✓” shows when a
-            tap reaches the app.
-          </p>
         </div>
         </LearningHint>
       )}
@@ -464,8 +458,7 @@ export function LiveCoachingPanel({
           />
           <span>
             I have an in-ear earpiece in, so the customer can&apos;t hear my
-            coaching. (The cue plays to your device&apos;s audio output — on
-            speakers, the customer could hear it.)
+            coaching.
           </span>
         </label>
         </LearningHint>
@@ -664,10 +657,6 @@ export function LiveCoachingPanel({
         </div>
       )}
 
-      <p className="text-[11px] text-muted mt-2">
-        The transcript + growth review are built from the live conversation,
-        separated by speaker and saved when you Stop.
-      </p>
     </section>
   );
 }

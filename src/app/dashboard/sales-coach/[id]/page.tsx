@@ -151,6 +151,19 @@ export default function SessionDetail() {
     setError(null);
   }, [id]);
 
+  // Standard (the rep's simplified flow): once a session is no longer active, the
+  // After-Pitch Summary IS the post-call screen — for ANY view of an ended/reviewed
+  // session, not only at the moment of ending. The dense summary / timeline / pivot
+  // page is the Expert / manager surface. Founder 2026-07-29: on the user's side the
+  // post-session pivot should land on the After-Pitch Summary, not the manager
+  // dashboard. router.replace so Back doesn't bounce the rep back into the page we
+  // just sent them out of. Expert (manager) stays on the full session page.
+  useEffect(() => {
+    if (isStandard && session && session.status !== "active") {
+      router.replace(`/dashboard/sales-coach/${id}/after-pitch`);
+    }
+  }, [isStandard, session, id, router]);
+
   const generateReview = async () => {
     setGenerating(true);
     setError(null);
@@ -180,15 +193,10 @@ export default function SessionDetail() {
       });
       if (res.ok) {
         setSession((await res.json()).session);
-        // BIGGEST PRIORITY (spec 2026-07-15): in Standard, the moment the recording
-        // ends the After-Pitch Summary "comes up" — it is the post-call screen, with
-        // a single Start Next Door. We route straight to it rather than dropping the
-        // rep into the dense session page. The session page still holds the summary +
-        // timeline for reliving later; this is about the immediate post-door moment,
-        // where words kill momentum (AMD-006 L3). Expert stays on the full page.
-        if (isStandard) {
-          router.push(`/dashboard/sales-coach/${id}/after-pitch`);
-        }
+        // Standard's post-call screen IS the After-Pitch Summary. Setting the session
+        // to a non-active status here triggers the redirect useEffect above — the SAME
+        // path a rep takes when reloading/reopening an already-ended session. One source
+        // of truth for "Standard rep on an ended session → After-Pitch", not two.
       } else {
         // §3.4 / 558ce56 class: a failed end-session must be visible (the sibling
         // handlers here already setError; this one was the outlier). Otherwise the
