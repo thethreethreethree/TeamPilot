@@ -110,6 +110,19 @@ report_delivery, and the whole "act on entity X" family) is a cross-tenant surfa
 The durable fix is a live-grant `verify:live` check over ALL non-allowlisted DEFINER fns (anon/authenticated
 must not execute), which catches both classes regardless of parameter shape.
 
+### Non-fin scope (3rd sweep) — the exposure is CONCENTRATED in finance, not DB-wide
+Checked non-fin DEFINER writes that are anon-exec:
+- **`record_brain_learning`** — SAFE. `v_company_id := auth_company_id(); if null then raise` (anon blocked)
+  and self-scopes to the caller's company (derived, not a param). No AI-learning poisoning, no cross-tenant.
+- **`recompute_file_classification(p_file_id)`** — ungated anon-exec write, but recomputes a RULE-DETERMINED
+  classification (attacker can't set an arbitrary value; only force a recompute). LOW. Called by triggers
+  (owner context, unaffected by EXECUTE grant); optionally add to 0200 for defense-in-depth.
+- **`count_user_casual_uploads_today(p_user_id)`** — ungated anon-exec READ of a per-user upload count. LOW
+  info leak (user-UUID-gated). Optional 0200 add.
+
+Reassuring bound: the significant exposure is the finance helpers 0183 targeted; non-fin DEFINER surfaces are
+safe (self-gating / triggers / read predicates) or LOW. The hole does not sprawl DB-wide.
+
 ### Class sweep (§A26 rotate-the-lens) — is the ineffective revoke elsewhere?
 Swept every role-named `revoke execute … from authenticated/anon` in all migrations. The class is **bounded**
 to the 0183 fin_* helpers + `fin_post_system_entry` (all still anon-exec = ineffective). `redeem_pilot_code`
