@@ -151,10 +151,15 @@ export function stagedFiles() {
 
 // ---------------------------------------------------------------- citations
 
-// §A / §3.1 style references. Deliberately narrow: matches "§A26", "§1.5.1",
-// "A26" only when it is a standalone token followed by a word boundary, to
-// avoid firing on prose like "AREA26" or hex strings.
-const CITATION_RE = /§\s?(A\d{1,3}|\d+(?:\.\d+){0,2})\b|(?<![A-Za-z0-9])(A\d{1,3})(?![A-Za-z0-9])/g;
+// §A / §3.1 style references. Requires the section sign for BOTH forms —
+// "§A26", "§1.5.1", "§6" — matching the established scripts/hooks/commit-msg
+// convention (which uses §A[0-9]+). Bare "A26"/"A4" is NOT treated as a
+// citation (F2 fix, AMD-008 install / 2026-07-28-regex-fix-f2-citation): the
+// prior bare-"A<n>" alternation fired on ordinary prose — "A4 paper", "A100
+// GPU", "Figure A3", "grade A1" — a noisy-gate false positive (A33), and it
+// disagreed with the commit-msg hook on the same concept (A21). Minimum-set
+// enforcement is keyed on DECLARED ids, not extraction, so it is unaffected.
+const CITATION_RE = /§\s?(A\d{1,3}|\d+(?:\.\d+){0,2})\b/g;
 
 export function extractCitations(text) {
   const out = new Set();
