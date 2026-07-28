@@ -6,6 +6,8 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { safeRelativePath } from "@/lib/nav/safeRedirect";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import { fetchLanding } from "@/lib/nav/landing";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { BrandLogo } from "@/components/brand/Logo";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -102,7 +104,10 @@ function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      // Route to onboarding if the user has no company yet.
+      // Route to onboarding if the user has no company yet; otherwise land them in
+      // their module — single-module → that module's home, multi/none → the /dashboard
+      // hub — resolved server-side (/api/me/landing) so app and website agree. safeNext
+      // (extension flow) and intent still take precedence inside buildDestination.
       const { data: auth } = await supabase.auth.getUser();
       const { data: profile } = await supabase
         .from("profiles")
@@ -110,11 +115,11 @@ function LoginPage() {
         .eq("id", auth.user!.id)
         .maybeSingle();
 
-      router.push(
-        profile?.company_id
-          ? buildDestination("/dashboard")
-          : "/onboarding"
-      );
+      if (!profile?.company_id) {
+        router.push("/onboarding");
+      } else {
+        router.push(buildDestination(await fetchLanding()));
+      }
       router.refresh();
       // Same as the signup-with-session branch — leave loading=true
       // so the button stays disabled through the redirect.
@@ -191,8 +196,7 @@ function LoginPage() {
             >
             <div>
               <label className="block text-xs font-medium text-secondary mb-1.5">Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 required
                 minLength={6}

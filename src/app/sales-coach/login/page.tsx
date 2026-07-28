@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 /**
  * Sales Coach — branded login (Phase 5).
@@ -131,8 +132,7 @@ export default function SalesCoachLoginPage() {
               <label className="block text-xs font-medium text-secondary mb-1.5">
                 Password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 autoComplete="current-password"
                 required
                 minLength={6}

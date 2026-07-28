@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { Activity, CheckCircle2, Loader2, ArrowRight, KeyRound } from "lucide-react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 /**
  * /redeem — pilot access-code redemption (self-serve pilot onboarding).
@@ -223,8 +224,7 @@ function RedeemInner() {
                 </div>
                 <div>
                   <label className="text-xs text-secondary mb-1 block">Password</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     autoComplete="new-password"
                     required
                     minLength={6}

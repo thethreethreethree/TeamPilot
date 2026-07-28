@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, KeyRound, Loader2 } from "lucide-react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 /**
  * Change-password panel for /dashboard/settings.
@@ -73,8 +74,7 @@ export function ChangePasswordPanel() {
           <label className="block text-[10px] uppercase tracking-widest text-muted mb-1.5">
             New password
           </label>
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={next}
             onChange={(e) => setNext(e.target.value)}
@@ -88,8 +88,7 @@ export function ChangePasswordPanel() {
           <label className="block text-[10px] uppercase tracking-widest text-muted mb-1.5">
             Confirm
           </label>
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}

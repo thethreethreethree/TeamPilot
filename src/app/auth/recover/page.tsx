@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Activity, CheckCircle2, AlertTriangle, Lock } from "lucide-react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import { fetchLanding } from "@/lib/nav/landing";
 
 /**
  * /auth/recover — entry point for Supabase password recovery flows.
@@ -144,9 +146,11 @@ export default function RecoverPage() {
       return;
     }
     setPhase({ kind: "done" });
-    // Small delay so the user sees the success state before routing.
+    // Land them in their module (not the hub) — same rule as login. Resolve before
+    // the delay so the push is instant when the success state finishes showing.
+    const landing = await fetchLanding();
     setTimeout(() => {
-      router.push("/dashboard");
+      router.push(landing);
       router.refresh();
     }, 1200);
   };
@@ -202,9 +206,8 @@ export default function RecoverPage() {
               >
                 New password
               </label>
-              <input
+              <PasswordInput
                 id="recover-new-password"
-                type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -229,9 +232,8 @@ export default function RecoverPage() {
               >
                 Confirm new password
               </label>
-              <input
+              <PasswordInput
                 id="recover-confirm-password"
-                type="password"
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { moduleLanding } from "@/lib/nav/landing";
 
 /**
  * POST /api/pilot/redeem — redeem a pilot code for the signed-in user.
@@ -15,13 +16,9 @@ import { rateLimit } from "@/lib/api/rateLimit";
  * row-lock enforced in the RPC). Same auth→RPC shape as /api/team/accept.
  */
 
-// Post-redeem landing per module (soft land-in-module). All are reachable by the
-// admin regardless; this just drops them where the module lives.
-const LANDING: Record<string, string> = {
-  elostate: "/dashboard",
-  care: "/dashboard/care",
-  sales_coach: "/dashboard/sales-coach",
-};
+// Post-redeem landing per module (soft land-in-module) comes from the shared
+// moduleLanding() map — the SAME map the login flow uses via /api/me/landing, so
+// app and website agree on where a module's user belongs (A21).
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "pilot-redeem", windowMs: 60_000, max: 10 });
@@ -59,6 +56,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     companyId: result.company_id ?? null,
     module: mod,
-    landing: LANDING[mod] ?? "/dashboard",
+    landing: moduleLanding(mod),
   });
 }

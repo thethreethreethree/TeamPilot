@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { Activity, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import { fetchLanding } from "@/lib/nav/landing";
 
 /**
  * /invite/[code] — accept-invitation surface.
@@ -83,7 +85,9 @@ export default function InviteAcceptPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Accept failed.");
       setPhase("done");
-      setTimeout(() => router.push("/dashboard"), 1500);
+      // Land the new team member in the company's module (not the hub), same rule as login.
+      const landing = await fetchLanding();
+      setTimeout(() => router.push(landing), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Accept failed.");
       setPhase("ready");
@@ -158,8 +162,7 @@ export default function InviteAcceptPage() {
                   how="At least 6 characters for a new account. Already have an ELOSTATE account on this email? Switch to sign-in below and use your existing password."
                   principle="Access to a team's honest record must belong to exactly one person."
                 >
-                <input
-                  type="password"
+                <PasswordInput
                   autoComplete={mode === "signup" ? "new-password" : "current-password"}
                   required
                   minLength={6}
