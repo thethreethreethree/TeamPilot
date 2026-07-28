@@ -39,6 +39,13 @@ if echo "${COMMIT_MSG}" | head -1 | grep -qE '^(Merge|Revert|fixup!|squash!) '; 
   exit 0
 fi
 
+# TBC F4 (AMD-008 install audit): a change touching enforced code paths
+# (src/scripts/migrations) must ship its own docs/tbc/<date>-<slug>/ build,
+# or carry a `TBC-Exempt: <reason>` trailer for a trivial edit. Runs here
+# because this is where both the staged diff AND the message are available.
+# set -euo pipefail above makes a non-zero exit block the commit.
+node scripts/tbc/verify-freshness.mjs "${COMMIT_MSG_FILE}"
+
 # Detect citations in BOTH the commit message AND the staged diff.
 MSG_CITATIONS=$(echo "${COMMIT_MSG}" | grep -oE '§A[0-9]+|§[0-9]+\.[0-9]+|§[0-9]+' | sort -u || true)
 DIFF_CITATIONS=$(

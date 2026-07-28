@@ -15,6 +15,13 @@ import { exists, read, run, currentBuildDir, frontMatter, repoRel, loadAllowlist
 // output carrying an exit code.
 const ASSURANCE = /\b(verified|green|passing|gates? pass|all checks? pass)\b/gi;
 const EXIT_CODE = /\b(exit(?:\s+code)?[:= ]\s*\d+|\$\?\s*=\s*\d+|exited with \d+)\b/i;
+// F3 tighten (2026-07-28): the single ambiguous words (verified/green/passing) also
+// occur in ordinary prose — "a passing mention", "verified users", "turned green" — so
+// they count as a verification CLAIM only when a verdict-context token sits within ~60
+// chars. The multi-word verdicts ("gates pass", "all checks pass") are unambiguous and
+// always count. This removes the A33 noise that trains people to skip the gate, without
+// dropping a real claim (which always names the command/gate/test it is a verdict about).
+const VERDICT_CONTEXT = /\b(gates?|checks?|tests?|builds?|ci|lint|typecheck|vitest|eslint|tsc|suite|pipeline|npm run|exit|tbc|audit|invariant)\b/i;
 
 const PHASE_FILES = {
   think: { file: "think.md", always: true },
@@ -77,6 +84,11 @@ run("tbc:artifacts", (r) => {
     if (!text) continue;
     if (allowFiles.includes(`${rel}/${name}`)) continue;
     for (const m of text.matchAll(ASSURANCE)) {
+      // F3: a single ambiguous word is a verification claim only with nearby context.
+      if (!/\s/.test(m[0])) {
+        const ctx = text.slice(Math.max(0, m.index - 60), m.index + m[0].length + 60);
+        if (!VERDICT_CONTEXT.test(ctx)) continue;
+      }
       const window = text.slice(Math.max(0, m.index - 1200), m.index + 1200);
       const hasFence = /```/.test(window);
       const hasExit = EXIT_CODE.test(window);
