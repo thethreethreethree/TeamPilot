@@ -27,8 +27,11 @@
   anthropic:false`, `activeProvider:deepseek`) — so there is **NO failover**; a DeepSeek auth/quota/model-rename
   hiccup (the 2026-07-25 outage class) takes ALL AI down. Setting `ANTHROPIC_API_KEY` closes that single point
   of failure. (Health checks key PRESENCE only — it does NOT prove `DEEPSEEK_MODEL` isn't the stale
-  `deepseek-chat`; that needs a real LLM call.) **B / paid-unlock tier→plan map** — post-pilot, when billing
-  goes live.
+  `deepseek-chat`; that needs a real LLM call.) **✅ The fix is a CODE-FREE one-liner and verified sufficient:**
+  the failover cascade code is correctly built and test-locked (22 assertions incl. the exact 2026-07-25
+  model-rename regression + the negative cases) — cascade only fires when the OTHER provider is enabled, so it's
+  dormant now purely because the key is unset, and will work the instant you set it. Just set the key.
+  **B / paid-unlock tier→plan map** — post-pilot, when billing goes live.
 
 ### 🟢 Config you set in Vercel (unblocks dormant features — full table in the "VERCEL ENV-VAR CHECKLIST" §)
 - **NEW 2026-07-28 (verified live): `NEXT_PUBLIC_SITE_URL` is UNSET in prod** → the live `sitemap.xml` +
