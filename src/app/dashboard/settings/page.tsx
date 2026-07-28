@@ -24,6 +24,7 @@ import { CoachTogglePanel } from "@/components/settings/CoachTogglePanel";
 import { LearningModePanel } from "@/components/settings/LearningModePanel";
 import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 import { AvatarCustomizationPanel } from "@/components/settings/AvatarCustomizationPanel";
+import { ProfilePanel } from "@/components/settings/ProfilePanel";
 
 interface Settings {
   company: {
@@ -198,6 +199,10 @@ export default function SettingsPage() {
             </Link>
           </div>
         </LearningHint>
+
+        {/* Edit your own name (+ view sign-in email). Fills the account gap:
+            full_name was set only at onboarding with no later edit surface. */}
+        <ProfilePanel />
 
         <LearningHint
           as="block"
