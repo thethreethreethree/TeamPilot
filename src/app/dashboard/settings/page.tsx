@@ -26,6 +26,7 @@ import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 import { AvatarCustomizationPanel } from "@/components/settings/AvatarCustomizationPanel";
 import { ProfilePanel } from "@/components/settings/ProfilePanel";
 import { ThemePanel } from "@/components/settings/ThemePanel";
+import { formatInTimeZone } from "@/lib/datetime/format";
 
 interface Settings {
   company: {
@@ -449,8 +450,11 @@ export default function SettingsPage() {
             >
               <p className="text-[10px] text-muted font-mono">
                 Last saved:{" "}
+                {/* First real consumer of the stored company timezone (2026-07-29):
+                    the "Last saved" stamp now renders in the company's zone instead of
+                    a raw UTC slice. formatInTimeZone degrades to local time on a bad zone. */}
                 {settings.company.updated_at
-                  ? settings.company.updated_at.slice(0, 19).replace("T", " ")
+                  ? formatInTimeZone(settings.company.updated_at, settings.company.timezone)
                   : "—"}
               </p>
               <button
