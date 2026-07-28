@@ -183,17 +183,23 @@ async function main() {
     };
   });
 
-  await check("care-rcd-media bucket stays PRIVATE (customer conversation media = PII)", async () => {
-    // RCD stores customer conversation media (images/attachments) — PII. The bucket is private and served
-    // only via short-TTL signed URLs the app issues after an auth check. If a future migration (or a console
-    // click) flips storage.buckets.public=true for this bucket, every object becomes world-readable by path
-    // with no auth — a customer-PII breach that no code path would surface. This locks it. (assets-v1 is
-    // likewise private; widget-logos is intentionally public tenant branding, so we assert the PII bucket
-    // specifically rather than "all buckets private".)
-    const r = await c.query("select public from storage.buckets where id = 'care-rcd-media'");
-    if (r.rowCount === 0) return { pass: true, detail: "bucket not present (RCD not provisioned here)" };
-    const isPublic = r.rows[0].public === true;
-    return { pass: !isPublic, detail: isPublic ? "PUBLIC → customer media world-readable (BREACH)" : "private" };
+  await check("no storage bucket is public except the intentional allowlist (PII-breach defense)", async () => {
+    // A public bucket is world-readable by path with NO auth. care-rcd-media (customer conversation media)
+    // and assets-v1 (user files) hold PII/sensitive data and MUST stay private — served only via short-TTL
+    // signed URLs the app issues after an auth check. A future migration or console click flipping
+    // public=true is a breach no code path would surface. Only widget-logos is intentionally public (tenant
+    // branding shown on the customer widget). This asserts the whole class: any OTHER public bucket — an
+    // existing one flipped, or a NEW bucket created public without review — fails. Add to the allowlist ONLY
+    // with a deliberate "this holds no private data" decision.
+    const PUBLIC_ALLOWLIST = new Set(["widget-logos"]);
+    const r = await c.query("select id from storage.buckets where public = true");
+    const unexpected = r.rows.map((x) => x.id).filter((id) => !PUBLIC_ALLOWLIST.has(id));
+    return {
+      pass: unexpected.length === 0,
+      detail: unexpected.length === 0
+        ? "only the allowlisted branding bucket is public"
+        : `UNEXPECTED public bucket(s): ${unexpected.join(", ")} — world-readable, possible PII breach`,
+    };
   });
 
   await check("§3.1 event UPDATE is a no-op (behavioral, rolled back)", async () => {
