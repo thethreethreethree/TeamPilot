@@ -27,7 +27,9 @@ function RedeemInner() {
   const router = useRouter();
   const search = useSearchParams();
 
-  const [phase, setPhase] = useState<"code" | "details" | "done" | "error">("code");
+  // Errors are surfaced INLINE within the code/details phases (setError), so there is no terminal
+  // "error" phase — every failure leaves the user on the current step able to retry or go back.
+  const [phase, setPhase] = useState<"code" | "details" | "done">("code");
   const [code, setCode] = useState("");
   const [module, setModule] = useState<string>("");
   const [companyName, setCompanyName] = useState("");
@@ -273,8 +275,6 @@ function RedeemInner() {
               <p className="text-xs text-muted">Taking you to your workspace…</p>
             </div>
           )}
-
-          {phase === "error" && <p className="text-sm text-red-300">{error}</p>}
         </div>
       </div>
     </div>
