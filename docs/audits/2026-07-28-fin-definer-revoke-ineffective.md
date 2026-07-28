@@ -1,9 +1,16 @@
 # FINDING (2026-07-28) — 0183's DEFINER revoke is INEFFECTIVE; finance DEFINER fns are anon-callable (cross-tenant read)
 
-**Severity: MEDIUM** (confirmed cross-tenant read of financial CONFIG metadata via an unauthenticated,
-RLS-bypassing SECURITY DEFINER function; practical exploit is gated by company_id being an unguessable
-UUID, and the exposed data is chart-of-accounts structure / rates / limits, not amounts or PII). A real
-tenant-isolation breach that a migration *intended* to close and did not, hidden behind a green guard.
+**Severity: MEDIUM** — and note this is **the exact vulnerability `0183` itself found, documented, and
+believed it fixed** (its header: "MEDIUM (cross-tenant read + cross-tenant write into the chart of
+accounts)... Fixed here."). This finding is that **`0183`'s fix is INEFFECTIVE — the hole it closed is still
+open** (confirmed live). It is cross-tenant READ (account ids / rates / limits) **and limited cross-tenant
+WRITE**: `fin_obe_account(p_company)` and `fin_inventory_accounts(p_company)` INSERT accounts into an
+arbitrary company's chart of accounts, both anon-executable and ungated. Practical exploit is gated by
+company_id being an unguessable UUID and the impact is COA structure/config (not amounts/PII), hence MEDIUM.
+The finance ENTRY/action fns (`fin_approve_bill`/`fin_post_entry`/`fin_pay_bill`) are NOT affected — they
+verify `entity.company_id = auth_company_id()` (e.g. fin_approve_bill line 14 `v_company <> auth_company_id()
+→ raise`) and require a non-null `auth.uid()`, so neither anon nor a cross-tenant authenticated caller can
+abuse them (verified this session).
 
 ## What / evidence (live, this session)
 
@@ -39,16 +46,43 @@ grant**. So an ineffective revoke (wrong grantee) reads as protected. The guard 
 ## Proposed fix (FOUNDER-GATED — finance schema change)
 
 1. **Migration `0200`**: `revoke execute on function <each 0183-listed fn>(<sig>) from public;` — completes
-   0183's clear intent correctly. Safe *iff* the app calls these only via entry functions (owner context)
-   or `service_role`, never directly as `authenticated`. 0183 already revoked `authenticated`, so the intent
-   was that they're internal-only — but **verify no app route calls them directly** before applying (a
-   direct authenticated caller would break). NOT applied here — finance change with app-breakage risk (§2).
+   0183's intent correctly (PUBLIC strips anon + authenticated; the explicit `service_role`/`postgres` grants
+   remain). **0183's list is the ~8 tenant-param INTERNAL helpers, NOT the entry/action functions** — the app
+   calls entry fns (`fin_approve_bill`, etc., which stay untouched and are already safe), and those call the
+   helpers in owner context. So revoking the helpers from PUBLIC should NOT break the app. Still recommend a
+   quick grep that no `supabase.rpc('<helper>')` names them directly before applying (§2 finance-change
+   caution). NOT applied here.
 2. **Tighten INVARIANT 4** to require the revoke be `from public` (not just the roles), so this can't recur.
    Note: doing so will (correctly) turn the invariant RED until the migration lands — sequence the migration
    first, or gate behind the same PR.
 3. Optionally add a **`verify:live`** check: the 0183-targeted fns must not be anon/authenticated-executable
    (detects the effective grant, complements the static text check).
 
-_Method: confirmed by live grant inspection + a rolled-back anon PoC this session. The exposed data is
-financial config metadata and exploit needs a known company UUID, hence MEDIUM not HIGH — but it is a
-genuine RLS bypass an unauth caller can reach, and it should be closed._
+## Fix is de-risked (verified this session)
+
+Grepped `src/` for direct `supabase.rpc('<helper>')` calls to all 7 applied helpers
+(`fin_account_by_code`, `fin_obe_account`, `fin_inventory_accounts`, `fin_get_rate`,
+`fin_approval_limit_for`, `fin_mileage_rate_for`, `fin_per_diem_rate_for`) → **NONE are called directly by
+the app.** They're internal helpers invoked by entry functions in owner context. So `revoke … from public`
+(which keeps the explicit `service_role`/`postgres` grants) will not break the app.
+
+### Ready-to-apply `0200` (NOT applied — founder runs `db:apply` after a final glance; §2 finance change)
+```sql
+-- 0200 — fix 0183: revoke from PUBLIC (not the roles) so anon/authenticated lose the inherited grant.
+revoke execute on function fin_account_by_code(uuid, text)                 from public;
+revoke execute on function fin_obe_account(uuid)                           from public;
+revoke execute on function fin_inventory_accounts(uuid)                    from public;
+revoke execute on function fin_get_rate(uuid, character, character, date)  from public;
+revoke execute on function fin_approval_limit_for(uuid, uuid)              from public;
+revoke execute on function fin_mileage_rate_for(uuid, date, text)          from public;
+revoke execute on function fin_per_diem_rate_for(uuid, date, text)         from public;
+-- (fin_post_system_entry was already revoked in 0122; confirm its grant too.)
+```
+Verify after: `has_function_privilege('anon', 'fin_account_by_code(uuid,text)', 'execute')` → false.
+Then tighten INVARIANT 4 (require `from public`, or check the live grant) so the ineffective-revoke pattern
+can't recur — sequence AFTER 0200 so the invariant doesn't go red on the open hole.
+
+_Method: confirmed by live grant inspection (`proacl`), a rolled-back anon PoC (cross-tenant read), reading
+`fin_approve_bill` (entry fns are company-scoped + safe), and a src grep (helpers not app-called). Exposed
+data is financial config metadata + limited COA-account insertion, exploit needs a known company UUID →
+MEDIUM. It is the vuln 0183 documented as fixed; 0183's revoke was ineffective, so it is still open._
