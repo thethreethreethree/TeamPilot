@@ -4,7 +4,7 @@ trigger: fix
 started_at: 2026-07-28T14:00:00Z
 doc_hashes:
   CLAUDE.md: e08874ebce63f41eacdfbadcd46b0a6fa8f15fcb79edafde9a7af52e8ebe261f
-  ThinkerThinker.md: cc9071abd15ab7e06c3e89fef38f66da0b9df351ffa2afde50ec3d4664ef1d92
+  ThinkerThinker.md: 0428b0bb286433cc6d9925db2286127994b9d11d1c4df80de1256f0d3f53e8bc
 manifest_entries: 11
 hypotheses: 2
 ---
@@ -36,14 +36,21 @@ Hashes match docs/tbc/DOC_MANIFEST.json. Both governing documents present.
   { "id": "§1.5.1", "read_at": "2026-07-28T14:15:00Z", "source_file": "CLAUDE.md", "line_range": "78-90",   "why_it_governs": "Four-layer framework — the gates are evaluated for structure, effectivity (do they still catch real cases), composition (F4 with the commit-msg hook; F3 with the fence check).", "how_this_build_will_embody_it": "Section 4 walks the layers." },
   { "id": "§1.5.2", "read_at": "2026-07-28T14:15:00Z", "source_file": "CLAUDE.md", "line_range": "139-160", "why_it_governs": "THINK before search — both fixes were hypothesised then confirmed by test (F4 6-scenario prototype; F3 context probe) before the code changed.", "how_this_build_will_embody_it": "Hypotheses below carry their tested outcomes." },
   { "id": "§6",     "read_at": "2026-07-28T14:15:00Z", "source_file": "CLAUDE.md", "line_range": "352-368", "why_it_governs": "The checklist — these fixes follow founder decisions and existing precedent, not a self-substituted quality bar.", "how_this_build_will_embody_it": "F4 = the founder's option 1; F3 = the founder's tighten choice." },
-  { "id": "A19",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "625-648", "why_it_governs": "Methodology in the working tree — read live, recorded here.", "how_this_build_will_embody_it": "The manifest carries this-session reads, gate-verified." },
-  { "id": "A22",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "764-800", "why_it_governs": "Citations without session-reading are undetected violations; this build keeps the manifest gate intact while F4 adds a per-change requirement.", "how_this_build_will_embody_it": "Minimum-set enforcement is untouched; F4 sits alongside it." },
-  { "id": "A26",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "861-900", "why_it_governs": "A finding is an instance of a class; F4's class is 'discretionary invocation of a defense', F3's is 'noisy detector'. Each closed at the source.", "how_this_build_will_embody_it": "F4 gates the class structurally; F3 removes the imprecision rather than allowlisting each instance." },
-  { "id": "A30",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "940-962", "why_it_governs": "A fix is complete only when the class is closed at a point that fails without cooperation — F4 is exactly that: a gate that fails when a code change ships without a build.", "how_this_build_will_embody_it": "verify-freshness.mjs fails the commit; it is not a prose reminder." },
-  { "id": "A33",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "1022-1050", "why_it_governs": "A gate must be precise or not exist — F3 was imprecise (fired on prose) and F4 must be precise (fire only on code-without-a-build, exempt trivial edits) or it becomes the noisy gate it replaces.", "how_this_build_will_embody_it": "F3 gains a context requirement; F4 is precise by construction (enforced-path AND no-build AND no-exempt) with a documented exemption." },
-  { "id": "A38",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "1171-1200", "why_it_governs": "The discretionary-invocation failure A38 records is exactly what F4 closes at the gate altitude; and 'verified' claims are what F3 governs.", "how_this_build_will_embody_it": "F4 makes the build non-optional for code changes; F3 keeps 'verified' anchored to a command." }
+  { "id": "A19",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "453-475", "why_it_governs": "Methodology in the working tree — read live, recorded here.", "how_this_build_will_embody_it": "The manifest carries this-session reads, gate-verified." },
+  { "id": "A22",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "592-615", "why_it_governs": "Citations without session-reading are undetected violations; this build keeps the manifest gate intact while F4 adds a per-change requirement.", "how_this_build_will_embody_it": "Minimum-set enforcement is untouched; F4 sits alongside it." },
+  { "id": "A26",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "689-715", "why_it_governs": "A finding is an instance of a class; F4's class is 'discretionary invocation of a defense', F3's is 'noisy detector'. Each closed at the source.", "how_this_build_will_embody_it": "F4 gates the class structurally; F3 removes the imprecision rather than allowlisting each instance." },
+  { "id": "A30",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "768-790", "why_it_governs": "A fix is complete only when the class is closed at a point that fails without cooperation — F4 is exactly that: a gate that fails when a code change ships without a build.", "how_this_build_will_embody_it": "verify-freshness.mjs fails the commit; it is not a prose reminder." },
+  { "id": "A33",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "850-880", "why_it_governs": "A gate must be precise or not exist — F3 was imprecise (fired on prose) and F4 must be precise (fire only on code-without-a-build, exempt trivial edits) or it becomes the noisy gate it replaces.", "how_this_build_will_embody_it": "F3 gains a context requirement; F4 is precise by construction (enforced-path AND no-build AND no-exempt) with a documented exemption." },
+  { "id": "A38",    "read_at": "2026-07-28T14:15:00Z", "source_file": "ThinkerThinker.md", "line_range": "999-1025", "why_it_governs": "The discretionary-invocation failure A38 records is exactly what F4 closes at the gate altitude; and 'verified' claims are what F3 governs.", "how_this_build_will_embody_it": "F4 makes the build non-optional for code changes; F3 keeps 'verified' anchored to a command." }
 ]
 ```
+
+> **Re-point note (2026-07-28, Build B):** the ThinkerThinker.md line-ranges above and the
+> recorded TT `doc_hash` were mechanically updated when the doc-reconciliation build removed
+> TT's embedded pre-amendment constitution (shifting every asset up ~191 lines). This build's
+> SUBSTANCE was conducted against the pre-reconciliation TT (`cc9071…`); only the line
+> references were re-pointed so `verify-manifest` stays green against the live file. This
+> coupling — a governing-doc edit invalidating a prior build's ranges — is filed as a residual.
 
 ## 3. Hypotheses
 

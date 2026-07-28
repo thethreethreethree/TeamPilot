@@ -79,4 +79,4 @@ deliberate, defensible call rather than an unexamined default.
 ## 8. Doc hashes
 
 - CLAUDE.md — `e08874ebce63f41eacdfbadcd46b0a6fa8f15fcb79edafde9a7af52e8ebe261f`
-- ThinkerThinker.md — `cc9071abd15ab7e06c3e89fef38f66da0b9df351ffa2afde50ec3d4664ef1d92`
+- ThinkerThinker.md — `0428b0bb286433cc6d9925db2286127994b9d11d1c4df80de1256f0d3f53e8bc` (re-pointed 2026-07-28 by Build B; build substance was against the pre-reconciliation `cc9071…` — see think.md re-point note)
