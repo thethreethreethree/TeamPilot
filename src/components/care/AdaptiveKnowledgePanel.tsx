@@ -64,29 +64,59 @@ export function AdaptiveKnowledgePanel() {
     void load();
   }, [load]);
 
-  function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     setError(null);
     const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
     if (!file) return;
-    if (!/\.(md|markdown|txt)$/i.test(file.name)) {
-      setError("Please choose a .md (markdown) file.");
+
+    // Text formats read instantly in the browser (no server round-trip). Everything else (PDF, Word,
+    // etc.) needs server-side extraction — founder 2026-07-30. maxChars = the 200k knowledge field cap.
+    if (/\.(md|markdown|txt)$/i.test(file.name)) {
+      if (file.size > 200000) {
+        setError("File too large (200k character limit).");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const content = String(reader.result ?? "");
+        if (!content.trim()) {
+          setError("That file is empty.");
+          return;
+        }
+        setStaged({ filename: file.name, content });
+      };
+      reader.onerror = () => setError("Couldn't read that file.");
+      reader.readAsText(file);
       return;
     }
-    if (file.size > 200000) {
-      setError("File too large (200k character limit).");
+
+    if (file.size > 4 * 1024 * 1024) {
+      setError("File too large (4 MB limit).");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const content = String(reader.result ?? "");
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("maxChars", "200000");
+      const res = await fetch("/api/care/agent/acms/extract", { method: "POST", body: fd });
+      const d = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(d?.error ?? "Couldn't read that file.");
+        return;
+      }
+      const content = String(d?.text ?? "");
       if (!content.trim()) {
-        setError("That file is empty.");
+        setError("No readable text was found in that document.");
         return;
       }
       setStaged({ filename: file.name, content });
-    };
-    reader.onerror = () => setError("Couldn't read that file.");
-    reader.readAsText(file);
+    } catch {
+      setError("Couldn't reach the server.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function upload() {
@@ -98,7 +128,7 @@ export function AdaptiveKnowledgePanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: staged.filename.replace(/\.(md|markdown|txt)$/i, ""),
+          title: staged.filename.replace(/\.[a-z0-9]+$/i, ""),
           filename: staged.filename,
           content: staged.content,
         }),
@@ -149,8 +179,8 @@ export function AdaptiveKnowledgePanel() {
         Adaptive Customer Management
       </h3>
       <p className="mt-1 text-xs text-muted leading-relaxed max-w-2xl">
-        Upload a Markdown (<span className="font-mono">.md</span>) file of your own
-        knowledge — services, hours, pricing, policies, FAQs — and your AI will
+        Upload a document (<span className="font-mono">PDF, Word, .txt, .md, .rtf, .odt, .epub, .html</span>)
+        of your own knowledge — services, hours, pricing, policies, FAQs — and your AI will
         answer customers from it. Your AI treats this as{" "}
         <b className="text-secondary">facts to answer from, not as instructions</b>,
         so it adds what your AI knows without taking over how it behaves — its
@@ -221,7 +251,7 @@ export function AdaptiveKnowledgePanel() {
               <input
                 ref={fileRef}
                 type="file"
-                accept=".md,.markdown,.txt,text/markdown"
+                accept=".md,.markdown,.txt,.html,.htm,.rtf,.docx,.odt,.epub,.pdf"
                 onChange={pickFile}
                 className="block text-xs text-secondary file:mr-3 file:rounded-md file:border file:border-default file:bg-base file:px-3 file:py-1.5 file:text-xs file:text-primary hover:file:border-strong"
               />

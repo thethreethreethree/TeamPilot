@@ -334,6 +334,13 @@ for (const [name, info] of definerFns) {
 // for a media route that legitimately can't (the validator blocks .webm/.mp4), the EXECUTABLE_EXTENSIONS
 // block — or be allowlisted with the reason its own inline validation is sufficient.
 const UPLOAD_VALIDATE_ALLOWLIST = new Map([
+  ["src/app/api/care/agent/acms/extract/route.ts",
+    "Own inline validation, same shape as the sales-coach extractor: the file is NEVER STORED or served — " +
+    "extracted to text in memory and discarded, so the stored-XSS / signed-URL-serving concerns " +
+    "validateUploadCandidate defends do not apply. Validation is a strict EXTENSION ALLOWLIST of 8 document " +
+    "types (txt/md/html/rtf/docx/odt/epub/pdf) — an allowlist rejects every executable BY CONSTRUCTION, and " +
+    "the browser MIME is irrelevant because nothing is served. 4MB cap + a per-field char cap bound the blast " +
+    "radius; a spoofed executable renamed .docx fails the parser rather than executing. Admin-gated (requireCareAgent + isAdmin)."],
   ["src/app/api/coach/sales-session/extract/route.ts",
     "Own inline validation, stronger + better-fit than the generic storage path: the file is NEVER STORED " +
     "or served — it is extracted to text in memory and discarded, so the stored-XSS / signed-URL-serving " +

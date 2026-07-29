@@ -252,6 +252,8 @@ export async function POST(
   // if tenant config missing (e.g. ELOSTATE on bare deployment).
   const systemPrompt = buildCareSystemPrompt({
     productContext,
+    // The business's own customer-assistance guidance (0202) — how Jeff should handle their customers.
+    assistanceGuidance: tenant?.aiAssistanceGuidance ?? undefined,
     referenceKnowledge: referenceKnowledge ?? undefined,
     medium,
     agentName: tenant?.aiName,

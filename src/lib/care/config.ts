@@ -75,6 +75,8 @@ export type CareTenantConfig = {
   companyDisplayName: string | null;
   replySignature: string | null;
   aiProductContext: string | null;
+  /** How Jeff should ASSIST customers — the business's own guidance (methodology-equivalent). */
+  aiAssistanceGuidance: string | null;
   aiTone: "warm" | "formal" | "casual" | "direct";
   aiResponseLength: "short" | "medium" | "long";
   /** Per-tenant name for the customer-facing AI agent. Default 'Jeff'.
@@ -140,6 +142,8 @@ function mapConfig(row: Record<string, unknown>): CareTenantConfig {
     companyDisplayName: (row.company_display_name as string | null) ?? null,
     replySignature: (row.reply_signature as string | null) ?? null,
     aiProductContext: (row.ai_product_context as string | null) ?? null,
+    // How Jeff should ASSIST (the methodology-equivalent). select("*") omits it pre-0202 → null (A34).
+    aiAssistanceGuidance: (row.ai_assistance_guidance as string | null) ?? null,
     aiTone: (row.ai_tone as CareTenantConfig["aiTone"]) ?? "warm",
     aiResponseLength:
       (row.ai_response_length as CareTenantConfig["aiResponseLength"]) ??

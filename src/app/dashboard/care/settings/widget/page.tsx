@@ -5,6 +5,8 @@ import { AlertTriangle, Copy, Loader2, Save, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
 import { AdaptiveKnowledgePanel } from "@/components/care/AdaptiveKnowledgePanel";
+import { JeffGuidancePanel } from "@/components/care/JeffGuidancePanel";
+import { DocUploadButton } from "@/components/sales-coach/DocUploadButton";
 import { CURATED_VOICES } from "@/lib/care/voice/curated-client";
 import { LearningHint } from "@/components/learning/LearningHint";
 
@@ -690,6 +692,18 @@ export default function CareWidgetSettingsPage() {
                     field have no effect here — it&apos;s shown for reference only.
                   </div>
                 )}
+                {!productContextManagedInCode && (
+                  <div className="flex items-center justify-end mb-1.5">
+                    <DocUploadButton
+                      onExtracted={(t) =>
+                        setDraft({ ...draft, ai_product_context: t || null })
+                      }
+                      targetLabel="the product context"
+                      endpoint="/api/care/agent/acms/extract"
+                      maxChars={8000}
+                    />
+                  </div>
+                )}
                 <textarea
                   value={draft.ai_product_context ?? ""}
                 onChange={(e) =>
@@ -802,6 +816,8 @@ Always hand off to a human for:
             AI answers from; fenced as untrusted data at the prompt layer — never
             behavior). Self-contained: fetches/uploads via /api/care/agent/acms/documents,
             independent of this page's tenant-config draft/Save. */}
+        <JeffGuidancePanel />
+
         <AdaptiveKnowledgePanel />
 
         {/* Business type — 0188. Drives the concern-topic list on the customer handoff

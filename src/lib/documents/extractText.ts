@@ -80,8 +80,12 @@ export const SUPPORTED_EXTENSIONS = Object.keys(SUPPORTED);
  */
 export async function extractText(
   buffer: Uint8Array,
-  filename: string
+  filename: string,
+  opts: { maxChars?: number } = {}
 ): Promise<{ text: string; format: SupportedFormat }> {
+  // The cap defaults to the 100k Sales Coach field (F5), but each caller passes its OWN consumer's cap
+  // (C.A.R.E's knowledge field is 200k) so extraction always matches what that field will save.
+  const maxChars = Math.max(1, opts.maxChars ?? MAX_EXTRACTED_CHARS);
   const ext = extensionOf(filename);
   const format = SUPPORTED[ext];
   if (!format) {
@@ -113,7 +117,7 @@ export async function extractText(
       raw = stripXml(await unzipEntry(buffer, "content.xml"), "text:p");
       break;
     case "epub":
-      raw = await extractEpub(buffer);
+      raw = await extractEpub(buffer, maxChars);
       break;
     case "pdf":
       raw = await extractPdf(buffer);
@@ -206,7 +210,7 @@ async function unzipEntry(buffer: Uint8Array, path: string): Promise<string> {
 }
 
 /** EPUB = a ZIP of XHTML. Concatenate the (x)html documents in spine-ish name order, bounded. */
-async function extractEpub(buffer: Uint8Array): Promise<string> {
+async function extractEpub(buffer: Uint8Array, maxChars: number = MAX_EXTRACTED_CHARS): Promise<string> {
   const zip = await loadZip(buffer);
   const htmlFiles = Object.values(zip.files)
     .filter((f) => !f.dir && /\.(xhtml|html|htm)$/i.test(f.name))
@@ -214,7 +218,7 @@ async function extractEpub(buffer: Uint8Array): Promise<string> {
   const parts: string[] = [];
   let total = 0;
   for (const f of htmlFiles) {
-    if (total >= MAX_EXTRACTED_CHARS) break; // bound zip-bomb / huge books
+    if (total >= maxChars) break; // bound zip-bomb / huge books
     const text = stripHtml(await f.async("string"));
     parts.push(text);
     total += text.length;

@@ -93,6 +93,8 @@ const PatchBody = z.object({
   companyDisplayName: z.string().max(200).optional().nullable(),
   replySignature: z.string().max(400).optional().nullable(),
   aiProductContext: z.string().max(8000).optional().nullable(),
+  // How Jeff should ASSIST (0202). Same 8k cap as product-context — it feeds every reply, so keep it lean.
+  aiAssistanceGuidance: z.string().max(8000).optional().nullable(),
   aiTone: z.enum(["warm", "formal", "casual", "direct"]).optional(),
   aiResponseLength: z.enum(["short", "medium", "long"]).optional(),
   // Per-tenant agent name (migration 0064). Sanitized via Zod
@@ -161,6 +163,8 @@ export async function PATCH(req: NextRequest) {
   if (body.replySignature !== undefined) patch.reply_signature = body.replySignature;
   if (body.aiProductContext !== undefined)
     patch.ai_product_context = body.aiProductContext;
+  if (body.aiAssistanceGuidance !== undefined)
+    patch.ai_assistance_guidance = body.aiAssistanceGuidance;
   if (body.aiTone !== undefined) patch.ai_tone = body.aiTone;
   if (body.aiResponseLength !== undefined)
     patch.ai_response_length = body.aiResponseLength;
@@ -177,15 +181,23 @@ export async function PATCH(req: NextRequest) {
     .single();
 
   if (error) {
-    // Migration-coupling guard (A34/A26): business_type lands with migration 0188. Until
-    // it's applied, bundling it into this upsert would fail the ENTIRE settings save (color,
-    // greeting, AI name — everything), because one missing column rejects the whole write.
-    // Degrade: drop business_type and retry so every other setting still persists; the
-    // business-type control is simply inert until 0188 is applied. Any OTHER error stays loud
-    // (and is no longer swallowed into a false-ok — the previous code ignored `error` and
-    // returned {config:null} with a 200).
-    if (isMissingColumnError(error, "business_type") && "business_type" in patch) {
-      const { business_type: _deferred, ...rest } = patch;
+    // Migration-coupling guard (A34/A26): some columns land with LATER migrations — business_type (0188)
+    // and ai_assistance_guidance (0202). Until applied, one missing column rejects the ENTIRE upsert
+    // (color, greeting, AI name — everything). Degrade: drop the deferrable column(s) and retry so every
+    // other setting still persists; the deferred control is inert until its migration. Any OTHER error
+    // stays loud (not swallowed into a false-ok).
+    //
+    // Ordered by migration: a missing EARLIER column implies the later ones are missing too (migrations
+    // apply in order), so on a miss we drop that column AND every later-migration deferrable column.
+    const DEFERRABLE = ["business_type", "ai_assistance_guidance"] as const;
+    const firstMissing = DEFERRABLE.findIndex(
+      (c) => c in patch && isMissingColumnError(error, c)
+    );
+    if (firstMissing >= 0) {
+      const toDrop = new Set<string>(DEFERRABLE.slice(firstMissing));
+      const rest = Object.fromEntries(
+        Object.entries(patch).filter(([k]) => !toDrop.has(k))
+      );
       const retry = await admin
         .from("care_tenant_config")
         .upsert({ company_id: ctx.companyId, ...rest }, { onConflict: "company_id" })
@@ -198,7 +210,11 @@ export async function PATCH(req: NextRequest) {
         console.error(`[care.tenant] 500 retry upsert failed companyId=${ctx.companyId}: ${retry.error.message}`);
         return NextResponse.json({ error: "Couldn't save settings." }, { status: 500 });
       }
-      return NextResponse.json({ config: retry.data, businessTypeDeferred: true });
+      return NextResponse.json({
+        config: retry.data,
+        businessTypeDeferred: toDrop.has("business_type") && "business_type" in patch,
+        assistanceGuidanceDeferred: toDrop.has("ai_assistance_guidance") && "ai_assistance_guidance" in patch,
+      });
     }
     // eslint-disable-next-line no-console
     console.error(`[care.tenant] 500 upsert failed companyId=${ctx.companyId}: ${error.message}`);

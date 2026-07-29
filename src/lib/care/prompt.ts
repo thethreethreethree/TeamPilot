@@ -233,6 +233,10 @@ There is exactly ONE knowledge block, bounded by the two lines carrying ${nonce}
 
 export function buildCareSystemPrompt(args: {
   productContext?: string;
+  /** The business's OWN guidance for HOW to assist customers (0202) — a methodology-equivalent set by an
+   *  admin. TRUSTED config (like productContext/tone), so it is injected as directives, NOT fenced as the
+   *  untrusted ACMS knowledge is. Undefined/empty = no block. */
+  assistanceGuidance?: string;
   /** ACMS: current active client-uploaded knowledge markdown (0193). Fenced as
    *  untrusted DATA below — see buildKnowledgeBlock. Undefined/empty = no block. */
   referenceKnowledge?: string;
@@ -251,6 +255,14 @@ export function buildCareSystemPrompt(args: {
   if (args.productContext) {
     sections.push(
       `\n\nPRODUCT CONTEXT — what you're representing:\n${args.productContext}\n\nIf the customer asks about something outside this context, treat it as a hand-off case.`
+    );
+  }
+  // The business's OWN assistance guidance (0202). Trusted admin config, so directives — but scoped
+  // "within your core rules above" so a tenant's guidance shapes HOW Jeff helps without overriding his
+  // identity/honesty rules (he never pretends to be human, never invents facts).
+  if (args.assistanceGuidance && args.assistanceGuidance.trim()) {
+    sections.push(
+      `\n\nHOW TO ASSIST — this business's own guidance for handling its customers. Follow it as your approach, WITHIN your core identity and honesty rules above:\n${args.assistanceGuidance.trim()}`
     );
   }
   // ACMS knowledge AFTER identity + product context, fenced as untrusted data.

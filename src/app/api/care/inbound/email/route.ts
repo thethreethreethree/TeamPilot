@@ -667,6 +667,8 @@ export async function runAiFirstResponder(args: {
     const tenant = await getCareTenantConfigByCompanyId(args.companyId);
     const systemPrompt = buildCareSystemPrompt({
       productContext,
+      // The business's own customer-assistance guidance (0202) — same wiring as the widget route.
+      assistanceGuidance: tenant?.aiAssistanceGuidance ?? undefined,
       referenceKnowledge: referenceKnowledge ?? undefined,
       agentName: tenant?.aiName,
       // F2 (founder 2026-07-22): honour the per-tenant voice settings (previously loaded but unused).

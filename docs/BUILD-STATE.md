@@ -40,15 +40,13 @@ and "What you represent" (ai_product_context).
 | J8 | Product-context (ai_product_context) upload | **NOT STARTED** | its editor in care/settings/widget + DocUploadButton, cap 8000 |
 | J9 | Tests + Jeff product knowledge + TBC + commit | **NOT STARTED** | route auth test, guidance save+prompt test; update elostateProductKnowledge.ts; TBC build dir |
 
-### Unfinished at this moment — PAUSED 2026-07-30 (founder asked for report + pause)
-- **Tree is GREEN** (tsc exit 0) but the C.A.R.E build is ~20% and **UNCOMMITTED** (on disk, survives the
-  pause). Changed files: `supabase/migrations/0202_*.sql`, `src/lib/care/config.ts`,
-  `src/lib/care/__tests__/config.widgetSafe.test.ts`, `src/lib/care/prompt.ts` (param only),
-  `src/lib/documents/extractText.ts` (maxChars). NOT committed — will commit as ONE coherent feature.
-- **RESUME PLAN (in order):** J2 (inject block + wire 3 callers) → J3 (save route) → J4 (extract route +
-  allowlist) → J5 (DocUploadButton props) → J6 (guidance editor) → J7 (ACMS upload) → J8 (product upload)
-  → J9 (tests + Jeff knowledge + TBC + commit). Migration 0202 NOT applied (A34-guarded; founder db:apply).
-- ⚠ Do NOT report this "done" — the guidance field is data-layer-only; Jeff does NOT yet use it (J2 half).
+### Status — COMPLETE (all J0–J9 done, committed, check exit 0)
+- All 10 J-items DONE end-to-end: new Jeff guidance field wired into his replies (scoped within his core
+  rules), multi-format upload on all THREE C.A.R.E surfaces, A34-guarded. `npm run check` exit 0 (1654
+  tests); care extract route 4/4, guidance prompt 3/3, widgetSafe 3/3.
+- ⚠ Migration `0202` written but NOT applied (A34-guarded → Jeff unchanged + guidance-save says "migration
+  pending" until founder `db:apply`). Residuals: CARE-01 (live post-apply check), CARE-02 (8k cap tunable),
+  CARE-03 (per-surface browser click-through).
 
 ---
 
@@ -83,6 +81,9 @@ and "What you represent" (ai_product_context).
 
 ## ▶ RECENTLY CLOSED (rolling, newest first)
 
+- `2026-07-30-x2-care-jeff-guidance-upload` — CLOSED 2026-07-30 — new Jeff customer-assistance guidance
+  field (wired into his replies) + multi-format upload on 3 C.A.R.E surfaces. Migration 0202 (not applied,
+  A34-guarded). check exit 0 (1654 tests).
 - `2026-07-30-x-doc-upload-remediation` — CLOSED 2026-07-30 (`74dfc387`) — formal 2-pass audit + fix:
   F5 cap-seam, F3 body-limit, F2 double-decode (gated); F1/F4 declined (A33). check exit 0 (1647 tests).
 - `2026-07-30-sales-coach-doc-upload` — CLOSED 2026-07-30 — clients upload docs (pdf/docx/odt/epub/

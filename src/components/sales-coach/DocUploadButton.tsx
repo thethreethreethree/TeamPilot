@@ -19,9 +19,15 @@ const MAX_FILE_BYTES = 4 * 1024 * 1024;
 export function DocUploadButton({
   onExtracted,
   targetLabel,
+  endpoint = "/api/coach/sales-session/extract",
+  maxChars,
 }: {
   onExtracted: (text: string) => void;
   targetLabel: string;
+  /** Extraction endpoint. Defaults to the sales-coach route; C.A.R.E surfaces pass the care route. */
+  endpoint?: string;
+  /** The target field's char cap, sent so extraction never exceeds what the field will save (F5). */
+  maxChars?: number;
 }) {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +53,8 @@ export function DocUploadButton({
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/coach/sales-session/extract", { method: "POST", body: fd });
+      if (maxChars) fd.append("maxChars", String(maxChars));
+      const res = await fetch(endpoint, { method: "POST", body: fd });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         throw new Error(data?.error ?? "Couldn't read that file.");

@@ -22,6 +22,7 @@ const FULL: CareTenantConfig = {
   companyDisplayName: "Acme Co",
   replySignature: "SECRET-signature",
   aiProductContext: "SECRET-internal-product-playbook",
+  aiAssistanceGuidance: "SECRET-internal-assistance-guidance",
   aiTone: "warm",
   aiResponseLength: "medium",
   aiName: "Jeff",
