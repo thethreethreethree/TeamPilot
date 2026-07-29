@@ -61,7 +61,7 @@ How they relate: ELOSTATE is the whole platform; C.A.R.E is its customer-support
 - Tasks — concrete action items tied to decisions and problems, with participant assignments.
 - Company Brain — the long-term knowledge base a team builds inside ELOSTATE; persistent context the AI grounds replies in.
 - Team Chat — built-in topic-organized chats, captured into the same event stream as everything else.
-- Sales Coach — live sales coaching for reps: reviews recorded calls, gives an after-pitch review, and tracks skills (tone, pace, talk/listen balance, questions, objection handling, closing) over time against a standard.
+- Sales Coach — live sales coaching for reps: reviews recorded calls, gives an after-pitch review, and tracks skills (tone, pace, talk/listen balance, questions, objection handling, closing) over time against a standard. Managers make it their OWN coach by writing (or uploading a document — PDF, Word, and plain text/markdown — into) their Coaching Methodology and Product details; the objection-handling rules they set there drive how the coach guides objections in both live coaching and role-play practice.
 - Financial System — a full double-entry accounting layer: general ledger, AP/AR, expenses, banking + reconciliation, budgets + variance, cost/profit by project or cost-centre, tax, and year-end close.
 - Experience Mode — the product adapts its depth to the user: Standard keeps the surface simple; Expert exposes the full system. Same engine, right altitude.
 

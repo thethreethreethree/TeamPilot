@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
+import { extractObjectionGuidance } from "@/lib/coach/v5/objectionGuidance";
 import { dissectCoachV5 } from "@/lib/claude";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -67,7 +68,14 @@ function reviewSystem(body: z.infer<typeof Body>, corpus?: string): string {
   const grounding = corpus
     ? `\n\nGround your assessment in this company's own methodology where relevant:\n${corpus.slice(0, 4000)}`
     : "";
-  return `You are a sales coach reviewing a PRACTICE roleplay between a rep and a simulated prospect (${channelLine(body.context)}). Be specific, honest, and encouraging — this is practice, so the point is to help the rep improve, not to grade them down. Cite the rep's ACTUAL words from the transcript; never invent lines they didn't say.${grounding}
+  // The team's OWN objection rules, pulled from the FULL methodology (founder 2026-07-30) so they are
+  // never lost to the 4000-char slice above. When judging how the rep handled objections/rejection, hold
+  // them to THESE rules — the same rules the live coach uses, so both modes coach objections identically.
+  const objection = corpus ? extractObjectionGuidance(corpus, 1000) : "";
+  const objectionBlock = objection
+    ? `\n\nWhen you assess how the rep handled objections or rejection, hold them to THIS TEAM'S OWN objection rules (not generic tactics):\n${objection}`
+    : "";
+  return `You are a sales coach reviewing a PRACTICE roleplay between a rep and a simulated prospect (${channelLine(body.context)}). Be specific, honest, and encouraging — this is practice, so the point is to help the rep improve, not to grade them down. Cite the rep's ACTUAL words from the transcript; never invent lines they didn't say.${grounding}${objectionBlock}
 
 Return ONLY JSON with this exact shape:
 {

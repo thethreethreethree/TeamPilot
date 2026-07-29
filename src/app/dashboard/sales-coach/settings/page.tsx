@@ -17,6 +17,7 @@ import { LearningModePanel } from "@/components/settings/LearningModePanel";
 import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { DocUploadButton } from "@/components/sales-coach/DocUploadButton";
 
 /**
  * Sales Coach → Settings (Phase 4). Role-aware: every staff/admin gets
@@ -330,6 +331,15 @@ function CorpusEditor() {
             </p>
           )}
 
+          {/* Upload → fill the draft for review, then Save (founder 2026-07-30).
+              Non-destructive: replaces the editor draft, not the saved version. */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-[11px] text-muted">
+              Have it in a document? Upload a file to fill the editor, then review below.
+            </p>
+            <DocUploadButton onExtracted={setText} targetLabel="the methodology" />
+          </div>
+
           <LearningHint
             as="block"
             category="Sales Coach · Corpus"
@@ -486,6 +496,14 @@ function ProductEditor() {
               {data.updatedByName ? ` by ${data.updatedByName}` : ""}.
             </p>
           )}
+
+          {/* Upload → fill the product draft for review, then Save (founder 2026-07-30). */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-[11px] text-muted">
+              Have a product sheet or brand doc? Upload it to fill the editor, then review.
+            </p>
+            <DocUploadButton onExtracted={setText} targetLabel="the product details" />
+          </div>
 
           <LearningHint
             as="block"

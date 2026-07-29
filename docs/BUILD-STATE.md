@@ -66,6 +66,11 @@ timezone = admin default + user override (resolve user→company→system); all 
 
 ## ▶ RECENTLY CLOSED (rolling, newest first)
 
+- `2026-07-30-sales-coach-doc-upload` — CLOSED 2026-07-30 — clients upload docs (pdf/docx/odt/epub/
+  rtf/html/txt/md) that fill the Coaching Methodology + Product editors; objection rules now drive BOTH
+  live coach + role play (un-truncated). New: extractText + unpdf, /extract route, DocUploadButton,
+  objectionGuidance. check exit 0 (1637 tests). No migration.
+- `2026-07-29-x4-theme-reconcile-race-fix` — CLOSED 2026-07-29 — audit-found race in the theme reconcile.
 - `2026-07-29-x3-settings-timezone-foundation` — CLOSED 2026-07-29 — shared timezone formatter
   (formatInTimeZone/resolveTimeZone, 8/8) + first consumer (Settings last-saved). check exit 0.
 - `2026-07-29-x2-settings-theme` — CLOSED 2026-07-29 (`03bc57d4` + test `ef64f350`) — theme company

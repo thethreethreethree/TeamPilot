@@ -7,6 +7,7 @@ import {
   buildLiveCueUserMessage,
   type CueGrounding,
 } from "./liveCuePrompt";
+import { extractObjectionGuidance } from "./objectionGuidance";
 import type { CueImportance } from "./cueInstrument";
 
 // Compact company grounding for live cues, CACHED per company so it costs no
@@ -34,9 +35,13 @@ async function getCueGrounding(
       : Promise.resolve<string[]>([]),
   ]);
   // Compact — cues are latency-critical, so cap the injected text tightly.
+  // objectionGuidance is pulled from the FULL methodology (before the 600-char slice) so the client's
+  // objection rules reach the cue even when they sit past the truncation (founder 2026-07-30). Bounded
+  // to 800 chars so the added token cost on this latency-critical path stays small.
   const g: CueGrounding = {
     methodology: methodology?.content?.trim().slice(0, 600) || null,
     product: product?.content?.trim().slice(0, 400) || null,
+    objectionGuidance: extractObjectionGuidance(methodology?.content, 800) || null,
     repLines: repLines.length > 0 ? repLines : null,
   };
   cueGroundingCache.set(key, { g, at: now });

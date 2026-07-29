@@ -50,6 +50,10 @@ SALES METHODOLOGY (reason FROM it; adapt to THIS moment):
 export type CueGrounding = {
   methodology?: string | null;
   product?: string | null;
+  // The team's OWN objection-handling rules, pulled from the full methodology (founder 2026-07-30) so
+  // they survive the methodology truncation above. When the customer objects/rejects, the cue must
+  // follow THESE rules, not generic objection tactics.
+  objectionGuidance?: string | null;
   // The rep's OWN proven lines — cues they followed in sessions that ended sold
   // (§A8 growth-participant). Prefer these phrasings when they fit the moment.
   repLines?: string[] | null;
@@ -75,6 +79,13 @@ timeline before pitching"). Not a script; a tactical nudge.`;
   const companyBlock = hasCompany
     ? `\nTHIS COMPANY (ground your cue in their real approach, not generic advice):
 ${grounding!.product ? `- What they sell: ${grounding!.product}\n` : ""}${grounding!.methodology ? `- Their sales methodology: ${grounding!.methodology}\n` : ""}`
+    : "";
+  // The team's OWN objection rules (founder 2026-07-30). Injected separately from the truncated
+  // methodology so it always survives — when the customer pushes back, the cue must follow THESE rules.
+  const objectionGuidance = grounding?.objectionGuidance?.trim();
+  const objectionBlock = objectionGuidance
+    ? `\nWHEN THE CUSTOMER OBJECTS OR PUSHES BACK, follow THIS TEAM'S OWN objection rules (not generic tactics):
+${objectionGuidance}\n`
     : "";
   // The rep's OWN proven lines (§A8 — coach them with what THEY have closed
   // with, not just generic moves). Guidance, not a script to parrot.
@@ -138,7 +149,7 @@ NEVER cue: while the customer is mid-thought, right after a close attempt,
 during rapport/small-talk, or when the rep is in flow and doing fine.
 
 ${METHODOLOGY}
-${companyBlock}${repBlock}
+${companyBlock}${objectionBlock}${repBlock}
 LATENCY + LENGTH: one short line. No preamble. The agent is mid-sentence.
 §3.4: never fabricate. If you can't read it, phase "unknown", trigger
 "none", stay silent.
