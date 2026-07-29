@@ -65,8 +65,18 @@ timezone = admin default + user override (resolve user→company→system); all 
 
 ---
 
+## ▶ AUDIT BASELINES (swept class boundaries — for the next audit)
+
+- **F5 class — "a producer whose output cap exceeds its consumer's save cap"** — swept codebase-wide
+  2026-07-30 (`grep content:.*max( in api` + upload→field producers). Instances: doc-upload extraction
+  (was 500k > 100k save — FIXED `74dfc387`, gated). Sound: C.A.R.E ACMS upload (`AdaptiveKnowledgePanel
+  .tsx:75` byte-check ≤ save char-cap, since UTF-8 chars ≤ bytes). All other setText producers are
+  user-typed (field-bounded), not automated. Class CLEAN beyond the fixed instance.
+
 ## ▶ RECENTLY CLOSED (rolling, newest first)
 
+- `2026-07-30-x-doc-upload-remediation` — CLOSED 2026-07-30 (`74dfc387`) — formal 2-pass audit + fix:
+  F5 cap-seam, F3 body-limit, F2 double-decode (gated); F1/F4 declined (A33). check exit 0 (1647 tests).
 - `2026-07-30-sales-coach-doc-upload` — CLOSED 2026-07-30 — clients upload docs (pdf/docx/odt/epub/
   rtf/html/txt/md) that fill the Coaching Methodology + Product editors; objection rules now drive BOTH
   live coach + role play (un-truncated). New: extractText + unpdf, /extract route, DocUploadButton,
