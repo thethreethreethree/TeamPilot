@@ -14,6 +14,9 @@ describe("buildCareSystemPrompt — assistance guidance", () => {
     expect(p).toContain("offer a refund within 30 days");
     expect(p).toMatch(/HOW TO ASSIST/i);
     expect(p).toMatch(/within your core identity and honesty rules/i);
+    // Hardening: guidance can NOT weaken Jeff's honesty rules — the precedence is explicit.
+    expect(p).toMatch(/your core rules WIN/i);
+    expect(p).toMatch(/pretend to be human|hide that you'?re an AI/i);
   });
 
   it("omits the block entirely when there is no guidance", () => {
