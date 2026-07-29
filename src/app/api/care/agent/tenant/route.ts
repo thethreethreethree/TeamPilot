@@ -4,7 +4,7 @@ import { readBody } from "@/lib/api/validate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { isProductContextCodeManaged } from "@/lib/care/config";
-import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
+import { deferredColumnsToDrop } from "@/lib/care/deferredColumns";
 
 /**
  * GET /api/care/agent/tenant
@@ -190,11 +190,8 @@ export async function PATCH(req: NextRequest) {
     // Ordered by migration: a missing EARLIER column implies the later ones are missing too (migrations
     // apply in order), so on a miss we drop that column AND every later-migration deferrable column.
     const DEFERRABLE = ["business_type", "ai_assistance_guidance"] as const;
-    const firstMissing = DEFERRABLE.findIndex(
-      (c) => c in patch && isMissingColumnError(error, c)
-    );
-    if (firstMissing >= 0) {
-      const toDrop = new Set<string>(DEFERRABLE.slice(firstMissing));
+    const toDrop = new Set(deferredColumnsToDrop(DEFERRABLE, patch, error));
+    if (toDrop.size > 0) {
       const rest = Object.fromEntries(
         Object.entries(patch).filter(([k]) => !toDrop.has(k))
       );
@@ -212,8 +209,8 @@ export async function PATCH(req: NextRequest) {
       }
       return NextResponse.json({
         config: retry.data,
-        businessTypeDeferred: toDrop.has("business_type") && "business_type" in patch,
-        assistanceGuidanceDeferred: toDrop.has("ai_assistance_guidance") && "ai_assistance_guidance" in patch,
+        businessTypeDeferred: toDrop.has("business_type"),
+        assistanceGuidanceDeferred: toDrop.has("ai_assistance_guidance"),
       });
     }
     // eslint-disable-next-line no-console
