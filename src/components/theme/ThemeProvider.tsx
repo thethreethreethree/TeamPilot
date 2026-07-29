@@ -147,12 +147,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         try {
           const res = await fetch("/api/me/theme");
           if (!res.ok || cancelled) return;
+          // Re-read localStorage: the user may have picked a theme WHILE this fetch
+          // was in flight (setPreference writes it synchronously). If so, their choice
+          // wins — applying the DB/company value now would silently revert it. Passing
+          // the FRESH value to reconcileTheme makes it skip when a local choice exists.
+          let freshRaw: string | null = null;
+          try {
+            freshRaw = window.localStorage.getItem(STORAGE_KEY);
+          } catch {
+            /* storage unavailable */
+          }
+          if (freshRaw !== null || cancelled) return;
           const data = (await res.json()) as {
             preference?: ThemePreference | null;
             companyDefault?: ThemePreference | null;
           };
           const { preference: chosen, shouldCache } = reconcileTheme({
-            localRaw,
+            localRaw: freshRaw,
             dbPref: isPref(data.preference) ? data.preference : null,
             companyDefault: isPref(data.companyDefault) ? data.companyDefault : null,
           });
