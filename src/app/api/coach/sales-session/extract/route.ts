@@ -24,7 +24,13 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15 MB — well above any real methodology doc
+// F3: this route receives the file THROUGH the serverless function body (multipart), which Vercel caps
+// at ~4.5 MB — advertising 15 MB was a promise the platform rejects BEFORE this code runs (an opaque
+// error, not our friendly 413). 4 MB stays safely under the platform limit and covers any real
+// methodology/product document (they are text; even a large prose PDF is well under 4 MB — scanned
+// image PDFs have no text layer anyway). The storage path's 25 MB cap is exempt: it uploads direct to
+// storage via a signed URL, not through the function body.
+const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4 MB — under Vercel's serverless body limit
 
 async function resolve() {
   const sb = await createClient();
@@ -73,7 +79,7 @@ export async function POST(req: NextRequest) {
   }
   if (file.size > MAX_FILE_BYTES) {
     return NextResponse.json(
-      { error: "That file is larger than 15 MB. Please upload a smaller document." },
+      { error: "That file is larger than 4 MB. Please upload a smaller document (or export just the text)." },
       { status: 413 }
     );
   }

@@ -41,8 +41,14 @@ const KNOWN_UNSUPPORTED: Record<string, string> = {
   gdoc: "Google Docs",
 };
 
-/** Cap on extracted text — matches the editors' 100k char field cap with headroom, and bounds zip-bomb blast. */
-export const MAX_EXTRACTED_CHARS = 500_000;
+/**
+ * Cap on extracted text. Set to the SAME 100k the Coaching Methodology / Product editors + their save
+ * endpoints enforce (corpus/product route zod max(100000)) — F5: extracting to 500k filled the editor
+ * with text the Save button then rejected (text.length > 100000 disables Save), a dead-end for large
+ * docs. Capping here to the field cap means the extracted text always fits and `truncated` fires when a
+ * doc is trimmed, so the manager sees an honest "trimmed to fit" notice instead of a disabled Save.
+ */
+export const MAX_EXTRACTED_CHARS = 100_000;
 
 export class UnsupportedFormatError extends Error {
   constructor(public readonly ext: string, message: string) {
@@ -126,15 +132,18 @@ function decodeUtf8(buffer: Uint8Array): string {
 }
 
 function decodeEntities(s: string): string {
+  // F2: &amp; is decoded LAST. Decoding it first double-decodes escaped entities —
+  // "&amp;lt;" (the escaped literal "&lt;") would become "&lt;" then "<". By replacing the
+  // named/numeric entities first and &amp; last, "&amp;lt;" correctly stays "&lt;".
   return s
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => safeCodePoint(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d) => safeCodePoint(parseInt(d, 10)))
     .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'");
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&amp;/gi, "&");
 }
 
 function safeCodePoint(n: number): string {

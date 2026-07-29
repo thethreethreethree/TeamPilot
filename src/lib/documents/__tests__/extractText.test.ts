@@ -7,6 +7,7 @@ import {
   UnsupportedFormatError,
   EmptyExtractionError,
   SUPPORTED_EXTENSIONS,
+  MAX_EXTRACTED_CHARS,
 } from "../extractText";
 
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -88,5 +89,22 @@ describe("extractText — honest failure (A27 / §6)", () => {
     await expect(extractText(enc("   \n  "), "blank.txt")).rejects.toBeInstanceOf(EmptyExtractionError);
     const emptyDocx = await zip({ "word/document.xml": "<w:document><w:body></w:body></w:document>" });
     await expect(extractText(emptyDocx, "blank.docx")).rejects.toBeInstanceOf(EmptyExtractionError);
+  });
+});
+
+describe("extractText — remediation gates", () => {
+  it("F2: does NOT double-decode escaped entities ('&amp;lt;' stays '&lt;', not '<')", async () => {
+    const { text } = await extractText(enc("<p>Show A &amp;lt; B literally</p>"), "a.html");
+    expect(text).toContain("A &lt; B");
+    expect(text).not.toContain("A < B");
+  });
+
+  it("F5: the extraction cap matches the 100k editor/save field cap (never fills a doc the Save rejects)", async () => {
+    // If someone raises MAX_EXTRACTED_CHARS above the corpus/product route's max(100000), a large upload
+    // fills the editor with text the Save button disables — the dead-end this gate exists to prevent.
+    expect(MAX_EXTRACTED_CHARS).toBeLessThanOrEqual(100_000);
+    const huge = "word ".repeat(60_000); // ~300k chars > the cap
+    const { text } = await extractText(enc(huge), "big.txt");
+    expect(text.length).toBeLessThanOrEqual(100_000);
   });
 });

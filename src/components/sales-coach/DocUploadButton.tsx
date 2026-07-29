@@ -6,6 +6,9 @@ import { useToast } from "@/components/ui/toast";
 
 const ACCEPT = ".txt,.md,.markdown,.html,.htm,.rtf,.docx,.odt,.epub,.pdf";
 const ACCEPT_LABEL = "PDF, Word (.docx), .txt, .md, .rtf, .odt, .epub, .html";
+// F3: mirror the server's 4 MB cap client-side so an oversized file is rejected instantly instead of
+// being sent and bounced by the platform's serverless body limit with an opaque error.
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
 
 /**
  * Upload a document and fill an editor's draft with its extracted text (founder 2026-07-30).
@@ -31,6 +34,14 @@ export function DocUploadButton({
     // Reset the input so re-selecting the same file fires change again.
     e.target.value = "";
     if (!file) return;
+
+    if (file.size > MAX_FILE_BYTES) {
+      toast.error(
+        "That file is too large",
+        "Uploads are limited to 4 MB. Export just the text (or a smaller PDF/DOCX) and try again."
+      );
+      return;
+    }
 
     setBusy(true);
     try {
