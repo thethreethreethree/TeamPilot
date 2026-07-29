@@ -16,31 +16,39 @@
 
 ## ▶ ACTIVE BUILD
 
-**slug:** `2026-07-29-settings-admin-scope` (STARTING — THINK phase)
-**started:** 2026-07-29T05:40:00Z
-**instruction (verbatim intent):** "make Settings substantial" — Timezone, Individual user/agent access +
-Access Assistance (admin resets password for users/agents), System default Theme (light/dark), users'/
-agents' default Learning Mode. Decisions locked: temp-password (user changes next login); theme/learning/
-timezone = admin default + user override (resolve user→company→system); all admin actions company-scoped;
-"keep adding to the current page"; each column migration-coupled with a guarded fallback (A34).
-**source:** founder chat (2026-07-28), decisions locked.
+**slug:** `2026-07-30-care-jeff-guidance-upload` (IN PROGRESS — ~20%, PAUSED mid-build 2026-07-30)
+**instruction (verbatim intent):** two founder images (2026-07-30): (1) "add [the multi-format Upload-a-file
+feature] to the C.A.R.E system if we don't have it yet"; (2) "add this feature as well but not strictly
+formated for sales but Jeff's customer assistance guidance." Decisions locked via AskUserQuestion:
+NEW dedicated "Customer-assistance guidance" field for Jeff (methodology-equivalent, wired into Jeff's
+replies) + multi-format upload on THREE surfaces: Adaptive Knowledge (facts), the new guidance field,
+and "What you represent" (ai_product_context).
+**source:** founder chat + 2 images (2026-07-30).
 
-### Requested items → disposition (to fill during BUILD)
+### Requested items → disposition
 
-| id | item | disposition | evidence / risk if left |
-|----|------|-------------|--------------------------|
-| S0 | THINK — read current Settings surface + profiles/company schema; find the admin-company-scoped precedent | **DONE** | Explore map: theme=localStorage-only, learning_mode_enabled/experience_mode precedent, /api/me/learning-mode route shape, requireCompanyAdmin + createAdminClient pattern, no admin-password-reset exists yet |
-| S1 | Theme — company default + per-user override + DB persist (resolve user→company→system) | **DONE (code)** | migration 0201 + /api/me/theme + ThemeProvider reconcile/persist + ThemePanel; reconcileTheme test 6/6; check exit 0. ⚠ migration 0201 NOT yet applied (guarded → localStorage-only until applied) |
-| S2 | Learning Mode — company default | **OFF by default = already satisfied; admin-flip HELD** | founder 2026-07-29: "have this off by default" — already the live behavior (learning_mode_enabled default false; A3). The admin "flip new members to ON" needs a profile-CREATION migration (upsert: handle_new_user + accept_invitation) that I CANNOT test live here — high blast radius, so HELD as a reviewed migration the founder applies+tests, not built blind. Not required for "off by default". |
-| S3 | Timezone — per-user override | **FOUNDATION DONE; adoption + override next** | shipped: shared `formatInTimeZone`/`resolveTimeZone` (src/lib/datetime/format.ts, tested 8/8) + first consumer (Settings "Last saved" now renders company.timezone). NEXT: broad adoption across ~12 displays (TZ-01) + `profiles.timezone` override (TZ-02). **AUDIT FINDING (TZ-03, 2026-07-30, LOW-MED):** the company `timezone` field (settings/page.tsx) is free-text + unvalidated, but formatInTimeZone needs a valid IANA zone — a company that typed "PST"/"GMT+8" silently gets LOCAL time (graceful degrade, wrong zone). Fix = an IANA dropdown or validate-on-save (UX decision, belongs with S3 adoption). |
-| S4 | Access Assistance | **DECIDED: build it FULLY** | founder chose: admin sets temp password (Supabase admin API, company-scoped) + `profiles.must_change_password` + login-flow redirect forcing the change. Own carefully-tested slice; SECURITY-SENSITIVE. |
+| id | item | disposition | notes |
+|----|------|-------------|-------|
+| J0 | New guidance field — migration + config + type | **DONE (uncommitted, green)** | `0202_care_assistance_guidance.sql` (care_tenant_config.ai_assistance_guidance, NOT applied); config.ts type+mapper (A34-safe via select *); widgetSafe test confirms NO leak to the public widget |
+| J1 | extractText per-caller cap (maxChars param) | **DONE (uncommitted)** | extractText(buf, name, {maxChars}); default 100k; backward-compatible; epub threaded |
+| J2 | Jeff prompt injects the guidance block | **HALF — param added, block NOT injected** | prompt.ts has `assistanceGuidance?` param (currently UNUSED no-op) — must push the block into `sections` AND wire the 3 callers (messages/demo/email routes) to pass `config.aiAssistanceGuidance` |
+| J3 | Save + serve guidance | **NOT STARTED** | extend `/api/care/agent/tenant` PATCH+GET to accept/return ai_assistance_guidance (admin-gated); pick a cap (~8000 like product-context, prompt-budget) |
+| J4 | Shared C.A.R.E extract route | **NOT STARTED** | `/api/care/agent/acms/extract` — requireCareAgent(+isAdmin), extractText with per-field maxChars, 4MB cap, typed errors; + invariant-audit UPLOAD_VALIDATE_ALLOWLIST entry |
+| J5 | DocUploadButton `endpoint` + `maxChars` props | **NOT STARTED** | make it reusable (default = sales-coach route) so all C.A.R.E surfaces can use it |
+| J6 | Guidance editor UI + upload | **NOT STARTED** | new editor (care settings) for ai_assistance_guidance + DocUploadButton |
+| J7 | ACMS Adaptive Knowledge multi-format upload | **NOT STARTED** | `AdaptiveKnowledgePanel.tsx` — broaden `accept`, route non-text through J4, cap 200000 |
+| J8 | Product-context (ai_product_context) upload | **NOT STARTED** | its editor in care/settings/widget + DocUploadButton, cap 8000 |
+| J9 | Tests + Jeff product knowledge + TBC + commit | **NOT STARTED** | route auth test, guidance save+prompt test; update elostateProductKnowledge.ts; TBC build dir |
 
-### Unfinished at this moment
-- **S1 (Theme) DONE + hardened + pushed** (`03bc57d4` + test `ef64f350`). Migration `0201` written, NOT
-  applied (needs founder `npm run db:apply`); A34-guarded → localStorage-only until applied.
-- **S2/S3/S4 DECIDED (founder 2026-07-29) — building in sequence.** Recommended order by risk:
-  S2 (Learning default, low-risk) → S3 (Timezone consumption + override, medium) → S4 (Access Assistance,
-  security-sensitive, most careful). Each its own slice + build dir + tests + commit.
+### Unfinished at this moment — PAUSED 2026-07-30 (founder asked for report + pause)
+- **Tree is GREEN** (tsc exit 0) but the C.A.R.E build is ~20% and **UNCOMMITTED** (on disk, survives the
+  pause). Changed files: `supabase/migrations/0202_*.sql`, `src/lib/care/config.ts`,
+  `src/lib/care/__tests__/config.widgetSafe.test.ts`, `src/lib/care/prompt.ts` (param only),
+  `src/lib/documents/extractText.ts` (maxChars). NOT committed — will commit as ONE coherent feature.
+- **RESUME PLAN (in order):** J2 (inject block + wire 3 callers) → J3 (save route) → J4 (extract route +
+  allowlist) → J5 (DocUploadButton props) → J6 (guidance editor) → J7 (ACMS upload) → J8 (product upload)
+  → J9 (tests + Jeff knowledge + TBC + commit). Migration 0202 NOT applied (A34-guarded; founder db:apply).
+- ⚠ Do NOT report this "done" — the guidance field is data-layer-only; Jeff does NOT yet use it (J2 half).
 
 ---
 
@@ -52,7 +60,7 @@ timezone = admin default + user override (resolve user→company→system); all 
 | item | state | risk if left / note |
 |------|-------|---------------------|
 | **AMD-009 ratification** — makes `tbc:revision` mandatory (adds to `tbc` chain) + inserts BUILD-PROTOCOL.md 7.1 + 8.3 + bumps constitution.ts | PROPOSED, awaits founder | say "ratify AMD-009". Until then the revision gate is runnable but not auto-enforced (bounded risk). |
-| **Settings admin scope** — Theme, Learning Mode, Timezone (company default + user override + DB persist); Access Assistance (admin temp-password, force-change-next-login, company-scoped) | IN PROGRESS (now the ACTIVE build) | founder approved the design 2026-07-28; each column migration-coupled with a guarded fallback (A34). |
+| **Settings admin scope (S1–S4)** — was the active build, DISPLACED by the C.A.R.E build | PARTIAL — resume after C.A.R.E | **S1 Theme DONE** (`03bc57d4`+test `ef64f350`; migration 0201 not applied). **S3 Timezone foundation DONE** (`c33f461a`); NEXT: broad adoption (TZ-01) + per-user override (TZ-02); **TZ-03 finding OPEN** (company timezone free-text but formatter needs valid IANA → silent local time; fix = IANA dropdown/validate-on-save). **S2 Learning** off-by-default satisfied; admin-flip HELD (profile-creation migration, founder applies+tests). **S4 Access Assistance** DECIDED "build fully" (admin temp-password + must_change_password + login gate) — SECURITY-SENSITIVE, needs founder's 2 mechanism decisions (enforcement point + session handling). |
 | **DEFINER-revoke `0200`** — ~50 finance SECURITY DEFINER fns anon-callable (cross-tenant config read) | FOUNDER-GATED | MEDIUM security. Fix written + de-risked. Live finance change → needs founder "fix the definer revoke". |
 | **Per-tenant AI-cost cap** | SPEC READY, awaits founder NUMBERS | distributed abuse unbounded below tenant until set. 5-surface spec written. |
 | **`ANTHROPIC_API_KEY`** (Vercel) | FOUNDER CONFIG | prod is DeepSeek-only → no AI failover (single point of failure). Failover code built + test-locked; activates on key set. |
