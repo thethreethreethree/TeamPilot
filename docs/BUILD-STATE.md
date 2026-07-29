@@ -59,6 +59,7 @@ timezone = admin default + user override (resolve user→company→system); all 
 | **`NEXT_PUBLIC_BOOKING_URL`** (Vercel) | FOUNDER CONFIG | /care/demo "Book a demo" dead-ends at /login → demo not prospect-ready. |
 | **`NEXT_PUBLIC_SITE_URL`** (Vercel) | FOUNDER CONFIG | sitemap/canonical say localhost (SEO only; NOT pilot-blocking). |
 | **VAPID×3 + `CRON_SECRET`** (Vercel) | FOUNDER CONFIG | VAPID → push delivery; CRON_SECRET → PII-purge crons. |
+| **Doc-upload hardening (LOW, from 2026-07-30 self-audit)** | NOTED | all bounded by the manager-gate + platform, none must-fix: (1) a zip-bomb in .docx/.odt/.epub decompresses fully before the char-cap — bounded by Vercel memory/maxDuration + manager-gate + self-tenant; (2) the route says "15 MB" but Vercel's serverless body limit (~4.5 MB) is the real ceiling — align the message/verify; (3) a binary file renamed .txt decodes to garbage (manager reviews before Save). Route auth+format boundary now test-locked. |
 | **Self-hosted Voice system** | STAGED (0%) by founder choice | not started by design; repo location decided later. |
 | **Post-deploy click-throughs** | AWAITS DEPLOY | founder-manual-download + auth-landing verify in prod after next deploy. |
 
