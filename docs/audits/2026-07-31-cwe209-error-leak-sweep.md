@@ -89,11 +89,16 @@ template. Estimated medium; higher per-site judgement than section C.
     2026-07-25 decision, same trust model as the LlmError surface.
   - `files/route.ts:334`: deliberately surfaces the Supabase write error (RLS/FK/column) to aid diagnosis —
     documented intent; borderline but an authenticated uploader-only path. Judgement call, left.
-- REMAINING (borderline / lower priority, for the reviewed pass): the AI-route catch-all fallbacks
-  (`chat/*`, `coach/v5/*`, `coach/analyze`, `care/.../ask-coach`, `tasks/spawn`, `diagnosis/outside-view`,
-  `ripple-trace`, `me/ask-jeff`) — these leak a raw message ONLY for a non-LlmError exception AND only where no
-  preceding `instanceof LlmError` branch handles it; each needs that per-route check. The sweep crons
-  (durability/task-overrun/backfill/finance-deliver) are scheduler-facing → not customer leaks.
+- COMPLETE 2026-07-31 — the AI-route catch-all fallbacks were swept, per-route-verified, one subsystem per
+  commit (ed5fc6de coach; 00b7f54d diagnosis; 95041b8a tasks/spawn+ask-jeff+decision-dialogue+care ask-coach×2+
+  topic-decisions; cecfd2bf chat SSE + coach ask-coach; 578cec1e briefing+brain+extension+upload+conversation-
+  action; storage-sweep last). Rule applied: keep any `if (err instanceof LlmError)` curated branch untouched,
+  generic-ize + log ONLY the non-LLM fallback; where there was no LlmError branch, generic-ize + log.
+- FINAL re-run (loop-until-dry): every remaining `error: X.message` in a response is intentional — finance
+  400/403 domain errors, extract 415/422 validation, `instanceof LlmError` curated branches (briefing/stream,
+  chat/similar, grade-sent), scheduler-only crons (durability/task-overrun/backfill/purge/finance-deliver), and
+  `console.error(...)` server logs. **Section E is complete — no known customer/member-facing catch-block raw
+  leak remains.**
 
 ## How to verify a fix (per route)
 Inject a DB error with a sentinel string in a route test, assert the response body is the generic message and

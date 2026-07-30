@@ -59,8 +59,9 @@ export async function POST(req: NextRequest) {
     .lt("deprecated_at", cutoff)
     .limit(1000);
   if (error) {
+    console.error("[admin/files/storage-sweep] query failed:", error);
     return NextResponse.json(
-      { error: `Sweep query failed: ${error.message}` },
+      { error: "Sweep query failed." },
       { status: 500 }
     );
   }
