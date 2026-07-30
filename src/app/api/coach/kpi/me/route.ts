@@ -87,10 +87,14 @@ export async function GET() {
   // Layer 4 — cues + outcomes (from the agent's sessions). Reliance Reduction is the headline.
   const sessionIds = rows.map((r) => r.sessionId);
   if (sessionIds.length > 0) {
-    const [{ data: cueRows }, { data: outcomeRows }] = await Promise.all([
+    const [{ data: cueRows }, { data: outcomeRows }, { data: segRows }] = await Promise.all([
       sb.from("coaching_cues").select("id, session_id").in("session_id", sessionIds),
       sb.from("coaching_cue_outcomes").select("cue_id, determination").in("session_id", sessionIds),
+      sb.from("coaching_transcript_segments").select("session_id").in("session_id", sessionIds),
     ]);
+    // "Coach ran this session" = it produced ≥1 transcript segment. A session with no segments is a
+    // no-coaching call (rep didn't use the live coach) — its 0 cues are not a reliance signal, so exclude it.
+    const coachedSessions = new Set((segRows ?? []).map((s) => s.session_id as string));
     const actedCueIds = new Set(
       (outcomeRows ?? [])
         .filter((o) => o.determination === "followed" || o.determination === "partial")
@@ -105,10 +109,9 @@ export async function GET() {
       const sid = c.session_id as string;
       countBySession.set(sid, (countBySession.get(sid) ?? 0) + 1);
     }
-    const points = rows.map((r) => ({
-      cueCount: countBySession.get(r.sessionId) ?? 0,
-      sessionId: r.sessionId,
-    }));
+    const points = rows
+      .filter((r) => coachedSessions.has(r.sessionId)) // coach-active sessions only
+      .map((r) => ({ cueCount: countBySession.get(r.sessionId) ?? 0, sessionId: r.sessionId }));
     metrics.relianceReduction = relianceReductionFromFirstCue(points);
   } else {
     metrics.cueAcceptanceRate = cueAcceptanceRate([]);
