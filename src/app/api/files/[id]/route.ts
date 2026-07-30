@@ -194,8 +194,9 @@ export async function DELETE(
     .select("id")
     .maybeSingle();
   if (error || !updated) {
+    if (error) console.error("[files/[id] DELETE] failed:", error);
     return NextResponse.json(
-      { error: `Delete failed: ${error?.message ?? "no row affected"}` },
+      { error: "Delete failed." },
       { status: 500 }
     );
   }

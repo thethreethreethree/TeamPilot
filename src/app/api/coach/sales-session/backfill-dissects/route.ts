@@ -78,8 +78,9 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(result);
   } catch (err) {
+    console.error("[coach/backfill-dissects] failed:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Backfill failed." },
+      { error: "Backfill failed." },
       { status: 500 }
     );
   }

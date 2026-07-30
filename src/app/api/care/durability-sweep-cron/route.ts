@@ -54,8 +54,9 @@ export async function GET(req: NextRequest) {
     const result = await sweepDurabilityChecks();
     return NextResponse.json(result);
   } catch (err) {
+    console.error("[care/durability-sweep-cron] failed:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Sweep failed." },
+      { error: "Sweep failed." },
       { status: 500 }
     );
   }

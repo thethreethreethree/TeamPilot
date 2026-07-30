@@ -51,8 +51,9 @@ export async function GET(req: NextRequest) {
     const result = await runDissectBackfill({ companyId: null, cap: CRON_CAP });
     return NextResponse.json(result);
   } catch (err) {
+    console.error("[coach/backfill-dissects-cron] failed:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Backfill sweep failed." },
+      { error: "Backfill sweep failed." },
       { status: 500 }
     );
   }

@@ -43,8 +43,9 @@ export async function GET(req: NextRequest) {
     const result = await sweepTaskOverruns();
     return NextResponse.json(result);
   } catch (err) {
+    console.error("[diagnosis/task-overrun-sweep-cron] failed:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Sweep failed." },
+      { error: "Sweep failed." },
       { status: 500 }
     );
   }

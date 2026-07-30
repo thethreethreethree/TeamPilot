@@ -24,8 +24,9 @@ export async function GET() {
   // error as an empty (green) list would hand back exactly the false reassurance the feature exists to
   // destroy.
   if (error) {
+    console.error("[finance/integrity] check could not run:", error);
     return NextResponse.json(
-      { error: `The integrity check could not run: ${error.message}. This is NOT a pass.` },
+      { error: "The integrity check could not run (see server logs). This is NOT a pass." },
       { status: 500 },
     );
   }

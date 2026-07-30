@@ -58,7 +58,8 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: true })
     .limit(BATCH);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[coach/recording-purge-cron] query failed:", error);
+    return NextResponse.json({ error: "Purge query failed." }, { status: 500 });
   }
 
   let purged = 0;

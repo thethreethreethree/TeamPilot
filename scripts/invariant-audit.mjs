@@ -632,6 +632,53 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 14 — no route returns a raw error .message to the client (CWE-209) ═════════════════
+//
+// LEARNED: 2026-07-31, across ~50 sites in one sweep. Two shapes leaked raw exception/DB `.message` strings to
+// the client — the direct `{ error: error.message }` and the catch fallback `{ error: err instanceof Error ?
+// err.message : "…" }` (plus the interpolated `` `failed: ${err.message}` `` form). A raw Postgres error
+// discloses schema / RLS / FK / column names; a raw provider error discloses internal detail. The fix was
+// mechanical (log server-side, return a generic message) — but the CLASS lived only in an audit doc + a memory,
+// exactly the "lesson in prose, not a gate" failure this whole file exists to catch. So it gets a gate.
+//
+// PRECISION (condition 3, no crying wolf): flag ONLY when `.message` is the DIRECT value of an `error:` field,
+// AND the surrounding window has neither `kind:` (the intentional LlmError curated surface: {message, kind,
+// provider}) nor a 400/403/415/422/429 status (a deliberate DOMAIN or VALIDATION message — finance "period
+// closed", extract "unsupported type", the pilot/redeem + team/accept RPC domain messages). Those two
+// structural exclusions cover every intentional site verified in the sweep, so the current tree is clean; a
+// NEW `{ error: err.message }` at a 5xx with no LlmError structure is the leak shape and nothing else.
+// Deliberate agent-facing `{ error: "generic", detail: err.message }` (co-pilot/summarize/formulate, doc'd
+// 2026-07-25) is NOT matched — the `error:` value there is a string; `.message` rides a separate `detail:` key.
+const RAW_ERR_MSG_RE =
+  /\berror:\s*(?:`[^`]*\$\{[^}]*\.\s*message|[A-Za-z_$][\w$]*\s*\.\s*message\b|[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message)/;
+const INTENTIONAL_ERR_STATUS_RE = /status:\s*(?:400|403|415|422|429)\b/;
+const RAW_ERR_ALLOWLIST = new Map([
+  // A diagnostic ping whose PURPOSE is to report the LLM provider's connectivity error to the caller — the
+  // message IS the payload, and there is no schema/tenant data behind it (it never touches the DB).
+  ["src/app/api/llm/ping/route.ts", "Diagnostic LLM-connectivity ping: surfacing the provider error is the point; no DB/tenant data behind it."],
+]);
+for (const f of FILES) {
+  if (!/\/route\.ts$/.test(f.path)) continue;
+  if (RAW_ERR_ALLOWLIST.has(f.path)) continue;
+  const lines = f.sql.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (!RAW_ERR_MSG_RE.test(lines[i])) continue;
+    const win = lines.slice(Math.max(0, i - 2), i + 5).join("\n");
+    if (/\bkind:/.test(win)) continue; // LlmError curated surface (message + kind [+ provider]) — intentional
+    if (INTENTIONAL_ERR_STATUS_RE.test(win)) continue; // domain (400/403) or validation (415/422/429) message
+    findings.push({
+      rule: "Route returns a raw error .message to the client (CWE-209)",
+      file: `${f.path}:${i + 1}`,
+      why:
+        "an `error:` field is set to a raw exception/DB `.message` at a 5xx with no LlmError `kind:` — this\n" +
+        "      leaks internals (Postgres schema/RLS/FK detail, provider errors) to the client. Log it with\n" +
+        "      console.error and return a GENERIC message; keep any `if (err instanceof LlmError)` branch (its\n" +
+        "      {message,kind} surface is intentional). A deliberate domain/validation message belongs at\n" +
+        "      400/403/415/422 (already excluded); otherwise allowlist here WITH the reason.",
+    });
+  }
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -662,6 +709,15 @@ st("INV12 excludes a proposed status", "ratified" !== ("- **Status:** **PROPOSED
 // INV13 raw ilike .or() injection: must flag an interpolated raw ilike filter, must ignore parameterized .ilike().
 st("INV13 flags an interpolated raw ilike filter", RAW_ILIKE_FILTER_RE.test("q.or(`title.ilike.%${t}%,description.ilike.%${t}%`)"));
 st("INV13 ignores a parameterized .ilike()", !RAW_ILIKE_FILTER_RE.test('sb.ilike("body", term).eq("kind","message")'));
+// INV14 raw-error-leak: must flag the direct/instanceof/interpolated shapes, must ignore a generic string,
+// a detail-key .message, and the LlmError/domain-status exclusions.
+st("INV14 flags a direct error.message", RAW_ERR_MSG_RE.test("{ error: error.message },"));
+st("INV14 flags the instanceof fallback", RAW_ERR_MSG_RE.test("{ error: err instanceof Error ? err.message : 'x' },"));
+st("INV14 flags an interpolated .message", RAW_ERR_MSG_RE.test("{ error: `write failed: ${error.message}` },"));
+st("INV14 ignores a generic string error", !RAW_ERR_MSG_RE.test("{ error: \"Couldn't save.\" },"));
+st("INV14 ignores a detail-key .message (deliberate agent surface)", !RAW_ERR_MSG_RE.test("{ error: 'generic', detail: err.message },"));
+st("INV14 status-exclusion recognizes a 403 domain message", INTENTIONAL_ERR_STATUS_RE.test("{ status: 403 }"));
+st("INV14 kind-exclusion leaves the LlmError surface alone", /\bkind:/.test("{ error: err.message, kind: err.kind }"));
 st("INV13 ignores a static (non-interpolated) ilike filter", !RAW_ILIKE_FILTER_RE.test('q.or(`title.ilike.foo`)'));
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
@@ -682,7 +738,8 @@ if (findings.length === 0) {
       " every cross-person read gated · every admin route gated · every extension route authenticated ·" +
       " no server secret NEXT_PUBLIC_-exposed · every dangerouslySetInnerHTML justified ·" +
       " every cron route CRON_SECRET-gated · constitution metadata matches the ratified amendments ·" +
-      " every raw .or(...ilike...) filter sanitized (no PostgREST injection)."
+      " every raw .or(...ilike...) filter sanitized (no PostgREST injection) ·" +
+      " no route returns a raw error .message to the client (CWE-209)."
   );
   process.exit(0);
 }

@@ -60,7 +60,8 @@ export async function GET(req: NextRequest) {
     .select("schedule_id, company_id, report_id, recipient_id, report_name");
 
   if (error) {
-    return NextResponse.json({ error: `Could not read the due list: ${error.message}` }, { status: 500 });
+    console.error("[finance/deliver-cron] could not read the due list:", error);
+    return NextResponse.json({ error: "Could not read the due list." }, { status: 500 });
   }
 
   let sent = 0;
