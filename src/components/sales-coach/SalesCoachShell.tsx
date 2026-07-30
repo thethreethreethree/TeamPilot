@@ -181,7 +181,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
                     {section.header}
                   </p>
                 )}
-                {section.items.map((item) => {
+                {section.items.map((item, ii) => {
                   const Icon = item.icon;
                   const active =
                     pathname === item.href ||
@@ -204,6 +204,12 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
                     >
                       <LinkProgress />
                       <Icon className="w-4 h-4 shrink-0" aria-hidden />
+                      {/* Per-group numbering to match the founder's mockup (1./2./3. within each headered
+                          section). Ungrouped runs (Home; Team Chat/KPI/Settings) carry no number, as in the
+                          mockup. tabular-nums so the digits align. */}
+                      {section.header && (
+                        <span className="text-white/35 tabular-nums shrink-0 w-3 text-right">{ii + 1}.</span>
+                      )}
                       {label}
                     </Link>
                   );
