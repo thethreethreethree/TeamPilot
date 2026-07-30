@@ -68,4 +68,22 @@ describe("/api/me/care-notifications", () => {
     fakeClient({ updateError: MISSING_COL });
     expect((await PATCH(patchReq({ customerReply: true }))).status).toBe(409);
   });
+
+  it("does NOT leak a raw DB error on a real 500 (CWE-209) — generic message only", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const SECRET = { code: "XX000", message: "internal: relation profiles RLS policy detail" };
+    setAuth({ userId: "u1", companyId: "co1" });
+
+    // GET path: a non-missing-column read error → generic 500, raw string absent.
+    fakeClient({ selectResult: { data: null, error: SECRET } });
+    const getRes = await GET();
+    expect(getRes.status).toBe(500);
+    expect(JSON.stringify(await getRes.json())).not.toContain("RLS policy detail");
+
+    // PATCH path: a non-missing-column write error → generic 500, raw string absent.
+    fakeClient({ updateError: SECRET });
+    const patchRes = await PATCH(patchReq({ customerReply: true }));
+    expect(patchRes.status).toBe(500);
+    expect(JSON.stringify(await patchRes.json())).not.toContain("RLS policy detail");
+  });
 });
