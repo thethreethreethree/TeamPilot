@@ -12,6 +12,11 @@ import { CONSTITUTION } from "@/lib/constitution";
  *  - whether Supabase is configured
  *  - constitution version
  *  - node version
+ *  - the exact DEPLOYED git commit (Vercel injects VERCEL_GIT_COMMIT_SHA/REF/ENV).
+ *    This is the structural cure for the recurring "I don't see my updates" class
+ *    (stale host / old deployment): `curl https://<host>/api/health` now names the
+ *    exact commit a host is serving, so a stale domain is provable in one call
+ *    instead of inferred. Commit SHA + branch are not secrets.
  *
  * Always returns HTTP 200 — the *contents* describe whether the system is
  * fully operational. A load balancer / monitor should look at the JSON, not
@@ -58,6 +63,15 @@ export async function GET() {
       env,
       uptimeSeconds: Math.round(process.uptime()),
       now: new Date().toISOString(),
+    },
+    // Deployed build identity — lets any caller prove which commit a host serves.
+    // Null locally / off-Vercel (the vars are only injected on Vercel builds).
+    build: {
+      commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+      commitShort: (process.env.VERCEL_GIT_COMMIT_SHA ?? "").slice(0, 7) || null,
+      branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+      vercelEnv: process.env.VERCEL_ENV ?? null,
+      deploymentUrl: process.env.VERCEL_URL ?? null,
     },
   };
 
