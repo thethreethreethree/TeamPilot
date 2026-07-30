@@ -28,12 +28,20 @@ type TeamAgent = {
   agentId: string;
   name: string | null;
   sessionCount: number;
+  firstSessionAt?: string | null;
+  establishingBaseline?: boolean;
   conversionRate: MetricResult;
   relianceReduction: MetricResult;
   quotaAttainment?: MetricResult;
   slipping?: boolean;
   slippingReasons?: string[];
 };
+
+/** Whole days since an ISO timestamp — rep tenure for the new-hire ramp context (never negative). */
+function daysSince(iso: string): number {
+  const ms = Date.now() - Date.parse(iso);
+  return Number.isFinite(ms) ? Math.max(0, Math.floor(ms / 86_400_000)) : 0;
+}
 
 type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope" | "delta" | "corr";
 type Metric = { name: string; note: string; apiKey?: string; fmt?: Fmt; headline?: boolean };
@@ -558,8 +566,19 @@ export default function KpiAnalyticsPage() {
                           <TrendingDown className="w-2.5 h-2.5" aria-hidden /> check-in
                         </span>
                       )}
+                      {a.establishingBaseline && (
+                        <span
+                          className="inline-flex items-center rounded-full border border-sky-400/40 bg-sky-400/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-300"
+                          title="Still building enough history for trend comparison and slip alerts — read these numbers as a starting point, not underperformance."
+                        >
+                          new
+                        </span>
+                      )}
                     </span>
-                    <span className="block text-[10px] text-muted">{a.sessionCount} sessions</span>
+                    <span className="block text-[10px] text-muted">
+                      {a.sessionCount} sessions
+                      {a.firstSessionAt ? ` · ${daysSince(a.firstSessionAt)}d` : ""}
+                    </span>
                   </span>
                   <span className="flex items-center gap-5 shrink-0 text-right">
                     <span>

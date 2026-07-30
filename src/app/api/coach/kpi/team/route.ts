@@ -12,6 +12,7 @@ import {
   overallQualityForSession,
   layer3InputFromPayload,
   ALERT_DROP_FRACTION,
+  MIN_SESSIONS,
   type KpiSessionRow,
   type MetricResult,
 } from "@/lib/coach/kpi/compute";
@@ -159,10 +160,18 @@ export async function GET() {
       (r) => r.outcome === "sold" && r.startedAt.slice(0, 7) === monthPrefix
     ).length;
     const quota: MetricResult = quotaAttainment(dealsWonThisMonth, monthlyTarget);
+    // New-hire ramp context (spec: manager view). Factual, no invented threshold: firstSessionAt (rows are
+    // ascending) + establishingBaseline = below 2·MIN_SESSIONS, the exact point where self-comparison deltas
+    // and the exception alert turn on. This tells a manager "read this rep's numbers as a starting point, not
+    // underperformance" — the growth-not-leaderboard principle applied to newcomers.
+    const firstSessionAt = rows.length > 0 ? rows[0]!.startedAt : null;
+    const establishingBaseline = rows.length < 2 * MIN_SESSIONS;
     return {
       agentId: id,
       name: (m.full_name as string | null) ?? null,
       sessionCount: rows.length,
+      firstSessionAt,
+      establishingBaseline,
       conversionRate: conversion,
       relianceReduction: reliance,
       quotaAttainment: quota,

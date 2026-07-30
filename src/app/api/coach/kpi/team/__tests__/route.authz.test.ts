@@ -280,4 +280,41 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
     expect(body.agents[0]?.relianceReduction.value).not.toBeNull();
     expect(body.agents[0]!.relianceReduction.value!).toBeLessThan(0);
   });
+
+  it("marks a new rep as establishing a baseline (< 2·MIN_SESSIONS) with a first-session date", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
+    // 3 sessions only — below 2·MIN_SESSIONS (10), so no trend/alert yet → establishingBaseline true.
+    const sessions = [1, 2, 3].map((n) => ({
+      id: `n${n}`,
+      agent_id: "a1",
+      outcome: "sold",
+      deal_value: 100,
+      started_at: `2026-07-0${n}T10:00:00.000Z`,
+      ended_at: `2026-07-0${n}T10:30:00.000Z`,
+    }));
+    const tables: Record<string, { data: unknown }> = {
+      profiles: { data: [{ id: "a1", full_name: "Newbie" }] },
+      coaching_sessions: { data: sessions },
+      coaching_cues: { data: [] },
+    };
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.not = () => chain;
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" }, error: null });
+        chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
+        return chain;
+      },
+    });
+    const res = await GET();
+    const body = (await res.json()) as {
+      agents: { establishingBaseline: boolean; firstSessionAt: string | null }[];
+    };
+    expect(body.agents[0]?.establishingBaseline).toBe(true);
+    expect(body.agents[0]?.firstSessionAt).toBe("2026-07-01T10:00:00.000Z"); // earliest (rows ascending)
+  });
 });
