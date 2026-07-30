@@ -45,6 +45,10 @@ describe("ELOSTATE_PRODUCT_KNOWLEDGE — the answers Jeff must never fail", () =
       // RCD/extension answer and leave Jeff unable to describe a headline capability.
       "Browser extension",
       "Conversation Capture",
+      // Shipped 2026-07-30 — the Sales Coach KPI Analytics system. A manager/rep asks "can it show me my
+      // numbers / prove the coaching works?" — Jeff must be able to say yes and name Reliance Reduction.
+      "KPI Analytics",
+      "Reliance Reduction",
     ]) {
       expect(
         ELOSTATE_PRODUCT_KNOWLEDGE,
