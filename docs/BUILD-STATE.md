@@ -74,6 +74,12 @@ and "What you represent" (ai_product_context).
 
 ## ▶ AUDIT BASELINES (swept class boundaries — for the next audit)
 
+- **Extension security (read-only, 2026-07-30) — CLEAN:** `extension/manifest.json` is MV3 least-privilege
+  — host_permissions scoped to localhost/elostate.com/*.supabase.co (NOT `<all_urls>`); broad `*://*/*` is
+  OPTIONAL (user-consented on-demand); no auto-injecting content_scripts; `externally_connectable` limited
+  to the 2 app origins; `background.js` holds the token in `chrome.storage.local` (extension-private, not
+  localStorage/URL), validates the external `care-connect` message shape, refreshes on 401. No finding.
+
 - **Finance audit (read-only, 2026-07-30) — 1 real bug, rest clean/honest:** (1) 🔴 FX post-rounding
   rejects face-balanced foreign entries — the ONE live defect, fix-ready (`docs/audits/2026-07-30-fin-fx-
   rounding-imbalance.md`, founder-gated). (2) ✅ foreign SETTLEMENT guard COMPLETE across all payment/
