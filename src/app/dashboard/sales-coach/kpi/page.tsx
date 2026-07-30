@@ -198,6 +198,38 @@ export default function KpiAnalyticsPage() {
         </div>
       </section>
 
+      {/* Growth summary — LEAD with what improved (spec: the agent view is growth-framed). Only shows once
+          there's delta signal; counts good-direction session metrics + skill progression. */}
+      {(() => {
+        const goodDir = ["conversionRate", "closeRate", "avgDealSize", "sessionsPerDay"];
+        const skill = data?.metrics?.skillProgression?.value ?? null;
+        let up = goodDir.filter((k) => (data?.deltas?.[k] ?? 0) > 0).length;
+        let down = goodDir.filter((k) => (data?.deltas?.[k] ?? 0) < 0).length;
+        if (typeof skill === "number") {
+          if (skill > 0) up += 1;
+          else if (skill < 0) down += 1;
+        }
+        if (up + down === 0) return null;
+        return (
+          <section className="rounded-2xl border border-default bg-white/[0.02] p-4 mb-5">
+            <p className="text-sm">
+              <span className="font-semibold text-emerald-300">
+                Since your earlier calls, you&apos;re up in {up} area{up === 1 ? "" : "s"}.
+              </span>
+              {down > 0 && (
+                <span className="text-secondary">
+                  {" "}
+                  {down} to focus on next.
+                </span>
+              )}
+            </p>
+            <p className="text-[11px] text-muted mt-1">
+              Measured against your own past — the detail behind each is below.
+            </p>
+          </section>
+        );
+      })()}
+
       <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-4 mb-6">
         <div className="flex items-center gap-2 mb-1">
           <TrendingDown className="w-4 h-4 text-emerald-400" aria-hidden />
