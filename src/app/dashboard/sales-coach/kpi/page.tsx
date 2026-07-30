@@ -406,6 +406,18 @@ export default function KpiAnalyticsPage() {
             <h2 className="text-sm font-semibold text-primary">Team</h2>
             <span className="text-[10px] uppercase tracking-widest text-muted font-mono">manager view</span>
           </div>
+          {/* Team-level reliance-reduction summary (spec: manager view). */}
+          {(() => {
+            const withR = team.filter((a) => a.relianceReduction.value !== null);
+            if (withR.length === 0) return null;
+            const improving = withR.filter((a) => (a.relianceReduction.value ?? 0) < 0).length;
+            return (
+              <p className="text-[11px] text-emerald-300/90 mb-1.5">
+                Reliance: <strong>{improving}</strong> of {withR.length} rep{withR.length === 1 ? "" : "s"}{" "}
+                needing fewer cues over time — the clearest sign the coaching is landing.
+              </p>
+            );
+          })()}
           <p className="text-[11px] text-muted mb-2">
             Per-agent growth, each measured against their own past. Ranking is optional — the default is by
             name, not a leaderboard.
