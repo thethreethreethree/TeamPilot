@@ -75,8 +75,9 @@ export async function GET() {
     .eq("id", companyId)
     .maybeSingle();
   if (error || !data) {
+    if (error) console.error("[settings GET] failed to load company:", error);
     return NextResponse.json(
-      { error: error?.message ?? "Company not found." },
+      { error: "Couldn't load settings." },
       { status: 500 }
     );
   }
@@ -151,7 +152,8 @@ export async function PATCH(req: NextRequest) {
     .update(patch)
     .eq("id", companyId);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[settings PATCH] failed to save settings:", error);
+    return NextResponse.json({ error: "Couldn't save settings." }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }
