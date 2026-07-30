@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight } from "lucide-react";
 
 /**
  * /dashboard/sales-coach/kpi — KPI Analytics (SalesCoach-KPI-System.md).
@@ -13,7 +14,13 @@ import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, I
  */
 
 type MetricResult = { value: number | null; sampleSize: number; gated: boolean; sourceSessionIds: string[] };
-type KpiResponse = { sessionCount: number; minSessions: number; metrics: Record<string, MetricResult> };
+type SessionInfo = { label: string | null; startedAt: string; outcome: string | null };
+type KpiResponse = {
+  sessionCount: number;
+  minSessions: number;
+  metrics: Record<string, MetricResult>;
+  sessions: Record<string, SessionInfo>;
+};
 
 type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope";
 type Metric = { name: string; note: string; apiKey?: string; fmt?: Fmt; headline?: boolean };
@@ -89,6 +96,7 @@ function fmtValue(v: number, fmt?: Fmt): string {
 export default function KpiAnalyticsPage() {
   const [data, setData] = useState<KpiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -221,17 +229,66 @@ export default function KpiAnalyticsPage() {
               </div>
               <p className="text-[11px] text-muted mt-0.5 mb-3">{layer.subtitle}</p>
               <ul className="space-y-2">
-                {layer.metrics.map((m) => (
-                  <li key={m.name} className="flex items-start justify-between gap-3">
-                    <span className="min-w-0">
-                      <span className={`block text-xs ${m.headline ? "font-semibold text-emerald-300" : "font-medium text-primary"}`}>
-                        {m.name}
-                      </span>
-                      <span className="block text-[11px] text-muted leading-snug">{m.note}</span>
-                    </span>
-                    {renderMetricValue(m)}
-                  </li>
-                ))}
+                {layer.metrics.map((m) => {
+                  const r = m.apiKey ? data?.metrics?.[m.apiKey] : undefined;
+                  const canDrill = !!r && r.value !== null && r.sourceSessionIds.length > 0;
+                  const rowKey = `${layer.key}:${m.name}`;
+                  const open = expanded === rowKey;
+                  return (
+                    <li key={m.name}>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className={`block text-xs ${m.headline ? "font-semibold text-emerald-300" : "font-medium text-primary"}`}>
+                            {m.name}
+                          </span>
+                          <span className="block text-[11px] text-muted leading-snug">{m.note}</span>
+                        </span>
+                        {canDrill ? (
+                          <button
+                            type="button"
+                            onClick={() => setExpanded(open ? null : rowKey)}
+                            className="text-right shrink-0 group"
+                            aria-expanded={open}
+                          >
+                            {renderMetricValue(m)}
+                            <span className="block text-[9px] text-brand/70 group-hover:text-brand">
+                              {open ? "hide sources" : "view sources →"}
+                            </span>
+                          </button>
+                        ) : (
+                          renderMetricValue(m)
+                        )}
+                      </div>
+                      {open && r && (
+                        <ul className="mt-1.5 ml-1 border-l border-default pl-2.5 space-y-1">
+                          {r.sourceSessionIds.slice(0, 15).map((sid) => {
+                            const s = data?.sessions?.[sid];
+                            return (
+                              <li key={sid}>
+                                <Link
+                                  href={`/dashboard/sales-coach/${sid}`}
+                                  className="flex items-center gap-1.5 text-[11px] text-secondary hover:text-brand"
+                                >
+                                  <ChevronRight className="w-3 h-3 shrink-0" aria-hidden />
+                                  <span className="truncate">
+                                    {s?.label || "Session"}
+                                    {s?.startedAt ? ` · ${new Date(s.startedAt).toLocaleDateString()}` : ""}
+                                    {s?.outcome ? ` · ${s.outcome}` : ""}
+                                  </span>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                          {r.sourceSessionIds.length > 15 && (
+                            <li className="text-[10px] text-muted">
+                              +{r.sourceSessionIds.length - 15} more
+                            </li>
+                          )}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           );

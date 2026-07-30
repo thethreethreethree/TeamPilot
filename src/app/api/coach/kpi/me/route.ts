@@ -36,7 +36,7 @@ export async function GET() {
   // The caller's own sessions (agent_id = self). RLS also permits same-company reads, so pin to self.
   const { data, error } = await sb
     .from("coaching_sessions")
-    .select("id, outcome, deal_value, started_at, ended_at")
+    .select("id, outcome, deal_value, started_at, ended_at, client_label")
     .eq("agent_id", ctx.userId)
     .order("started_at", { ascending: true });
 
@@ -113,9 +113,20 @@ export async function GET() {
     metrics.relianceReduction = relianceReductionSlope([]);
   }
 
+  // Compact session lookup for drill-down (every KPI traces to the sessions that produced it).
+  const sessions: Record<string, { label: string | null; startedAt: string; outcome: string | null }> = {};
+  for (const r of data ?? []) {
+    sessions[r.id as string] = {
+      label: (r.client_label as string | null) ?? null,
+      startedAt: r.started_at as string,
+      outcome: (r.outcome as string | null) ?? null,
+    };
+  }
+
   return NextResponse.json({
     sessionCount: rows.length,
     minSessions: MIN_SESSIONS,
     metrics,
+    sessions,
   });
 }
