@@ -181,6 +181,29 @@ export default function KpiAnalyticsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Team CSV (manager view) — the per-rep rollup the manager is looking at. Same formula-safe writer. Growth
+  // columns only (no fabricated ranking); "building" where a metric is gated. Quota column only when set.
+  const exportTeamCsv = () => {
+    if (!team) return;
+    const cols = ["Rep", "Sessions", "Conversion %", "Reliance /s", "Quota %", "Check-in"];
+    const rows = team.map((a) => ({
+      Rep: a.name || "Agent",
+      Sessions: a.sessionCount,
+      "Conversion %": a.conversionRate.value ?? "building",
+      "Reliance /s": a.relianceReduction.value ?? "building",
+      "Quota %": teamQuotaTarget == null ? "" : (a.quotaAttainment?.value ?? "building"),
+      "Check-in": a.slipping ? (a.slippingReasons?.join(" + ") || "yes") : "",
+    }));
+    const csv = toCsv(rows, cols);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "kpi-team.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const renderMetricValue = (m: Metric) => {
     if (!m.apiKey) return <span className="text-[10px] font-mono text-muted shrink-0 mt-0.5">building…</span>;
     const r = data?.metrics?.[m.apiKey];
@@ -433,6 +456,14 @@ export default function KpiAnalyticsPage() {
             <Users className="w-4 h-4 text-brand" aria-hidden />
             <h2 className="text-sm font-semibold text-primary">Team</h2>
             <span className="text-[10px] uppercase tracking-widest text-muted font-mono">manager view</span>
+            <button
+              type="button"
+              onClick={exportTeamCsv}
+              className="ml-auto inline-flex items-center gap-1 text-[10px] text-muted hover:text-secondary border border-default rounded px-2 py-0.5 transition-colors"
+              title="Export the team rollup as CSV"
+            >
+              <Download className="w-3 h-3" aria-hidden /> CSV
+            </button>
           </div>
           {/* Exception alerts (founder-set threshold): reps whose recent conversion has slipped ≥N% below
               their own baseline. A "check in" prompt, not a callout — framed as coaching, not ranking. */}
