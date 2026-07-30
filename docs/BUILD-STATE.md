@@ -79,8 +79,14 @@ and "What you represent" (ai_product_context).
   rounding-imbalance.md`, founder-gated). (2) ✅ foreign SETTLEMENT guard COMPLETE across all payment/
   receipt paths (direct + delegation + base-only) — no unguarded path. (3) ✅ TAX: per-line rounding is a
   legit method; credit-note un-netting is DEFERRED **and UI-warned** (`tax/page.tsx:110` tells the user the
-  figure overstates if they've credited invoices) — honest, not silent. NOT yet audited: banking recon,
-  budgets, depreciation, year-end close.
+  figure overstates if they've credited invoices) — honest, not silent. (4) 🔴 **NEW — year-end close +
+  budgeting SILENTLY assume a CALENDAR fiscal year** (`0151` extract(year)/make_date(y,1,1..12,31);
+  `0149:54`) while periods are FREE-FORM (`0117:16`) — a non-calendar FY company (Apr–Mar, Jul–Jun) gets a
+  WRONG year-end close (wrong net→RE), wrong period locks, wrong budget variance, with NO warning. MEDIUM-
+  HIGH, founder-gated. Write-up: `docs/audits/2026-07-30-fin-fiscal-year-calendar-assumption.md`. Fix: add
+  fiscal_year_start_month + derive the window, OR enforce/warn calendar-only. (5) year-end RE roll-up MATH
+  itself is CORRECT (sums stored base exactly, break-even handled, balances). NOT yet audited: banking
+  recon, depreciation.
 
 - **C.A.R.E build post-audit (2026-07-30) — 3 findings fixed:** (1) guidance could soft-override Jeff's
   honesty rules → explicit precedence guard + test (`2bb31de6`); (2) the A34 deferred-column-drop logic was
