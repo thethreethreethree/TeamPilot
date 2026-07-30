@@ -144,3 +144,31 @@ _Method: confirmed by live grant inspection (`proacl`), a rolled-back anon PoC (
 `fin_approve_bill` (entry fns are company-scoped + safe), and a src grep (helpers not app-called). Exposed
 data is financial config metadata + limited COA-account insertion, exploit needs a known company UUID →
 MEDIUM. It is the vuln 0183 documented as fixed; 0183's revoke was ineffective, so it is still open._
+
+---
+
+## PRECONDITION VERIFIED 2026-07-31 (safe to `revoke from public`) — plus the one service_role caveat
+
+Re-ran the "does any AUTHENTICATED app route call these DEFINER fns directly" check (the note above flags it as
+the precondition for the 0200 revoke). Swept `src/` for `.rpc("<fn>")` across all 12 flagged fns
+(fin_account_by_code, fin_approval_limit_for, fin_can_approve, fin_can_enter, fin_get_rate,
+fin_inventory_accounts, fin_mileage_rate_for, fin_obe_account, fin_per_diem_rate_for, fin_post_reversal,
+fin_post_system_entry, fin_record_report_delivery):
+
+- **11 of 12 are NOT called by ANY app route** — they are internal helpers invoked by other DEFINER fns /
+  triggers / posting RPCs. Revoking their PUBLIC EXECUTE breaks nothing in the app.
+- **`fin_record_report_delivery` IS called by an app route** — `src/app/api/finance/reports/deliver-cron/route.ts`
+  (lines 86, 93) — BUT that route uses `createAdminClient()` (service role), NOT the authenticated user client.
+  Confirmed: `const sb = createAdminClient()` (line 54). So no *authenticated-user* path calls it either.
+
+**Conclusion:** `revoke execute … from public` on the 0183 list is SAFE for every authenticated/anon app path —
+none call these directly. **One caveat for the 0200 migration:** it must NOT strip `service_role`'s EXECUTE on
+`fin_record_report_delivery`, or the report-delivery cron breaks. `revoke … from public` does not touch a role's
+OWN grant, but service_role may only hold EXECUTE via PUBLIC here — so 0200 should either `revoke from public`
+only (leaving service_role's membership intact) and then verify `has_function_privilege('service_role',
+'fin_record_report_delivery(uuid,text)','execute')` is still true, or explicitly
+`grant execute on function fin_record_report_delivery(...) to service_role` after the revoke. The other 11 need
+no such grant (nothing app-side calls them).
+
+Still founder-gated (finance change): say **"fix the definer revoke"** and I'll write 0200 to this shape +
+tighten INVARIANT 4, for your review before apply.
