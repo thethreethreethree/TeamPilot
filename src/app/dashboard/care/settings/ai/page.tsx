@@ -38,24 +38,31 @@ export default function CareAiSettingsPage() {
   const [productContextManagedInCode, setProductContextManagedInCode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/care/agent/tenant");
-      if (res.ok) {
-        const data = await res.json();
-        const c = data.config ?? {};
-        const next: AiDraft = {
-          ai_name: c.ai_name ?? "Jeff",
-          ai_product_context: c.ai_product_context ?? null,
-          ai_tone: (c.ai_tone as AiDraft["ai_tone"]) ?? "warm",
-          ai_response_length: (c.ai_response_length as AiDraft["ai_response_length"]) ?? "medium",
-        };
-        setDraft(next);
-        setSaved(next);
-        setProductContextManagedInCode(!!data.productContextManagedInCode);
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        setError(d?.error ?? `Couldn't load your AI settings (HTTP ${res.status}).`);
+        return;
       }
+      const data = await res.json();
+      const c = data.config ?? {};
+      const next: AiDraft = {
+        ai_name: c.ai_name ?? "Jeff",
+        ai_product_context: c.ai_product_context ?? null,
+        ai_tone: (c.ai_tone as AiDraft["ai_tone"]) ?? "warm",
+        ai_response_length: (c.ai_response_length as AiDraft["ai_response_length"]) ?? "medium",
+      };
+      setDraft(next);
+      setSaved(next);
+      setProductContextManagedInCode(!!data.productContextManagedInCode);
+    } catch {
+      setError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -117,9 +124,22 @@ export default function CareAiSettingsPage() {
       <SettingsTabs />
 
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-3xl mx-auto w-full space-y-4">
-        {loading || !draft ? (
+        {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-16 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> Loading…
+          </div>
+        ) : !draft ? (
+          <div className="flex flex-col items-center gap-3 py-16 text-center">
+            <p className="text-xs text-red-700 dark:text-red-300 max-w-sm">
+              {error ?? "Couldn't load your AI settings."}
+            </p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="text-xs font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 hover:bg-ember-400/10 px-3 py-1.5 rounded-md"
+            >
+              Try again
+            </button>
           </div>
         ) : (
           <>
