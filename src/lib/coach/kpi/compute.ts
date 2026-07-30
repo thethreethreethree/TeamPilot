@@ -319,6 +319,27 @@ export function selfDelta(
   return round1(recent.value - prior.value);
 }
 
+/** Founder-set exception-alert threshold: flag a rep who has slipped ≥ this fraction below their own baseline. */
+export const ALERT_DROP_FRACTION = 0.15;
+
+/**
+ * Exception alert (founder 2026-07-30): is the rep's recent half ≥ ALERT_DROP_FRACTION below their prior half
+ * on this metric? Same recent-vs-prior split as selfDelta, but a relative-drop test for a manager flag. Only
+ * fires with enough data on both halves and a positive prior (so it's a real decline, not a zero-baseline).
+ */
+export function isSlippingVsBaseline(
+  orderedSessions: KpiSessionRow[],
+  metricFn: (s: KpiSessionRow[]) => MetricResult,
+  dropFraction: number = ALERT_DROP_FRACTION
+): boolean {
+  if (orderedSessions.length < 2 * MIN_SESSIONS) return false;
+  const mid = Math.floor(orderedSessions.length / 2);
+  const prior = metricFn(orderedSessions.slice(0, mid)).value;
+  const recent = metricFn(orderedSessions.slice(mid)).value;
+  if (prior === null || recent === null || prior <= 0) return false;
+  return recent < prior * (1 - dropFraction);
+}
+
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }

@@ -106,4 +106,47 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
     expect(body.agents[0]?.sessionCount).toBe(5);
     expect(body.agents[0]?.conversionRate.value).toBe(100);
   });
+
+  it("flags a slipping rep (recent conversion ≥15% below their own baseline) end-to-end", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
+    // 10 sessions in ascending time: prior 5 all sold (100%), recent 5 all no_sale (0%) → slipping.
+    const row = (id: string, day: string, outcome: string) => ({
+      id,
+      agent_id: "a1",
+      outcome,
+      deal_value: outcome === "sold" ? 100 : null,
+      started_at: `${day}T10:00:00.000Z`,
+      ended_at: `${day}T10:30:00.000Z`,
+    });
+    const sessions = [
+      ...[1, 2, 3, 4, 5].map((n) => row(`p${n}`, `2026-07-0${n}`, "sold")),
+      ...[6, 7, 8, 9, 10].map((n, i) => row(`r${n}`, `2026-07-${10 + i}`, "no_sale")),
+    ];
+    const tables: Record<string, { data: unknown }> = {
+      profiles: { data: [{ id: "a1", full_name: "Bob" }] },
+      coaching_sessions: { data: sessions },
+      coaching_cues: { data: [] },
+    };
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.not = () => chain;
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" } });
+        chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
+        return chain;
+      },
+    });
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      agents: { name: string; slipping: boolean }[];
+      alertDropPct: number;
+    };
+    expect(body.alertDropPct).toBe(15);
+    expect(body.agents[0]?.slipping).toBe(true);
+  });
 });

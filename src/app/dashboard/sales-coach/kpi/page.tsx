@@ -30,6 +30,7 @@ type TeamAgent = {
   sessionCount: number;
   conversionRate: MetricResult;
   relianceReduction: MetricResult;
+  slipping?: boolean;
 };
 
 type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope" | "delta" | "corr";
@@ -110,6 +111,7 @@ export default function KpiAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [team, setTeam] = useState<TeamAgent[] | null>(null);
+  const [alertDropPct, setAlertDropPct] = useState(15);
   // Ranking is AVAILABLE but never the default frame (spec non-negotiable): default sorts by name.
   const [teamSort, setTeamSort] = useState<"name" | "conversion" | "reliance">("name");
 
@@ -130,7 +132,8 @@ export default function KpiAnalyticsPage() {
       try {
         const res = await fetch("/api/coach/kpi/team");
         if (res.ok && alive) {
-          const j = (await res.json()) as { agents: TeamAgent[] };
+          const j = (await res.json()) as { agents: TeamAgent[]; alertDropPct?: number };
+          if (typeof j.alertDropPct === "number") setAlertDropPct(j.alertDropPct);
           if (Array.isArray(j.agents) && j.agents.length > 0) setTeam(j.agents);
         }
       } catch {
@@ -422,6 +425,25 @@ export default function KpiAnalyticsPage() {
             <h2 className="text-sm font-semibold text-primary">Team</h2>
             <span className="text-[10px] uppercase tracking-widest text-muted font-mono">manager view</span>
           </div>
+          {/* Exception alerts (founder-set threshold): reps whose recent conversion has slipped ≥N% below
+              their own baseline. A "check in" prompt, not a callout — framed as coaching, not ranking. */}
+          {(() => {
+            const slipping = team.filter((a) => a.slipping);
+            if (slipping.length === 0) return null;
+            return (
+              <div className="mb-2 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2">
+                <p className="text-[11px] text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
+                  <TrendingDown className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
+                  <span>
+                    <strong>{slipping.length}</strong> rep{slipping.length === 1 ? "" : "s"} slipped ≥
+                    {alertDropPct}% below their own recent baseline on conversion —{" "}
+                    {slipping.map((a) => a.name || "Agent").join(", ")}. Worth a check-in; this reads their
+                    trend, not a leaderboard.
+                  </span>
+                </p>
+              </div>
+            );
+          })()}
           {/* Team-level reliance-reduction summary (spec: manager view). */}
           {(() => {
             const withR = team.filter((a) => a.relianceReduction.value !== null);
@@ -473,7 +495,17 @@ export default function KpiAnalyticsPage() {
               .map((a) => (
                 <li key={a.agentId} className="flex items-center justify-between gap-3 py-2">
                   <span className="min-w-0">
-                    <span className="block text-xs font-medium text-primary truncate">{a.name || "Agent"}</span>
+                    <span className="flex items-center gap-1.5 text-xs font-medium text-primary truncate">
+                      {a.name || "Agent"}
+                      {a.slipping && (
+                        <span
+                          className="inline-flex items-center gap-0.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-300"
+                          title={`Recent conversion is ≥${alertDropPct}% below this rep's own baseline — worth a check-in.`}
+                        >
+                          <TrendingDown className="w-2.5 h-2.5" aria-hidden /> check-in
+                        </span>
+                      )}
+                    </span>
                     <span className="block text-[10px] text-muted">{a.sessionCount} sessions</span>
                   </span>
                   <span className="flex items-center gap-5 shrink-0 text-right">

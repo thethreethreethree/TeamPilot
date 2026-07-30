@@ -17,6 +17,8 @@ import {
   qualityConsistency,
   layer3Delta,
   selfDelta,
+  isSlippingVsBaseline,
+  ALERT_DROP_FRACTION,
   baseline,
   sumDollarsExact,
   isOpportunity,
@@ -315,6 +317,64 @@ describe("selfDelta (recent vs prior half)", () => {
   it("is null below 2·MIN_SESSIONS (not enough to split honestly)", () => {
     const rows = Array.from({ length: 2 * 5 - 1 }, (_, i) => S("sold", 100, "2026-07-01", 30, i));
     expect(selfDelta(rows, conversionRate)).toBeNull();
+  });
+});
+
+describe("isSlippingVsBaseline (manager exception alert)", () => {
+  // 10 opportunities in time order; prior 5 vs recent 5. The alert = recent < prior × (1 − dropFraction).
+  const priorHigh = [
+    S("sold", 100, "2026-07-01", 30, 1),
+    S("sold", 100, "2026-07-01", 30, 2),
+    S("sold", 100, "2026-07-01", 30, 3),
+    S("sold", 100, "2026-07-01", 30, 4),
+    S("no_sale", null, "2026-07-01", 30, 5),
+  ]; // prior conversion = 80%
+
+  it("fires when recent conversion is ≥15% below the prior baseline", () => {
+    const recentLow = [
+      S("sold", 100, "2026-07-02", 30, 6),
+      S("no_sale", null, "2026-07-02", 30, 7),
+      S("no_sale", null, "2026-07-02", 30, 8),
+      S("no_sale", null, "2026-07-02", 30, 9),
+      S("no_sale", null, "2026-07-02", 30, 10),
+    ]; // recent conversion = 20% < 80% × 0.85 = 68% → slipping
+    expect(isSlippingVsBaseline([...priorHigh, ...recentLow], conversionRate)).toBe(true);
+  });
+
+  it("does NOT fire on a small dip within the threshold", () => {
+    const recentSlight = [
+      S("sold", 100, "2026-07-02", 30, 6),
+      S("sold", 100, "2026-07-02", 30, 7),
+      S("sold", 100, "2026-07-02", 30, 8),
+      S("no_sale", null, "2026-07-02", 30, 9),
+      S("no_sale", null, "2026-07-02", 30, 10),
+    ]; // recent = 60%; 60% ≥ 80% × 0.85 = 68%? no → 60 < 68 so it WOULD fire; use a 70% recent instead
+    // Recompute: to stay within threshold, recent must be ≥ 68%. 4/5 = 80% is no drop at all.
+    const recentOk = [
+      S("sold", 100, "2026-07-02", 30, 6),
+      S("sold", 100, "2026-07-02", 30, 7),
+      S("sold", 100, "2026-07-02", 30, 8),
+      S("sold", 100, "2026-07-02", 30, 9),
+      S("no_sale", null, "2026-07-02", 30, 10),
+    ]; // recent = 80%, equal to prior → no drop
+    expect(isSlippingVsBaseline([...priorHigh, ...recentOk], conversionRate)).toBe(false);
+    // and the borderline "recentSlight" (60%) DOES trip it — a >15% relative drop:
+    expect(isSlippingVsBaseline([...priorHigh, ...recentSlight], conversionRate)).toBe(true);
+  });
+
+  it("does not fire below 2·MIN_SESSIONS (not enough to split), nor on a zero prior baseline", () => {
+    const thin = Array.from({ length: 2 * MIN_SESSIONS - 1 }, (_, i) => S("sold", 100, "2026-07-01", 30, i));
+    expect(isSlippingVsBaseline(thin, conversionRate)).toBe(false);
+    // Prior half all no_sale → prior conversion 0% → guarded (can't drop below zero).
+    const zeroPrior = [
+      ...Array.from({ length: MIN_SESSIONS }, (_, i) => S("no_sale", null, "2026-07-01", 30, i)),
+      ...Array.from({ length: MIN_SESSIONS }, (_, i) => S("no_sale", null, "2026-07-02", 30, i + 100)),
+    ];
+    expect(isSlippingVsBaseline(zeroPrior, conversionRate)).toBe(false);
+  });
+
+  it("uses the founder-set 15% threshold by default", () => {
+    expect(ALERT_DROP_FRACTION).toBe(0.15);
   });
 });
 

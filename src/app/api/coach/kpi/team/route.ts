@@ -5,6 +5,8 @@ import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import {
   conversionRate,
   relianceReductionFromFirstCue,
+  isSlippingVsBaseline,
+  ALERT_DROP_FRACTION,
   type KpiSessionRow,
   type MetricResult,
 } from "@/lib/coach/kpi/compute";
@@ -89,14 +91,19 @@ export async function GET() {
     const reliance: MetricResult = relianceReductionFromFirstCue(
       rows.map((r) => ({ cueCount: cueCountBySession.get(r.sessionId) ?? 0, sessionId: r.sessionId }))
     );
+    // Exception alert (founder-set threshold): this rep's recent conversion is ≥15% below their own prior
+    // baseline. Not a leaderboard signal — a "check in with this rep" flag for the manager. Only fires with
+    // enough sessions on both halves (isSlippingVsBaseline gates internally), so a thin agent never trips it.
+    const slipping = isSlippingVsBaseline(rows, conversionRate);
     return {
       agentId: id,
       name: (m.full_name as string | null) ?? null,
       sessionCount: rows.length,
       conversionRate: conversion,
       relianceReduction: reliance,
+      slipping,
     };
   });
 
-  return NextResponse.json({ agents });
+  return NextResponse.json({ agents, alertDropPct: Math.round(ALERT_DROP_FRACTION * 100) });
 }
