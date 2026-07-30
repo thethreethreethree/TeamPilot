@@ -20,6 +20,7 @@ vi.mock("@/lib/data/care", async (importOriginal) => {
 
 import { GET, POST } from "@/app/api/care/conversations/[id]/messages/route";
 import { getCareConversationByToken } from "@/lib/data/care";
+import { generateCareReply } from "@/lib/claude";
 
 const req = (token?: string) =>
   ({ headers: { get: (k: string) => (k === "x-care-session" ? token ?? null : null) } }) as never;
@@ -67,5 +68,31 @@ describe("POST /api/care/conversations/[id]/messages — no raw-exception leak (
     expect(json.error).toBe("Server error.");
     expect(json.detail).toBeUndefined(); // the raw exception must NOT be in the response
     expect(JSON.stringify(json)).not.toContain("support_messages"); // belt-and-suspenders: no leak anywhere
+  });
+});
+
+describe("POST /api/care/conversations/[id]/messages — customer IDOR guard (WRITE path)", () => {
+  // GET's IDOR is tested above, but POST is a SEPARATE function with its own copy of the
+  // `conversation.id !== id` check — and it is the WRITE path: a token holder injecting a message into
+  // another customer's conversation (and triggering an AI reply into it) is strictly worse than a read. A
+  // regression that weakened POST's guard alone would pass the GET tests. Lock POST independently.
+  it("401 with no session token (never touches the DB)", async () => {
+    const res = await POST(postReq(undefined as unknown as string), ctx("conv-1"));
+    expect(res.status).toBe(401);
+    expect(getCareConversationByToken).not.toHaveBeenCalled();
+  });
+
+  it("404 on an id-swap — a conv-OTHER token cannot post into conv-1, and no reply is generated", async () => {
+    vi.mocked(getCareConversationByToken).mockResolvedValue({ id: "conv-OTHER" } as never);
+    const res = await POST(postReq("valid-token-for-another-conversation"), ctx("conv-1"));
+    expect(res.status).toBe(404); // must NOT append to / reply into conv-1 for a conv-OTHER token holder
+    expect(generateCareReply).not.toHaveBeenCalled(); // the write + LLM path was never reached
+  });
+
+  it("404 when the token is invalid/expired (resolves to null) — no write", async () => {
+    vi.mocked(getCareConversationByToken).mockResolvedValue(null as never);
+    const res = await POST(postReq("bogus-or-expired"), ctx("conv-1"));
+    expect(res.status).toBe(404);
+    expect(generateCareReply).not.toHaveBeenCalled();
   });
 });
