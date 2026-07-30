@@ -53,6 +53,16 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
 
+  // Two periods per run: 'current' is the live value the manager rollup reads (overwritten each run); the
+  // UTC-month key ('YYYY-MM') is the LONGITUDINAL baseline — within a month it converges to the latest value,
+  // and once the month rolls over that row is never touched again, freezing an end-of-month snapshot. This is
+  // what makes the "vs earlier months" trajectory real instead of only the on-read half-split, AND it obeys
+  // Data-as-Asset: without it the daily cron would discard its own history every run. Value = cumulative
+  // metric as of that month (same computation as 'current', just tagged) — a later consumer diffs the series.
+  const now = new Date();
+  const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const periods = [PERIOD, monthKey];
+
   // Agents who have at least one session (a bounded batch of distinct agent_ids).
   const { data: agentRows, error } = await admin
     .from("coaching_sessions")
@@ -89,25 +99,28 @@ export async function GET(req: NextRequest) {
     for (const [metric, fn] of Object.entries(LAYER2)) toWrite.push({ metric, layer: 2, res: fn(rows) });
 
     for (const w of toWrite) {
-      // Idempotent: clear this agent's current snapshot for the metric, then insert the fresh one (even a
-      // gated one — value:null — so "building" is a real recorded state, not a stale old value).
-      await admin
-        .from("kpi_snapshot")
-        .delete()
-        .eq("agent_id", agentId)
-        .eq("metric", w.metric)
-        .eq("period", PERIOD);
-      const { error: insErr } = await admin.from("kpi_snapshot").insert({
-        company_id: companyId,
-        agent_id: agentId,
-        metric: w.metric,
-        layer: w.layer,
-        value: w.res.value,
-        period: PERIOD,
-        sample_size: w.res.sampleSize,
-        source_session_ids: w.res.sourceSessionIds,
-      });
-      if (!insErr) snapshots += 1;
+      for (const period of periods) {
+        // Idempotent per (agent, metric, period): clear then insert the fresh one (even a gated value:null,
+        // so "building" is a real recorded state, not a stale old value). For 'current' this overwrites each
+        // run; for the month key it converges within the month, then freezes when the month rolls over.
+        await admin
+          .from("kpi_snapshot")
+          .delete()
+          .eq("agent_id", agentId)
+          .eq("metric", w.metric)
+          .eq("period", period);
+        const { error: insErr } = await admin.from("kpi_snapshot").insert({
+          company_id: companyId,
+          agent_id: agentId,
+          metric: w.metric,
+          layer: w.layer,
+          value: w.res.value,
+          period,
+          sample_size: w.res.sampleSize,
+          source_session_ids: w.res.sourceSessionIds,
+        });
+        if (!insErr) snapshots += 1;
+      }
     }
     computed += 1;
   }

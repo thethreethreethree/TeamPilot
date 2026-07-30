@@ -54,4 +54,63 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ computed: 0, snapshots: 0, scannedAgents: 0, bounded: false });
   });
+
+  it("persists BOTH the live 'current' snapshot AND an immutable monthly ('YYYY-MM') one per metric", async () => {
+    process.env.CRON_SECRET = "s3cret-value";
+    const inserts: { metric: string; period: string }[] = [];
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        let limited = false;
+        chain.select = () => chain;
+        chain.order = () => chain;
+        chain.eq = () => chain;
+        chain.delete = () => chain;
+        chain.limit = () => {
+          limited = true;
+          return chain;
+        };
+        chain.insert = (obj: { metric: string; period: string }) => {
+          inserts.push({ metric: obj.metric, period: obj.period });
+          return Promise.resolve({ error: null });
+        };
+        chain.then = (resolve: (v: unknown) => unknown) => {
+          if (t === "coaching_sessions") {
+            return resolve(
+              limited
+                ? { data: [{ company_id: "co1", agent_id: "a1" }], error: null } // distinct-agents scan
+                : {
+                    // one agent's sessions
+                    data: [
+                      {
+                        id: "s1",
+                        outcome: "sold",
+                        deal_value: 100,
+                        started_at: "2026-07-01T10:00:00.000Z",
+                        ended_at: "2026-07-01T10:30:00.000Z",
+                      },
+                    ],
+                    error: null,
+                  }
+            );
+          }
+          return resolve({ data: [], error: null }); // kpi_snapshot delete → no-op
+        };
+        return chain;
+      },
+    });
+
+    const res = await GET(req("Bearer s3cret-value"));
+    expect(res.status).toBe(200);
+    const periods = new Set(inserts.map((i) => i.period));
+    // Exactly two distinct periods: the live 'current' and one month key.
+    expect(periods.has("current")).toBe(true);
+    const monthKeys = [...periods].filter((p) => /^\d{4}-\d{2}$/.test(p));
+    expect(monthKeys).toHaveLength(1);
+    // Every metric was written under BOTH periods (6 Layer-1/2 metrics × 2 periods = 12 inserts).
+    expect(inserts).toHaveLength(12);
+    const currentMetrics = inserts.filter((i) => i.period === "current").map((i) => i.metric).sort();
+    const monthMetrics = inserts.filter((i) => i.period === monthKeys[0]).map((i) => i.metric).sort();
+    expect(monthMetrics).toEqual(currentMetrics);
+  });
 });
