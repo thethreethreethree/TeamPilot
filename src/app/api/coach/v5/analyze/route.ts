@@ -340,10 +340,8 @@ export async function POST(req: NextRequest) {
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
-    );
+    console.error("[coach/v5/analyze] non-LLM failure:", err);
+    return NextResponse.json({ error: "Analysis failed." }, { status: 500 });
   }
 }
 
