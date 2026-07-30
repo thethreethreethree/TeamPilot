@@ -195,6 +195,25 @@ export function baseline(historicalValues: number[]): { mean: number | null; std
   return { mean: round2(mean), stddev: round2(Math.sqrt(variance)), sampleSize: n };
 }
 
+/**
+ * Self-comparison delta (spec principle #1: measure against the agent's OWN past). Splits the agent's
+ * time-ordered sessions in half and returns recent-half − prior-half for a session-based metric — "are you
+ * better than when you started?" On-read, no baselines table needed. null unless BOTH halves clear the gate
+ * (so ≥ 2·MIN_SESSIONS sessions and both halves compute a value). Direction (good/bad) is the caller's to
+ * interpret per metric.
+ */
+export function selfDelta(
+  orderedSessions: KpiSessionRow[],
+  metricFn: (s: KpiSessionRow[]) => MetricResult
+): number | null {
+  if (orderedSessions.length < 2 * MIN_SESSIONS) return null;
+  const mid = Math.floor(orderedSessions.length / 2);
+  const prior = metricFn(orderedSessions.slice(0, mid));
+  const recent = metricFn(orderedSessions.slice(mid));
+  if (prior.value === null || recent.value === null) return null;
+  return round1(recent.value - prior.value);
+}
+
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }

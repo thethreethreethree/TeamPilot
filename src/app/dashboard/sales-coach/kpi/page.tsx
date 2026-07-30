@@ -19,6 +19,7 @@ type KpiResponse = {
   sessionCount: number;
   minSessions: number;
   metrics: Record<string, MetricResult>;
+  deltas?: Record<string, number | null>;
   sessions: Record<string, SessionInfo>;
 };
 
@@ -142,11 +143,17 @@ export default function KpiAnalyticsPage() {
     if (!r || r.value === null) {
       return <span className="text-[10px] font-mono text-muted shrink-0 mt-0.5">building…</span>;
     }
+    const delta = m.apiKey ? data?.deltas?.[m.apiKey] : null;
     return (
       <span className="text-right shrink-0">
         <span className={`block text-sm font-semibold tabular-nums ${m.headline ? "text-emerald-300" : "text-primary"}`}>
           {fmtValue(r.value, m.fmt)}
         </span>
+        {typeof delta === "number" && delta !== 0 && (
+          <span className="block text-[9px] font-mono text-secondary tabular-nums">
+            {delta > 0 ? "▲" : "▼"} {Math.abs(delta)} vs earlier
+          </span>
+        )}
         <span className="block text-[9px] text-muted font-mono">n={r.sampleSize}</span>
       </span>
     );

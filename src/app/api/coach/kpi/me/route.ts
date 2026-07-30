@@ -11,6 +11,7 @@ import {
   layer3Dimension,
   cueAcceptanceRate,
   relianceReductionFromFirstCue,
+  selfDelta,
   MIN_SESSIONS,
   type KpiSessionRow,
   type MetricResult,
@@ -60,6 +61,15 @@ export async function GET() {
     avgDealSize: avgDealSize(rows),
     sessionsPerDay: sessionsPerDay(rows),
     avgSessionDurationMin: avgSessionDurationMin(rows),
+  };
+
+  // Self-comparison deltas (recent half − prior half) for the session-based metrics — spec principle #1.
+  const deltas: Record<string, number | null> = {
+    conversionRate: selfDelta(rows, conversionRate),
+    closeRate: selfDelta(rows, closeRate),
+    avgDealSize: selfDelta(rows, avgDealSize),
+    sessionsPerDay: selfDelta(rows, sessionsPerDay),
+    avgSessionDurationMin: selfDelta(rows, avgSessionDurationMin),
   };
 
   // Layer 3 — reuse the after-pitch evidenced scores (no new scoring). payload.scores is a ScoreCategory[].
@@ -132,6 +142,7 @@ export async function GET() {
     sessionCount: rows.length,
     minSessions: MIN_SESSIONS,
     metrics,
+    deltas,
     sessions,
   });
 }

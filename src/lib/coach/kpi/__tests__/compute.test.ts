@@ -11,6 +11,7 @@ import {
   cueAcceptanceRate,
   relianceReductionSlope,
   relianceReductionFromFirstCue,
+  selfDelta,
   baseline,
   sumDollarsExact,
   isOpportunity,
@@ -234,6 +235,32 @@ describe("Layer 4 (coaching & growth)", () => {
         { order: 2, cueCount: 4, sessionId: "b" },
       ]).value
     ).toBeNull();
+  });
+});
+
+describe("selfDelta (recent vs prior half)", () => {
+  it("returns recent-half − prior-half once both halves clear the gate", () => {
+    // 10 opportunities in time order: prior 5 = 1 sold (20%), recent 5 = 3 sold (60%) → delta +40.
+    const prior = [
+      S("sold", 100, "2026-07-01", 30, 1),
+      S("no_sale", null, "2026-07-01", 30, 2),
+      S("no_sale", null, "2026-07-01", 30, 3),
+      S("follow_up", null, "2026-07-01", 30, 4),
+      S("undecided", null, "2026-07-01", 30, 5),
+    ];
+    const recent = [
+      S("sold", 100, "2026-07-02", 30, 6),
+      S("sold", 100, "2026-07-02", 30, 7),
+      S("sold", 100, "2026-07-02", 30, 8),
+      S("no_sale", null, "2026-07-02", 30, 9),
+      S("follow_up", null, "2026-07-02", 30, 10),
+    ];
+    expect(selfDelta([...prior, ...recent], conversionRate)).toBe(40);
+  });
+
+  it("is null below 2·MIN_SESSIONS (not enough to split honestly)", () => {
+    const rows = Array.from({ length: 2 * 5 - 1 }, (_, i) => S("sold", 100, "2026-07-01", 30, i));
+    expect(selfDelta(rows, conversionRate)).toBeNull();
   });
 });
 

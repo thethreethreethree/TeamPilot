@@ -20,12 +20,12 @@ honest record of what is NOT yet complete, so nothing reads as more finished tha
    MINOR REMAINING: the manager rollup (/team) still applies only filter (a) (not the per-session segment
    check) to keep its team-wide query light — acceptable for a summary read.
 
-2. **`agent_baseline` + `growth_record` are defined but NOT yet populated (MEDIUM).** `delta_vs_baseline`
-   (current vs. the agent's own rolling history) is the spec's self-comparison core, but it needs a TIME
-   SERIES of snapshots to average. The cron currently writes `period='current'` (overwrites). To compute a
-   real baseline: have the cron write period-stamped snapshots (e.g. ISO week) so history accumulates, then
-   populate `agent_baseline` from that history. Until then the dashboard shows current values without a
-   baseline delta.
+2. **Self-comparison delta — DELIVERED on-read (was MEDIUM → now LOW).** The spec's #1 principle (measure vs.
+   the agent's own past) is now visible: `selfDelta` splits the agent's ordered sessions in half and shows
+   recent-half − prior-half per session-based metric ("▲/▼ vs earlier"), computed on-read (no cron/baseline
+   table needed), gated at ≥2·MIN_SESSIONS. REMAINING (LOW): a longer-horizon rolling baseline via the
+   `agent_baseline` table would need the cron to write period-stamped snapshots (currently `period='current'`)
+   and populate agent_baseline from that history — a refinement over the on-read half-split, not a blocker.
 
 3. **`/api/coach/kpi/team` computes live, not from the cron snapshots (LOW-MEDIUM).** For a large team it
    fetches all sessions + cues and computes per-agent in-memory each request. Once the cron has run, `/team`
