@@ -127,10 +127,17 @@ export async function POST(
     );
   }
   const admin = createAdminClient();
+  // Defense-in-depth: this admin (service-role) write bypasses RLS, so scope it to the
+  // caller's company as well as the session id. The getSession() read above already proved
+  // the caller has access to this session within their company, so today .eq("id") alone
+  // targets exactly the right row — but pinning company_id keeps this write tenant-safe on
+  // its own, matching the sibling save-recording route, so a future change to how getSession
+  // scopes access can't turn this into a cross-tenant write.
   await admin
     .from("coaching_sessions")
     .update({ audio_asset_url: `${ASSETS_BUCKET}/${storagePath}` })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("company_id", companyId);
 
   // 2. Batch diarization.
   let segments;
