@@ -106,12 +106,14 @@ export async function GET(req: NextRequest) {
   if (error) {
     // Only "recording_saved isn't in the schema yet" degrades; every other error stays loud (§3.4).
     if (!isMissingColumnError(error, "recording_saved")) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("[recordings GET] failed to load recordings:", error);
+      return NextResponse.json({ error: "Couldn't load recordings." }, { status: 500 });
     }
     const { data: windowRows, error: fbError } = await scope("id, client_label, created_at, audio_asset_url")
       .gte("created_at", cutoff);
     if (fbError) {
-      return NextResponse.json({ error: fbError.message }, { status: 500 });
+      console.error("[recordings GET] fallback window query failed:", fbError);
+      return NextResponse.json({ error: "Couldn't load recordings." }, { status: 500 });
     }
     return NextResponse.json({
       recordings: ((windowRows ?? []) as unknown as RecordingRow[]).map((r) => ({

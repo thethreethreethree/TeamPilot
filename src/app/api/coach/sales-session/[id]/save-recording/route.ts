@@ -115,7 +115,8 @@ export async function POST(
         { status: 503 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[save-recording] failed to persist recording flag:", error);
+    return NextResponse.json({ error: "Couldn't save the recording." }, { status: 500 });
   }
   if (!updated || updated.length === 0) {
     // The row was there when we read it and isn't now (deleted, or re-tenanted). Never claim the save.
