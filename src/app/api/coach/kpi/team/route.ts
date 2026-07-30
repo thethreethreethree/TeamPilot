@@ -93,6 +93,19 @@ export async function GET() {
     }
   }
 
+  // Coach-active sessions (produced ≥1 transcript segment) — the SAME filter /me applies to reliance, so a
+  // rep's reliance number matches between their own view and this rollup (cross-view consistency is the whole
+  // honesty thesis; a rep seeing a different figure than their manager erodes it). A no-segment session is a
+  // no-coaching call whose 0 cues are not a reliance signal.
+  const coachedSessions = new Set<string>();
+  if (sessionIds.length > 0) {
+    const { data: segRows } = await sb
+      .from("coaching_transcript_segments")
+      .select("session_id")
+      .in("session_id", sessionIds);
+    for (const s of segRows ?? []) coachedSessions.add(s.session_id as string);
+  }
+
   // Per-session overall quality (Layer-3 after-pitch scores) — for the quality-slippage alert trigger. One
   // query for the team; a session with no scored after-pitch simply has no entry (isSlippingSeries drops it).
   const qualityBySession = new Map<string, number | null>();
@@ -126,7 +139,9 @@ export async function GET() {
     const rows = byAgent.get(id) ?? [];
     const conversion: MetricResult = conversionRate(rows);
     const reliance: MetricResult = relianceReductionFromFirstCue(
-      rows.map((r) => ({ cueCount: cueCountBySession.get(r.sessionId) ?? 0, sessionId: r.sessionId }))
+      rows
+        .filter((r) => coachedSessions.has(r.sessionId)) // coach-active only — matches /me exactly
+        .map((r) => ({ cueCount: cueCountBySession.get(r.sessionId) ?? 0, sessionId: r.sessionId }))
     );
     // Exception alert (founder-set threshold): this rep is ≥15% below their OWN prior baseline — on outcomes
     // (conversion) and/or on pitch quality. Two triggers because a rep can close fine while their craft

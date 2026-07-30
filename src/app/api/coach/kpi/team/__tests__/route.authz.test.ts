@@ -238,4 +238,46 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
     expect(body.monthlyQuotaTarget).toBe(10);
     expect(body.agents[0]?.quotaAttainment.value).toBe(50); // 5 of 10
   });
+
+  it("computes reliance only from coach-active sessions (segment-filtered, matching /me)", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
+    // 10 coached sessions (each has a transcript segment) with DECLINING cue counts 10→1 → negative slope.
+    const sessions = Array.from({ length: 10 }, (_, i) => ({
+      id: `c${i}`,
+      agent_id: "a1",
+      outcome: "sold",
+      deal_value: 100,
+      started_at: `2026-07-${String(i + 1).padStart(2, "0")}T10:00:00.000Z`,
+      ended_at: `2026-07-${String(i + 1).padStart(2, "0")}T10:30:00.000Z`,
+    }));
+    // session c_i gets (10 - i) cue rows; every session has one transcript segment (coach ran).
+    const cues = sessions.flatMap((s, i) =>
+      Array.from({ length: 10 - i }, () => ({ session_id: s.id }))
+    );
+    const segments = sessions.map((s) => ({ session_id: s.id }));
+    const tables: Record<string, { data: unknown }> = {
+      profiles: { data: [{ id: "a1", full_name: "Bob" }] },
+      coaching_sessions: { data: sessions },
+      coaching_cues: { data: cues },
+      coaching_transcript_segments: { data: segments },
+    };
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.not = () => chain;
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" }, error: null });
+        chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
+        return chain;
+      },
+    });
+    const res = await GET();
+    const body = (await res.json()) as { agents: { relianceReduction: { value: number | null } }[] };
+    // Coached sessions flowed through → a real (negative) reliance slope, not gated to null.
+    expect(body.agents[0]?.relianceReduction.value).not.toBeNull();
+    expect(body.agents[0]!.relianceReduction.value!).toBeLessThan(0);
+  });
 });

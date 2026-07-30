@@ -18,8 +18,9 @@ honest record of what is NOT yet complete, so nothing reads as more finished tha
    (a) `relianceReductionFromFirstCue` drops the leading observe-window / pre-coaching run (measure only from
    the first CUED session onward — tested); (b) /me now excludes no-coaching sessions by requiring ≥1
    transcript segment ("the coach ran"). So the slope reflects only coach-active, post-observe sessions.
-   MINOR REMAINING: the manager rollup (/team) still applies only filter (a) (not the per-session segment
-   check) to keep its team-wide query light — acceptable for a summary read.
+   ~~MINOR REMAINING: the manager rollup (/team) still applies only filter (a)~~ RESOLVED 2026-07-30: /team now
+   also applies filter (b) (the per-session coach-active segment check), so a rep's reliance number MATCHES
+   between their own view and the manager rollup — cross-view consistency, one extra team-wide segment query.
 
 2. **Self-comparison delta — DELIVERED on-read (was MEDIUM → now LOW).** The spec's #1 principle (measure vs.
    the agent's own past) is now visible: `selfDelta` splits the agent's ordered sessions in half and shows
