@@ -80,6 +80,12 @@ and "What you represent" (ai_product_context).
   upload (8k) would overflow to 100k + fail to save (F5 recurrence) → `slice(0, maxChars)` + 2 tests
   (`b303df99`). The default masked it (const == default). Class swept: only extractText's slice + the
   epub bound use the cap; both now honor maxChars.
+  **Class sweep CODEBASE-WIDE (2026-07-30):** `grep "\.slice(0, [A-Z_]{4,}"` across src — every other
+  const-cap slice (FREQUENT_SIGNAL_TOP_N, MAX_TOP_CONCERNS, MAX_QUOTE_LEN, TTS_MAX_CHARS, MAX_SOURCE_CHARS,
+  TREND_N, …) uses its const as the INTENDED fixed limit; none shadows a param-derived variable. So the
+  "computed-limit-ignored-for-const" class is bounded to the single fixed extractText instance — CLEAN.
+  Also verified: all 5 upload surfaces pass a maxChars == their field's save cap (SC 100k, guidance/product
+  8k, knowledge 200k) — cap-consistency CLEAN, F5 dead-end structurally impossible.
 
 - **F5 class — "a producer whose output cap exceeds its consumer's save cap"** — swept codebase-wide
   2026-07-30 (`grep content:.*max( in api` + upload→field producers). Instances: doc-upload extraction
