@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ resolutionId: data });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Don't leak a raw exception message to the client (CWE-209) — log server-side, return generic.
+    console.error("[diagnosis/close] unexpected error:", err);
+    return NextResponse.json({ error: "Couldn't close the diagnosis." }, { status: 500 });
   }
 }
