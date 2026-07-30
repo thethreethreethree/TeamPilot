@@ -46,8 +46,9 @@ export async function GET() {
   ]);
 
   if (membersRes.error || invitesRes.error) {
+    console.error("[team GET] failed to load members/invites:", membersRes.error ?? invitesRes.error);
     return NextResponse.json(
-      { error: (membersRes.error ?? invitesRes.error)?.message },
+      { error: "Couldn't load the team." },
       { status: 500 }
     );
   }
@@ -179,7 +180,10 @@ export async function POST(req: NextRequest) {
     .select("id, code")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[team POST] failed to create invitation:", error);
+    return NextResponse.json({ error: "Couldn't create the invitation." }, { status: 500 });
+  }
   return NextResponse.json({ invitationId: data.id, code: data.code });
 }
 
@@ -211,8 +215,10 @@ export async function DELETE(req: NextRequest) {
       .eq("id", invitationId)
       .is("accepted_at", null)
       .select("id");
-    if (error)
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("[team PATCH] failed to revoke invitation:", error);
+      return NextResponse.json({ error: "Couldn't revoke the invitation." }, { status: 500 });
+    }
     if (!revoked || revoked.length === 0) {
       return NextResponse.json(
         {
@@ -264,8 +270,10 @@ export async function DELETE(req: NextRequest) {
       .eq("id", memberId)
       .eq("company_id", c.companyId) // scope to the admin's own company
       .select("id");
-    if (error)
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("[team DELETE] failed to remove member:", error);
+      return NextResponse.json({ error: "Couldn't remove the member." }, { status: 500 });
+    }
     if (!removed || removed.length === 0) {
       // 0 rows = the target isn't in this admin's company (or was already removed).
       // Report honestly instead of a phantom success.
