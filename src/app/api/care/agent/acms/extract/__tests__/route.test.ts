@@ -16,9 +16,10 @@ const setAuth = (a: unknown) =>
 const ADMIN = { ok: true, isAdmin: true, companyId: "co1", agentId: "a1" };
 const AGENT = { ok: true, isAdmin: false, companyId: "co1", agentId: "a2" };
 
-function fileReq(name: string, content: string) {
+function fileReq(name: string, content: string, maxChars?: number) {
   const fd = new FormData();
   fd.append("file", new File([content], name, { type: "application/octet-stream" }));
+  if (maxChars !== undefined) fd.append("maxChars", String(maxChars));
   return { formData: async () => fd } as unknown as Parameters<typeof POST>[0];
 }
 
@@ -47,5 +48,17 @@ describe("/api/care/agent/acms/extract authz + format", () => {
     const json = await res.json();
     expect(json.format).toBe("txt");
     expect(json.text).toContain("9-5");
+  });
+
+  it("F5: honors the per-field maxChars so an upload can't exceed the target field's cap", async () => {
+    // The guidance/product fields are 8k, not the 200k ceiling. A regression dropping the maxChars
+    // plumbing would let a large upload overflow those fields (Save would then reject it).
+    setAuth(ADMIN);
+    const long = "word ".repeat(50); // 250 chars
+    const res = await POST(fileReq("guidance.txt", long, 40));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.text.length).toBeLessThanOrEqual(40);
+    expect(json.truncated).toBe(true);
   });
 });

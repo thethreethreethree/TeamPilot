@@ -107,4 +107,11 @@ describe("extractText — remediation gates", () => {
     const { text } = await extractText(enc(huge), "big.txt");
     expect(text.length).toBeLessThanOrEqual(100_000);
   });
+
+  it("F5: honors an explicit per-caller maxChars, not just the default (C.A.R.E's 8k/200k fields)", async () => {
+    // Regression guard for the bug where the slice used the const cap instead of the passed maxChars,
+    // which would let a guidance upload (8k field) overflow to 100k and the save then reject it.
+    const { text } = await extractText(enc("word ".repeat(100)), "a.txt", { maxChars: 30 });
+    expect(text.length).toBeLessThanOrEqual(30);
+  });
 });

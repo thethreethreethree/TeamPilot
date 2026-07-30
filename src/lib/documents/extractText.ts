@@ -124,7 +124,7 @@ export async function extractText(
       break;
   }
 
-  const text = normalizeWhitespace(raw).slice(0, MAX_EXTRACTED_CHARS);
+  const text = normalizeWhitespace(raw).slice(0, maxChars);
   if (!text.trim()) throw new EmptyExtractionError();
   return { text, format };
 }
