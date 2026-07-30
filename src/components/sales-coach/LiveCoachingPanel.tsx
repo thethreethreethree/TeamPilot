@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Radio, Square, Sparkles, Hand, CheckCircle2, Mic, AlertTriangle } from "lucide-react";
 import { useTapControls } from "@/lib/coach/v5/useTapControls";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
@@ -74,10 +74,16 @@ export function LiveCoachingPanel({
   // instruction, not a false guarantee).
   const [earpieceOk, setEarpieceOk] = useState(false);
 
-  // When the live transcript is saved, refresh the page so the
-  // speaker-separated transcript + the review become available.
+  // When the live transcript is saved, notify the parent (which now NAVIGATES to the After-Pitch Summary —
+  // founder 2026-07-31). Fire EXACTLY ONCE: onRecordingSaved is often an inline callback (new identity every
+  // render), so without this ref guard the effect would re-run each render while transcriptSaved stays true and
+  // re-fire the navigation during the transition. The ref latches on the first true.
+  const savedFiredRef = useRef(false);
   useEffect(() => {
-    if (transcriptSaved) onRecordingSaved?.();
+    if (transcriptSaved && !savedFiredRef.current) {
+      savedFiredRef.current = true;
+      onRecordingSaved?.();
+    }
   }, [transcriptSaved, onRecordingSaved]);
 
   const live = status === "live";
