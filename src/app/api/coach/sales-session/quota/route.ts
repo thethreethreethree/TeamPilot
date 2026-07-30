@@ -30,7 +30,9 @@ export async function GET() {
     if (isMissingColumnError(error, "sales_coach_monthly_deal_target")) {
       return NextResponse.json({ target: null, degraded: true });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Don't leak the raw DB error to the client (CWE-209) — log server-side, return a generic message.
+    console.error("[quota GET] failed to read target:", error);
+    return NextResponse.json({ error: "Couldn't load the quota target." }, { status: 500 });
   }
   return NextResponse.json({ target: (data?.sales_coach_monthly_deal_target as number | null) ?? null });
 }
@@ -70,7 +72,9 @@ export async function PATCH(req: NextRequest) {
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Don't leak the raw DB error to the client (CWE-209) — log server-side, return a generic message.
+    console.error("[quota PATCH] failed to write target:", error);
+    return NextResponse.json({ error: "Couldn't save the quota target." }, { status: 500 });
   }
   return NextResponse.json({ ok: true, target: body.target });
 }

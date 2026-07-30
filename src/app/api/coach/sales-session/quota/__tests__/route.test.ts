@@ -103,4 +103,40 @@ describe("PATCH /api/coach/sales-session/quota — manager write gate", () => {
     expect((await PATCH(req({ target: 999999 }))).status).toBe(400); // above the max
     expect(captured.update).toBeUndefined();
   });
+
+  it("does NOT leak the raw DB error message on a 500 (CWE-209) — generic message only", async () => {
+    const SECRET = "relation public.companies does not exist [internal schema detail]";
+    // GET path: companies read errors with a non-missing-column error.
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: false });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.update = () => chain;
+        // profiles read (the PATCH manager gate) returns an admin so the gate PASSES → reaches the write;
+        // companies read (GET) errors with a non-missing-column error.
+        chain.maybeSingle = async () =>
+          t === "profiles"
+            ? { data: { role: "admin", sales_coach_role: null, company_id: "co1" }, error: null }
+            : { data: null, error: { message: SECRET, code: "XX000" } };
+        chain.then = (resolve: (v: unknown) => unknown) =>
+          resolve({ error: { message: SECRET, code: "XX000" } }); // awaited companies.update → error
+        return chain;
+      },
+    });
+    const getRes = await GET();
+    expect(getRes.status).toBe(500);
+    const getBody = await getRes.json();
+    expect(getBody.error).toBe("Couldn't load the quota target.");
+    expect(JSON.stringify(getBody)).not.toContain("internal schema detail");
+
+    // PATCH path: manager passes the gate (profiles read returns admin via maybeSingle), then the update errors.
+    const patchRes = await PATCH(req({ target: 20 }));
+    expect(patchRes.status).toBe(500);
+    const patchBody = await patchRes.json();
+    expect(patchBody.error).toBe("Couldn't save the quota target.");
+    expect(JSON.stringify(patchBody)).not.toContain("internal schema detail");
+  });
 });
