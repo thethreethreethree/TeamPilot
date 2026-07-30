@@ -109,6 +109,8 @@ export default function KpiAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [team, setTeam] = useState<TeamAgent[] | null>(null);
+  // Ranking is AVAILABLE but never the default frame (spec non-negotiable): default sorts by name.
+  const [teamSort, setTeamSort] = useState<"name" | "conversion" | "reliance">("name");
 
   useEffect(() => {
     let alive = true;
@@ -364,12 +366,42 @@ export default function KpiAnalyticsPage() {
             <h2 className="text-sm font-semibold text-primary">Team</h2>
             <span className="text-[10px] uppercase tracking-widest text-muted font-mono">manager view</span>
           </div>
-          <p className="text-[11px] text-muted mb-3">
-            Per-agent growth, each measured against their own past — not a leaderboard. Sorted by name.
+          <p className="text-[11px] text-muted mb-2">
+            Per-agent growth, each measured against their own past. Ranking is optional — the default is by
+            name, not a leaderboard.
           </p>
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className="text-[10px] text-muted">Sort:</span>
+            {(
+              [
+                ["name", "Name"],
+                ["conversion", "Conversion"],
+                ["reliance", "Reliance"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setTeamSort(k)}
+                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                  teamSort === k
+                    ? "border-ember-400/50 bg-ember-400/10 text-brand"
+                    : "border-default text-muted hover:text-secondary"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <ul className="divide-y divide-white/[0.06]">
             {[...team]
-              .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+              .sort((a, b) =>
+                teamSort === "conversion"
+                  ? (b.conversionRate.value ?? -1) - (a.conversionRate.value ?? -1)
+                  : teamSort === "reliance"
+                    ? (a.relianceReduction.value ?? 999) - (b.relianceReduction.value ?? 999)
+                    : (a.name || "").localeCompare(b.name || "")
+              )
               .map((a) => (
                 <li key={a.agentId} className="flex items-center justify-between gap-3 py-2">
                   <span className="min-w-0">
