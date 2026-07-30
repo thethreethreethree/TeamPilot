@@ -70,7 +70,8 @@ export async function POST(req: NextRequest) {
     .select("id")
     .single();
   if (decisionErr) {
-    return NextResponse.json({ error: decisionErr.message }, { status: 500 });
+    console.error("[decisions] failed to save decision:", decisionErr);
+    return NextResponse.json({ error: "Couldn't save the decision." }, { status: 500 });
   }
 
   // Insert the dialogue record linked to the decision.
@@ -101,9 +102,11 @@ export async function POST(req: NextRequest) {
     // effort delete is the pragmatic fix until we wrap in an
     // RPC.)
     await supabase.from("decisions").delete().eq("id", decision.id);
+    console.error("[decisions] dialogue capture failed; rolled back the decision:", dialogueErr);
     return NextResponse.json(
       {
-        error: `Decision saved but dialogue capture failed (${dialogueErr.message}). The partial decision has been rolled back — please try again.`,
+        error:
+          "Decision saved but dialogue capture failed. The partial decision has been rolled back — please try again.",
       },
       { status: 500 },
     );

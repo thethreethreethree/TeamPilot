@@ -86,7 +86,8 @@ export async function PATCH(req: NextRequest) {
     .select("id");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[resolutions] failed to submit review:", error);
+    return NextResponse.json({ error: "Couldn't submit the review." }, { status: 500 });
   }
   // §3.4 / strictUpdate (audit 2026-07-09): assert the review actually landed. RLS
   // scopes resolutions to the caller's company, so an id outside it matches 0 rows —
