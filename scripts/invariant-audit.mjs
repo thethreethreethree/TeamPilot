@@ -679,6 +679,61 @@ for (const f of FILES) {
   }
 }
 
+// ═══ INVARIANT 15 — every coaching_sessions write pins company_id (tenant-scoped) ════════════════
+//
+// LEARNED: 2026-07-31. The upload-recording route stamped coaching_sessions.audio_asset_url with a
+// service-role (RLS-bypassing) write scoped by session id ONLY, while the sibling save-recording scoped the
+// same write by id AND company_id. It was safe only because an upstream getSession() RLS read had already
+// proved company access — safe-by-an-upstream-property, one refactor away from a cross-tenant write. The whole-
+// surface sweep (docs/audits/2026-07-31-tenant-write-scoping-class-sweep.md) found this was the only real gap,
+// fixed it, and this gate locks the fix: the coaching_sessions write surface is small and fully enumerated
+// (3 sites), so a NEW write here that forgets the company_id pin is caught immediately.
+//
+// PRECISION: only WRITES (.update(...)) are matched, and company_id is looked for within the SAME statement
+// (from the .from(...) line up to the terminating `;`), so a company_id on a later statement can't mask a gap.
+// The retention cron is allowlisted WITH its reason (it is intentionally system-wide over a trusted internal
+// query — a company filter there would be wrong).
+const COACHING_SESSION_WRITE_ALLOWLIST = new Map([
+  [
+    "src/app/api/coach/sales-session/recording-purge-cron/route.ts",
+    "System retention cron (CRON_SECRET-gated): selects expired rows across ALL tenants by a created_at cutoff " +
+      "with NO user input; row.id comes from its own trusted query, so a company_id filter would be meaningless.",
+  ],
+]);
+/** True if `sql` contains a `.from("coaching_sessions")....update(...)` statement with NO `.eq("company_id"...)`
+ *  in that same statement. Statement-bounded (stops at the first `;`) so a later scoped write can't mask it. */
+function coachingSessionWriteUnscoped(sql) {
+  const lines = sql.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (!/\.from\(["']coaching_sessions["']\)/.test(lines[i])) continue;
+    let stmt = "";
+    for (let j = i; j < lines.length && j < i + 20; j++) {
+      stmt += lines[j] + "\n";
+      if (lines[j].includes(";")) break; // end of this PostgREST statement
+    }
+    if (!/\.update\(/.test(stmt)) continue; // reads (.select) are not writes — skip
+    if (/\.eq\(["']company_id["']/.test(stmt)) continue; // tenant-scoped — good
+    return true;
+  }
+  return false;
+}
+for (const f of FILES) {
+  if (!/\/route\.ts$/.test(f.path)) continue;
+  if (COACHING_SESSION_WRITE_ALLOWLIST.has(f.path)) continue;
+  if (coachingSessionWriteUnscoped(f.sql)) {
+    findings.push({
+      rule: "coaching_sessions write not scoped to company_id (latent cross-tenant write)",
+      file: f.path,
+      why:
+        "a `.from(\"coaching_sessions\").update(...)` here does not pin `.eq(\"company_id\", …)` in the same\n" +
+        "      statement. A service-role write bypasses RLS, so an id-only scope is tenant-safe only if some\n" +
+        "      upstream step proved company access — one refactor from a cross-tenant write. Add\n" +
+        "      `.eq(\"company_id\", companyId)` (see save-recording / upload-recording). If this is an intentional\n" +
+        "      system-wide job over a trusted internal query, allowlist it WITH the reason.",
+    });
+  }
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -719,6 +774,18 @@ st("INV14 ignores a detail-key .message (deliberate agent surface)", !RAW_ERR_MS
 st("INV14 status-exclusion recognizes a 403 domain message", INTENTIONAL_ERR_STATUS_RE.test("{ status: 403 }"));
 st("INV14 kind-exclusion leaves the LlmError surface alone", /\bkind:/.test("{ error: err.message, kind: err.kind }"));
 st("INV13 ignores a static (non-interpolated) ilike filter", !RAW_ILIKE_FILTER_RE.test('q.or(`title.ilike.foo`)'));
+// INV15 coaching_sessions tenant-scope: must flag an id-only write, accept a company-scoped one, ignore a read,
+// and not let a LATER scoped statement mask an earlier unscoped write.
+st("INV15 flags an id-only coaching_sessions write",
+  coachingSessionWriteUnscoped('await a.from("coaching_sessions").update({ x: 1 }).eq("id", id);'));
+st("INV15 accepts a company-scoped write",
+  !coachingSessionWriteUnscoped('await a.from("coaching_sessions").update({ x: 1 }).eq("id", id).eq("company_id", c);'));
+st("INV15 ignores a coaching_sessions read",
+  !coachingSessionWriteUnscoped('const { data } = await a.from("coaching_sessions").select("*").eq("id", id).maybeSingle();'));
+st("INV15 is statement-bounded (a later scoped write can't mask an earlier gap)",
+  coachingSessionWriteUnscoped('await a.from("coaching_sessions").update({ x: 1 }).eq("id", id);\nawait a.from("coaching_sessions").update({ y: 2 }).eq("id", id).eq("company_id", c);'));
+st("INV15 allowlist documents the retention cron",
+  COACHING_SESSION_WRITE_ALLOWLIST.has("src/app/api/coach/sales-session/recording-purge-cron/route.ts"));
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -728,7 +795,7 @@ if (selfTestFailures.length) {
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -739,7 +806,8 @@ if (findings.length === 0) {
       " no server secret NEXT_PUBLIC_-exposed · every dangerouslySetInnerHTML justified ·" +
       " every cron route CRON_SECRET-gated · constitution metadata matches the ratified amendments ·" +
       " every raw .or(...ilike...) filter sanitized (no PostgREST injection) ·" +
-      " no route returns a raw error .message to the client (CWE-209)."
+      " no route returns a raw error .message to the client (CWE-209) ·" +
+      " every coaching_sessions write scoped to company_id (no latent cross-tenant write)."
   );
   process.exit(0);
 }
