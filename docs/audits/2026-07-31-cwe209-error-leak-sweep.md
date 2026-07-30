@@ -30,28 +30,30 @@ then classify each hit by hand (status code + who calls it).
 - **Scheduler-only crons** (e.g. `coach/sales-session/recording-purge-cron`) — response seen only by the
   CRON_SECRET caller, not a customer; low-value to change.
 
-### C. OPEN — customer-facing 500 leaks in core product routes (needs founder greenlight to sweep)
-These are the same class as (A) but in broader product areas — a member can hit a raw DB error. A fix is
-low-risk *per route* (identical log+generic swap, success paths unchanged) but spans many product surfaces, so
-it's a reviewable initiative rather than a unilateral mass-edit:
+### C. SWEPT 2026-07-31 (complete) — customer/member-facing 500 leaks in core product routes
+Done one route per commit, each fix + verify (tasks/problems also got regression tests; the pattern is locked
+by ≥8 representative tests). All log server-side + return a generic message; success/authz/404 paths unchanged.
 
-| Route | Sites | Caller |
+| Route | Sites | Commit |
 |---|---|---|
-| `tasks` | 4 | member |
-| `problems` | 3 (incl. linkErr) | member |
-| `resolutions` | 1 | member |
-| `decisions` | 1 (decisionErr) | member |
-| `notifications`, `notifications/subscribe` | 3 | member |
-| `team` | 3 | member/admin |
-| `settings` | 1 | member |
-| `files/search`, `files/[id]/access` | 2 | member |
-| `admin/team-check`, `admin/coach-readout` | 3 | trusted operator (lower risk) |
+| `tasks` | 4 (+test) | `2f80f10b` |
+| `problems` | 3 — gate-hold 422 preserved (+test) | `9060c3a2` |
+| `resolutions` + `decisions` | 1 + 2 (incl. interpolated) | `82494bc8` |
+| `notifications` + `subscribe` | 3 | `a2e5b122` |
+| `team` | 4 | `686a3ca0` |
+| `settings` | 2 | `d5605f2d` |
+| `files/search` + `files/[id]/access` | 4 | `8e1b294d` |
+| `admin/coach-readout` + `admin/team-check` | 5 | `571243e7` |
+| **re-run catches** (A38): `diagnosis/close`, `feedback` (GET+POST), `seed` | 4 | `328116f5` |
 
-## Recommendation
-Greenlight a single focused sweep of section **C** (member-facing first: tasks, problems, resolutions,
-decisions, notifications, team, settings, files). Each is the same mechanical fix + a light regression test on
-one representative route (assert a thrown DB error yields a generic 500 with no raw string). Admin/* is lowest
-priority (trusted operator). Estimated small-to-medium; low behavioural risk (only 500 error strings change).
+### D. Re-run verification (A38)
+After the sweep, re-ran `grep -rnE "error:\s*[a-zA-Z_]+\.message"` over `src/app/api` and classified EVERY
+remaining hit. All remaining are intentional: `instanceof LlmError` surfaces ({error,kind,provider}), 415/422
+upload validation (`UnsupportedFormatError`/`EmptyExtractionError`), finance domain 403/400, the problems
+gate-hold 422, and the `pilot/redeem` + `team/accept` 422s (RPCs raise human-readable domain messages,
+documented safe to show). The scheduler-only `recording-purge-cron` 500 is not customer-facing (left).
+
+**Status: sweep complete.** No known customer/member-facing raw-DB-error leak remains.
 
 ## How to verify a fix (per route)
 Inject a DB error with a sentinel string in a route test, assert the response body is the generic message and
