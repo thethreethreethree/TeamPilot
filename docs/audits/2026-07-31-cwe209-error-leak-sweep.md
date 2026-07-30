@@ -53,7 +53,28 @@ upload validation (`UnsupportedFormatError`/`EmptyExtractionError`), finance dom
 gate-hold 422, and the `pilot/redeem` + `team/accept` 422s (RPCs raise human-readable domain messages,
 documented safe to show). The scheduler-only `recording-purge-cron` 500 is not customer-facing (left).
 
-**Status: sweep complete.** No known customer/member-facing raw-DB-error leak remains.
+**Status: the `error: X.message` direct-return class is complete.** No known customer/member-facing raw-DB-error
+leak of that shape remains.
+
+### E. OPEN follow-up — the catch-block fallback pattern (needs a careful, reviewed sweep)
+A DISTINCT pattern the section-A–D grep did not target: `catch (err) { ... err instanceof Error ? err.message
+: "fallback" ... }`. Found while testing `diagnosis/close` (whose catch leaked via the two-step `const message =
+err.message; return {error: message}` form — fixed + tested in `480a8e13`). A re-grep for `instanceof Error ?
+X.message` surfaces **~40+ sites** across AI/streaming/care/coach/finance/chat routes.
+
+**Why this is a SEPARATE, greenlit initiative — not a same-turn mass-edit:** unlike the unambiguous section-C
+DB-error returns, each catch-block site needs individual classification:
+- Some are the **LlmError fallback** — the route already did `if (err instanceof LlmError) return {curated}`, so
+  the catch-all only fires for a genuine unexpected error → a real (if rare) leak.
+- Some compute `const detail = ... String(err)` used for **server logging**, not the client response → not a leak.
+- Some are `send("error", {...})` inside a **stream** → client-facing, same care needed.
+- Some pass `p_detail` to an **RPC audit log** (e.g. finance deliver-cron) → not a client leak.
+
+Mass-editing 40+ files across every subsystem in one pass risks both missed nuances (leaving a leak) and broken
+error surfaces (regressions) — the "make sure it doesn't break our system" constraint. RECOMMENDATION: sweep
+this as its own reviewed pass, per-subsystem, classifying each site (client-response vs logging-detail vs
+stream-send), with a light regression test per representative route. `diagnosis/close` (`480a8e13`) is the
+template. Estimated medium; higher per-site judgement than section C.
 
 ## How to verify a fix (per route)
 Inject a DB error with a sentinel string in a route test, assert the response body is the generic message and
