@@ -281,6 +281,74 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
     expect(body.agents[0]!.relianceReduction.value!).toBeLessThan(0);
   });
 
+  it("A18: the rollup exposes the quality SLIP flag but NEVER a rep's raw per-session quality scores", async () => {
+    // The route READS the private after-pitch payload (Layer-3 scores are owner-private — a manager sees a
+    // rep's growth signal, not their self-assessment numbers) to derive the quality-slippage alert. The
+    // guarantee is that only the DERIVED boolean/reason leaves the route — never the raw score or the payload.
+    // A refactor that added `qualityScore` (or echoed the payload) to the agent object would silently break
+    // A18 with no other test catching it, because the existing quality test only checks `slipping`/reasons.
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
+    const sessions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n, i) => ({
+      id: `q${n}`,
+      agent_id: "a1",
+      outcome: "sold",
+      deal_value: 100,
+      started_at: `2026-07-${String(i + 1).padStart(2, "0")}T10:00:00.000Z`,
+      ended_at: `2026-07-${String(i + 1).padStart(2, "0")}T10:30:00.000Z`,
+    }));
+    // Distinctive raw score values (91 baseline → 42 recent) so a leak would be unambiguous in the payload.
+    const afterPitch = sessions.map((s, i) => ({
+      session_id: s.id,
+      payload: { scores: [{ key: "opener", score: i < 5 ? 91 : 42 }] },
+    }));
+    const tables: Record<string, { data: unknown }> = {
+      profiles: { data: [{ id: "a1", full_name: "Bob" }] },
+      coaching_sessions: { data: sessions },
+      coaching_cues: { data: [] },
+      after_pitch_summaries: { data: afterPitch },
+    };
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.not = () => chain;
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" }, error: null });
+        chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
+        return chain;
+      },
+    });
+    const res = await GET();
+    const raw = await res.text();
+    const body = JSON.parse(raw) as { agents: Record<string, unknown>[] };
+    const agent = body.agents[0]!;
+    // The derived alert IS present…
+    expect(agent.slipping).toBe(true);
+    expect(agent.slippingReasons).toEqual(["quality"]);
+    // …but the agent object exposes ONLY the safe, growth-framed fields — an exact allowlist, so any newly
+    // added field (a leaked score, an echoed payload) fails here.
+    expect(Object.keys(agent).sort()).toEqual(
+      [
+        "agentId",
+        "conversionRate",
+        "establishingBaseline",
+        "firstSessionAt",
+        "name",
+        "quotaAttainment",
+        "relianceReduction",
+        "sessionCount",
+        "slipping",
+        "slippingReasons",
+      ].sort()
+    );
+    // And the raw private score values never appear anywhere in the serialized response.
+    expect(raw).not.toContain("91");
+    expect(raw).not.toContain("42");
+    expect(raw).not.toContain("payload");
+  });
+
   it("marks a new rep as establishing a baseline (< 2·MIN_SESSIONS) with a first-session date", async () => {
     setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
     // 3 sessions only — below 2·MIN_SESSIONS (10), so no trend/alert yet → establishingBaseline true.
