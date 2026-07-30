@@ -85,8 +85,13 @@ and "What you represent" (ai_product_context).
   WRONG year-end close (wrong net→RE), wrong period locks, wrong budget variance, with NO warning. MEDIUM-
   HIGH, founder-gated. Write-up: `docs/audits/2026-07-30-fin-fiscal-year-calendar-assumption.md`. Fix: add
   fiscal_year_start_month + derive the window, OR enforce/warn calendar-only. (5) year-end RE roll-up MATH
-  itself is CORRECT (sums stored base exactly, break-even handled, balances). NOT yet audited: banking
-  recon, depreciation.
+  itself is CORRECT (sums stored base exactly, break-even handled, balances). (6) ✅ BANKING recon clean —
+  sign correctly derived from the bank line (`0163:92-99`, incl. an explicit "posted-backwards-still-
+  balances" guard); exact-amount + ±3d matching surfaces discrepancies, no silent absorption. (7) ✅
+  DEPRECIATION clean — final period CLAMPED to the remaining base (`0166:13-16`) so the asset lands exactly
+  at salvage (no rounding residual), append-only entries. **VERDICT: comprehensive money-op audit — 2 real
+  bugs (FX rounding, calendar-FY), everything else correct + honesty-disciplined (the system is well-built;
+  banking/depreciation/settlement code explicitly defends the 'balances-but-silently-wrong' class).**
 
 - **C.A.R.E build post-audit (2026-07-30) — 3 findings fixed:** (1) guidance could soft-override Jeff's
   honesty rules → explicit precedence guard + test (`2bb31de6`); (2) the A34 deferred-column-drop logic was
