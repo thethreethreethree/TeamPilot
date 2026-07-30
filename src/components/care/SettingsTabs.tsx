@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
  */
 
 const TABS = [
+  { href: "/dashboard/care/settings/general", label: "General" },
   { href: "/dashboard/care/settings/ai", label: "AI & Personality" },
   { href: "/dashboard/care/settings/agents", label: "Agents" },
   { href: "/dashboard/care/settings/tags", label: "Tags" },

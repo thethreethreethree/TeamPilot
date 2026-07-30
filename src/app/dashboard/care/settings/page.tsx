@@ -1,9 +1,22 @@
 import Link from "next/link";
-import { Tag, Users, Zap, MessageCircle, Settings as SettingsIcon, Sparkles } from "lucide-react";
+import { Tag, Users, Zap, MessageCircle, Settings as SettingsIcon, Sparkles, SlidersHorizontal } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
-import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 
 const CARDS = [
+  {
+    href: "/dashboard/care/settings/general",
+    label: "General",
+    body: "Module preferences — Learning Mode, Experience Mode — and a map of everything you can configure.",
+    icon: SlidersHorizontal,
+    hint: {
+      title: "General",
+      whatItIs:
+        "The module-level preferences that shape how C.A.R.E behaves for you — Learning Mode and Experience Mode — plus a jump-map to every C.A.R.E configuration surface.",
+      why: "The same cross-cutting dials the main Elostate settings expose belong inside each module too, and a settings home should map the whole surface so nothing is buried.",
+      how: "Open it to toggle Learning/Experience Mode and to navigate to AI, Widget, or Account config.",
+      principle: "Preferences and a complete map belong at the front door of the settings.",
+    },
+  },
   {
     href: "/dashboard/care/settings/ai",
     label: "AI & Personality",
@@ -129,12 +142,6 @@ export default function CareSettingsLandingPage() {
               </LearningHint>
             );
           })}
-        </div>
-
-        {/* Experience Mode — the per-user Standard/Expert dial (0110), present in
-            C.A.R.E per founder spec. The same preference used everywhere. */}
-        <div className="mt-6">
-          <ExperienceModePanel />
         </div>
       </div>
     </>
