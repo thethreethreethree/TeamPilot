@@ -6,6 +6,7 @@ import {
   closeRate,
   revenue,
   avgDealSize,
+  quotaAttainment,
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
@@ -66,6 +67,24 @@ export async function GET() {
     sessionsPerDay: sessionsPerDay(rows),
     avgSessionDurationMin: avgSessionDurationMin(rows),
   };
+
+  // Quota attainment (founder: monthly deals-won target). Fetch the company target (A34-guarded: a missing
+  // column pre-0206, or any read error, leaves the target null → the metric reads "building", never a guess).
+  let monthlyTarget: number | null = null;
+  {
+    const { data: co, error: coErr } = await sb
+      .from("companies")
+      .select("sales_coach_monthly_deal_target")
+      .eq("id", ctx.companyId)
+      .maybeSingle();
+    if (!coErr) monthlyTarget = (co?.sales_coach_monthly_deal_target as number | null) ?? null;
+  }
+  const now = new Date();
+  const monthPrefix = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const dealsWonThisMonth = rows.filter(
+    (r) => r.outcome === "sold" && r.startedAt.slice(0, 7) === monthPrefix
+  ).length;
+  metrics.quotaAttainment = quotaAttainment(dealsWonThisMonth, monthlyTarget);
 
   // Self-comparison deltas (recent half − prior half) for the session-based metrics — spec principle #1.
   const deltas: Record<string, number | null> = {

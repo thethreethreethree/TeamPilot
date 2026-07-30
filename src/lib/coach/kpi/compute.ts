@@ -84,6 +84,23 @@ export function avgDealSize(sessions: KpiSessionRow[]): MetricResult {
   return { value: round2(total / sold.length), sampleSize: sold.length, gated: false, sourceSessionIds: ids };
 }
 
+/**
+ * Quota attainment (%) = deals won this month ÷ the company's monthly deals-won target × 100 (founder-chosen
+ * definition, 2026-07-30). Gated (value:null) until a manager SETS a target — never a fabricated number. A
+ * rep with 0 wins against a real target is an honest 0%, not "building".
+ */
+export function quotaAttainment(dealsWonThisMonth: number, monthlyTarget: number | null): MetricResult {
+  if (monthlyTarget === null || monthlyTarget <= 0) {
+    return { value: null, sampleSize: dealsWonThisMonth, gated: true, sourceSessionIds: [] };
+  }
+  return {
+    value: round1((dealsWonThisMonth / monthlyTarget) * 100),
+    sampleSize: dealsWonThisMonth,
+    gated: false,
+    sourceSessionIds: [],
+  };
+}
+
 // ---- Layer 2: Activity -------------------------------------------------------------------------------
 
 /** Sessions per day = count(sessions) ÷ distinct active days. Gate: ≥ MIN_SESSIONS sessions. */

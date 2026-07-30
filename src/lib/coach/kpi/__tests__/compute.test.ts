@@ -5,6 +5,7 @@ import {
   closeRate,
   revenue,
   avgDealSize,
+  quotaAttainment,
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
@@ -95,6 +96,12 @@ describe("Layer 1 math", () => {
   it("revenue gates when < MIN_SESSIONS sold-with-value", () => {
     const rows = [S("sold", 100, "2026-07-01",30, 1), S("sold", 200, "2026-07-01",30, 2)];
     expect(revenue(rows).value).toBeNull();
+  });
+
+  it("quotaAttainment = deals won ÷ target; gated (null) until a target is set; honest 0% with a target", () => {
+    expect(quotaAttainment(6, null).value).toBeNull(); // no target → building
+    expect(quotaAttainment(6, 10).value).toBe(60); // 6/10
+    expect(quotaAttainment(0, 10).value).toBe(0); // honest 0%, not "building"
   });
 });
 

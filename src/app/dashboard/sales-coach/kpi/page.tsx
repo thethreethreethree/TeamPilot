@@ -48,7 +48,7 @@ const LAYERS: Layer[] = [
       { name: "Average deal size", note: "revenue ÷ deals won", apiKey: "avgDealSize", fmt: "money" },
       { name: "Total revenue", note: "sum of won deal values", apiKey: "revenue", fmt: "money" },
       { name: "Sales cycle length", note: "avg close − first contact" },
-      { name: "Quota attainment", note: "actual ÷ target" },
+      { name: "Quota attainment", note: "deals won this month ÷ your monthly target", apiKey: "quotaAttainment", fmt: "pct" },
     ],
   },
   {

@@ -24,6 +24,11 @@ const setTables = (tables: Record<string, { data: unknown; error?: unknown }>) =
       chain.eq = () => chain;
       chain.order = () => chain;
       chain.in = () => chain;
+      // companies quota-target read uses maybeSingle; null target → quota metric stays "building".
+      chain.maybeSingle = async () => ({
+        data: t === "companies" ? { sales_coach_monthly_deal_target: null } : null,
+        error: null,
+      });
       chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
       return chain;
     },

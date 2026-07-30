@@ -15,6 +15,7 @@ import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { LearningModePanel } from "@/components/settings/LearningModePanel";
 import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
+import { QuotaTargetPanel } from "@/components/sales-coach/QuotaTargetPanel";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { DocUploadButton } from "@/components/sales-coach/DocUploadButton";
@@ -162,6 +163,7 @@ export default function SalesCoachSettingsPage() {
 
             {tab === "coaching" && isManager && ctx && (
               <div className="space-y-4">
+                <QuotaTargetPanel />
                 <CorpusEditor />
 
                 <ProductEditor />
