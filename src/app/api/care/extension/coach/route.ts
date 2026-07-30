@@ -114,8 +114,9 @@ export async function POST(req: NextRequest) {
         { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
       );
     }
+    console.error("[care/extension/coach] non-LLM failure:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Coach couldn't grade that right now." },
+      { error: "Coach couldn't grade that right now." },
       { status: 502 }
     );
   }

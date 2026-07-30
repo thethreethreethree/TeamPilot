@@ -141,10 +141,10 @@ export async function POST(
       numSpeakers: 2,
     });
   } catch (err) {
+    console.error("[upload-recording] processing failed:", err);
     return NextResponse.json(
       {
-        error:
-          err instanceof Error ? err.message : "Transcription failed.",
+        error: "Transcription failed.",
         // The audio was still saved, so the agent can retry processing.
         audioSaved: true,
       },

@@ -46,8 +46,9 @@ export async function POST(req: NextRequest) {
     await unlockControlGate({ companyId: ctx.companyId, reason });
     return NextResponse.json({ ok: true });
   } catch (err) {
+    console.error("[brain/unlock] failed:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Couldn't unlock the control gate." },
       { status: 500 }
     );
   }

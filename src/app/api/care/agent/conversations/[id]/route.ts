@@ -181,10 +181,10 @@ export async function PATCH(
       await clearSupervisorGuidanceRequest(id);
     }
   } catch (err) {
+    console.error("[care/conversation action] failed:", err);
     return NextResponse.json(
       {
-        error:
-          err instanceof Error ? err.message : "Action failed.",
+        error: "Action failed.",
         action: body.action,
       },
       { status: 409 }

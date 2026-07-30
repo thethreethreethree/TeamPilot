@@ -44,8 +44,9 @@ export async function GET() {
       })),
     });
   } catch (err) {
+    console.error("[brain] request failed:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Couldn't process the request." },
       { status: 500 }
     );
   }

@@ -48,8 +48,9 @@ export async function POST(req: NextRequest) {
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }
+    console.error("[ai/decision-dialogue] non-LLM failure:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Decision dialogue failed." },
       { status: 500 }
     );
   }
