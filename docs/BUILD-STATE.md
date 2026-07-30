@@ -40,13 +40,13 @@ and "What you represent" (ai_product_context).
 | J8 | Product-context (ai_product_context) upload | **NOT STARTED** | its editor in care/settings/widget + DocUploadButton, cap 8000 |
 | J9 | Tests + Jeff product knowledge + TBC + commit | **NOT STARTED** | route auth test, guidance save+prompt test; update elostateProductKnowledge.ts; TBC build dir |
 
-### Status — COMPLETE (all J0–J9 done, committed, check exit 0)
+### Status — COMPLETE + DEPLOYED (migrations applied 2026-07-30)
 - All 10 J-items DONE end-to-end: new Jeff guidance field wired into his replies (scoped within his core
-  rules), multi-format upload on all THREE C.A.R.E surfaces, A34-guarded. `npm run check` exit 0 (1654
+  rules), multi-format upload on all THREE C.A.R.E surfaces, A34-guarded. `npm run check` exit 0 (1663
   tests); care extract route 4/4, guidance prompt 3/3, widgetSafe 3/3.
-- ⚠ Migration `0202` written but NOT applied (A34-guarded → Jeff unchanged + guidance-save says "migration
-  pending" until founder `db:apply`). Residuals: CARE-01 (live post-apply check), CARE-02 (8k cap tunable),
-  CARE-03 (per-surface browser click-through).
+- ✅ **Migration `0202` APPLIED (DB at 0202) + `verify:live` 14/14 invariants hold** — the guidance field
+  is now LIVE (reaches Jeff's replies). Theme migration `0201` also applied. Code pushed → Vercel auto-deploy.
+- Residuals now just: CARE-02 (8k cap tunable), CARE-03 (per-surface browser click-through post-deploy).
 
 ---
 
@@ -57,6 +57,7 @@ and "What you represent" (ai_product_context).
 
 | item | state | risk if left / note |
 |------|-------|---------------------|
+| **Migrations 0201 (theme) + 0202 (Jeff guidance)** | ✅ APPLIED 2026-07-30 (DB at 0202, verify:live 14/14) | theme persistence + Jeff guidance field now LIVE. |
 | **AMD-009 ratification** — makes `tbc:revision` mandatory (adds to `tbc` chain) + inserts BUILD-PROTOCOL.md 7.1 + 8.3 + bumps constitution.ts | PROPOSED, awaits founder | say "ratify AMD-009". Until then the revision gate is runnable but not auto-enforced (bounded risk). |
 | **Settings admin scope (S1–S4)** — was the active build, DISPLACED by the C.A.R.E build | PARTIAL — resume after C.A.R.E | **S1 Theme DONE** (`03bc57d4`+test `ef64f350`; migration 0201 not applied). **S3 Timezone foundation DONE** (`c33f461a`); NEXT: broad adoption (TZ-01) + per-user override (TZ-02); **TZ-03 finding OPEN** (company timezone free-text but formatter needs valid IANA → silent local time; fix = IANA dropdown/validate-on-save). **S2 Learning** off-by-default satisfied; admin-flip HELD (profile-creation migration, founder applies+tests). **S4 Access Assistance** DECIDED "build fully" (admin temp-password + must_change_password + login gate) — SECURITY-SENSITIVE, needs founder's 2 mechanism decisions (enforcement point + session handling). |
 | **DEFINER-revoke `0200`** — ~50 finance SECURITY DEFINER fns anon-callable (cross-tenant config read) | FOUNDER-GATED | MEDIUM security. Fix written + de-risked. Live finance change → needs founder "fix the definer revoke". |
