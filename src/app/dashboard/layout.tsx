@@ -7,6 +7,7 @@ import { ExperienceModeProvider } from "@/components/experience/ExperienceModePr
 import type { ExperienceMode } from "@/lib/experience/mode";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import { AskJeffPanel } from "@/components/learning/AskJeffPanel";
+import { VersionWatcher } from "@/components/system/VersionWatcher";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
@@ -138,6 +139,10 @@ export default async function DashboardLayout({
           {/* Ask Jeff slide-out — opens when a LearningHint's "Ask
               Jeff what this does" button is clicked. */}
           <AskJeffPanel />
+          {/* Detects a stale running client (esp. an installed PWA that resumed an
+              old bundle) vs the deployed commit, and offers a one-tap reload — the
+              structural cure for the recurring "I still see the old version". */}
+          <VersionWatcher />
         </div>
        </ExperienceModeProvider>
       </LearningModeProvider>

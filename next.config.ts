@@ -74,6 +74,12 @@ const SECURITY_HEADERS = [X_FRAME_OPTIONS, ...BASE_SECURITY_HEADERS];
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Bake the deployed commit into the CLIENT bundle at build time so a running
+  // client can tell if it's stale vs what's deployed (VersionWatcher). Vercel
+  // injects VERCEL_GIT_COMMIT_SHA; empty off-Vercel (the watcher then no-ops).
+  env: {
+    NEXT_PUBLIC_BUILD_COMMIT: process.env.VERCEL_GIT_COMMIT_SHA ?? "",
+  },
   // Output a standalone server bundle for container deploys (Vercel ignores
   // this and uses its own runtime; Docker / Fly / Render benefit).
   output: "standalone",
