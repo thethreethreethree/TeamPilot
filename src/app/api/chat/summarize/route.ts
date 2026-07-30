@@ -130,7 +130,8 @@ export async function POST(req: NextRequest) {
         if (err instanceof LlmError) {
           send("error", { error: err.message, kind: err.kind, provider: err.provider });
         } else {
-          send("error", { error: err instanceof Error ? err.message : "Unknown error" });
+          console.error("[chat/summarize] non-LLM stream failure:", err);
+          send("error", { error: "Couldn't generate a summary." });
         }
         controller.close();
       }

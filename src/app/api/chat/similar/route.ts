@@ -222,10 +222,11 @@ export async function POST(req: NextRequest) {
         { status: 502, headers: { "Content-Type": "application/json" } }
       );
     }
+    console.error("[chat/similar] non-LLM failure:", err);
     return new Response(
       JSON.stringify({
         matches: [],
-        error: err instanceof Error ? err.message : "Unknown error",
+        error: "Couldn't find similar items.",
       }),
       { status: 502, headers: { "Content-Type": "application/json" } }
     );

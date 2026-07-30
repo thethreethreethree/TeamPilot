@@ -109,8 +109,9 @@ export async function POST(req: NextRequest) {
             provider: err.provider,
           });
         } else {
+          console.error("[ai/briefing/stream] non-LLM stream failure:", err);
           send("error", {
-            error: err instanceof Error ? err.message : "Unknown error",
+            error: "Couldn't generate the briefing.",
           });
         }
         controller.close();

@@ -94,9 +94,7 @@ export async function POST(
     }
     return NextResponse.json({ answer: r.text.trim() });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Ask-coach failed." },
-      { status: 502 }
-    );
+    console.error("[coach/sales-session/ask-coach] failed:", err);
+    return NextResponse.json({ error: "Ask-coach failed." }, { status: 502 });
   }
 }
