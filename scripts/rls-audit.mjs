@@ -164,6 +164,18 @@ const ALLOWLIST = new Map([
   ["care_rcd_media.insert", "0194 service-role ingest only; row carries company_id."],
   ["care_rcd_media.update", "§3.1 0194 captured media record — immutable (trigger)."],
   ["care_rcd_media.delete", "0194 delete only via service-role retention purge / message cascade."],
+  // KPI computed layer (0205): RLS SELECT is own-or-manager; there is NO member INSERT/UPDATE/DELETE BY
+  // DESIGN — only the service-role compute jobs write these (bypassing RLS). A member direct-write would be
+  // exactly the self-fabrication vector 0113 closed for the ELO. Each absence is the control.
+  ["agent_baseline.insert", "0205 service-role compute jobs only; a member insert could self-fabricate a baseline (cf. 0113)."],
+  ["agent_baseline.update", "0205 service-role recompute only; members never edit their own baseline stats."],
+  ["agent_baseline.delete", "0205 service-role only; baselines are managed by the compute jobs, never member-deleted."],
+  ["kpi_snapshot.insert", "0205 service-role compute jobs only; a member insert could fabricate a KPI value."],
+  ["kpi_snapshot.update", "0205 service-role recompute only; snapshots are append/upsert by the jobs, not members."],
+  ["kpi_snapshot.delete", "0205 service-role only; drill-down integrity depends on snapshots not being member-deleted."],
+  ["growth_record.insert", "0205 service-role compute jobs only; a member insert could fabricate a growth trajectory."],
+  ["growth_record.update", "0205 service-role recompute only; members never edit their own growth record."],
+  ["growth_record.delete", "0205 service-role only; growth history is managed by the compute jobs, never member-deleted."],
   // resolutions.update is NOT append-only: the 0005 "resolutions - all" for-all policy
   // (company-scoped) covers it, and the resolution REVIEW legitimately edits
   // observed_outcome/durability/reviewed_at (see /api/resolutions PATCH). It's listed
