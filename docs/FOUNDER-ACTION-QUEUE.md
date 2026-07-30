@@ -25,6 +25,21 @@
   signup→redeem→redirect chain — the one thing I couldn't verify headlessly — **works in production.** The
   pilot is genuinely live. (`npm run pilot:status` shows redemptions.)
 
+### 🟡 Sales Coach revisions (2026-07-31) — urgent request BUILT + live; 3 judgment calls remain
+Your annotated mockup shipped: grouped numbered nav (Manager Dashboard / Team Tools, matched exactly incl. the
+1./2./3.), after-recording → After-Pitch Summary (both upload + live paths), and product-aware coaching wired
+into all 8 engines + the post-call review. Tested end-to-end, surface security-audited clean, live in prod.
+Three deliberate defaults I chose — flip any on your word:
+- **Nav section gating** — I kept Manager-Dashboard items (Analytics, Session) VISIBLE to reps (gating the
+  whole section would cut reps off from their own data). Say *"gate the manager sections"* to make entire
+  sections manager-only instead.
+- **After-recording end-session** — after a recording I show the After-Pitch Summary but leave the session
+  `active` (the summary generates regardless). Say *"end the session after recording"* to also mark it ended
+  (that also surfaces the call duration).
+- **"One Liners" vs "Strategy"** — Standard already shows "One Liners" (matches your mockup); Expert keeps
+  "Strategy" per your 2026-07-28 decision. Say *"One Liners everywhere"* for a full rename (nav + page title +
+  mobile card).
+
 ### 🟡 Product / policy decisions — I build on your word (each is a real trade-off, not a bug)
 - **Support-search access policy** — support content is company-searchable by non-agents; agent-gate it, or leave
   as intended? ~10 lines. Say *"agent-gate support in search."* *(Access-consistency §.)*
