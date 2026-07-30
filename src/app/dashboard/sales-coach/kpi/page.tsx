@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight, Users } from "lucide-react";
+import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight, Users, Download } from "lucide-react";
+import { toCsv } from "@/lib/export/toCsv";
 
 /**
  * /dashboard/sales-coach/kpi — KPI Analytics (SalesCoach-KPI-System.md).
@@ -141,6 +142,33 @@ export default function KpiAnalyticsPage() {
     };
   }, []);
 
+  // CSV export (spec: Exports). Client-side, routed through the formula-safe toCsv writer.
+  const exportCsv = () => {
+    if (!data) return;
+    const rows: Record<string, unknown>[] = [];
+    for (const layer of LAYERS) {
+      for (const m of layer.metrics) {
+        const r = m.apiKey ? data.metrics?.[m.apiKey] : undefined;
+        const delta = m.apiKey ? data.deltas?.[m.apiKey] : undefined;
+        rows.push({
+          Layer: layer.title,
+          Metric: m.name,
+          Value: r && r.value !== null ? r.value : "building",
+          Sessions: r ? r.sampleSize : "",
+          "Delta vs earlier": typeof delta === "number" ? delta : "",
+        });
+      }
+    }
+    const csv = toCsv(rows, ["Layer", "Metric", "Value", "Sessions", "Delta vs earlier"]);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "kpi-analytics.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const renderMetricValue = (m: Metric) => {
     if (!m.apiKey) return <span className="text-[10px] font-mono text-muted shrink-0 mt-0.5">building…</span>;
     const r = data?.metrics?.[m.apiKey];
@@ -165,14 +193,26 @@ export default function KpiAnalyticsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl mx-auto w-full">
-      <header className="mb-5">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-brand" aria-hidden />
-          <h1 className="text-lg font-semibold text-primary">KPI Analytics</h1>
+      <header className="mb-5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-brand" aria-hidden />
+            <h1 className="text-lg font-semibold text-primary">KPI Analytics</h1>
+          </div>
+          <p className="text-xs text-muted mt-1">
+            Measure growth, not just results — compared to your own past, never a leaderboard.
+          </p>
         </div>
-        <p className="text-xs text-muted mt-1">
-          Measure growth, not just results — compared to your own past, never a leaderboard.
-        </p>
+        {data && (
+          <button
+            type="button"
+            onClick={exportCsv}
+            className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-secondary hover:text-primary border border-default hover:border-strong rounded-md px-2.5 py-1.5 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" aria-hidden />
+            Export CSV
+          </button>
+        )}
       </header>
 
       <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.05] p-4 mb-5">
