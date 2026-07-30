@@ -68,3 +68,15 @@ arithmetic to prove money behavior (per the standing "prove money bugs with exac
 
 So within multi-currency, the POST-time per-line rounding above is the one live correctness defect; the
 settlement path is a clean deferral, not a silent bug.
+
+### Settlement-guard completeness sweep (A26 — no unguarded foreign path)
+
+Swept EVERY money-moving settlement/payment RPC to confirm the foreign-currency guard has no gap:
+- `fin_pay_bill` (0124/0127), `fin_record_receipt` (0132) — guard directly (the three raise sites above).
+- `fin_execute_payment_schedule` (0158) — delegates to `fin_pay_bill` ("the single posting path… we do
+  not duplicate any of that here"), so it inherits the guard.
+- `fin_reimburse_expense_report` (0153) — posts both lines in BASE currency by construction
+  (`'currency', v_base`), so there is no foreign settlement to mis-handle.
+- `fin_post_payroll_run` (0167) — payroll posts in base.
+Result: the "a foreign settlement must be guarded" invariant holds across ALL settlement paths — CLEAN,
+no unguarded path. (An unguarded one would have silently mis-computed realized FX gain/loss.)
