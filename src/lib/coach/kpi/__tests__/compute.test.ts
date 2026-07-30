@@ -9,6 +9,7 @@ import {
   avgSessionDurationMin,
   layer3Dimension,
   cueAcceptanceRate,
+  cueToOutcomeCorrelation,
   relianceReductionSlope,
   relianceReductionFromFirstCue,
   overallSkillProgression,
@@ -250,6 +251,16 @@ describe("Layer 4 (coaching & growth)", () => {
     const r = (sid: string, score: number) => ({ sessionId: sid, scores: [{ key: "objection", score }] });
     expect(qualityConsistency([r("1", 6), r("2", 6), r("3", 6), r("4", 6), r("5", 6)]).value).toBe(100);
     expect(qualityConsistency([r("1", 6), r("2", 6)]).value).toBeNull();
+  });
+
+  it("cueToOutcomeCorrelation is +1 when acting on cues perfectly tracks winning; gated below 2·MIN", () => {
+    const s = (rate: number, won: boolean, id: string) => ({ actedRate: rate, won, sessionId: id });
+    const perfect = [
+      s(1, true, "1"), s(1, true, "2"), s(1, true, "3"), s(1, true, "4"), s(1, true, "5"),
+      s(0, false, "6"), s(0, false, "7"), s(0, false, "8"), s(0, false, "9"), s(0, false, "10"),
+    ];
+    expect(cueToOutcomeCorrelation(perfect).value).toBe(1);
+    expect(cueToOutcomeCorrelation(perfect.slice(0, 9)).value).toBeNull(); // < 10
   });
 
   it("relianceReductionSlope gates below MIN_SESSIONS", () => {

@@ -31,7 +31,7 @@ type TeamAgent = {
   relianceReduction: MetricResult;
 };
 
-type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope" | "delta";
+type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope" | "delta" | "corr";
 type Metric = { name: string; note: string; apiKey?: string; fmt?: Fmt; headline?: boolean };
 type Layer = { key: string; title: string; subtitle: string; icon: typeof Target; metrics: Metric[] };
 
@@ -85,7 +85,7 @@ const LAYERS: Layer[] = [
     metrics: [
       { name: "Reliance reduction", note: "cue-frequency slope — negative means you need fewer cues over time", apiKey: "relianceReduction", fmt: "slope", headline: true },
       { name: "Cue acceptance rate", note: "cues you acted on ÷ delivered", apiKey: "cueAcceptanceRate", fmt: "pct" },
-      { name: "Cue-to-outcome correlation", note: "did acting on a cue improve the result?" },
+      { name: "Cue-to-outcome correlation", note: "does acting on cues track with winning? (association, not proof)", apiKey: "cueToOutcome", fmt: "corr" },
       { name: "Skill progression", note: "Δ in your quality scores vs. your own earlier calls", apiKey: "skillProgression", fmt: "delta" },
       { name: "Recommendation uptake", note: "did last session's advice show up this session?" },
       { name: "Consistency", note: "how steady your quality is, call to call", apiKey: "consistency", fmt: "score" },
@@ -100,6 +100,7 @@ function fmtValue(v: number, fmt?: Fmt): string {
   if (fmt === "score") return `${v} / 100`;
   if (fmt === "slope") return `${v > 0 ? "+" : ""}${v}/session`;
   if (fmt === "delta") return v === 0 ? "0" : `${v > 0 ? "▲ +" : "▼ "}${Math.abs(v)}`;
+  if (fmt === "corr") return `r=${v > 0 ? "+" : ""}${v}`;
   return v.toLocaleString();
 }
 

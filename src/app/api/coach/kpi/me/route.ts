@@ -12,6 +12,7 @@ import {
   overallSkillProgression,
   qualityConsistency,
   cueAcceptanceRate,
+  cueToOutcomeCorrelation,
   relianceReductionFromFirstCue,
   selfDelta,
   MIN_SESSIONS,
@@ -129,9 +130,27 @@ export async function GET() {
       .filter((r) => coachedSessions.has(r.sessionId)) // coach-active sessions only
       .map((r) => ({ cueCount: countBySession.get(r.sessionId) ?? 0, sessionId: r.sessionId }));
     metrics.relianceReduction = relianceReductionFromFirstCue(points);
+
+    // Cue-to-outcome correlation (spec #2) — per session with cues AND a win/loss outcome.
+    const actedBySession = new Map<string, number>();
+    for (const c of cueRows ?? []) {
+      if (actedCueIds.has(c.id as string)) {
+        const sid = c.session_id as string;
+        actedBySession.set(sid, (actedBySession.get(sid) ?? 0) + 1);
+      }
+    }
+    const corrRows = rows
+      .filter((r) => (countBySession.get(r.sessionId) ?? 0) > 0 && (r.outcome === "sold" || r.outcome === "no_sale"))
+      .map((r) => ({
+        actedRate: (actedBySession.get(r.sessionId) ?? 0) / (countBySession.get(r.sessionId) as number),
+        won: r.outcome === "sold",
+        sessionId: r.sessionId,
+      }));
+    metrics.cueToOutcome = cueToOutcomeCorrelation(corrRows);
   } else {
     metrics.cueAcceptanceRate = cueAcceptanceRate([]);
     metrics.relianceReduction = relianceReductionFromFirstCue([]);
+    metrics.cueToOutcome = cueToOutcomeCorrelation([]);
   }
 
   // Compact session lookup for drill-down (every KPI traces to the sessions that produced it).

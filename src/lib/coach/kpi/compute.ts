@@ -184,6 +184,35 @@ export function cueAcceptanceRate(cues: { acted: boolean }[]): MetricResult {
 }
 
 /**
+ * Cue-to-outcome correlation (Layer 4, the spec's #2 principle — consequence, not agreement). Point-biserial
+ * (Pearson) correlation across sessions between the session's acted-cue rate (0-1) and whether it was WON.
+ * Positive = acting on cues associates with selling. It is an ASSOCIATION, not proof of causation — the UI
+ * must say so. Correlations are noisy on little data, so the gate is higher: ≥ 2·MIN_SESSIONS sessions that
+ * had BOTH ≥1 cue and a recorded win/loss outcome. Range −1..1.
+ */
+export function cueToOutcomeCorrelation(
+  sessions: { actedRate: number; won: boolean; sessionId: string }[]
+): MetricResult {
+  const ids = sessions.map((s) => s.sessionId);
+  if (sessions.length < 2 * MIN_SESSIONS) return gated(sessions.length, ids);
+  const n = sessions.length;
+  const mx = sessions.reduce((a, s) => a + s.actedRate, 0) / n;
+  const my = sessions.reduce((a, s) => a + (s.won ? 1 : 0), 0) / n;
+  let num = 0;
+  let dx = 0;
+  let dy = 0;
+  for (const s of sessions) {
+    const a = s.actedRate - mx;
+    const b = (s.won ? 1 : 0) - my;
+    num += a * b;
+    dx += a * a;
+    dy += b * b;
+  }
+  const denom = Math.sqrt(dx * dy);
+  return { value: denom === 0 ? 0 : round2(num / denom), sampleSize: n, gated: false, sourceSessionIds: ids };
+}
+
+/**
  * Reliance reduction (the headline) — the slope of cues-per-session over the agent's session timeline.
  * A NEGATIVE slope = fewer cues needed over time = the agent is internalizing the skill (good). Value is
  * cues/session change per session. Gate: ≥ MIN_SESSIONS sessions. (The "while performance holds" qualifier
