@@ -108,10 +108,8 @@ export async function PUT(req: NextRequest) {
         status: body.status,
       });
     } catch (e) {
-      return NextResponse.json(
-        { error: e instanceof Error ? e.message : "Status update failed." },
-        { status: 500 }
-      );
+      console.error("[care/agent/presence] setAgentStatus failed:", e);
+      return NextResponse.json({ error: "Status update failed." }, { status: 500 });
     }
   }
 
@@ -136,10 +134,8 @@ export async function PUT(req: NextRequest) {
         channels: body.channels,
       });
     } catch (e) {
-      return NextResponse.json(
-        { error: e instanceof Error ? e.message : "Settings update failed." },
-        { status: 500 }
-      );
+      console.error("[care/agent/presence] setAgentRoutingSettings failed:", e);
+      return NextResponse.json({ error: "Settings update failed." }, { status: 500 });
     }
   }
 
