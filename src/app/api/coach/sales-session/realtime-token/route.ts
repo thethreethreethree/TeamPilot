@@ -38,9 +38,7 @@ export async function POST(req: NextRequest) {
     const token = await mintRealtimeSttToken();
     return NextResponse.json({ token });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Token mint failed." },
-      { status: 502 }
-    );
+    console.error("[realtime-token] mint failed:", err);
+    return NextResponse.json({ error: "Token mint failed." }, { status: 502 });
   }
 }

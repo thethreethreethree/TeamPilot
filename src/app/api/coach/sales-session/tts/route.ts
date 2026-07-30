@@ -72,10 +72,8 @@ export async function POST(req: NextRequest) {
   try {
     stream = await synthesizeSpeechStream({ text: body.text, voiceId });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "TTS synthesis failed." },
-      { status: 502 }
-    );
+    console.error("[coach/tts] synthesis failed:", e);
+    return NextResponse.json({ error: "TTS synthesis failed." }, { status: 502 });
   }
 
   return new NextResponse(stream, {

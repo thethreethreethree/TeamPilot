@@ -102,12 +102,8 @@ export async function POST(req: NextRequest) {
       mimeType: contentType,
     });
   } catch (e) {
-    return NextResponse.json(
-      {
-        error: e instanceof Error ? e.message : "STT transcription failed.",
-      },
-      { status: 502 }
-    );
+    console.error("[care/stt] transcription failed:", e);
+    return NextResponse.json({ error: "STT transcription failed." }, { status: 502 });
   }
 
   if (!transcript) {
