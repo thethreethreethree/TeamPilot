@@ -73,6 +73,14 @@ and "What you represent" (ai_product_context).
 
 ## ▶ AUDIT BASELINES (swept class boundaries — for the next audit)
 
+- **C.A.R.E build post-audit (2026-07-30) — 3 findings fixed:** (1) guidance could soft-override Jeff's
+  honesty rules → explicit precedence guard + test (`2bb31de6`); (2) the A34 deferred-column-drop logic was
+  untested + inline → extracted to `deferredColumnsToDrop` + 4 tests (`531b0d7a`); (3) **REAL BUG** —
+  `extractText` sliced to the CONST cap, ignoring the per-caller `maxChars`, so a Jeff-guidance/product
+  upload (8k) would overflow to 100k + fail to save (F5 recurrence) → `slice(0, maxChars)` + 2 tests
+  (`b303df99`). The default masked it (const == default). Class swept: only extractText's slice + the
+  epub bound use the cap; both now honor maxChars.
+
 - **F5 class — "a producer whose output cap exceeds its consumer's save cap"** — swept codebase-wide
   2026-07-30 (`grep content:.*max( in api` + upload→field producers). Instances: doc-upload extraction
   (was 500k > 100k save — FIXED `74dfc387`, gated). Sound: C.A.R.E ACMS upload (`AdaptiveKnowledgePanel
