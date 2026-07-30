@@ -106,8 +106,9 @@ export async function GET(req: NextRequest) {
       "id, coach_enabled, status, close_durability, created_at, closed_at"
     );
   if (topicsErr) {
+    console.error("[admin/coach-readout] failed to load topics:", topicsErr);
     return NextResponse.json(
-      { error: topicsErr.message },
+      { error: "Couldn't load the coach readout." },
       { status: 500 }
     );
   }
@@ -119,7 +120,8 @@ export async function GET(req: NextRequest) {
     .from("chat_messages")
     .select("topic_id");
   if (msgErr) {
-    return NextResponse.json({ error: msgErr.message }, { status: 500 });
+    console.error("[admin/coach-readout] failed to load messages:", msgErr);
+    return NextResponse.json({ error: "Couldn't load the coach readout." }, { status: 500 });
   }
   const msgCountByTopic = new Map<string, number>();
   for (const m of msgs ?? []) {
@@ -144,7 +146,8 @@ export async function GET(req: NextRequest) {
     .select("kind, payload, subject")
     .ilike("kind", "coach.suggestion_%");
   if (eventsErr) {
-    return NextResponse.json({ error: eventsErr.message }, { status: 500 });
+    console.error("[admin/coach-readout] failed to load events:", eventsErr);
+    return NextResponse.json({ error: "Couldn't load the coach readout." }, { status: 500 });
   }
   const heuristicAgg = new Map<
     string,
@@ -416,8 +419,9 @@ export async function GET(req: NextRequest) {
   // page's existing `!res.ok` honest-error state fires. Happy path unchanged.
   const secondaryReadError = eCompany ?? eTasks ?? eSteps ?? eGrade ?? eAnalyze;
   if (secondaryReadError) {
+    console.error("[admin/coach-readout] secondary read failed:", secondaryReadError);
     return NextResponse.json(
-      { error: secondaryReadError.message },
+      { error: "Couldn't load the coach readout." },
       { status: 500 }
     );
   }

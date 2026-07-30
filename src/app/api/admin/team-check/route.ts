@@ -119,7 +119,8 @@ export async function GET() {
     )
     .is("left_at", null);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[admin/team-check] query failed:", error);
+    return NextResponse.json({ error: "Couldn't run the team check." }, { status: 500 });
   }
 
   type TaskShape = {
