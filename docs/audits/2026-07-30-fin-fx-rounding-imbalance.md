@@ -54,3 +54,17 @@ Confirmed by reading 0118 (the per-line round + the three base-balance assertion
 against a live DB (no multi-currency entry was posted). The arithmetic above is exact-decimal, so the
 rejection is deterministic for the shown inputs. A regression test should use exact-decimal (not float)
 arithmetic to prove money behavior (per the standing "prove money bugs with exact-decimal" discipline).
+
+## Adjacent FX surfaces checked (this audit's scope)
+
+- **AP/AR foreign-currency SETTLEMENT (realized FX gain/loss)** — checked, NOT a bug: it is HONESTLY
+  DEFERRED with a loud guard. `0124:52` (AP payments), `0127:29` (pay-bill), `0132:46` (AR receipts) each
+  `raise exception 'Foreign-currency settlement … realizes FX gain/loss vs the booking rate — that
+  increment is not built yet. Base-currency … only for now.'` So a foreign settlement fails clearly rather
+  than mis-computing gain/loss — the correct honesty-first posture (build only the shipped part, refuse the
+  rest loudly).
+- **Period-containment** (entry_date must fall in the resolved period) — already on record separately
+  (`reference_gate_keys_on_reference_not_data`), not re-opened here.
+
+So within multi-currency, the POST-time per-line rounding above is the one live correctness defect; the
+settlement path is a clean deferral, not a silent bug.
