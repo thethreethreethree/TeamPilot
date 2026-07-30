@@ -79,5 +79,40 @@ describe("GET /api/coach/kpi/me", () => {
     expect(body.metrics.avgDealSize.value).toBe(100);
     // A metric with no data stays gated ("building").
     expect(body.metrics.cueAcceptanceRate.value).toBeNull();
+    // Win/loss with 5 wins and 0 losses is an UNDEFINED ratio → gated, never ∞ (consumer wiring, not just compute).
+    expect(body.metrics.winLossRatio.value).toBeNull();
+    expect(body.metrics.winLossRatio.gated).toBe(true);
+    // Quota with no company target set stays "building" (the mock returns target null).
+    expect(body.metrics.quotaAttainment.value).toBeNull();
+  });
+
+  it("surfaces a real win/loss ratio through the route (4 sold + 1 no_sale → 4.0)", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: false });
+    const mixed = (id: string, day: string, outcome: string) => ({
+      id,
+      outcome,
+      deal_value: outcome === "sold" ? 100 : null,
+      started_at: `${day}T10:00:00.000Z`,
+      ended_at: `${day}T10:30:00.000Z`,
+      client_label: null,
+    });
+    setTables({
+      coaching_sessions: {
+        data: [
+          mixed("s1", "2026-07-01", "sold"),
+          mixed("s2", "2026-07-02", "sold"),
+          mixed("s3", "2026-07-03", "sold"),
+          mixed("s4", "2026-07-04", "sold"),
+          mixed("s5", "2026-07-05", "no_sale"),
+        ],
+      },
+      after_pitch_summaries: { data: [] },
+      coaching_cues: { data: [] },
+      coaching_cue_outcomes: { data: [] },
+      coaching_transcript_segments: { data: [] },
+    });
+    const body = await (await GET()).json();
+    expect(body.metrics.winLossRatio.value).toBe(4); // 4 wins ÷ 1 loss
+    expect(body.metrics.conversionRate.value).toBe(80); // 4 of 5 opportunities
   });
 });
