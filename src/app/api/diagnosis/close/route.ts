@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
       p_expected_outcome: expectedOutcome ?? null,
     });
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("[diagnosis/close] failed to close diagnosis:", error);
+      return NextResponse.json({ error: "Couldn't close the diagnosis." }, { status: 500 });
     }
     return NextResponse.json({ resolutionId: data });
   } catch (err) {

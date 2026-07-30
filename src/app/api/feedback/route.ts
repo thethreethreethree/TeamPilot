@@ -75,8 +75,9 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !data) {
+    if (error) console.error("[feedback POST] failed to insert feedback:", error);
     return NextResponse.json(
-      { error: error?.message ?? "Insert failed." },
+      { error: "Couldn't submit feedback." },
       { status: 500 }
     );
   }
@@ -126,7 +127,8 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await q;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[feedback GET] failed to load feedback:", error);
+    return NextResponse.json({ error: "Couldn't load feedback." }, { status: 500 });
   }
   return NextResponse.json({ feedback: data ?? [] });
 }

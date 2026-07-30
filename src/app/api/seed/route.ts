@@ -113,7 +113,8 @@ export async function POST() {
 
   const firstError = tasksRes.error ?? teamRes.error ?? decRes.error;
   if (firstError) {
-    return NextResponse.json({ error: firstError.message }, { status: 500 });
+    console.error("[seed] failed to seed sample data:", firstError);
+    return NextResponse.json({ error: "Couldn't seed sample data." }, { status: 500 });
   }
 
   return NextResponse.json({
