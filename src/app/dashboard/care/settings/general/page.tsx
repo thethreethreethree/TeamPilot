@@ -5,6 +5,7 @@ import { MessageCircle, Settings as SettingsIcon, Sparkles } from "lucide-react"
 import { SettingsTabs } from "@/components/care/SettingsTabs";
 import { LearningModePanel } from "@/components/settings/LearningModePanel";
 import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
+import { CareNotificationsPanel } from "@/components/care/CareNotificationsPanel";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
@@ -59,6 +60,7 @@ export default function CareGeneralSettingsPage() {
         <div className="space-y-4">
           <LearningModePanel />
           <ExperienceModePanel />
+          <CareNotificationsPanel />
         </div>
 
         {/* Jump to the operational config surfaces. */}

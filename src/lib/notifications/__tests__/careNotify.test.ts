@@ -9,20 +9,27 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const state = vi.hoisted(() => ({
   conv: null as { assigned_agent_id: string | null; customer_id: string | null } | null,
   customer: null as { name: string | null } | null,
+  pref: null as { care_notify_customer_reply: boolean | null } | null,
+  prefErr: null as unknown,
   push: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => {
-  const q = (data: unknown) => {
+  const q = (result: { data: unknown; error?: unknown }) => {
     const b: Record<string, unknown> = {};
     b.select = () => b;
     b.eq = () => b;
-    b.maybeSingle = async () => ({ data });
+    b.maybeSingle = async () => result;
     return b;
   };
   return {
     createAdminClient: () => ({
-      from: (t: string) => (t === "support_conversations" ? q(state.conv) : q(state.customer)),
+      from: (t: string) =>
+        t === "support_conversations"
+          ? q({ data: state.conv })
+          : t === "profiles"
+            ? q({ data: state.pref, error: state.prefErr })
+            : q({ data: state.customer }),
     }),
   };
 });
@@ -33,6 +40,8 @@ const { notifyAssignedAgentOfCustomerMessage } = await import("../careNotify");
 beforeEach(() => {
   state.conv = { assigned_agent_id: "agent-1", customer_id: "cust-1" };
   state.customer = { name: "Dana" };
+  state.pref = { care_notify_customer_reply: true }; // default: notify
+  state.prefErr = null;
   state.push.mockReset();
   state.push.mockResolvedValue(undefined);
   vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -74,5 +83,24 @@ describe("notifyAssignedAgentOfCustomerMessage", () => {
   it("NEVER throws, even if the sender throws (fire-and-forget contract)", async () => {
     state.push.mockRejectedValue(new Error("vapid boom"));
     await expect(notifyAssignedAgentOfCustomerMessage({ conversationId: "c", body: "hi" })).resolves.toBeUndefined();
+  });
+
+  it("does NOT push when the agent has opted out (care_notify_customer_reply = false)", async () => {
+    state.pref = { care_notify_customer_reply: false };
+    await notifyAssignedAgentOfCustomerMessage({ conversationId: "c", body: "hi" });
+    expect(state.push).not.toHaveBeenCalled();
+  });
+
+  it("STILL pushes when the preference column is missing (A34 degrade — pre-migration behavior)", async () => {
+    state.pref = null;
+    state.prefErr = { code: "42703", message: 'column "care_notify_customer_reply" does not exist' };
+    await notifyAssignedAgentOfCustomerMessage({ conversationId: "c", body: "hi" });
+    expect(state.push).toHaveBeenCalledTimes(1);
+  });
+
+  it("pushes when the preference is unset/null (defaults to notify)", async () => {
+    state.pref = { care_notify_customer_reply: null };
+    await notifyAssignedAgentOfCustomerMessage({ conversationId: "c", body: "hi" });
+    expect(state.push).toHaveBeenCalledTimes(1);
   });
 });

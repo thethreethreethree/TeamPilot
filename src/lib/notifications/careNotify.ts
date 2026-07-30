@@ -35,6 +35,20 @@ export async function notifyAssignedAgentOfCustomerMessage(args: {
     const agentId = conv?.assigned_agent_id as string | null | undefined;
     if (!agentId) return; // unassigned → no push, per the chosen scope.
 
+    // Respect the agent's per-user preference (settings pillar 3). A34-guarded: if the column is absent
+    // (migration 0204 not applied) the select errors and we fall through to SEND — i.e. today's behavior —
+    // so nothing changes before apply. Only an EXPLICIT false opts out.
+    {
+      const { data: pref, error: prefErr } = await admin
+        .from("profiles")
+        .select("care_notify_customer_reply")
+        .eq("id", agentId)
+        .maybeSingle();
+      if (!prefErr && pref && (pref.care_notify_customer_reply as boolean | null) === false) {
+        return; // agent opted out of customer-reply pushes.
+      }
+    }
+
     // Best-effort customer name for the title; generic if unavailable.
     let customerName = "A customer";
     const customerId = conv?.customer_id as string | null | undefined;
