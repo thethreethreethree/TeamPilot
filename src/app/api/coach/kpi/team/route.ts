@@ -4,7 +4,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import {
   conversionRate,
-  relianceReductionSlope,
+  relianceReductionFromFirstCue,
   type KpiSessionRow,
   type MetricResult,
 } from "@/lib/coach/kpi/compute";
@@ -86,8 +86,8 @@ export async function GET() {
     const id = m.id as string;
     const rows = byAgent.get(id) ?? [];
     const conversion: MetricResult = conversionRate(rows);
-    const reliance: MetricResult = relianceReductionSlope(
-      rows.map((r, i) => ({ order: i + 1, cueCount: cueCountBySession.get(r.sessionId) ?? 0, sessionId: r.sessionId }))
+    const reliance: MetricResult = relianceReductionFromFirstCue(
+      rows.map((r) => ({ cueCount: cueCountBySession.get(r.sessionId) ?? 0, sessionId: r.sessionId }))
     );
     return {
       agentId: id,

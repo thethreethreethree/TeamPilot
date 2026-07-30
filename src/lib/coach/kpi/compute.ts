@@ -165,6 +165,25 @@ export function relianceReductionSlope(
   return { value: round2(slope), sampleSize: n, gated: false, sourceSessionIds: ids };
 }
 
+/**
+ * Reliance reduction measured from the agent's FIRST CUED session onward (residual-#1 fix). Sessions before
+ * the first cue are the observe window (the coach listens but doesn't cue) or pre-coach — a 0-cue count there
+ * is not a reliance signal and would flatten/mislead the slope. We drop that leading run and re-index, so the
+ * slope reflects the trend once cueing actually began. Gate: ≥ MIN_SESSIONS cued-era sessions.
+ * (A residual remains: a post-first-cue session where the rep simply didn't use the coach also reads 0 cues;
+ * distinguishing that needs a per-session coach-active flag — tracked in the KPI residuals audit.)
+ */
+export function relianceReductionFromFirstCue(
+  points: { cueCount: number; sessionId: string }[]
+): MetricResult {
+  const firstIdx = points.findIndex((p) => p.cueCount > 0);
+  if (firstIdx === -1) return gated(0, []);
+  const relevant = points
+    .slice(firstIdx)
+    .map((p, i) => ({ order: i + 1, cueCount: p.cueCount, sessionId: p.sessionId }));
+  return relianceReductionSlope(relevant);
+}
+
 // ---- Baseline / delta (self-comparison) --------------------------------------------------------------
 
 /** Rolling mean + stddev of a metric's historical values (population). Feeds delta_vs_baseline. */

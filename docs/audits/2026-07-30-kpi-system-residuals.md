@@ -13,11 +13,12 @@ honest record of what is NOT yet complete, so nothing reads as more finished tha
 
 ## Residuals / known limitations (ranked)
 
-1. **Reliance Reduction counts 0-cue sessions (MEDIUM).** `relianceReductionSlope` treats every session in
-   the timeline, including sessions where the live coach was never active (0 cues). A no-coaching session
-   reads as "low reliance" and can flatten/mislead the slope. Fix: restrict the slope to sessions where
-   coaching was actually active (needs a per-session coach-active signal — the live-coaching `status` or a
-   cue-eligibility flag). Noted honestly in the compute doc-comment.
+1. **Reliance Reduction counts 0-cue sessions — PARTIALLY FIXED (was MEDIUM → now LOW).** The biggest skew
+   was fixed: `relianceReductionFromFirstCue` now drops the leading observe-window / pre-coaching sessions
+   (measures the slope only from the agent's first CUED session onward) — tested. RESIDUAL: a session AFTER
+   the first cue where the rep simply didn't use the live coach also reads 0 cues and still counts; cleanly
+   excluding it needs a per-session coach-active flag (e.g. ≥1 transcript segment), which would add a query
+   to /me — deferred as a smaller refinement.
 
 2. **`agent_baseline` + `growth_record` are defined but NOT yet populated (MEDIUM).** `delta_vs_baseline`
    (current vs. the agent's own rolling history) is the spec's self-comparison core, but it needs a TIME

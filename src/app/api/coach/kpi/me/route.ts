@@ -10,7 +10,7 @@ import {
   avgSessionDurationMin,
   layer3Dimension,
   cueAcceptanceRate,
-  relianceReductionSlope,
+  relianceReductionFromFirstCue,
   MIN_SESSIONS,
   type KpiSessionRow,
   type MetricResult,
@@ -102,15 +102,14 @@ export async function GET() {
       const sid = c.session_id as string;
       countBySession.set(sid, (countBySession.get(sid) ?? 0) + 1);
     }
-    const points = rows.map((r, i) => ({
-      order: i + 1,
+    const points = rows.map((r) => ({
       cueCount: countBySession.get(r.sessionId) ?? 0,
       sessionId: r.sessionId,
     }));
-    metrics.relianceReduction = relianceReductionSlope(points);
+    metrics.relianceReduction = relianceReductionFromFirstCue(points);
   } else {
     metrics.cueAcceptanceRate = cueAcceptanceRate([]);
-    metrics.relianceReduction = relianceReductionSlope([]);
+    metrics.relianceReduction = relianceReductionFromFirstCue([]);
   }
 
   // Compact session lookup for drill-down (every KPI traces to the sessions that produced it).

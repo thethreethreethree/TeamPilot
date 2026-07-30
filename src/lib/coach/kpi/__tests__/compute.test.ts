@@ -10,6 +10,7 @@ import {
   layer3Dimension,
   cueAcceptanceRate,
   relianceReductionSlope,
+  relianceReductionFromFirstCue,
   baseline,
   sumDollarsExact,
   isOpportunity,
@@ -197,6 +198,33 @@ describe("Layer 4 (coaching & growth)", () => {
     expect(r.gated).toBe(false);
     expect(r.value).toBe(-1); // perfectly declining by 1/session
     expect(r.sourceSessionIds).toHaveLength(5);
+  });
+
+  it("relianceReductionFromFirstCue drops leading observe-window/pre-coach 0-cue sessions", () => {
+    // First 3 sessions are observe/pre-coach (0 cues); real coaching starts at session 4 with a declining trend.
+    const pts = [
+      { cueCount: 0, sessionId: "obs1" },
+      { cueCount: 0, sessionId: "obs2" },
+      { cueCount: 0, sessionId: "obs3" },
+      { cueCount: 6, sessionId: "a" },
+      { cueCount: 5, sessionId: "b" },
+      { cueCount: 4, sessionId: "c" },
+      { cueCount: 3, sessionId: "d" },
+      { cueCount: 2, sessionId: "e" },
+    ];
+    const r = relianceReductionFromFirstCue(pts);
+    expect(r.gated).toBe(false);
+    expect(r.value).toBe(-1); // declining -1/session over the 5 cued-era sessions (observe run excluded)
+    expect(r.sampleSize).toBe(5);
+    expect(r.sourceSessionIds).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  it("relianceReductionFromFirstCue gates when the agent was never cued", () => {
+    const r = relianceReductionFromFirstCue([
+      { cueCount: 0, sessionId: "a" },
+      { cueCount: 0, sessionId: "b" },
+    ]);
+    expect(r.value).toBeNull();
   });
 
   it("relianceReductionSlope gates below MIN_SESSIONS", () => {
