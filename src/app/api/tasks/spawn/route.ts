@@ -184,8 +184,9 @@ export async function POST(req: NextRequest) {
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }
+    console.error("[tasks/spawn] non-LLM failure:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Couldn't spawn tasks." },
       { status: 500 }
     );
   }

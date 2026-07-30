@@ -155,8 +155,9 @@ export async function POST(req: NextRequest) {
         { status: err.status ?? 502 }
       );
     }
+    console.error("[me/ask-jeff] non-LLM failure:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Couldn't reach Jeff." },
+      { error: "Couldn't reach Jeff." },
       { status: 500 }
     );
   }

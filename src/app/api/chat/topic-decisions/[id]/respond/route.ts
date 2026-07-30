@@ -169,8 +169,9 @@ export async function POST(
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }
+    console.error("[chat/topic-decisions/respond] non-LLM failure:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Couldn't record the response." },
       { status: 500 }
     );
   }
