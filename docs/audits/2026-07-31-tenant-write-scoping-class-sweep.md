@@ -43,3 +43,27 @@ system-wide over a trusted internal query. The class is clean.
 authorization read of that row (uploader/creator/role) — never rely on RLS alone, because the
 admin client bypasses it. Prefer pinning `company_id` even when an upstream RLS read already
 gates access, so the write stays tenant-safe independently of how that upstream read evolves.
+
+## Addendum — cron writes (system jobs, extended 2026-07-31)
+
+The cron routes are a distinct sub-class: no user id at all, they iterate their own trusted
+internal queries across ALL tenants. Both were verified:
+
+- **`recording-purge-cron`** — CRON_SECRET-gated; selects expired sessions by a `created_at`
+  cutoff (no user input); writes `audio_asset_url = null` scoped by `row.id` from its own query.
+  Correct — a `company_id` filter would be meaningless. ✅
+- **`kpi/compute-cron`** — CRON_SECRET-gated; builds an `agent → company` map from
+  `coaching_sessions`, then writes `kpi_snapshot` rows carrying the correctly-derived
+  `company_id` per agent. Tenant-safe. ✅ Two THINK-first checks beyond tenant-scoping:
+  (a) I initially suspected the DELETE-then-INSERT was destroying snapshot history (the table's
+  own comment says "Append-only"), but verifying the `periods = ['current', monthKey]` logic
+  showed it is a deliberate **frozen-month trajectory**: once a month rolls over its row is never
+  in `periods` again, so it is never re-deleted — the longitudinal history is intact and obeys
+  Data-as-Asset. Not a defect. (b) A genuine minor robustness gap remains: `kpi_snapshot` has no
+  `unique (agent_id, metric, period)` constraint, so the non-atomic DELETE-then-INSERT could leave
+  a duplicate (raced run) or a momentary gap (failed insert). Self-heals; readers tolerate it via
+  `computed_at desc`. Filed as a founder-gated proposal (schema migration) in
+  `docs/FOUNDER-ACTION-QUEUE.md` — "make the kpi snapshot write atomic". Not a tenant-safety issue.
+
+INVARIANT 15 (added 2026-07-31) locks the `coaching_sessions` write half of this sweep; the cron
+sub-class relies on the CRON_SECRET gate + trusted-internal-query property, not on a matcher.

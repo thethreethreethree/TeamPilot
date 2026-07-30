@@ -41,6 +41,15 @@ Three deliberate defaults I chose — flip any on your word:
   mobile card).
 
 ### 🟡 Product / policy decisions — I build on your word (each is a real trade-off, not a bug)
+- **KPI snapshot write atomicity** (audit 2026-07-31) — the compute-cron replaces each `(agent, metric, period)`
+  snapshot with a non-atomic DELETE-then-INSERT, and `kpi_snapshot` has no unique constraint on
+  `(agent_id, metric, period)`. It's tenant-safe and the frozen-month trajectory design is sound (verified) —
+  but a raced run or a failed insert could leave a duplicate row or a momentary gap (readers tolerate it via
+  `computed_at desc`, and it self-heals next run). A `unique (agent_id, metric, period)` constraint + an
+  `upsert` would make the replace atomic and prevent duplicate cruft. Founder-gated because it's a schema
+  migration on a live table. Say *"make the kpi snapshot write atomic"* and I'll write it (constraint + cron
+  switch to upsert + a de-dup of any existing duplicates first). Low priority — the KPI cron is still dormant
+  (CRON_SECRET-gated). Full context: `docs/audits/2026-07-31-tenant-write-scoping-class-sweep.md`.
 - **Support-search access policy** — support content is company-searchable by non-agents; agent-gate it, or leave
   as intended? ~10 lines. Say *"agent-gate support in search."* *(Access-consistency §.)*
 - **C.A.R.E product-context field on `/redeem`** (F3) — pilot skips the wizard so Jeff hands off product Qs until
