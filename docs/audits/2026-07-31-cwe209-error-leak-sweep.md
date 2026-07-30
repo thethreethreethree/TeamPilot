@@ -76,6 +76,25 @@ this as its own reviewed pass, per-subsystem, classifying each site (client-resp
 stream-send), with a light regression test per representative route. `diagnosis/close` (`480a8e13`) is the
 template. Estimated medium; higher per-site judgement than section C.
 
+**Progress on section E (classified + partially swept 2026-07-31):**
+- FIXED — the unambiguous **non-LLM client-facing** catches: `care/agent/presence` (setAgentStatus /
+  setAgentRoutingSettings — `bf795299`); `realtime-token`, `care/tts`, `coach/tts`, `care/stt` (audio/token
+  provider errors at 502 — `61619ed1`). These wrap DB/provider calls with no LlmError context → clear leaks,
+  now log + generic.
+- VERIFIED INTENTIONAL / not-a-leak, LEFT AS-IS (each individually checked):
+  - `care/.../upload` + `agent-upload`: `detail` is used only in `console.error` (server log), not the client
+    response.
+  - `care/agent/.../summarize` + `co-pilot` + `formulate`: deliberately return `detail` (the provider cause)
+    to the TRUSTED support AGENT so an LLM auth/balance/rate-limit failure is diagnosable — documented
+    2026-07-25 decision, same trust model as the LlmError surface.
+  - `files/route.ts:334`: deliberately surfaces the Supabase write error (RLS/FK/column) to aid diagnosis —
+    documented intent; borderline but an authenticated uploader-only path. Judgement call, left.
+- REMAINING (borderline / lower priority, for the reviewed pass): the AI-route catch-all fallbacks
+  (`chat/*`, `coach/v5/*`, `coach/analyze`, `care/.../ask-coach`, `tasks/spawn`, `diagnosis/outside-view`,
+  `ripple-trace`, `me/ask-jeff`) — these leak a raw message ONLY for a non-LlmError exception AND only where no
+  preceding `instanceof LlmError` branch handles it; each needs that per-route check. The sweep crons
+  (durability/task-overrun/backfill/finance-deliver) are scheduler-facing → not customer leaks.
+
 ## How to verify a fix (per route)
 Inject a DB error with a sentinel string in a route test, assert the response body is the generic message and
 `JSON.stringify(body)` does NOT contain the sentinel — the pattern used for the quota route
