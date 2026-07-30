@@ -57,7 +57,7 @@ const LAYERS: Layer[] = [
     metrics: [
       { name: "Sessions per day", note: "your call volume", apiKey: "sessionsPerDay", fmt: "num" },
       { name: "Avg session duration", note: "minutes per call", apiKey: "avgSessionDurationMin", fmt: "min" },
-      { name: "Talk-to-listen ratio", note: "your talk ÷ customer talk" },
+      { name: "Talk share (yours)", note: "your share of the talking — lower leaves room to listen", apiKey: "l2_talk_ratio", fmt: "score" },
       { name: "Objections per session", note: "and how many you resolve" },
       { name: "Follow-up rate", note: "prospects re-contacted" },
     ],

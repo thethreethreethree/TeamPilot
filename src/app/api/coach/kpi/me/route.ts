@@ -80,6 +80,9 @@ export async function GET() {
     };
   });
   for (const k of LAYER3_KEYS) metrics[`l3_${k}`] = layer3Dimension(layer3Rows, k);
+  // Talk share (Layer 2) — the after-pitch already scores talk_ratio (rep's share of the talking, 0-100
+  // after scaling; lower leaves more room to listen). Reuse the same evidenced-score aggregator.
+  metrics.l2_talk_ratio = layer3Dimension(layer3Rows, "talk_ratio");
 
   // Layer 4 — cues + outcomes (from the agent's sessions). Reliance Reduction is the headline.
   const sessionIds = rows.map((r) => r.sessionId);
