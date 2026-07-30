@@ -8,10 +8,15 @@ import {
   avgDealSize,
   sessionsPerDay,
   avgSessionDurationMin,
+  layer3Dimension,
   MIN_SESSIONS,
   type KpiSessionRow,
   type MetricResult,
+  type Layer3ScoreInput,
 } from "@/lib/coach/kpi/compute";
+
+// The after-pitch score dimensions that become Layer-3 quality KPIs (real evidenced scores).
+const LAYER3_KEYS = ["opener", "objection", "tone", "close", "question_rate", "next_step"] as const;
 
 /**
  * GET /api/coach/kpi/me — the caller's OWN KPI snapshot, computed on-read (founder: on-read + cron).
@@ -54,6 +59,25 @@ export async function GET() {
     sessionsPerDay: sessionsPerDay(rows),
     avgSessionDurationMin: avgSessionDurationMin(rows),
   };
+
+  // Layer 3 — reuse the after-pitch evidenced scores (no new scoring). payload.scores is a ScoreCategory[].
+  const { data: apRows } = await sb
+    .from("after_pitch_summaries")
+    .select("session_id, payload")
+    .eq("agent_id", ctx.userId);
+
+  const layer3Rows: Layer3ScoreInput[] = (apRows ?? []).map((r) => {
+    const payload = (r.payload ?? {}) as { scores?: unknown };
+    const scoresRaw = Array.isArray(payload.scores) ? payload.scores : [];
+    return {
+      sessionId: r.session_id as string,
+      scores: scoresRaw
+        .map((s) => s as { key?: unknown; score?: unknown; caveat?: unknown })
+        .filter((s) => typeof s.key === "string" && typeof s.score === "number")
+        .map((s) => ({ key: s.key as string, score: s.score as number, caveat: !!s.caveat })),
+    };
+  });
+  for (const k of LAYER3_KEYS) metrics[`l3_${k}`] = layer3Dimension(layer3Rows, k);
 
   return NextResponse.json({
     sessionCount: rows.length,

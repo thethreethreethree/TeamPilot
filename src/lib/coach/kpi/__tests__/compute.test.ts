@@ -7,6 +7,7 @@ import {
   avgDealSize,
   sessionsPerDay,
   avgSessionDurationMin,
+  layer3Dimension,
   baseline,
   sumDollarsExact,
   isOpportunity,
@@ -126,6 +127,46 @@ describe("baseline (self-comparison)", () => {
   });
   it("empty history → null baseline (no fabricated mean)", () => {
     expect(baseline([])).toEqual({ mean: null, stddev: null, sampleSize: 0 });
+  });
+});
+
+describe("Layer 3 (after-pitch score aggregation)", () => {
+  const row = (sid: string, key: string, score: number, caveat = false) => ({
+    sessionId: sid,
+    scores: [{ key, score, caveat }],
+  });
+
+  it("averages a dimension and scales 0-10 to 0-100", () => {
+    const rows = [
+      row("1", "objection", 6),
+      row("2", "objection", 8),
+      row("3", "objection", 7),
+      row("4", "objection", 5),
+      row("5", "objection", 9),
+    ];
+    const r = layer3Dimension(rows, "objection");
+    expect(r.gated).toBe(false);
+    expect(r.value).toBe(70); // avg 7.0 → 70
+    expect(r.sampleSize).toBe(5);
+  });
+
+  it("skips caveat scores (data-capture gaps, not behaviour)", () => {
+    const rows = [
+      row("1", "talk_ratio", 2, true), // caveat → excluded
+      row("2", "talk_ratio", 8),
+      row("3", "talk_ratio", 8),
+      row("4", "talk_ratio", 8),
+      row("5", "talk_ratio", 8),
+      row("6", "talk_ratio", 8),
+    ];
+    const r = layer3Dimension(rows, "talk_ratio");
+    expect(r.sampleSize).toBe(5); // the caveat one excluded
+    expect(r.value).toBe(80);
+  });
+
+  it("gates below MIN_SESSIONS scored", () => {
+    const rows = [row("1", "close", 7), row("2", "close", 7)];
+    expect(layer3Dimension(rows, "close").value).toBeNull();
   });
 });
 

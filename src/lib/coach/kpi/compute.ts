@@ -104,6 +104,34 @@ export function avgSessionDurationMin(sessions: KpiSessionRow[]): MetricResult {
   return { value: round1(totalMs / ended.length / 60000), sampleSize: ended.length, gated: false, sourceSessionIds: ids };
 }
 
+// ---- Layer 3: Conversation quality (from the existing after-pitch evidenced scores) ------------------
+
+/** One session's after-pitch scores. `caveat` marks a data-capture gap — excluded from the metric. */
+export type Layer3ScoreInput = {
+  sessionId: string;
+  scores: { key: string; score: number; caveat?: boolean }[];
+};
+
+/**
+ * Average an after-pitch score DIMENSION across the agent's sessions, scaled 0–10 → 0–100 (spec Layer 3).
+ * Skips caveat scores (a 100/0 talk-ratio from an untranscribed customer side is a gap, not a behaviour).
+ * Gate: ≥ MIN_SESSIONS sessions that actually scored this dimension.
+ */
+export function layer3Dimension(rows: Layer3ScoreInput[], key: string): MetricResult {
+  const vals: number[] = [];
+  const ids: string[] = [];
+  for (const r of rows) {
+    const c = r.scores.find((s) => s.key === key && !s.caveat);
+    if (c && Number.isFinite(c.score)) {
+      vals.push(c.score);
+      ids.push(r.sessionId);
+    }
+  }
+  if (vals.length < MIN_SESSIONS) return gated(vals.length, ids);
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  return { value: round1(avg * 10), sampleSize: vals.length, gated: false, sourceSessionIds: ids };
+}
+
 // ---- Baseline / delta (self-comparison) --------------------------------------------------------------
 
 /** Rolling mean + stddev of a metric's historical values (population). Feeds delta_vs_baseline. */

@@ -15,7 +15,7 @@ import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, I
 type MetricResult = { value: number | null; sampleSize: number; gated: boolean; sourceSessionIds: string[] };
 type KpiResponse = { sessionCount: number; minSessions: number; metrics: Record<string, MetricResult> };
 
-type Fmt = "pct" | "money" | "num" | "min";
+type Fmt = "pct" | "money" | "num" | "min" | "score";
 type Metric = { name: string; note: string; apiKey?: string; fmt?: Fmt; headline?: boolean };
 type Layer = { key: string; title: string; subtitle: string; icon: typeof Target; metrics: Metric[] };
 
@@ -53,12 +53,12 @@ const LAYERS: Layer[] = [
     subtitle: "The how — scored 0–100 from the transcript, with cited evidence.",
     icon: MessageSquareText,
     metrics: [
-      { name: "Discovery quality", note: "did you learn before you pitched?" },
-      { name: "Rapport", note: "early connection signals" },
-      { name: "Objection handling", note: "how you met resistance" },
-      { name: "Closing technique", note: "was the ask made, and when?" },
-      { name: "Methodology adherence", note: "alignment to your framework" },
-      { name: "Sentiment trajectory", note: "customer start vs. end" },
+      { name: "Discovery quality", note: "did you learn before you pitched?", apiKey: "l3_question_rate", fmt: "score" },
+      { name: "Rapport & tone", note: "early connection signals", apiKey: "l3_tone", fmt: "score" },
+      { name: "Objection handling", note: "how you met resistance", apiKey: "l3_objection", fmt: "score" },
+      { name: "Opener", note: "how you started the call", apiKey: "l3_opener", fmt: "score" },
+      { name: "Closing technique", note: "was the ask made, and when?", apiKey: "l3_close", fmt: "score" },
+      { name: "Next-step / commitment", note: "did you lock a next step?", apiKey: "l3_next_step", fmt: "score" },
     ],
   },
   {
@@ -81,6 +81,7 @@ function fmtValue(v: number, fmt?: Fmt): string {
   if (fmt === "pct") return `${v}%`;
   if (fmt === "money") return `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   if (fmt === "min") return `${v} min`;
+  if (fmt === "score") return `${v} / 100`;
   return v.toLocaleString();
 }
 
