@@ -106,6 +106,21 @@ describe("PATCH task status transitions", () => {
     mock(fakeSb({ currentStatus: null }));
     expect((await PATCH(req({ id: ID, status: "In Progress" }))).status).toBe(404);
   });
+
+  it("500s on a DB update error WITHOUT leaking the raw message (CWE-209)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mock(
+      fakeSb({
+        currentStatus: "To Do",
+        updateError: { code: "XX000", message: "internal pg detail: tasks rls policy" },
+      })
+    );
+    const res = await PATCH(req({ id: ID, status: "In Progress" }));
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("Couldn't update the task.");
+    expect(JSON.stringify(body)).not.toContain("internal pg detail");
+  });
 });
 
 /**

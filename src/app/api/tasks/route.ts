@@ -39,7 +39,10 @@ export async function GET() {
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[tasks GET] failed to list tasks:", error);
+    return NextResponse.json({ error: "Couldn't load tasks." }, { status: 500 });
+  }
   return NextResponse.json({ tasks: data ?? [] });
 }
 
@@ -135,7 +138,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[tasks POST] failed to create task:", error);
+    return NextResponse.json({ error: "Couldn't create the task." }, { status: 500 });
+  }
   return NextResponse.json({ taskId: data.id });
 }
 
@@ -252,7 +258,10 @@ export async function PATCH(req: NextRequest) {
     .update(safePatch)
     .eq("id", id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[tasks PATCH] failed to update task:", error);
+    return NextResponse.json({ error: "Couldn't update the task." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }
 
@@ -269,7 +278,10 @@ export async function DELETE(req: NextRequest) {
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[tasks DELETE] failed to soft-delete task:", error);
+    return NextResponse.json({ error: "Couldn't delete the task." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }
 
