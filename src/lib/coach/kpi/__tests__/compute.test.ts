@@ -7,6 +7,7 @@ import {
   avgDealSize,
   quotaAttainment,
   winLossRatio,
+  monthKeyUtc,
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
@@ -379,6 +380,20 @@ describe("isSlippingVsBaseline (manager exception alert)", () => {
 
   it("uses the founder-set 15% threshold by default", () => {
     expect(ALERT_DROP_FRACTION).toBe(0.15);
+  });
+});
+
+describe("monthKeyUtc (shared this-month bucket)", () => {
+  it("formats YYYY-MM in UTC, zero-padded", () => {
+    expect(monthKeyUtc(new Date("2026-07-05T10:00:00.000Z"))).toBe("2026-07");
+    expect(monthKeyUtc(new Date("2026-12-31T23:59:59.000Z"))).toBe("2026-12");
+  });
+
+  it("buckets by UTC, and equals an ISO timestamp's leading 7 chars (how sessions are matched)", () => {
+    // 2026-08-01T00:30 UTC is August in UTC regardless of local zone → the slice(0,7) match holds.
+    const iso = "2026-08-01T00:30:00.000Z";
+    expect(monthKeyUtc(new Date(iso))).toBe("2026-08");
+    expect(iso.slice(0, 7)).toBe(monthKeyUtc(new Date(iso)));
   });
 });
 

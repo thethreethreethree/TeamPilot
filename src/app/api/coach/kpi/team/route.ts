@@ -11,6 +11,7 @@ import {
   isSlippingSeries,
   overallQualityForSession,
   layer3InputFromPayload,
+  monthKeyUtc,
   ALERT_DROP_FRACTION,
   MIN_SESSIONS,
   type KpiSessionRow,
@@ -70,8 +71,7 @@ export async function GET() {
       monthlyTarget = (co?.sales_coach_monthly_deal_target as number | null) ?? null;
     }
   }
-  const now = new Date();
-  const monthPrefix = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const monthPrefix = monthKeyUtc(new Date());
 
   // One query for all the team's sessions; then compute per agent in memory (cheap, no per-agent round-trips).
   const { data: sessRows } = await sb

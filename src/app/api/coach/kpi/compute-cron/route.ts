@@ -8,6 +8,7 @@ import {
   avgDealSize,
   sessionsPerDay,
   avgSessionDurationMin,
+  monthKeyUtc,
   type KpiSessionRow,
   type MetricResult,
 } from "@/lib/coach/kpi/compute";
@@ -59,8 +60,7 @@ export async function GET(req: NextRequest) {
   // what makes the "vs earlier months" trajectory real instead of only the on-read half-split, AND it obeys
   // Data-as-Asset: without it the daily cron would discard its own history every run. Value = cumulative
   // metric as of that month (same computation as 'current', just tagged) — a later consumer diffs the series.
-  const now = new Date();
-  const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const monthKey = monthKeyUtc(new Date());
   const periods = [PERIOD, monthKey];
 
   // Agents who have at least one session (a bounded batch of distinct agent_ids).

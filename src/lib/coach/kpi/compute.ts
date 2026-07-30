@@ -338,6 +338,17 @@ export function selfDelta(
 export const ALERT_DROP_FRACTION = 0.15;
 
 /**
+ * UTC month key ("YYYY-MM") for a date. ONE definition shared by /me, /team, and the cron so "this month" is
+ * computed identically everywhere — quota attainment must match between a rep's own view and the manager
+ * rollup, and the cron's monthly snapshot must use the same bucket. Pure (takes the Date) so it's testable and
+ * can't silently drift to local time on one surface. An ISO timestamp's leading 7 chars equal this key, which
+ * is why `startedAt.slice(0, 7) === monthKeyUtc(now)` correctly buckets a session into the current month.
+ */
+export function monthKeyUtc(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
  * Exception alert (founder 2026-07-30): is the rep's recent half ≥ ALERT_DROP_FRACTION below their prior half
  * on this metric? Same recent-vs-prior split as selfDelta, but a relative-drop test for a manager flag. Only
  * fires with enough data on both halves and a positive prior (so it's a real decline, not a zero-baseline).

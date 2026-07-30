@@ -9,6 +9,7 @@ import {
   quotaAttainment,
   winLossRatio,
   layer3InputFromPayload,
+  monthKeyUtc,
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
@@ -82,8 +83,7 @@ export async function GET() {
       .maybeSingle();
     if (!coErr) monthlyTarget = (co?.sales_coach_monthly_deal_target as number | null) ?? null;
   }
-  const now = new Date();
-  const monthPrefix = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const monthPrefix = monthKeyUtc(new Date());
   const dealsWonThisMonth = rows.filter(
     (r) => r.outcome === "sold" && r.startedAt.slice(0, 7) === monthPrefix
   ).length;
