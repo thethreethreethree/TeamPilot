@@ -35,7 +35,8 @@ export async function GET() {
       // Migration 0204 not applied yet — report the effective default, flag degraded.
       return NextResponse.json({ customerReply: true, degraded: true });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[me/care-notifications GET] failed to read preference:", error);
+    return NextResponse.json({ error: "Couldn't load your notification preference." }, { status: 500 });
   }
 
   // null (unset) defaults to true — the send path notifies unless explicitly opted out.
@@ -69,7 +70,8 @@ export async function PATCH(req: NextRequest) {
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[me/care-notifications PATCH] failed to save preference:", error);
+    return NextResponse.json({ error: "Couldn't save your notification preference." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, customerReply: body.customerReply });

@@ -55,7 +55,8 @@ export async function PATCH(req: NextRequest) {
     .update({ experience_mode: body.mode })
     .eq("id", auth.user.id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[me/experience-mode] failed to save preference:", error);
+    return NextResponse.json({ error: "Couldn't save your experience-mode setting." }, { status: 500 });
   }
   return NextResponse.json({ ok: true, mode: body.mode });
 }

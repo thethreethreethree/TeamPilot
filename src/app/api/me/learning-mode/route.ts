@@ -57,7 +57,8 @@ export async function PATCH(req: NextRequest) {
     .update({ learning_mode_enabled: body.enabled })
     .eq("id", auth.user.id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[me/learning-mode] failed to save preference:", error);
+    return NextResponse.json({ error: "Couldn't save your learning-mode setting." }, { status: 500 });
   }
   return NextResponse.json({ ok: true, enabled: body.enabled });
 }

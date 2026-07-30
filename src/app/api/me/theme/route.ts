@@ -97,7 +97,8 @@ export async function PATCH(req: NextRequest) {
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("[me/theme] failed to save theme preference:", error);
+      return NextResponse.json({ error: "Couldn't save your theme." }, { status: 500 });
     }
   }
 
@@ -120,7 +121,8 @@ export async function PATCH(req: NextRequest) {
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("[me/theme] failed to save company default theme:", error);
+      return NextResponse.json({ error: "Couldn't save the company theme." }, { status: 500 });
     }
   }
 
