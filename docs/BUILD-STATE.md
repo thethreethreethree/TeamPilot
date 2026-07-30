@@ -74,6 +74,14 @@ and "What you represent" (ai_product_context).
 
 ## ▶ AUDIT BASELINES (swept class boundaries — for the next audit)
 
+- **Finance audit (read-only, 2026-07-30) — 1 real bug, rest clean/honest:** (1) 🔴 FX post-rounding
+  rejects face-balanced foreign entries — the ONE live defect, fix-ready (`docs/audits/2026-07-30-fin-fx-
+  rounding-imbalance.md`, founder-gated). (2) ✅ foreign SETTLEMENT guard COMPLETE across all payment/
+  receipt paths (direct + delegation + base-only) — no unguarded path. (3) ✅ TAX: per-line rounding is a
+  legit method; credit-note un-netting is DEFERRED **and UI-warned** (`tax/page.tsx:110` tells the user the
+  figure overstates if they've credited invoices) — honest, not silent. NOT yet audited: banking recon,
+  budgets, depreciation, year-end close.
+
 - **C.A.R.E build post-audit (2026-07-30) — 3 findings fixed:** (1) guidance could soft-override Jeff's
   honesty rules → explicit precedence guard + test (`2bb31de6`); (2) the A34 deferred-column-drop logic was
   untested + inline → extracted to `deferredColumnsToDrop` + 4 tests (`531b0d7a`); (3) **REAL BUG** —
