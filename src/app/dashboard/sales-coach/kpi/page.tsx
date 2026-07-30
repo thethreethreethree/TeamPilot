@@ -47,6 +47,7 @@ const LAYERS: Layer[] = [
     metrics: [
       { name: "Conversion rate", note: "sold ÷ opportunities", apiKey: "conversionRate", fmt: "pct" },
       { name: "Close rate", note: "won ÷ resolved", apiKey: "closeRate", fmt: "pct" },
+      { name: "Win/loss ratio", note: "wins per loss — builds until you have a loss to compare", apiKey: "winLossRatio", fmt: "num" },
       { name: "Average deal size", note: "revenue ÷ deals won", apiKey: "avgDealSize", fmt: "money" },
       { name: "Total revenue", note: "sum of won deal values", apiKey: "revenue", fmt: "money" },
       { name: "Sales cycle length", note: "avg close − first contact" },

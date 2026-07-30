@@ -6,6 +6,7 @@ import {
   revenue,
   avgDealSize,
   quotaAttainment,
+  winLossRatio,
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
@@ -377,6 +378,31 @@ describe("isSlippingVsBaseline (manager exception alert)", () => {
 
   it("uses the founder-set 15% threshold by default", () => {
     expect(ALERT_DROP_FRACTION).toBe(0.15);
+  });
+});
+
+describe("winLossRatio", () => {
+  it("is won ÷ lost over opportunities (3 sold, 1 no_sale, +1 undecided → 3.0)", () => {
+    const rows = [
+      S("sold", 100, "2026-07-01"),
+      S("sold", 100, "2026-07-02"),
+      S("sold", 100, "2026-07-03"),
+      S("no_sale", null, "2026-07-04"),
+      S("undecided", null, "2026-07-05"), // an opportunity, but neither win nor loss
+    ];
+    expect(winLossRatio(rows).value).toBe(3);
+  });
+
+  it("gates (building) when there are zero losses — the ratio is undefined, not infinite", () => {
+    const rows = [1, 2, 3, 4, 5].map((n) => S("sold", 100, `2026-07-0${n}`));
+    const r = winLossRatio(rows);
+    expect(r.value).toBeNull();
+    expect(r.gated).toBe(true);
+  });
+
+  it("gates below MIN_SESSIONS opportunities", () => {
+    const rows = [S("sold", 100, "2026-07-01"), S("no_sale", null, "2026-07-02")];
+    expect(winLossRatio(rows).value).toBeNull();
   });
 });
 

@@ -7,6 +7,7 @@ import {
   revenue,
   avgDealSize,
   quotaAttainment,
+  winLossRatio,
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
@@ -62,6 +63,7 @@ export async function GET() {
   const metrics: Record<string, MetricResult> = {
     conversionRate: conversionRate(rows),
     closeRate: closeRate(rows),
+    winLossRatio: winLossRatio(rows),
     revenue: revenue(rows),
     avgDealSize: avgDealSize(rows),
     sessionsPerDay: sessionsPerDay(rows),

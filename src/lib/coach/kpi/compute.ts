@@ -58,6 +58,21 @@ export function conversionRate(sessions: KpiSessionRow[]): MetricResult {
   return { value: round1((sold / opps.length) * 100), sampleSize: opps.length, gated: false, sourceSessionIds: ids };
 }
 
+/**
+ * Win/loss ratio (Layer 1) — deals won ÷ deals lost, over opportunities (won='sold', lost='no_sale'). A ratio
+ * of 2 means two wins per loss. Gated below MIN_SESSIONS opportunities AND when there are zero losses (the
+ * ratio is genuinely undefined then — "building", never a fabricated ∞ or a silently-dropped denominator).
+ */
+export function winLossRatio(sessions: KpiSessionRow[]): MetricResult {
+  const opps = sessions.filter(isOpportunity);
+  const ids = opps.map((s) => s.sessionId);
+  if (opps.length < MIN_SESSIONS) return gated(opps.length, ids);
+  const won = opps.filter((s) => s.outcome === "sold").length;
+  const lost = opps.filter((s) => s.outcome === "no_sale").length;
+  if (lost === 0) return gated(opps.length, ids); // undefined ratio — honest "building", not divide-by-zero
+  return { value: round1(won / lost), sampleSize: opps.length, gated: false, sourceSessionIds: ids };
+}
+
 /** Close rate (%) = won ÷ resolved (won + lost). Gate: ≥ MIN_SESSIONS resolved. */
 export function closeRate(sessions: KpiSessionRow[]): MetricResult {
   const resolved = sessions.filter((s) => s.outcome === "sold" || s.outcome === "no_sale");
