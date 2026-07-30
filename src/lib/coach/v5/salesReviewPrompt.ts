@@ -1,6 +1,7 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
 import { getSalesKnowledgeBase } from "./salesKnowledgeBase";
+import { reviewProductBlock } from "./prepShared";
 
 /**
  * Methodology block: the compiled Sales Knowledge Base (SPIN / Challenger
@@ -143,7 +144,8 @@ STANDARD LENGTH (the reader chose a simplified experience — the full-length re
 
 export function buildSalesReviewSystemPrompt(
   corpusOverride?: string,
-  mode?: import("@/lib/experience/mode").ExperienceMode
+  mode?: import("@/lib/experience/mode").ExperienceMode,
+  product?: string | null
 ): string {
   return `You are a Live Sales Coach delivering a post-conversation growth
 review to a sales agent. You have just read the full transcript of one
@@ -151,7 +153,7 @@ of their live customer conversations.
 
 ${TONE_LAW}
 
-${methodologyBlock(corpusOverride)}
+${methodologyBlock(corpusOverride)}${reviewProductBlock(product)}
 ${reviewBrevityBlock(mode)}
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:

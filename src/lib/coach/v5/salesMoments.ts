@@ -106,8 +106,11 @@ export async function generateSalesMoments(args: {
   try {
     if (args.segments.length < MIN_SEGMENTS) return EMPTY;
 
-    const corpus = await getCurrentSalesCorpus(args.companyId).catch(() => null);
-    const systemPrompt = buildSalesMomentsSystemPrompt(corpus?.content);
+    const [corpus, product] = await Promise.all([
+      getCurrentSalesCorpus(args.companyId).catch(() => null),
+      getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
+    ]);
+    const systemPrompt = buildSalesMomentsSystemPrompt(corpus?.content, product?.content);
     const userMessage = buildSalesMomentsUserMessage({
       context: args.context,
       outcome: args.outcome,

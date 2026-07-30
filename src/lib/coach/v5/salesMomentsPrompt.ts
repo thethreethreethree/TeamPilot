@@ -1,6 +1,7 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
 import { methodologyBlock } from "./salesReviewPrompt";
+import { reviewProductBlock } from "./prepShared";
 
 /**
  * After Pitch Summary — the MOMENT REDUCER prompt.
@@ -25,11 +26,14 @@ function speakerLabel(speaker: TranscriptSegment["speaker"]): string {
   return "UNKNOWN";
 }
 
-export function buildSalesMomentsSystemPrompt(corpusOverride?: string): string {
+export function buildSalesMomentsSystemPrompt(
+  corpusOverride?: string,
+  product?: string | null
+): string {
   return `You are a Live Sales Coach reducing a diarized sales conversation to
 its KEY MOMENTS for a post-call timeline the rep sees before their next door.
 
-${methodologyBlock(corpusOverride)}
+${methodologyBlock(corpusOverride)}${reviewProductBlock(product)}
 
 YOUR TASK — pick the 3-5 moments that define this conversation, in order:
 - The OPENER (how the rep started).

@@ -178,8 +178,11 @@ export async function generateSalesScores(args: {
     const talkRatio = computeTalkRatio(args.segments);
     const questionRate = computeQuestionRate(args.segments);
 
-    const corpus = await getCurrentSalesCorpus(args.companyId).catch(() => null);
-    const systemPrompt = buildSalesScoreSystemPrompt(corpus?.content);
+    const [corpus, product] = await Promise.all([
+      getCurrentSalesCorpus(args.companyId).catch(() => null),
+      getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
+    ]);
+    const systemPrompt = buildSalesScoreSystemPrompt(corpus?.content, product?.content);
     const userMessage = buildSalesScoreUserMessage({
       context: args.context,
       segments: args.segments,

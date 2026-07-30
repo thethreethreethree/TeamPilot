@@ -460,7 +460,7 @@ function ProductEditor() {
       }
       toast.success(
         "Product details saved",
-        "History is kept — the coach will use these once Prep Time ships."
+        "The coach uses these now — in pre-call prep, live cues, and the post-call review. History is kept."
       );
       await load();
     } catch (e) {
@@ -489,8 +489,9 @@ function ProductEditor() {
           <p className="text-xs text-secondary leading-relaxed">
             What your team sells — the offer, pricing, key benefits, common
             objections, and anything a rep should have at their fingertips. The
-            coach uses this for Prep Time — the pre-call briefing and when a rep
-            asks it what they&apos;re selling.
+            coach grounds itself in this everywhere: pre-call prep, live in-call
+            cues, and the post-call review — so it critiques against what
+            you&apos;re actually selling, never an invented product.
           </p>
           {data?.isSet && data.updatedAt && (
             <p className="text-[11px] text-muted">

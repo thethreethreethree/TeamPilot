@@ -64,10 +64,12 @@ export async function generateSalesReview(args: {
     // The company's own saved corpus (if any) overrides the built-in
     // methodology for THIS company's reviews (§5). Never throws — a corpus
     // read failure falls back to the built-in via undefined.
-    const corpus = await getCurrentSalesCorpus(args.companyId).catch(
-      () => null
-    );
-    const systemPrompt = buildSalesReviewSystemPrompt(corpus?.content, args.mode);
+    const [corpus, product] = await Promise.all([
+      getCurrentSalesCorpus(args.companyId).catch(() => null),
+      // Product/brand details (founder 2026-07-31) — the review critiques against what the team sells.
+      getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
+    ]);
+    const systemPrompt = buildSalesReviewSystemPrompt(corpus?.content, args.mode, product?.content);
     const userMessage = buildSalesReviewUserMessage({
       sessionTitle: args.sessionTitle,
       context: args.context,

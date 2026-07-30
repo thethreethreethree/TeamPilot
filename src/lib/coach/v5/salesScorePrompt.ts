@@ -1,6 +1,7 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
 import { methodologyBlock } from "./salesReviewPrompt";
+import { reviewProductBlock } from "./prepShared";
 
 /**
  * After Pitch Summary — RUBRIC SCORER prompt (the private scoreboard).
@@ -27,13 +28,16 @@ function speakerLabel(speaker: TranscriptSegment["speaker"]): string {
   return "UNKNOWN";
 }
 
-export function buildSalesScoreSystemPrompt(corpusOverride?: string): string {
+export function buildSalesScoreSystemPrompt(
+  corpusOverride?: string,
+  product?: string | null
+): string {
   return `You are a Live Sales Coach producing a PRIVATE self-assessment
 scoreboard for one rep, on one conversation. Only the rep sees these scores —
 they are a mirror of the rep's own performance against their growth, NEVER a
 comparison to other people.
 
-${methodologyBlock(corpusOverride)}
+${methodologyBlock(corpusOverride)}${reviewProductBlock(product)}
 
 GRADE FIVE CATEGORIES, each 0-10, against the methodology above:
 - opener       — how the rep opened and earned the first moments.
