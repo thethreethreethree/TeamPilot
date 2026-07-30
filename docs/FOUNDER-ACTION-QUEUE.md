@@ -41,6 +41,17 @@ Three deliberate defaults I chose — flip any on your word:
   mobile card).
 
 ### 🟡 Product / policy decisions — I build on your word (each is a real trade-off, not a bug)
+- **C.A.R.E sidebar (CareShell) text contrast — a11y** (audit 2026-07-31). On the dark brand-shell
+  (#0B1620), ~7 informational-text elements are `text-white/40` = **3.81:1**, below the WCAG AA
+  minimum (4.5:1) for small text: the "Customer · Assist · Respond · Engine" subtitle, the "Theme"
+  label, a status label, the agent load-capacity readout, a hint line, and the "current" badge. I
+  already fixed the IDENTICAL class on the Sales Coach shell this session (my own code — `white/35→50`,
+  now 5.30:1) but did NOT auto-change CareShell because it's your designed surface and some of these
+  (the mono id/badge metadata) may be intentionally de-emphasized. The fix is a one-token bump
+  `text-white/40 → text-white/50` (5.30:1, still clearly secondary — preserves the hierarchy, only
+  raises the readability floor); the collapse ICON stays white/40 (icons need only 3:1). Say
+  *"fix the CareShell contrast"* and I'll bump the 7 text elements (leaving the icon), or tell me which
+  to leave subtle. Zero functional risk — className-only.
 - **KPI snapshot write atomicity** (audit 2026-07-31) — the compute-cron replaces each `(agent, metric, period)`
   snapshot with a non-atomic DELETE-then-INSERT, and `kpi_snapshot` has no unique constraint on
   `(agent_id, metric, period)`. It's tenant-safe and the frozen-month trajectory design is sound (verified) —
