@@ -88,7 +88,8 @@ export async function POST(req: NextRequest) {
     );
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[notifications/subscribe POST] failed to save subscription:", error);
+    return NextResponse.json({ error: "Couldn't save your subscription." }, { status: 500 });
   }
 
   return NextResponse.json({ subscribed: true });
@@ -120,7 +121,8 @@ export async function DELETE(req: NextRequest) {
     .eq("user_id", auth.user.id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[notifications/subscribe DELETE] failed to remove subscription:", error);
+    return NextResponse.json({ error: "Couldn't remove your subscription." }, { status: 500 });
   }
 
   return NextResponse.json({ unsubscribed: true });

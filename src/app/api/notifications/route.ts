@@ -112,7 +112,8 @@ export async function GET() {
     .order("occurred_at", { ascending: false })
     .limit(200);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[notifications GET] failed to load events:", error);
+    return NextResponse.json({ error: "Couldn't load notifications." }, { status: 500 });
   }
   const rows = (events ?? []) as ChainEventRow[];
 
