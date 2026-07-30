@@ -9,6 +9,7 @@ import {
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
+  layer3Delta,
   overallSkillProgression,
   qualityConsistency,
   cueAcceptanceRate,
@@ -100,6 +101,9 @@ export async function GET() {
   metrics.skillProgression = overallSkillProgression(layer3Rows);
   // Consistency (Layer 4) — how steady the agent's quality is call-to-call (0-100, higher = steadier).
   metrics.consistency = qualityConsistency(layer3Rows);
+  // Self-comparison deltas for the quality dimensions too (spec: EACH shown against its own trajectory).
+  for (const k of LAYER3_KEYS) deltas[`l3_${k}`] = layer3Delta(layer3Rows, k);
+  deltas.l2_talk_ratio = layer3Delta(layer3Rows, "talk_ratio");
 
   // Layer 4 — cues + outcomes (from the agent's sessions). Reliance Reduction is the headline.
   const sessionIds = rows.map((r) => r.sessionId);

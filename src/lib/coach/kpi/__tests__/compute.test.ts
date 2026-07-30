@@ -14,6 +14,7 @@ import {
   relianceReductionFromFirstCue,
   overallSkillProgression,
   qualityConsistency,
+  layer3Delta,
   selfDelta,
   baseline,
   sumDollarsExact,
@@ -174,6 +175,17 @@ describe("Layer 3 (after-pitch score aggregation)", () => {
   it("gates below MIN_SESSIONS scored", () => {
     const rows = [row("1", "close", 7), row("2", "close", 7)];
     expect(layer3Dimension(rows, "close").value).toBeNull();
+  });
+
+  it("layer3Delta = (recent-half − prior-half) of a dimension, scaled 0-100; gated below 2·MIN", () => {
+    const rows = [
+      row("1", "objection", 5), row("2", "objection", 5), row("3", "objection", 5),
+      row("4", "objection", 5), row("5", "objection", 5), // prior avg 5
+      row("6", "objection", 7), row("7", "objection", 7), row("8", "objection", 7),
+      row("9", "objection", 7), row("10", "objection", 7), // recent avg 7
+    ];
+    expect(layer3Delta(rows, "objection")).toBe(20); // (7-5)*10
+    expect(layer3Delta(rows.slice(0, 9), "objection")).toBeNull(); // < 10
   });
 });
 

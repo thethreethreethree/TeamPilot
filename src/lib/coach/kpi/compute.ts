@@ -174,6 +174,23 @@ export function qualityConsistency(rows: Layer3ScoreInput[]): MetricResult {
   return { value: round1(Math.max(0, 100 - sd * 20)), sampleSize: perSession.length, gated: false, sourceSessionIds: ids };
 }
 
+/**
+ * Self-comparison delta for a Layer-3 dimension (recent-half − prior-half of that dimension's per-session
+ * scores, scaled 0-100). Extends "each metric shown against its own trajectory" to the quality scores.
+ * null unless ≥ 2·MIN_SESSIONS sessions scored the dimension.
+ */
+export function layer3Delta(rows: Layer3ScoreInput[], key: string): number | null {
+  const series: number[] = [];
+  for (const r of rows) {
+    const c = r.scores.find((s) => s.key === key && !s.caveat);
+    if (c && Number.isFinite(c.score)) series.push(c.score);
+  }
+  if (series.length < 2 * MIN_SESSIONS) return null;
+  const mid = Math.floor(series.length / 2);
+  const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+  return round1((mean(series.slice(mid)) - mean(series.slice(0, mid))) * 10);
+}
+
 // ---- Layer 4: Coaching & growth (THE DIFFERENTIATOR) -------------------------------------------------
 
 /** Cue acceptance rate (%) = cues acted on ÷ cues delivered. Gate: ≥ MIN_SESSIONS cues delivered. */
