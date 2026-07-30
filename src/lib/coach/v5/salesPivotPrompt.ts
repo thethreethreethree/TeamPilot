@@ -1,6 +1,7 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
 import { methodologyBlock } from "./salesReviewPrompt";
+import { reviewProductBlock } from "./prepShared";
 
 /**
  * Summary-surface PIVOT MOMENT prompt (founder 2026-07-07).
@@ -24,7 +25,10 @@ function speakerLabel(speaker: TranscriptSegment["speaker"]): string {
   return "UNKNOWN";
 }
 
-export function buildSalesPivotSystemPrompt(corpusOverride?: string): string {
+export function buildSalesPivotSystemPrompt(
+  corpusOverride?: string,
+  product?: string | null
+): string {
   return `You are a Live Sales Coach identifying the ONE PIVOT MOMENT of a
 diarized sales conversation — the single point where the prospect's interest,
 trust, or likelihood of buying shifted the MOST, in EITHER direction:
@@ -33,7 +37,7 @@ trust, or likelihood of buying shifted the MOST, in EITHER direction:
 - "lost"    — the rep lost ground: interest/trust fell, the prospect pulled
   back, momentum turned away from the sale.
 
-${methodologyBlock(corpusOverride)}
+${methodologyBlock(corpusOverride)}${reviewProductBlock(product)}
 
 YOUR TASK — pick the SINGLE most decisive turning point of THIS conversation:
 - Choose ONE moment only — the one that mattered most to the outcome.

@@ -99,8 +99,11 @@ export async function generateSalesPivot(args: {
   try {
     if (args.segments.length < MIN_SEGMENTS) return EMPTY;
 
-    const corpus = await getCurrentSalesCorpus(args.companyId).catch(() => null);
-    const systemPrompt = buildSalesPivotSystemPrompt(corpus?.content);
+    const [corpus, product] = await Promise.all([
+      getCurrentSalesCorpus(args.companyId).catch(() => null),
+      getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
+    ]);
+    const systemPrompt = buildSalesPivotSystemPrompt(corpus?.content, product?.content);
     const userMessage = buildSalesPivotUserMessage({
       context: args.context,
       outcome: args.outcome,

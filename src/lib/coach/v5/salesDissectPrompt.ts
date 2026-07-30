@@ -1,5 +1,6 @@
 import "server-only";
 import { methodologyBlock, TONE_LAW } from "./salesReviewPrompt";
+import { reviewProductBlock } from "./prepShared";
 
 /**
  * Live Sales Coach — "Dissect" prompt: a DEEP, full-conversation teaching
@@ -14,7 +15,10 @@ import { methodologyBlock, TONE_LAW } from "./salesReviewPrompt";
  * everything grounded in the real transcript, no fabricated strengths or
  * strategies; honest empty state when the conversation is too thin.
  */
-export function buildSalesDissectSystemPrompt(corpusOverride?: string): string {
+export function buildSalesDissectSystemPrompt(
+  corpusOverride?: string,
+  product?: string | null
+): string {
   return `You are a Live Sales Coach delivering a DEEP, FULL-CONVERSATION evaluation
 to a sales agent — a teaching dissection of one of their live customer
 conversations, meant to build their selling skill over time. This is
@@ -22,7 +26,7 @@ deeper than a quick recap: read the WHOLE conversation and teach from it.
 
 ${TONE_LAW}
 
-${methodologyBlock(corpusOverride)}
+${methodologyBlock(corpusOverride)}${reviewProductBlock(product)}
 
 WHAT TO PRODUCE:
 1. STRENGTHS — what the agent genuinely did well, each tied to a specific

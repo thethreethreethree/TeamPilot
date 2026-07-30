@@ -55,8 +55,11 @@ export async function generateSalesDissect(args: {
     const agentSegments = args.segments.filter((s) => s.speaker === "agent");
     if (agentSegments.length < MIN_AGENT_SEGMENTS) return EMPTY;
 
-    const corpus = await getCurrentSalesCorpus(args.companyId).catch(() => null);
-    const systemPrompt = buildSalesDissectSystemPrompt(corpus?.content);
+    const [corpus, product] = await Promise.all([
+      getCurrentSalesCorpus(args.companyId).catch(() => null),
+      getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
+    ]);
+    const systemPrompt = buildSalesDissectSystemPrompt(corpus?.content, product?.content);
     const userMessage = buildSalesReviewUserMessage({
       sessionTitle: args.sessionTitle,
       context: args.context,
