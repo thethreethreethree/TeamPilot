@@ -153,6 +153,27 @@ export function overallSkillProgression(orderedRows: Layer3ScoreInput[]): Metric
   return { value: round1(delta), sampleSize: perSession.length, gated: false, sourceSessionIds: ids };
 }
 
+/**
+ * Consistency (Layer 4) — how steady the agent's conversation quality is call-to-call (spec: inverse of
+ * performance variance). 0-100 where higher = steadier. From the per-session overall-quality series (0-10),
+ * consistency = 100 − stddev·20 (stddev 0 → 100 perfectly steady; stddev 5, the max spread of a 0-10 metric,
+ * → 0), floored at 0. Gate: ≥ MIN_SESSIONS scored sessions.
+ */
+export function qualityConsistency(rows: Layer3ScoreInput[]): MetricResult {
+  const perSession: number[] = [];
+  const ids: string[] = [];
+  for (const r of rows) {
+    const vals = r.scores.filter((s) => !s.caveat && Number.isFinite(s.score)).map((s) => s.score);
+    if (vals.length > 0) {
+      perSession.push(vals.reduce((a, b) => a + b, 0) / vals.length);
+      ids.push(r.sessionId);
+    }
+  }
+  if (perSession.length < MIN_SESSIONS) return gated(perSession.length, ids);
+  const sd = baseline(perSession).stddev ?? 0;
+  return { value: round1(Math.max(0, 100 - sd * 20)), sampleSize: perSession.length, gated: false, sourceSessionIds: ids };
+}
+
 // ---- Layer 4: Coaching & growth (THE DIFFERENTIATOR) -------------------------------------------------
 
 /** Cue acceptance rate (%) = cues acted on ÷ cues delivered. Gate: ≥ MIN_SESSIONS cues delivered. */

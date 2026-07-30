@@ -88,7 +88,7 @@ const LAYERS: Layer[] = [
       { name: "Cue-to-outcome correlation", note: "did acting on a cue improve the result?" },
       { name: "Skill progression", note: "Δ in your quality scores vs. your own earlier calls", apiKey: "skillProgression", fmt: "delta" },
       { name: "Recommendation uptake", note: "did last session's advice show up this session?" },
-      { name: "Consistency", note: "how steady you are, session to session" },
+      { name: "Consistency", note: "how steady your quality is, call to call", apiKey: "consistency", fmt: "score" },
     ],
   },
 ];

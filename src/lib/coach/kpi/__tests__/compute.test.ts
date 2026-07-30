@@ -12,6 +12,7 @@ import {
   relianceReductionSlope,
   relianceReductionFromFirstCue,
   overallSkillProgression,
+  qualityConsistency,
   selfDelta,
   baseline,
   sumDollarsExact,
@@ -243,6 +244,12 @@ describe("Layer 4 (coaching & growth)", () => {
   it("overallSkillProgression gates below 2·MIN_SESSIONS scored sessions", () => {
     const r = (sid: string) => ({ sessionId: sid, scores: [{ key: "close", score: 6 }] });
     expect(overallSkillProgression([r("1"), r("2"), r("3")]).value).toBeNull();
+  });
+
+  it("qualityConsistency = 100 when quality is perfectly steady; gated below MIN_SESSIONS", () => {
+    const r = (sid: string, score: number) => ({ sessionId: sid, scores: [{ key: "objection", score }] });
+    expect(qualityConsistency([r("1", 6), r("2", 6), r("3", 6), r("4", 6), r("5", 6)]).value).toBe(100);
+    expect(qualityConsistency([r("1", 6), r("2", 6)]).value).toBeNull();
   });
 
   it("relianceReductionSlope gates below MIN_SESSIONS", () => {
